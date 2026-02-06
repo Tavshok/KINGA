@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE claims \nSET status = 'submitted' \nWHERE claim_number IN ('CLM-2024-0713-001', 'CLM-2024-0713-002');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute UPDATE claims \nSET status = 'submitted' \nWHERE claim_number IN ('CLM-2024-0713-001', 'CLM-2024-0713-002');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 106
+}

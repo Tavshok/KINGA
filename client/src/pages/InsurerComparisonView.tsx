@@ -9,6 +9,8 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { useState } from "react";
 import { toast } from "sonner";
+import PoliceReportForm from "@/components/PoliceReportForm";
+import VehicleValuationCard from "@/components/VehicleValuationCard";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -200,6 +202,16 @@ export default function InsurerComparisonView() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Police Report Section */}
+        <div className="mb-6">
+          <PoliceReportForm claimId={claimId} />
+        </div>
+
+        {/* Vehicle Valuation Section */}
+        <div className="mb-6">
+          <VehicleValuationCard claimId={claimId} />
+        </div>
 
         {/* Side-by-Side Comparison */}
         <div className="grid gap-6 lg:grid-cols-3">

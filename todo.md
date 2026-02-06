@@ -837,3 +837,16 @@
 - [x] Add police reports with speed discrepancies
 - [x] Add panel beater quotes from Yokama Investments
 - [x] Execute seed script and verify data
+
+
+## End-to-End Testing Preparation
+- [x] Fix duplicate useAuth import in AssessorClaimDetails.tsx
+- [x] Update test claim status from assessment_in_progress to submitted
+- [x] Verify test claims appear in Claims Triage view
+- [x] Test police report cross-validation display
+- [x] Test vehicle valuation AI service
+- [x] Verify fraud indicators appear correctly
+- [x] Complete end-to-end testing walkthrough
+
+- [x] Integrate police report section into comparison page
+- [x] Integrate vehicle valuation section into comparison page
