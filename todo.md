@@ -637,3 +637,165 @@
 - [ ] Add missing fields to database schema
 - [ ] Enhance AI assessment to match manual completeness
 - [ ] Create AI vs manual comparison report template
+
+
+## Manual Assessment Document Analysis
+- [ ] Analyze CI-024 first party motor claim document
+- [ ] Analyze CI-024 third party motor claim document
+- [ ] Analyze police report document (DocScanner)
+- [ ] Analyze MAKANDA claim documents
+- [ ] Analyze THIRDPARTY-AGJ7989 document
+- [ ] Extract all data fields captured in manual assessments
+- [ ] Identify forms, checklists, and procedures used
+- [ ] Compare manual vs AI assessment coverage
+- [ ] Document gaps in current AI system
+- [ ] Create enhancement plan to match manual completeness
+
+
+## Handwritten Quote Processing (User Feedback)
+- [ ] Integrate OCR for handwritten quote extraction
+- [ ] Add quote digitization workflow for panel beaters
+- [ ] Implement handwriting similarity analysis across quotes
+- [ ] Add template/format detection for quote fraud
+- [ ] Store both original image and extracted text
+- [ ] Create verification step for OCR results
+- [ ] Flag handwritten quotes for additional scrutiny
+
+
+## Manual Assessment Analysis - Critical Missing Features
+
+### Line-Item Quote Structure
+- [x] Create quote_line_items database table
+- [x] Add line item fields: description, part_number, category, quantity, unit_price, line_total
+- [x] Add repair vs replacement flag
+- [ ] Update quote submission form to capture line items
+- [ ] Build line-item comparison view in insurer comparison page
+- [ ] Implement line-item fraud detection (missing items, price discrepancies)
+- [ ] Add betterment calculation per line item
+- [ ] Create unit tests for line-item processing
+
+### Multi-Vehicle Claim Linking
+- [ ] Add related_claim_id and claim_type fields to claims table
+- [x] Create third_party_vehicles table
+- [ ] Build third party vehicle capture form
+- [ ] Implement collision compatibility validation (front-to-rear damage patterns)
+- [ ] Add same repairer detection across linked claims
+- [ ] Create cross-claim fraud detection algorithms
+- [ ] Build linked claims view in insurer dashboard
+- [ ] Add unit tests for multi-vehicle validation
+
+### Police Report Integration
+- [x] Create police_reports database table
+- [ ] Add police report capture form
+- [ ] Implement speed cross-validation (claimed vs police vs physics)
+- [ ] Add location cross-validation
+- [ ] Build weather cross-validation
+- [ ] Create document consistency checker
+- [ ] Add police report upload and OCR
+- [ ] Build police report view in claim details
+- [ ] Create unit tests for cross-validation
+
+### Pre-Accident Damage Documentation
+- [x] Create pre_accident_damage database table
+- [ ] Build pre-accident damage capture form
+- [ ] Add photo upload for pre-existing damage
+- [ ] Implement damage comparison (pre vs post accident)
+- [ ] Add fraud detection for claiming pre-existing damage
+- [ ] Build pre-accident damage view in assessment page
+- [ ] Create unit tests for damage comparison
+
+### Vehicle Condition Checklist
+- [x] Create vehicle_condition_assessment database table
+- [ ] Build comprehensive condition checklist form (brakes, tires, steering, etc.)
+- [ ] Add speedo reading capture and validation
+- [ ] Implement tire tread depth measurement
+- [ ] Add radio/token number tracking
+- [ ] Build condition assessment view in claim details
+- [ ] Implement contributory negligence detection (poor maintenance)
+- [ ] Create unit tests for condition assessment
+
+### VAT Handling
+- [ ] Add VAT fields to quotes table (subtotal, vat_rate, vat_amount, total_with_vat)
+- [ ] Add VAT fields to quote_line_items table
+- [ ] Update quote submission form with VAT calculation
+- [ ] Build VAT breakdown display in comparison view
+- [ ] Implement VAT validation and consistency checks
+- [ ] Add unit tests for VAT calculations
+
+### Multi-Level Approval Workflow
+- [x] Create approval_workflow database table
+- [ ] Implement three-tier approval (assessor → risk_surveyor → risk_manager)
+- [ ] Build approval interface for each level
+- [ ] Add approval routing logic
+- [ ] Implement return/rejection workflow
+- [ ] Add approval notifications for each level
+- [ ] Build approval history view
+- [ ] Create unit tests for approval workflow
+
+### Same Repairer Detection
+- [ ] Implement algorithm to detect same panel beater for first party and third party
+- [ ] Add fraud indicator for same repairer collusion
+- [ ] Build alert system for same repairer cases
+- [ ] Add manual override for legitimate same repairer cases
+- [ ] Create unit tests for same repairer detection
+
+### Document Cross-Validation
+- [ ] Build comprehensive cross-validation algorithm
+- [ ] Implement speed discrepancy detection (claim vs police vs physics)
+- [ ] Add location consistency checker
+- [ ] Build weather validation against historical data
+- [ ] Create description consistency analyzer
+- [ ] Add validation results to fraud indicators
+- [ ] Build cross-validation report view
+- [ ] Create unit tests for cross-validation
+
+### Betterment Calculations
+- [x] Implement depreciation formula for vehicle parts
+- [x] Add betterment calculation per line item
+- [ ] Build betterment summary in quote comparison
+- [ ] Add adjustable depreciation rates by part category
+- [ ] Implement betterment approval workflow
+- [ ] Create unit tests for betterment calculations
+
+### Weather API Integration
+- [ ] Set up OpenWeatherMap API integration
+- [ ] Implement historical weather data retrieval
+- [ ] Add weather validation to cross-validation system
+- [ ] Build weather data display in claim details
+- [ ] Create weather-based fraud detection (claimed vs actual)
+- [ ] Add unit tests for weather API integration
+
+### Vehicle Specifications Database
+- [ ] Set up NHTSA Vehicle API integration
+- [ ] Create vehicle_specifications database table
+- [ ] Implement VIN lookup functionality
+- [ ] Add vehicle specs to physics calculations (weight, dimensions)
+- [ ] Build vehicle specs display in claim details
+- [ ] Create manual vehicle specs entry for non-US vehicles
+- [ ] Add unit tests for vehicle specs integration
+
+### OCR for Handwritten Quotes
+- [ ] Integrate OCR service (Google Cloud Vision or Tesseract)
+- [ ] Build handwritten quote upload interface
+- [ ] Implement OCR text extraction
+- [ ] Add LLM-based quote parsing (extract line items)
+- [ ] Build handwriting analysis for fraud detection (compare handwriting across quotes)
+- [ ] Add manual correction interface for OCR errors
+- [ ] Create unit tests for OCR processing
+
+### End-to-End Testing
+- [ ] Test complete workflow with line-item quotes
+- [ ] Test multi-vehicle claim linking and validation
+- [ ] Test police report integration and cross-validation
+- [ ] Test pre-accident damage documentation
+- [ ] Test vehicle condition checklist
+- [ ] Test VAT calculations
+- [ ] Test multi-level approval workflow
+- [ ] Test same repairer detection
+- [ ] Test document cross-validation
+- [ ] Test betterment calculations
+- [ ] Test weather API integration
+- [ ] Test vehicle specs integration
+- [ ] Test OCR for handwritten quotes
+- [ ] Create final checkpoint with all manual assessment features
+

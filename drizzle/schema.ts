@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -656,3 +656,387 @@ export const fraudAlerts = mysqlTable("fraud_alerts", {
 
 export type FraudAlert = typeof fraudAlerts.$inferSelect;
 export type InsertFraudAlert = typeof fraudAlerts.$inferInsert;
+
+/**
+ * Quote Line Items - Detailed breakdown of repair quotes
+ * Captures itemized parts, labor, and costs for comprehensive quote analysis
+ */
+export const quoteLineItems = mysqlTable("quote_line_items", {
+  id: int("id").autoincrement().primaryKey(),
+  quoteId: int("quote_id").notNull(), // Reference to panel_beater_quotes
+  
+  // Line item details
+  itemNumber: int("item_number"), // Sequential number in quote
+  description: varchar("description", { length: 500 }).notNull(),
+  partNumber: varchar("part_number", { length: 100 }),
+  
+  // Categorization
+  category: mysqlEnum("category", ["parts", "labor", "paint", "diagnostic", "sundries", "other"]).notNull(),
+  
+  // Pricing
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+  
+  // VAT handling
+  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).default("15.00"), // Zimbabwe VAT is 15%
+  vatAmount: decimal("vat_amount", { precision: 10, scale: 2 }),
+  totalWithVat: decimal("total_with_vat", { precision: 10, scale: 2 }),
+  
+  // Repair vs replacement
+  isRepair: tinyint("is_repair").default(0),
+  isReplacement: tinyint("is_replacement").default(1),
+  
+  // Betterment calculation
+  bettermentAmount: decimal("betterment_amount", { precision: 10, scale: 2 }),
+  netCost: decimal("net_cost", { precision: 10, scale: 2 }), // After betterment deduction
+  
+  // Fraud detection flags
+  isPriceInflated: tinyint("is_price_inflated").default(0),
+  isUnrelatedDamage: tinyint("is_unrelated_damage").default(0),
+  isMissingInOtherQuotes: tinyint("is_missing_in_other_quotes").default(0),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
+export type InsertQuoteLineItem = typeof quoteLineItems.$inferInsert;
+
+/**
+ * Third Party Vehicles - Vehicles involved in multi-vehicle accidents
+ * Captures details of non-insured vehicles for liability claims
+ */
+export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(), // Reference to main claim
+  
+  // Vehicle details
+  make: varchar("make", { length: 100 }),
+  model: varchar("model", { length: 100 }),
+  year: int("year"),
+  registration: varchar("registration", { length: 50 }),
+  vin: varchar("vin", { length: 17 }),
+  color: varchar("color", { length: 50 }),
+  
+  // Owner/driver details
+  ownerName: varchar("owner_name", { length: 200 }),
+  ownerContact: varchar("owner_contact", { length: 100 }),
+  ownerAddress: text("owner_address"),
+  driverName: varchar("driver_name", { length: 200 }),
+  driverLicense: varchar("driver_license", { length: 100 }),
+  
+  // Insurance details
+  insuranceCompany: varchar("insurance_company", { length: 200 }),
+  policyNumber: varchar("policy_number", { length: 100 }),
+  
+  // Damage assessment
+  damageDescription: text("damage_description"),
+  damagePhotos: text("damage_photos"), // JSON array of S3 URLs
+  estimatedRepairCost: int("estimated_repair_cost"), // In cents
+  
+  // Valuation
+  marketValue: int("market_value"), // In cents
+  marketValueSource: varchar("market_value_source", { length: 255 }), // e.g., "Facebook Marketplace", "AutoTrader SA"
+  marketValueConfidence: mysqlEnum("market_value_confidence", ["low", "medium", "high"]),
+  
+  // Liability
+  liabilityPercentage: int("liability_percentage").default(0), // 0-100, percentage of fault
+  compensationAmount: int("compensation_amount"), // Final compensation in cents
+  compensationType: mysqlEnum("compensation_type", ["repair", "cash", "total_loss"]),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ThirdPartyVehicle = typeof thirdPartyVehicles.$inferSelect;
+export type InsertThirdPartyVehicle = typeof thirdPartyVehicles.$inferInsert;
+
+/**
+ * Vehicle Market Valuations - Market value assessments for vehicles
+ * Supports multi-source pricing for accurate total loss and betterment calculations
+ */
+export const vehicleMarketValuations = mysqlTable("vehicle_market_valuations", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  
+  // Vehicle identification
+  vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+  vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+  vehicleYear: int("vehicle_year").notNull(),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+  mileage: int("mileage"), // Odometer reading
+  condition: mysqlEnum("condition", ["excellent", "good", "fair", "poor"]),
+  
+  // Market value assessment
+  estimatedMarketValue: int("estimated_market_value").notNull(), // In cents
+  valuationMethod: mysqlEnum("valuation_method", [
+    "facebook_marketplace",
+    "classifieds",
+    "autotrader_sa",
+    "historical_claims",
+    "manual_assessor",
+    "ai_estimation",
+    "hybrid"
+  ]).notNull(),
+  
+  // Data sources (JSON array of price points)
+  facebookPrices: text("facebook_prices"), // JSON: [{price, listing_url, date}]
+  classifiedsPrices: text("classifieds_prices"),
+  autotraderSaPrices: text("autotrader_sa_prices"),
+  
+  // SA import calculation (if applicable)
+  saBasePrice: int("sa_base_price"), // In cents
+  importDutyPercent: decimal("import_duty_percent", { precision: 5, scale: 2 }),
+  importDutyAmount: int("import_duty_amount"),
+  transportCost: int("transport_cost"),
+  totalImportCost: int("total_import_cost"),
+  
+  // Confidence scoring
+  confidenceScore: int("confidence_score"), // 0-100
+  dataPointsCount: int("data_points_count"), // Number of comparable listings found
+  priceRange: text("price_range"), // JSON: {min, max, median, average}
+  
+  // Adjustments
+  conditionAdjustment: int("condition_adjustment"), // +/- cents based on condition
+  mileageAdjustment: int("mileage_adjustment"),
+  marketTrendAdjustment: int("market_trend_adjustment"),
+  finalAdjustedValue: int("final_adjusted_value"),
+  
+  // Total loss determination
+  isTotalLoss: tinyint("is_total_loss").default(0),
+  totalLossThreshold: decimal("total_loss_threshold", { precision: 5, scale: 2 }).default("60.00"), // Percentage
+  repairCostToValueRatio: decimal("repair_cost_to_value_ratio", { precision: 5, scale: 2 }),
+  
+  // Assessor override
+  assessorOverride: tinyint("assessor_override").default(0),
+  assessorValue: int("assessor_value"),
+  assessorJustification: text("assessor_justification"),
+  
+  // Metadata
+  valuationDate: timestamp("valuation_date").defaultNow().notNull(),
+  validUntil: timestamp("valid_until"), // Valuation expires after 30 days
+  valuedBy: int("valued_by"), // User ID of assessor/system
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VehicleMarketValuation = typeof vehicleMarketValuations.$inferSelect;
+export type InsertVehicleMarketValuation = typeof vehicleMarketValuations.$inferInsert;
+
+/**
+ * Police Reports - Official police accident reports
+ * Captures police documentation for cross-validation with claim details
+ */
+export const policeReports = mysqlTable("police_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  
+  // Police report details
+  reportNumber: varchar("report_number", { length: 100 }).notNull(),
+  policeStation: varchar("police_station", { length: 200 }),
+  officerName: varchar("officer_name", { length: 200 }),
+  officerBadgeNumber: varchar("officer_badge_number", { length: 100 }),
+  reportDate: timestamp("report_date"),
+  
+  // Accident details (from police perspective)
+  reportedSpeed: int("reported_speed"), // KM/H
+  reportedWeather: varchar("reported_weather", { length: 100 }),
+  reportedRoadCondition: varchar("reported_road_condition", { length: 100 }),
+  reportedVisibility: varchar("reported_visibility", { length: 100 }),
+  accidentLocation: text("accident_location"),
+  accidentDescription: text("accident_description"),
+  
+  // Violations and citations
+  violationsIssued: text("violations_issued"), // JSON array
+  citationNumbers: text("citation_numbers"), // JSON array
+  
+  // Witnesses
+  witnessStatements: text("witness_statements"), // JSON array
+  witnessCount: int("witness_count").default(0),
+  
+  // Evidence
+  policePhotos: text("police_photos"), // JSON array of S3 URLs
+  accidentDiagram: varchar("accident_diagram", { length: 500 }), // S3 URL
+  
+  // Document upload
+  reportDocumentUrl: varchar("report_document_url", { length: 500 }), // PDF of official report
+  
+  // Cross-validation flags
+  speedDiscrepancy: int("speed_discrepancy"), // Difference between claimed and reported speed
+  locationMismatch: tinyint("location_mismatch").default(0),
+  weatherMismatch: tinyint("weather_mismatch").default(0),
+  descriptionInconsistent: tinyint("description_inconsistent").default(0),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PoliceReport = typeof policeReports.$inferSelect;
+export type InsertPoliceReport = typeof policeReports.$inferInsert;
+
+/**
+ * Pre-Accident Damage - Documentation of existing damage before accident
+ * Prevents fraudulent claims for pre-existing damage
+ */
+export const preAccidentDamage = mysqlTable("pre_accident_damage", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  
+  // Damage details
+  damageType: mysqlEnum("damage_type", [
+    "rust",
+    "dent",
+    "scratch",
+    "paint_damage",
+    "mechanical",
+    "glass",
+    "interior",
+    "other"
+  ]).notNull(),
+  location: varchar("location", { length: 200 }).notNull(), // e.g., "front bumper", "driver door"
+  severity: mysqlEnum("severity", ["minor", "moderate", "severe"]).notNull(),
+  description: text("description"),
+  
+  // Evidence
+  photoUrl: varchar("photo_url", { length: 500 }), // S3 URL
+  documentedDate: timestamp("documented_date"),
+  
+  // Assessment
+  estimatedAge: varchar("estimated_age", { length: 100 }), // e.g., "6 months", "1-2 years"
+  isRelatedToCurrentClaim: tinyint("is_related_to_current_claim").default(0),
+  
+  // Assessor notes
+  assessorNotes: text("assessor_notes"),
+  documentedBy: int("documented_by"), // User ID
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type PreAccidentDamage = typeof preAccidentDamage.$inferSelect;
+export type InsertPreAccidentDamage = typeof preAccidentDamage.$inferInsert;
+
+/**
+ * Vehicle Condition Assessment - Comprehensive mechanical and safety inspection
+ * Documents overall vehicle condition at time of claim
+ */
+export const vehicleConditionAssessment = mysqlTable("vehicle_condition_assessment", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  assessorId: int("assessor_id").notNull(),
+  
+  // Odometer
+  speedoReading: int("speedo_reading"), // Mileage
+  speedoUnit: mysqlEnum("speedo_unit", ["km", "miles"]).default("km"),
+  
+  // Mechanical condition
+  brakesCondition: mysqlEnum("brakes_condition", ["good", "fair", "poor"]),
+  brakesNotes: text("brakes_notes"),
+  
+  steeringCondition: mysqlEnum("steering_condition", ["good", "fair", "poor"]),
+  steeringNotes: text("steering_notes"),
+  
+  tiresCondition: mysqlEnum("tires_condition", ["good", "fair", "poor"]),
+  tireTreadDepthMm: int("tire_tread_depth_mm"),
+  tiresNotes: text("tires_notes"),
+  
+  suspensionCondition: mysqlEnum("suspension_condition", ["good", "fair", "poor"]),
+  suspensionNotes: text("suspension_notes"),
+  
+  // Body condition
+  bodyworkCondition: mysqlEnum("bodywork_condition", ["good", "fair", "poor"]),
+  bodyworkNotes: text("bodywork_notes"),
+  
+  paintworkCondition: mysqlEnum("paintwork_condition", ["good", "fair", "poor"]),
+  paintworkNotes: text("paintwork_notes"),
+  
+  // Interior condition
+  upholsteryCondition: mysqlEnum("upholstery_condition", ["good", "fair", "poor"]),
+  upholsteryNotes: text("upholstery_notes"),
+  
+  // General mechanical
+  generalMechanical: mysqlEnum("general_mechanical", ["good", "fair", "poor"]),
+  mechanicalNotes: text("mechanical_notes"),
+  
+  // Accessories
+  radioPresent: tinyint("radio_present").default(1),
+  radioModel: varchar("radio_model", { length: 100 }),
+  tokenNumber: varchar("token_number", { length: 100 }), // Radio security token
+  
+  // Overall assessment
+  overallCondition: mysqlEnum("overall_condition", ["excellent", "good", "fair", "poor"]),
+  maintenanceLevel: mysqlEnum("maintenance_level", ["well_maintained", "average", "poorly_maintained"]),
+  
+  // Contributory negligence flags
+  hasContributoryNegligence: tinyint("has_contributory_negligence").default(0),
+  negligenceDescription: text("negligence_description"),
+  
+  // Photos
+  conditionPhotos: text("condition_photos"), // JSON array of S3 URLs
+  
+  // Assessment metadata
+  assessmentDate: timestamp("assessment_date").defaultNow().notNull(),
+  assessorSignature: varchar("assessor_signature", { length: 500 }), // Digital signature URL
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VehicleConditionAssessment = typeof vehicleConditionAssessment.$inferSelect;
+export type InsertVehicleConditionAssessment = typeof vehicleConditionAssessment.$inferInsert;
+
+/**
+ * Approval Workflow - Multi-level approval process for claims
+ * Implements three-tier approval: Assessor → Risk Surveyor → Risk Manager
+ */
+export const approvalWorkflow = mysqlTable("approval_workflow", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  
+  // Approval level
+  level: mysqlEnum("level", ["assessor", "risk_surveyor", "risk_manager"]).notNull(),
+  levelOrder: int("level_order").notNull(), // 1, 2, 3
+  
+  // Approver details
+  approverId: int("approver_id"), // User ID
+  approverName: varchar("approver_name", { length: 200 }),
+  approverRole: varchar("approver_role", { length: 100 }),
+  
+  // Approval status
+  status: mysqlEnum("status", ["pending", "approved", "rejected", "returned"]).default("pending").notNull(),
+  
+  // Decision details
+  approvedAmount: int("approved_amount"), // In cents
+  comments: text("comments"),
+  conditions: text("conditions"), // JSON array of approval conditions
+  
+  // Rejection/return details
+  rejectionReason: text("rejection_reason"),
+  returnReason: text("return_reason"),
+  returnToLevel: mysqlEnum("return_to_level", ["assessor", "risk_surveyor"]),
+  
+  // Timestamps
+  submittedAt: timestamp("submitted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  approvalDate: timestamp("approval_date"),
+  
+  // Escalation
+  isEscalated: tinyint("is_escalated").default(0),
+  escalationReason: text("escalation_reason"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ApprovalWorkflow = typeof approvalWorkflow.$inferSelect;
+export type InsertApprovalWorkflow = typeof approvalWorkflow.$inferInsert;
