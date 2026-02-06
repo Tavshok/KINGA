@@ -94,7 +94,7 @@ export default function InsurerDashboard() {
                 <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
               </div>
               <div className="flex gap-3 justify-center">
-                <Button onClick={() => setLocation("/insurer/claims-triage")}>
+                <Button onClick={() => setLocation("/insurer/claims/triage")}>
                   View Claims Triage
                 </Button>
                 {user?.role === "admin" && (
