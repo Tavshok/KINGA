@@ -13,6 +13,7 @@ import AssessorDashboard from "./pages/AssessorDashboard";
 import PanelBeaterDashboard from "./pages/PanelBeaterDashboard";
 import ClaimantDashboard from "./pages/ClaimantDashboard";
 import SubmitClaim from "./pages/SubmitClaim";
+import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 
 function Router() {
   return (
@@ -25,6 +26,12 @@ function Router() {
       <Route path="/insurer/dashboard">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/claims-triage">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerClaimsTriage />
         </ProtectedRoute>
       </Route>
       

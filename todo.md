@@ -83,3 +83,18 @@
 - [ ] Polish UI/UX for all components
 - [ ] Create comprehensive vitest tests
 - [ ] Create project checkpoint for deployment
+
+## Continuation Phase: Complete Remaining Features
+- [x] Create test data seeding script for panel beaters
+- [ ] Add sample claims for testing
+- [x] Build insurer claims triage list view
+- [x] Add policy verification and assessor assignment UI
+- [x] Implement AI assessment trigger functionality
+- [ ] Create assessor claim details page
+- [ ] Build assessor evaluation form
+- [ ] Implement panel beater quote submission form
+- [ ] Create insurer comparison view (side-by-side AI, assessor, panel beater quotes)
+- [ ] Implement real S3 image upload using storagePut
+- [ ] Add claims list to claimant dashboard
+- [ ] Test complete end-to-end workflow
+- [ ] Create final checkpoint with all features

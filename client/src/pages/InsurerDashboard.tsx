@@ -2,9 +2,11 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Shield, FileText, AlertTriangle, TrendingUp } from "lucide-react";
+import { useLocation } from "wouter";
 
 export default function InsurerDashboard() {
   const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -86,9 +88,14 @@ export default function InsurerDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No claims to display</p>
-              <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
+            <div className="text-center py-12 text-muted-foreground space-y-4">
+              <div>
+                <p>No claims to display</p>
+                <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
+              </div>
+              <Button onClick={() => setLocation("/insurer/claims-triage")}>
+                View Claims Triage
+              </Button>
             </div>
           </CardContent>
         </Card>
