@@ -11,6 +11,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
+import { QuoteComparison } from "@/components/QuoteComparison";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -33,11 +34,14 @@ export default function InsurerComparisonView() {
     { enabled: !!claimId }
   );
 
-  // Get panel beater quotes
-  const { data: quotes = [], isLoading: quotesLoading } = trpc.quotes.byClaim.useQuery(
+  // Get panel beater quotes with line items
+  const { data: quotesWithItems = [], isLoading: quotesLoading } = trpc.quotes.getWithLineItems.useQuery(
     { claimId },
     { enabled: !!claimId }
   );
+  
+  // Also get basic quotes for backward compatibility
+  const quotes = quotesWithItems;
 
   const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading;
 
@@ -404,6 +408,11 @@ export default function InsurerComparisonView() {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Intelligent Quote Comparison */}
+        {quotes.length >= 2 && quotes.some(q => q.lineItems && q.lineItems.length > 0) && (
+          <QuoteComparison quotes={quotes} />
+        )}
         
            {/* Physics-Based Quote Validation */}
         {aiAssessment && quotes.length > 0 && (

@@ -1,0 +1,9 @@
+{
+  "query": "INSERT INTO quote_line_items (quote_id, description, part_number, category, quantity, unit_price, line_total, is_repair, is_replacement, betterment_amount, net_cost) VALUES\n(30001, 'Front Bumper Assembly', 'TOY-BMP-2017-F', 'parts', 1, 450.00, 450.00, 0, 1, 67.50, 382.50),\n(30001, 'Headlight Assembly (Left)', 'TOY-HL-L-2017', 'parts', 1, 320.00, 320.00, 0, 1, 32.00, 288.00),\n(30001, 'Hood Panel Repair', 'N/A', 'labor', 1, 280.00, 280.00, 1, 0, 0, 280.00),\n(30001, 'Paint Work (3 panels)', 'N/A', 'paint', 3, 120.00, 360.00, 1, 0, 0, 360.00),\n(30001, 'Labor and Installation', 'N/A', 'labor', 1, 200.00, 200.00, 1, 0, 0, 200.00);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute INSERT INTO quote_line_items (quote_id, description, part_number, category, quantity, unit_price, line_total, is_repair, is_replacement, betterment_amount, net_cost) VALUES\n(30001, 'Front Bumper Assembly', 'TOY-BMP-2017-F', 'parts', 1, 450.00, 450.00, 0, 1, 67.50, 382.50),\n(30001, 'Headlight Assembly (Left)', 'TOY-HL-L-2017', 'parts', 1, 320.00, 320.00, 0, 1, 32.00, 288.00),\n(30001, 'Hood Panel Repair', 'N/A', 'labor', 1, 280.00, 280.00, 1, 0, 0, 280.00),\n(30001, 'Paint Work (3 panels)', 'N/A', 'paint', 3, 120.00, 360.00, 1, 0, 0, 360.00),\n(30001, 'Labor and Installation', 'N/A', 'labor', 1, 200.00, 200.00, 1, 0, 0, 200.00);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 223
+}

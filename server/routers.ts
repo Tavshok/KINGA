@@ -42,7 +42,8 @@ import {
   getPoliceReportByClaimId,
   updatePoliceReport,
   createVehicleMarketValuation,
-  getVehicleMarketValuationByClaimId
+  getVehicleMarketValuationByClaimId,
+  getQuoteLineItemsByQuoteId
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
@@ -583,6 +584,26 @@ export const appRouter = router({
       .input(z.object({ claimId: z.number() }))
       .query(async ({ input }) => {
         return await getQuotesByClaimId(input.claimId);
+      }),
+
+    // Get quotes with line items for comparison
+    getWithLineItems: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input }) => {
+        const quotes = await getQuotesByClaimId(input.claimId);
+        
+        // Fetch line items for each quote
+        const quotesWithItems = await Promise.all(
+          quotes.map(async (quote) => {
+            const lineItems = await getQuoteLineItemsByQuoteId(quote.id);
+            return {
+              ...quote,
+              lineItems,
+            };
+          })
+        );
+        
+        return quotesWithItems;
       }),
   }),
 
