@@ -913,4 +913,12 @@
 - [x] Add role-based login redirect from landing page
 - [x] Style landing page with KINGA branding and vibrant colors
 - [x] Test portal selection flow for all roles
+- [x] Save checkpoint after implementation
+
+
+## Role Switcher for Testing
+- [x] Create tRPC procedure to temporarily switch user role
+- [x] Build RoleSwitcher component with dropdown
+- [x] Add role switcher to dashboard headers (admin-only)
+- [x] Test switching between all roles
 - [ ] Save checkpoint after implementation

@@ -60,6 +60,45 @@ export const appRouter = router({
         success: true,
       } as const;
     }),
+    /**
+     * Switch Role (Testing Only)
+     * 
+     * Temporarily switches the current user's role for testing purposes.
+     * Only available to admin users.
+     * 
+     * @requires Admin role
+     * @param role - Target role to switch to
+     */
+    switchRole: protectedProcedure
+      .input(z.object({
+        role: z.enum(["insurer", "assessor", "panel_beater", "claimant", "admin"])
+      }))
+      .mutation(async ({ ctx, input }) => {
+        // Only allow admins to switch roles
+        if (ctx.user.role !== "admin") {
+          throw new Error("Only admins can switch roles");
+        }
+        
+        // Import db function and schema
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        const db = await getDb();
+        if (!db) {
+          throw new Error("Database not available");
+        }
+        
+        // Update user role in database
+        await db.update(users)
+          .set({ role: input.role })
+          .where(eq(users.openId, ctx.user.openId));
+        
+        return {
+          success: true,
+          newRole: input.role
+        };
+      }),
   }),
 
   /**

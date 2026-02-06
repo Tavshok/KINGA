@@ -7,6 +7,7 @@ import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { NotificationBell } from "@/components/NotificationBell";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function AssessorDashboard() {
   const { user, logout } = useAuth();
@@ -30,6 +31,7 @@ export default function AssessorDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <RoleSwitcher />
             <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>

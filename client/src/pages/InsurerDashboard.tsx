@@ -6,6 +6,7 @@ import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { NotificationBell } from "@/components/NotificationBell";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function InsurerDashboard() {
   const { user, logout } = useAuth();
@@ -56,6 +57,7 @@ export default function InsurerDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <RoleSwitcher />
             <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>

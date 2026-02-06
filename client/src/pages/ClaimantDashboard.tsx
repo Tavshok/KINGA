@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FileText, Plus, Clock, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { NotificationBell } from "@/components/NotificationBell";
+import RoleSwitcher from "@/components/RoleSwitcher";
 
 export default function ClaimantDashboard() {
   const { user, logout } = useAuth();
@@ -22,6 +23,7 @@ export default function ClaimantDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <RoleSwitcher />
             <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>
