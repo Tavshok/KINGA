@@ -16,6 +16,7 @@ import ClaimantDashboard from "./pages/ClaimantDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
+import InsurerClaimDetails from "./pages/InsurerClaimDetails";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
 import FraudAnalyticsDashboard from "./pages/FraudAnalyticsDashboard";
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
@@ -38,6 +39,12 @@ function Router() {
       <Route path="/insurer/claims/triage">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerClaimsTriage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/claims/:id">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerClaimDetails />
         </ProtectedRoute>
       </Route>
       
