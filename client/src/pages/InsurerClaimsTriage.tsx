@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3 } from "lucide-react";
+import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3 } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -121,9 +122,9 @@ export default function InsurerClaimsTriage() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Shield className="h-8 w-8 text-primary" />
+              <KingaLogo />
               <div>
-                <h1 className="text-2xl font-bold">KINGA - Claims Triage</h1>
+                <p className="text-sm text-muted-foreground">Claims Triage</p>
                 <p className="text-sm text-muted-foreground">Review and process submitted claims</p>
               </div>
             </div>

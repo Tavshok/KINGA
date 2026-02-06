@@ -10,7 +10,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Users, TrendingUp, AlertTriangle, CheckCircle, XCircle, Settings } from "lucide-react";
+import {  Users, TrendingUp, AlertTriangle, CheckCircle, XCircle, Settings } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -81,9 +82,9 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Shield className="h-8 w-8 text-primary" />
+              <KingaLogo />
               <div>
-                <h1 className="text-2xl font-bold">KINGA - Admin Panel</h1>
+                <p className="text-sm text-muted-foreground">Admin Panel</p>
                 <p className="text-sm text-muted-foreground">System Management & Configuration</p>
               </div>
             </div>

@@ -3,7 +3,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Shield, ArrowLeft, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 
@@ -108,7 +109,7 @@ export default function InsurerComparisonView() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Shield className="h-8 w-8 text-primary" />
+              <KingaLogo />
               <div>
                 <h1 className="text-2xl font-bold">Fraud Detection & Comparison</h1>
                 <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>

@@ -2,7 +2,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardCheck, Calendar, FileText, Clock, Eye } from "lucide-react";
+import { Calendar, FileText, Clock, Eye, ClipboardCheck } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 
@@ -22,10 +23,9 @@ export default function AssessorDashboard() {
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <ClipboardCheck className="h-8 w-8 text-primary" />
+            <KingaLogo />
             <div>
-              <h1 className="text-2xl font-bold">KINGA - Assessor Portal</h1>
-              <p className="text-sm text-muted-foreground">Claim Assessment & Inspections</p>
+              <p className="text-sm text-muted-foreground">Assessor Portal - Claim Assessment & Inspections</p>
             </div>
           </div>
           <div className="flex items-center gap-4">

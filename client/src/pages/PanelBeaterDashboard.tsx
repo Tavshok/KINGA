@@ -2,7 +2,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Wrench, FileText, DollarSign, Clock, FileEdit } from "lucide-react";
+import { FileText, DollarSign, Clock, FileEdit } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 
@@ -36,10 +37,9 @@ export default function PanelBeaterDashboard() {
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Wrench className="h-8 w-8 text-primary" />
+            <KingaLogo />
             <div>
-              <h1 className="text-2xl font-bold">KINGA - Panel Beater Portal</h1>
-              <p className="text-sm text-muted-foreground">Quote Submission & Repair Coordination</p>
+              <p className="text-sm text-muted-foreground">Panel Beater Portal - Quote Submission & Repair Coordination</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -82,7 +82,7 @@ export default function PanelBeaterDashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Active Repairs</CardTitle>
-              <Wrench className="h-4 w-4 text-blue-500" />
+              <FileEdit className="h-4 w-4 text-blue-500" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>

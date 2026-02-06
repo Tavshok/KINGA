@@ -1,7 +1,8 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, FileText, AlertTriangle, TrendingUp, Settings } from "lucide-react";
+import { FileText, AlertTriangle, TrendingUp, Settings } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
 
 export default function InsurerDashboard() {
@@ -14,10 +15,9 @@ export default function InsurerDashboard() {
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Shield className="h-8 w-8 text-primary" />
+            <KingaLogo />
             <div>
-              <h1 className="text-2xl font-bold">KINGA - Insurer Portal</h1>
-              <p className="text-sm text-muted-foreground">Claims Management & Triage</p>
+              <p className="text-sm text-muted-foreground">Insurer Portal - Claims Management & Triage</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
