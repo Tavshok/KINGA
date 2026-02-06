@@ -17,6 +17,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
+import FraudAnalyticsDashboard from "./pages/FraudAnalyticsDashboard";
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 import ClaimDocuments from "./pages/ClaimDocuments";
 
@@ -43,6 +44,12 @@ function Router() {
       <Route path="/insurer/claims/:id/comparison">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerComparisonView />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/fraud-analytics">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <FraudAnalyticsDashboard />
         </ProtectedRoute>
       </Route>
       

@@ -390,12 +390,30 @@ export default function InsurerComparisonView() {
           </Card>
         </div>
         
-        {/* Claim Approval Section */}
-        <Card className="mt-8">
+           {/* Physics-Based Quote Validation */}
+        {aiAssessment && quotes.length > 0 && (
+          <Card className="border-2 border-blue-200 bg-blue-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-blue-600">Physics Analysis</Badge>
+                Quote Validation & Fraud Detection
+              </CardTitle>
+              <CardDescription>
+                Physics-based validation of quoted repairs against accident dynamics
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Claim Approval & Panel Beater Selection */}
+        <Card>
           <CardHeader>
             <CardTitle>Claim Approval & Panel Beater Selection</CardTitle>
             <CardDescription>
-              Review all evaluations and select the winning panel beater quote to proceed with repairs
+              Select the winning quote and approve the claim for repair
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -490,6 +508,187 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
           <p className="text-xs mt-2">Wait for all panel beater quotes to be submitted</p>
         </div>
       )}
+    </div>
+  );
+}
+
+
+// Physics Validation Component
+function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessment: any; quotes: any[]; claim: any }) {
+  // Parse physics analysis from AI assessment
+  const physicsAnalysis = aiAssessment.physicsAnalysis ? JSON.parse(aiAssessment.physicsAnalysis) : null;
+  
+  if (!physicsAnalysis) {
+    return (
+      <div className="text-center py-8 text-muted-foreground">
+        <p>Physics analysis not available for this claim</p>
+        <p className="text-xs mt-2">Physics analysis runs automatically with AI assessment</p>
+      </div>
+    );
+  }
+  
+  return (
+    <div className="space-y-6">
+      {/* Accident Physics Summary */}
+      <div className="grid gap-4 md:grid-cols-3">
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-xs text-muted-foreground mb-1">Estimated Speed</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {physicsAnalysis.estimatedSpeed?.value || 0} km/h
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            ±{Math.abs((physicsAnalysis.estimatedSpeed?.confidenceInterval?.[1] || 0) - (physicsAnalysis.estimatedSpeed?.value || 0))} km/h
+          </p>
+        </div>
+        
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-xs text-muted-foreground mb-1">Impact Force</p>
+          <p className="text-2xl font-bold text-blue-600">
+            {((physicsAnalysis.impactForce?.magnitude || 0) / 1000).toFixed(1)} kN
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {physicsAnalysis.impactForce?.duration || 0}ms duration
+          </p>
+        </div>
+        
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-xs text-muted-foreground mb-1">Accident Severity</p>
+          <Badge 
+            variant={
+              physicsAnalysis.accidentSeverity === "catastrophic" ? "destructive" :
+              physicsAnalysis.accidentSeverity === "severe" ? "destructive" :
+              physicsAnalysis.accidentSeverity === "moderate" ? "default" : "secondary"
+            }
+            className="text-sm"
+          >
+            {physicsAnalysis.accidentSeverity}
+          </Badge>
+          <p className="text-xs text-muted-foreground mt-2">
+            Injury Risk: {physicsAnalysis.occupantInjuryRisk}
+          </p>
+        </div>
+      </div>
+      
+      {/* EV/Hybrid Analysis */}
+      {physicsAnalysis.evHybridAnalysis && (
+        <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertTriangle className="h-5 w-5 text-orange-600" />
+            <h4 className="font-semibold text-orange-900">EV/Hybrid Vehicle Safety Alert</h4>
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <p className="text-sm font-medium text-orange-900">Battery Damage Risk</p>
+              <Badge variant={
+                physicsAnalysis.evHybridAnalysis.batteryDamageRisk === "critical" ? "destructive" :
+                physicsAnalysis.evHybridAnalysis.batteryDamageRisk === "high" ? "destructive" :
+                "default"
+              }>
+                {physicsAnalysis.evHybridAnalysis.batteryDamageRisk}
+              </Badge>
+            </div>
+            <div>
+              <p className="text-sm font-medium text-orange-900">Fire/Explosion Risk</p>
+              <p className="text-sm">{physicsAnalysis.evHybridAnalysis.fireExplosionRisk}%</p>
+            </div>
+          </div>
+          {physicsAnalysis.evHybridAnalysis.specialSafetyProtocols?.length > 0 && (
+            <div className="mt-3">
+              <p className="text-sm font-medium text-orange-900 mb-2">Required Safety Protocols:</p>
+              <ul className="text-xs space-y-1 text-orange-800">
+                {physicsAnalysis.evHybridAnalysis.specialSafetyProtocols.slice(0, 3).map((protocol: string, idx: number) => (
+                  <li key={idx}>• {protocol}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Fraud Indicators from Physics */}
+      {physicsAnalysis.fraudIndicators && (
+        <div className="space-y-3">
+          <h4 className="font-semibold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            Physics-Based Fraud Detection
+          </h4>
+          
+          {/* Impossible Damage Patterns */}
+          {physicsAnalysis.fraudIndicators.impossibleDamagePatterns?.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm font-medium text-red-900 mb-2">⚠️ Impossible Damage Patterns Detected</p>
+              <ul className="text-xs space-y-1 text-red-800">
+                {physicsAnalysis.fraudIndicators.impossibleDamagePatterns.map((pattern: string, idx: number) => (
+                  <li key={idx}>• {pattern}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Unrelated Damage */}
+          {physicsAnalysis.fraudIndicators.unrelatedDamage?.length > 0 && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
+              <ul className="text-xs space-y-1 text-yellow-800">
+                {physicsAnalysis.fraudIndicators.unrelatedDamage.map((damage: any, idx: number) => (
+                  <li key={idx}>
+                    • {damage.component} ({damage.distanceFromImpact.toFixed(1)}m from impact point)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Staged Accident Indicators */}
+          {physicsAnalysis.fraudIndicators.stagedAccidentIndicators?.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm font-medium text-red-900 mb-2">🚨 Staged Accident Indicators</p>
+              <ul className="text-xs space-y-1 text-red-800">
+                {physicsAnalysis.fraudIndicators.stagedAccidentIndicators.map((indicator: string, idx: number) => (
+                  <li key={idx}>• {indicator}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Severity Mismatch */}
+          {physicsAnalysis.fraudIndicators.severityMismatch && (
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-sm font-medium text-orange-900">⚠️ Severity Mismatch</p>
+              <p className="text-xs text-orange-800 mt-1">
+                Reported damage severity doesn't match estimated impact speed and forces
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+      
+      {/* Quote Validation Summary */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h4 className="font-semibold text-blue-900 mb-3">Quote Validation Summary</h4>
+        <div className="space-y-2">
+          {quotes.map((quote, idx) => {
+            const hasIssues = physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0 || 
+                             physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0;
+            return (
+              <div key={quote.id} className="flex items-center justify-between p-2 bg-white rounded border">
+                <span className="text-sm">Panel Beater #{quote.panelBeaterId}</span>
+                {hasIssues ? (
+                  <Badge variant="destructive" className="text-xs">
+                    <AlertTriangle className="h-3 w-3 mr-1" />
+                    Review Required
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">
+                    <CheckCircle2 className="h-3 w-3 mr-1" />
+                    Validated
+                  </Badge>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -540,3 +540,35 @@
 - [ ] Wire up physics alerts to notification system
 - [ ] Test integrated system end-to-end
 - [ ] Create checkpoint with complete integrated system
+
+
+## Additional Engineering Features (Immediate Implementation - No Sensors Required)
+- [ ] Paint & bodywork forensics (detect previous repairs, overspray, pre-existing damage)
+- [ ] Tire wear pattern analysis from photos (alignment issues, fraud detection)
+- [ ] Fluid leak detection from photos (oil, coolant, brake fluid, fuel)
+- [ ] Glass damage analysis (stress cracks, pre-existing vs impact)
+- [ ] Structural damage assessment (frame deformation, panel gaps, alignment)
+- [ ] Automated parts pricing verification against market rates
+- [ ] Weather & environmental context integration (accident time/location)
+- [ ] Total loss assessment automation (repair cost vs vehicle value)
+- [ ] Mileage verification from wear patterns (odometer fraud detection)
+- [ ] ADAS damage assessment from photos (camera/sensor damage, recalibration costs)
+- [ ] Rust assessment (pre-existing vs accident-related corrosion)
+- [ ] Suspension geometry analysis from photos
+- [ ] Headlight/taillight damage verification
+- [ ] Door/hood/trunk alignment analysis
+- [ ] Diminished value calculation
+- [ ] OEM vs aftermarket parts comparison
+- [ ] Repair timeline estimation based on parts availability
+
+## Future Enhancements (Require Sensors/Telematics/Hardware)
+- [ ] EDR (Event Data Recorder) integration for speed/braking data
+- [ ] Real-time telematics integration
+- [ ] 3D photogrammetry for damage volume calculation
+- [ ] Paint thickness measurement tools
+- [ ] Electronic diagnostics integration (OBD-II)
+- [ ] Accelerometer data analysis
+- [ ] GPS tracking integration
+- [ ] Driver behavior scoring from telematics
+- [ ] Automated parts ordering system
+- [ ] Post-repair quality verification with sensors
