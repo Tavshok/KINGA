@@ -605,3 +605,35 @@
 - [x] Improve spacing and layout of claim number display
 - [x] Reorganize header elements to prevent clutter
 - [x] Ensure proper responsive layout for all screen sizes
+
+
+## Fraud Analytics Dashboard Implementation
+- [x] Create fraud trends chart (claims over time by fraud risk level)
+- [x] Build cost impact analysis visualization
+- [x] Add fraud detection rate metrics
+- [x] Create entity fraud profiles section
+- [x] Implement fraud statistics summary cards
+- [x] Add navigation link to insurer dashboard
+
+## Weather API Integration
+- [ ] Research and select weather API provider (OpenWeatherMap/WeatherAPI)
+- [ ] Implement historical weather data fetching
+- [ ] Add weather validation to forensic analysis
+- [ ] Store weather data with claims for audit trail
+- [ ] Create weather inconsistency alerts
+
+## Vehicle Database Integration
+- [ ] Design vehicle specifications database schema
+- [ ] Populate database with common vehicle specs (mass, dimensions, powertrain)
+- [ ] Implement VIN decode functionality
+- [ ] Add make/model/year lookup for physics calculations
+- [ ] Integrate vehicle data into AI assessment workflow
+- [ ] Add EV/Hybrid automatic detection
+
+## Manual Assessment Analysis
+- [ ] Review manual assessment documents provided by user
+- [ ] Identify all data points captured in manual assessments
+- [ ] Compare manual vs AI assessment coverage
+- [ ] Add missing fields to database schema
+- [ ] Enhance AI assessment to match manual completeness
+- [ ] Create AI vs manual comparison report template

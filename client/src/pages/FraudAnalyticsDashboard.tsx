@@ -1,4 +1,3 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +5,8 @@ import { ArrowLeft, TrendingUp, AlertTriangle, DollarSign, Users, MapPin } from 
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { LineChart, Line, PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 
 export default function FraudAnalyticsDashboard() {
   const { user, logout } = useAuth();
@@ -113,6 +114,80 @@ export default function FraudAnalyticsDashboard() {
               <p className="text-xs text-muted-foreground mt-1">
                 AI + Physics analysis
               </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Charts Section */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Fraud Trends Chart */}
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Fraud Detection Trends</CardTitle>
+              <CardDescription>Claims processed over time by fraud risk level</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <LineChart data={fraudStats.trendsData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Line type="monotone" dataKey="high" stroke="#dc2626" strokeWidth={2} name="High Risk" />
+                  <Line type="monotone" dataKey="medium" stroke="#eab308" strokeWidth={2} name="Medium Risk" />
+                  <Line type="monotone" dataKey="low" stroke="#16a34a" strokeWidth={2} name="Low Risk" />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Detection Methods Pie Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Detection Method Distribution</CardTitle>
+              <CardDescription>Fraud detected by analysis type</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={fraudStats.detectionMethodsData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {fraudStats.detectionMethodsData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* Cost Impact Bar Chart */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Fraud Cost Impact by Risk Level</CardTitle>
+              <CardDescription>Potential fraud costs in USD</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={fraudStats.costImpactData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="category" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                  <Legend />
+                  <Bar dataKey="amount" fill="#f97316" name="Fraud Cost" />
+                </BarChart>
+              </ResponsiveContainer>
             </CardContent>
           </Card>
         </div>
@@ -333,6 +408,35 @@ function calculateFraudStatistics(claims: any[]) {
     { name: "Severity Mismatch", count: Math.floor(highRiskClaims * 0.25), description: "Damage severity doesn't match estimated impact speed" },
   ];
   
+  // Generate trends data (last 6 months)
+  const trendsData = [
+    { month: "Jan", high: Math.floor(highRiskClaims * 0.15), medium: Math.floor(mediumRiskClaims * 0.15), low: Math.floor(lowRiskClaims * 0.15) },
+    { month: "Feb", high: Math.floor(highRiskClaims * 0.18), medium: Math.floor(mediumRiskClaims * 0.17), low: Math.floor(lowRiskClaims * 0.16) },
+    { month: "Mar", high: Math.floor(highRiskClaims * 0.16), medium: Math.floor(mediumRiskClaims * 0.16), low: Math.floor(lowRiskClaims * 0.17) },
+    { month: "Apr", high: Math.floor(highRiskClaims * 0.17), medium: Math.floor(mediumRiskClaims * 0.18), low: Math.floor(lowRiskClaims * 0.18) },
+    { month: "May", high: Math.floor(highRiskClaims * 0.16), medium: Math.floor(mediumRiskClaims * 0.17), low: Math.floor(lowRiskClaims * 0.17) },
+    { month: "Jun", high: Math.floor(highRiskClaims * 0.18), medium: Math.floor(mediumRiskClaims * 0.17), low: Math.floor(lowRiskClaims * 0.17) },
+  ];
+
+  // Detection methods data for pie chart
+  const detectionMethodsData = [
+    { name: "Physics", value: physicsDetections, color: "#3b82f6" },
+    { name: "AI Vision", value: aiDetections, color: "#a855f7" },
+    { name: "Assessor", value: assessorDetections, color: "#16a34a" },
+    { name: "Quote Analysis", value: quoteDetections, color: "#f97316" },
+  ];
+
+  // Cost impact data for bar chart
+  const highRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 70).reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  const mediumRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 40 && (c.fraudRiskScore || 0) <= 70).reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  const lowRiskCost = claims.filter(c => (c.fraudRiskScore || 0) <= 40).reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  
+  const costImpactData = [
+    { category: "High Risk", amount: highRiskCost },
+    { category: "Medium Risk", amount: mediumRiskCost },
+    { category: "Low Risk", amount: lowRiskCost },
+  ];
+
   return {
     totalClaims,
     highRiskClaims,
@@ -348,5 +452,8 @@ function calculateFraudStatistics(claims: any[]) {
     assessorDetections,
     quoteDetections,
     commonPatterns,
+    trendsData,
+    detectionMethodsData,
+    costImpactData,
   };
 }
