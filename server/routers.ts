@@ -1,3 +1,13 @@
+/**
+ * KINGA - AutoVerify AI Insurance Claims Management Platform
+ * 
+ * This file defines all tRPC API procedures for the application.
+ * Procedures are organized by domain (claims, assessors, panel beaters, etc.)
+ * and use type-safe contracts with Zod validation.
+ * 
+ * @module routers
+ */
+
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
@@ -45,16 +55,48 @@ export const appRouter = router({
     }),
   }),
 
-  // Panel Beater operations
+  /**
+   * Panel Beater Operations
+   * 
+   * Handles retrieval of approved panel beaters for claim submissions.
+   * Panel beaters are pre-vetted repair shops that claimants can select.
+   */
   panelBeaters: router({
     list: publicProcedure.query(async () => {
       return await getAllApprovedPanelBeaters();
     }),
   }),
 
-  // Claims operations
+  /**
+   * Claims Operations
+   * 
+   * Core claim lifecycle management including:
+   * - Submission by claimants
+   * - Retrieval by various filters (status, assessor, claimant)
+   * - Policy verification by insurers
+   * - Assessor assignment
+   * - AI assessment triggering
+   */
   claims: router({
-    // Submit a new claim (claimants only)
+    /**
+     * Submit New Claim
+     * 
+     * Allows claimants to submit insurance claims with vehicle details,
+     * incident information, damage photos, and selected panel beaters.
+     * 
+     * @requires Authentication
+     * @param vehicleMake - Make of the vehicle (e.g., "Toyota")
+     * @param vehicleModel - Model of the vehicle (e.g., "Camry")
+     * @param vehicleYear - Year of manufacture
+     * @param vehicleRegistration - License plate number
+     * @param incidentDate - ISO date string of incident
+     * @param incidentDescription - Detailed description of the incident
+     * @param incidentLocation - Location where incident occurred
+     * @param damagePhotos - Array of S3 URLs for damage photos
+     * @param policyNumber - Insurance policy number
+     * @param selectedPanelBeaterIds - Array of exactly 3 panel beater IDs
+     * @returns Claim number and success status
+     */
     submit: protectedProcedure
       .input(z.object({
         vehicleMake: z.string(),
@@ -155,7 +197,17 @@ export const appRouter = router({
         return await getClaimById(input.id);
       }),
 
-    // Assign claim to assessor (insurers only)
+    /**
+     * Assign Claim to Assessor
+     * 
+     * Allows insurers to assign a claim to a specific assessor for evaluation.
+     * Creates an audit trail entry for transparency.
+     * 
+     * @requires Authentication (Insurer role)
+     * @param claimId - ID of the claim to assign
+     * @param assessorId - ID of the assessor to assign to
+     * @returns Success status
+     */
     assignToAssessor: protectedProcedure
       .input(z.object({
         claimId: z.number(),
@@ -179,7 +231,17 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Verify policy (insurers only)
+    /**
+     * Verify Insurance Policy
+     * 
+     * Allows insurers to verify or reject a claimant's policy payment status.
+     * This is a critical step before proceeding with claim processing.
+     * 
+     * @requires Authentication (Insurer role)
+     * @param claimId - ID of the claim
+     * @param verified - true to approve, false to reject
+     * @returns Success status
+     */
     verifyPolicy: protectedProcedure
       .input(z.object({
         claimId: z.number(),
@@ -203,7 +265,16 @@ export const appRouter = router({
         return { success: true };
       }),
 
-    // Trigger AI assessment (insurers only)
+    /**
+     * Trigger AI Damage Assessment
+     * 
+     * Initiates automated AI analysis of damage photos to estimate repair costs
+     * and detect potential fraud indicators.
+     * 
+     * @requires Authentication (Insurer role)
+     * @param claimId - ID of the claim to assess
+     * @returns Success status
+     */
     triggerAiAssessment: protectedProcedure
       .input(z.object({ claimId: z.number() }))
       .mutation(async ({ ctx, input }) => {

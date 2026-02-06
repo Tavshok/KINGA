@@ -62,19 +62,40 @@ export default function InsurerComparisonView() {
     );
   }
 
-  // Calculate fraud indicators
+  /**
+   * Fraud Detection Algorithm
+   * 
+   * Detects potential fraud by comparing three independent cost estimates:
+   * 1. AI automated assessment (computer vision analysis)
+   * 2. Human assessor evaluation (independent expert)
+   * 3. Panel beater quotes (repair shop estimates)
+   * 
+   * Fraud indicators are triggered when any pair of estimates differs by >30%.
+   * This threshold is based on industry standards for acceptable variance in
+   * damage assessment.
+   * 
+   * @returns true if fraud indicators detected, false otherwise
+   */
   const hasFraudIndicators = () => {
+    // Require all three data sources for accurate comparison
     if (!aiAssessment || !assessorEval || quotes.length === 0) return false;
 
+    // Extract cost estimates (stored in cents, so divide by 100 for dollars)
     const aiCost = aiAssessment.estimatedCost || 0;
     const assessorCost = assessorEval.estimatedRepairCost || 0;
     const avgQuoteCost = quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length;
 
-    // Check for significant discrepancies (>30%)
+    /**
+     * Calculate percentage differences between each pair of estimates
+     * Formula: |A - B| / max(A, B)
+     * This gives a normalized percentage difference that handles both
+     * overestimation and underestimation symmetrically.
+     */
     const aiAssessorDiff = Math.abs(aiCost - assessorCost) / Math.max(aiCost, assessorCost);
     const aiQuotesDiff = Math.abs(aiCost - avgQuoteCost) / Math.max(aiCost, avgQuoteCost);
     const assessorQuotesDiff = Math.abs(assessorCost - avgQuoteCost) / Math.max(assessorCost, avgQuoteCost);
 
+    // Flag as potential fraud if ANY pair exceeds 30% variance
     return aiAssessorDiff > 0.3 || aiQuotesDiff > 0.3 || assessorQuotesDiff > 0.3;
   };
 

@@ -21,12 +21,16 @@ import { Shield, ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3 } from "lu
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 
 export default function InsurerClaimsTriage() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedAssessors, setSelectedAssessors] = useState<Record<number, number>>({});
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Get pending claims
   const { data: claims = [], refetch: refetchClaims } = trpc.claims.byStatus.useQuery({
@@ -83,6 +87,15 @@ export default function InsurerClaimsTriage() {
   const handleTriggerAi = (claimId: number) => {
     triggerAiAssessment.mutate({ claimId });
   };
+
+  // Paginate claims
+  const paginatedClaims = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return claims.slice(startIndex, endIndex);
+  }, [claims, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(claims.length / itemsPerPage);
 
   const getStatusBadge = (status: string) => {
     const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
@@ -164,7 +177,7 @@ export default function InsurerClaimsTriage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {claims.map((claim) => (
+                  {paginatedClaims.map((claim) => (
                     <TableRow key={claim.id}>
                       <TableCell className="font-mono text-sm">
                         {claim.claimNumber}
@@ -281,6 +294,46 @@ export default function InsurerClaimsTriage() {
                   ))}
                 </TableBody>
               </Table>
+            )}
+            
+            {/* Pagination Controls */}
+            {claims.length > itemsPerPage && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <div className="text-sm text-muted-foreground">
+                  Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, claims.length)} of {claims.length} claims
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <Button
+                        key={page}
+                        variant={page === currentPage ? "default" : "outline"}
+                        size="sm"
+                        className="w-8 h-8 p-0"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             )}
           </CardContent>
         </Card>
