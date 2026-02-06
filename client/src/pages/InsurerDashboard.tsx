@@ -4,10 +4,44 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { FileText, AlertTriangle, TrendingUp, Settings } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
+import { trpc } from "@/lib/trpc";
 
 export default function InsurerDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Fetch real claims data for metrics
+  // Get claims from all statuses
+  const { data: submittedClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'submitted' });
+  const { data: triageClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'triage' });
+  const { data: assessmentClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'assessment_in_progress' });
+  const { data: comparisonClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'comparison' });
+  const { data: completedClaims = [] } = trpc.claims.byStatus.useQuery({ status: 'completed' });
+  
+  // Combine all claims
+  const allClaims = [
+    ...submittedClaims,
+    ...triageClaims,
+    ...assessmentClaims,
+    ...comparisonClaims,
+    ...completedClaims
+  ];
+  
+  // Calculate metrics from real data
+  const totalClaims = allClaims.length;
+  const pendingTriage = allClaims.filter((c: any) => c.status === 'submitted').length;
+  const highFraudRisk = allClaims.filter((c: any) => c.fraudRiskLevel === 'high').length;
+  
+  // Calculate average processing time (in days) using completed claims
+  const avgProcessingTime = completedClaims.length > 0
+    ? Math.round(
+        completedClaims.reduce((sum: number, claim: any) => {
+          const created = new Date(claim.createdAt).getTime();
+          const updated = new Date(claim.updatedAt).getTime();
+          return sum + (updated - created) / (1000 * 60 * 60 * 24);
+        }, 0) / completedClaims.length
+      )
+    : 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -41,7 +75,7 @@ export default function InsurerDashboard() {
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{totalClaims}</div>
               <p className="text-xs text-muted-foreground">Across all statuses</p>
             </CardContent>
           </Card>
@@ -52,7 +86,7 @@ export default function InsurerDashboard() {
               <AlertTriangle className="h-4 w-4 text-yellow-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{pendingTriage}</div>
               <p className="text-xs text-muted-foreground">Awaiting review</p>
             </CardContent>
           </Card>
@@ -63,7 +97,7 @@ export default function InsurerDashboard() {
               <AlertTriangle className="h-4 w-4 text-red-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
+              <div className="text-2xl font-bold">{highFraudRisk}</div>
               <p className="text-xs text-muted-foreground">Requires attention</p>
             </CardContent>
           </Card>
@@ -74,7 +108,7 @@ export default function InsurerDashboard() {
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0d</div>
+              <div className="text-2xl font-bold">{avgProcessingTime}d</div>
               <p className="text-xs text-muted-foreground">Last 30 days</p>
             </CardContent>
           </Card>

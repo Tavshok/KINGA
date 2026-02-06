@@ -218,6 +218,9 @@ export const appRouter = router({
         if (!ctx.user) throw new Error("Not authenticated");
         
         await assignClaimToAssessor(input.claimId, input.assessorId);
+        
+        // Automatically progress status to assessment_pending
+        await updateClaimStatus(input.claimId, "assessment_pending");
 
         // Get claim and assessor details for notification
         const claim = await getClaimById(input.claimId);
@@ -299,6 +302,9 @@ export const appRouter = router({
         if (!ctx.user) throw new Error("Not authenticated");
         
         await triggerAiAssessment(input.claimId);
+        
+        // Automatically progress status to assessment_in_progress
+        await updateClaimStatus(input.claimId, "assessment_in_progress");
 
         // Get claim and AI assessment details for notification
         const claim = await getClaimById(input.claimId);
@@ -367,6 +373,9 @@ export const appRouter = router({
           fraudRiskLevel: input.fraudRiskLevel,
           status: "submitted",
         });
+        
+        // Automatically progress status to quotes_pending
+        await updateClaimStatus(input.claimId, "quotes_pending");
 
         // Create audit entry
         await createAuditEntry({
@@ -419,6 +428,13 @@ export const appRouter = router({
           notes: input.notes,
           status: "submitted",
         });
+        
+        // Check if all quotes have been received (3 panel beaters)
+        const allQuotes = await getQuotesByClaimId(input.claimId);
+        if (allQuotes.length >= 3) {
+          // All quotes received, progress to comparison stage
+          await updateClaimStatus(input.claimId, "comparison");
+        }
 
         // Create audit entry
         await createAuditEntry({
