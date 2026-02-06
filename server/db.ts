@@ -339,8 +339,9 @@ Provide your response in JSON format with keys: damageDescription, estimatedCost
   });
 
   // ========== PHYSICS-BASED ACCIDENT RECONSTRUCTION ==========
-  // Import physics engine
+  // Import physics engine and forensic analysis
   const { analyzeAccidentPhysics, validateQuoteAgainstPhysics } = await import("./accidentPhysics");
+  const { performForensicAnalysis } = await import("./forensicAnalysis");
   
   // Prepare vehicle data
   const vehicleData = {
@@ -368,21 +369,38 @@ Provide your response in JSON format with keys: damageDescription, estimatedCost
     airbagDeployment: false, // Would be detected from photos in production
   };
   
-  // Run physics analysis
+  // Run physics analysis and forensic analysis
   let physicsAnalysis;
+  let forensicAnalysis;
   try {
     physicsAnalysis = await analyzeAccidentPhysics(vehicleData, accidentData, damageAssessment);
+    
+    // Run forensic analysis
+    const currentYear = new Date().getFullYear();
+    const vehicleAge = claim.vehicleYear ? currentYear - claim.vehicleYear : 5;
+    
+    forensicAnalysis = await performForensicAnalysis({
+      damagePhotos,
+      vehicleAge,
+      vehicleMileage: 50000, // Default mileage, should be added to claims table
+      vehicleValue: analysis.estimatedCost * 10, // Rough estimate, should be looked up
+      claimedDamageDescription: claim.incidentDescription || "",
+      accidentDate: claim.incidentDate || new Date(),
+      accidentLocation: { lat: 0, lon: 0 }, // Should parse from incidentLocation
+    });
     
     // Physics analysis results are used for fraud scoring
     // TODO: Add physicsAnalysis column to aiAssessments table to store full results
     
-    // Update fraud risk based on physics inconsistencies
+    // Update fraud risk based on physics inconsistencies and forensic findings
     const physicsFraudScore = physicsAnalysis.fraudIndicators.impossibleDamagePatterns.length * 20 +
                                physicsAnalysis.fraudIndicators.unrelatedDamage.length * 15 +
                                (physicsAnalysis.fraudIndicators.severityMismatch ? 25 : 0) +
                                physicsAnalysis.fraudIndicators.stagedAccidentIndicators.length * 20;
     
-    const combinedFraudScore = Math.min(100, Math.max(analysis.fraudRiskScore, physicsFraudScore));
+    const forensicFraudScore = forensicAnalysis.overallFraudScore;
+    
+    const combinedFraudScore = Math.min(100, Math.max(analysis.fraudRiskScore, physicsFraudScore, forensicFraudScore));
     const combinedFraudLevel = combinedFraudScore > 70 ? "high" : combinedFraudScore > 40 ? "medium" : "low";
     
     // Update claim with combined fraud assessment

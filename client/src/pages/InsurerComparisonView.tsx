@@ -107,25 +107,12 @@ export default function InsurerComparisonView() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+        <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
+          {/* Top row: Logo and user info */}
+          <div className="flex items-center justify-between mb-3">
+            <KingaLogo />
             <div className="flex items-center gap-3">
-              <KingaLogo />
-              <div>
-                <h1 className="text-2xl font-bold">Fraud Detection & Comparison</h1>
-                <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => setLocation("/insurer/claims/triage")}
-              >
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Triage
-              </Button>
               <div className="text-right">
                 <p className="text-sm font-medium">{user?.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
@@ -134,6 +121,22 @@ export default function InsurerComparisonView() {
                 Sign Out
               </Button>
             </div>
+          </div>
+          
+          {/* Bottom row: Title and navigation */}
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Fraud Detection & Comparison</h1>
+              <p className="text-sm text-muted-foreground font-mono mt-1">{claim.claimNumber}</p>
+            </div>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setLocation("/insurer/claims/triage")}
+            >
+              <ArrowLeft className="mr-2 h-4 w-4" />
+              Back to Triage
+            </Button>
           </div>
         </div>
       </header>
