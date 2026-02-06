@@ -593,3 +593,8 @@
 ## Bug Fixes
 - [x] Fix 404 error for /insurer/claims/:id route
 - [x] Verify all claim detail routes are working
+
+
+## Bug Fixes (Continued)
+- [x] Fix assessorEvaluations.byClaim returning undefined instead of null
+- [x] Fix aiAssessments.byClaim returning undefined instead of null

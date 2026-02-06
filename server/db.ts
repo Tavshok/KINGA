@@ -437,10 +437,10 @@ export async function createAiAssessment(data: InsertAiAssessment) {
 
 export async function getAiAssessmentByClaimId(claimId: number) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
   const result = await db.select().from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return result.length > 0 ? result[0] : null;
 }
 
 // ============================================================================
@@ -457,10 +457,10 @@ export async function createAssessorEvaluation(data: InsertAssessorEvaluation) {
 
 export async function getAssessorEvaluationByClaimId(claimId: number) {
   const db = await getDb();
-  if (!db) return undefined;
+  if (!db) return null;
 
   const result = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, claimId)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return result.length > 0 ? result[0] : null;
 }
 
 export async function updateAssessorEvaluation(id: number, data: Partial<InsertAssessorEvaluation>) {
