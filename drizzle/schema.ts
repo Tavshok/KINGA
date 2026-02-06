@@ -255,3 +255,43 @@ export const auditTrail = mysqlTable("audit_trail", {
 
 export type AuditTrailEntry = typeof auditTrail.$inferSelect;
 export type InsertAuditTrailEntry = typeof auditTrail.$inferInsert;
+
+/**
+ * Claim Documents - File attachments for claims
+ * Supports various document types: PDFs, images, Word docs, Excel sheets
+ */
+export const claimDocuments = mysqlTable("claim_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  uploadedBy: int("uploaded_by").notNull(), // User ID
+  
+  // File details
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileKey: varchar("file_key", { length: 500 }).notNull(), // S3 key
+  fileUrl: text("file_url").notNull(), // S3 URL
+  fileSize: int("file_size").notNull(), // in bytes
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  
+  // Document metadata
+  documentTitle: varchar("document_title", { length: 255 }),
+  documentDescription: text("document_description"),
+  documentCategory: mysqlEnum("document_category", [
+    "damage_photo",
+    "repair_quote",
+    "invoice",
+    "police_report",
+    "medical_report",
+    "insurance_policy",
+    "correspondence",
+    "other"
+  ]).default("other").notNull(),
+  
+  // Access control
+  visibleToRoles: text("visible_to_roles"), // JSON array of roles
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ClaimDocument = typeof claimDocuments.$inferSelect;
+export type InsertClaimDocument = typeof claimDocuments.$inferInsert;

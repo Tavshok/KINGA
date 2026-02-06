@@ -529,6 +529,155 @@ export const appRouter = router({
       }),
   }),
 
+  /**
+   * Document Management Router
+   * Handles file uploads, listing, and deletion for claim-related documents
+   */
+  documents: router({
+    // Upload a document to a claim
+    upload: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        fileName: z.string(),
+        fileData: z.string(), // base64 encoded
+        fileSize: z.number(),
+        mimeType: z.string(),
+        documentTitle: z.string().optional(),
+        documentDescription: z.string().optional(),
+        documentCategory: z.enum([
+          "damage_photo",
+          "repair_quote",
+          "invoice",
+          "police_report",
+          "medical_report",
+          "insurance_policy",
+          "correspondence",
+          "other"
+        ]).default("other"),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+
+        // Extract base64 data
+        const base64Data = input.fileData.split(',')[1] || input.fileData;
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Generate unique file key with random suffix to prevent enumeration
+        const fileExtension = input.fileName.split('.').pop() || 'pdf';
+        const randomSuffix = nanoid(10);
+        const fileKey = `claim-documents/${input.claimId}/${randomSuffix}-${input.fileName}`;
+
+        // Upload to S3
+        const result = await storagePut(fileKey, buffer, input.mimeType);
+
+        // Save document metadata to database
+        const db = await import("./db").then(m => m.getDb());
+        if (!db) throw new Error("Database not available");
+
+        const { claimDocuments } = await import("../drizzle/schema");
+        await db.insert(claimDocuments).values({
+          claimId: input.claimId,
+          uploadedBy: ctx.user.id,
+          fileName: input.fileName,
+          fileKey: result.key,
+          fileUrl: result.url,
+          fileSize: input.fileSize,
+          mimeType: input.mimeType,
+          documentTitle: input.documentTitle,
+          documentDescription: input.documentDescription,
+          documentCategory: input.documentCategory,
+          visibleToRoles: JSON.stringify(["insurer", "assessor", "panel_beater", "claimant"]),
+        });
+
+        // Create audit trail entry
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "document_uploaded",
+          entityType: "document",
+          changeDescription: `Uploaded document: ${input.fileName} (${input.documentCategory})`,
+        });
+
+        return { success: true, url: result.url, key: result.key };
+      }),
+
+    // List documents for a claim
+    byClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+
+        const db = await import("./db").then(m => m.getDb());
+        if (!db) return [];
+
+        const { claimDocuments } = await import("../drizzle/schema");
+        const { eq, desc } = await import("drizzle-orm");
+
+        const documents = await db
+          .select()
+          .from(claimDocuments)
+          .where(eq(claimDocuments.claimId, input.claimId))
+          .orderBy(desc(claimDocuments.createdAt));
+
+        // Filter by role-based access control
+        return documents.filter(doc => {
+          if (!doc.visibleToRoles) return true;
+          try {
+            const roles = JSON.parse(doc.visibleToRoles);
+            return roles.includes(ctx.user?.role);
+          } catch {
+            return true;
+          }
+        });
+      }),
+
+    // Delete a document
+    delete: protectedProcedure
+      .input(z.object({ documentId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+
+        const db = await import("./db").then(m => m.getDb());
+        if (!db) throw new Error("Database not available");
+
+        const { claimDocuments } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        // Get document details
+        const docs = await db
+          .select()
+          .from(claimDocuments)
+          .where(eq(claimDocuments.id, input.documentId))
+          .limit(1);
+
+        if (docs.length === 0) {
+          throw new Error("Document not found");
+        }
+
+        const doc = docs[0];
+
+        // Only allow deletion by uploader or admin/insurer
+        if (doc.uploadedBy !== ctx.user.id && !['admin', 'insurer'].includes(ctx.user.role)) {
+          throw new Error("Not authorized to delete this document");
+        }
+
+        // Delete from database
+        await db.delete(claimDocuments).where(eq(claimDocuments.id, input.documentId));
+
+        // Create audit trail entry
+        await createAuditEntry({
+          claimId: doc.claimId,
+          userId: ctx.user.id,
+          action: "document_deleted",
+          entityType: "document",
+          entityId: input.documentId,
+          changeDescription: `Deleted document: ${doc.fileName}`,
+        });
+
+        return { success: true };
+      }),
+  }),
+
   // Audit trail operations
   audit: router({
     byClaim: protectedProcedure

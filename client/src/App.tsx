@@ -18,6 +18,7 @@ import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
+import ClaimDocuments from "./pages/ClaimDocuments";
 
 function Router() {
   return (
@@ -42,6 +43,13 @@ function Router() {
       <Route path="/insurer/claims/:id/comparison">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerComparisonView />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Document Management Route - accessible by all authenticated users */}
+      <Route path="/claims/:id/documents">
+        <ProtectedRoute allowedRoles={["insurer", "admin", "assessor", "panel_beater", "claimant"]}>
+          <ClaimDocuments />
         </ProtectedRoute>
       </Route>
       
