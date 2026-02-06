@@ -72,7 +72,7 @@ export default function InsurerDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           {/* Total Claims Card */}
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white border-none shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-blue-50">Total Claims</CardTitle>
               <FileText className="h-6 w-6 text-blue-100" />
@@ -84,7 +84,7 @@ export default function InsurerDashboard() {
           </Card>
 
           {/* Pending Triage Card */}
-          <Card className="bg-gradient-to-br from-amber-400 to-orange-500 text-white border-none shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="bg-gradient-to-br from-amber-300 to-orange-400 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-amber-50">Pending Triage</CardTitle>
               <AlertTriangle className="h-6 w-6 text-amber-100" />
@@ -96,7 +96,7 @@ export default function InsurerDashboard() {
           </Card>
 
           {/* High Fraud Risk Card */}
-          <Card className="bg-gradient-to-br from-red-500 to-red-600 text-white border-none shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="bg-gradient-to-br from-rose-400 to-red-500 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-red-50">High Fraud Risk</CardTitle>
               <AlertTriangle className="h-6 w-6 text-red-100" />
@@ -108,7 +108,7 @@ export default function InsurerDashboard() {
           </Card>
 
           {/* Avg Processing Time Card */}
-          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white border-none shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="bg-gradient-to-br from-emerald-400 to-green-500 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-green-50">Avg. Processing Time</CardTitle>
               <TrendingUp className="h-6 w-6 text-green-100" />
