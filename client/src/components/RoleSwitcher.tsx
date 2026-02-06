@@ -25,13 +25,24 @@ export default function RoleSwitcher() {
         role: newRole as "insurer" | "assessor" | "panel_beater" | "claimant" | "admin" 
       });
       
-      toast.success(`Role switched to ${newRole}`, {
-        description: "Refreshing page...",
+      // Map roles to their dashboard URLs
+      const roleToPath: Record<string, string> = {
+        admin: "/insurer",
+        insurer: "/insurer",
+        assessor: "/assessor",
+        panel_beater: "/panel-beater",
+        claimant: "/claimant"
+      };
+      
+      const targetPath = roleToPath[newRole] || "/";
+      
+      toast.success(`Role switched to ${newRole.replace('_', ' ')}`, {
+        description: "Redirecting to dashboard...",
       });
       
-      // Reload page to reflect new role
+      // Redirect to appropriate dashboard
       setTimeout(() => {
-        window.location.reload();
+        window.location.href = targetPath;
       }, 1000);
     } catch (error) {
       toast.error("Failed to switch role", {

@@ -921,4 +921,11 @@
 - [x] Build RoleSwitcher component with dropdown
 - [x] Add role switcher to dashboard headers (admin-only)
 - [x] Test switching between all roles
-- [ ] Save checkpoint after implementation
+- [x] Save checkpoint after implementation
+
+
+## Fix Role Switcher Redirect
+- [x] Update RoleSwitcher to redirect to appropriate dashboard after role change
+- [x] Add role-to-dashboard mapping logic
+- [x] Test switching between all roles with automatic redirection
+- [ ] Save checkpoint after fix
