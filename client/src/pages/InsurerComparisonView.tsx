@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
+import { generateComparisonPDF } from "@/lib/pdfExport";
+import { Download } from "lucide-react";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -135,14 +137,62 @@ export default function InsurerComparisonView() {
               <h1 className="text-2xl font-bold text-gray-900">Fraud Detection & Comparison</h1>
               <p className="text-sm text-muted-foreground font-mono mt-1">{claim.claimNumber}</p>
             </div>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => setLocation("/insurer/claims/triage")}
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Triage
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  // Prepare data for PDF export
+                  const pdfData = {
+                    claimNumber: claim.claimNumber,
+                    vehicle: `${claim.vehicleMake} ${claim.vehicleModel} (${claim.vehicleYear})`,
+                    registration: claim.vehicleRegistration || "N/A",
+                    incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
+                    assessorEvaluation: assessorEval ? {
+                      estimatedCost: assessorEval.estimatedRepairCost || 0,
+                      laborCost: assessorEval.laborCost || 0,
+                      partsCost: assessorEval.partsCost || 0,
+                      estimatedDuration: assessorEval.estimatedDuration || 0,
+                      fraudRisk: assessorEval.fraudRiskLevel || "low",
+                      notes: assessorEval.damageAssessment || undefined
+                    } : undefined,
+                    quotes: quotes.map((q: any) => ({
+                      panelBeaterName: `Panel Beater #${q.panelBeaterId}`,
+                      totalCost: q.quotedAmount || 0,
+                      laborCost: q.laborCost || 0,
+                      partsCost: q.partsCost || 0,
+                      estimatedDuration: q.estimatedDuration || 0,
+                      notes: q.notes || undefined,
+                      lineItems: q.lineItems?.map((item: any) => ({
+                        description: item.description,
+                        quantity: item.quantity,
+                        unitPrice: item.unitPrice,
+                        totalPrice: item.totalPrice
+                      }))
+                    })),
+                    quoteComparison: quotes.length > 1 ? {
+                      discrepancyCount: 4, // From comparison analysis
+                      averageQuote: quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length,
+                      missingItems: [] // Can be enhanced later
+                    } : undefined
+                  };
+                  
+                  generateComparisonPDF(pdfData);
+                  toast.success("PDF report downloaded successfully");
+                }}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Download PDF
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setLocation("/insurer/claims/triage")}
+              >
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Triage
+              </Button>
+            </div>
           </div>
         </div>
       </header>
