@@ -122,23 +122,81 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
             </div>
           )}
 
-          {/* Cross-validation warnings */}
+          {/* Cross-validation warnings with severity levels */}
           {(existingReport.speedDiscrepancy || existingReport.locationMismatch) && (
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-              <div className="flex items-center gap-2 text-amber-800 font-medium">
-                <AlertTriangle className="h-4 w-4" />
-                Cross-Validation Warnings
-              </div>
+            <div className="space-y-3">
               {existingReport.speedDiscrepancy && existingReport.speedDiscrepancy > 0 && (
-                <div className="text-sm text-amber-700">
-                  <strong>Speed Discrepancy:</strong> {existingReport.speedDiscrepancy} km/h difference
-                  between claimed speed and police-reported speed
+                <div className={
+                  existingReport.speedDiscrepancy > 30 
+                    ? "bg-red-50 border-2 border-red-300 rounded-lg p-4" 
+                    : existingReport.speedDiscrepancy > 20
+                    ? "bg-orange-50 border-2 border-orange-300 rounded-lg p-4"
+                    : "bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4"
+                }>
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className={
+                      existingReport.speedDiscrepancy > 30 
+                        ? "h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" 
+                        : existingReport.speedDiscrepancy > 20
+                        ? "h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5"
+                        : "h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5"
+                    } />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <strong className={
+                          existingReport.speedDiscrepancy > 30 
+                            ? "text-red-800" 
+                            : existingReport.speedDiscrepancy > 20
+                            ? "text-orange-800"
+                            : "text-yellow-800"
+                        }>
+                          Speed Discrepancy: {existingReport.speedDiscrepancy} km/h
+                        </strong>
+                        <Badge variant={
+                          existingReport.speedDiscrepancy > 30 
+                            ? "destructive" 
+                            : existingReport.speedDiscrepancy > 20
+                            ? "default"
+                            : "secondary"
+                        }>
+                          {existingReport.speedDiscrepancy > 30 
+                            ? "Critical" 
+                            : existingReport.speedDiscrepancy > 20
+                            ? "High"
+                            : "Medium"}
+                        </Badge>
+                      </div>
+                      <p className={
+                        existingReport.speedDiscrepancy > 30 
+                          ? "text-sm text-red-700" 
+                          : existingReport.speedDiscrepancy > 20
+                          ? "text-sm text-orange-700"
+                          : "text-sm text-yellow-700"
+                      }>
+                        {existingReport.speedDiscrepancy > 30 
+                          ? "⚠️ Significant discrepancy detected. This may indicate intentional misrepresentation. Recommend immediate investigation and possible claim rejection."
+                          : existingReport.speedDiscrepancy > 20
+                          ? "⚠️ Notable discrepancy detected. Could be honest mistake or intentional fraud. Request clarification from claimant and review dashcam/witness statements."
+                          : "ℹ️ Minor discrepancy detected. Likely an honest estimation error. Consider requesting clarification, but may not warrant fraud investigation."}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
               {existingReport.locationMismatch === 1 && (
-                <div className="text-sm text-amber-700">
-                  <strong>Location Mismatch:</strong> Accident location differs between claim and
-                  police report
+                <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <strong className="text-orange-800">Location Mismatch</strong>
+                        <Badge variant="default">High</Badge>
+                      </div>
+                      <p className="text-sm text-orange-700">
+                        ⚠️ Accident location differs between claim and police report. Verify GPS coordinates, dashcam footage, or witness statements to resolve discrepancy.
+                      </p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

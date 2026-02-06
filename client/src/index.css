@@ -24,6 +24,12 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -68,6 +74,12 @@
   --muted-foreground: oklch(0.50 0.02 180);
   --destructive: oklch(0.60 0.25 25);
   --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.70 0.18 60); /* Vibrant orange */
+  --warning-foreground: oklch(0.15 0.02 60);
+  --success: oklch(0.65 0.18 145); /* Vibrant green */
+  --success-foreground: oklch(0.99 0 0);
+  --info: oklch(0.60 0.18 230); /* Vibrant blue */
+  --info-foreground: oklch(0.99 0 0);
   --border: oklch(0.88 0.01 180);
   --input: oklch(0.92 0.01 180);
   --ring: oklch(0.55 0.18 195);
@@ -196,5 +208,45 @@
   .card-hover:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 25px -5px oklch(0.55 0.18 195 / 0.2);
+  }
+  
+  /* Status color utilities */
+  .bg-warning {
+    background-color: var(--warning);
+    color: var(--warning-foreground);
+  }
+  
+  .bg-success {
+    background-color: var(--success);
+    color: var(--success-foreground);
+  }
+  
+  .bg-info {
+    background-color: var(--info);
+    color: var(--info-foreground);
+  }
+  
+  .text-warning {
+    color: var(--warning);
+  }
+  
+  .text-success {
+    color: var(--success);
+  }
+  
+  .text-info {
+    color: var(--info);
+  }
+  
+  .border-warning {
+    border-color: var(--warning);
+  }
+  
+  .border-success {
+    border-color: var(--success);
+  }
+  
+  .border-info {
+    border-color: var(--info);
   }
 }
