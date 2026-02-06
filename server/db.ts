@@ -338,13 +338,82 @@ Provide your response in JSON format with keys: damageDescription, estimatedCost
     modelVersion: "gpt-4-vision-v1",
   });
 
-  // Update claim with AI assessment completion
-  await db.update(claims).set({ 
-    aiAssessmentCompleted: 1,
-    fraudRiskScore: analysis.fraudRiskScore || 0,
-    fraudFlags: JSON.stringify(analysis.fraudIndicators || []),
-    updatedAt: new Date() 
-  }).where(eq(claims.id, claimId));
+  // ========== PHYSICS-BASED ACCIDENT RECONSTRUCTION ==========
+  // Import physics engine
+  const { analyzeAccidentPhysics, validateQuoteAgainstPhysics } = await import("./accidentPhysics");
+  
+  // Prepare vehicle data
+  const vehicleData = {
+    mass: 1500, // Default mass in kg, should be looked up from vehicle database
+    make: claim.vehicleMake || "Unknown",
+    model: claim.vehicleModel || "Unknown",
+    year: claim.vehicleYear || 2020,
+    vehicleType: "sedan" as const, // Default, should be determined from make/model
+    powertrainType: "ice" as const, // Default ICE, should be determined from make/model/year
+  };
+  
+  // Prepare accident data
+  const accidentData = {
+    accidentType: "unknown" as const, // Will be classified by physics engine
+    damagePhotos,
+    incidentDescription: claim.incidentDescription || "No description provided",
+  };
+  
+  // Prepare damage assessment from AI analysis
+  const damageAssessment = {
+    damagedComponents: [], // Would be extracted from AI analysis in production
+    totalDamageArea: 0,
+    maxCrushDepth: 0.2, // Estimated from damage severity
+    structuralDamage: analysis.fraudRiskScore > 60, // High fraud risk suggests structural damage
+    airbagDeployment: false, // Would be detected from photos in production
+  };
+  
+  // Run physics analysis
+  let physicsAnalysis;
+  try {
+    physicsAnalysis = await analyzeAccidentPhysics(vehicleData, accidentData, damageAssessment);
+    
+    // Physics analysis results are used for fraud scoring
+    // TODO: Add physicsAnalysis column to aiAssessments table to store full results
+    
+    // Update fraud risk based on physics inconsistencies
+    const physicsFraudScore = physicsAnalysis.fraudIndicators.impossibleDamagePatterns.length * 20 +
+                               physicsAnalysis.fraudIndicators.unrelatedDamage.length * 15 +
+                               (physicsAnalysis.fraudIndicators.severityMismatch ? 25 : 0) +
+                               physicsAnalysis.fraudIndicators.stagedAccidentIndicators.length * 20;
+    
+    const combinedFraudScore = Math.min(100, Math.max(analysis.fraudRiskScore, physicsFraudScore));
+    const combinedFraudLevel = combinedFraudScore > 70 ? "high" : combinedFraudScore > 40 ? "medium" : "low";
+    
+    // Update claim with combined fraud assessment
+    await db.update(claims).set({ 
+      aiAssessmentCompleted: 1,
+      fraudRiskScore: combinedFraudScore,
+      fraudFlags: JSON.stringify([
+        ...analysis.fraudIndicators,
+        ...physicsAnalysis.fraudIndicators.impossibleDamagePatterns,
+        ...physicsAnalysis.fraudIndicators.unrelatedDamage,
+        ...physicsAnalysis.fraudIndicators.stagedAccidentIndicators,
+      ]),
+      updatedAt: new Date() 
+    }).where(eq(claims.id, claimId));
+    
+    // Update AI assessment with combined fraud level
+    await db.update(aiAssessments).set({
+      fraudRiskLevel: combinedFraudLevel,
+      updatedAt: new Date(),
+    }).where(eq(aiAssessments.claimId, claimId));
+    
+  } catch (error) {
+    console.error("Physics analysis failed:", error);
+    // Continue without physics analysis if it fails
+    await db.update(claims).set({ 
+      aiAssessmentCompleted: 1,
+      fraudRiskScore: analysis.fraudRiskScore || 0,
+      fraudFlags: JSON.stringify(analysis.fraudIndicators || []),
+      updatedAt: new Date() 
+    }).where(eq(claims.id, claimId));
+  }
 }
 
 // ============================================================================
