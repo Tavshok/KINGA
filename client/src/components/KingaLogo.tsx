@@ -1,8 +1,8 @@
 /**
  * KINGA Logo Component
  * 
- * Displays the KINGA shield logo with text branding
- * Used consistently across all dashboard headers
+ * Displays the KINGA shield logo with traditional African design
+ * Features: Blue/green chevron shield pattern with crossed spear and knobkerry
  */
 
 interface KingaLogoProps {
@@ -13,9 +13,9 @@ interface KingaLogoProps {
 
 export default function KingaLogo({ showText = true, size = "md", className = "" }: KingaLogoProps) {
   const sizeClasses = {
-    sm: "h-8 w-8",
-    md: "h-10 w-10",
-    lg: "h-14 w-14",
+    sm: "h-10 w-10",
+    md: "h-12 w-12",
+    lg: "h-16 w-16",
   };
 
   const textSizeClasses = {
@@ -26,58 +26,60 @@ export default function KingaLogo({ showText = true, size = "md", className = ""
 
   return (
     <div className={`flex items-center gap-3 ${className}`}>
-      {/* Vibrant Shield SVG */}
+      {/* Traditional KINGA Shield with Spear and Knobkerry */}
       <svg 
         className={sizeClasses[size]} 
-        viewBox="0 0 100 120" 
+        viewBox="0 0 200 200" 
         fill="none" 
         xmlns="http://www.w3.org/2000/svg"
       >
-        {/* Shield gradient background */}
-        <defs>
-          <linearGradient id="shieldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: "oklch(0.60 0.18 195)", stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: "oklch(0.50 0.20 210)", stopOpacity: 1 }} />
-          </linearGradient>
-          <linearGradient id="checkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" style={{ stopColor: "oklch(0.70 0.15 150)", stopOpacity: 1 }} />
-            <stop offset="100%" style={{ stopColor: "oklch(0.65 0.18 145)", stopOpacity: 1 }} />
-          </linearGradient>
-        </defs>
-        
-        {/* Shield shape */}
-        <path 
-          d="M50 5 L90 20 L90 50 Q90 85 50 115 Q10 85 10 50 L10 20 Z" 
-          fill="url(#shieldGradient)"
-          stroke="oklch(0.45 0.20 210)"
-          strokeWidth="2"
-        />
-        
-        {/* Checkmark */}
-        <path 
-          d="M30 55 L45 70 L70 35" 
-          stroke="url(#checkGradient)"
-          strokeWidth="8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          fill="none"
-        />
-        
-        {/* Inner shield highlight */}
-        <path 
-          d="M50 10 L85 23 L85 50 Q85 82 50 108 Q15 82 15 50 L15 23 Z" 
-          fill="none"
-          stroke="oklch(0.70 0.15 195 / 0.3)"
-          strokeWidth="1.5"
-        />
+        {/* Left Spear */}
+        <g>
+          {/* Spear shaft */}
+          <line x1="40" y1="40" x2="100" y2="100" stroke="#4A5568" strokeWidth="6" strokeLinecap="round"/>
+          {/* Spear blade */}
+          <path d="M 30 30 L 40 40 L 35 45 Z" fill="#4A5568"/>
+          <path d="M 25 25 L 35 35 L 30 40 Z" fill="#4A5568"/>
+        </g>
+
+        {/* Right Knobkerry (traditional club) */}
+        <g>
+          {/* Knobkerry shaft */}
+          <line x1="160" y1="40" x2="100" y2="100" stroke="#4A5568" strokeWidth="6" strokeLinecap="round"/>
+          {/* Knobkerry head (round knob) */}
+          <circle cx="170" cy="30" r="12" fill="#4A5568"/>
+        </g>
+
+        {/* Shield with chevron pattern */}
+        <g>
+          {/* Shield outline */}
+          <ellipse cx="100" cy="100" rx="45" ry="60" fill="#2563EB" stroke="#1E40AF" strokeWidth="2"/>
+          
+          {/* Green chevron stripes */}
+          <path d="M 100 50 L 120 70 L 100 90 L 80 70 Z" fill="#10B981"/>
+          <path d="M 100 90 L 120 110 L 100 130 L 80 110 Z" fill="#10B981"/>
+          <path d="M 100 130 L 120 150 L 100 160 L 80 150 Z" fill="#10B981"/>
+          
+          {/* Blue chevron stripes (darker) */}
+          <path d="M 80 70 L 100 90 L 100 50 Z" fill="#1E40AF"/>
+          <path d="M 120 70 L 100 90 L 100 50 Z" fill="#3B82F6"/>
+          
+          <path d="M 80 110 L 100 130 L 100 90 Z" fill="#1E40AF"/>
+          <path d="M 120 110 L 100 130 L 100 90 Z" fill="#3B82F6"/>
+          
+          <path d="M 80 150 L 100 160 L 100 130 Z" fill="#1E40AF"/>
+          <path d="M 120 150 L 100 160 L 100 130 Z" fill="#3B82F6"/>
+          
+          {/* White center line */}
+          <line x1="100" y1="50" x2="100" y2="160" stroke="white" strokeWidth="3"/>
+        </g>
       </svg>
       
       {showText && (
         <div>
-          <h1 className={`${textSizeClasses[size]} font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent`}>
+          <h1 className={`${textSizeClasses[size]} font-bold text-gray-800`}>
             KINGA
           </h1>
-          <p className="text-xs text-muted-foreground -mt-1">AutoVerify AI</p>
         </div>
       )}
     </div>
