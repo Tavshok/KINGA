@@ -45,47 +45,47 @@ export default function AssessorDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Assigned Claims</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-white">Assigned Claims</CardTitle>
+              <FileText className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Active assignments</p>
+              <div className="text-3xl font-bold">{claims.length}</div>
+              <p className="text-xs text-blue-100">Active assignments</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Assessments</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
+              <CardTitle className="text-sm font-medium text-white">Pending Assessments</CardTitle>
+              <Clock className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Awaiting evaluation</p>
+              <div className="text-3xl font-bold">{claims.filter(c => c.status === 'assessment_pending' || c.status === 'assessment_in_progress').length}</div>
+              <p className="text-xs text-orange-100">Awaiting evaluation</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Upcoming Appointments</CardTitle>
-              <Calendar className="h-4 w-4 text-blue-500" />
+              <CardTitle className="text-sm font-medium text-white">Upcoming Appointments</CardTitle>
+              <Calendar className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Next 7 days</p>
+              <div className="text-3xl font-bold">0</div>
+              <p className="text-xs text-purple-100">Next 7 days</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed This Month</CardTitle>
-              <ClipboardCheck className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-sm font-medium text-white">Completed This Month</CardTitle>
+              <ClipboardCheck className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Assessments completed</p>
+              <div className="text-3xl font-bold">{claims.filter(c => c.status === 'completed').length}</div>
+              <p className="text-xs text-green-100">Assessments completed</p>
             </CardContent>
           </Card>
         </div>

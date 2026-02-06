@@ -605,6 +605,76 @@ export const appRouter = router({
         
         return quotesWithItems;
       }),
+
+    // Extract quote from handwritten image using OCR
+    extractFromImage: protectedProcedure
+      .input(z.object({ 
+        claimId: z.number(),
+        imageBase64: z.string() 
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+
+        const { invokeLLM } = await import("./_core/llm");
+
+        // Use AI vision to extract line items from the image
+        const response = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert at extracting structured data from handwritten quotations. Extract all line items with description, quantity, unit price, and calculate line totals. Return valid JSON only."
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract all line items from this handwritten quotation. For each item, provide: description, part_number (if visible), quantity, unit_price, and line_total. Return as JSON array."
+                },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: input.imageBase64
+                  }
+                }
+              ] as any
+            }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "quote_extraction",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  lineItems: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        description: { type: "string" },
+                        partNumber: { type: "string" },
+                        quantity: { type: "number" },
+                        unitPrice: { type: "number" },
+                        lineTotal: { type: "number" }
+                      },
+                      required: ["description", "quantity", "unitPrice", "lineTotal"],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: ["lineItems"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        const extracted = JSON.parse((response.choices[0].message.content as string) || "{}");
+
+        return extracted;
+      }),
   }),
 
   // Appointments operations

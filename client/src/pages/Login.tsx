@@ -2,7 +2,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
+import KingaLogo from "@/components/KingaLogo";
 import { useEffect } from "react";
 import { useLocation } from "wouter";
 
@@ -45,12 +46,11 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-4">
-          <div className="mx-auto w-16 h-16 bg-primary rounded-full flex items-center justify-center">
-            <Shield className="h-8 w-8 text-primary-foreground" />
+          <div className="mx-auto flex justify-center">
+            <KingaLogo />
           </div>
-          <CardTitle className="text-3xl font-bold">KINGA</CardTitle>
           <CardDescription className="text-lg">
-            AutoVerify AI - Insurance Claims Management
+            Insurance Claims Management
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">

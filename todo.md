@@ -883,3 +883,15 @@
 - [ ] Colorize buttons throughout the app
 - [ ] Add vibrant colors to comparison view sections
 - [ ] Update fraud risk badges with gradient backgrounds
+
+
+## Final Implementation - Assessor Dashboard, OCR & Reports
+- [ ] Build assessor dashboard with assigned claims list
+- [ ] Create assessor evaluation form (cost estimates, duration, notes only - NO fraud override)
+- [ ] Implement OCR for handwritten quote extraction using AI vision
+- [ ] Add quote photo upload for panel beaters
+- [ ] Build AI line-item extraction from quote photos
+- [ ] Add PDF report download for comparison reports
+- [ ] Add PDF report download for fraud analytics dashboard
+- [ ] Conduct comprehensive end-to-end testing
+- [ ] Create final checkpoint
