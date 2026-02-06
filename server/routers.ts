@@ -334,6 +334,46 @@ export const appRouter = router({
 
         return { success: true };
       }),
+
+    /**
+     * Approve Claim and Assign Repair
+     * 
+     * Final approval step where insurer selects the winning panel beater quote
+     * and progresses the claim to repair_assigned status.
+     * 
+     * @requires Authentication (Insurer role)
+     * @param claimId - ID of the claim to approve
+     * @param selectedQuoteId - ID of the selected panel beater quote
+     * @returns Success status
+     */
+    approveClaim: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        selectedQuoteId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        // Update claim status to repair_assigned
+        await updateClaimStatus(input.claimId, "repair_assigned");
+        
+        // Get claim and quote details
+        const claim = await getClaimById(input.claimId);
+        const quotes = await getQuotesByClaimId(input.claimId);
+        const selectedQuote = quotes.find(q => q.id === input.selectedQuoteId);
+
+        // Create audit entry
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_approved",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `Claim approved. Selected panel beater quote #${input.selectedQuoteId} for $${selectedQuote ? ((selectedQuote.quotedAmount || 0) / 100).toFixed(2) : 'N/A'}`,
+        });
+
+        return { success: true };
+      }),
   }),
 
   // Assessor operations

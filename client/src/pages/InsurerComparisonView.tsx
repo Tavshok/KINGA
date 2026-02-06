@@ -7,6 +7,8 @@ import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
+import { useState } from "react";
+import { toast } from "sonner";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -387,7 +389,107 @@ export default function InsurerComparisonView() {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Claim Approval Section */}
+        <Card className="mt-8">
+          <CardHeader>
+            <CardTitle>Claim Approval & Panel Beater Selection</CardTitle>
+            <CardDescription>
+              Review all evaluations and select the winning panel beater quote to proceed with repairs
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ClaimApprovalSection claimId={claimId} quotes={quotes} />
+          </CardContent>
+        </Card>
       </main>
+    </div>
+  );
+}
+
+// Claim Approval Component
+function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: any[] }) {
+  const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null);
+  const utils = trpc.useUtils();
+  
+  const approveClaim = trpc.claims.approveClaim.useMutation({
+    onSuccess: () => {
+      utils.claims.getById.invalidate({ id: claimId });
+      toast.success("Claim approved and repair assigned successfully!");
+    },
+    onError: (error) => {
+      toast.error(`Failed to approve claim: ${error.message || 'Unknown error'}`);
+    },
+  });
+  
+  const handleApprove = () => {
+    if (!selectedQuoteId) {
+      toast.error("Please select a panel beater quote first");
+      return;
+    }
+    
+    approveClaim.mutate({
+      claimId,
+      selectedQuoteId,
+    });
+  };
+  
+  return (
+    <div className="space-y-4">
+      {quotes.length > 0 ? (
+        <>
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Select Panel Beater:</p>
+            {quotes.map((quote) => (
+              <div
+                key={quote.id}
+                className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                  selectedQuoteId === quote.id
+                    ? "border-primary bg-primary/5 ring-2 ring-primary"
+                    : "border-border hover:border-primary/50"
+                }`}
+                onClick={() => setSelectedQuoteId(quote.id)}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-medium">Panel Beater #{quote.panelBeaterId}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Quote: ${((quote.quotedAmount || 0) / 100).toFixed(2)} • {quote.estimatedDuration} days
+                    </p>
+                  </div>
+                  {selectedQuoteId === quote.id && (
+                    <CheckCircle2 className="h-5 w-5 text-primary" />
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <Button
+            onClick={handleApprove}
+            disabled={!selectedQuoteId || approveClaim.isPending}
+            className="w-full gradient-primary text-white"
+            size="lg"
+          >
+            {approveClaim.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Approving Claim...
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Approve Claim & Assign Repair
+              </>
+            )}
+          </Button>
+        </>
+      ) : (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>No quotes available yet</p>
+          <p className="text-xs mt-2">Wait for all panel beater quotes to be submitted</p>
+        </div>
+      )}
     </div>
   );
 }
