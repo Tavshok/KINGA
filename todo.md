@@ -828,3 +828,12 @@
 - [ ] Verify all user roles can access their features
 - [ ] Create final checkpoint
 
+
+
+## Test Data Creation for End-to-End Testing
+- [x] Create seed data script with realistic claims from analyzed documents
+- [x] Populate first party claim (Toyota Hilux AFV2713)
+- [x] Populate third party claim (Toyota Quantum AGJ7989)
+- [x] Add police reports with speed discrepancies
+- [x] Add panel beater quotes from Yokama Investments
+- [x] Execute seed script and verify data

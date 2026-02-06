@@ -1,0 +1,9 @@
+{
+  "query": "DELETE FROM audit_trail WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM panel_beater_quotes WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM assessor_evaluations WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM police_reports WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM claims WHERE claim_number LIKE 'CLM-2024-0713%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute DELETE FROM audit_trail WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM panel_beater_quotes WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM assessor_evaluations WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM police_reports WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'CLM-2024-0713%');\nDELETE FROM claims WHERE claim_number LIKE 'CLM-2024-0713%';",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 101
+}
