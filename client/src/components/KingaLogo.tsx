@@ -25,7 +25,7 @@ export default function KingaLogo({ showText = true, size = "md", className = ""
   };
 
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex items-center gap-2 ${className}`}>
       <img 
         src="/kinga-logo.png" 
         alt="KINGA Logo" 
@@ -33,7 +33,7 @@ export default function KingaLogo({ showText = true, size = "md", className = ""
       />
       {showText && (
         <div>
-          <h1 className={`${textSizeClasses[size]} font-bold text-gray-800`}>
+          <h1 className={`${textSizeClasses[size]} font-bold text-emerald-600`}>
             KINGA
           </h1>
         </div>

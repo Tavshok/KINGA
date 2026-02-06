@@ -99,20 +99,53 @@ export default function InsurerClaimsTriage() {
   const totalPages = Math.ceil(claims.length / itemsPerPage);
 
   const getStatusBadge = (status: string) => {
-    const variants: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; label: string }> = {
-      submitted: { variant: "secondary", label: "Pending Triage" },
-      triage: { variant: "default", label: "In Triage" },
-      assessment_pending: { variant: "outline", label: "Assessment Pending" },
-      assessment_in_progress: { variant: "default", label: "Assessment In Progress" },
-      quotes_pending: { variant: "outline", label: "Quotes Pending" },
-      comparison: { variant: "default", label: "In Comparison" },
-      repair_assigned: { variant: "default", label: "Repair Assigned" },
-      repair_in_progress: { variant: "default", label: "Repair In Progress" },
-      completed: { variant: "default", label: "Completed" },
-      rejected: { variant: "destructive", label: "Rejected" },
+    const statusConfig: Record<string, { className: string; label: string }> = {
+      submitted: { 
+        className: "bg-gradient-to-r from-blue-400 to-blue-500 text-white border-none", 
+        label: "Pending Triage" 
+      },
+      triage: { 
+        className: "bg-gradient-to-r from-amber-400 to-orange-500 text-white border-none", 
+        label: "In Triage" 
+      },
+      assessment_pending: { 
+        className: "bg-gradient-to-r from-purple-400 to-purple-500 text-white border-none", 
+        label: "Assessment Pending" 
+      },
+      assessment_in_progress: { 
+        className: "bg-gradient-to-r from-indigo-400 to-indigo-500 text-white border-none", 
+        label: "Assessment In Progress" 
+      },
+      quotes_pending: { 
+        className: "bg-gradient-to-r from-pink-400 to-pink-500 text-white border-none", 
+        label: "Quotes Pending" 
+      },
+      comparison: { 
+        className: "bg-gradient-to-r from-cyan-400 to-cyan-500 text-white border-none", 
+        label: "In Comparison" 
+      },
+      repair_assigned: { 
+        className: "bg-gradient-to-r from-teal-400 to-teal-500 text-white border-none", 
+        label: "Repair Assigned" 
+      },
+      repair_in_progress: { 
+        className: "bg-gradient-to-r from-lime-400 to-lime-500 text-white border-none", 
+        label: "Repair In Progress" 
+      },
+      completed: { 
+        className: "bg-gradient-to-r from-emerald-400 to-green-500 text-white border-none", 
+        label: "Completed" 
+      },
+      rejected: { 
+        className: "bg-gradient-to-r from-rose-400 to-red-500 text-white border-none", 
+        label: "Rejected" 
+      },
     };
-    const config = variants[status] || { variant: "outline" as const, label: status };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    const config = statusConfig[status] || { 
+      className: "bg-gray-100 text-gray-800", 
+      label: status 
+    };
+    return <Badge className={config.className}>{config.label}</Badge>;
   };
 
   return (
