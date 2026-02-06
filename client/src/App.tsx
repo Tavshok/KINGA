@@ -11,9 +11,11 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import InsurerDashboard from "./pages/InsurerDashboard";
 import AssessorDashboard from "./pages/AssessorDashboard";
 import PanelBeaterDashboard from "./pages/PanelBeaterDashboard";
+import PanelBeaterQuoteSubmission from "./pages/PanelBeaterQuoteSubmission";
 import ClaimantDashboard from "./pages/ClaimantDashboard";
 import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
+import InsurerComparisonView from "./pages/InsurerComparisonView";
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 
 function Router() {
@@ -30,9 +32,15 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/insurer/claims-triage">
+      <Route path="/insurer/claims/triage">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerClaimsTriage />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/claims/:id/comparison">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerComparisonView />
         </ProtectedRoute>
       </Route>
       
@@ -53,6 +61,12 @@ function Router() {
       <Route path="/panel-beater/dashboard">
         <ProtectedRoute allowedRoles={["panel_beater"]}>
           <PanelBeaterDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/panel-beater/claims/:id/quote">
+        <ProtectedRoute allowedRoles={["panel_beater"]}>
+          <PanelBeaterQuoteSubmission />
         </ProtectedRoute>
       </Route>
       

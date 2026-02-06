@@ -35,6 +35,9 @@ export default function SubmitClaim() {
   // Get panel beaters list
   const { data: panelBeaters = [] } = trpc.panelBeaters.list.useQuery();
 
+  // Upload image mutation
+  const uploadImage = trpc.storage.uploadImage.useMutation();
+
   // Submit claim mutation
   const submitClaim = trpc.claims.submit.useMutation({
     onSuccess: (data) => {
@@ -53,13 +56,27 @@ export default function SubmitClaim() {
 
     setUploading(true);
     try {
-      // TODO: Implement actual S3 upload
-      // For now, create placeholder URLs
       const uploadedUrls: string[] = [];
+      
       for (let i = 0; i < files.length; i++) {
-        // Simulate upload delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        uploadedUrls.push(`https://placeholder.com/damage-photo-${Date.now()}-${i}.jpg`);
+        const file = files[i];
+        
+        // Read file as base64
+        const reader = new FileReader();
+        const fileData = await new Promise<string>((resolve, reject) => {
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+
+        // Upload to S3 via tRPC
+        const result = await uploadImage.mutateAsync({
+          fileName: file.name,
+          fileData,
+          contentType: file.type,
+        });
+        
+        uploadedUrls.push(result.url);
       }
       
       setFormData(prev => ({
@@ -70,6 +87,7 @@ export default function SubmitClaim() {
       toast.success(`${files.length} photo(s) uploaded successfully`);
     } catch (error) {
       toast.error("Failed to upload photos");
+      console.error(error);
     } finally {
       setUploading(false);
     }

@@ -26,9 +26,11 @@ import {
   getAppointmentsByAssessor,
   getAppointmentsByClaimId,
   createAuditEntry,
-  getAuditTrailByClaimId
+  getAuditTrailByClaimId,
+  getAiAssessmentByClaimId
 } from "./db";
 import { nanoid } from "nanoid";
+import { storagePut } from "./storage";
 
 export const appRouter = router({
   system: systemRouter,
@@ -384,6 +386,41 @@ export const appRouter = router({
       .input(z.object({ claimId: z.number() }))
       .query(async ({ input }) => {
         return await getAppointmentsByClaimId(input.claimId);
+      }),
+  }),
+
+  // AI Assessments
+  aiAssessments: router({
+    byClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input }) => {
+        return await getAiAssessmentByClaimId(input.claimId);
+      }),
+  }),
+
+  // Storage operations
+  storage: router({
+    uploadImage: protectedProcedure
+      .input(z.object({
+        fileName: z.string(),
+        fileData: z.string(), // base64 encoded
+        contentType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+
+        // Extract base64 data (remove data:image/...;base64, prefix)
+        const base64Data = input.fileData.split(',')[1] || input.fileData;
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        // Generate unique file key
+        const fileExtension = input.fileName.split('.').pop() || 'jpg';
+        const fileKey = `claims/${ctx.user.id}/${nanoid()}.${fileExtension}`;
+
+        // Upload to S3
+        const result = await storagePut(fileKey, buffer, input.contentType);
+
+        return { url: result.url, key: result.key };
       }),
   }),
 

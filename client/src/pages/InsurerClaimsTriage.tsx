@@ -17,7 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Shield, ArrowLeft, CheckCircle, XCircle, Zap, Eye } from "lucide-react";
+import { Shield, ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
@@ -265,6 +265,14 @@ export default function InsurerClaimsTriage() {
                             >
                               <Eye className="h-3 w-3 mr-1" />
                               View
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-7 px-2"
+                              onClick={() => setLocation(`/insurer/claims/${claim.id}/comparison`)}
+                            >
+                              <BarChart3 className="h-3 w-3 mr-1" />
+                              Compare
                             </Button>
                           </div>
                         </div>
