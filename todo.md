@@ -572,3 +572,19 @@
 - [ ] Driver behavior scoring from telematics
 - [ ] Automated parts ordering system
 - [ ] Post-repair quality verification with sensors
+
+
+## Immediate Engineering Features Implementation
+- [x] Implement paint and bodywork forensics (detect previous repairs, overspray, different paint sheen)
+- [x] Add rust assessment (pre-existing vs new corrosion)
+- [x] Build tire wear pattern analysis (detect alignment issues, uneven wear)
+- [x] Implement fluid leak detection from photos (oil, coolant, brake fluid)
+- [x] Add glass damage analysis (stress cracks vs impact damage)
+- [x] Build parts pricing verification against market rates
+- [x] Implement weather context integration (accident time/location weather data)
+- [x] Add total loss assessment automation (repair cost vs vehicle value)
+- [x] Build mileage verification (claimed vs visible wear patterns)
+- [x] Implement ADAS damage assessment (camera/sensor damage from photos)
+- [ ] Integrate forensic analysis into AI assessment workflow
+- [ ] Test all engineering features
+- [ ] Create checkpoint with engineering features
