@@ -207,3 +207,19 @@
 - [ ] Implement real-time notifications system
 - [ ] Test all new features
 - [ ] Create final checkpoint
+
+
+## Real-Time Notifications System
+- [x] Create notifications database table
+- [x] Build notification tRPC procedures (create, list, mark as read)
+- [x] Create NotificationCenter component with dropdown UI
+- [x] Add notification bell icon to header with unread count badge
+- [ ] Implement browser push notifications API integration (future enhancement)
+- [ ] Add notification preferences management (future enhancement)
+- [x] Integrate notifications for claim assignments
+- [x] Add notifications for quote submissions
+- [x] Implement fraud detection alerts
+- [x] Add notifications for status changes
+- [x] Create notification polling/refresh mechanism
+- [x] Test notification system across all user roles
+- [ ] Create checkpoint with notifications feature

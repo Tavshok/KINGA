@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { FileText, Plus, Clock, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export default function ClaimantDashboard() {
   const { user, logout } = useAuth();
@@ -21,6 +22,7 @@ export default function ClaimantDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>

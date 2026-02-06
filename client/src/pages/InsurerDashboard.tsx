@@ -5,6 +5,7 @@ import { FileText, AlertTriangle, TrendingUp, Settings } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { NotificationBell } from "@/components/NotificationBell";
 
 export default function InsurerDashboard() {
   const { user, logout } = useAuth();
@@ -55,6 +56,7 @@ export default function InsurerDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>
               <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>

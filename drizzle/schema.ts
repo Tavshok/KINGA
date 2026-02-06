@@ -295,3 +295,45 @@ export const claimDocuments = mysqlTable("claim_documents", {
 
 export type ClaimDocument = typeof claimDocuments.$inferSelect;
 export type InsertClaimDocument = typeof claimDocuments.$inferInsert;
+/**
+ * Notifications - Real-time notifications for users
+ * Tracks system events and user actions that require attention
+ */
+export const notifications = mysqlTable("notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(), // Recipient user ID
+  
+  // Notification content
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  type: mysqlEnum("type", [
+    "claim_assigned",
+    "quote_submitted",
+    "fraud_detected",
+    "status_changed",
+    "assessment_completed",
+    "approval_required",
+    "document_uploaded",
+    "system_alert"
+  ]).notNull(),
+  
+  // Related entities
+  claimId: int("claim_id"), // Link to related claim
+  entityType: varchar("entity_type", { length: 50 }), // e.g., "claim", "quote", "assessment"
+  entityId: int("entity_id"), // ID of the related entity
+  
+  // Notification state
+  isRead: tinyint("is_read").default(0).notNull(),
+  readAt: timestamp("read_at"),
+  
+  // Action link (optional)
+  actionUrl: varchar("action_url", { length: 500 }), // URL to navigate to when clicked
+  
+  // Priority level
+  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export type InsertNotification = typeof notifications.$inferInsert;

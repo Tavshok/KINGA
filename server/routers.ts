@@ -227,7 +227,7 @@ export const appRouter = router({
         const assessors = await getUsersByRole("assessor");
         const assessor = assessors.find(a => a.id === input.assessorId);
 
-        // Send notification to assessor
+        // Send email notification to assessor
         if (claim && assessor && assessor.email) {
           await notifyAssessorAssignment({
             recipientEmail: assessor.email,
@@ -236,6 +236,22 @@ export const appRouter = router({
             vehicleMake: claim.vehicleMake || "",
             vehicleModel: claim.vehicleModel || "",
             incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
+          });
+        }
+
+        // Create in-app notification for assessor
+        if (claim) {
+          const { createNotification } = await import("./db");
+          await createNotification({
+            userId: input.assessorId,
+            title: "New Claim Assigned",
+            message: `You have been assigned to assess claim ${claim.claimNumber} for ${claim.vehicleMake} ${claim.vehicleModel}`,
+            type: "claim_assigned",
+            claimId: input.claimId,
+            entityType: "claim",
+            entityId: input.claimId,
+            actionUrl: `/assessor/claims/${input.claimId}`,
+            priority: "high",
           });
         }
 
@@ -310,7 +326,7 @@ export const appRouter = router({
         const claim = await getClaimById(input.claimId);
         const aiAssessment = await getAiAssessmentByClaimId(input.claimId);
 
-        // Send notification about AI assessment completion
+        // Send email notification about AI assessment completion
         if (claim && aiAssessment) {
           await notifyAiAssessmentComplete({
             recipientEmail: ctx.user.email || "",
@@ -320,6 +336,35 @@ export const appRouter = router({
             fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
             confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
           });
+          
+          // Create in-app notification for high fraud risk
+          if (aiAssessment.fraudRiskLevel === "high") {
+            const { createNotification } = await import("./db");
+            await createNotification({
+              userId: ctx.user.id,
+              title: "⚠️ High Fraud Risk Detected",
+              message: `AI assessment flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
+              type: "fraud_detected",
+              claimId: input.claimId,
+              entityType: "ai_assessment",
+              entityId: aiAssessment.id,
+              actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+              priority: "urgent",
+            });
+          } else {
+            // Regular assessment completion notification
+            const { createNotification } = await import("./db");
+            await createNotification({
+              userId: ctx.user.id,
+              title: "AI Assessment Complete",
+              message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}`,
+              type: "assessment_completed",
+              claimId: input.claimId,
+              entityType: "ai_assessment",
+              actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+              priority: "medium",
+            });
+          }
         }
 
         // Create audit entry
@@ -471,9 +516,49 @@ export const appRouter = router({
         
         // Check if all quotes have been received (3 panel beaters)
         const allQuotes = await getQuotesByClaimId(input.claimId);
+        const claim = await getClaimById(input.claimId);
+        
         if (allQuotes.length >= 3) {
           // All quotes received, progress to comparison stage
           await updateClaimStatus(input.claimId, "comparison");
+          
+          // Notify insurer that all quotes are ready for comparison
+          if (claim) {
+            const insurers = await getUsersByRole("insurer");
+            const { createNotification } = await import("./db");
+            
+            for (const insurer of insurers) {
+              await createNotification({
+                userId: insurer.id,
+                title: "All Quotes Received",
+                message: `All panel beater quotes received for claim ${claim.claimNumber}. Ready for comparison and fraud detection.`,
+                type: "quote_submitted",
+                claimId: input.claimId,
+                entityType: "quote",
+                actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+                priority: "high",
+              });
+            }
+          }
+        } else {
+          // Notify insurer of new quote submission
+          if (claim) {
+            const insurers = await getUsersByRole("insurer");
+            const { createNotification } = await import("./db");
+            
+            for (const insurer of insurers) {
+              await createNotification({
+                userId: insurer.id,
+                title: "New Quote Submitted",
+                message: `Panel beater submitted quote for claim ${claim.claimNumber} (${allQuotes.length}/3 quotes received)`,
+                type: "quote_submitted",
+                claimId: input.claimId,
+                entityType: "quote",
+                actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+                priority: "medium",
+              });
+            }
+          }
         }
 
         // Create audit entry
@@ -730,6 +815,64 @@ export const appRouter = router({
           changeDescription: `Deleted document: ${doc.fileName}`,
         });
 
+        return { success: true };
+      }),
+  }),
+
+  /**
+   * Notifications Router
+   * Handles real-time notifications for users about claim events,
+   * assignments, quotes, fraud detection, and status changes
+   */
+  notifications: router({
+    // Get all notifications for current user
+    list: protectedProcedure
+      .input(z.object({ limit: z.number().optional() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { getNotificationsByUser } = await import("./db");
+        return await getNotificationsByUser(ctx.user.id, input.limit || 50);
+      }),
+
+    // Get unread notification count
+    unreadCount: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { getUnreadNotificationCount } = await import("./db");
+        return { count: await getUnreadNotificationCount(ctx.user.id) };
+      }),
+
+    // Mark notification as read
+    markAsRead: protectedProcedure
+      .input(z.object({ notificationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { markNotificationAsRead } = await import("./db");
+        await markNotificationAsRead(input.notificationId);
+        return { success: true };
+      }),
+
+    // Mark all notifications as read
+    markAllAsRead: protectedProcedure
+      .mutation(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { markAllNotificationsAsRead } = await import("./db");
+        await markAllNotificationsAsRead(ctx.user.id);
+        return { success: true };
+      }),
+
+    // Delete a notification
+    delete: protectedProcedure
+      .input(z.object({ notificationId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { deleteNotification } = await import("./db");
+        await deleteNotification(input.notificationId);
         return { success: true };
       }),
   }),

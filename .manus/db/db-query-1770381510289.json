@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `notifications` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `user_id` int NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `message` text NOT NULL,\n  `type` enum('claim_assigned', 'quote_submitted', 'fraud_detected', 'status_changed', 'assessment_completed', 'approval_required', 'document_uploaded', 'system_alert') NOT NULL,\n  `claim_id` int,\n  `entity_type` varchar(50),\n  `entity_id` int,\n  `is_read` tinyint NOT NULL DEFAULT 0,\n  `read_at` timestamp NULL,\n  `action_url` varchar(500),\n  `priority` enum('low', 'medium', 'high', 'urgent') NOT NULL DEFAULT 'medium',\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS `notifications` (\n  `id` int AUTO_INCREMENT PRIMARY KEY,\n  `user_id` int NOT NULL,\n  `title` varchar(255) NOT NULL,\n  `message` text NOT NULL,\n  `type` enum('claim_assigned', 'quote_submitted', 'fraud_detected', 'status_changed', 'assessment_completed', 'approval_required', 'document_uploaded', 'system_alert') NOT NULL,\n  `claim_id` int,\n  `entity_type` varchar(50),\n  `entity_id` int,\n  `is_read` tinyint NOT NULL DEFAULT 0,\n  `read_at` timestamp NULL,\n  `action_url` varchar(500),\n  `priority` enum('low', 'medium', 'high', 'urgent') NOT NULL DEFAULT 'medium',\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 396
+}
