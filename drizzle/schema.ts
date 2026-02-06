@@ -337,3 +337,322 @@ export const notifications = mysqlTable("notifications", {
 
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = typeof notifications.$inferInsert;
+
+/**
+ * Fraud Indicators - Detailed fraud detection results for each claim
+ * Stores all detected fraud patterns and their severity scores
+ */
+export const fraudIndicators = mysqlTable("fraud_indicators", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  
+  // Overall fraud assessment
+  overallFraudScore: int("overall_fraud_score").notNull(), // 0-100
+  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high", "critical"]).notNull(),
+  
+  // Claimant fraud indicators
+  delayedSubmissionDays: int("delayed_submission_days"), // Days between incident and claim
+  delayedSubmissionScore: int("delayed_submission_score"), // 0-100
+  
+  isNonOwnerDriver: tinyint("is_non_owner_driver").default(0),
+  nonOwnerDriverScore: int("non_owner_driver_score"),
+  
+  isSolePartyNightAccident: tinyint("is_sole_party_night_accident").default(0),
+  solePartyNightScore: int("sole_party_night_score"),
+  
+  policyAgeDays: int("policy_age_days"), // Days between policy start and incident
+  newPolicyWriteOffScore: int("new_policy_write_off_score"),
+  
+  previousInsurerCount: int("previous_insurer_count"), // Number of insurers in past year
+  insurerHoppingScore: int("insurer_hopping_score"),
+  
+  claimantHistoryScore: int("claimant_history_score"), // Based on past claims
+  
+  // Panel beater fraud indicators
+  quoteSimilarityScore: int("quote_similarity_score"), // 0-100, higher = more similar quotes
+  hasCopyQuotations: tinyint("has_copy_quotations").default(0),
+  
+  inflatedPartsCostScore: int("inflated_parts_cost_score"),
+  inflatedLaborTimeScore: int("inflated_labor_time_score"),
+  exaggeratedDamageScore: int("exaggerated_damage_score"),
+  
+  replacementVsRepairRatio: int("replacement_vs_repair_ratio"), // Percentage of parts marked for replacement
+  replacementRatioScore: int("replacement_ratio_score"),
+  
+  damageScopeCreepScore: int("damage_scope_creep_score"), // Ballooning parts list
+  
+  // Assessor fraud indicators
+  assessorCollusionScore: int("assessor_collusion_score"),
+  assessorBiasScore: int("assessor_bias_score"),
+  rubberStampingScore: int("rubber_stamping_score"),
+  
+  // Document & evidence indicators
+  photoMetadataScore: int("photo_metadata_score"), // EXIF tampering, etc.
+  reusedPhotoScore: int("reused_photo_score"),
+  documentConsistencyScore: int("document_consistency_score"),
+  
+  // Additional patterns
+  stagedAccidentScore: int("staged_accident_score"),
+  geographicRiskScore: int("geographic_risk_score"),
+  temporalAnomalyScore: int("temporal_anomaly_score"),
+  
+  // Fraud indicators summary (JSON)
+  detectedPatterns: text("detected_patterns"), // JSON array of detected pattern names
+  fraudEvidence: text("fraud_evidence"), // JSON array of evidence descriptions
+  
+  // Investigation status
+  requiresInvestigation: tinyint("requires_investigation").default(0).notNull(),
+  investigationPriority: mysqlEnum("investigation_priority", ["low", "medium", "high", "urgent"]),
+  investigationStatus: mysqlEnum("investigation_status", ["pending", "in_progress", "completed", "closed"]).default("pending"),
+  investigationNotes: text("investigation_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FraudIndicator = typeof fraudIndicators.$inferSelect;
+export type InsertFraudIndicator = typeof fraudIndicators.$inferInsert;
+
+/**
+ * Claimant History - Track all claims by each claimant across time
+ * Used for pattern detection and fraud scoring
+ */
+export const claimantHistory = mysqlTable("claimant_history", {
+  id: int("id").autoincrement().primaryKey(),
+  claimantId: int("claimant_id").notNull(),
+  claimantEmail: varchar("claimant_email", { length: 320 }),
+  claimantPhone: varchar("claimant_phone", { length: 20 }),
+  
+  // Claim statistics
+  totalClaims: int("total_claims").default(0).notNull(),
+  approvedClaims: int("approved_claims").default(0),
+  rejectedClaims: int("rejected_claims").default(0),
+  fraudulentClaims: int("fraudulent_claims").default(0),
+  
+  totalClaimAmount: int("total_claim_amount").default(0), // In cents
+  averageClaimAmount: int("average_claim_amount").default(0),
+  
+  // Temporal patterns
+  firstClaimDate: timestamp("first_claim_date"),
+  lastClaimDate: timestamp("last_claim_date"),
+  claimFrequency: int("claim_frequency"), // Claims per year
+  
+  // Vehicle patterns
+  uniqueVehiclesCount: int("unique_vehicles_count").default(0),
+  nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
+  
+  // Insurer patterns
+  insurerChangeCount: int("insurer_change_count").default(0),
+  currentInsurer: varchar("current_insurer", { length: 255 }),
+  previousInsurers: text("previous_insurers"), // JSON array
+  
+  // Geographic patterns
+  accidentLocations: text("accident_locations"), // JSON array of locations
+  highRiskAreaCount: int("high_risk_area_count").default(0),
+  
+  // Risk assessment
+  riskScore: int("risk_score").default(0), // 0-100
+  riskLevel: mysqlEnum("risk_level", ["low", "medium", "high", "critical"]).default("low"),
+  
+  // Flags
+  isHighRiskClient: tinyint("is_high_risk_client").default(0),
+  isFraudster: tinyint("is_fraudster").default(0),
+  isBlacklisted: tinyint("is_blacklisted").default(0),
+  
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ClaimantHistory = typeof claimantHistory.$inferSelect;
+export type InsertClaimantHistory = typeof claimantHistory.$inferInsert;
+
+/**
+ * Vehicle History - Track vehicle-related fraud patterns
+ */
+export const vehicleHistory = mysqlTable("vehicle_history", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull().unique(),
+  
+  // Vehicle details
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  vin: varchar("vin", { length: 17 }),
+  
+  // Ownership tracking
+  currentOwnerId: int("current_owner_id"),
+  ownershipChangeCount: int("ownership_change_count").default(0),
+  ownershipHistory: text("ownership_history"), // JSON array
+  
+  // Claim history
+  totalClaims: int("total_claims").default(0),
+  totalClaimAmount: int("total_claim_amount").default(0),
+  lastClaimDate: timestamp("last_claim_date"),
+  
+  // Fraud indicators
+  hasPreExistingDamage: tinyint("has_pre_existing_damage").default(0),
+  isSalvageTitle: tinyint("is_salvage_title").default(0),
+  hasOdometerFraud: tinyint("has_odometer_fraud").default(0),
+  isStolen: tinyint("is_stolen").default(0),
+  
+  // Driver patterns
+  uniqueDriversCount: int("unique_drivers_count").default(0),
+  nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
+  driverHistory: text("driver_history"), // JSON array
+  
+  riskScore: int("risk_score").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type VehicleHistory = typeof vehicleHistory.$inferSelect;
+export type InsertVehicleHistory = typeof vehicleHistory.$inferInsert;
+
+/**
+ * Entity Relationships - Track connections between entities for collusion detection
+ */
+export const entityRelationships = mysqlTable("entity_relationships", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Entity A
+  entityAType: varchar("entity_a_type", { length: 50 }).notNull(), // claimant, assessor, panel_beater
+  entityAId: int("entity_a_id").notNull(),
+  entityAName: varchar("entity_a_name", { length: 255 }),
+  
+  // Entity B
+  entityBType: varchar("entity_b_type", { length: 50 }).notNull(),
+  entityBId: int("entity_b_id").notNull(),
+  entityBName: varchar("entity_b_name", { length: 255 }),
+  
+  // Relationship details
+  relationshipType: mysqlEnum("relationship_type", [
+    "shared_address",
+    "shared_phone",
+    "shared_email",
+    "shared_bank_account",
+    "family_relation",
+    "business_relation",
+    "frequent_interaction",
+    "social_media_connection",
+    "employment_relation",
+    "suspicious_pattern"
+  ]).notNull(),
+  
+  relationshipStrength: int("relationship_strength").default(0), // 0-100
+  
+  // Interaction statistics
+  interactionCount: int("interaction_count").default(0),
+  firstInteractionDate: timestamp("first_interaction_date"),
+  lastInteractionDate: timestamp("last_interaction_date"),
+  
+  // Fraud indicators
+  isCollusionSuspected: tinyint("is_collusion_suspected").default(0),
+  collusionScore: int("collusion_score").default(0),
+  collusionEvidence: text("collusion_evidence"), // JSON array
+  
+  // Investigation
+  investigationStatus: mysqlEnum("investigation_status", ["none", "pending", "in_progress", "confirmed", "cleared"]).default("none"),
+  investigationNotes: text("investigation_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type EntityRelationship = typeof entityRelationships.$inferSelect;
+export type InsertEntityRelationship = typeof entityRelationships.$inferInsert;
+
+/**
+ * Fraud Rules - Configurable fraud detection rules
+ */
+export const fraudRules = mysqlTable("fraud_rules", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  ruleName: varchar("rule_name", { length: 255 }).notNull().unique(),
+  ruleDescription: text("rule_description"),
+  ruleCategory: mysqlEnum("rule_category", [
+    "claimant",
+    "panel_beater",
+    "assessor",
+    "vehicle",
+    "document",
+    "temporal",
+    "geographic",
+    "network"
+  ]).notNull(),
+  
+  // Rule configuration
+  isActive: tinyint("is_active").default(1).notNull(),
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  scoreWeight: int("score_weight").default(10).notNull(), // 1-100
+  
+  // Threshold configuration
+  thresholdValue: int("threshold_value"), // Numeric threshold for rule trigger
+  thresholdUnit: varchar("threshold_unit", { length: 50 }), // days, percentage, count, etc.
+  
+  // Rule logic (JSON configuration)
+  ruleLogic: text("rule_logic"), // JSON object defining rule conditions
+  
+  // Actions
+  autoFlag: tinyint("auto_flag").default(1),
+  requiresManualReview: tinyint("requires_manual_review").default(0),
+  notifyInvestigator: tinyint("notify_investigator").default(0),
+  
+  // Statistics
+  timesTriggered: int("times_triggered").default(0),
+  truePositiveCount: int("true_positive_count").default(0),
+  falsePositiveCount: int("false_positive_count").default(0),
+  accuracy: int("accuracy").default(0), // Percentage
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FraudRule = typeof fraudRules.$inferSelect;
+export type InsertFraudRule = typeof fraudRules.$inferInsert;
+
+/**
+ * Fraud Alerts - Real-time fraud alerts triggered by detection system
+ */
+export const fraudAlerts = mysqlTable("fraud_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  
+  // Alert details
+  alertType: varchar("alert_type", { length: 100 }).notNull(),
+  alertSeverity: mysqlEnum("alert_severity", ["low", "medium", "high", "critical"]).notNull(),
+  alertTitle: varchar("alert_title", { length: 255 }).notNull(),
+  alertDescription: text("alert_description").notNull(),
+  
+  // Triggered rule
+  triggeredRuleId: int("triggered_rule_id"),
+  triggeredRuleName: varchar("triggered_rule_name", { length: 255 }),
+  
+  // Related entities
+  relatedEntityType: varchar("related_entity_type", { length: 50 }),
+  relatedEntityId: int("related_entity_id"),
+  
+  // Alert data
+  alertData: text("alert_data"), // JSON object with detailed alert information
+  fraudScore: int("fraud_score"), // 0-100
+  
+  // Status
+  status: mysqlEnum("status", ["new", "acknowledged", "investigating", "resolved", "false_alarm"]).default("new").notNull(),
+  assignedTo: int("assigned_to"), // User ID of investigator
+  
+  // Resolution
+  resolutionNotes: text("resolution_notes"),
+  resolutionDate: timestamp("resolution_date"),
+  isFraudConfirmed: tinyint("is_fraud_confirmed"),
+  
+  // Actions taken
+  actionsTaken: text("actions_taken"), // JSON array
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FraudAlert = typeof fraudAlerts.$inferSelect;
+export type InsertFraudAlert = typeof fraudAlerts.$inferInsert;

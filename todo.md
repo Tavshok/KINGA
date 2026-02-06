@@ -223,3 +223,305 @@
 - [x] Create notification polling/refresh mechanism
 - [x] Test notification system across all user roles
 - [ ] Create checkpoint with notifications feature
+
+
+## Comprehensive Fraud Detection System
+
+### Database Schema Extensions
+- [ ] Add fraud_indicators table for tracking specific fraud patterns
+- [ ] Add claimant_history table for cross-claim analysis
+- [ ] Add vehicle_history table for tracking vehicle-related fraud
+- [ ] Add entity_relationships table for detecting collusion networks
+- [ ] Add fraud_rules table for configurable detection rules
+- [ ] Add fraud_alerts table for tracking triggered alerts
+
+### Claimant Fraud Detection
+- [ ] Implement delayed submission detection (claim vs incident date gap)
+- [ ] Build driver-vehicle mismatch detection (non-owner frequent accidents)
+- [ ] Create sole party night accident risk scoring
+- [ ] Implement new policy write-off detection (policy age < 30 days)
+- [ ] Add insurer hopping pattern detection
+- [ ] Build claim frequency analysis per claimant
+- [ ] Implement geographic clustering detection
+
+### Panel Beater Fraud Detection
+- [ ] Detect copy quotations (identical or near-identical quotes from different beaters)
+- [ ] Implement inflated parts cost detection (compare against market rates)
+- [ ] Build repair time inflation detection (compare against industry standards)
+- [ ] Create exaggerated damage detection (compare photos vs quoted repairs)
+- [ ] Implement replacement vs repair ratio analysis
+- [ ] Build damage scope creep detection (ballooning parts list)
+- [ ] Add panel beater collusion network detection
+
+### Assessor Fraud Detection
+- [ ] Implement assessor-panel beater collusion detection
+- [ ] Build consistent approval pattern detection (rubber-stamping)
+- [ ] Create assessor bias scoring (always favoring certain panel beaters)
+- [ ] Implement assessment quality scoring
+- [ ] Add assessor-claimant relationship detection
+
+### Fraud Analytics & Scoring
+- [ ] Build comprehensive fraud risk scoring engine
+- [ ] Implement weighted scoring across all fraud dimensions
+- [ ] Create fraud pattern database and machine learning model
+- [ ] Build anomaly detection for unusual patterns
+- [ ] Implement fraud trend analysis
+
+### Fraud Analytics Dashboard
+- [ ] Create fraud overview dashboard with key metrics
+- [ ] Build fraud heatmap (geographic and temporal)
+- [ ] Implement fraud trend charts
+- [ ] Add top fraud indicators breakdown
+- [ ] Create entity-specific fraud profiles (claimants, panel beaters, assessors)
+- [ ] Build fraud cost impact analysis
+- [ ] Add fraud detection accuracy metrics
+
+### Enhanced Comparison View
+- [ ] Add detailed fraud indicators breakdown in comparison view
+- [ ] Implement visual fraud score display
+- [ ] Add historical fraud patterns for entities
+- [ ] Create fraud evidence timeline
+- [ ] Add recommendation engine for fraud investigation
+
+### Testing & Documentation
+- [ ] Create unit tests for fraud detection rules
+- [ ] Test fraud scoring engine accuracy
+- [ ] Document fraud detection methodology
+- [ ] Create fraud investigation playbook
+- [ ] Save checkpoint with fraud detection system
+
+
+### Additional Advanced Fraud Patterns
+
+#### Staged Accidents & Orchestrated Fraud
+- [ ] Detect multiple claimants from same accident with suspicious relationships
+- [ ] Identify accident staging indicators (low-speed high-damage, convenient witnesses)
+- [ ] Flag accidents involving rental vehicles or recently purchased vehicles
+- [ ] Detect "swoop and squat" patterns (sudden braking fraud)
+- [ ] Identify phantom passenger fraud (claiming injuries for non-existent passengers)
+
+#### Document & Evidence Manipulation
+- [ ] Implement photo metadata analysis (EXIF tampering, timestamp inconsistencies)
+- [ ] Detect reused damage photos across multiple claims
+- [ ] Flag inconsistent damage progression in photo sequences
+- [ ] Identify AI-generated or heavily edited damage photos
+- [ ] Detect forged or altered repair invoices and receipts
+- [ ] Flag suspicious document submission patterns (all docs submitted at once vs. gradual)
+
+#### Medical & Injury Fraud (if applicable)
+- [ ] Detect soft tissue injury claims with no visible vehicle damage
+- [ ] Flag delayed medical treatment (injury reported days/weeks after accident)
+- [ ] Identify medical provider fraud rings (same doctors across multiple claims)
+- [ ] Detect injury claim inflation (minor accident, major injury claims)
+
+#### Financial & Payment Fraud
+- [ ] Detect suspicious banking patterns (frequent account changes)
+- [ ] Flag payment routing to unusual beneficiaries
+- [ ] Identify claims with inflated rental car costs
+- [ ] Detect towing and storage fee inflation
+- [ ] Flag suspicious total loss valuations (overvalued vehicles)
+
+#### Vehicle-Specific Fraud Indicators
+- [ ] Detect pre-existing damage fraud (claiming old damage as new)
+- [ ] Identify VIN cloning or alteration
+- [ ] Flag salvage title vehicles claimed as clean title
+- [ ] Detect odometer rollback fraud
+- [ ] Identify vehicle export fraud (claim payout then export vehicle)
+- [ ] Flag vehicles with multiple owners in short period before claim
+
+#### Temporal & Behavioral Patterns
+- [ ] Detect "Friday afternoon" claim submissions (weekend processing delays)
+- [ ] Identify end-of-month claim spikes (financial pressure indicators)
+- [ ] Flag claims submitted during holidays or long weekends
+- [ ] Detect unusual communication patterns (avoiding calls, only email)
+- [ ] Identify pressure tactics (threatening legal action, media exposure)
+- [ ] Flag incomplete information with resistance to provide details
+
+#### Network & Relationship Fraud
+- [ ] Detect family fraud rings (related claimants, shared addresses)
+- [ ] Identify professional fraud networks (lawyers, doctors, repair shops)
+- [ ] Flag social media connections between supposedly unrelated parties
+- [ ] Detect employment-based fraud (coworkers involved in same accidents)
+- [ ] Identify referral fee schemes (kickbacks between entities)
+
+#### Geographic & Location Fraud
+- [ ] Detect accident location inconsistencies (GPS vs reported location)
+- [ ] Identify high-fraud geographic clusters
+- [ ] Flag accidents in areas with no surveillance cameras
+- [ ] Detect "jurisdiction shopping" (claiming in favorable jurisdictions)
+- [ ] Identify impossible travel patterns (multiple claims in distant locations)
+
+#### Repair Shop Fraud Patterns
+- [ ] Detect "ghost repairs" (claiming repairs never performed)
+- [ ] Identify parts substitution fraud (OEM claimed, aftermarket used)
+- [ ] Flag repair duration inconsistencies (claimed vs actual time)
+- [ ] Detect duplicate billing (same repair billed to multiple claims)
+- [ ] Identify unlicensed or unregistered repair facilities
+- [ ] Flag repair shops with unusually high claim volumes
+
+#### Data Anomaly Detection
+- [ ] Implement statistical outlier detection for claim amounts
+- [ ] Detect unusual claim characteristic combinations
+- [ ] Identify claims that deviate from peer group norms
+- [ ] Flag suspiciously "perfect" claims (all documentation immediately available)
+- [ ] Detect claims with round-number amounts (psychological indicator)
+
+#### Cross-Industry Intelligence
+- [ ] Integrate with industry fraud databases (if available)
+- [ ] Implement credit bureau fraud indicator checks
+- [ ] Add criminal record screening for high-risk claims
+- [ ] Integrate with vehicle theft databases
+- [ ] Connect to insurance industry blacklists
+
+#### Assessor-Specific Advanced Patterns
+- [ ] Detect assessment time anomalies (too fast or too slow)
+- [ ] Identify assessors with unusually high approval rates
+- [ ] Flag assessors who never escalate claims for investigation
+- [ ] Detect geographic bias (assessor always approves claims in certain areas)
+- [ ] Identify assessors with financial stress (potential corruption risk)
+
+#### Machine Learning & Predictive Analytics
+- [ ] Build ML model for fraud probability prediction
+- [ ] Implement clustering analysis for fraud pattern discovery
+- [ ] Create predictive models for emerging fraud trends
+- [ ] Build natural language processing for claim description analysis
+- [ ] Implement image recognition for damage authenticity verification
+
+
+### Enhanced Copy Quotation Detection (User Feedback)
+- [ ] Implement handwriting similarity analysis for handwritten quotes (image comparison)
+- [ ] Build item ordering similarity detection (sequence matching algorithm)
+- [ ] Create description phrasing similarity analysis (NLP text similarity)
+- [ ] Implement formatting/layout similarity detection
+- [ ] Build template fingerprinting system
+- [ ] Add quote structure analysis (section ordering, grouping patterns)
+- [ ] Detect suspiciously identical line item sequences across quotes
+- [ ] Flag quotes with same items in same order but different prices
+- [ ] Implement Levenshtein distance for text description similarity
+- [ ] Create visual similarity scoring for quote document images
+
+
+### Selective Item Omission Detection (User Feedback)
+- [ ] Build damage-to-quote consistency checker
+- [ ] Compare AI-detected damage items against quoted repair items
+- [ ] Flag quotes missing obvious damage repairs visible in photos
+- [ ] Detect systematic underquoting patterns by panel beater
+- [ ] Identify suspicious scope creep (items added after initial quote)
+- [ ] Cross-reference damage photos with quote line items
+- [ ] Build completeness scoring for each quote
+- [ ] Flag quotes with significantly fewer items than other quotes for same claim
+- [ ] Track panel beater history of scope creep incidents
+- [ ] Create alert for quotes missing high-value items (headlamps, bumpers, etc.)
+
+
+### Two-Stage Quote Fraud Detection (User Feedback)
+- [ ] Track initial quote vs supplementary quote submissions
+- [ ] Flag "extras" that were visible in initial damage photos
+- [ ] Build latent vs visible damage classifier
+- [ ] Detect systematic two-stage quoting patterns by panel beater
+- [ ] Create rules: only hidden/latent damage allowed as extras
+- [ ] Alert when extras include items visible in original photos
+- [ ] Track panel beater history of supplementary quote patterns
+
+### Unrelated Damage Detection (User Feedback)
+- [ ] Build impact point identification from damage photos
+- [ ] Create geometric consistency checker (impact zone vs quoted repairs)
+- [ ] Flag repairs inconsistent with impact location
+- [ ] Build exception rules for electrical/mechanical interdependencies
+- [ ] Implement damage propagation modeling
+- [ ] Create plausibility scoring for each quoted repair item
+- [ ] Flag suspicious repairs (e.g., left tail light when impact is front-right)
+
+### Physics-Based Accident Reconstruction System
+- [x] Build impact physics engine with collision dynamics
+- [x] Implement speed estimation from damage severity algorithm
+- [x] Create impact angle calculation from damage patterns
+- [x] Build force distribution analysis model
+- [x] Implement energy transfer calculations (kinetic energy dissipation)
+- [x] Create momentum-based collision analysis
+- [x] Build crumple zone deformation modeling
+
+### Accident Type Classification & Analysis
+- [ ] Implement ML model for accident type classification (frontal, side, rear, rollover)
+- [ ] Build rollover detection with specific damage patterns
+- [ ] Create multi-impact vs single-impact detection
+- [ ] Implement low-speed vs high-speed collision indicators
+- [ ] Build accident severity scoring based on physics
+- [ ] Create vehicle dynamics analysis (skid marks, trajectory)
+
+### Damage Propagation & Consistency Validation
+- [ ] Build primary impact zone identification algorithm
+- [ ] Create secondary damage prediction model
+- [ ] Implement structural damage cascading analysis
+- [ ] Build component failure probability model
+- [ ] Create damage severity consistency checker
+- [ ] Implement geometric plausibility validation
+- [ ] Build physics-based impossibility detector (fraudulent damage patterns)
+
+### Latent Damage Prediction System
+- [ ] Build hidden mechanical damage probability model
+- [ ] Create rollover-specific checks (engine damage, hydrostatic lock)
+- [ ] Implement structural integrity assessment
+- [ ] Build fluid system damage prediction
+- [ ] Create suspension/alignment damage prediction
+- [ ] Implement electrical system damage probability
+- [ ] Build frame/unibody damage detection
+
+### Advanced Damage Analysis Algorithms
+- [ ] Implement finite element analysis (FEA) for structural damage
+- [ ] Build material deformation modeling
+- [ ] Create stress distribution analysis
+- [ ] Implement fracture mechanics for component failure
+- [ ] Build thermal damage analysis (fire, friction)
+- [ ] Create paint damage vs structural damage correlation
+
+### Speed & Impact Force Estimation
+- [x] Build speed estimation from crumple zone deformation
+- [x] Implement delta-V (velocity change) calculations
+- [x] Create impact force magnitude estimation
+- [x] Build deceleration rate analysis
+- [x] Implement occupant injury risk correlation
+- [x] Create vehicle mass and impact energy calculations
+
+### Fraud Detection via Physics Inconsistencies
+- [ ] Flag damage patterns inconsistent with reported accident type
+- [ ] Detect impossible damage combinations
+- [ ] Flag severity mismatches (low-speed claim, high-speed damage)
+- [ ] Identify pre-existing damage vs accident damage
+- [ ] Detect staged accident indicators (physics-based)
+- [ ] Flag unrelated damage included in quotes
+
+### AI Assessment Engine Enhancements
+- [ ] Integrate physics engine into AI assessment workflow
+- [ ] Add impact point analysis to AI evaluation
+- [ ] Implement damage consistency scoring
+- [ ] Build latent damage advisory system
+- [ ] Create rollover-specific assessment checklist
+- [ ] Add physics-based fraud flags to AI output
+- [ ] Implement confidence scoring for damage assessments
+
+
+### Electric & Hybrid Vehicle Damage Analysis (User Feedback)
+- [x] Add vehicle powertrain type (ICE, Hybrid, PHEV, BEV) to vehicle data
+- [x] Build battery pack damage assessment system
+- [x] Implement high voltage system damage detection
+- [x] Create thermal runaway risk assessment
+- [x] Add battery coolant leak detection
+- [x] Build undercarriage impact analysis for EVs
+- [x] Implement high voltage cable damage detection (orange cables)
+- [x] Create inverter/converter damage assessment
+- [x] Add electric motor damage analysis
+- [x] Build charging system damage evaluation
+- [x] Implement battery isolation testing requirements
+- [x] Create EV-specific safety protocol checklist
+- [x] Add certified repair facility requirements
+- [x] Build battery degradation vs accident damage differentiation
+- [ ] Implement range loss claim validation (future enhancement)
+- [ ] Create EV-specific total loss thresholds (future enhancement)
+- [x] Add thermal imaging requirements for battery inspection
+- [x] Build high voltage disconnect verification
+- [x] Implement EV repair cost multipliers
+- [x] Create battery pack replacement cost estimation
+- [x] Add EV technician certification requirements
+- [x] Build fire/explosion risk assessment for damaged batteries
+- [x] Implement post-accident battery monitoring requirements
