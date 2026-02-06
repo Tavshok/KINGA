@@ -141,17 +141,22 @@ export const assessorEvaluations = mysqlTable("assessor_evaluations", {
   claimId: int("claim_id").notNull(),
   assessorId: int("assessor_id").notNull(),
   
+  // Cost breakdown
+  estimatedRepairCost: int("estimated_repair_cost"), // Total cost in cents
+  laborCost: int("labor_cost"), // Labor cost in cents
+  partsCost: int("parts_cost"), // Parts cost in cents
+  estimatedDuration: int("estimated_duration"), // Days
+  
   // Evaluation details
-  estimatedCost: int("estimated_cost"), // Cost in cents
-  damageDescription: text("damage_description"),
-  repairRecommendations: text("repair_recommendations"),
-  additionalNotes: text("additional_notes"),
+  damageAssessment: text("damage_assessment"),
+  recommendations: text("recommendations"),
+  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high"]),
   
   // Inspection details
   inspectionDate: timestamp("inspection_date"),
   inspectionPhotos: text("inspection_photos"), // JSON array of S3 URLs
   
-  status: mysqlEnum("status", ["pending", "in_progress", "completed"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "in_progress", "completed", "submitted"]).default("pending").notNull(),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),

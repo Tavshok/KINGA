@@ -131,6 +131,13 @@ export const appRouter = router({
       return await getClaimsByAssessor(ctx.user.id);
     }),
 
+    // Get claims by assessor ID
+    byAssessor: protectedProcedure
+      .input(z.object({ assessorId: z.number() }))
+      .query(async ({ input }) => {
+        return await getClaimsByAssessor(input.assessorId);
+      }),
+
     // Get claims for panel beater
     myQuoteRequests: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
@@ -221,6 +228,57 @@ export const appRouter = router({
     list: protectedProcedure.query(async () => {
       return await getUsersByRole("assessor");
     }),
+  }),
+
+  // Assessor Evaluations
+  assessorEvaluations: router({
+    // Submit evaluation
+    submit: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        assessorId: z.number(),
+        estimatedRepairCost: z.number(),
+        laborCost: z.number().optional(),
+        partsCost: z.number().optional(),
+        estimatedDuration: z.number(),
+        damageAssessment: z.string(),
+        recommendations: z.string().optional(),
+        fraudRiskLevel: z.enum(["low", "medium", "high"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        await createAssessorEvaluation({
+          claimId: input.claimId,
+          assessorId: input.assessorId,
+          estimatedRepairCost: input.estimatedRepairCost,
+          laborCost: input.laborCost,
+          partsCost: input.partsCost,
+          estimatedDuration: input.estimatedDuration,
+          damageAssessment: input.damageAssessment,
+          recommendations: input.recommendations,
+          fraudRiskLevel: input.fraudRiskLevel,
+          status: "submitted",
+        });
+
+        // Create audit entry
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "assessor_evaluation_submitted",
+          entityType: "assessor_evaluation",
+          changeDescription: `Assessor evaluation submitted: $${(input.estimatedRepairCost / 100).toFixed(2)}`,
+        });
+
+        return { success: true };
+      }),
+
+    // Get evaluation by claim
+    byClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input }) => {
+        return await getAssessorEvaluationByClaimId(input.claimId);
+      }),
   }),
 
   // Quotes operations

@@ -1,10 +1,20 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ClipboardCheck, Calendar, FileText, Clock } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { ClipboardCheck, Calendar, FileText, Clock, Eye } from "lucide-react";
+import { trpc } from "@/lib/trpc";
+import { useLocation } from "wouter";
 
 export default function AssessorDashboard() {
   const { user, logout } = useAuth();
+  const [, setLocation] = useLocation();
+
+  // Get assigned claims
+  const { data: claims = [] } = trpc.claims.byAssessor.useQuery(
+    { assessorId: user?.id || 0 },
+    { enabled: !!user?.id }
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
@@ -86,10 +96,41 @@ export default function AssessorDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No assigned claims</p>
-              <p className="text-sm mt-2">Claims assigned by insurers will appear here</p>
-            </div>
+            {claims.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground">
+                <p>No assigned claims</p>
+                <p className="text-sm mt-2">Claims assigned by insurers will appear here</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {claims.map((claim) => (
+                  <div
+                    key={claim.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="space-y-1">
+                      <p className="font-medium font-mono text-sm">{claim.claimNumber}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <Badge variant="outline">{claim.status.replace(/_/g, " ")}</Badge>
+                        {claim.policyVerified && (
+                          <Badge variant="default" className="bg-green-600">Verified</Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => setLocation(`/assessor/claims/${claim.id}`)}
+                    >
+                      <Eye className="mr-2 h-4 w-4" />
+                      View & Assess
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

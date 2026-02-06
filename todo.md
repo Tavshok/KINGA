@@ -98,3 +98,16 @@
 - [ ] Add claims list to claimant dashboard
 - [ ] Test complete end-to-end workflow
 - [ ] Create final checkpoint with all features
+
+## Final Build Phase
+- [x] Create assessor claim details page with damage photos
+- [x] Build assessor evaluation form with cost estimates
+- [x] Update AssessorDashboard with real claims data
+- [ ] Create panel beater quote submission form with itemized breakdown
+- [ ] Update PanelBeaterDashboard with real quote requests
+- [ ] Build insurer comparison view page
+- [ ] Implement real S3 upload using storagePut helper
+- [ ] Update ClaimantDashboard with real claims list
+- [ ] Add sample claims test data
+- [ ] Test complete end-to-end workflow
+- [ ] Create final comprehensive checkpoint

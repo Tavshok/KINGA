@@ -14,6 +14,7 @@ import PanelBeaterDashboard from "./pages/PanelBeaterDashboard";
 import ClaimantDashboard from "./pages/ClaimantDashboard";
 import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
+import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 
 function Router() {
   return (
@@ -39,6 +40,12 @@ function Router() {
       <Route path="/assessor/dashboard">
         <ProtectedRoute allowedRoles={["assessor"]}>
           <AssessorDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/assessor/claims/:id">
+        <ProtectedRoute allowedRoles={["assessor"]}>
+          <AssessorClaimDetails />
         </ProtectedRoute>
       </Route>
       
