@@ -37,7 +37,12 @@ import {
   getAppointmentsByClaimId,
   createAuditEntry,
   getAuditTrailByClaimId,
-  getAiAssessmentByClaimId
+  getAiAssessmentByClaimId,
+  createPoliceReport,
+  getPoliceReportByClaimId,
+  updatePoliceReport,
+  createVehicleMarketValuation,
+  getVehicleMarketValuationByClaimId
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
@@ -874,6 +879,195 @@ export const appRouter = router({
         const { deleteNotification } = await import("./db");
         await deleteNotification(input.notificationId);
         return { success: true };
+      }),
+  }),
+
+  /**
+   * Police Reports Router
+   * Handles police report submission and cross-validation
+   */
+  policeReports: router({
+    // Create a police report
+    create: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        reportNumber: z.string(),
+        policeStation: z.string().optional(),
+        officerName: z.string().optional(),
+        reportDate: z.string().optional(),
+        reportedSpeed: z.number().optional(),
+        reportedWeather: z.string().optional(),
+        reportedRoadCondition: z.string().optional(),
+        accidentLocation: z.string().optional(),
+        accidentDescription: z.string().optional(),
+        reportDocumentUrl: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+          throw new Error("Not authorized");
+        }
+
+        // Get claim details for cross-validation
+        const claim = await getClaimById(input.claimId);
+        if (!claim) throw new Error("Claim not found");
+
+        // Calculate discrepancies
+        let speedDiscrepancy = null;
+        if (input.reportedSpeed && claim.incidentDescription) {
+          // Try to extract speed from incident description
+          const speedMatch = claim.incidentDescription.match(/(\d+)\s*km\/h/i);
+          if (speedMatch) {
+            const claimedSpeed = parseInt(speedMatch[1]);
+            speedDiscrepancy = Math.abs(input.reportedSpeed - claimedSpeed);
+          }
+        }
+
+        const reportId = await createPoliceReport({
+          claimId: input.claimId,
+          reportNumber: input.reportNumber,
+          policeStation: input.policeStation,
+          officerName: input.officerName,
+          reportDate: input.reportDate ? new Date(input.reportDate) : undefined,
+          reportedSpeed: input.reportedSpeed,
+          reportedWeather: input.reportedWeather,
+          reportedRoadCondition: input.reportedRoadCondition,
+          accidentLocation: input.accidentLocation,
+          accidentDescription: input.accidentDescription,
+          reportDocumentUrl: input.reportDocumentUrl,
+          speedDiscrepancy,
+          locationMismatch: input.accidentLocation && claim.incidentLocation && 
+            input.accidentLocation.toLowerCase() !== claim.incidentLocation.toLowerCase() ? 1 : 0,
+        });
+
+        // Create audit trail
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "police_report_added",
+          entityType: "police_report",
+          entityId: reportId,
+          changeDescription: `Police report ${input.reportNumber} added`,
+        });
+
+        // If there are significant discrepancies, create fraud alert
+        if (speedDiscrepancy && speedDiscrepancy > 10) {
+          await notifyFraudDetected({
+            recipientEmail: "admin@kinga.com",
+            recipientName: "Admin",
+            claimNumber: claim.claimNumber || `CLAIM-${input.claimId}`,
+            fraudRiskScore: 85,
+            discrepancyLevel: Math.round((speedDiscrepancy / 80) * 100),
+            fraudIndicators: `Speed discrepancy: ${speedDiscrepancy} km/h between claim and police report`,
+          });
+        }
+
+        return { id: reportId, speedDiscrepancy };
+      }),
+
+    // Get police report by claim ID
+    byClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input }) => {
+        return await getPoliceReportByClaimId(input.claimId);
+      }),
+  }),
+
+  /**
+   * Vehicle Valuation Router
+   * Handles AI-powered vehicle market valuation
+   */
+  vehicleValuation: router({
+    // Trigger vehicle valuation
+    trigger: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        mileage: z.number().optional(),
+        condition: z.enum(['excellent', 'good', 'fair', 'poor']).optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+          throw new Error("Not authorized");
+        }
+
+        // Get claim details
+        const claim = await getClaimById(input.claimId);
+        if (!claim) throw new Error("Claim not found");
+
+        // Get assessor evaluation for repair cost
+        const evaluation = await getAssessorEvaluationByClaimId(input.claimId);
+        const repairCost = evaluation?.estimatedRepairCost;
+
+        // Import valuation service
+        const { valuateVehicle } = await import("./services/vehicleValuation");
+
+        // Perform valuation
+        const valuation = await valuateVehicle(
+          {
+            make: claim.vehicleMake || '',
+            model: claim.vehicleModel || '',
+            year: claim.vehicleYear || new Date().getFullYear(),
+            mileage: input.mileage,
+            condition: input.condition,
+            country: 'Zimbabwe',
+          },
+          repairCost ?? undefined
+        );
+
+        // Save valuation to database
+        const valuationId = await createVehicleMarketValuation({
+          claimId: input.claimId,
+          vehicleMake: claim.vehicleMake || '',
+          vehicleModel: claim.vehicleModel || '',
+          vehicleYear: claim.vehicleYear || new Date().getFullYear(),
+          vehicleRegistration: claim.vehicleRegistration,
+          mileage: input.mileage,
+          condition: input.condition,
+          estimatedMarketValue: valuation.estimatedMarketValue,
+          valuationMethod: valuation.valuationMethod,
+          confidenceScore: valuation.confidenceScore,
+          dataPointsCount: valuation.dataPointsCount,
+          priceRange: JSON.stringify(valuation.priceRange),
+          conditionAdjustment: valuation.conditionAdjustment,
+          mileageAdjustment: valuation.mileageAdjustment,
+          marketTrendAdjustment: valuation.marketTrendAdjustment,
+          finalAdjustedValue: valuation.finalAdjustedValue,
+          isTotalLoss: valuation.isTotalLoss ? 1 : 0,
+          totalLossThreshold: valuation.totalLossThreshold.toString(),
+          repairCostToValueRatio: valuation.repairCostToValueRatio?.toString(),
+          valuationDate: valuation.valuationDate,
+          validUntil: valuation.validUntil,
+          valuedBy: ctx.user.id,
+          notes: valuation.notes.join('\n'),
+        });
+
+        // Create audit trail
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "vehicle_valuation_completed",
+          entityType: "valuation",
+          entityId: valuationId,
+          changeDescription: `Vehicle valued at $${(valuation.finalAdjustedValue / 100).toFixed(2)}${valuation.isTotalLoss ? ' - TOTAL LOSS' : ''}`,
+        });
+
+        return valuation;
+      }),
+
+    // Get valuation by claim ID
+    byClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input }) => {
+        const valuation = await getVehicleMarketValuationByClaimId(input.claimId);
+        if (!valuation) return null;
+
+        // Parse JSON fields
+        return {
+          ...valuation,
+          priceRange: valuation.priceRange ? JSON.parse(valuation.priceRange) : null,
+          notes: valuation.notes ? valuation.notes.split('\n') : [],
+        };
       }),
   }),
 

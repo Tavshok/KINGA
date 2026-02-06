@@ -11,6 +11,8 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
+import PoliceReportForm from "@/components/PoliceReportForm";
+import VehicleValuationCard from "@/components/VehicleValuationCard";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -396,6 +398,12 @@ export default function AssessorClaimDetails() {
                 </CardContent>
               </Card>
             )}
+
+            {/* Police Report */}
+            <PoliceReportForm claimId={claimId} />
+
+            {/* Vehicle Market Valuation */}
+            <VehicleValuationCard claimId={claimId} />
           </div>
         </div>
       </main>
