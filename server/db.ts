@@ -239,12 +239,101 @@ export async function updateClaimPolicyVerification(claimId: number, verified: b
   }).where(eq(claims.id, claimId));
 }
 
+/**
+ * Trigger AI Assessment with Real Image Analysis
+ * 
+ * Performs automated damage assessment using AI vision analysis on uploaded photos.
+ * Estimates repair costs and detects potential fraud indicators.
+ */
 export async function triggerAiAssessment(claimId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // Get claim details including damage photos
+  const claim = await getClaimById(claimId);
+  if (!claim) throw new Error("Claim not found");
+
+  // Mark assessment as triggered
   await db.update(claims).set({ 
     aiAssessmentTriggered: 1,
+    updatedAt: new Date() 
+  }).where(eq(claims.id, claimId));
+
+  // Parse damage photos from JSON
+  const damagePhotos: string[] = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
+  
+  if (damagePhotos.length === 0) {
+    throw new Error("No damage photos available for assessment");
+  }
+
+  // Import LLM helper for vision analysis
+  const { invokeLLM } = await import("./_core/llm");
+
+  // Analyze damage photos with AI vision
+  const analysisPrompt = `You are an expert auto insurance damage assessor. Analyze these vehicle damage photos and provide:
+1. Detailed damage assessment
+2. Estimated repair cost in USD (provide a single number)
+3. Labor cost estimate
+4. Parts cost estimate  
+5. Fraud risk score (0-100, where 0 is no risk and 100 is high risk)
+6. Any fraud indicators detected
+
+Provide your response in JSON format with keys: damageDescription, estimatedCost, laborCost, partsCost, fraudRiskScore, fraudIndicators (array of strings).`;
+
+  const response = await invokeLLM({
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: analysisPrompt },
+          ...damagePhotos.slice(0, 3).map(url => ({
+            type: "image_url" as const,
+            image_url: { url, detail: "high" as const }
+          }))
+        ]
+      }
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "damage_assessment",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            damageDescription: { type: "string" },
+            estimatedCost: { type: "number" },
+            laborCost: { type: "number" },
+            partsCost: { type: "number" },
+            fraudRiskScore: { type: "number" },
+            fraudIndicators: { type: "array", items: { type: "string" } }
+          },
+          required: ["damageDescription", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
+          additionalProperties: false
+        }
+      }
+    }
+  });
+
+  const messageContent = response.choices[0]?.message?.content;
+  const analysis = typeof messageContent === 'string' ? JSON.parse(messageContent) : {};
+
+  // Create AI assessment record
+  await createAiAssessment({
+    claimId,
+    damageDescription: analysis.damageDescription || "AI analysis completed",
+    estimatedCost: Math.round(analysis.estimatedCost || 0),
+    fraudIndicators: JSON.stringify(analysis.fraudIndicators || []),
+    fraudRiskLevel: analysis.fraudRiskScore > 70 ? "high" : analysis.fraudRiskScore > 40 ? "medium" : "low",
+    confidenceScore: 85, // Default confidence score
+    modelVersion: "gpt-4-vision-v1",
+  });
+
+  // Update claim with AI assessment completion
+  await db.update(claims).set({ 
+    aiAssessmentCompleted: 1,
+    fraudRiskScore: analysis.fraudRiskScore || 0,
+    fraudFlags: JSON.stringify(analysis.fraudIndicators || []),
     updatedAt: new Date() 
   }).where(eq(claims.id, claimId));
 }

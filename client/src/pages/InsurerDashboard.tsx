@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, FileText, AlertTriangle, TrendingUp } from "lucide-react";
+import { Shield, FileText, AlertTriangle, TrendingUp, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 
 export default function InsurerDashboard() {
@@ -93,9 +93,20 @@ export default function InsurerDashboard() {
                 <p>No claims to display</p>
                 <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
               </div>
-              <Button onClick={() => setLocation("/insurer/claims-triage")}>
-                View Claims Triage
-              </Button>
+              <div className="flex gap-3 justify-center">
+                <Button onClick={() => setLocation("/insurer/claims-triage")}>
+                  View Claims Triage
+                </Button>
+                {user?.role === "admin" && (
+                  <Button 
+                    variant="outline"
+                    onClick={() => setLocation("/admin/dashboard")}
+                  >
+                    <Settings className="mr-2 h-4 w-4" />
+                    Admin Panel
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

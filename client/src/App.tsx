@@ -13,6 +13,7 @@ import AssessorDashboard from "./pages/AssessorDashboard";
 import PanelBeaterDashboard from "./pages/PanelBeaterDashboard";
 import PanelBeaterQuoteSubmission from "./pages/PanelBeaterQuoteSubmission";
 import ClaimantDashboard from "./pages/ClaimantDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
@@ -71,17 +72,23 @@ function Router() {
       </Route>
       
       {/* Claimant Routes */}
-      <Route path="/claimant/dashboard">
+      <Route path="/claimant/dashboard" component={() => (
         <ProtectedRoute allowedRoles={["claimant"]}>
           <ClaimantDashboard />
         </ProtectedRoute>
-      </Route>
-      
+      )} />
       <Route path="/claimant/submit-claim">
         <ProtectedRoute allowedRoles={["claimant"]}>
           <SubmitClaim />
         </ProtectedRoute>
       </Route>
+
+      {/* Admin Routes */}
+      <Route path="/admin/dashboard" component={() => (
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      )} />
       
       <Route path="/404" component={NotFound} />
       <Route component={NotFound} />

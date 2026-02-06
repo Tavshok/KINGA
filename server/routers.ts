@@ -41,6 +41,7 @@ import {
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
+import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 
 export const appRouter = router({
   system: systemRouter,
@@ -218,6 +219,23 @@ export const appRouter = router({
         
         await assignClaimToAssessor(input.claimId, input.assessorId);
 
+        // Get claim and assessor details for notification
+        const claim = await getClaimById(input.claimId);
+        const assessors = await getUsersByRole("assessor");
+        const assessor = assessors.find(a => a.id === input.assessorId);
+
+        // Send notification to assessor
+        if (claim && assessor && assessor.email) {
+          await notifyAssessorAssignment({
+            recipientEmail: assessor.email,
+            recipientName: assessor.name || "Assessor",
+            claimNumber: claim.claimNumber,
+            vehicleMake: claim.vehicleMake || "",
+            vehicleModel: claim.vehicleModel || "",
+            incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
+          });
+        }
+
         // Create audit entry
         await createAuditEntry({
           claimId: input.claimId,
@@ -282,6 +300,22 @@ export const appRouter = router({
         
         await triggerAiAssessment(input.claimId);
 
+        // Get claim and AI assessment details for notification
+        const claim = await getClaimById(input.claimId);
+        const aiAssessment = await getAiAssessmentByClaimId(input.claimId);
+
+        // Send notification about AI assessment completion
+        if (claim && aiAssessment) {
+          await notifyAiAssessmentComplete({
+            recipientEmail: ctx.user.email || "",
+            recipientName: ctx.user.name || "Insurer",
+            claimNumber: claim.claimNumber,
+            estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
+            fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
+            confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
+          });
+        }
+
         // Create audit entry
         await createAuditEntry({
           claimId: input.claimId,
@@ -289,7 +323,7 @@ export const appRouter = router({
           action: "ai_assessment_triggered",
           entityType: "claim",
           entityId: input.claimId,
-          changeDescription: "AI damage assessment triggered",
+          changeDescription: "AI damage assessment triggered and completed",
         });
 
         return { success: true };
