@@ -10,6 +10,19 @@ import { useLocation } from "wouter";
 export default function Login() {
   const { user, loading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
+  
+  // Get role from URL query parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  const roleParam = urlParams.get('role');
+  
+  const roleLabels: Record<string, string> = {
+    insurer: 'Insurer Portal',
+    assessor: 'Assessor Portal',
+    panel_beater: 'Panel Beater Portal',
+    claimant: 'Claimant Portal',
+  };
+  
+  const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
 
   // Redirect authenticated users to their role-specific dashboard
   useEffect(() => {
@@ -50,8 +63,11 @@ export default function Login() {
             <KingaLogo />
           </div>
           <CardDescription className="text-lg">
-            Insurance Claims Management
+            {roleLabel}
           </CardDescription>
+          <p className="text-sm text-muted-foreground">
+            Insurance Claims Management
+          </p>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="space-y-2 text-center text-sm text-muted-foreground">

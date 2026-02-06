@@ -905,3 +905,12 @@
 - [ ] Integrate OCR upload option into quote submission form (deferred - manual entry working)
 - [x] Test complete workflow from login to PDF export
 - [ ] Save final checkpoint with all features
+
+
+## Portal Selection Landing Page
+- [x] Create portal selection landing page component with 4 role cards (Insurer, Assessor, Claimant, Panel Beater)
+- [x] Update App.tsx routing to show landing page at root "/"
+- [x] Add role-based login redirect from landing page
+- [x] Style landing page with KINGA branding and vibrant colors
+- [x] Test portal selection flow for all roles
+- [ ] Save checkpoint after implementation
