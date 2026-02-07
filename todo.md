@@ -1383,3 +1383,86 @@
 - [ ] Integrate new formulas into comparison view
 - [ ] Verify TypeScript compilation
 - [ ] Save checkpoint with enhanced physics engine
+
+
+---
+
+# 📊 DASHBOARD IMPLEMENTATION
+
+## Phase 1: Physics Confidence Dashboard Integration
+- [ ] Read InsurerComparisonView to understand current structure
+- [ ] Integrate PhysicsConfidenceDashboard component into comparison view
+- [ ] Add physics validation data fetching from backend
+- [ ] Test confidence dashboard display with existing test claims
+- [ ] Verify traffic-light risk indicators are visible
+
+## Phase 2: Fraud Analytics Dashboard
+- [ ] Create FraudAnalyticsDashboard page component
+- [ ] Add route to App.tsx for fraud analytics
+- [ ] Implement fraud statistics aggregation (tRPC procedure)
+- [ ] Add fraud pattern charts (momentum violations, skid mark discrepancies, rollover impossibilities)
+- [ ] Add fraud trend analysis (monthly/quarterly)
+- [ ] Add cost savings calculator (fraud prevented vs processing cost)
+- [ ] Add fraud detection accuracy metrics display
+
+## Phase 3: Fraud Pattern Visualizations
+- [ ] Implement Chart.js/D3.js visualizations for fraud patterns
+- [ ] Add momentum violation chart (staged accidents)
+- [ ] Add physics consistency chart (speed vs damage)
+- [ ] Add collusion network graph
+- [ ] Add geographic fraud hotspot map
+- [ ] Add assessor/panel beater fraud scoring charts
+
+## Phase 4: Testing & Checkpoint
+- [ ] Test confidence dashboard with test claims
+- [ ] Test fraud analytics dashboard
+- [ ] Verify all charts render correctly
+- [ ] Save checkpoint with both dashboards
+
+
+---
+
+# 📊 DASHBOARD IMPLEMENTATION
+
+## Phase 1: Physics Confidence Dashboard Integration
+- [ ] Read InsurerComparisonView to understand current structure
+- [ ] Integrate PhysicsConfidenceDashboard component into comparison view
+- [ ] Add physics validation data fetching from backend
+- [ ] Test confidence dashboard display with existing test claims
+- [ ] Verify traffic-light risk indicators are visible
+
+## Phase 2: Fraud Analytics Dashboard
+- [ ] Create FraudAnalyticsDashboard page component
+- [ ] Add route to App.tsx for fraud analytics
+- [ ] Implement fraud statistics aggregation (tRPC procedure)
+- [ ] Add fraud pattern charts (momentum violations, skid mark discrepancies, rollover impossibilities)
+- [ ] Add fraud trend analysis (monthly/quarterly)
+- [ ] Add cost savings calculator (fraud prevented vs processing cost)
+- [ ] Add fraud detection accuracy metrics display
+
+## Phase 3: Fraud Pattern Visualizations
+- [ ] Implement Chart.js/D3.js visualizations for fraud patterns
+- [ ] Add momentum violation chart (staged accidents)
+- [ ] Add physics consistency chart (speed vs damage)
+- [ ] Add collusion network graph
+- [ ] Add geographic fraud hotspot map
+- [ ] Add assessor/panel beater fraud scoring charts
+
+## Phase 4: Testing & Checkpoint
+- [ ] Test confidence dashboard with test claims
+- [ ] Test fraud analytics dashboard
+- [ ] Verify all charts render correctly
+- [ ] Save checkpoint with both dashboards
+
+
+## PhysicsConfidenceDashboard Integration (Feb 7, 2026)
+- [x] Create transformPhysicsAnalysisToValidation helper function to convert physics data to validation format
+- [x] Integrate PhysicsConfidenceDashboard component into InsurerComparisonView
+- [x] Display IP-protected confidence scores without exposing proprietary formulas
+- [x] Show overall confidence, speed consistency, damage propagation, impact force analysis, geometric alignment scores
+- [x] Display anomalies (impossible damage patterns, unrelated damage, staged accident indicators, severity mismatches)
+- [x] Provide recommendation badges (approve/review/reject) based on physics validation
+- [x] Generate narrative summary explaining physics analysis results
+- [x] Fix TypeScript errors and ensure zero compilation errors
+- [ ] Test PhysicsConfidenceDashboard with real claims data
+- [ ] Create checkpoint with PhysicsConfidenceDashboard integration

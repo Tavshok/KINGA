@@ -14,6 +14,7 @@ import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF } from "@/lib/pdfExport";
 import { Download } from "lucide-react";
+import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -587,6 +588,95 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 }
 
 
+// Transform physics analysis to validation format
+function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) {
+  // Calculate confidence scores based on physics results
+  const speedConsistency = physicsAnalysis.estimatedSpeed?.confidence || 75;
+  const damagePropagation = physicsAnalysis.damagePropagation?.consistency || 80;
+  const impactForceAnalysis = physicsAnalysis.impactForce?.confidence || 85;
+  const geometricAlignment = physicsAnalysis.geometricConsistency ? 90 : 60;
+  
+  const overallConfidence = Math.round(
+    (speedConsistency + damagePropagation + impactForceAnalysis + geometricAlignment) / 4
+  );
+
+  // Build anomalies list from fraud indicators
+  const anomalies: Array<{
+    type: "info" | "warning" | "error";
+    title: string;
+    description: string;
+    riskLevel: "low" | "medium" | "high";
+  }> = [];
+
+  if (physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0) {
+    anomalies.push({
+      type: "error",
+      title: "Impossible Damage Patterns",
+      description: physicsAnalysis.fraudIndicators.impossibleDamagePatterns.join("; "),
+      riskLevel: "high",
+    });
+  }
+
+  if (physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0) {
+    anomalies.push({
+      type: "warning",
+      title: "Unrelated Damage Detected",
+      description: `${physicsAnalysis.fraudIndicators.unrelatedDamage.length} components show damage inconsistent with impact point`,
+      riskLevel: "medium",
+    });
+  }
+
+  if (physicsAnalysis.fraudIndicators?.stagedAccidentIndicators?.length > 0) {
+    anomalies.push({
+      type: "error",
+      title: "Staged Accident Indicators",
+      description: physicsAnalysis.fraudIndicators.stagedAccidentIndicators.join("; "),
+      riskLevel: "high",
+    });
+  }
+
+  if (physicsAnalysis.fraudIndicators?.severityMismatch) {
+    anomalies.push({
+      type: "warning",
+      title: "Severity Mismatch",
+      description: "Reported damage severity doesn't match estimated impact speed and forces",
+      riskLevel: "medium",
+    });
+  }
+
+  // Determine recommendation
+  let recommendation: "approve" | "review" | "reject";
+  if (overallConfidence >= 85 && anomalies.filter(a => a.type === "error").length === 0) {
+    recommendation = "approve";
+  } else if (overallConfidence >= 70 || anomalies.filter(a => a.type === "error").length > 0) {
+    recommendation = "review";
+  } else {
+    recommendation = "reject";
+  }
+
+  // Build narrative summary
+  let narrativeSummary = `Physics analysis shows ${overallConfidence}% confidence in claim validity. `;
+  if (physicsAnalysis.estimatedSpeed) {
+    narrativeSummary += `Estimated impact speed: ${physicsAnalysis.estimatedSpeed.value} km/h. `;
+  }
+  if (anomalies.length > 0) {
+    narrativeSummary += `${anomalies.length} anomalies detected requiring investigation.`;
+  } else {
+    narrativeSummary += "No significant anomalies detected.";
+  }
+
+  return {
+    overallConfidence,
+    speedConsistency,
+    damagePropagation,
+    impactForceAnalysis,
+    geometricAlignment,
+    anomalies,
+    recommendation,
+    narrativeSummary,
+  };
+}
+
 // Physics Validation Component
 function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessment: any; quotes: any[]; claim: any }) {
   // Parse physics analysis from AI assessment
@@ -600,9 +690,15 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
       </div>
     );
   }
+
+  // Transform physics analysis to validation format for PhysicsConfidenceDashboard
+  const validation = transformPhysicsAnalysisToValidation(physicsAnalysis, claim);
   
   return (
     <div className="space-y-6">
+      {/* IP-Protected Physics Confidence Dashboard */}
+      <PhysicsConfidenceDashboard validation={validation} />
+      
       {/* Accident Physics Summary */}
       <div className="grid gap-4 md:grid-cols-3">
         <div className="p-4 bg-white rounded-lg border">
