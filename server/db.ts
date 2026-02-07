@@ -293,15 +293,32 @@ export async function triggerAiAssessment(claimId: number) {
   const { invokeLLM } = await import("./_core/llm");
 
   // Analyze damage photos with AI vision
-  const analysisPrompt = `You are an expert auto insurance damage assessor. Analyze these vehicle damage photos and provide:
-1. Detailed damage assessment
-2. Estimated repair cost in USD (provide a single number)
-3. Labor cost estimate
-4. Parts cost estimate  
-5. Fraud risk score (0-100, where 0 is no risk and 100 is high risk)
-6. Any fraud indicators detected
+  const analysisPrompt = `You are an expert auto insurance damage assessor with expertise in accident reconstruction physics. Analyze these vehicle damage photos and provide:
 
-Provide your response in JSON format with keys: damageDescription, estimatedCost, laborCost, partsCost, fraudRiskScore, fraudIndicators (array of strings).`;
+**DAMAGE ASSESSMENT:**
+1. Detailed damage description
+2. List of damaged components with locations (front/rear/left/right/undercarriage)
+3. Damage severity for each component (minor/moderate/severe/total_loss)
+4. Damage type for each component (cosmetic/structural/mechanical/electrical)
+
+**PHYSICAL MEASUREMENTS (Critical for physics validation):**
+5. Maximum crush depth in meters (estimate from visible deformation - typical ranges: 0.05-0.15m minor, 0.15-0.35m moderate, 0.35-0.6m severe)
+6. Total damaged area in square meters
+7. Structural damage present (yes/no - frame rails, pillars, crumple zones)
+8. Airbag deployment visible (yes/no - look for deployed airbags in photos)
+9. Impact point location (front_center/front_left/front_right/rear_center/rear_left/rear_right/side_left/side_right/undercarriage)
+10. Accident type classification (frontal/rear/side_driver/side_passenger/rollover/multi_impact)
+
+**COST ESTIMATES:**
+11. Estimated repair cost in USD
+12. Labor cost estimate
+13. Parts cost estimate
+
+**FRAUD INDICATORS:**
+14. Fraud risk score (0-100)
+15. Specific fraud indicators detected (array of strings)
+
+Provide your response in JSON format.`;
 
   const response = await invokeLLM({
     messages: [
@@ -325,13 +342,33 @@ Provide your response in JSON format with keys: damageDescription, estimatedCost
           type: "object",
           properties: {
             damageDescription: { type: "string" },
+            damagedComponents: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  location: { type: "string" },
+                  damageType: { type: "string", enum: ["cosmetic", "structural", "mechanical", "electrical"] },
+                  severity: { type: "string", enum: ["minor", "moderate", "severe", "total_loss"] }
+                },
+                required: ["name", "location", "damageType", "severity"],
+                additionalProperties: false
+              }
+            },
+            maxCrushDepth: { type: "number" },
+            totalDamageArea: { type: "number" },
+            structuralDamage: { type: "boolean" },
+            airbagDeployment: { type: "boolean" },
+            impactPoint: { type: "string" },
+            accidentType: { type: "string", enum: ["frontal", "rear", "side_driver", "side_passenger", "rollover", "multi_impact", "unknown"] },
             estimatedCost: { type: "number" },
             laborCost: { type: "number" },
             partsCost: { type: "number" },
             fraudRiskScore: { type: "number" },
             fraudIndicators: { type: "array", items: { type: "string" } }
           },
-          required: ["damageDescription", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
+          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
           additionalProperties: false
         }
       }
@@ -367,20 +404,29 @@ Provide your response in JSON format with keys: damageDescription, estimatedCost
     powertrainType: "ice" as const, // Default ICE, should be determined from make/model/year
   };
   
-  // Prepare accident data
+  // Prepare accident data using AI-extracted information
+  const accidentType = analysis.accidentType || "unknown";
   const accidentData = {
-    accidentType: "unknown" as const, // Will be classified by physics engine
+    accidentType: accidentType as "frontal" | "rear" | "side_driver" | "side_passenger" | "rollover" | "multi_impact" | "unknown",
     damagePhotos,
     incidentDescription: claim.incidentDescription || "No description provided",
+    impactPoint: analysis.impactPoint as any,
   };
   
-  // Prepare damage assessment from AI analysis
+  // Prepare damage assessment from AI vision analysis
   const damageAssessment = {
-    damagedComponents: [], // Would be extracted from AI analysis in production
-    totalDamageArea: 0,
-    maxCrushDepth: 0.2, // Estimated from damage severity
-    structuralDamage: analysis.fraudRiskScore > 60, // High fraud risk suggests structural damage
-    airbagDeployment: false, // Would be detected from photos in production
+    damagedComponents: (analysis.damagedComponents || []).map((comp: any, index: number) => ({
+      name: comp.name,
+      location: comp.location,
+      damageType: comp.damageType,
+      severity: comp.severity,
+      visible: true,
+      distanceFromImpact: index * 0.5, // Approximate distance based on order
+    })),
+    totalDamageArea: analysis.totalDamageArea || 0,
+    maxCrushDepth: analysis.maxCrushDepth || 0.1, // Use AI-extracted crush depth
+    structuralDamage: analysis.structuralDamage || false,
+    airbagDeployment: analysis.airbagDeployment || false,
   };
   
   // Run physics analysis and forensic analysis

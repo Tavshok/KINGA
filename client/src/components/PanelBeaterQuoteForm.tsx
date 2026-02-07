@@ -6,9 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Trash2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Loader2, Upload, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface LineItem {
   description: string;
@@ -38,6 +39,30 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
   ]);
   const [estimatedDuration, setEstimatedDuration] = useState(5);
   const [notes, setNotes] = useState("");
+  const [inputMethod, setInputMethod] = useState<"manual" | "ocr">("manual");
+  const [ocrImage, setOcrImage] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+
+  const extractQuoteMutation = trpc.quotes.extractFromImage.useMutation({
+    onSuccess: (data: { lineItems: any[] }) => {
+      const mappedItems: LineItem[] = data.lineItems.map(item => ({
+        description: item.description,
+        partNumber: item.partNumber || "",
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        category: "body" as const, // Default category
+        isOEM: true // Default OEM
+      }));
+      setLineItems(mappedItems);
+      setExtracting(false);
+      setInputMethod("manual"); // Switch to manual mode to review/edit
+      toast.success(`Extracted ${mappedItems.length} line items. Please review and edit as needed.`);
+    },
+    onError: (error: any) => {
+      setExtracting(false);
+      toast.error(`OCR extraction failed: ${error.message}`);
+    }
+  });
 
   const createQuoteMutation = trpc.quotes.submit.useMutation({
     onSuccess: () => {
@@ -89,6 +114,34 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
     return calculateSubtotal() + calculateVAT();
   };
 
+  const handleOCRUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file (JPG, PNG, etc.)");
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("File size must be less than 10MB");
+      return;
+    }
+
+    setExtracting(true);
+
+    // Convert to base64
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64 = reader.result as string;
+      setOcrImage(base64);
+      extractQuoteMutation.mutate({ claimId, imageBase64: base64 });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -124,6 +177,53 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
         <CardDescription>Provide detailed line-item breakdown for accurate comparison</CardDescription>
       </CardHeader>
       <CardContent>
+        <Tabs value={inputMethod} onValueChange={(v) => setInputMethod(v as "manual" | "ocr")} className="mb-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="manual" className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Manual Entry
+            </TabsTrigger>
+            <TabsTrigger value="ocr" className="flex items-center gap-2">
+              <Upload className="h-4 w-4" />
+              Upload Quote (OCR)
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ocr" className="space-y-4 mt-4">
+            <div className="border-2 border-dashed rounded-lg p-8 text-center space-y-4">
+              <Upload className="h-12 w-12 mx-auto text-muted-foreground" />
+              <div>
+                <h3 className="font-semibold mb-2">Upload Handwritten or Printed Quote</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Take a photo of your quotation and our AI will automatically extract all line items
+                </p>
+              </div>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={handleOCRUpload}
+                disabled={extracting}
+                className="max-w-md mx-auto"
+              />
+              {extracting && (
+                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Extracting line items from image...
+                </div>
+              )}
+              {ocrImage && !extracting && (
+                <div className="text-sm text-green-600">
+                  ✓ Image uploaded successfully. Line items extracted. Switch to Manual Entry tab to review.
+                </div>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="manual" className="mt-4">
+            {/* Manual entry form content will go here */}
+          </TabsContent>
+        </Tabs>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* Line Items */}
           <div className="space-y-4">
