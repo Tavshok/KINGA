@@ -142,9 +142,14 @@ export const appRouter = router({
           throw new Error("Failed to create claim");
         }
 
-        // Trigger AI assessment if photos were extracted
-        if (extractedData.photosExtracted > 0) {
+        // Always trigger AI assessment for external assessments
+        // The PDF itself contains damage information that can be analyzed
+        try {
           await triggerAiAssessment(claim.id);
+          console.log(`AI assessment automatically triggered for external assessment claim ${claimNumber}`);
+        } catch (error) {
+          console.error(`Failed to trigger AI assessment for claim ${claimNumber}:`, error);
+          // Don't fail the claim creation if AI assessment fails
         }
 
         return {

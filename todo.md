@@ -1869,4 +1869,4 @@
 - [x] Fix admin panel 404 error (added /admin route)
 - [x] Fix batch export disabled issue (working correctly - disabled when no AI assessments exist)
 - [x] Make AI assessments trigger automatically on claim submission (ALREADY IMPLEMENTED - triggers on lines 420-429 of routers.ts)
-- [ ] Make AI assessments trigger automatically after PDF external assessment upload and photo extraction
+- [x] Make AI assessments trigger automatically after PDF external assessment upload and photo extraction (updated lines 145-153 of routers.ts)
