@@ -71,52 +71,74 @@ export const appRouter = router({
           "application/pdf"
         );
 
-        // Convert PDF to images using pdf2image (extract all pages as images)
+        // Extract vehicle damage photos from PDF using Python script
+        // This intelligently filters out text-only pages and extracts only actual photos
         const { execSync } = await import("child_process");
-        const { writeFileSync, readFileSync, unlinkSync, mkdtempSync } = await import("fs");
+        const { writeFileSync, readFileSync, unlinkSync, mkdtempSync, readdirSync, rmdirSync } = await import("fs");
         const { tmpdir } = await import("os");
         const { join } = await import("path");
         
-        // Create temp directory for PDF processing
+        // Create temp directories
         const tempDir = mkdtempSync(join(tmpdir(), "pdf-extract-"));
+        const outputDir = mkdtempSync(join(tmpdir(), "pdf-photos-"));
         const pdfPath = join(tempDir, "assessment.pdf");
         writeFileSync(pdfPath, fileBuffer);
         
-        // Convert PDF to PNG images (one per page)
-        const outputPattern = join(tempDir, "page");
+        // Run Python photo extraction script
+        let extractionResult;
         try {
-          execSync(`pdftoppm -png "${pdfPath}" "${outputPattern}"`, { timeout: 30000 });
-        } catch (error) {
-          console.error("PDF conversion error:", error);
-          throw new Error("Failed to convert PDF to images");
-        }
-        
-        // Find all generated PNG files
-        const { readdirSync } = await import("fs");
-        const pageFiles = readdirSync(tempDir).filter(f => f.endsWith(".png")).sort();
-        
-        // Upload each page image to S3
-        const damagePhotoUrls: string[] = [];
-        for (const pageFile of pageFiles) {
-          const pagePath = join(tempDir, pageFile);
-          const imageBuffer = readFileSync(pagePath);
-          const { url: imageUrl } = await storagePut(
-            `damage-photos/${nanoid()}-${pageFile}`,
-            imageBuffer,
-            "image/png"
+          const scriptPath = join(process.cwd(), "scripts", "extract-pdf-photos.py");
+          const output = execSync(
+            `python3.11 "${scriptPath}" "${pdfPath}" "${outputDir}"`,
+            { timeout: 60000, encoding: "utf-8" }
           );
-          damagePhotoUrls.push(imageUrl);
-          unlinkSync(pagePath); // Clean up temp file
+          extractionResult = JSON.parse(output);
+          
+          if (!extractionResult.success) {
+            throw new Error(extractionResult.error || "Photo extraction failed");
+          }
+        } catch (error: any) {
+          console.error("PDF photo extraction error:", error);
+          // Clean up temp files
+          try {
+            unlinkSync(pdfPath);
+            rmdirSync(tempDir);
+            rmdirSync(outputDir, { recursive: true });
+          } catch (e) {
+            // Ignore cleanup errors
+          }
+          throw new Error(`Failed to extract photos from PDF: ${error.message}`);
         }
         
-        // Clean up temp directory
-        unlinkSync(pdfPath);
+        // Upload extracted photos to S3
+        const damagePhotoUrls: string[] = [];
+        for (const photoPath of extractionResult.files) {
+          try {
+            const imageBuffer = readFileSync(photoPath);
+            const filename = photoPath.split("/").pop() || "photo.png";
+            const { url: imageUrl } = await storagePut(
+              `damage-photos/${nanoid()}-${filename}`,
+              imageBuffer,
+              "image/png"
+            );
+            damagePhotoUrls.push(imageUrl);
+          } catch (error) {
+            console.error(`Failed to upload photo ${photoPath}:`, error);
+            // Continue with other photos even if one fails
+          }
+        }
+        
+        // Clean up temp directories
         try {
-          const { rmdirSync } = await import("fs");
+          unlinkSync(pdfPath);
           rmdirSync(tempDir);
+          rmdirSync(outputDir, { recursive: true });
         } catch (e) {
+          console.error("Cleanup error:", e);
           // Ignore cleanup errors
         }
+        
+        console.log(`Extracted ${damagePhotoUrls.length} damage photos from ${extractionResult.count} photo pages in PDF`);
 
         // Extract data from PDF using LLM vision
         const extractionResponse = await invokeLLM({
@@ -166,8 +188,6 @@ export const appRouter = router({
         });
 
         const extractedData = JSON.parse((extractionResponse.choices[0].message.content as string) || "{}");
-        
-        console.log(`Extracted ${damagePhotoUrls.length} damage photos from PDF`);
 
         // Create a new claim from extracted data with damage photos
         const claimNumber = `EXT-${nanoid(10).toUpperCase()}`;

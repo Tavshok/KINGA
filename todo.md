@@ -1887,3 +1887,18 @@
 - [x] Enhance PDF extraction to capture all assessment details comprehensively
 - [x] Test with Toyota Hilux AGA2795 assessment PDF (20 pages extracted successfully)
 - [x] Verify all analysis components are working (damage assessment, physics, fraud detection)
+
+
+## Publish Error Fix
+- [ ] Investigate "not found" publish error
+- [ ] Identify missing files or configuration issues
+- [ ] Fix build process
+- [ ] Verify deployment works
+
+
+## PDF Conversion & Photo Extraction Issues
+- [x] Fix "Failed to convert PDF to images" error in production
+- [x] Add proper error handling and logging for PDF conversion
+- [x] Implement smart photo extraction (only actual damage photos, not all pages)
+- [x] Test with Toyota Hilux AGF 1147 assessment PDF (11 photos extracted from 20 pages)
+- [x] Verify only vehicle/damage photos are extracted and uploaded (45% reduction in storage)

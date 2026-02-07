@@ -36,42 +36,36 @@ describe("External Assessment Upload", () => {
     }
   });
 
-  it("should convert sample PDF to images", async () => {
+  it("should extract only photo pages (not all pages) from PDF using Python script", async () => {
     const { execSync } = await import("child_process");
-    const { writeFileSync, readFileSync, unlinkSync, mkdtempSync, readdirSync, rmdirSync } = await import("fs");
-    const { tmpdir } = await import("os");
+    const { readdirSync } = await import("fs");
     const { join } = await import("path");
     
     const pdfPath = "/home/ubuntu/upload/ZPCTOYOTAHILUXAGA2795ASSESSMENTREPORT_07_Nov_2024-140814-audit-signed.pdf";
-    const pdfBuffer = readFileSync(pdfPath);
+    const outputDir = "/tmp/test-photo-extraction";
+    const scriptPath = join(process.cwd(), "scripts", "extract-pdf-photos.py");
     
-    // Create temp directory
-    const tempDir = mkdtempSync(join(tmpdir(), "pdf-test-"));
-    const testPdfPath = join(tempDir, "test.pdf");
-    writeFileSync(testPdfPath, pdfBuffer);
+    // Run Python photo extraction script
+    const output = execSync(
+      `python3.11 "${scriptPath}" "${pdfPath}" "${outputDir}"`,
+      { timeout: 60000, encoding: "utf-8" }
+    );
     
-    // Convert PDF to PNG images
-    const outputPattern = join(tempDir, "page");
-    try {
-      execSync(`pdftoppm -png "${testPdfPath}" "${outputPattern}"`, { timeout: 30000 });
-    } catch (error) {
-      throw new Error(`PDF conversion failed: ${error}`);
-    }
+    const result = JSON.parse(output);
     
-    // Check generated images
-    const pageFiles = readdirSync(tempDir).filter(f => f.endsWith(".png")).sort();
-    expect(pageFiles.length).toBeGreaterThan(0);
-    console.log(`✓ Extracted ${pageFiles.length} pages from PDF`);
+    // Verify extraction succeeded
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(11); // Only 11 photo pages from 20 total pages
+    expect(result.files.length).toBe(11);
     
-    // Verify first image is valid
-    const firstImagePath = join(tempDir, pageFiles[0]);
-    const imageBuffer = readFileSync(firstImagePath);
-    expect(imageBuffer.length).toBeGreaterThan(1000); // At least 1KB
-    console.log(`✓ First image size: ${(imageBuffer.length / 1024).toFixed(2)} KB`);
+    console.log(`✓ Extracted ${result.count} photo pages from 20-page PDF (filtered out 9 text-only pages)`);
     
-    // Cleanup
-    pageFiles.forEach(f => unlinkSync(join(tempDir, f)));
-    unlinkSync(testPdfPath);
-    rmdirSync(tempDir);
+    // Verify extracted files exist
+    const extractedFiles = readdirSync(outputDir);
+    expect(extractedFiles.length).toBe(11);
+    expect(extractedFiles.every(f => f.startsWith("damage-photo-"))).toBe(true);
+    expect(extractedFiles.every(f => f.endsWith(".png"))).toBe(true);
+    
+    console.log(`✓ All extracted files follow naming convention: damage-photo-XXX.png`);
   });
 });
