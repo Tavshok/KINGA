@@ -128,7 +128,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   estimatedVehicleValue: int("estimated_vehicle_value"), // Vehicle market value in cents
   repairToValueRatio: int("repair_to_value_ratio"), // Percentage (0-100+)
   totalLossReasoning: text("total_loss_reasoning"), // Explanation for total loss determination
-  damagedComponentsJson: text("damaged_components_json"), // JSON array of components with severity
+   damagedComponentsJson: text("damaged_components_json"), // Full component list with severity
+  physicsAnalysis: text("physics_analysis"), // Physics-based accident analysis JSONrity
   
   // AI model details
   modelVersion: varchar("model_version", { length: 50 }),

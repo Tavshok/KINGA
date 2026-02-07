@@ -1209,7 +1209,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
               <ul className="text-xs space-y-1 text-yellow-800">
                 {physicsAnalysis.fraudIndicators.unrelatedDamage.map((damage: any, idx: number) => (
                   <li key={idx}>
-                    • {damage.component} ({damage.distanceFromImpact.toFixed(1)}m from impact point)
+                    • {damage.component} ({(damage.distanceFromImpact || 0).toFixed(1)}m from impact point)
                   </li>
                 ))}
               </ul>

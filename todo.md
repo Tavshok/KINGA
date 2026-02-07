@@ -1740,3 +1740,26 @@
 - [x] Fix damage photos not displaying in assessor claim detail view
 - [x] Fix panel beater and claimant pages still showing "Access Denied" for admin users
 - [x] Add detailed breakdown to panel beater quotes (parts cost, labor cost, hours required) on insurer/assessor pages
+
+
+## New Features (User Requested - 2026-02-07)
+
+### AI Assessment & Physics Dashboard
+- [x] Fix AI assessment retention issue (physics analysis now properly stored in database)
+- [x] Make physics dashboard visible in comparison view
+- [x] Ensure physics analysis runs automatically with AI assessment
+
+### Panel Beater Quote Workflow Enhancement
+- [ ] Add PDF upload functionality for panel beaters (handwritten or typed quotes)
+- [ ] Implement AI extraction to parse PDF quotes and populate labor, parts, and hours
+- [ ] Create structured quote form with line items for components
+- [ ] Add VAT calculation field (optional, can be ignored)
+- [ ] Allow panel beaters to choose between PDF upload or manual form entry
+
+### Assessor Performance Dashboard
+- [ ] Create assessor performance metrics dashboard
+- [ ] Track and display average turnaround time per assessment
+- [ ] Calculate and show total savings achieved (difference between initial quotes and approved amounts)
+- [ ] Display fraud detection statistics (total fraud cases detected, fraud prevented amount)
+- [ ] Add assessor assessment history view (all past assessments)
+- [ ] Show performance trends over time (monthly/quarterly)

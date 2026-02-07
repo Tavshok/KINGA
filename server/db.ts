@@ -744,9 +744,10 @@ Provide your response in JSON format.`;
       updatedAt: new Date() 
     }).where(eq(claims.id, claimId));
     
-    // Update AI assessment with combined fraud level
+    // Update AI assessment with combined fraud level and physics analysis
     await db.update(aiAssessments).set({
       fraudRiskLevel: combinedFraudLevel,
+      physicsAnalysis: JSON.stringify(physicsAnalysis),
       updatedAt: new Date(),
     }).where(eq(aiAssessments.claimId, claimId));
     
