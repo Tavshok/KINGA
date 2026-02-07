@@ -1784,3 +1784,57 @@
 - [x] Generate comparison report accessible via claim comparison view
 - [ ] Test with sample external assessment PDF documents
 - [ ] Add error handling for malformed or unsupported PDF formats
+
+
+## Hybrid Authentication System (Option 1 - Traditional Signup + Manus OAuth) - DEFERRED TO NEXT UPDATE
+- [x] Add password_hash field to users table
+- [x] Install bcrypt package for password hashing
+- [x] Create custom auth helper functions (hashPassword, verifyPassword, generateToken)
+- [ ] Create signup API endpoint for traditional registration (NEXT UPDATE)
+- [ ] Create login API endpoint supporting both OAuth and email/password (NEXT UPDATE)
+- [ ] Update authentication middleware to support both auth methods (NEXT UPDATE)
+- [ ] Create password reset request and confirmation endpoints (NEXT UPDATE)
+
+## Registration and Organization Management System (Option A - Full Implementation) - DEFERRED TO NEXT UPDATE
+- [x] Design database schema for organizations table
+- [x] Design database schema for user_invitations table
+- [x] Design database schema for registration_requests table (for panel beaters and assessors)
+- [x] Add organization_id field to users table
+- [x] Add email_verified field to users table
+- [x] Push database schema changes (tables created via SQL)
+
+### Public Registration Pages
+- [ ] Create /register/claimant page with self-service registration
+- [ ] Create /register/panel-beater page with application form
+- [ ] Create /register/assessor page with application form
+- [ ] Add registration success pages with next steps
+- [ ] Create email verification flow
+
+### Admin Approval Workflow
+- [ ] Create admin panel section for pending registrations
+- [ ] Build panel beater approval interface
+- [ ] Build assessor approval interface
+- [ ] Add approval/rejection actions with notifications
+- [ ] Create audit trail for registration approvals
+
+### Insurer Organization Management
+- [ ] Create organization profile page for insurers
+- [ ] Build team member invitation interface
+- [ ] Create invitation email system
+- [ ] Add team member list with role management
+- [ ] Implement remove/deactivate team member functionality
+
+### Email Verification and Security
+- [ ] Implement email verification token system
+- [ ] Create email verification page
+- [ ] Add password reset request page
+- [ ] Create password reset confirmation page
+- [ ] Send welcome emails after successful registration
+
+### Testing and Documentation
+- [ ] Test claimant self-registration flow
+- [ ] Test panel beater registration and approval
+- [ ] Test assessor registration and approval
+- [ ] Test insurer team management
+- [ ] Test email verification and password reset
+- [ ] Create final checkpoint with registration system

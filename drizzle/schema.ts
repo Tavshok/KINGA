@@ -15,8 +15,11 @@ export const users = mysqlTable("users", {
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
+  passwordHash: varchar("password_hash", { length: 255 }), // For traditional email/password auth
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]).default("user").notNull(),
+  organizationId: int("organization_id"), // Link to organizations table for team members
+  emailVerified: tinyint("email_verified").default(0).notNull(), // Email verification status
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -1065,3 +1068,132 @@ export const approvalWorkflow = mysqlTable("approval_workflow", {
 
 export type ApprovalWorkflow = typeof approvalWorkflow.$inferSelect;
 export type InsertApprovalWorkflow = typeof approvalWorkflow.$inferInsert;
+
+/**
+ * Organizations - Insurance companies and their teams
+ */
+export const organizations = mysqlTable("organizations", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 200 }).notNull(),
+  businessName: varchar("business_name", { length: 200 }),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 20 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  country: varchar("country", { length: 100 }).default("Zimbabwe"),
+  
+  // Organization type
+  type: mysqlEnum("type", ["insurer", "broker", "tpa"]).default("insurer").notNull(), // TPA = Third Party Administrator
+  
+  // Owner/Admin
+  ownerId: int("owner_id").notNull(), // User ID of organization owner
+  
+  // Status
+  active: tinyint("active").default(1).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Organization = typeof organizations.$inferSelect;
+export type InsertOrganization = typeof organizations.$inferInsert;
+
+/**
+ * User Invitations - Team member invitations for organizations
+ */
+export const userInvitations = mysqlTable("user_invitations", {
+  id: int("id").autoincrement().primaryKey(),
+  organizationId: int("organization_id").notNull(),
+  
+  // Invitee details
+  email: varchar("email", { length: 320 }).notNull(),
+  role: mysqlEnum("role", ["insurer", "assessor"]).notNull(), // Role to assign when accepted
+  
+  // Invitation details
+  invitedBy: int("invited_by").notNull(), // User ID of inviter
+  invitationToken: varchar("invitation_token", { length: 64 }).notNull().unique(),
+  
+  // Status
+  status: mysqlEnum("status", ["pending", "accepted", "expired", "cancelled"]).default("pending").notNull(),
+  
+  // Acceptance
+  acceptedAt: timestamp("accepted_at"),
+  acceptedUserId: int("accepted_user_id"), // User ID created when invitation accepted
+  
+  // Expiration
+  expiresAt: timestamp("expires_at").notNull(), // Invitations expire after 7 days
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type UserInvitation = typeof userInvitations.$inferSelect;
+export type InsertUserInvitation = typeof userInvitations.$inferInsert;
+
+/**
+ * Registration Requests - Pending registrations for panel beaters and assessors
+ */
+export const registrationRequests = mysqlTable("registration_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Applicant details
+  name: varchar("name", { length: 200 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 20 }),
+  
+  // Registration type
+  role: mysqlEnum("role", ["panel_beater", "assessor"]).notNull(),
+  
+  // Panel beater specific
+  businessName: varchar("business_name", { length: 200 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  
+  // Assessor specific
+  licenseNumber: varchar("license_number", { length: 100 }),
+  yearsExperience: int("years_experience"),
+  specializations: text("specializations"), // JSON array
+  
+  // Supporting documents (S3 URLs)
+  documentsJson: text("documents_json"), // JSON array of document URLs
+  
+  // Status
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  
+  // Review
+  reviewedBy: int("reviewed_by"), // Admin user ID
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  // Created user
+  createdUserId: int("created_user_id"), // User ID created when approved
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type RegistrationRequest = typeof registrationRequests.$inferSelect;
+export type InsertRegistrationRequest = typeof registrationRequests.$inferInsert;
+
+/**
+ * Email Verification Tokens - For email verification and password reset
+ */
+export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  type: mysqlEnum("type", ["verification", "password_reset"]).notNull(),
+  
+  // Status
+  used: tinyint("used").default(0).notNull(),
+  usedAt: timestamp("used_at"),
+  
+  // Expiration
+  expiresAt: timestamp("expires_at").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
+export type InsertEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;

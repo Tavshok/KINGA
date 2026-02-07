@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS organizations (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  name VARCHAR(200) NOT NULL,\n  business_name VARCHAR(200),\n  email VARCHAR(320),\n  phone VARCHAR(20),\n  address TEXT,\n  city VARCHAR(100),\n  country VARCHAR(100) DEFAULT 'Zimbabwe',\n  type ENUM('insurer', 'broker', 'tpa') DEFAULT 'insurer' NOT NULL,\n  owner_id INT NOT NULL,\n  active TINYINT DEFAULT 1 NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS organizations (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  name VARCHAR(200) NOT NULL,\n  business_name VARCHAR(200),\n  email VARCHAR(320),\n  phone VARCHAR(20),\n  address TEXT,\n  city VARCHAR(100),\n  country VARCHAR(100) DEFAULT 'Zimbabwe',\n  type ENUM('insurer', 'broker', 'tpa') DEFAULT 'insurer' NOT NULL,\n  owner_id INT NOT NULL,\n  active TINYINT DEFAULT 1 NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP NOT NULL\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 373
+}
