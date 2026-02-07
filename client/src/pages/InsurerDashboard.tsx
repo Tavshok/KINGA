@@ -1,7 +1,7 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, AlertTriangle, TrendingUp, Settings, BarChart3 } from "lucide-react";
+import { FileText, AlertTriangle, TrendingUp, Settings, BarChart3, Upload } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -138,6 +138,13 @@ export default function InsurerDashboard() {
               <div className="flex gap-3 justify-center">
                 <Button onClick={() => setLocation("/insurer/claims/triage")}>
                   View Claims Triage
+                </Button>
+                <Button 
+                  variant="secondary"
+                  onClick={() => setLocation("/insurer/external-assessment")}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Upload External Assessment
                 </Button>
                 <Button 
                   variant="secondary"

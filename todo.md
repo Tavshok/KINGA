@@ -1771,3 +1771,16 @@
 - [x] Implement search by vehicle registration number (e.g., AEW2816)
 - [x] Support partial matching for registration numbers and claim numbers
 - [x] Show search results count in real-time
+
+
+## External Assessment Upload Feature (User Requested - 2026-02-07)
+- [x] Create PDF upload UI component for insurers to upload external assessment documents
+- [x] Add "Upload External Assessment" button/page in insurer dashboard
+- [x] Build backend API to extract claim details from uploaded assessment PDFs using AI vision
+- [x] Extract vehicle information, damage description, and embedded photos from PDFs
+- [x] Create new claim record from extracted data
+- [x] Automatically trigger AI damage assessment on extracted photos
+- [x] Run physics validation and fraud detection on extracted claim
+- [x] Generate comparison report accessible via claim comparison view
+- [ ] Test with sample external assessment PDF documents
+- [ ] Add error handling for malformed or unsupported PDF formats

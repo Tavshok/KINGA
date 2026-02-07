@@ -8,6 +8,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import { getLoginUrl } from "@/const";
 
 export default function AssessorDashboard() {
   const { user, logout } = useAuth();

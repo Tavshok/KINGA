@@ -49,9 +49,111 @@ import {
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
+import { invokeLLM } from "./_core/llm";
 
 export const appRouter = router({
   system: systemRouter,
+  insurers: router({
+    // Upload external assessment document for AI analysis
+    uploadExternalAssessment: protectedProcedure
+      .input(z.object({
+        fileName: z.string(),
+        fileData: z.string(), // base64 encoded PDF
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Convert base64 to buffer
+        const fileBuffer = Buffer.from(input.fileData, "base64");
+
+        // Upload PDF to S3
+        const { url: pdfUrl } = await storagePut(
+          `external-assessments/${nanoid()}-${input.fileName}`,
+          fileBuffer,
+          "application/pdf"
+        );
+
+        // Extract data from PDF using LLM vision
+        const extractionResponse = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: "You are an expert at extracting structured data from vehicle damage assessment reports. Extract all relevant information including vehicle details, damage description, claimant info, and any embedded photos."
+            },
+            {
+              role: "user",
+              content: [
+                {
+                  type: "text",
+                  text: "Extract the following from this assessment report: vehicle make, model, year, registration number, claimant name, damage description, estimated repair cost, and list all embedded damage photos (if any)."
+                },
+                {
+                  type: "file_url",
+                  file_url: {
+                    url: pdfUrl,
+                    mime_type: "application/pdf" as "application/pdf"
+                  }
+                }
+              ] as any
+            }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "assessment_extraction",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  vehicleMake: { type: "string" },
+                  vehicleModel: { type: "string" },
+                  vehicleYear: { type: "integer" },
+                  vehicleRegistration: { type: "string" },
+                  claimantName: { type: "string" },
+                  damageDescription: { type: "string" },
+                  estimatedCost: { type: "number" },
+                  photosExtracted: { type: "integer" }
+                },
+                required: ["vehicleMake", "vehicleModel", "vehicleYear", "vehicleRegistration", "damageDescription"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+
+        const extractedData = JSON.parse((extractionResponse.choices[0].message.content as string) || "{}");
+
+        // Create a new claim from extracted data
+        const claimNumber = `EXT-${nanoid(10).toUpperCase()}`;
+        await createClaim({
+          claimNumber,
+          claimantId: ctx.user.id, // Use current user as claimant for now
+          vehicleMake: extractedData.vehicleMake,
+          vehicleModel: extractedData.vehicleModel,
+          vehicleYear: extractedData.vehicleYear,
+          vehicleRegistration: extractedData.vehicleRegistration,
+          incidentDate: new Date(),
+          incidentDescription: extractedData.damageDescription,
+          status: "submitted",
+          policyVerified: 0, // Use 0 for false
+        });
+
+        // Get the created claim
+        const claim = await getClaimByNumber(claimNumber);
+        if (!claim) {
+          throw new Error("Failed to create claim");
+        }
+
+        // Trigger AI assessment if photos were extracted
+        if (extractedData.photosExtracted > 0) {
+          await triggerAiAssessment(claim.id);
+        }
+
+        return {
+          claimId: claim.id,
+          claimNumber: claim.claimNumber,
+          ...extractedData
+        };
+      }),
+  }),
   auth: router({
     me: publicProcedure.query(opts => opts.ctx.user),
     logout: publicProcedure.mutation(({ ctx }) => {
