@@ -406,3 +406,246 @@ export function generateFraudAnalyticsPDF(data: {
   // Save the PDF
   doc.save(`KINGA_Fraud_Analytics_Report_${new Date().toISOString().split('T')[0]}.pdf`);
 }
+
+/**
+ * Generate PDF report for damage component breakdown
+ */
+export function generateDamageReportPDF(data: {
+  claimNumber: string;
+  vehicle: string;
+  registration: string;
+  incidentDate: string;
+  accidentType: string;
+  damagedComponents: string[];
+  categorizedDamage: Record<string, string[]>;
+  inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }>;
+  structuralDamage: boolean;
+  airbagDeployment: boolean;
+  estimatedCost: number;
+  partsCost: number;
+  laborCost: number;
+  damageDescription: string;
+}): void {
+  const doc = new jsPDF();
+  let yPos = 20;
+
+  // Header with logo placeholder
+  doc.setFontSize(20);
+  doc.setTextColor(16, 185, 129); // Emerald green
+  doc.text('KINGA', 20, yPos);
+  doc.setFontSize(10);
+  doc.setTextColor(100, 100, 100);
+  doc.text('AutoVerify AI - Damage Component Analysis', 20, yPos + 5);
+  
+  yPos += 15;
+
+  // Title
+  doc.setFontSize(16);
+  doc.setTextColor(0, 0, 0);
+  doc.text('Damage Component Breakdown Report', 20, yPos);
+  yPos += 10;
+
+  // Claim Summary
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Claim Information', 20, yPos);
+  yPos += 7;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Claim Number: ${data.claimNumber}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Vehicle: ${data.vehicle}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Registration: ${data.registration}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Incident Date: ${data.incidentDate}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Accident Type: ${data.accidentType.replace('_', ' ').toUpperCase()}`, 20, yPos);
+  yPos += 10;
+
+  // Summary Statistics
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Summary Statistics', 20, yPos);
+  yPos += 7;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text(`Total Components Detected: ${data.damagedComponents.length}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Inferred Hidden Damage: ${data.inferredHiddenDamage.length}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Estimated Total Cost: $${(data.estimatedCost / 100).toFixed(2)}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Parts Cost: $${(data.partsCost / 100).toFixed(2)}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Labor Cost: $${(data.laborCost / 100).toFixed(2)}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Structural Damage: ${data.structuralDamage ? 'YES ⚠' : 'NO'}`, 20, yPos);
+  yPos += 5;
+  doc.text(`Airbag Deployment: ${data.airbagDeployment ? 'YES' : 'NO'}`, 20, yPos);
+  yPos += 10;
+
+  // Check if we need a new page
+  if (yPos > 250) {
+    doc.addPage();
+    yPos = 20;
+  }
+
+  // Detected Damage Components by Category
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Detected Damage Components', 20, yPos);
+  yPos += 7;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+
+  Object.entries(data.categorizedDamage).forEach(([category, components]) => {
+    // Check if we need a new page
+    if (yPos > 260) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFont('helvetica', 'bold');
+    doc.text(`${category}:`, 20, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    components.forEach((component: string) => {
+      doc.text(`  • ${component}`, 25, yPos);
+      yPos += 5;
+    });
+    yPos += 3;
+  });
+
+  // Uncategorized components
+  const categorizedFlat = Object.values(data.categorizedDamage).flat();
+  const uncategorized = data.damagedComponents.filter(comp => !categorizedFlat.includes(comp));
+  
+  if (uncategorized.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.text('Other Components:', 20, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    uncategorized.forEach((component: string) => {
+      doc.text(`  • ${component}`, 25, yPos);
+      yPos += 5;
+    });
+    yPos += 5;
+  }
+
+  // Check if we need a new page
+  if (yPos > 240) {
+    doc.addPage();
+    yPos = 20;
+  }
+
+  // Inferred Hidden Damage
+  if (data.inferredHiddenDamage.length > 0) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(255, 165, 0); // Orange
+    doc.text('⚠ Inferred Hidden Damage (Requires Inspection)', 20, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 7;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+
+    data.inferredHiddenDamage.forEach((item) => {
+      // Check if we need a new page
+      if (yPos > 260) {
+        doc.addPage();
+        yPos = 20;
+      }
+
+      doc.setFont('helvetica', 'bold');
+      doc.text(`• ${item.component}`, 20, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`  Confidence: ${item.confidence}`, 25, yPos);
+      yPos += 4;
+      const reasonLines = doc.splitTextToSize(`  Reason: ${item.reason}`, 160);
+      doc.text(reasonLines, 25, yPos);
+      yPos += reasonLines.length * 4 + 5;
+      doc.setFontSize(10);
+    });
+
+    // Warning note
+    doc.setFontSize(9);
+    doc.setTextColor(100, 100, 100);
+    const warningText = doc.splitTextToSize(
+      'Note: Inferred damage is based on typical collision patterns and AI analysis. Physical inspection is recommended to confirm hidden damage before finalizing repair estimates.',
+      170
+    );
+    doc.text(warningText, 20, yPos);
+    yPos += warningText.length * 4 + 10;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(10);
+  }
+
+  // Check if we need a new page
+  if (yPos > 240) {
+    doc.addPage();
+    yPos = 20;
+  }
+
+  // Structural Damage Warning
+  if (data.structuralDamage) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(220, 38, 38); // Red
+    doc.text('⚠ STRUCTURAL DAMAGE DETECTED', 20, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 7;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    const structuralWarning = doc.splitTextToSize(
+      'AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. Detailed structural inspection and repair certification required before vehicle can be returned to service.',
+      170
+    );
+    doc.text(structuralWarning, 20, yPos);
+    yPos += structuralWarning.length * 5 + 10;
+  }
+
+  // Check if we need a new page
+  if (yPos > 220) {
+    doc.addPage();
+    yPos = 20;
+  }
+
+  // AI Damage Analysis Summary
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('AI Damage Analysis Summary', 20, yPos);
+  yPos += 7;
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(9);
+  const descriptionLines = doc.splitTextToSize(data.damageDescription, 170);
+  doc.text(descriptionLines, 20, yPos);
+  yPos += descriptionLines.length * 4 + 10;
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(150, 150, 150);
+    doc.text(
+      `Generated by KINGA AutoVerify AI - Page ${i} of ${pageCount} - ${new Date().toLocaleDateString()}`,
+      20,
+      285
+    );
+  }
+
+  // Save the PDF
+  doc.save(`KINGA_Damage_Report_${data.claimNumber}_${new Date().toISOString().split('T')[0]}.pdf`);
+}

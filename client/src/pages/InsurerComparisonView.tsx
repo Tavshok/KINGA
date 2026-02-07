@@ -12,9 +12,10 @@ import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
-import { generateComparisonPDF } from "@/lib/pdfExport";
+import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
 import { Download } from "lucide-react";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
+import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -47,6 +48,113 @@ export default function InsurerComparisonView() {
   const quotes = quotesWithItems;
 
   const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading;
+
+  // Handler for exporting damage report PDF
+  const handleExportDamageReport = (aiAssessment: any, claim: any) => {
+    // Parse damaged components
+    const damagedComponents = aiAssessment.detectedDamageTypes 
+      ? JSON.parse(aiAssessment.detectedDamageTypes) 
+      : [];
+
+    // Component categories for categorization
+    const componentCategories = {
+      "Exterior Panels": ["fender", "bumper", "door", "hood", "trunk", "quarter panel", "rocker panel"],
+      "Lighting": ["headlight", "taillight", "fog light", "turn signal"],
+      "Glass": ["windshield", "window", "mirror"],
+      "Structural": ["frame", "pillar", "subframe", "crossmember"],
+      "Mechanical": ["radiator", "condenser", "suspension", "wheel", "tire", "axle"],
+      "Interior": ["dashboard", "airbag", "seat", "console"],
+    };
+
+    // Categorize detected components
+    const categorizedDamage: Record<string, string[]> = {};
+    Object.entries(componentCategories).forEach(([category, keywords]) => {
+      const matchedComponents = damagedComponents.filter((comp: string) =>
+        keywords.some(keyword => comp.toLowerCase().includes(keyword))
+      );
+      if (matchedComponents.length > 0) {
+        categorizedDamage[category] = matchedComponents;
+      }
+    });
+
+    // Infer hidden damage (same logic as DamageComponentBreakdown)
+    const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
+    const damageDescription = aiAssessment.damageDescription || "";
+    
+    if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
+      if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+        inferredHiddenDamage.push({
+          component: "Radiator / AC Condenser",
+          reason: "Front-end impact typically damages cooling system components",
+          confidence: "High"
+        });
+        inferredHiddenDamage.push({
+          component: "Front Subframe / Crash Bar",
+          reason: "Significant frontal collision often affects structural supports",
+          confidence: "Medium"
+        });
+      }
+    }
+
+    if (aiAssessment.accidentType?.includes("side")) {
+      inferredHiddenDamage.push({
+        component: "Door Intrusion Beam",
+        reason: "Side impact typically damages internal door reinforcement",
+        confidence: "High"
+      });
+      if (damagedComponents.some((c: string) => c.toLowerCase().includes("door"))) {
+        inferredHiddenDamage.push({
+          component: "B-Pillar / Side Structure",
+          reason: "Severe door damage may indicate pillar deformation",
+          confidence: "Medium"
+        });
+      }
+    }
+
+    if (aiAssessment.accidentType === "rollover") {
+      inferredHiddenDamage.push({
+        component: "Roof Structure / Pillars",
+        reason: "Rollover accidents cause structural deformation",
+        confidence: "High"
+      });
+    }
+
+    if (aiAssessment.structuralDamage) {
+      inferredHiddenDamage.push({
+        component: "Frame / Unibody Structure",
+        reason: "AI detected structural damage indicators",
+        confidence: "High"
+      });
+    }
+
+    if (aiAssessment.airbagDeployment) {
+      inferredHiddenDamage.push({
+        component: "Airbag Control Module / Sensors",
+        reason: "Airbag deployment requires system replacement",
+        confidence: "High"
+      });
+    }
+
+    // Generate PDF
+    generateDamageReportPDF({
+      claimNumber: claim.claimNumber,
+      vehicle: `${claim.vehicleMake} ${claim.vehicleModel} (${claim.vehicleYear})`,
+      registration: claim.vehicleRegistration,
+      incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
+      accidentType: aiAssessment.accidentType || "unknown",
+      damagedComponents,
+      categorizedDamage,
+      inferredHiddenDamage,
+      structuralDamage: aiAssessment.structuralDamage || false,
+      airbagDeployment: aiAssessment.airbagDeployment || false,
+      estimatedCost: aiAssessment.estimatedCost || 0,
+      partsCost: aiAssessment.partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
+      laborCost: aiAssessment.laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
+      damageDescription: aiAssessment.damageDescription || "",
+    });
+
+    toast.success("Damage report exported successfully!");
+  };
 
   if (isLoading) {
     return (
@@ -272,13 +380,26 @@ export default function InsurerComparisonView() {
         {aiAssessment && (
           <Card className="mb-6 border-2 border-purple-200 bg-purple-50/30">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-purple-600">AI Damage Analysis</Badge>
-                Detected Damage Components & Inferred Hidden Damage
-              </CardTitle>
-              <CardDescription>
-                AI-powered component-level damage detection with confidence scores and hidden damage inference
-              </CardDescription>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Badge className="bg-purple-600">AI Damage Analysis</Badge>
+                    Detected Damage Components & Inferred Hidden Damage
+                  </CardTitle>
+                  <CardDescription>
+                    AI-powered component-level damage detection with confidence scores and hidden damage inference
+                  </CardDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleExportDamageReport(aiAssessment, claim)}
+                  className="gap-2"
+                >
+                  <Download className="h-4 w-4" />
+                  Export PDF
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} />
@@ -724,6 +845,18 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
           <p className="text-sm text-muted-foreground">Labor Cost</p>
           <p className="text-2xl font-bold text-green-600">${(laborCost / 100).toFixed(2)}</p>
         </div>
+      </div>
+
+      {/* Vehicle Damage Visualization */}
+      <div className="p-4 bg-white rounded-lg border">
+        <h4 className="font-semibold mb-4 flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5 text-purple-600" />
+          Visual Damage Map
+        </h4>
+        <VehicleDamageVisualization 
+          damagedComponents={damagedComponents} 
+          accidentType={aiAssessment.accidentType}
+        />
       </div>
 
       {/* Detected Damage Components by Category */}
