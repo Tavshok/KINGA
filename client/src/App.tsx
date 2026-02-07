@@ -31,6 +31,12 @@ function Router() {
       <Route path="/unauthorized" component={Unauthorized} />
       
       {/* Insurer Routes */}
+      <Route path="/insurer">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerDashboard />
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/insurer/dashboard">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerDashboard />
