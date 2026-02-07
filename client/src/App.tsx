@@ -24,6 +24,7 @@ import BatchExport from "@/pages/BatchExport";
 import InsurerExternalAssessmentUpload from "@/pages/InsurerExternalAssessmentUpload";
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 import ClaimDocuments from "./pages/ClaimDocuments";
+import PortalHub from "./pages/PortalHub";
 
 function Router() {
   return (
@@ -31,6 +32,13 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/unauthorized" component={Unauthorized} />
+      
+      {/* Portal Hub - Role Selection */}
+      <Route path="/portal-hub">
+        <ProtectedRoute allowedRoles={["insurer", "assessor", "panel_beater", "claimant", "admin"]}>
+          <PortalHub />
+        </ProtectedRoute>
+      </Route>
       
       {/* Insurer Routes */}
       <Route path="/insurer">

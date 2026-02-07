@@ -1849,7 +1849,7 @@
 
 
 ## Portal Hub / Role Selection Page
-- [ ] Create portal hub page with cards for all role portals (insurer, assessor, panel beater, claimant, admin)
-- [ ] Update OAuth callback redirect to go to portal hub instead of insurer dashboard
-- [ ] Add "Switch Portal" or "Portal Hub" link in all portal headers
-- [ ] Test portal switching workflow
+- [x] Create portal hub page with cards for all role portals (insurer, assessor, panel beater, claimant, admin)
+- [x] Update OAuth callback redirect to go to portal hub instead of insurer dashboard
+- [x] Add "Switch Portal" button in all portal headers (via RoleSwitcher component)
+- [x] Test portal switching workflow
