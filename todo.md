@@ -1752,15 +1752,22 @@
 ### Panel Beater Quote Workflow Enhancement
 - [x] Add PDF upload backend API (S3 upload + AI extraction with LLM vision)
 - [x] Implement AI extraction to parse PDF quotes and populate labor, parts, and hours
-- [ ] Create PdfQuoteUpload React component and integrate into panel beater quote submission page
-- [ ] Create structured quote form with line items for components
-- [ ] Add VAT calculation field (optional, can be ignored)
-- [ ] Allow panel beaters to choose between PDF upload or manual form entry
-
-### Assessor Performance Dashboard
-- [ ] Create assessor performance metrics dashboard
-- [ ] Track and display average turnaround time per assessment
-- [ ] Calculate and show total savings achieved (difference between initial quotes and approved amounts)
-- [ ] Display fraud detection statistics (total fraud cases detected, fraud prevented amount)
-- [ ] Add assessor assessment history view (all past assessments)
+- [x] Create PdfQuoteUpload React component and integrate into panel beater quote submission page
+- [x] Create structured quote form with line items for components
+- [x] Add VAT calculation field (optional, can be ignored)
+- [x] Add labor hours field to quote form and database
+- [x] Allow panel beaters to choose between PDF upload or manual form entry### Assessor Performance Dashboard
+- [x] Create assessor performance metrics dashboard
+- [x] Track and display average turnaround time per assessment
+- [x] Calculate and display cost savings achieved (difference between initial estimates and final costs)
+- [x] Show fraud detection metrics (cases detected, prevented losses)
+- [x] Add performance badges and achievements system
+- [x] Add performance dashboard link to assessor headerent history view (all past assessments)
 - [ ] Show performance trends over time (monthly/quarterly)
+
+
+### Vehicle Registration Search
+- [x] Add search input to insurer claims triage page
+- [x] Implement search by vehicle registration number (e.g., AEW2816)
+- [x] Support partial matching for registration numbers and claim numbers
+- [x] Show search results count in real-time

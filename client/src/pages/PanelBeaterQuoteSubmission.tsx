@@ -10,6 +10,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
+import { PdfQuoteUpload } from "@/components/PdfQuoteUpload";
 
 interface LineItem {
   id: string;
@@ -31,6 +32,10 @@ export default function PanelBeaterQuoteSubmission() {
   const [lineItems, setLineItems] = useState<LineItem[]>([
     { id: "1", item: "", cost: "" }
   ]);
+  const [laborHours, setLaborHours] = useState("");
+  const [vatRate, setVatRate] = useState("15"); // Default 15% VAT for Zimbabwe
+  const [includeVat, setIncludeVat] = useState(false);
+  const [uploadMethod, setUploadMethod] = useState<"manual" | "pdf">("manual");
 
   // Get claim details
   const { data: claim, isLoading } = trpc.claims.getById.useQuery({ id: claimId });
@@ -66,7 +71,42 @@ export default function PanelBeaterQuoteSubmission() {
     const labor = parseFloat(laborCost) || 0;
     const parts = parseFloat(partsCost) || 0;
     const items = lineItems.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
+    const subtotal = labor + parts + items;
+    const vat = includeVat ? subtotal * (parseFloat(vatRate) / 100) : 0;
+    return subtotal + vat;
+  };
+
+  const calculateSubtotal = () => {
+    const labor = parseFloat(laborCost) || 0;
+    const parts = parseFloat(partsCost) || 0;
+    const items = lineItems.reduce((sum, item) => sum + (parseFloat(item.cost) || 0), 0);
     return labor + parts + items;
+  };
+
+  const calculateVat = () => {
+    return includeVat ? calculateSubtotal() * (parseFloat(vatRate) / 100) : 0;
+  };
+
+  const handlePdfExtracted = (data: any) => {
+    // Populate form with extracted data
+    setLaborCost((data.laborCost / 100).toFixed(2));
+    setPartsCost((data.partsCost / 100).toFixed(2));
+    setLaborHours(data.laborHours.toString());
+    setEstimatedDuration(data.estimatedDuration.toString());
+    setNotes(data.notes || "");
+    
+    // Populate line items
+    if (data.components && data.components.length > 0) {
+      const newLineItems = data.components.map((comp: any, index: number) => ({
+        id: Date.now().toString() + index,
+        item: comp.name,
+        cost: ((comp.partCost + comp.laborCost) / 100).toFixed(2)
+      }));
+      setLineItems(newLineItems);
+    }
+    
+    toast.success("Quote data extracted successfully!");
+    setUploadMethod("manual"); // Switch to manual mode to review/edit
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -91,6 +131,7 @@ export default function PanelBeaterQuoteSubmission() {
       quotedAmount: Math.round(total * 100), // Convert to cents
       laborCost: laborCost ? Math.round(parseFloat(laborCost) * 100) : undefined,
       partsCost: partsCost ? Math.round(parseFloat(partsCost) * 100) : undefined,
+      laborHours: laborHours ? parseFloat(laborHours) : undefined,
       estimatedDuration: parseInt(estimatedDuration) || 7,
       itemizedBreakdown,
       notes: notes || undefined,
@@ -170,9 +211,33 @@ export default function PanelBeaterQuoteSubmission() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {/* Cost Summary */}
-                  <div className="grid gap-4 md:grid-cols-3">
+                {/* Upload Method Toggle */}
+                <div className="mb-6 flex gap-2">
+                  <Button
+                    type="button"
+                    variant={uploadMethod === "manual" ? "default" : "outline"}
+                    onClick={() => setUploadMethod("manual")}
+                  >
+                    Manual Entry
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={uploadMethod === "pdf" ? "default" : "outline"}
+                    onClick={() => setUploadMethod("pdf")}
+                  >
+                    Upload PDF/Image
+                  </Button>
+                </div>
+
+                {uploadMethod === "pdf" ? (
+                  <PdfQuoteUpload
+                    claimId={claimId}
+                    onExtracted={handlePdfExtracted}
+                  />
+                ) : (
+                  <form onSubmit={handleSubmit} className="space-y-6">
+                    {/* Cost Summary */}
+                    <div className="grid gap-4 md:grid-cols-4">
                     <div className="space-y-2">
                       <Label htmlFor="laborCost">Labor Cost ($)</Label>
                       <Input
@@ -193,6 +258,17 @@ export default function PanelBeaterQuoteSubmission() {
                         value={partsCost}
                         onChange={(e) => setPartsCost(e.target.value)}
                         placeholder="2500.00"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="laborHours">Labor Hours</Label>
+                      <Input
+                        id="laborHours"
+                        type="number"
+                        step="0.5"
+                        value={laborHours}
+                        onChange={(e) => setLaborHours(e.target.value)}
+                        placeholder="40"
                       />
                     </div>
                     <div className="space-y-2">
@@ -270,8 +346,55 @@ export default function PanelBeaterQuoteSubmission() {
                     />
                   </div>
 
+                  <Separator />
+
+                  {/* VAT Calculation */}
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        id="includeVat"
+                        checked={includeVat}
+                        onChange={(e) => setIncludeVat(e.target.checked)}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                      <Label htmlFor="includeVat" className="cursor-pointer">
+                        Include VAT
+                      </Label>
+                    </div>
+                    {includeVat && (
+                      <div className="space-y-2">
+                        <Label htmlFor="vatRate">VAT Rate (%)</Label>
+                        <Input
+                          id="vatRate"
+                          type="number"
+                          step="0.01"
+                          value={vatRate}
+                          onChange={(e) => setVatRate(e.target.value)}
+                          placeholder="15"
+                          className="w-32"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {/* Total */}
-                  <div className="bg-muted p-4 rounded-lg">
+                  <div className="bg-muted p-4 rounded-lg space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-muted-foreground">Subtotal:</span>
+                      <span className="font-medium">
+                        ${calculateSubtotal().toFixed(2)}
+                      </span>
+                    </div>
+                    {includeVat && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-muted-foreground">VAT ({vatRate}%):</span>
+                        <span className="font-medium">
+                          ${calculateVat().toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                    <Separator />
                     <div className="flex items-center justify-between text-lg font-bold">
                       <span>Total Quote Amount:</span>
                       <span className="text-2xl text-primary">
@@ -309,6 +432,7 @@ export default function PanelBeaterQuoteSubmission() {
                     </Button>
                   </div>
                 </form>
+                )}
               </CardContent>
             </Card>
           </div>

@@ -17,7 +17,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -28,15 +29,26 @@ export default function InsurerClaimsTriage() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedAssessors, setSelectedAssessors] = useState<Record<number, number>>({});
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
   // Get pending claims
-  const { data: claims = [], refetch: refetchClaims } = trpc.claims.byStatus.useQuery({
+  const { data: allClaims = [], refetch: refetchClaims } = trpc.claims.byStatus.useQuery({
     status: "submitted",
   });
+
+  // Filter claims by registration number or claim number
+  const claims = useMemo(() => {
+    if (!searchQuery.trim()) return allClaims;
+    const query = searchQuery.toLowerCase().trim();
+    return allClaims.filter(claim => 
+      claim.claimNumber.toLowerCase().includes(query) ||
+      claim.vehicleRegistration?.toLowerCase().includes(query)
+    );
+  }, [allClaims, searchQuery]);
 
   // Get list of assessors
   const { data: assessors = [] } = trpc.assessors.list.useQuery();
@@ -186,10 +198,24 @@ export default function InsurerClaimsTriage() {
       <main className="container mx-auto px-4 py-8">
         <Card>
           <CardHeader>
-            <CardTitle>Pending Claims</CardTitle>
-            <CardDescription>
-              {claims.length} claim(s) awaiting triage and processing
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Pending Claims</CardTitle>
+                <CardDescription>
+                  {claims.length} claim(s) awaiting triage and processing
+                </CardDescription>
+              </div>
+              <div className="relative w-80">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search by claim # or registration (e.g., AEW2816)"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             {claims.length === 0 ? (

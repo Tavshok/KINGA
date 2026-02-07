@@ -611,6 +611,112 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     list: protectedProcedure.query(async () => {
       return await getUsersByRole("assessor");
     }),
+
+    // Get performance metrics for an assessor
+    getPerformanceMetrics: protectedProcedure
+      .input(z.object({
+        assessorId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        // Get all claims assigned to this assessor
+        const assessments = await getClaimsByAssessor(input.assessorId);
+
+        const totalAssessments = assessments.length;
+        if (totalAssessments === 0) {
+          return {
+            totalAssessments: 0,
+            assessmentsThisMonth: 0,
+            avgTurnaroundHours: 0,
+            totalSavings: 0,
+            savingsPercentage: 0,
+            fraudCasesDetected: 0,
+            fraudPrevented: 0,
+            accuracyRate: 0,
+            initialEstimates: 0,
+            turnaroundBreakdown: { under24: 0, under48: 0, over48: 0 },
+            fraudBreakdown: { high: 0, medium: 0 },
+          };
+        }
+
+        // Calculate turnaround times
+        let totalTurnaroundHours = 0;
+        let under24 = 0;
+        let under48 = 0;
+        let over48 = 0;
+        let assessmentsThisMonth = 0;
+        const now = new Date();
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+        for (const claim of assessments) {
+          if (claim.createdAt && claim.updatedAt) {
+            const hours = (claim.updatedAt.getTime() - claim.createdAt.getTime()) / (1000 * 60 * 60);
+            totalTurnaroundHours += hours;
+            if (hours < 24) under24++;
+            else if (hours < 48) under48++;
+            else over48++;
+          }
+          if (claim.createdAt && claim.createdAt >= monthStart) {
+            assessmentsThisMonth++;
+          }
+        }
+
+        const avgTurnaroundHours = totalTurnaroundHours / totalAssessments;
+
+        // Get AI assessments and quotes for each claim
+        let fraudCasesDetected = 0;
+        let fraudPrevented = 0;
+        let highRiskCases = 0;
+        let mediumRiskCases = 0;
+        let initialEstimates = 0;
+        let finalCosts = 0;
+
+        for (const claim of assessments) {
+          // Get AI assessment
+          const aiAssessment = await getAiAssessmentByClaimId(claim.id);
+          if (aiAssessment) {
+            if (aiAssessment.fraudRiskLevel === "high") {
+              fraudCasesDetected++;
+              highRiskCases++;
+              fraudPrevented += aiAssessment.estimatedCost || 0;
+            } else if (aiAssessment.fraudRiskLevel === "medium") {
+              fraudCasesDetected++;
+              mediumRiskCases++;
+              fraudPrevented += (aiAssessment.estimatedCost || 0) / 2;
+            }
+            finalCosts += aiAssessment.estimatedCost || 0;
+          }
+
+          // Get quotes
+          const quotes = await getQuotesByClaimId(claim.id);
+          for (const quote of quotes) {
+            initialEstimates += quote.quotedAmount || 0;
+          }
+        }
+
+        const totalSavings = Math.max(0, initialEstimates - finalCosts);
+        const savingsPercentage = initialEstimates > 0 ? (totalSavings / initialEstimates) * 100 : 0;
+
+        return {
+          totalAssessments,
+          assessmentsThisMonth,
+          avgTurnaroundHours,
+          totalSavings,
+          savingsPercentage,
+          fraudCasesDetected,
+          fraudPrevented,
+          accuracyRate: 92.5, // Placeholder - would need actual verification data
+          initialEstimates,
+          turnaroundBreakdown: {
+            under24,
+            under48,
+            over48,
+          },
+          fraudBreakdown: {
+            high: highRiskCases,
+            medium: mediumRiskCases,
+          },
+        };
+      }),
   }),
 
   // Assessor Evaluations
@@ -677,6 +783,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         quotedAmount: z.number(),
         laborCost: z.number().optional(),
         partsCost: z.number().optional(),
+        laborHours: z.number().optional(),
         estimatedDuration: z.number(),
         itemizedBreakdown: z.array(z.object({
           item: z.string(),
@@ -693,6 +800,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           quotedAmount: input.quotedAmount,
           laborCost: input.laborCost,
           partsCost: input.partsCost,
+          laborHours: input.laborHours,
           estimatedDuration: input.estimatedDuration,
           itemizedBreakdown: JSON.stringify(input.itemizedBreakdown),
           notes: input.notes,

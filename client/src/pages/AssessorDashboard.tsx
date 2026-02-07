@@ -2,7 +2,7 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, FileText, Clock, Eye, ClipboardCheck } from "lucide-react";
+import { Calendar, FileText, Clock, Eye, ClipboardCheck, Award } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -31,6 +31,14 @@ export default function AssessorDashboard() {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setLocation("/assessor/performance")}
+            >
+              <Award className="mr-2 h-4 w-4" />
+              Performance
+            </Button>
             <RoleSwitcher />
             <NotificationBell />
             <div className="text-right">

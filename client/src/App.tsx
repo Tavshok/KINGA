@@ -9,7 +9,8 @@ import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import ProtectedRoute from "./components/ProtectedRoute";
 import InsurerDashboard from "./pages/InsurerDashboard";
-import AssessorDashboard from "./pages/AssessorDashboard";
+import AssessorDashboard from "@/pages/AssessorDashboard";
+import AssessorPerformance from "@/pages/AssessorPerformance";
 import PanelBeaterDashboard from "./pages/PanelBeaterDashboard";
 import PanelBeaterQuoteSubmission from "./pages/PanelBeaterQuoteSubmission";
 import ClaimantDashboard from "./pages/ClaimantDashboard";
@@ -97,7 +98,13 @@ function Router() {
         <ProtectedRoute allowedRoles={["assessor", "admin"]}>
           <AssessorClaimDetails />
         </ProtectedRoute>
-        </Route>
+      </Route>
+      
+      <Route path="/assessor/performance">
+        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
+          <AssessorPerformance />
+        </ProtectedRoute>
+      </Route>
       
       {/* Panel Beater Routes */}
       <Route path="/panel-beater/dashboard">
