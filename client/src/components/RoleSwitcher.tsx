@@ -37,13 +37,15 @@ export default function RoleSwitcher() {
       const targetPath = roleToPath[newRole] || "/";
       
       toast.success(`Role switched to ${newRole.replace('_', ' ')}`, {
-        description: "Redirecting to dashboard...",
+        description: "Refreshing session...",
       });
       
-      // Redirect to appropriate dashboard
+      // Force full page reload to refresh JWT session from database
+      // This ensures the new role is properly loaded in the session
       setTimeout(() => {
         window.location.href = targetPath;
-      }, 1000);
+        window.location.reload();
+      }, 500);
     } catch (error) {
       toast.error("Failed to switch role", {
         description: error instanceof Error ? error.message : "Unknown error",

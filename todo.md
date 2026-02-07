@@ -1719,3 +1719,24 @@
 - [x] Re-run AI assessments on Honda Fit AEW2816 to validate total loss detection
 - [x] Test total loss detection with all 3 claims with photos
 - [x] Add prominent total loss warning badges in comparison view UI
+
+
+## Future Enhancements - Total Loss & Search Improvements
+- [ ] Add total loss workflow automation - Automatically route total loss claims to salvage valuation instead of repair quotes
+- [ ] Enhance vehicle valuation accuracy - Integrate real-time market data from Zimbabwean car dealerships and auction sites
+- [ ] Build total loss analytics dashboard - Track total loss rates by vehicle make/model/age to identify high-risk vehicle categories
+- [ ] Add vehicle registration number search functionality - Allow insurers to search claims by registration number (e.g., AEW2816) in addition to claim number
+
+
+### Testing & Development Tools
+- [x] Add role switcher dropdown in header for easy testing (switch between admin/assessor/panel beater/claimant without re-login)
+- [x] Create test mode indicator badge when using role switcher
+- [ ] Add ability to impersonate specific users (e.g., "Test as Dr. James Mutasa")
+- [x] Allow admin users to access all role-specific pages for testing (assessor, panel beater, claimant)
+- [ ] Fix role switcher to update JWT session token after role change (currently only updates database)
+
+
+## Bug Fixes (User Reported - 2026-02-07)
+- [x] Fix damage photos not displaying in assessor claim detail view
+- [x] Fix panel beater and claimant pages still showing "Access Denied" for admin users
+- [x] Add detailed breakdown to panel beater quotes (parts cost, labor cost, hours required) on insurer/assessor pages

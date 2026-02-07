@@ -95,9 +95,15 @@ export const appRouter = router({
           .set({ role: input.role })
           .where(eq(users.openId, ctx.user.openId));
         
+        // IMPORTANT: Role switching only updates the database.
+        // The JWT session token still contains the old role.
+        // Client must refresh the page or re-fetch user data after switching.
+        // For proper testing, the page will redirect and fetch fresh user data.
+        
         return {
           success: true,
-          newRole: input.role
+          newRole: input.role,
+          message: "Role updated. Refreshing session..."
         };
       }),
   }),

@@ -186,6 +186,7 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
   laborCost: int("labor_cost"),
   partsCost: int("parts_cost"),
   estimatedDuration: int("estimated_duration"), // Days
+  laborHours: int("labor_hours"), // Estimated labor hours required for repairs
   
   // Quote breakdown
   itemizedBreakdown: text("itemized_breakdown"), // JSON array of line items

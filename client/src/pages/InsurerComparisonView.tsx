@@ -579,21 +579,27 @@ export default function InsurerComparisonView() {
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
-                            <p className="text-xs text-muted-foreground">Labor</p>
+                            <p className="text-xs text-muted-foreground">Labor Cost</p>
                             <p className="text-sm font-medium">
                               ${((quote.laborCost || 0) / 100).toFixed(2)}
                             </p>
                           </div>
                           <div>
-                            <p className="text-xs text-muted-foreground">Parts</p>
+                            <p className="text-xs text-muted-foreground">Parts Cost</p>
                             <p className="text-sm font-medium">
                               ${((quote.partsCost || 0) / 100).toFixed(2)}
                             </p>
                           </div>
                         </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Duration</p>
-                          <p className="text-sm font-medium">{quote.estimatedDuration} days</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Labor Hours</p>
+                            <p className="text-sm font-medium">{quote.laborHours || 'N/A'} hrs</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Duration</p>
+                            <p className="text-sm font-medium">{quote.estimatedDuration || 'N/A'} days</p>
+                          </div>
                         </div>
                         {quote.notes && (
                           <div>

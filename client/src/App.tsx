@@ -82,44 +82,44 @@ function Router() {
       
       {/* Assessor Routes */}
       <Route path="/assessor">
-        <ProtectedRoute allowedRoles={["assessor"]}>
+        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
           <AssessorDashboard />
         </ProtectedRoute>
       </Route>
       
       <Route path="/assessor/dashboard">
-        <ProtectedRoute allowedRoles={["assessor"]}>
+        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
           <AssessorDashboard />
         </ProtectedRoute>
       </Route>
       
       <Route path="/assessor/claims/:id">
-        <ProtectedRoute allowedRoles={["assessor"]}>
+        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
           <AssessorClaimDetails />
         </ProtectedRoute>
-      </Route>
+        </Route>
       
       {/* Panel Beater Routes */}
       <Route path="/panel-beater/dashboard">
-        <ProtectedRoute allowedRoles={["panel_beater"]}>
+        <ProtectedRoute allowedRoles={["panel_beater", "admin"]}>
           <PanelBeaterDashboard />
         </ProtectedRoute>
       </Route>
       
       <Route path="/panel-beater/claims/:id/quote">
-        <ProtectedRoute allowedRoles={["panel_beater"]}>
+        <ProtectedRoute allowedRoles={["panel_beater", "admin"]}>
           <PanelBeaterQuoteSubmission />
         </ProtectedRoute>
       </Route>
       
       {/* Claimant Routes */}
       <Route path="/claimant/dashboard" component={() => (
-        <ProtectedRoute allowedRoles={["claimant"]}>
+        <ProtectedRoute allowedRoles={["claimant", "admin"]}>
           <ClaimantDashboard />
         </ProtectedRoute>
       )} />
       <Route path="/claimant/submit-claim">
-        <ProtectedRoute allowedRoles={["claimant"]}>
+        <ProtectedRoute allowedRoles={["claimant", "admin"]}>
           <SubmitClaim />
         </ProtectedRoute>
       </Route>
