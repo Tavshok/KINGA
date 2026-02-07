@@ -319,14 +319,42 @@ export async function triggerAiAssessment(claimId: number) {
 14. Scale calibration confidence (0-100 based on reference objects visible)
 15. Recommend re-submission (yes/no - if photos are insufficient for accurate measurement)
 
+**ADVANCED PHYSICS MEASUREMENTS (for multi-vehicle, skid marks, rollover analysis):**
+16. Multi-vehicle data (if applicable):
+    - Vehicle displacement from impact point (meters) - measure from debris field, final positions
+    - Other vehicle visible (yes/no)
+    - Relative damage severity (which vehicle has more damage)
+17. Skid mark data:
+    - Skid marks visible (yes/no)
+    - Skid mark length (meters) - measure from photos or police diagram
+    - Skid mark pattern (straight/curved/ABS_pattern/none)
+    - Road surface type visible (asphalt/concrete/gravel/dirt)
+    - Weather conditions visible (dry/wet/puddles/snow/ice)
+18. Post-collision movement:
+    - Rollout distance from impact point (meters) - measure from debris trail, tire marks
+    - Debris trail length (meters)
+    - Vehicle final orientation (degrees from impact direction)
+19. Rollover evidence:
+    - Roof damage present (yes/no)
+    - Pillar deformation severity (none/minor/moderate/severe)
+    - Side window damage pattern
+    - Road embankment visible (yes/no)
+    - Terrain type (flat/banked/embankment/ditch)
+
+**MISSING DATA FLAGS (for site visit recommendations):**
+20. Critical measurements missing (list what cannot be determined from photos)
+21. Site visit recommended (yes/no - if critical data missing and claim value >$5000)
+22. Site visit priority (low/medium/high/critical)
+23. Measurements needed at site (list specific measurements assessor should take)
+
 **COST ESTIMATES:**
-11. Estimated repair cost in USD
-12. Labor cost estimate
-13. Parts cost estimate
+24. Estimated repair cost in USD
+25. Labor cost estimate
+26. Parts cost estimate
 
 **FRAUD INDICATORS:**
-14. Fraud risk score (0-100)
-15. Specific fraud indicators detected (array of strings)
+27. Fraud risk score (0-100)
+28. Specific fraud indicators detected (array of strings)
 
 Provide your response in JSON format.`;
 
@@ -378,13 +406,70 @@ Provide your response in JSON format.`;
             imageQualityScore: { type: "number" },
             scaleCalibrationConfidence: { type: "number" },
             recommendResubmission: { type: "boolean" },
+            // Advanced physics measurements
+            multiVehicleData: {
+              type: "object",
+              properties: {
+                vehicleDisplacement: { type: "number" },
+                otherVehicleVisible: { type: "boolean" },
+                relativeDamageSeverity: { type: "string" }
+              },
+              required: ["vehicleDisplacement", "otherVehicleVisible", "relativeDamageSeverity"],
+              additionalProperties: false
+            },
+            skidMarkData: {
+              type: "object",
+              properties: {
+                skidMarksVisible: { type: "boolean" },
+                skidMarkLength: { type: "number" },
+                skidMarkPattern: { type: "string", enum: ["straight", "curved", "ABS_pattern", "none"] },
+                roadSurfaceType: { type: "string", enum: ["asphalt", "concrete", "gravel", "dirt", "unknown"] },
+                weatherConditions: { type: "string", enum: ["dry", "wet", "puddles", "snow", "ice", "unknown"] }
+              },
+              required: ["skidMarksVisible", "skidMarkLength", "skidMarkPattern", "roadSurfaceType", "weatherConditions"],
+              additionalProperties: false
+            },
+            postCollisionMovement: {
+              type: "object",
+              properties: {
+                rolloutDistance: { type: "number" },
+                debrisTrailLength: { type: "number" },
+                vehicleFinalOrientation: { type: "number" }
+              },
+              required: ["rolloutDistance", "debrisTrailLength", "vehicleFinalOrientation"],
+              additionalProperties: false
+            },
+            rolloverEvidence: {
+              type: "object",
+              properties: {
+                roofDamagePresent: { type: "boolean" },
+                pillarDeformation: { type: "string", enum: ["none", "minor", "moderate", "severe"] },
+                sideWindowDamage: { type: "string" },
+                roadEmbankmentVisible: { type: "boolean" },
+                terrainType: { type: "string", enum: ["flat", "banked", "embankment", "ditch", "unknown"] }
+              },
+              required: ["roofDamagePresent", "pillarDeformation", "sideWindowDamage", "roadEmbankmentVisible", "terrainType"],
+              additionalProperties: false
+            },
+            // Site visit recommendations
+            missingDataFlags: {
+              type: "object",
+              properties: {
+                criticalMeasurementsMissing: { type: "array", items: { type: "string" } },
+                siteVisitRecommended: { type: "boolean" },
+                siteVisitPriority: { type: "string", enum: ["low", "medium", "high", "critical"] },
+                measurementsNeededAtSite: { type: "array", items: { type: "string" } }
+              },
+              required: ["criticalMeasurementsMissing", "siteVisitRecommended", "siteVisitPriority", "measurementsNeededAtSite"],
+              additionalProperties: false
+            },
             estimatedCost: { type: "number" },
             laborCost: { type: "number" },
             partsCost: { type: "number" },
             fraudRiskScore: { type: "number" },
             fraudIndicators: { type: "array", items: { type: "string" } }
           },
-          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
+          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "multiVehicleData", "skidMarkData", "postCollisionMovement", "rolloverEvidence", "missingDataFlags", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
           additionalProperties: false
         }
       }

@@ -104,7 +104,7 @@ export interface PhysicsAnalysisResult {
   // Impact Analysis
   impactForce: {
     magnitude: number; // Newtons
-    duration: number; // seconds
+    duration: number; // seconds;
   };
   impactAngle: number; // degrees from vehicle centerline
   deltaV: number; // velocity change in km/h
@@ -139,6 +139,55 @@ export interface PhysicsAnalysisResult {
   
   // EV/Hybrid Specific Analysis
   evHybridAnalysis?: EVHybridAnalysis;
+  
+  // Advanced Physics Analysis (NEW)
+  momentumAnalysis?: MomentumAnalysis;
+  frictionAnalysis?: FrictionAnalysis;
+  restitutionAnalysis?: RestitutionAnalysis;
+  rolloverAnalysis?: RolloverAnalysis;
+}
+
+// NEW: Multi-vehicle momentum analysis
+export interface MomentumAnalysis {
+  conservationViolation: boolean;
+  momentumDiscrepancy: number; // kg*m/s
+  velocityInconsistency: {
+    vehicle1: { reported: number; calculated: number }; // km/h
+    vehicle2?: { reported: number; calculated: number };
+  };
+  stagedAccidentProbability: number; // 0-100
+  fraudIndicators: string[];
+}
+
+// NEW: Skid mark friction analysis
+export interface FrictionAnalysis {
+  estimatedSpeedFromSkid: number; // km/h
+  skidMarkLength: number; // meters
+  coefficientOfFriction: number; // 0.4-0.9
+  roadCondition: "dry" | "wet" | "icy" | "unknown";
+  speedDiscrepancy: number; // km/h (reported - calculated)
+  fraudIndicator: boolean;
+}
+
+// NEW: Coefficient of restitution analysis
+export interface RestitutionAnalysis {
+  coefficientOfRestitution: number; // 0-1
+  postCollisionVelocity: number; // km/h
+  claimedRolloutDistance: number; // meters
+  calculatedRolloutDistance: number; // meters
+  trajectoryImpossible: boolean;
+  fraudIndicators: string[];
+}
+
+// NEW: Rollover threshold analysis
+export interface RolloverAnalysis {
+  rolloverThresholdSpeed: number; // km/h
+  reportedSpeed: number; // km/h
+  rolloverPossible: boolean;
+  centerOfMassHeight: number; // meters
+  trackWidth: number; // meters
+  rolloverImpossible: boolean;
+  fraudIndicators: string[];
 }
 
 // ============================================================================
@@ -1262,4 +1311,338 @@ function assessBatteryDegradation(
   
   // Otherwise unclear - requires diagnostic testing
   return "unclear";
+}
+
+// ============================================================================
+// ADVANCED PHYSICS: CONSERVATION OF MOMENTUM
+// ============================================================================
+
+/**
+ * Analyze multi-vehicle collision using conservation of momentum
+ * 
+ * Formula: m₁v₁ + m₂v₂ = m₁v₁' + m₂v₂'
+ * 
+ * Detects staged accidents where reported speeds violate momentum conservation
+ */
+export function analyzeMomentumConservation(
+  vehicle1: { mass: number; reportedSpeed: number; postCollisionSpeed?: number }, // kg, km/h
+  vehicle2?: { mass: number; reportedSpeed: number; postCollisionSpeed?: number },
+  collisionType: "head-on" | "rear-end" | "t-bone" = "rear-end"
+): MomentumAnalysis {
+  
+  // Convert km/h to m/s
+  const v1_initial = (vehicle1.reportedSpeed || 0) / 3.6;
+  const v2_initial = vehicle2 ? (vehicle2.reportedSpeed || 0) / 3.6 : 0;
+  
+  // Calculate initial momentum
+  const momentum_initial = vehicle1.mass * v1_initial + (vehicle2 ? vehicle2.mass * v2_initial : 0);
+  
+  // For rear-end collision, assume vehicle 2 was stationary or slower
+  // Calculate expected post-collision velocities
+  let v1_final_calculated: number;
+  let v2_final_calculated: number | undefined;
+  
+  if (vehicle2) {
+    // Two-vehicle collision
+    // Use coefficient of restitution e = 0.2 (typical for car collisions)
+    const e = 0.2;
+    const m1 = vehicle1.mass;
+    const m2 = vehicle2.mass;
+    
+    if (collisionType === "head-on") {
+      // Head-on: vehicles moving toward each other
+      v1_final_calculated = ((m1 - e * m2) * v1_initial + (1 + e) * m2 * (-v2_initial)) / (m1 + m2);
+      v2_final_calculated = ((m2 - e * m1) * (-v2_initial) + (1 + e) * m1 * v1_initial) / (m1 + m2);
+    } else if (collisionType === "rear-end") {
+      // Rear-end: vehicle 1 hits stationary or slower vehicle 2
+      v1_final_calculated = ((m1 - e * m2) * v1_initial + (1 + e) * m2 * v2_initial) / (m1 + m2);
+      v2_final_calculated = ((m2 - e * m1) * v2_initial + (1 + e) * m1 * v1_initial) / (m1 + m2);
+    } else {
+      // T-bone: simplified analysis
+      v1_final_calculated = v1_initial * 0.4; // Approximate energy loss
+      v2_final_calculated = v1_initial * 0.6 * (m1 / m2);
+    }
+    
+    // Convert back to km/h
+    v1_final_calculated *= 3.6;
+    v2_final_calculated *= 3.6;
+  } else {
+    // Single vehicle (e.g., hit stationary object)
+    // Assume significant deceleration
+    v1_final_calculated = v1_initial * 0.3 * 3.6; // 70% energy loss typical
+  }
+  
+  // Compare with reported post-collision speeds (if available)
+  const v1_final_reported = vehicle1.postCollisionSpeed || 0;
+  const v2_final_reported = vehicle2?.postCollisionSpeed || 0;
+  
+  // Calculate momentum discrepancy using REPORTED post-collision speeds if available
+  const momentum_final_reported = 
+    vehicle1.mass * (v1_final_reported / 3.6) + 
+    (vehicle2 ? vehicle2.mass * (v2_final_reported / 3.6) : 0);
+  
+  const momentum_final_calculated = 
+    vehicle1.mass * (v1_final_calculated / 3.6) + 
+    (vehicle2 ? vehicle2.mass * (v2_final_calculated! / 3.6) : 0);
+  
+  // Use reported speeds if available, otherwise use calculated
+  const momentum_final = (vehicle1.postCollisionSpeed || vehicle2?.postCollisionSpeed) 
+    ? momentum_final_reported 
+    : momentum_final_calculated;
+  
+  const momentumDiscrepancy = Math.abs(momentum_initial - momentum_final);
+  
+  // Check for conservation violation (>20% discrepancy indicates fraud)
+  const conservationViolation = momentumDiscrepancy / Math.abs(momentum_initial) > 0.20;
+  
+  // Detect fraud indicators
+  const fraudIndicators: string[] = [];
+  
+  // Check if stationary vehicle moved impossibly fast
+  if (vehicle2 && vehicle2.reportedSpeed === 0 && v2_final_calculated && v2_final_calculated > 60) {
+    fraudIndicators.push(`Stationary vehicle should move at ${v2_final_calculated.toFixed(0)} km/h after impact, but minimal displacement observed`);
+  }
+  
+  // Check if moving vehicle didn't decelerate enough
+  if (vehicle1.reportedSpeed > 50 && v1_final_calculated < 20 && v1_final_reported > 40) {
+    fraudIndicators.push(`Vehicle should decelerate to ${v1_final_calculated.toFixed(0)} km/h, but reported ${v1_final_reported} km/h`);
+  }
+  
+  // Check for impossible momentum transfer
+  if (conservationViolation) {
+    fraudIndicators.push(`Momentum conservation violated by ${(momentumDiscrepancy / 1000).toFixed(0)} kN·s - indicates staged accident or false reporting`);
+  }
+  
+  // Calculate staged accident probability
+  let stagedAccidentProbability = 0;
+  if (conservationViolation) stagedAccidentProbability += 40;
+  if (fraudIndicators.length > 1) stagedAccidentProbability += 30;
+  if (vehicle2 && Math.abs(vehicle1.reportedSpeed - vehicle2.reportedSpeed) < 5) {
+    // Similar speeds in rear-end collision is suspicious
+    stagedAccidentProbability += 20;
+    fraudIndicators.push("Suspiciously similar vehicle speeds in rear-end collision");
+  }
+  
+  return {
+    conservationViolation,
+    momentumDiscrepancy,
+    velocityInconsistency: {
+      vehicle1: { 
+        reported: vehicle1.reportedSpeed, 
+        calculated: v1_final_calculated 
+      },
+      vehicle2: vehicle2 ? {
+        reported: vehicle2.reportedSpeed,
+        calculated: v2_final_calculated!
+      } : undefined
+    },
+    stagedAccidentProbability: Math.min(stagedAccidentProbability, 100),
+    fraudIndicators
+  };
+}
+
+// ============================================================================
+// ADVANCED PHYSICS: FRICTION ANALYSIS
+// ============================================================================
+
+/**
+ * Estimate speed from skid mark length using friction analysis
+ * 
+ * Formula: v = √(2μgd)
+ * where:
+ *   v = initial speed (m/s)
+ *   μ = coefficient of friction
+ *   g = gravitational acceleration (9.8 m/s²)
+ *   d = skid mark length (meters)
+ */
+export function analyzeSkidMarkFriction(
+  skidMarkLength: number, // meters
+  roadCondition: "dry" | "wet" | "icy" | "unknown",
+  reportedSpeed: number // km/h
+): FrictionAnalysis {
+  
+  // Coefficient of friction values
+  const frictionCoefficients = {
+    dry: 0.7,
+    wet: 0.4,
+    icy: 0.15,
+    unknown: 0.6 // Conservative estimate
+  };
+  
+  const mu = frictionCoefficients[roadCondition];
+  const g = 9.8; // m/s²
+  
+  // Calculate speed from skid marks: v = √(2μgd)
+  const speedMS = Math.sqrt(2 * mu * g * skidMarkLength);
+  const estimatedSpeedFromSkid = speedMS * 3.6; // Convert to km/h
+  
+  // Calculate discrepancy
+  const speedDiscrepancy = Math.abs(reportedSpeed - estimatedSpeedFromSkid);
+  
+  // Fraud indicator: >25% speed discrepancy
+  const fraudIndicator = (speedDiscrepancy / reportedSpeed) > 0.25;
+  
+  return {
+    estimatedSpeedFromSkid,
+    skidMarkLength,
+    coefficientOfFriction: mu,
+    roadCondition,
+    speedDiscrepancy,
+    fraudIndicator
+  };
+}
+
+// ============================================================================
+// ADVANCED PHYSICS: COEFFICIENT OF RESTITUTION
+// ============================================================================
+
+/**
+ * Analyze post-collision trajectory using coefficient of restitution
+ * 
+ * Formula: e = (v₂' - v₁') / (v₁ - v₂)
+ * 
+ * Validates claimed rollout distances and trajectories
+ */
+export function analyzeRestitution(
+  preCollisionSpeed: number, // km/h
+  claimedRolloutDistance: number, // meters
+  vehicleMass: number, // kg
+  roadCondition: "dry" | "wet" | "icy" | "unknown" = "dry"
+): RestitutionAnalysis {
+  
+  // Typical coefficient of restitution for car collisions
+  const e = 0.2; // Most collisions are inelastic (0.1-0.3)
+  
+  // Convert speed to m/s
+  const v_initial = preCollisionSpeed / 3.6;
+  
+  // Post-collision velocity (assuming collision with stationary object)
+  const v_final = v_initial * e;
+  
+  // Calculate rollout distance using kinetic energy dissipation
+  // KE = 0.5 * m * v²
+  // Work = Force * distance = μ * m * g * d
+  // Setting KE = Work: 0.5 * m * v² = μ * m * g * d
+  // Solving for d: d = v² / (2μg)
+  
+  const frictionCoefficients = {
+    dry: 0.7,
+    wet: 0.4,
+    icy: 0.15,
+    unknown: 0.6
+  };
+  
+  const mu = frictionCoefficients[roadCondition];
+  const g = 9.8;
+  
+  const calculatedRolloutDistance = (v_final * v_final) / (2 * mu * g);
+  
+  // Check if claimed distance is physically possible
+  const trajectoryImpossible = claimedRolloutDistance > calculatedRolloutDistance * 2;
+  
+  // Fraud indicators
+  const fraudIndicators: string[] = [];
+  
+  if (trajectoryImpossible) {
+    fraudIndicators.push(`Claimed rollout of ${claimedRolloutDistance.toFixed(0)}m exceeds physics limit of ${(calculatedRolloutDistance * 2).toFixed(0)}m`);
+  }
+  
+  if (claimedRolloutDistance > calculatedRolloutDistance * 1.5) {
+    fraudIndicators.push(`Rollout distance ${((claimedRolloutDistance / calculatedRolloutDistance - 1) * 100).toFixed(0)}% higher than expected`);
+  }
+  
+  if (claimedRolloutDistance < calculatedRolloutDistance * 0.3 && preCollisionSpeed > 40) {
+    fraudIndicators.push(`Suspiciously short rollout for ${preCollisionSpeed} km/h collision - vehicle may have been braked intentionally`);
+  }
+  
+  return {
+    coefficientOfRestitution: e,
+    postCollisionVelocity: v_final * 3.6, // Convert back to km/h
+    claimedRolloutDistance,
+    calculatedRolloutDistance,
+    trajectoryImpossible,
+    fraudIndicators
+  };
+}
+
+// ============================================================================
+// ADVANCED PHYSICS: ROLLOVER THRESHOLD ANALYSIS
+// ============================================================================
+
+/**
+ * Analyze rollover claim using center of mass and stability analysis
+ * 
+ * Formula: v_rollover = √(g × h × track_width / (2 × h))
+ * 
+ * Validates whether rollover is physically possible at reported speed
+ */
+export function analyzeRolloverThreshold(
+  vehicleType: "sedan" | "suv" | "truck" | "van" | "sports" | "compact",
+  reportedSpeed: number, // km/h
+  roadCondition: "flat" | "banked" | "embankment" = "flat"
+): RolloverAnalysis {
+  
+  // Vehicle-specific center of mass heights and track widths (typical values)
+  const vehicleSpecs = {
+    sedan: { centerOfMassHeight: 0.50, trackWidth: 1.55 },
+    suv: { centerOfMassHeight: 0.65, trackWidth: 1.60 },
+    truck: { centerOfMassHeight: 0.75, trackWidth: 1.70 },
+    van: { centerOfMassHeight: 0.70, trackWidth: 1.65 },
+    sports: { centerOfMassHeight: 0.40, trackWidth: 1.50 },
+    compact: { centerOfMassHeight: 0.48, trackWidth: 1.45 }
+  };
+  
+  const specs = vehicleSpecs[vehicleType];
+  const h = specs.centerOfMassHeight; // meters
+  const w = specs.trackWidth; // meters
+  const g = 9.8; // m/s²
+  
+  // Calculate rollover threshold speed using lateral acceleration method
+  // Rollover occurs when lateral acceleration exceeds: a_lat = (w / (2h)) × g
+  // For circular motion: a_lat = v² / r
+  // Assuming tight turn radius of 20m (typical for rollover scenarios)
+  // v = √(r × a_lat) = √(r × (w / (2h)) × g)
+  const turnRadius = 20; // meters (typical for sharp turn/swerve)
+  const lateralAcceleration = (w / (2 * h)) * g;
+  const v_rollover_ms = Math.sqrt(turnRadius * lateralAcceleration);
+  const rolloverThresholdSpeed = v_rollover_ms * 3.6; // Convert to km/h
+  
+  // Adjust for road conditions
+  let adjustedThreshold = rolloverThresholdSpeed;
+  if (roadCondition === "banked") {
+    adjustedThreshold *= 1.3; // Harder to rollover on banked road
+  } else if (roadCondition === "embankment") {
+    adjustedThreshold *= 0.6; // Easier to rollover on embankment
+  }
+  
+  // Check if rollover is possible at reported speed
+  const rolloverPossible = reportedSpeed >= adjustedThreshold * 0.8; // 80% threshold for margin
+  const rolloverImpossible = reportedSpeed < adjustedThreshold * 0.5; // Clearly impossible
+  
+  // Fraud indicators
+  const fraudIndicators: string[] = [];
+  
+  if (rolloverImpossible) {
+    fraudIndicators.push(`Rollover impossible at ${reportedSpeed} km/h - requires minimum ${adjustedThreshold.toFixed(0)} km/h for ${vehicleType}`);
+  }
+  
+  if (!rolloverPossible && roadCondition === "flat") {
+    fraudIndicators.push(`Rollover unlikely at ${reportedSpeed} km/h on flat road - typical threshold is ${adjustedThreshold.toFixed(0)} km/h`);
+  }
+  
+  if (vehicleType === "sedan" || vehicleType === "sports") {
+    if (reportedSpeed < 80 && roadCondition === "flat") {
+      fraudIndicators.push(`Low-profile ${vehicleType} rarely rolls over below 80 km/h on flat roads`);
+    }
+  }
+  
+  return {
+    rolloverThresholdSpeed: adjustedThreshold,
+    reportedSpeed,
+    rolloverPossible,
+    centerOfMassHeight: h,
+    trackWidth: w,
+    rolloverImpossible,
+    fraudIndicators
+  };
 }
