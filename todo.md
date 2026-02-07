@@ -1879,3 +1879,11 @@
 ## Portal Hub Redirect Issue
 - [x] Fix OAuth callback to properly redirect to portal hub instead of insurer page
 - [x] Verify portal hub route is accessible after login
+
+
+## AI Assessment Report Visibility & PDF Analysis Enhancement
+- [x] Investigate why AI assessment results aren't visible after triggering
+- [x] Fix AI assessment report display in comparison view (added auto-navigation)
+- [x] Enhance PDF extraction to capture all assessment details comprehensively
+- [x] Test with Toyota Hilux AGA2795 assessment PDF (20 pages extracted successfully)
+- [x] Verify all analysis components are working (damage assessment, physics, fraud detection)

@@ -71,19 +71,66 @@ export const appRouter = router({
           "application/pdf"
         );
 
+        // Convert PDF to images using pdf2image (extract all pages as images)
+        const { execSync } = await import("child_process");
+        const { writeFileSync, readFileSync, unlinkSync, mkdtempSync } = await import("fs");
+        const { tmpdir } = await import("os");
+        const { join } = await import("path");
+        
+        // Create temp directory for PDF processing
+        const tempDir = mkdtempSync(join(tmpdir(), "pdf-extract-"));
+        const pdfPath = join(tempDir, "assessment.pdf");
+        writeFileSync(pdfPath, fileBuffer);
+        
+        // Convert PDF to PNG images (one per page)
+        const outputPattern = join(tempDir, "page");
+        try {
+          execSync(`pdftoppm -png "${pdfPath}" "${outputPattern}"`, { timeout: 30000 });
+        } catch (error) {
+          console.error("PDF conversion error:", error);
+          throw new Error("Failed to convert PDF to images");
+        }
+        
+        // Find all generated PNG files
+        const { readdirSync } = await import("fs");
+        const pageFiles = readdirSync(tempDir).filter(f => f.endsWith(".png")).sort();
+        
+        // Upload each page image to S3
+        const damagePhotoUrls: string[] = [];
+        for (const pageFile of pageFiles) {
+          const pagePath = join(tempDir, pageFile);
+          const imageBuffer = readFileSync(pagePath);
+          const { url: imageUrl } = await storagePut(
+            `damage-photos/${nanoid()}-${pageFile}`,
+            imageBuffer,
+            "image/png"
+          );
+          damagePhotoUrls.push(imageUrl);
+          unlinkSync(pagePath); // Clean up temp file
+        }
+        
+        // Clean up temp directory
+        unlinkSync(pdfPath);
+        try {
+          const { rmdirSync } = await import("fs");
+          rmdirSync(tempDir);
+        } catch (e) {
+          // Ignore cleanup errors
+        }
+
         // Extract data from PDF using LLM vision
         const extractionResponse = await invokeLLM({
           messages: [
             {
               role: "system",
-              content: "You are an expert at extracting structured data from vehicle damage assessment reports. Extract all relevant information including vehicle details, damage description, claimant info, and any embedded photos."
+              content: "You are an expert at extracting structured data from vehicle damage assessment reports. Extract all relevant information including vehicle details, damage description, claimant info, and repair costs."
             },
             {
               role: "user",
               content: [
                 {
                   type: "text",
-                  text: "Extract the following from this assessment report: vehicle make, model, year, registration number, claimant name, damage description, estimated repair cost, and list all embedded damage photos (if any)."
+                  text: "Extract the following from this assessment report: vehicle make, model, year, registration number, claimant name, damage description, and estimated repair cost."
                 },
                 {
                   type: "file_url",
@@ -109,8 +156,7 @@ export const appRouter = router({
                   vehicleRegistration: { type: "string" },
                   claimantName: { type: "string" },
                   damageDescription: { type: "string" },
-                  estimatedCost: { type: "number" },
-                  photosExtracted: { type: "integer" }
+                  estimatedCost: { type: "number" }
                 },
                 required: ["vehicleMake", "vehicleModel", "vehicleYear", "vehicleRegistration", "damageDescription"],
                 additionalProperties: false
@@ -120,8 +166,10 @@ export const appRouter = router({
         });
 
         const extractedData = JSON.parse((extractionResponse.choices[0].message.content as string) || "{}");
+        
+        console.log(`Extracted ${damagePhotoUrls.length} damage photos from PDF`);
 
-        // Create a new claim from extracted data
+        // Create a new claim from extracted data with damage photos
         const claimNumber = `EXT-${nanoid(10).toUpperCase()}`;
         await createClaim({
           claimNumber,
@@ -132,6 +180,7 @@ export const appRouter = router({
           vehicleRegistration: extractedData.vehicleRegistration,
           incidentDate: new Date(),
           incidentDescription: extractedData.damageDescription,
+          damagePhotos: JSON.stringify(damagePhotoUrls), // Store all extracted page images
           status: "submitted",
           policyVerified: 0, // Use 0 for false
         });
@@ -155,6 +204,7 @@ export const appRouter = router({
         return {
           claimId: claim.id,
           claimNumber: claim.claimNumber,
+          photosExtracted: damagePhotoUrls.length,
           ...extractedData
         };
       }),

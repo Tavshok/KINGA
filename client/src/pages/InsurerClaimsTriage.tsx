@@ -75,9 +75,11 @@ export default function InsurerClaimsTriage() {
   });
 
   const triggerAiAssessment = trpc.claims.triggerAiAssessment.useMutation({
-    onSuccess: () => {
-      toast.success("AI assessment triggered");
+    onSuccess: (data, variables) => {
+      toast.success("AI assessment completed successfully");
       refetchClaims();
+      // Navigate to comparison view to show results
+      setLocation(`/insurer/claims/${variables.claimId}/comparison`);
     },
     onError: (error) => {
       toast.error(`Failed to trigger AI assessment: ${error.message}`);
