@@ -303,11 +303,21 @@ export async function triggerAiAssessment(claimId: number) {
 
 **PHYSICAL MEASUREMENTS (Critical for physics validation):**
 5. Maximum crush depth in meters (estimate from visible deformation - typical ranges: 0.05-0.15m minor, 0.15-0.35m moderate, 0.35-0.6m severe)
+   - Use reference objects for scale (wheels typically 40-50cm diameter, license plates 30cm wide)
+   - Estimate depth relative to visible undamaged portions
+   - Provide confidence score (0-100) for this measurement
 6. Total damaged area in square meters
 7. Structural damage present (yes/no - frame rails, pillars, crumple zones)
 8. Airbag deployment visible (yes/no - look for deployed airbags in photos)
 9. Impact point location (front_center/front_left/front_right/rear_center/rear_left/rear_right/side_left/side_right/undercarriage)
 10. Accident type classification (frontal/rear/side_driver/side_passenger/rollover/multi_impact)
+
+**IMAGE QUALITY ASSESSMENT:**
+11. Reference objects detected (wheels/license_plates/door_handles/headlights - helps with scale calibration)
+12. Photo angles available (front/rear/side/overhead/interior)
+13. Image quality score (0-100 based on lighting, focus, resolution, angle coverage)
+14. Scale calibration confidence (0-100 based on reference objects visible)
+15. Recommend re-submission (yes/no - if photos are insufficient for accurate measurement)
 
 **COST ESTIMATES:**
 11. Estimated repair cost in USD
@@ -357,18 +367,24 @@ Provide your response in JSON format.`;
               }
             },
             maxCrushDepth: { type: "number" },
+            crushDepthConfidence: { type: "number" },
             totalDamageArea: { type: "number" },
             structuralDamage: { type: "boolean" },
             airbagDeployment: { type: "boolean" },
             impactPoint: { type: "string" },
             accidentType: { type: "string", enum: ["frontal", "rear", "side_driver", "side_passenger", "rollover", "multi_impact", "unknown"] },
+            referenceObjectsDetected: { type: "array", items: { type: "string" } },
+            photoAnglesAvailable: { type: "array", items: { type: "string" } },
+            imageQualityScore: { type: "number" },
+            scaleCalibrationConfidence: { type: "number" },
+            recommendResubmission: { type: "boolean" },
             estimatedCost: { type: "number" },
             laborCost: { type: "number" },
             partsCost: { type: "number" },
             fraudRiskScore: { type: "number" },
             fraudIndicators: { type: "array", items: { type: "string" } }
           },
-          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
+          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
           additionalProperties: false
         }
       }
@@ -377,6 +393,29 @@ Provide your response in JSON format.`;
 
   const messageContent = response.choices[0]?.message?.content;
   const analysis = typeof messageContent === 'string' ? JSON.parse(messageContent) : {};
+
+  // ========== IMAGE QUALITY VALIDATION ==========
+  // Check if photos are sufficient for accurate measurement
+  const imageQuality = {
+    score: analysis.imageQualityScore || 0,
+    scaleConfidence: analysis.scaleCalibrationConfidence || 0,
+    referenceObjects: analysis.referenceObjectsDetected || [],
+    photoAngles: analysis.photoAnglesAvailable || [],
+    recommendResubmission: analysis.recommendResubmission || false,
+    crushDepthConfidence: analysis.crushDepthConfidence || 0,
+  };
+
+  // Flag low-quality photos for re-submission
+  if (imageQuality.recommendResubmission || imageQuality.score < 60) {
+    console.warn(`[AI Assessment] Low-quality photos detected for claim ${claimId}:`, {
+      imageQualityScore: imageQuality.score,
+      scaleConfidence: imageQuality.scaleConfidence,
+      crushDepthConfidence: imageQuality.crushDepthConfidence,
+      referenceObjects: imageQuality.referenceObjects.length,
+      photoAngles: imageQuality.photoAngles.length,
+    });
+    // TODO: Send notification to claimant requesting better photos
+  }
 
   // Create AI assessment record
   await createAiAssessment({
