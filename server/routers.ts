@@ -21,6 +21,7 @@ import {
   getClaimsByAssessor,
   getClaimsForPanelBeater,
   getClaimById,
+  getClaimByNumber,
   updateClaimStatus,
   assignClaimToAssessor,
   updateClaimPolicyVerification,
@@ -177,14 +178,29 @@ export const appRouter = router({
           status: "submitted",
         });
 
+        // Get the newly created claim to retrieve its ID
+        const newClaim = await getClaimByNumber(claimNumber);
+        if (!newClaim) throw new Error("Failed to retrieve newly created claim");
+
         // Create audit entry
         await createAuditEntry({
-          claimId: 0, // Will be updated with actual claim ID
+          claimId: newClaim.id,
           userId: ctx.user.id,
           action: "claim_submitted",
           entityType: "claim",
           changeDescription: `Claim ${claimNumber} submitted`,
         });
+
+        // Automatically trigger AI assessment if damage photos are provided
+        if (input.damagePhotos && input.damagePhotos.length > 0) {
+          try {
+            await triggerAiAssessment(newClaim.id);
+            console.log(`AI assessment automatically triggered for claim ${claimNumber}`);
+          } catch (error) {
+            console.error(`Failed to trigger AI assessment for claim ${claimNumber}:`, error);
+            // Don't fail the claim submission if AI assessment fails
+          }
+        }
 
         return { success: true, claimNumber };
       }),

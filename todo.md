@@ -1645,3 +1645,40 @@
 - [x] Verify assessor routes are working correctly
 - [x] Test navigation to assessor dashboard
 - [x] Create checkpoint with route fix
+
+
+## Production Readiness - Priority Fixes (Feb 7, 2026)
+
+### 1. AI Assessment Automation (HIGH PRIORITY)
+- [x] Create automatic AI assessment trigger when damage photos are uploaded
+- [x] Add photo upload event listener in claims submission
+- [x] Trigger AI vision analysis automatically on photo upload
+- [x] Update claim status to "AI Assessment Available" automatically
+- [ ] Test automatic AI assessment with real photos
+- [ ] Verify damage component breakdown appears automatically
+
+### 2. Physics Data Completeness (HIGH PRIORITY)
+- [ ] Integrate police report OCR with claim submission
+- [ ] Extract physics parameters automatically from uploaded police reports
+- [ ] Save extracted data to police_reports table
+- [ ] Integrate AI vision environmental detection (road surface, weather)
+- [ ] Save AI-detected environmental data to database
+- [ ] Connect physics data to 8-formula validation engine
+- [ ] Test complete physics validation with real claims
+- [ ] Verify physics confidence dashboard displays correctly
+
+### 3. Damage Photo Integration (MEDIUM PRIORITY)
+- [ ] Fix photo upload workflow in claim submission
+- [ ] Ensure photos are properly linked to claims in database
+- [ ] Upload photos to S3 storage automatically
+- [ ] Save photo URLs to claim_photos table
+- [ ] Test photo display in comparison view
+- [ ] Verify vehicle damage diagram shows with photos
+- [ ] Test damage component breakdown with photos
+
+### 4. Integration Testing
+- [ ] Test complete workflow: claim submission → photo upload → AI assessment → physics validation
+- [ ] Verify all features work with real Zimbabwean claims
+- [ ] Test with multiple claims simultaneously
+- [ ] Validate fraud detection with complete data
+- [ ] Create final production-ready checkpoint

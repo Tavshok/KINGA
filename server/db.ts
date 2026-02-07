@@ -195,6 +195,14 @@ export async function getClaimById(id: number) {
   return result.length > 0 ? result[0] : undefined;
 }
 
+export async function getClaimByNumber(claimNumber: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+
+  const result = await db.select().from(claims).where(eq(claims.claimNumber, claimNumber)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
 export async function getClaimsByClaimant(claimantId: number) {
   const db = await getDb();
   if (!db) return [];
