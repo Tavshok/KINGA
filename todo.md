@@ -1870,3 +1870,12 @@
 - [x] Fix batch export disabled issue (working correctly - disabled when no AI assessments exist)
 - [x] Make AI assessments trigger automatically on claim submission (ALREADY IMPLEMENTED - triggers on lines 420-429 of routers.ts)
 - [x] Make AI assessments trigger automatically after PDF external assessment upload and photo extraction (updated lines 145-153 of routers.ts)
+
+
+## Portal Hub Redirect Issue
+- [ ] Fix OAuth callback to properly redirect to portal hub instead of insurer page
+- [ ] Verify portal hub route is accessible after login
+
+## Portal Hub Redirect Issue
+- [x] Fix OAuth callback to properly redirect to portal hub instead of insurer page
+- [x] Verify portal hub route is accessible after login

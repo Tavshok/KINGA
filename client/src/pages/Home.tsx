@@ -10,24 +10,8 @@ export default function Home() {
 
   useEffect(() => {
     if (!loading && isAuthenticated && user) {
-      // Redirect authenticated users to role-specific dashboard
-      switch (user.role) {
-        case "insurer":
-        case "admin":
-          setLocation("/insurer/dashboard");
-          break;
-        case "assessor":
-          setLocation("/assessor/dashboard");
-          break;
-        case "panel_beater":
-          setLocation("/panel-beater/dashboard");
-          break;
-        case "claimant":
-          setLocation("/claimant/dashboard");
-          break;
-        default:
-          setLocation("/login");
-      }
+      // Redirect authenticated users to portal hub for role selection
+      setLocation("/portal-hub");
     }
   }, [loading, isAuthenticated, user, setLocation]);
 
