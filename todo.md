@@ -1750,8 +1750,9 @@
 - [x] Ensure physics analysis runs automatically with AI assessment
 
 ### Panel Beater Quote Workflow Enhancement
-- [ ] Add PDF upload functionality for panel beaters (handwritten or typed quotes)
-- [ ] Implement AI extraction to parse PDF quotes and populate labor, parts, and hours
+- [x] Add PDF upload backend API (S3 upload + AI extraction with LLM vision)
+- [x] Implement AI extraction to parse PDF quotes and populate labor, parts, and hours
+- [ ] Create PdfQuoteUpload React component and integrate into panel beater quote submission page
 - [ ] Create structured quote form with line items for components
 - [ ] Add VAT calculation field (optional, can be ignored)
 - [ ] Allow panel beaters to choose between PDF upload or manual form entry
