@@ -1552,3 +1552,13 @@
 - [ ] Test severity scoring with various damage patterns
 - [ ] Test batch export with multiple claims
 - [x] Create checkpoint with severity scoring and batch export
+
+
+## Real Zimbabwean Claims Data Import (Feb 7, 2026)
+- [x] Extract data from 18 assessment report PDFs using Python script
+- [x] Parse vehicle details, damage descriptions, and fraud indicators
+- [x] Create Node.js import script to populate database
+- [x] Import 11 real Zimbabwean claims with AI assessments
+- [x] Verify claims display correctly in system (24 total claims)
+- [x] Test system with real data (write-offs, structural damage, fraud indicators)
+- [ ] Create final checkpoint with real claims data
