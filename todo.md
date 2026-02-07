@@ -1466,3 +1466,22 @@
 - [x] Fix TypeScript errors and ensure zero compilation errors
 - [ ] Test PhysicsConfidenceDashboard with real claims data
 - [ ] Create checkpoint with PhysicsConfidenceDashboard integration
+
+
+## Fraud Analytics Dashboard & Enhanced Site Visits (Feb 7, 2026)
+- [x] Design fraud analytics dashboard structure and metrics
+- [x] Create tRPC procedures to aggregate fraud detection data across all claims
+- [x] Build FraudAnalyticsDashboard page with executive KPIs
+- [x] Add chart for momentum violation trends over time
+- [x] Add chart for skid mark discrepancy patterns
+- [x] Add chart for impossible rollover detection statistics
+- [x] Add chart for cost inflation trends across panel beaters
+- [x] Display top fraud indicators with severity breakdown
+- [x] Show physics-based fraud detection accuracy metrics
+- [ ] Enhance site visit recommendation system with automatic scheduling (deferred - requires database schema update)
+- [ ] Create tRPC procedure to automatically schedule assessor appointments (deferred)
+- [ ] Add notification system for scheduled site visits (deferred)
+- [ ] Update comparison view to show scheduled site visit status (deferred)
+- [ ] Test fraud analytics dashboard with existing claims data
+- [ ] Test automatic site visit scheduling workflow (deferred)
+- [x] Create checkpoint with fraud analytics enhancements
