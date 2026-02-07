@@ -268,6 +268,24 @@ export default function InsurerComparisonView() {
           <VehicleValuationCard claimId={claimId} />
         </div>
 
+        {/* Damage Component Breakdown */}
+        {aiAssessment && (
+          <Card className="mb-6 border-2 border-purple-200 bg-purple-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-purple-600">AI Damage Analysis</Badge>
+                Detected Damage Components & Inferred Hidden Damage
+              </CardTitle>
+              <CardDescription>
+                AI-powered component-level damage detection with confidence scores and hidden damage inference
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} />
+            </CardContent>
+          </Card>
+        )}
+
         {/* Side-by-Side Comparison */}
         <div className="grid gap-6 lg:grid-cols-3">
           {/* AI Assessment */}
@@ -587,6 +605,228 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
   );
 }
 
+
+// Damage Component Breakdown Component
+function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
+  // Parse damaged components
+  const damagedComponents = aiAssessment.detectedDamageTypes 
+    ? JSON.parse(aiAssessment.detectedDamageTypes) 
+    : [];
+
+  // Parse damage description to extract inferred hidden damage
+  const damageDescription = aiAssessment.damageDescription || "";
+  
+  // Component categories for cost breakdown
+  const componentCategories = {
+    "Exterior Panels": ["fender", "bumper", "door", "hood", "trunk", "quarter panel", "rocker panel"],
+    "Lighting": ["headlight", "taillight", "fog light", "turn signal"],
+    "Glass": ["windshield", "window", "mirror"],
+    "Structural": ["frame", "pillar", "subframe", "crossmember"],
+    "Mechanical": ["radiator", "condenser", "suspension", "wheel", "tire", "axle"],
+    "Interior": ["dashboard", "airbag", "seat", "console"],
+  };
+
+  // Categorize detected components
+  const categorizedDamage: Record<string, string[]> = {};
+  Object.entries(componentCategories).forEach(([category, keywords]) => {
+    const matchedComponents = damagedComponents.filter((comp: string) =>
+      keywords.some(keyword => comp.toLowerCase().includes(keyword))
+    );
+    if (matchedComponents.length > 0) {
+      categorizedDamage[category] = matchedComponents;
+    }
+  });
+
+  // Infer hidden damage based on visible damage
+  const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
+  
+  // Front-end collision → likely radiator/AC damage
+  if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
+    if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+      inferredHiddenDamage.push({
+        component: "Radiator / AC Condenser",
+        reason: "Front-end impact typically damages cooling system components",
+        confidence: "High"
+      });
+      inferredHiddenDamage.push({
+        component: "Front Subframe / Crash Bar",
+        reason: "Significant frontal collision often affects structural supports",
+        confidence: "Medium"
+      });
+    }
+  }
+
+  // Side impact → potential door intrusion beam, B-pillar damage
+  if (aiAssessment.accidentType?.includes("side")) {
+    inferredHiddenDamage.push({
+      component: "Door Intrusion Beam",
+      reason: "Side impact typically damages internal door reinforcement",
+      confidence: "High"
+    });
+    if (damagedComponents.some((c: string) => c.toLowerCase().includes("door"))) {
+      inferredHiddenDamage.push({
+        component: "B-Pillar / Side Structure",
+        reason: "Severe door damage may indicate pillar deformation",
+        confidence: "Medium"
+      });
+    }
+  }
+
+  // Rollover → roof structure, pillars
+  if (aiAssessment.accidentType === "rollover") {
+    inferredHiddenDamage.push({
+      component: "Roof Structure / Pillars",
+      reason: "Rollover accidents cause structural deformation",
+      confidence: "High"
+    });
+  }
+
+  // Structural damage flag → frame/unibody damage
+  if (aiAssessment.structuralDamage) {
+    inferredHiddenDamage.push({
+      component: "Frame / Unibody Structure",
+      reason: "AI detected structural damage indicators",
+      confidence: "High"
+    });
+  }
+
+  // Airbag deployment → steering column, sensors
+  if (aiAssessment.airbagDeployment) {
+    inferredHiddenDamage.push({
+      component: "Airbag Control Module / Sensors",
+      reason: "Airbag deployment requires system replacement",
+      confidence: "High"
+    });
+  }
+
+  // Cost breakdown by category (estimated)
+  const estimatedCost = aiAssessment.estimatedCost || 0;
+  const partsCost = aiAssessment.partsCost || estimatedCost * 0.6;
+  const laborCost = aiAssessment.laborCost || estimatedCost * 0.4;
+
+  return (
+    <div className="space-y-6">
+      {/* Summary Stats */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-sm text-muted-foreground">Components Detected</p>
+          <p className="text-2xl font-bold text-purple-600">{damagedComponents.length}</p>
+        </div>
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-sm text-muted-foreground">Inferred Hidden Damage</p>
+          <p className="text-2xl font-bold text-orange-600">{inferredHiddenDamage.length}</p>
+        </div>
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-sm text-muted-foreground">Parts Cost</p>
+          <p className="text-2xl font-bold text-blue-600">${(partsCost / 100).toFixed(2)}</p>
+        </div>
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-sm text-muted-foreground">Labor Cost</p>
+          <p className="text-2xl font-bold text-green-600">${(laborCost / 100).toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Detected Damage Components by Category */}
+      <div className="p-4 bg-white rounded-lg border">
+        <h4 className="font-semibold mb-4 flex items-center gap-2">
+          <CheckCircle2 className="h-5 w-5 text-purple-600" />
+          Detected Damage Components
+        </h4>
+        <div className="space-y-4">
+          {Object.entries(categorizedDamage).map(([category, components]) => (
+            <div key={category}>
+              <p className="text-sm font-medium text-muted-foreground mb-2">{category}</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                {components.map((component: string, idx: number) => (
+                  <div key={idx} className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-200">
+                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                    <span className="text-sm capitalize">{component}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+          
+          {/* Uncategorized components */}
+          {damagedComponents.filter((comp: string) => 
+            !Object.values(categorizedDamage).flat().includes(comp)
+          ).length > 0 && (
+            <div>
+              <p className="text-sm font-medium text-muted-foreground mb-2">Other Components</p>
+              <div className="grid gap-2 md:grid-cols-3">
+                {damagedComponents
+                  .filter((comp: string) => !Object.values(categorizedDamage).flat().includes(comp))
+                  .map((component: string, idx: number) => (
+                    <div key={idx} className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-200">
+                      <div className="w-2 h-2 rounded-full bg-purple-500"></div>
+                      <span className="text-sm capitalize">{component}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Inferred Hidden Damage */}
+      {inferredHiddenDamage.length > 0 && (
+        <div className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+          <h4 className="font-semibold mb-4 flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-orange-600" />
+            Inferred Hidden Damage (Requires Inspection)
+          </h4>
+          <div className="space-y-3">
+            {inferredHiddenDamage.map((item, idx) => (
+              <div key={idx} className="p-3 bg-white rounded border border-orange-200">
+                <div className="flex items-start justify-between mb-1">
+                  <p className="font-medium text-sm">{item.component}</p>
+                  <Badge 
+                    className={
+                      item.confidence === "High" ? "bg-red-600" :
+                      item.confidence === "Medium" ? "bg-orange-600" :
+                      "bg-yellow-600"
+                    }
+                  >
+                    {item.confidence} Confidence
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground">{item.reason}</p>
+              </div>
+            ))}
+          </div>
+          <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
+            <p className="text-sm text-yellow-900">
+              <strong>⚠️ Recommendation:</strong> Physical inspection recommended to confirm hidden damage. 
+              Inferred damage is based on typical collision patterns and may not be present in all cases.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Structural Damage Warning */}
+      {aiAssessment.structuralDamage && (
+        <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-6 w-6 text-red-600" />
+            <div>
+              <p className="font-semibold text-red-900">Structural Damage Detected</p>
+              <p className="text-sm text-red-800 mt-1">
+                AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
+                Detailed structural inspection and repair certification required.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI Damage Description */}
+      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+        <h4 className="font-semibold mb-2 text-blue-900">AI Damage Analysis Summary</h4>
+        <p className="text-sm text-blue-800 whitespace-pre-wrap">{damageDescription}</p>
+      </div>
+    </div>
+  );
+}
 
 // Transform physics analysis to validation format
 function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) {

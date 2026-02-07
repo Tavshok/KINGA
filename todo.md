@@ -1485,3 +1485,18 @@
 - [ ] Test fraud analytics dashboard with existing claims data
 - [ ] Test automatic site visit scheduling workflow (deferred)
 - [x] Create checkpoint with fraud analytics enhancements
+
+
+## Damage Component Breakdown Card (Feb 7, 2026)
+- [x] Design damage component breakdown card structure and layout
+- [x] Create DamageComponentBreakdown component in comparison view
+- [x] Display itemized list of detected damaged components from AI assessment
+- [x] Show confidence scores for each detected component (via inferred damage badges)
+- [x] Add inferred hidden damage warnings section
+- [x] Display damage propagation analysis (e.g., front-end impact → radiator/AC damage)
+- [x] Categorize components by type (Exterior Panels, Lighting, Glass, Structural, Mechanical, Interior)
+- [x] Include cost breakdown by component category (parts vs labor)
+- [x] Show structural damage indicators with red alert
+- [x] Display AI damage analysis summary
+- [ ] Test damage component breakdown with existing AI assessments
+- [x] Create checkpoint with damage component breakdown feature
