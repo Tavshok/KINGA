@@ -1,0 +1,73 @@
+{
+  "query": "SELECT id, openId, name, email, role FROM users WHERE openId LIKE 'test-%' ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, openId, name, email, role FROM users WHERE openId LIKE 'test-%' ORDER BY id;",
+  "rows": [
+    {
+      "id": "30220",
+      "openId": "test-insurer-001",
+      "name": "Sarah Johnson",
+      "email": "insurer@kinga-test.com",
+      "role": "insurer"
+    },
+    {
+      "id": "30221",
+      "openId": "test-assessor-001",
+      "name": "Michael Chen",
+      "email": "assessor@kinga-test.com",
+      "role": "assessor"
+    },
+    {
+      "id": "30222",
+      "openId": "test-assessor-002",
+      "name": "Emily Rodriguez",
+      "email": "assessor2@kinga-test.com",
+      "role": "assessor"
+    },
+    {
+      "id": "30223",
+      "openId": "test-panelbeater-001",
+      "name": "David Mbeki",
+      "email": "panelbeater@kinga-test.com",
+      "role": "panel_beater"
+    },
+    {
+      "id": "30224",
+      "openId": "test-claimant-001",
+      "name": "Jessica Williams",
+      "email": "claimant@kinga-test.com",
+      "role": "claimant"
+    },
+    {
+      "id": "30225",
+      "openId": "test-claimant-002",
+      "name": "Robert Taylor",
+      "email": "claimant2@kinga-test.com",
+      "role": "claimant"
+    },
+    {
+      "id": "60224",
+      "openId": "test-claimant-makanda",
+      "name": "Martin Makanda",
+      "email": "martin.makanda@shamvagold.co.zw",
+      "role": "claimant"
+    },
+    {
+      "id": "60225",
+      "openId": "test-claimant-shamva",
+      "name": "Shamva Primary School",
+      "email": "admin@shamvaprimary.ac.zw",
+      "role": "claimant"
+    },
+    {
+      "id": "60227",
+      "openId": "test-pb-yokama",
+      "name": "Yokama Investments (Nyasha)",
+      "email": "nyasha@yokama.co.zw",
+      "role": "panel_beater"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\topenId\tname\temail\trole\n30220\ttest-insurer-001\tSarah Johnson\tinsurer@kinga-test.com\tinsurer\n30221\ttest-assessor-001\tMichael Chen\tassessor@kinga-test.com\tassessor\n30222\ttest-assessor-002\tEmily Rodriguez\tassessor2@kinga-test.com\tassessor\n30223\ttest-panelbeater-001\tDavid Mbeki\tpanelbeater@kinga-test.com\tpanel_beater\n30224\ttest-claimant-001\tJessica Williams\tclaimant@kinga-test.com\tclaimant\n30225\ttest-claimant-002\tRobert Taylor\tclaimant2@kinga-test.com\tclaimant\n60224\ttest-claimant-makanda\tMartin Makanda\tmartin.makanda@shamvagold.co.zw\tclaimant\n60225\ttest-claimant-shamva\tShamva Primary School\tadmin@shamvaprimary.ac.zw\tclaimant\n60227\ttest-pb-yokama\tYokama Investments (Nyasha)\tnyasha@yokama.co.zw\tpanel_beater\n",
+  "stderr": "",
+  "execution_time_ms": 211
+}

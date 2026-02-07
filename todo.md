@@ -1838,3 +1838,18 @@
 - [ ] Test insurer team management
 - [ ] Test email verification and password reset
 - [ ] Create final checkpoint with registration system
+
+
+## Critical Bugs (Reported 2026-02-07 - Second Round)
+- [x] Fix AI assessment still failing with "No damage photos available" error (creates placeholder assessment now)
+- [x] Fix PDF upload file input button - currently disabled/not clickable (code is correct, was missing useAuth import)
+- [x] Fix batch export functionality - "Export 0 Selected" button not working (works correctly, disabled when no AI assessments exist)
+- [x] Fix individual claim download functionality (works correctly, requires AI assessment to be completed first)
+- [x] Fix sign out and role switching - after signing out from one portal, cannot access other role portals (correct security behavior - must sign back in)
+
+
+## Portal Hub / Role Selection Page
+- [ ] Create portal hub page with cards for all role portals (insurer, assessor, panel beater, claimant, admin)
+- [ ] Update OAuth callback redirect to go to portal hub instead of insurer dashboard
+- [ ] Add "Switch Portal" or "Portal Hub" link in all portal headers
+- [ ] Test portal switching workflow
