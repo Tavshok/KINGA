@@ -777,6 +777,15 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await getAiAssessmentByClaimId(input.claimId);
       }),
+    all: protectedProcedure
+      .query(async () => {
+        // Fetch all AI assessments (for batch export)
+        const { getDb } = await import("./db");
+        const { aiAssessments } = await import("../drizzle/schema");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        return await db.select().from(aiAssessments);
+      }),
   }),
 
   // Storage operations

@@ -1,11 +1,22 @@
 import { useState } from "react";
+import { calculateAllZoneSeverities, getSeverityColor, type DamageSeverity } from "@/lib/damageSeverity";
+import { Badge } from "@/components/ui/badge";
 
 interface VehicleDamageVisualizationProps {
   damagedComponents: string[];
   accidentType?: string;
+  estimatedCost?: number;
+  structuralDamage?: boolean;
+  airbagDeployment?: boolean;
 }
 
-export default function VehicleDamageVisualization({ damagedComponents, accidentType }: VehicleDamageVisualizationProps) {
+export default function VehicleDamageVisualization({ 
+  damagedComponents, 
+  accidentType, 
+  estimatedCost = 0,
+  structuralDamage = false,
+  airbagDeployment = false 
+}: VehicleDamageVisualizationProps) {
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
 
   // Map components to vehicle zones
@@ -43,9 +54,41 @@ export default function VehicleDamageVisualization({ damagedComponents, accident
     damagedZones.add("roof");
   }
 
+  // Build zone-to-components map for severity calculation
+  const zoneComponentsMap = new Map<string, string[]>();
+  damagedZones.forEach(zone => {
+    const componentsInZone = damagedComponents.filter(comp => {
+      const lowerComp = comp.toLowerCase();
+      return componentToZone[zone]?.some(keyword => lowerComp.includes(keyword));
+    });
+    if (componentsInZone.length > 0) {
+      zoneComponentsMap.set(zone, componentsInZone);
+    }
+  });
+
+  // Calculate severity scores for all damaged zones
+  const zoneSeverities = calculateAllZoneSeverities(zoneComponentsMap, {
+    estimatedCost,
+    structuralDamage,
+    airbagDeployment,
+    accidentType: accidentType || "unknown",
+    damagedComponents,
+  });
+
+  // Create severity lookup map
+  const severityMap = new Map<string, DamageSeverity>();
+  zoneSeverities.forEach(severity => {
+    severityMap.set(severity.zone, severity);
+  });
+
   const getZoneColor = (zone: string) => {
     if (damagedZones.has(zone)) {
-      return hoveredZone === zone ? "#dc2626" : "#f87171"; // red-600 : red-400
+      const severity = severityMap.get(zone);
+      if (severity) {
+        const baseColor = getSeverityColor(severity.level);
+        return hoveredZone === zone ? baseColor : baseColor + "CC"; // Add opacity for non-hovered
+      }
+      return hoveredZone === zone ? "#dc2626" : "#f87171"; // red-600 : red-400 (fallback)
     }
     return hoveredZone === zone ? "#e5e7eb" : "#f3f4f6"; // gray-200 : gray-100
   };
@@ -226,19 +269,39 @@ export default function VehicleDamageVisualization({ damagedComponents, accident
       {/* Hover Tooltip */}
       {hoveredZone && (
         <div className="mt-4 p-3 bg-white rounded-lg border-2 border-gray-300 shadow-lg">
-          <p className="font-semibold text-sm capitalize mb-1">
+          <p className="font-semibold text-sm capitalize mb-2">
             {hoveredZone.replace("_", " ")} Zone
           </p>
           {damagedZones.has(hoveredZone) ? (
             <div>
-              <p className="text-xs text-red-600 font-medium mb-1">⚠️ Damage Detected</p>
-              <div className="space-y-1">
+              <div className="flex items-center gap-2 mb-2">
+                <p className="text-xs text-red-600 font-medium">⚠️ Damage Detected</p>
+                {severityMap.has(hoveredZone) && (
+                  <Badge 
+                    style={{ backgroundColor: getSeverityColor(severityMap.get(hoveredZone)!.level) }}
+                    className="text-white text-xs"
+                  >
+                    {severityMap.get(hoveredZone)!.level} ({severityMap.get(hoveredZone)!.score}/10)
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-1 mb-2">
                 {getComponentsForZone(hoveredZone).map((comp, idx) => (
                   <p key={idx} className="text-xs text-gray-700 capitalize">
                     • {comp}
                   </p>
                 ))}
               </div>
+              {severityMap.has(hoveredZone) && severityMap.get(hoveredZone)!.safetyImplications.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-gray-200">
+                  <p className="text-xs font-medium text-gray-700 mb-1">Safety Concerns:</p>
+                  {severityMap.get(hoveredZone)!.safetyImplications.map((concern, idx) => (
+                    <p key={idx} className="text-xs text-orange-600">
+                      • {concern}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           ) : (
             <p className="text-xs text-gray-600">No damage detected</p>

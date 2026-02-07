@@ -19,6 +19,7 @@ import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 import InsurerClaimDetails from "./pages/InsurerClaimDetails";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
 import FraudAnalyticsDashboard from "./pages/FraudAnalyticsDashboard";
+import BatchExport from "./pages/BatchExport";
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 import ClaimDocuments from "./pages/ClaimDocuments";
 
@@ -57,6 +58,12 @@ function Router() {
       <Route path="/insurer/fraud-analytics">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <FraudAnalyticsDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/batch-export">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <BatchExport />
         </ProtectedRoute>
       </Route>
       

@@ -856,6 +856,9 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         <VehicleDamageVisualization 
           damagedComponents={damagedComponents} 
           accidentType={aiAssessment.accidentType}
+          estimatedCost={aiAssessment.estimatedCost || 0}
+          structuralDamage={aiAssessment.structuralDamage || false}
+          airbagDeployment={aiAssessment.airbagDeployment || false}
         />
       </div>
 

@@ -1515,3 +1515,40 @@
 - [ ] Test vehicle diagram with various damage patterns
 - [ ] Test PDF export functionality
 - [x] Create checkpoint with vehicle diagram and PDF export
+
+
+## Damage Severity Scoring & Batch Export (Feb 7, 2026)
+- [ ] Design damage severity scoring algorithm (1-10 scale)
+- [ ] Define severity factors: repair cost, structural impact, safety implications
+- [ ] Create calculateDamageSeverity function for zone-level scoring
+- [ ] Add severity scores to vehicle damage visualization
+- [ ] Display severity badges on damaged zones
+- [ ] Add severity breakdown to damage component breakdown card
+- [ ] Update PDF export to include severity scores
+- [ ] Create batch PDF export functionality for multiple claims
+- [ ] Add "Export All Claims" button to insurer dashboard
+- [ ] Implement claim selection UI for batch export
+- [ ] Generate combined PDF or ZIP file with multiple reports
+- [ ] Test severity scoring with various damage patterns
+- [ ] Test batch export with multiple claims
+- [ ] Create checkpoint with severity scoring and batch export
+
+
+## Damage Severity Scoring & Batch Export (Feb 7, 2026)
+- [x] Design damage severity scoring algorithm (1-10 scale)
+- [x] Create severity scoring utility function
+- [x] Calculate severity based on repair cost, structural impact, and safety implications
+- [x] Update VehicleDamageVisualization to display severity scores
+- [x] Color-code damage zones by severity (green=minor, yellow=moderate, orange=high, red=critical)
+- [x] Add severity scores to hover tooltips with level and numeric score
+- [x] Show safety implications for each damaged zone in tooltips
+- [x] Design batch export page structure
+- [x] Create BatchExport page with claim selection interface
+- [x] Add "Select All" functionality
+- [x] Implement bulk PDF generation for multiple claims
+- [x] Add progress indicator during batch export
+- [x] Create tRPC query to fetch all AI assessments
+- [x] Add batch export button to insurer dashboard
+- [ ] Test severity scoring with various damage patterns
+- [ ] Test batch export with multiple claims
+- [x] Create checkpoint with severity scoring and batch export

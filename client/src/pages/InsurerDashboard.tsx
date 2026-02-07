@@ -146,6 +146,13 @@ export default function InsurerDashboard() {
                   <BarChart3 className="mr-2 h-4 w-4" />
                   Fraud Analytics
                 </Button>
+                <Button 
+                  variant="outline"
+                  onClick={() => setLocation("/insurer/batch-export")}
+                >
+                  <FileText className="mr-2 h-4 w-4" />
+                  Batch Export
+                </Button>
                 {user?.role === "admin" && (
                   <Button 
                     variant="outline"
