@@ -122,6 +122,14 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   fraudIndicators: text("fraud_indicators"), // JSON array
   fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high"]),
   
+  // Total loss detection
+  totalLossIndicated: tinyint("total_loss_indicated").default(0), // Boolean flag for total loss
+  structuralDamageSeverity: mysqlEnum("structural_damage_severity", ["none", "minor", "moderate", "severe", "catastrophic"]).default("none"),
+  estimatedVehicleValue: int("estimated_vehicle_value"), // Vehicle market value in cents
+  repairToValueRatio: int("repair_to_value_ratio"), // Percentage (0-100+)
+  totalLossReasoning: text("total_loss_reasoning"), // Explanation for total loss determination
+  damagedComponentsJson: text("damaged_components_json"), // JSON array of components with severity
+  
   // AI model details
   modelVersion: varchar("model_version", { length: 50 }),
   processingTime: int("processing_time"), // milliseconds

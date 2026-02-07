@@ -1695,3 +1695,27 @@
 - [ ] Test damage component breakdown with real photos
 - [ ] Verify AI assessment triggers automatically with photos
 - [x] Create checkpoint with working photo linking
+
+
+## AI Assessment Testing with Real Photos (Feb 7, 2026)
+- [ ] Navigate to claims triage page
+- [ ] Trigger AI assessment for Honda Fit AEW2816 claim
+- [ ] Trigger AI assessment for Toyota Hilux AFX3048 claim
+- [ ] Trigger AI assessment for Nissan NP300 ACX8237 claim
+- [ ] Test damage component detection accuracy
+- [ ] Test vehicle diagram highlighting with real damage
+- [ ] Test severity scoring (1-10 scale) with real photos
+- [ ] Validate inferred hidden damage detection
+- [ ] Document AI assessment results
+- [ ] Create checkpoint with tested AI features
+
+
+## Total Loss Detection Enhancement (User Feedback: Honda Fit AEW2816)
+- [x] Enhance AI vision to detect total loss scenarios (severe structural damage, extensive component damage)
+- [x] Add total_loss_indicated and structural_damage_severity fields to ai_assessments table
+- [x] Update AI assessment logic to flag write-offs when damage exceeds repair viability
+- [x] Fix image URL extraction from manus-upload-file output
+- [x] Fix LLM API image format issue (base64 encoding with MIME types)
+- [x] Re-run AI assessments on Honda Fit AEW2816 to validate total loss detection
+- [x] Test total loss detection with all 3 claims with photos
+- [x] Add prominent total loss warning badges in comparison view UI

@@ -423,6 +423,31 @@ export default function InsurerComparisonView() {
             <CardContent>
               {aiAssessment ? (
                 <div className="space-y-4">
+                  {/* Total Loss Warning Banner */}
+                  {aiAssessment.totalLossIndicated === 1 && (
+                    <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="h-5 w-5 text-red-600" />
+                        <h4 className="font-bold text-red-900 text-lg">TOTAL LOSS INDICATED</h4>
+                      </div>
+                      <Badge variant="destructive" className="text-xs">
+                        {aiAssessment.structuralDamageSeverity?.toUpperCase() || 'SEVERE'} STRUCTURAL DAMAGE
+                      </Badge>
+                      {aiAssessment.totalLossReasoning && (
+                        <p className="text-sm text-red-800 leading-relaxed">
+                          {aiAssessment.totalLossReasoning}
+                        </p>
+                      )}
+                      {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
+                        <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
+                          <p>Repair Cost: ${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}</p>
+                          <p>Vehicle Value: ${((aiAssessment.estimatedVehicleValue || 0) / 100).toFixed(2)}</p>
+                          <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <Separator className={aiAssessment.totalLossIndicated === 1 ? "" : "hidden"} />
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Cost</p>
                     <p className="text-2xl font-bold text-primary">

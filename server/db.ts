@@ -366,16 +366,56 @@ export async function triggerAiAssessment(claimId: number) {
 
 Provide your response in JSON format.`;
 
+  console.log(`[AI Assessment] Analyzing ${damagePhotos.length} photos for claim ${claimId}...`);
+  
+  // Download and base64-encode images with proper MIME types for Bedrock/Claude
+  const imageContents = await Promise.all(
+    damagePhotos.slice(0, 3).map(async (urlOrText) => {
+      try {
+        // Extract actual CDN URL from manus-upload-file output if needed
+        let url = urlOrText;
+        if (urlOrText.includes('CDN URL:')) {
+          const match = urlOrText.match(/CDN URL:\s*(.+?)$/m);
+          if (match) {
+            url = match[1].trim();
+          }
+        }
+        
+        console.log(`[AI Assessment] Fetching image: ${url}`);
+        const response = await fetch(url);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch image: ${response.statusText}`);
+        }
+        const buffer = await response.arrayBuffer();
+        const base64 = Buffer.from(buffer).toString('base64');
+        
+        // Determine MIME type from URL extension
+        let mimeType = 'image/jpeg'; // default
+        if (url.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+        else if (url.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+        else if (url.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+        
+        return {
+          type: "image_url" as const,
+          image_url: {
+            url: `data:${mimeType};base64,${base64}`,
+            detail: "high" as const
+          }
+        };
+      } catch (error) {
+        console.error(`Failed to process image ${urlOrText}:`, error);
+        throw error;
+      }
+    })
+  );
+  
   const response = await invokeLLM({
     messages: [
       {
         role: "user",
         content: [
           { type: "text", text: analysisPrompt },
-          ...damagePhotos.slice(0, 3).map(url => ({
-            type: "image_url" as const,
-            image_url: { url, detail: "high" as const }
-          }))
+          ...imageContents
         ]
       }
     ],
@@ -484,8 +524,98 @@ Provide your response in JSON format.`;
     }
   });
 
+  console.log('[AI Assessment] LLM response received:', JSON.stringify(response, null, 2).substring(0, 500));
+  
+  if (!response || !response.choices || response.choices.length === 0) {
+    throw new Error(`LLM API returned invalid response: ${JSON.stringify(response)}`);
+  }
+
   const messageContent = response.choices[0]?.message?.content;
+  if (!messageContent) {
+    throw new Error(`LLM API returned empty message content`);
+  }
+  
   const analysis = typeof messageContent === 'string' ? JSON.parse(messageContent) : {};
+
+  // ========== TOTAL LOSS DETECTION LOGIC ==========
+  const damagedComponents = analysis.damagedComponents || [];
+  
+  // Check for total loss indicators
+  const hasComponentMarkedTotalLoss = damagedComponents.some((c: any) => c.severity === 'total_loss');
+  const structuralComponents = damagedComponents.filter((c: any) => c.damageType === 'structural');
+  const severeStructuralDamage = structuralComponents.some((c: any) => c.severity === 'severe' || c.severity === 'total_loss');
+  const catastrophicStructuralDamage = structuralComponents.filter((c: any) => c.severity === 'total_loss').length > 0;
+  const extensiveDamage = damagedComponents.length >= 7; // 7+ components damaged
+  const multipleCriticalSystems = damagedComponents.filter((c: any) => 
+    c.damageType === 'structural' || c.damageType === 'mechanical'
+  ).length >= 3;
+  
+  // Determine structural damage severity
+  let structuralDamageSeverity: 'none' | 'minor' | 'moderate' | 'severe' | 'catastrophic' = 'none';
+  if (catastrophicStructuralDamage) {
+    structuralDamageSeverity = 'catastrophic';
+  } else if (severeStructuralDamage) {
+    structuralDamageSeverity = 'severe';
+  } else if (structuralComponents.length > 0) {
+    const maxSeverity = Math.max(...structuralComponents.map((c: any) => 
+      c.severity === 'severe' ? 3 : c.severity === 'moderate' ? 2 : 1
+    ));
+    structuralDamageSeverity = maxSeverity === 3 ? 'severe' : maxSeverity === 2 ? 'moderate' : 'minor';
+  }
+  
+  // Estimate vehicle value based on make/model/year (Zimbabwean market)
+  const vehicleAge = claim.vehicleYear ? new Date().getFullYear() - claim.vehicleYear : 10;
+  let estimatedVehicleValue = 500000; // Default $5000 in cents
+  
+  // Zimbabwean market vehicle valuations (rough estimates in cents)
+  const vehicleKey = `${claim.vehicleMake?.toLowerCase()} ${claim.vehicleModel?.toLowerCase()}`;
+  const vehicleValues: Record<string, number> = {
+    'honda fit': 350000, // $3500
+    'toyota hilux': 1500000, // $15000
+    'nissan np300': 800000, // $8000
+    'toyota camry': 600000, // $6000
+    'mercedes benz': 1200000, // $12000
+  };
+  
+  for (const [key, value] of Object.entries(vehicleValues)) {
+    if (vehicleKey.includes(key)) {
+      estimatedVehicleValue = value;
+      break;
+    }
+  }
+  
+  // Apply depreciation (10% per year, max 80% depreciation)
+  const depreciationFactor = Math.max(0.2, 1 - (vehicleAge * 0.1));
+  estimatedVehicleValue = Math.round(estimatedVehicleValue * depreciationFactor);
+  
+  // Calculate repair-to-value ratio
+  const estimatedRepairCost = Math.round(analysis.estimatedCost || 0);
+  const repairToValueRatio = estimatedVehicleValue > 0 
+    ? Math.round((estimatedRepairCost / estimatedVehicleValue) * 100)
+    : 0;
+  
+  // Determine if total loss
+  const totalLossThreshold = 60; // 60% of vehicle value
+  const totalLossIndicated = 
+    hasComponentMarkedTotalLoss ||
+    structuralDamageSeverity === 'catastrophic' ||
+    structuralDamageSeverity === 'severe' ||
+    repairToValueRatio > totalLossThreshold ||
+    (extensiveDamage && multipleCriticalSystems && structuralDamageSeverity !== 'none');
+  
+  // Generate total loss reasoning
+  let totalLossReasoning = '';
+  if (totalLossIndicated) {
+    const reasons = [];
+    if (hasComponentMarkedTotalLoss) reasons.push('Component(s) marked as total loss by AI vision analysis');
+    if (structuralDamageSeverity === 'catastrophic') reasons.push('Catastrophic structural damage detected');
+    if (structuralDamageSeverity === 'severe') reasons.push('Severe structural damage to chassis/frame');
+    if (repairToValueRatio > totalLossThreshold) reasons.push(`Repair cost (${repairToValueRatio}%) exceeds ${totalLossThreshold}% of vehicle value`);
+    if (extensiveDamage && multipleCriticalSystems) reasons.push(`Extensive damage: ${damagedComponents.length} components affected across multiple critical systems`);
+    if (analysis.airbagDeployment) reasons.push('Airbag deployment detected');
+    
+    totalLossReasoning = reasons.join('; ');
+  }
 
   // ========== IMAGE QUALITY VALIDATION ==========
   // Check if photos are sufficient for accurate measurement
@@ -510,15 +640,21 @@ Provide your response in JSON format.`;
     // TODO: Send notification to claimant requesting better photos
   }
 
-  // Create AI assessment record
+  // Create AI assessment record with total loss detection
   await createAiAssessment({
     claimId,
     damageDescription: analysis.damageDescription || "AI analysis completed",
-    estimatedCost: Math.round(analysis.estimatedCost || 0),
+    estimatedCost: estimatedRepairCost,
     fraudIndicators: JSON.stringify(analysis.fraudIndicators || []),
     fraudRiskLevel: analysis.fraudRiskScore > 70 ? "high" : analysis.fraudRiskScore > 40 ? "medium" : "low",
     confidenceScore: 85, // Default confidence score
     modelVersion: "gpt-4-vision-v1",
+    totalLossIndicated: totalLossIndicated ? 1 : 0,
+    structuralDamageSeverity,
+    estimatedVehicleValue,
+    repairToValueRatio,
+    totalLossReasoning: totalLossReasoning || null,
+    damagedComponentsJson: JSON.stringify(damagedComponents),
   });
 
   // ========== PHYSICS-BASED ACCIDENT RECONSTRUCTION ==========
