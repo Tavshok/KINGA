@@ -1110,6 +1110,52 @@ export const appRouter = router({
       .query(async ({ input }) => {
         return await getPoliceReportByClaimId(input.claimId);
       }),
+
+    // Extract physics data from police report PDF using OCR
+    extractPhysicsData: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        reportDocumentUrl: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+          throw new Error("Not authorized");
+        }
+
+        // Import OCR service
+        const { extractPhysicsDataFromPoliceReport } = await import("./policeReportOCR");
+
+        // Extract physics data
+        const extractedData = await extractPhysicsDataFromPoliceReport(input.reportDocumentUrl);
+
+        // Update police report with extracted data
+        await updatePoliceReport(input.claimId, {
+          roadSurface: extractedData.roadSurface,
+          vehicle1Mass: extractedData.vehicle1Mass,
+          vehicle2Mass: extractedData.vehicle2Mass,
+          skidMarkLength: extractedData.skidMarkLength?.toString(),
+          impactSpeed: extractedData.impactSpeed,
+          roadGradient: extractedData.roadGradient?.toString(),
+          lightingCondition: extractedData.lightingCondition,
+          trafficCondition: extractedData.trafficCondition,
+          ocrExtracted: 1,
+          ocrConfidence: extractedData.confidence,
+          ocrNotes: extractedData.notes,
+        });
+
+        // Create audit trail
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "police_report_ocr_extracted",
+          entityType: "police_report",
+          entityId: input.claimId,
+          changeDescription: `Physics data extracted from police report (confidence: ${extractedData.confidence}%)`,
+        });
+
+        return extractedData;
+      }),
   }),
 
   /**

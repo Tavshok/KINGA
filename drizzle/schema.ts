@@ -867,6 +867,21 @@ export const policeReports = mysqlTable("police_reports", {
   // Document upload
   reportDocumentUrl: varchar("report_document_url", { length: 500 }), // PDF of official report
   
+  // Physics parameters (extracted via OCR)
+  roadSurface: varchar("road_surface", { length: 100 }), // asphalt, gravel, dirt, etc.
+  vehicle1Mass: int("vehicle1_mass"), // kg
+  vehicle2Mass: int("vehicle2_mass"), // kg
+  skidMarkLength: decimal("skid_mark_length", { precision: 10, scale: 2 }), // meters
+  impactSpeed: int("impact_speed"), // km/h (calculated or estimated)
+  roadGradient: decimal("road_gradient", { precision: 5, scale: 2 }), // degrees
+  lightingCondition: varchar("lighting_condition", { length: 100 }),
+  trafficCondition: varchar("traffic_condition", { length: 100 }),
+  
+  // OCR extraction metadata
+  ocrExtracted: tinyint("ocr_extracted").default(0),
+  ocrConfidence: int("ocr_confidence"), // 0-100
+  ocrNotes: text("ocr_notes"),
+  
   // Cross-validation flags
   speedDiscrepancy: int("speed_discrepancy"), // Difference between claimed and reported speed
   locationMismatch: tinyint("location_mismatch").default(0),

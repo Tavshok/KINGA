@@ -1583,3 +1583,37 @@
 - [x] Populate system with real assessor companies (20 created)
 - [ ] Update existing quotes to use real panel beaters (optional - current quotes work)
 - [x] Create checkpoint with authentic Zimbabwean providers
+
+
+## Police Report OCR & Assessor Mobile App (Feb 7, 2026)
+- [ ] Design police report OCR data extraction schema
+- [ ] Create LLM-based OCR service for police reports
+- [ ] Extract physics parameters (speed, weather, vehicle mass, road conditions)
+- [ ] Create tRPC procedure for police report processing
+- [ ] Update claims schema to store extracted physics data
+- [ ] Design assessor mobile app interface
+- [ ] Create mobile-optimized damage capture page
+- [ ] Add guided measurement collection interface
+- [ ] Implement photo capture with camera API
+- [ ] Add measurement input forms (skid marks, impact depth, damage zones)
+- [ ] Create mobile-friendly navigation and layout
+- [ ] Test OCR pipeline with real police reports
+- [ ] Test mobile app on actual mobile devices
+- [ ] Create checkpoint with OCR and mobile app features
+
+
+## AI Vision Enhancement & Mobile Interface (Feb 7, 2026)
+- [ ] Enhance AI vision service to detect road surface from damage photos
+- [ ] Add weather condition detection from photos (wet/dry road, rain, fog)
+- [ ] Add lighting condition detection from photo metadata and visual analysis
+- [ ] Add approximate road gradient detection from photo perspective
+- [ ] Update AI assessment to store auto-detected environmental parameters
+- [ ] Update physics validation to use auto-detected parameters
+- [ ] Add validation flags for missing critical data (speed, skid marks)
+- [ ] Create mobile-responsive assessor interface for on-site measurements
+- [ ] Add guided photo capture with measurement overlays
+- [ ] Add skid mark measurement tool with visual guides
+- [ ] Add impact angle documentation interface
+- [ ] Test AI vision enhancements with real damage photos
+- [ ] Test mobile interface on actual mobile devices
+- [ ] Create checkpoint with AI vision enhancements and mobile interface

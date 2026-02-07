@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE police_reports \nADD COLUMN road_surface VARCHAR(100) AFTER report_document_url,\nADD COLUMN vehicle1_mass INT AFTER road_surface,\nADD COLUMN vehicle2_mass INT AFTER vehicle1_mass,\nADD COLUMN skid_mark_length DECIMAL(10,2) AFTER vehicle2_mass,\nADD COLUMN impact_speed INT AFTER skid_mark_length,\nADD COLUMN road_gradient DECIMAL(5,2) AFTER impact_speed,\nADD COLUMN lighting_condition VARCHAR(100) AFTER road_gradient,\nADD COLUMN traffic_condition VARCHAR(100) AFTER lighting_condition,\nADD COLUMN ocr_extracted TINYINT DEFAULT 0 AFTER traffic_condition,\nADD COLUMN ocr_confidence INT AFTER ocr_extracted,\nADD COLUMN ocr_notes TEXT AFTER ocr_confidence;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE police_reports \nADD COLUMN road_surface VARCHAR(100) AFTER report_document_url,\nADD COLUMN vehicle1_mass INT AFTER road_surface,\nADD COLUMN vehicle2_mass INT AFTER vehicle1_mass,\nADD COLUMN skid_mark_length DECIMAL(10,2) AFTER vehicle2_mass,\nADD COLUMN impact_speed INT AFTER skid_mark_length,\nADD COLUMN road_gradient DECIMAL(5,2) AFTER impact_speed,\nADD COLUMN lighting_condition VARCHAR(100) AFTER road_gradient,\nADD COLUMN traffic_condition VARCHAR(100) AFTER lighting_condition,\nADD COLUMN ocr_extracted TINYINT DEFAULT 0 AFTER traffic_condition,\nADD COLUMN ocr_confidence INT AFTER ocr_extracted,\nADD COLUMN ocr_notes TEXT AFTER ocr_confidence;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'road_surface' in 'police_reports'"
+  ]
+}
