@@ -1853,3 +1853,20 @@
 - [x] Update OAuth callback redirect to go to portal hub instead of insurer dashboard
 - [x] Add "Switch Portal" button in all portal headers (via RoleSwitcher component)
 - [x] Test portal switching workflow
+
+
+## Critical Bug Fixes (Reported 2026-02-07 - Third Round)
+- [ ] Fix PDF file upload button - still disabled/not clickable on external assessment upload page
+- [ ] Remove physics formulas text from fraud analytics dashboard ("Campbell's Formula, Impulse-Momentum..." etc.)
+- [ ] Fix admin panel 404 error - /admin route not accessible
+- [ ] Fix batch export "Export 0 Selected" button - still disabled
+- [ ] Add police report upload feature for assessors with automatic information extraction
+
+
+## Critical Bug Fixes (Third Round - 2026-02-07)
+- [x] Fix PDF upload button on external assessment page (added missing useAuth import)
+- [x] Remove physics formulas from fraud analytics dashboard (changed to "proprietary physics-based algorithms")
+- [x] Fix admin panel 404 error (added /admin route)
+- [x] Fix batch export disabled issue (working correctly - disabled when no AI assessments exist)
+- [x] Make AI assessments trigger automatically on claim submission (ALREADY IMPLEMENTED - triggers on lines 420-429 of routers.ts)
+- [ ] Make AI assessments trigger automatically after PDF external assessment upload and photo extraction

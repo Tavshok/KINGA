@@ -147,6 +147,12 @@ function Router() {
       </Route>
 
       {/* Admin Routes */}
+      <Route path="/admin">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/admin/dashboard" component={() => (
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminDashboard />

@@ -122,7 +122,7 @@ export default function FraudAnalyticsDashboard() {
         <div>
           <h3 className="text-2xl font-bold mb-4">Physics-Based Fraud Detection</h3>
           <p className="text-muted-foreground mb-6">
-            Advanced fraud detection using 8 physics formulas: Campbell's Formula, Impulse-Momentum, Energy Dissipation, Delta-V, Conservation of Momentum, Friction Analysis, Coefficient of Restitution, and Rollover Threshold
+            Advanced fraud detection using proprietary physics-based algorithms to validate accident dynamics and identify impossible damage patterns
           </p>
         </div>
 
