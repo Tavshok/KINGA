@@ -81,6 +81,12 @@ function Router() {
       </Route>
       
       {/* Assessor Routes */}
+      <Route path="/assessor">
+        <ProtectedRoute allowedRoles={["assessor"]}>
+          <AssessorDashboard />
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/assessor/dashboard">
         <ProtectedRoute allowedRoles={["assessor"]}>
           <AssessorDashboard />
