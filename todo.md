@@ -1682,3 +1682,16 @@
 - [ ] Test with multiple claims simultaneously
 - [ ] Validate fraud detection with complete data
 - [ ] Create final production-ready checkpoint
+
+
+## Damage Photo Linking Fix (Feb 7, 2026)
+- [x] Investigate current photo storage structure in database
+- [x] Check how damagePhotos field is stored in claims table
+- [x] Verify S3 photo URLs from previous upload
+- [x] Fix photo linking workflow to properly store photo URLs
+- [x] Re-link existing extracted photos to correct claims (9 photos across 3 claims)
+- [x] Update claims with correct photo URLs (uploaded to S3 CDN)
+- [ ] Test vehicle diagram with real photos
+- [ ] Test damage component breakdown with real photos
+- [ ] Verify AI assessment triggers automatically with photos
+- [x] Create checkpoint with working photo linking
