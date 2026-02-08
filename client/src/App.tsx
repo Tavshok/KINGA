@@ -19,6 +19,8 @@ import SubmitClaim from "./pages/SubmitClaim";
 import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 import InsurerClaimDetails from "./pages/InsurerClaimDetails";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
+import InsurerQuoteComparison from "./pages/InsurerQuoteComparison";
+import AssessorPerformanceDashboard from "./pages/AssessorPerformanceDashboard";
 import FraudAnalyticsDashboard from "./pages/FraudAnalyticsDashboard";
 import BatchExport from "@/pages/BatchExport";
 import InsurerExternalAssessmentUpload from "@/pages/InsurerExternalAssessmentUpload";
@@ -71,6 +73,12 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/insurer/quote-optimization/:id">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerQuoteComparison />
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/insurer/fraud-analytics">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <FraudAnalyticsDashboard />
@@ -112,6 +120,12 @@ function Router() {
       <Route path="/assessor/claims/:id">
         <ProtectedRoute allowedRoles={["assessor", "admin"]}>
           <AssessorClaimDetails />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/assessor/performance">
+        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
+          <AssessorPerformanceDashboard />
         </ProtectedRoute>
       </Route>
       
