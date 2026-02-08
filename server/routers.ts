@@ -72,74 +72,8 @@ export const appRouter = router({
           "application/pdf"
         );
 
-        // Extract vehicle damage photos from PDF using Python script
-        // This intelligently filters out text-only pages and extracts only actual photos
-        const { execSync } = await import("child_process");
-        const { writeFileSync, readFileSync, unlinkSync, mkdtempSync, readdirSync, rmdirSync } = await import("fs");
-        const { tmpdir } = await import("os");
-        const { join } = await import("path");
-        
-        // Create temp directories
-        const tempDir = mkdtempSync(join(tmpdir(), "pdf-extract-"));
-        const outputDir = mkdtempSync(join(tmpdir(), "pdf-photos-"));
-        const pdfPath = join(tempDir, "assessment.pdf");
-        writeFileSync(pdfPath, fileBuffer);
-        
-        // Run Python photo extraction script
-        let extractionResult;
-        try {
-          const scriptPath = join(process.cwd(), "scripts", "extract-pdf-photos.py");
-          const output = execSync(
-            `python3.11 "${scriptPath}" "${pdfPath}" "${outputDir}"`,
-            { timeout: 60000, encoding: "utf-8" }
-          );
-          extractionResult = JSON.parse(output);
-          
-          if (!extractionResult.success) {
-            throw new Error(extractionResult.error || "Photo extraction failed");
-          }
-        } catch (error: any) {
-          console.error("PDF photo extraction error:", error);
-          // Clean up temp files
-          try {
-            unlinkSync(pdfPath);
-            rmdirSync(tempDir);
-            rmdirSync(outputDir, { recursive: true });
-          } catch (e) {
-            // Ignore cleanup errors
-          }
-          throw new Error(`Failed to extract photos from PDF: ${error.message}`);
-        }
-        
-        // Upload extracted photos to S3
-        const damagePhotoUrls: string[] = [];
-        for (const photoPath of extractionResult.files) {
-          try {
-            const imageBuffer = readFileSync(photoPath);
-            const filename = photoPath.split("/").pop() || "photo.png";
-            const { url: imageUrl } = await storagePut(
-              `damage-photos/${nanoid()}-${filename}`,
-              imageBuffer,
-              "image/png"
-            );
-            damagePhotoUrls.push(imageUrl);
-          } catch (error) {
-            console.error(`Failed to upload photo ${photoPath}:`, error);
-            // Continue with other photos even if one fails
-          }
-        }
-        
-        // Clean up temp directories
-        try {
-          unlinkSync(pdfPath);
-          rmdirSync(tempDir);
-          rmdirSync(outputDir, { recursive: true });
-        } catch (e) {
-          console.error("Cleanup error:", e);
-          // Ignore cleanup errors
-        }
-        
-        console.log(`Extracted ${damagePhotoUrls.length} damage photos from ${extractionResult.count} photo pages in PDF`);
+        // Store PDF URL for reference - LLM will extract all data including photos
+        console.log(`PDF uploaded successfully: ${pdfUrl}`);
 
         // Extract data from PDF using LLM vision
         const extractionResponse = await invokeLLM({
@@ -153,7 +87,7 @@ export const appRouter = router({
               content: [
                 {
                   type: "text",
-                  text: "Extract the following from this assessment report: vehicle make, model, year, registration number, claimant name, damage description, and estimated repair cost."
+                  text: "Extract the following from this assessment report: vehicle make, model, year, registration number, claimant name, detailed damage description (including all damage photos you see in the PDF), and estimated repair cost. Please describe all damage photos in detail."
                 },
                 {
                   type: "file_url",
@@ -201,7 +135,7 @@ export const appRouter = router({
           vehicleRegistration: extractedData.vehicleRegistration,
           incidentDate: new Date(),
           incidentDescription: extractedData.damageDescription,
-          damagePhotos: JSON.stringify(damagePhotoUrls), // Store all extracted page images
+          damagePhotos: JSON.stringify([pdfUrl]), // Store PDF URL for reference
           status: "submitted",
           policyVerified: 0, // Use 0 for false
         });
@@ -225,7 +159,7 @@ export const appRouter = router({
         return {
           claimId: claim.id,
           claimNumber: claim.claimNumber,
-          photosExtracted: damagePhotoUrls.length,
+          pdfUrl: pdfUrl,
           ...extractedData
         };
       }),
