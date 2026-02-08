@@ -2332,3 +2332,22 @@
 - [ ] Verify production deployment
 - [ ] Test with real claims
 - [ ] Save final checkpoint
+
+
+## PDF Upload Workflow Fix
+
+### Issue
+- [x] Analysis results appear briefly in toast and disappear
+- [x] No permanent display of extracted data
+- [x] No clear next steps after analysis completes
+- [x] User cannot review extracted information
+
+### Fix Tasks
+- [x] Create AssessmentResults page component
+- [x] Display extracted vehicle details, damage description, costs
+- [x] Add "Create Claim" button to auto-populate claim form
+- [ ] Add "Edit Data" option to modify extracted information (future enhancement)
+- [x] Update PDF upload to redirect to results page
+- [x] Store extracted data in state/database
+- [x] Test complete workflow
+- [x] Save checkpoint

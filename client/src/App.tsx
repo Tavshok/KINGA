@@ -34,6 +34,7 @@ import ClaimsProcessorDashboard from "./pages/ClaimsProcessorDashboard";
 import InternalAssessorDashboard from "./pages/InternalAssessorDashboard";
 import RiskManagerDashboard from "./pages/RiskManagerDashboard";
 import ClaimsManagerDashboard from "./pages/ClaimsManagerDashboard";
+import AssessmentResults from "./pages/AssessmentResults";
 
 function Router() {
   return (
@@ -41,6 +42,13 @@ function Router() {
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
       <Route path="/unauthorized" component={Unauthorized} />
+      
+      {/* Assessment Results */}
+      <Route path="/assessment-results">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <AssessmentResults />
+        </ProtectedRoute>
+      </Route>
       
       {/* Portal Hub - Role Selection */}
       <Route path="/portal-hub">

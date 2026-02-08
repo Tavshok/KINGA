@@ -23,6 +23,11 @@ export default function InsurerExternalAssessmentUpload() {
       toast.success("Assessment uploaded and analyzed successfully!");
       setExtractedData(data);
       setUploading(false);
+      
+      // Redirect to results page with extracted data
+      setLocation("/assessment-results", {
+        state: { extractedData: data }
+      });
     },
     onError: (error) => {
       toast.error(`Upload failed: ${error.message}`);
