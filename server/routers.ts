@@ -50,6 +50,7 @@ import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
+import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 
 export const appRouter = router({
   system: systemRouter,
@@ -227,6 +228,62 @@ export const appRouter = router({
           photosExtracted: damagePhotoUrls.length,
           ...extractedData
         };
+      }),
+
+    /**
+     * Get Cost Optimization Analysis
+     * 
+     * Analyzes all panel beater quotes for a claim and provides:
+     * - Component-level variance analysis
+     * - Negotiation strategies
+     * - Fraud pattern detection
+     * - Recommended quote selection
+     * 
+     * @requires Insurer role
+     * @param claimId - ID of the claim to analyze
+     * @returns Comprehensive optimization analysis
+     */
+    getCostOptimization: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        // Only insurers can access cost optimization
+        if (ctx.user.role !== "insurer" && ctx.user.role !== "admin") {
+          throw new Error("Only insurers can access cost optimization");
+        }
+
+        // Get all quotes for the claim
+        const quotes = await getQuotesByClaimId(input.claimId);
+        if (quotes.length === 0) {
+          return null; // No quotes yet
+        }
+
+        // Get panel beater details
+        const panelBeaters = await getAllApprovedPanelBeaters();
+        const panelBeaterMap = new Map(panelBeaters.map(pb => [pb.id, pb]));
+
+        // Transform quotes into QuoteAnalysis format
+        const quoteAnalyses: QuoteAnalysis[] = quotes.map(quote => {
+          const panelBeater = panelBeaterMap.get(quote.panelBeaterId);
+          const components = quote.componentsJson
+            ? JSON.parse(quote.componentsJson)
+            : [];
+
+          return {
+            quoteId: quote.id,
+            panelBeaterId: quote.panelBeaterId,
+            panelBeaterName: panelBeater?.businessName || "Unknown",
+            totalCost: quote.quotedAmount,
+            components,
+            partsQuality: quote.partsQuality || "aftermarket",
+            warrantyMonths: quote.warrantyMonths || 12,
+            estimatedDuration: quote.estimatedDuration || 0,
+          };
+        });
+
+        // Run optimization analysis
+        const optimization = optimizeQuotes(quoteAnalyses);
+
+        return optimization;
       }),
   }),
   auth: router({
@@ -892,6 +949,67 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             high: highRiskCases,
             medium: mediumRiskCases,
           },
+        };
+      }),
+
+    /**
+     * Get Assessor Performance Dashboard
+     * 
+     * Returns performance metrics, recent assessments, and tier information
+     * for the current assessor.
+     * 
+     * @requires Assessor role
+     * @returns Performance dashboard data
+     */
+    getPerformanceDashboard: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "assessor" && ctx.user.role !== "admin") {
+          throw new Error("Only assessors can access performance dashboard");
+        }
+
+        const { getDb } = await import("./db");
+        const { users, claims, assessorEvaluations } = await import("../drizzle/schema");
+        const { eq, desc } = await import("drizzle-orm");
+
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // Get assessor's current stats
+        const assessorResult = await db
+          .select()
+          .from(users)
+          .where(eq(users.id, ctx.user.id))
+          .limit(1);
+
+        const assessor = assessorResult[0];
+
+        if (!assessor) throw new Error("Assessor not found");
+
+        // Get recent assessments
+        const recentAssessments = await db
+          .select()
+          .from(assessorEvaluations)
+          .where(eq(assessorEvaluations.assessorId, ctx.user.id))
+          .orderBy(desc(assessorEvaluations.createdAt))
+          .limit(10);
+
+        // Get assigned claims
+        const assignedClaims = await db
+          .select()
+          .from(claims)
+          .where(eq(claims.assignedAssessorId, ctx.user.id))
+          .orderBy(desc(claims.createdAt))
+          .limit(20);
+
+        return {
+          tier: assessor.assessorTier || "free",
+          tierActivatedAt: assessor.tierActivatedAt,
+          tierExpiresAt: assessor.tierExpiresAt,
+          performanceScore: assessor.performanceScore || 70,
+          totalAssessmentsCompleted: assessor.totalAssessmentsCompleted || 0,
+          averageVarianceFromFinal: assessor.averageVarianceFromFinal,
+          recentAssessments,
+          assignedClaims,
         };
       }),
   }),
@@ -1678,6 +1796,74 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           priceRange: valuation.priceRange ? JSON.parse(valuation.priceRange) : null,
           notes: valuation.notes ? valuation.notes.split('\n') : [],
         };
+      }),
+  }),
+
+  // Admin operations for tier management
+  admin: router({
+    /**
+     * Update Assessor Tier (Manual Billing)
+     * 
+     * Allows admins to manually activate/deactivate Premium/Enterprise tiers
+     * for assessors after payment confirmation.
+     * 
+     * @requires Admin role
+     * @param assessorId - ID of the assessor
+     * @param tier - New tier (free/premium/enterprise)
+     * @param expiresAt - Optional expiration date for paid tiers
+     * @returns Success status
+     */
+    updateAssessorTier: protectedProcedure
+      .input(z.object({
+        assessorId: z.number(),
+        tier: z.enum(["free", "premium", "enterprise"]),
+        expiresAt: z.string().optional(), // ISO date string
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Only admins can update assessor tiers");
+        }
+
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const updateData: any = {
+          assessorTier: input.tier,
+          tierActivatedAt: new Date(),
+        };
+
+        if (input.expiresAt) {
+          updateData.tierExpiresAt = new Date(input.expiresAt);
+        }
+
+        await db
+          .update(users)
+          .set(updateData)
+          .where(eq(users.id, input.assessorId));
+
+        return { success: true, message: `Assessor tier updated to ${input.tier}` };
+      }),
+
+    /**
+     * Get All Assessors with Tier Info
+     * 
+     * Returns list of all assessors with their tier status and performance metrics.
+     * 
+     * @requires Admin role
+     * @returns List of assessors
+     */
+    getAllAssessors: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (ctx.user.role !== "admin") {
+          throw new Error("Only admins can view all assessors");
+        }
+
+        const assessors = await getUsersByRole("assessor");
+        return assessors;
       }),
   }),
 

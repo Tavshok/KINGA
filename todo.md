@@ -1902,3 +1902,24 @@
 - [x] Implement smart photo extraction (only actual damage photos, not all pages)
 - [x] Test with Toyota Hilux AGF 1147 assessment PDF (11 photos extracted from 20 pages)
 - [x] Verify only vehicle/damage photos are extracted and uploaded (45% reduction in storage)
+
+
+## Cost Optimization Engine (Phase 1) - BACKEND COMPLETE
+- [x] Update database schema for quote components and optimization data
+- [x] Build cost optimization backend logic (variance calculation, negotiation suggestions)
+- [x] Create tRPC procedures for quote comparison and optimization
+- [ ] Build insurer quote comparison dashboard UI
+- [ ] Add component-level analysis view
+- [ ] Implement negotiation strategy generator UI
+- [ ] Add risk-adjusted quote scoring display
+## Assessor Tier System (Freemium Model) - BACKEND COMPLETE
+- [x] Add tier field to users table (free/premium/enterprise)
+- [x] Build performance scoring system
+- [x] Create assessor performance dashboard backend procedures
+- [ ] Build assessor performance dashboard UI
+- [ ] Implement freemium feature gates (blurred previews for free tier)
+- [ ] Add upgrade prompts and CTAs
+- [x] Build admin panel backend for manual tier management (Option B: manual billing)
+- [ ] Build admin panel UI for tier management
+- [x] Add post-decision feedback backend procedures (graduated by tier)hm
+- [ ] Implement post-decision feedback for assessors

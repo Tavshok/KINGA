@@ -20,6 +20,17 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]).default("user").notNull(),
   organizationId: int("organization_id"), // Link to organizations table for team members
   emailVerified: tinyint("email_verified").default(0).notNull(), // Email verification status
+  
+  // Assessor tier system (for freemium model)
+  assessorTier: mysqlEnum("assessor_tier", ["free", "premium", "enterprise"]).default("free"),
+  tierActivatedAt: timestamp("tier_activated_at"), // When premium/enterprise was activated
+  tierExpiresAt: timestamp("tier_expires_at"), // For manual billing, track expiration
+  
+  // Assessor performance metrics
+  performanceScore: int("performance_score").default(70), // 0-100 scale, default 70
+  totalAssessmentsCompleted: int("total_assessments_completed").default(0),
+  averageVarianceFromFinal: int("average_variance_from_final"), // Percentage variance from final approved cost
+  
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -193,8 +204,13 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
   laborHours: int("labor_hours"), // Estimated labor hours required for repairs
   
   // Quote breakdown
-  itemizedBreakdown: text("itemized_breakdown"), // JSON array of line items
+  itemizedBreakdown: text("itemized_breakdown"), // JSON array of line items with component details
   notes: text("notes"),
+  
+  // Component-level details for cost optimization
+  componentsJson: text("components_json"), // Detailed component breakdown with parts quality, action (repair/replace), warranty
+  partsQuality: mysqlEnum("parts_quality", ["aftermarket", "oem", "genuine", "used"]).default("aftermarket"),
+  warrantyMonths: int("warranty_months").default(12),
   
   // Modifications (if assessor requests changes)
   modified: tinyint("modified").default(0),
