@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE claims \nADD COLUMN workflow_state ENUM('created', 'assigned', 'under_assessment', 'internal_review', 'technical_approval', 'financial_decision', 'payment_authorized', 'closed', 'disputed') DEFAULT 'created' AFTER status,\nADD COLUMN fraud_risk_level ENUM('low', 'medium', 'high') AFTER fraud_flags,\nADD COLUMN requires_gm_consultation TINYINT DEFAULT 0 AFTER fraud_risk_level;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE claims \nADD COLUMN workflow_state ENUM('created', 'assigned', 'under_assessment', 'internal_review', 'technical_approval', 'financial_decision', 'payment_authorized', 'closed', 'disputed') DEFAULT 'created' AFTER status,\nADD COLUMN fraud_risk_level ENUM('low', 'medium', 'high') AFTER fraud_flags,\nADD COLUMN requires_gm_consultation TINYINT DEFAULT 0 AFTER fraud_risk_level;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'fraud_risk_level' in 'claims'"
+  ]
+}

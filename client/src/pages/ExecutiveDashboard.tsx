@@ -33,6 +33,7 @@ import {
   exportCostSavingsTrendsToExcel,
   exportFinancialOverviewToPDF,
 } from "@/lib/exportUtils";
+import { getBrandedLayout, getBrandedConfig, KINGA_COLORS } from "@/lib/plotlyConfig";
 
 export default function ExecutiveDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -369,18 +370,26 @@ export default function ExecutiveDashboard() {
                           y: savingsTrends.map((t: any) => t.savings),
                           type: "scatter",
                           mode: "lines+markers",
-                          marker: { color: "#10b981", size: 8 },
-                          line: { color: "#10b981", width: 3 },
+                          marker: { 
+                            color: KINGA_COLORS.primary, 
+                            size: 10,
+                            line: { color: "white", width: 2 }
+                          },
+                          line: { 
+                            color: KINGA_COLORS.primary, 
+                            width: 3,
+                            shape: "spline" // Smooth curves
+                          },
+                          fill: "tozeroy",
+                          fillcolor: "rgba(37, 99, 235, 0.1)", // blue-600 with transparency
                         } as any,
                       ]}
-                      layout={{
+                      layout={getBrandedLayout({
                         autosize: true,
-                        margin: { l: 50, r: 20, t: 20, b: 40 },
                         xaxis: { title: "Month" } as any,
                         yaxis: { title: "Savings ($)" } as any,
-                        hovermode: "closest",
-                      }}
-                      config={{ responsive: true, displayModeBar: false }}
+                      })}
+                      config={getBrandedConfig()}
                       style={{ width: "100%", height: "300px" }}
                     />
                   ) : (
@@ -409,17 +418,23 @@ export default function ExecutiveDashboard() {
                           y: bottlenecks.map((b: any) => b.state?.replace(/_/g, " ") || ""),
                           type: "bar",
                           orientation: "h",
-                          marker: { color: "#f97316" },
+                          marker: { 
+                            color: bottlenecks.map((b: any) => {
+                              // Color code by severity: red for >7 days, orange for >3 days, blue otherwise
+                              if (b.avgDaysInState > 7) return KINGA_COLORS.danger;
+                              if (b.avgDaysInState > 3) return KINGA_COLORS.warning;
+                              return KINGA_COLORS.primary;
+                            }),
+                          },
                         } as any,
                       ]}
-                      layout={{
+                      layout={getBrandedLayout({
                         autosize: true,
                         margin: { l: 150, r: 20, t: 20, b: 40 },
                         xaxis: { title: "Average Days" } as any,
                         yaxis: { automargin: true } as any,
-                        hovermode: "closest",
-                      }}
-                      config={{ responsive: true, displayModeBar: false }}
+                      })}
+                      config={getBrandedConfig()}
                       style={{ width: "100%", height: "300px" }}
                     />
                   ) : (
