@@ -3,31 +3,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, CheckCircle, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
+import { Upload, FileText, Loader2, ArrowLeft } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Badge } from "@/components/ui/badge";
+
 
 export default function InsurerExternalAssessmentUpload() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
-  const [extractedData, setExtractedData] = useState<any>(null);
 
   const uploadAssessment = trpc.insurers.uploadExternalAssessment.useMutation({
     onSuccess: (data) => {
-      toast.success("Assessment uploaded and analyzed successfully!");
-      setExtractedData(data);
-      setUploading(false);
+      // Store data in sessionStorage for the results page
+      sessionStorage.setItem('assessmentResults', JSON.stringify(data));
       
-      // Redirect to results page with extracted data
-      setLocation("/assessment-results", {
-        state: { extractedData: data }
-      });
+      // Show success message
+      toast.success("Assessment uploaded and analyzed successfully!");
+      
+      // Redirect to results page immediately
+      setLocation("/assessment-results");
     },
     onError: (error) => {
       toast.error(`Upload failed: ${error.message}`);
@@ -47,7 +46,6 @@ export default function InsurerExternalAssessmentUpload() {
         return;
       }
       setSelectedFile(file);
-      setExtractedData(null);
     }
   };
 
@@ -171,70 +169,7 @@ export default function InsurerExternalAssessmentUpload() {
             </CardContent>
           </Card>
 
-          {/* Extracted Data Preview */}
-          {extractedData && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CheckCircle className="h-5 w-5 text-green-600" />
-                  Analysis Complete
-                </CardTitle>
-                <CardDescription>
-                  AI has analyzed the uploaded assessment document
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Claim Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <Label className="text-muted-foreground">Claim Number</Label>
-                    <p className="font-mono text-sm">{extractedData.claimNumber}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Vehicle Registration</Label>
-                    <p className="font-semibold">{extractedData.vehicleRegistration}</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Vehicle</Label>
-                    <p>{extractedData.vehicleMake} {extractedData.vehicleModel} ({extractedData.vehicleYear})</p>
-                  </div>
-                  <div>
-                    <Label className="text-muted-foreground">Photos Extracted</Label>
-                    <p>{extractedData.photosExtracted || 0} photo(s)</p>
-                  </div>
-                </div>
 
-                {/* AI Analysis Status */}
-                <div className="space-y-2">
-                  <Label>AI Analysis Status</Label>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      <CheckCircle className="mr-1 h-3 w-3" />
-                      Damage Assessment Complete
-                    </Badge>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      <CheckCircle className="mr-1 h-3 w-3" />
-                      Physics Validation Complete
-                    </Badge>
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                      <CheckCircle className="mr-1 h-3 w-3" />
-                      Fraud Detection Complete
-                    </Badge>
-                  </div>
-                </div>
-
-                {/* View Comparison Button */}
-                <div className="pt-4">
-                  <Button
-                    onClick={() => setLocation(`/insurer/claims/${extractedData.claimId}/comparison`)}
-                    className="w-full"
-                  >
-                    View Detailed Comparison Report
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </main>
     </div>

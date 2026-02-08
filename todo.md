@@ -2351,3 +2351,35 @@
 - [x] Store extracted data in state/database
 - [x] Test complete workflow
 - [x] Save checkpoint
+
+
+## PDF Upload Redirect Issue
+
+### Problem
+- [x] Upload completes successfully but doesn't redirect to AssessmentResults page
+- [x] Data shows in right panel but user stays on upload page
+- [x] setLocation() call not triggering navigation (wouter doesn't support state parameter)
+
+### Debug Tasks
+- [x] Check if setLocation is being called correctly
+- [x] Verify route configuration for /assessment-results
+- [x] Test navigation state passing (switched to sessionStorage)
+- [x] Add console logging to debug flow
+- [x] Fix redirect implementation (using sessionStorage)
+- [x] Test with real PDF upload
+- [x] Save checkpoint
+
+
+## Fix Old Comparison View Redirect
+
+### Problem
+- [x] Upload component still has old code trying to redirect to /insurer/claims/90001/comparison
+- [x] This causes 404 error after claim creation
+- [x] Need to remove old comparison view redirect logic
+
+### Fix Tasks
+- [x] Find and remove old comparison view button/redirect
+- [x] Ensure only results page redirect exists in upload success handler
+- [x] Clean up unused state and imports
+- [x] Test complete workflow
+- [x] Save checkpoint

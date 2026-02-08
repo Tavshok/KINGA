@@ -1,5 +1,5 @@
-import { useLocation, useRoute, Link } from "wouter";
-import { useState } from "react";
+import { useLocation, Link } from "wouter";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { CheckCircle2, FileText, Car, DollarSign, AlertTriangle, Loader2 } from "lucide-react";
@@ -22,12 +22,29 @@ interface ExtractedData {
 
 export default function AssessmentResults() {
   const [, setLocation] = useLocation();
-  const [, params] = useRoute("/assessment-results/:claimId");
   const [isCreatingClaim, setIsCreatingClaim] = useState(false);
+  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   
-  // Get extracted data from location state
-  const location = useLocation()[0];
-  const extractedData: ExtractedData = (window.history.state?.extractedData || {}) as ExtractedData;
+  // Load data from sessionStorage on mount
+  useEffect(() => {
+    const storedData = sessionStorage.getItem('assessmentResults');
+    if (storedData) {
+      try {
+        const data = JSON.parse(storedData);
+        setExtractedData(data);
+        // Clear the data after loading to prevent stale data on refresh
+        sessionStorage.removeItem('assessmentResults');
+      } catch (error) {
+        console.error('Error parsing assessment results:', error);
+        toast.error('Failed to load assessment results');
+        setLocation('/insurer/external-assessment');
+      }
+    } else {
+      // No data found, redirect back to upload page
+      toast.error('No assessment data found');
+      setLocation('/insurer/external-assessment');
+    }
+  }, [setLocation]);
 
   // Create claim mutation
   const createClaim = trpc.claims.submit.useMutation({
@@ -48,6 +65,13 @@ export default function AssessmentResults() {
   });
 
   const handleCreateClaim = () => {
+    if (!extractedData) {
+      toast.error("No Data Available", {
+        description: "Assessment data is missing. Please upload again.",
+      });
+      return;
+    }
+
     const vehicleReg = extractedData.vehicleRegistration || extractedData.registration;
     
     if (!vehicleReg || !extractedData.vehicleMake) {
@@ -71,6 +95,18 @@ export default function AssessmentResults() {
       selectedPanelBeaterIds: [], // Will be assigned later by claims processor
     });
   };
+
+  // Show loading state while data is being loaded
+  if (!extractedData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <p className="text-gray-600">Loading assessment results...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 p-8">
