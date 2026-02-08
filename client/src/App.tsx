@@ -30,6 +30,9 @@ import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 import ClaimDocuments from "./pages/ClaimDocuments";
 import PortalHub from "./pages/PortalHub";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
+import ClaimsProcessorDashboard from "./pages/ClaimsProcessorDashboard";
+import InternalAssessorDashboard from "./pages/InternalAssessorDashboard";
+import RiskManagerDashboard from "./pages/RiskManagerDashboard";
 
 function Router() {
   return (
@@ -49,6 +52,27 @@ function Router() {
       <Route path="/executive">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <ExecutiveDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Claims Processor Dashboard */}
+      <Route path="/claims-processor">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ClaimsProcessorDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Internal Assessor Dashboard */}
+      <Route path="/internal-assessor">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InternalAssessorDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Risk Manager Dashboard */}
+      <Route path="/risk-manager">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <RiskManagerDashboard />
         </ProtectedRoute>
       </Route>
       
