@@ -1946,3 +1946,141 @@
 - [x] Update comparison view to display generated graphs
 - [x] Regenerate Toyota Hilux report with embedded visualizations
 - [x] Test complete workflow end-to-end
+
+
+## Insurer RBAC System & Workflow - IN PROGRESS
+- [ ] Update database schema for insurer roles (Claims Processor, Internal Assessor, Risk Manager, Claims Manager, Executive)
+- [ ] Add workflow state fields to claims table (Created, Assigned, Under Assessment, Internal Review, Technical Approval, Financial Decision, Payment Authorized, Closed)
+- [ ] Create claim_comments table for workflow collaboration
+- [ ] Create claim_approvals table for tracking technical and financial approvals
+- [ ] Implement RBAC middleware and permission checking system
+- [ ] Build comment/annotation system for workflow collaboration
+- [ ] Create workflow state machine with conditional routing
+- [ ] Implement automatic routing (external reports → Internal Assessor)
+- [ ] Add GM consultation requirement for high-value claims (>$10,000)
+- [ ] Build Claims Processor dashboard (view AI/cost optimization read-only, add comments)
+- [ ] Build Internal Assessor dashboard (fraud analytics, validate external reports)
+- [ ] Build Risk Manager dashboard (approve technical basis, send back for clarification)
+- [ ] Build Claims Manager dashboard (authorize payments, close claims)
+- [ ] Build Executive dashboard (view-only KPIs and reports)
+- [ ] Implement report library with search (insured name, policy number, claim number, registration)
+- [ ] Add bulk download and export capabilities
+- [ ] Migrate existing "insurer" users to Claims Manager role
+
+## Graph Visualization Enhancement - IN PROGRESS
+- [ ] Replace matplotlib with Plotly for interactive professional graphs
+- [ ] Add KINGA branding (logo watermark, color scheme)
+- [ ] Implement responsive sizing for different report formats
+- [ ] Add custom styling (shadows, gradients, professional fonts)
+- [ ] Regenerate Toyota Hilux report with enhanced visualizations
+
+
+## RBAC + Workflow System Implementation (Milestone 1 - IN PROGRESS)
+
+### Phase 1: Database Schema ✅
+- [x] Add insurerRole enum to users table
+- [x] Add workflowState field to claims table
+- [x] Add approval tracking fields (technicalApprovalBy, financialApprovalBy, closedBy)
+- [x] Create claimComments table for workflow collaboration
+- [x] Push schema changes to database
+
+### Phase 2: RBAC Middleware ✅
+- [x] Create RBAC permission matrix
+- [x] Implement permission checking functions
+- [x] Create workflow state machine with valid transitions
+- [x] Integrate RBAC into tRPC procedures
+- [x] Add role-based filtering for claim lists
+- [x] Test permission enforcement
+
+### Phase 3: Workflow State Management ✅
+- [x] Create workflow transition procedures
+- [x] Add automatic routing logic (external assessor → internal assessor)
+- [x] Implement high-value claim flagging (>$10k)
+- [x] Add GM consultation tracking
+- [x] Test workflow transitions
+
+### Phase 4: Comment/Annotation System ✅
+- [x] Create addComment procedure
+- [x] Create getClaimComments procedure
+- [x] Add comment type filtering (general, flag, clarification, technical)
+- [x] Test comment system with different roles
+
+### Phase 5: Testing & Validation ✅
+- [x] Write unit tests for RBAC functions
+- [x] Test all role permissions (17 tests passing)
+- [x] Test workflow state transitions (15 tests passing)
+- [x] Test comment system (integrated in workflow tests)
+- [x] End-to-end testing with different user roles (50 tests total passing)
+
+### Phase 6: Checkpoint 1
+- [ ] Review all Milestone 1 features
+- [ ] Fix any bugs
+- [ ] Save checkpoint after Milestone 1 completion
+
+## Milestone 2: Role-Specific Dashboards (PENDING)
+
+### Claims Processor Dashboard
+- [ ] Claim creation form
+- [ ] Assessor assignment interface
+- [ ] My assigned claims list
+- [ ] Read-only AI assessment view
+- [ ] Read-only cost optimization view
+- [ ] Comment interface
+
+### Internal Assessor Dashboard
+- [ ] Pending assessments queue
+- [ ] Conduct internal assessment form
+- [ ] Fraud analytics dashboard
+- [ ] Comment interface
+- [ ] Performance metrics (read-only)
+
+### Risk Manager Dashboard
+- [ ] Claims requiring technical approval queue
+- [ ] Technical approval interface
+- [ ] Fraud analytics dashboard
+- [ ] All claims overview
+- [ ] Comment interface
+
+### Claims Manager Dashboard
+- [ ] Claims requiring financial decision queue
+- [ ] Payment authorization interface
+- [ ] High-value claims flagging
+- [ ] GM consultation tracking
+- [ ] Close claim interface
+- [ ] Full claims overview
+
+### Executive Dashboard
+- [ ] Strategic overview (all claims)
+- [ ] High-level metrics
+- [ ] Fraud trends
+- [ ] Cost optimization insights
+- [ ] View-only access to all data
+
+## Milestone 3: Report Library + Enhanced Visualizations (PENDING)
+
+### Report Library
+- [ ] Build insurer report library dashboard
+- [ ] Implement search by insured name
+- [ ] Implement search by policy number
+- [ ] Implement search by claim number
+- [ ] Implement search by registration number
+- [ ] Add date range filtering
+- [ ] Add status filtering
+
+### Assessor Dashboard
+- [ ] Pending reports view
+- [ ] Completed reports view
+- [ ] Performance metrics
+- [ ] Search functionality
+
+### Admin Global Search
+- [ ] Global report search for dispute resolution
+- [ ] Advanced filtering
+- [ ] Audit trail view
+
+### Graph Visualizations
+- [ ] Improve graph styling (more professional)
+- [ ] Add KINGA logo watermark
+- [ ] Consider Plotly for interactive graphs
+- [ ] Add custom branding
+- [ ] Test with multiple assessment PDFs

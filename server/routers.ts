@@ -1909,6 +1909,327 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return await getAuditTrailByClaimId(input.claimId);
       }),
   }),
+
+  /**
+   * Workflow Management (RBAC System)
+   * 
+   * Handles workflow state transitions, comments, and approvals
+   * for the hierarchical role-based access control system.
+   */
+  workflow: router({
+    /**
+     * Transition Workflow State
+     * 
+     * Moves a claim to a new workflow state with permission checking.
+     * Validates transitions and tracks approvals.
+     * 
+     * @requires Appropriate insurer role for the transition
+     * @param claimId - ID of the claim
+     * @param newState - Target workflow state
+     * @returns Success status
+     */
+    transitionState: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        newState: z.enum([
+          "created",
+          "assigned",
+          "under_assessment",
+          "internal_review",
+          "technical_approval",
+          "financial_decision",
+          "payment_authorized",
+          "closed",
+          "disputed"
+        ]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { transitionWorkflowState } = await import("./workflow");
+        const { hasPermission } = await import("./rbac");
+        
+        // Check if user has permission for this transition
+        // Different states require different permissions
+        const statePermissionMap: Record<string, string> = {
+          "technical_approval": "approveTechnical",
+          "payment_authorized": "approveFinancial",
+          "closed": "closeClaim",
+        };
+        
+        const requiredPermission = statePermissionMap[input.newState];
+        if (requiredPermission && !hasPermission(ctx.user, requiredPermission as any)) {
+          throw new Error(`You don't have permission to transition to ${input.newState}`);
+        }
+        
+        await transitionWorkflowState(
+          input.claimId,
+          input.newState,
+          ctx.user.id,
+          ctx.user.insurerRole as any
+        );
+        
+        return { success: true };
+      }),
+
+    /**
+     * Add Comment to Claim
+     * 
+     * Allows authorized users to add comments/annotations to claims.
+     * Supports different comment types for workflow collaboration.
+     * 
+     * @requires Permission to add comments
+     * @param claimId - ID of the claim
+     * @param commentType - Type of comment
+     * @param content - Comment text
+     * @returns Success status
+     */
+    addComment: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        commentType: z.enum(["general", "flag", "clarification_request", "technical_note"]),
+        content: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { addClaimComment } = await import("./workflow");
+        const { hasPermission, requireClaimAccess } = await import("./rbac");
+        
+        // Check if user has permission to add comments
+        if (!hasPermission(ctx.user, "addComment")) {
+          throw new Error("You don't have permission to add comments");
+        }
+        
+        // Check if user can access this claim
+        const claim = await getClaimById(input.claimId);
+        if (!claim) throw new Error("Claim not found");
+        requireClaimAccess(ctx.user, claim);
+        
+        await addClaimComment({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          userRole: ctx.user.insurerRole || ctx.user.role,
+          commentType: input.commentType,
+          content: input.content,
+        });
+        
+        return { success: true };
+      }),
+
+    /**
+     * Get Comments for Claim
+     * 
+     * Retrieves all comments for a claim with user information.
+     * 
+     * @requires Permission to view comments
+     * @param claimId - ID of the claim
+     * @returns List of comments
+     */
+    getComments: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { getClaimComments } = await import("./workflow");
+        const { hasPermission, requireClaimAccess } = await import("./rbac");
+        
+        // Check if user has permission to view comments
+        if (!hasPermission(ctx.user, "viewComments")) {
+          throw new Error("You don't have permission to view comments");
+        }
+        
+        // Check if user can access this claim
+        const claim = await getClaimById(input.claimId);
+        if (!claim) throw new Error("Claim not found");
+        requireClaimAccess(ctx.user, claim);
+        
+        return await getClaimComments(input.claimId);
+      }),
+
+    /**
+     * Approve Technical Basis (Risk Manager)
+     * 
+     * Approves the technical assessment and fraud analysis.
+     * Does NOT approve payment amount.
+     * 
+     * @requires Risk Manager role
+     * @param claimId - ID of the claim
+     * @param approvalNotes - Optional notes
+     * @returns Success status
+     */
+    approveTechnical: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        approvalNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { approveTechnicalBasis } = await import("./workflow");
+        const { hasPermission } = await import("./rbac");
+        
+        if (!hasPermission(ctx.user, "approveTechnical")) {
+          throw new Error("Only Risk Managers can approve technical basis");
+        }
+        
+        await approveTechnicalBasis(input.claimId, ctx.user.id, input.approvalNotes);
+        
+        return { success: true };
+      }),
+
+    /**
+     * Authorize Payment (Claims Manager)
+     * 
+     * Approves payment amount and authorizes disbursement.
+     * 
+     * @requires Claims Manager role
+     * @param claimId - ID of the claim
+     * @param approvedAmount - Approved amount in cents
+     * @param approvalNotes - Optional notes
+     * @returns Success status
+     */
+    authorizePayment: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        approvedAmount: z.number(),
+        approvalNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { authorizePayment } = await import("./workflow");
+        const { hasPermission } = await import("./rbac");
+        
+        if (!hasPermission(ctx.user, "approveFinancial")) {
+          throw new Error("Only Claims Managers can authorize payment");
+        }
+        
+        await authorizePayment(
+          input.claimId,
+          ctx.user.id,
+          input.approvedAmount,
+          input.approvalNotes
+        );
+        
+        return { success: true };
+      }),
+
+    /**
+     * Close Claim (Claims Manager)
+     * 
+     * Closes a claim after all processes are complete.
+     * 
+     * @requires Claims Manager role
+     * @param claimId - ID of the claim
+     * @param closureNotes - Optional notes
+     * @returns Success status
+     */
+    closeClaim: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        closureNotes: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { closeClaim } = await import("./workflow");
+        const { hasPermission } = await import("./rbac");
+        
+        if (!hasPermission(ctx.user, "closeClaim")) {
+          throw new Error("Only Claims Managers can close claims");
+        }
+        
+        await closeClaim(input.claimId, ctx.user.id, input.closureNotes);
+        
+        return { success: true };
+      }),
+
+    /**
+     * Get Claims by Workflow State
+     * 
+     * Retrieves claims in a specific workflow state.
+     * 
+     * @requires Appropriate permissions
+     * @param state - Workflow state to filter by
+     * @returns List of claims
+     */
+    getClaimsByState: protectedProcedure
+      .input(z.object({
+        state: z.enum([
+          "created",
+          "assigned",
+          "under_assessment",
+          "internal_review",
+          "technical_approval",
+          "financial_decision",
+          "payment_authorized",
+          "closed",
+          "disputed"
+        ]),
+      }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { getClaimsByWorkflowState } = await import("./workflow");
+        const { hasPermission } = await import("./rbac");
+        
+        // Only users with viewAllClaims permission can see all claims by state
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("You don't have permission to view all claims");
+        }
+        
+        return await getClaimsByWorkflowState(input.state);
+      }),
+
+    /**
+     * Get High-Value Claims
+     * 
+     * Returns claims requiring GM consultation (>$10,000).
+     * 
+     * @requires Executive or Claims Manager role
+     * @returns List of high-value claims
+     */
+    getHighValueClaims: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { getHighValueClaims } = await import("./workflow");
+        const { hasPermission } = await import("./rbac");
+        
+        // Only executives and claims managers can view high-value claims
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("You don't have permission to view high-value claims");
+        }
+        
+        return await getHighValueClaims();
+      }),
+
+    /**
+     * Check if Claim Requires GM Consultation
+     * 
+     * Checks if a claim exceeds the high-value threshold.
+     * 
+     * @requires Appropriate permissions
+     * @param claimId - ID of the claim
+     * @returns Boolean indicating if GM consultation required
+     */
+    checkGMConsultation: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { checkGMConsultationRequired } = await import("./workflow");
+        const { requireClaimAccess } = await import("./rbac");
+        
+        // Check if user can access this claim
+        const claim = await getClaimById(input.claimId);
+        if (!claim) throw new Error("Claim not found");
+        requireClaimAccess(ctx.user, claim);
+        
+        return await checkGMConsultationRequired(input.claimId);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

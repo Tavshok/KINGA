@@ -1,0 +1,9 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS claim_comments (\n  id INTEGER PRIMARY KEY AUTO_INCREMENT,\n  claimId INTEGER NOT NULL,\n  userId INTEGER NOT NULL,\n  userRole TEXT NOT NULL,\n  commentType TEXT CHECK(commentType IN ('general', 'flag', 'clarification_request', 'technical_note')) NOT NULL,\n  content TEXT NOT NULL,\n  createdAt TEXT NOT NULL,\n  FOREIGN KEY (claimId) REFERENCES claims(id),\n  FOREIGN KEY (userId) REFERENCES users(id)\n);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nCREATE TABLE IF NOT EXISTS claim_comments (\n  id INTEGER PRIMARY KEY AUTO_INCREMENT,\n  claimId INTEGER NOT NULL,\n  userId INTEGER NOT NULL,\n  userRole TEXT NOT NULL,\n  commentType TEXT CHECK(commentType IN ('general', 'flag', 'clarification_request', 'technical_note')) NOT NULL,\n  content TEXT NOT NULL,\n  createdAt TEXT NOT NULL,\n  FOREIGN KEY (claimId) REFERENCES claims(id),\n  FOREIGN KEY (userId) REFERENCES users(id)\n);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 735
+}

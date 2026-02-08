@@ -18,6 +18,7 @@ export const users = mysqlTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }), // For traditional email/password auth
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]).default("user").notNull(),
+  insurerRole: mysqlEnum("insurer_role", ["claims_processor", "internal_assessor", "risk_manager", "claims_manager", "executive"]), // Hierarchical roles for insurer users
   organizationId: int("organization_id"), // Link to organizations table for team members
   emailVerified: tinyint("email_verified").default(0).notNull(), // Email verification status
   
@@ -114,12 +115,58 @@ export const claims = mysqlTable("claims", {
   fraudRiskScore: int("fraud_risk_score"), // 0-100 scale
   fraudFlags: text("fraud_flags"), // JSON array of detected fraud indicators
   
+  // Workflow state machine
+  workflowState: mysqlEnum("workflow_state", [
+    "created",
+    "assigned",
+    "under_assessment",
+    "internal_review",
+    "technical_approval",
+    "financial_decision",
+    "payment_authorized",
+    "closed",
+    "disputed"
+  ]),
+  
+  // Approval tracking
+  technicallyApprovedBy: int("technically_approved_by"), // Risk Manager user ID
+  technicallyApprovedAt: timestamp("technically_approved_at"),
+  financiallyApprovedBy: int("financially_approved_by"), // Claims Manager user ID
+  financiallyApprovedAt: timestamp("financially_approved_at"),
+  approvedAmount: int("approved_amount"), // Final approved amount in cents
+  closedBy: int("closed_by"), // Claims Manager user ID
+  closedAt: timestamp("closed_at"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
 
 export type Claim = typeof claims.$inferSelect;
 export type InsertClaim = typeof claims.$inferInsert;
+
+/**
+ * Claim Comments - Workflow collaboration and annotations
+ */
+export const claimComments = mysqlTable("claim_comments", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  userId: int("user_id").notNull(),
+  userRole: text("user_role").notNull(), // Role at time of comment (for audit trail)
+  
+  commentType: mysqlEnum("comment_type", [
+    "general",
+    "flag",
+    "clarification_request",
+    "technical_note"
+  ]).notNull(),
+  
+  content: text("content").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ClaimComment = typeof claimComments.$inferSelect;
+export type InsertClaimComment = typeof claimComments.$inferInsert;
 
 /**
  * AI Assessments - AI-powered damage assessments

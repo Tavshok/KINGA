@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Add insurerRole field to users table\nALTER TABLE users ADD COLUMN insurerRole TEXT CHECK(insurerRole IN ('claims_processor', 'internal_assessor', 'risk_manager', 'claims_manager', 'executive')) DEFAULT NULL;\n\n-- Update existing insurer users to claims_manager role (highest operational access)\nUPDATE users SET insurerRole = 'claims_manager' WHERE role = 'insurer';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Add insurerRole field to users table\nALTER TABLE users ADD COLUMN insurerRole TEXT CHECK(insurerRole IN ('claims_processor', 'internal_assessor', 'risk_manager', 'claims_manager', 'executive')) DEFAULT NULL;\n\n-- Update existing insurer users to claims_manager role (highest operational access)\nUPDATE users SET insurerRole = 'claims_manager' WHERE role = 'insurer';\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 3239
+}
