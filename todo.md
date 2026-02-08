@@ -2186,3 +2186,60 @@
 - [ ] Test report library filters
 - [ ] Test chart enhancements
 - [ ] Save checkpoint
+
+
+## Claims Manager Dashboard & Feedback Loop
+
+### Claims Manager Dashboard ✅
+- [x] Create ClaimsManagerDashboard component
+- [x] Build payment authorization queue (claims with technical approval)
+- [x] Add approve payment button (closes claim)
+- [x] Add send-back workflow (returns to Claims Processor)
+- [x] Create send-back dialog with comment field
+- [x] Add route to App.tsx (/claims-manager)
+
+### Claims Processor Enhancement ✅
+- [x] Add "Returned Claims" section to ClaimsProcessorDashboard
+- [x] Display Claims Manager comments for returned claims
+- [x] Add reassign to assessor button for returned claims
+- [x] Show revision history/status
+
+### Comment System Integration ✅
+- [x] Use existing workflow.addComment procedure
+- [x] Filter comments by type (clarification_request for send-back)
+- [x] Display comment thread in claim details (placeholder shown in returned claims)
+
+### Testing
+- [ ] Test approve payment workflow
+- [ ] Test send-back workflow
+- [ ] Test Claims Processor can see returned claims
+- [ ] Test comment visibility across roles
+- [ ] Save checkpoint
+
+
+## Executive Comment & Review Request System
+
+### Executive Comment Capabilities ✅
+- [x] Add "Add Comment" button to search results in Executive Dashboard
+- [x] Create comment dialog with comment type selector (general, flag, technical_note)
+- [x] Integrate with workflow.addComment procedure
+- [x] Display comment visibility note for transparency
+
+### Request Further Review ✅
+- [x] Add "Request Review" button to search results
+- [x] Create review request dialog with role selector (Risk Manager, Claims Manager, Internal Assessor, Claims Processor)
+- [x] Add reason/notes field for review request
+- [x] Use flag comment type for review requests
+- [x] Add executive review request tracking via comments
+
+### Executive Oversight Features
+- [ ] Add "My Comments" section showing all executive comments
+- [ ] Add "Pending Reviews" section showing claims with executive review requests
+- [ ] Add comment history view for full transparency
+- [ ] Add escalation tracking for high-risk claims
+
+### Testing
+- [ ] Test executive comment submission
+- [ ] Test review request workflow
+- [ ] Test comment visibility across roles
+- [ ] Save checkpoint

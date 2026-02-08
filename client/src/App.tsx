@@ -33,6 +33,7 @@ import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import ClaimsProcessorDashboard from "./pages/ClaimsProcessorDashboard";
 import InternalAssessorDashboard from "./pages/InternalAssessorDashboard";
 import RiskManagerDashboard from "./pages/RiskManagerDashboard";
+import ClaimsManagerDashboard from "./pages/ClaimsManagerDashboard";
 
 function Router() {
   return (
@@ -73,6 +74,13 @@ function Router() {
       <Route path="/risk-manager">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <RiskManagerDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Claims Manager Dashboard */}
+      <Route path="/claims-manager">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ClaimsManagerDashboard />
         </ProtectedRoute>
       </Route>
       

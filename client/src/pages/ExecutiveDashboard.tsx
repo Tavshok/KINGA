@@ -12,10 +12,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 import { 
   Search, TrendingUp, DollarSign, AlertTriangle, CheckCircle, 
   Clock, Users, Wrench, BarChart3, FileText, Activity,
-  ArrowUpRight, ArrowDownRight, Shield, TrendingDown, Download
+  ArrowUpRight, ArrowDownRight, Shield, TrendingDown, Download,
+  MessageSquare, Eye, AlertCircle
 } from "lucide-react";
 import { Link } from "wouter";
 import Plot from "react-plotly.js";
@@ -31,6 +37,15 @@ import {
 export default function ExecutiveDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
+  
+  // Comment & Review Request state
+  const [selectedClaim, setSelectedClaim] = useState<any>(null);
+  const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [commentContent, setCommentContent] = useState("");
+  const [commentType, setCommentType] = useState("general");
+  const [reviewRole, setReviewRole] = useState("");
+  const [reviewNotes, setReviewNotes] = useState("");
 
   // Fetch data
   const { data: kpis, isLoading: kpisLoading } = trpc.executive.getKPIs.useQuery();
@@ -51,6 +66,70 @@ export default function ExecutiveDashboard() {
     if (searchQuery.trim()) {
       await executeSearch();
     }
+  };
+
+  // Add comment mutation
+  const addComment = trpc.workflow.addComment.useMutation({
+    onSuccess: () => {
+      toast.success("Comment Added", {
+        description: "Your comment has been added to the claim.",
+      });
+      setShowCommentDialog(false);
+      setSelectedClaim(null);
+      setCommentContent("");
+      setCommentType("general");
+    },
+    onError: (error: any) => {
+      toast.error("Error", {
+        description: error.message,
+      });
+    },
+  });
+
+  const handleAddComment = (claim: any) => {
+    setSelectedClaim(claim);
+    setShowCommentDialog(true);
+  };
+
+  const handleSubmitComment = () => {
+    if (!selectedClaim || !commentContent.trim()) {
+      toast.error("Validation Error", {
+        description: "Please enter a comment.",
+      });
+      return;
+    }
+
+    addComment.mutate({
+      claimId: selectedClaim.id,
+      commentType: commentType as any,
+      content: commentContent,
+    });
+  };
+
+  const handleRequestReview = (claim: any) => {
+    setSelectedClaim(claim);
+    setShowReviewDialog(true);
+  };
+
+  const handleSubmitReviewRequest = () => {
+    if (!selectedClaim || !reviewRole || !reviewNotes.trim()) {
+      toast.error("Validation Error", {
+        description: "Please select a role and provide review notes.",
+      });
+      return;
+    }
+
+    // Add comment with review request
+    addComment.mutate({
+      claimId: selectedClaim.id,
+      commentType: "flag",
+      content: `EXECUTIVE REVIEW REQUEST for ${reviewRole}: ${reviewNotes}`,
+    });
+
+    setShowReviewDialog(false);
+    setSelectedClaim(null);
+    setReviewRole("");
+    setReviewNotes("");
   };
 
   return (
@@ -98,22 +177,44 @@ export default function ExecutiveDashboard() {
             {searchResults && searchResults.length > 0 && (
               <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
                 {searchResults.map((claim: any) => (
-                  <Link key={claim.id} href={`/insurer/comparison/${claim.id}`}>
-                    <div className="p-4 bg-white rounded-lg border hover:border-blue-500 hover:shadow-md transition-all cursor-pointer">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-semibold">{claim.claimNumber}</p>
-                          <p className="text-sm text-slate-600">
-                            {claim.vehicleMake} {claim.vehicleModel} - {claim.vehicleRegistration}
-                          </p>
-                          <p className="text-xs text-slate-500">{claim.claimantName}</p>
-                        </div>
+                  <div key={claim.id} className="p-4 bg-white rounded-lg border hover:border-blue-500 hover:shadow-md transition-all">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <p className="font-semibold">{claim.claimNumber}</p>
+                        <p className="text-sm text-slate-600">
+                          {claim.vehicleMake} {claim.vehicleModel} - {claim.vehicleRegistration}
+                        </p>
+                        <p className="text-xs text-slate-500">{claim.claimantName}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
                         <Badge variant={claim.status === "completed" ? "default" : "secondary"}>
                           {claim.status}
                         </Badge>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleAddComment(claim)}
+                        >
+                          <MessageSquare className="h-4 w-4 mr-1" />
+                          Comment
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-orange-500 text-orange-700"
+                          onClick={() => handleRequestReview(claim)}
+                        >
+                          <AlertCircle className="h-4 w-4 mr-1" />
+                          Request Review
+                        </Button>
+                        <Link href={`/insurer/comparison/${claim.id}`}>
+                          <Button size="sm" variant="ghost">
+                            <Eye className="h-4 w-4" />
+                          </Button>
+                        </Link>
                       </div>
                     </div>
-                  </Link>
+                  </div>
                 ))}
               </div>
             )}
@@ -650,6 +751,127 @@ export default function ExecutiveDashboard() {
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Add Comment Dialog */}
+        <Dialog open={showCommentDialog} onOpenChange={setShowCommentDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add Executive Comment</DialogTitle>
+              <DialogDescription>
+                {selectedClaim && `Claim: ${selectedClaim.claimNumber} - ${selectedClaim.vehicleRegistration}`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="commentType">Comment Type</Label>
+                <Select value={commentType} onValueChange={setCommentType}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select comment type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General Comment</SelectItem>
+                    <SelectItem value="flag">Flag for Attention</SelectItem>
+                    <SelectItem value="technical_note">Technical Note</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="commentContent">Comment *</Label>
+                <Textarea
+                  id="commentContent"
+                  value={commentContent}
+                  onChange={(e) => setCommentContent(e.target.value)}
+                  placeholder="Enter your executive comment or guidance..."
+                  rows={6}
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                <p className="text-sm text-blue-700">
+                  <strong>Note:</strong> Your comment will be visible to all roles involved in this claim for transparency.
+                </p>
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCommentDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmitComment} 
+                disabled={addComment.isPending || !commentContent.trim()}
+              >
+                {addComment.isPending ? "Adding..." : "Add Comment"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Request Review Dialog */}
+        <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Request Further Review</DialogTitle>
+              <DialogDescription>
+                {selectedClaim && `Claim: ${selectedClaim.claimNumber} - ${selectedClaim.vehicleRegistration}`}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-4 py-4">
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded">
+                <div className="flex items-center gap-2 mb-1">
+                  <AlertCircle className="h-5 w-5 text-orange-600" />
+                  <span className="text-sm font-medium text-orange-700">Executive Review Request</span>
+                </div>
+                <p className="text-sm text-orange-700">
+                  This claim will be flagged for immediate attention by the selected role.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reviewRole">Request Review From *</Label>
+                <Select value={reviewRole} onValueChange={setReviewRole}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Risk Manager">Risk Manager</SelectItem>
+                    <SelectItem value="Claims Manager">Claims Manager</SelectItem>
+                    <SelectItem value="Internal Assessor">Internal Assessor</SelectItem>
+                    <SelectItem value="Claims Processor">Claims Processor</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reviewNotes">Review Notes *</Label>
+                <Textarea
+                  id="reviewNotes"
+                  value={reviewNotes}
+                  onChange={(e) => setReviewNotes(e.target.value)}
+                  placeholder="Explain what needs to be reviewed or validated (e.g., 'Please verify fraud risk assessment - pattern matches previous suspicious claims')..."
+                  rows={6}
+                />
+              </div>
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowReviewDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleSubmitReviewRequest} 
+                disabled={addComment.isPending || !reviewRole || !reviewNotes.trim()}
+                variant="outline"
+                className="border-orange-500 text-orange-700 hover:bg-orange-50"
+              >
+                {addComment.isPending ? "Requesting..." : "Request Review"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

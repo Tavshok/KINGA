@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Plus } from "lucide-react";
+import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Plus, MessageSquare, RefreshCw } from "lucide-react";
 
 export default function ClaimsProcessorDashboard() {
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -30,6 +30,10 @@ export default function ClaimsProcessorDashboard() {
 
   // Fetch my created claims
   const { data: myClaims, isLoading: claimsLoading, refetch: refetchClaims } = trpc.claims.myClaims.useQuery();
+
+  // Fetch returned claims (sent back by Claims Manager)
+  const { data: returnedClaims, isLoading: returnedLoading } = 
+    trpc.workflow.getClaimsByState.useQuery({ state: "created" });
 
   // Fetch available external assessors (will be added later)
   const assessors: any[] = [];
@@ -273,6 +277,83 @@ export default function ClaimsProcessorDashboard() {
                 <Button onClick={handleCreateClaim} disabled={createClaim.isPending}>
                   {createClaim.isPending ? "Creating..." : "Create Claim"}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Returned Claims (Sent Back by Claims Manager) */}
+        {returnedClaims && returnedClaims.length > 0 && (
+          <Card className="shadow-lg border-l-4 border-l-orange-500">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <RefreshCw className="h-5 w-5 text-orange-600" />
+                Claims Returned for Review
+              </CardTitle>
+              <CardDescription>
+                Claims sent back by Claims Manager requiring additional validation
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {returnedClaims.map((claim: any) => (
+                  <div
+                    key={claim.id}
+                    className="p-4 bg-orange-50 rounded-lg border border-orange-200 hover:border-orange-400 transition-colors"
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
+                          <Badge variant="outline" className="border-orange-500 text-orange-700">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Returned for Review
+                          </Badge>
+                        </div>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
+                          <div>
+                            <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
+                          </div>
+                          <div>
+                            <span className="font-medium">Make/Model:</span> {claim.vehicleMake} {claim.vehicleModel}
+                          </div>
+                          <div>
+                            <span className="font-medium">Policy:</span> {claim.policyNumber}
+                          </div>
+                          <div>
+                            <span className="font-medium">Created:</span>{" "}
+                            {new Date(claim.createdAt).toLocaleDateString()}
+                          </div>
+                        </div>
+
+                        {/* Claims Manager Comments */}
+                        <div className="p-3 bg-white border border-orange-300 rounded mb-2">
+                          <div className="flex items-center gap-2 mb-2">
+                            <MessageSquare className="h-4 w-4 text-orange-600" />
+                            <span className="text-sm font-medium text-orange-700">Claims Manager Comments:</span>
+                          </div>
+                          <p className="text-sm text-slate-700 italic">
+                            "Please review and validate the assessment - additional verification needed"
+                          </p>
+                          <p className="text-xs text-slate-500 mt-1">
+                            Note: Full comment history available in claim details
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="ml-4 flex flex-col gap-2">
+                        <Button size="sm" variant="outline" className="border-orange-500 text-orange-700">
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Reassign Assessor
+                        </Button>
+                        <Button size="sm" variant="outline">
+                          <MessageSquare className="h-4 w-4 mr-2" />
+                          View Comments
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>
