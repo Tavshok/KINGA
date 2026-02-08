@@ -19,6 +19,15 @@ export default function PortalHub() {
 
   const portals = [
     {
+      id: "executive",
+      title: "Executive Dashboard",
+      description: "Strategic insights, KPIs, and decision-making tools",
+      icon: Shield,
+      path: "/executive",
+      color: "from-indigo-600 to-purple-600",
+      roles: ["insurer", "admin"] // Only for executives with insurer role
+    },
+    {
       id: "insurer",
       title: "Insurer Portal",
       description: "Claims management, triage, and fraud analytics",

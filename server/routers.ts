@@ -2230,6 +2230,185 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return await checkGMConsultationRequired(input.claimId);
       }),
   }),
+
+  /**
+   * Executive Analytics
+   * 
+   * Comprehensive analytics and decision-making tools for executives.
+   * Includes KPIs, performance metrics, cost savings, and critical alerts.
+   */
+  executive: router({
+    /**
+     * Global Search
+     * 
+     * Search across all claims by vehicle registration, claim number,
+     * policy number, or insured name.
+     * 
+     * @requires Executive role
+     * @param query - Search query
+     * @returns Matching claims
+     */
+    globalSearch: protectedProcedure
+      .input(z.object({ query: z.string().min(1) }))
+      .query(async ({ input, ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can use global search");
+        }
+        
+        const { globalSearch } = await import("./executive-analytics");
+        return await globalSearch(input.query);
+      }),
+
+    /**
+     * Get Executive KPIs
+     * 
+     * Returns key performance indicators for executive dashboard.
+     * 
+     * @requires Executive role
+     * @returns KPI metrics
+     */
+    getKPIs: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view KPIs");
+        }
+        
+        const { getExecutiveKPIs } = await import("./executive-analytics");
+        return await getExecutiveKPIs();
+      }),
+
+    /**
+     * Get Critical Alerts
+     * 
+     * Returns critical items requiring executive attention.
+     * 
+     * @requires Executive role
+     * @returns Critical alerts
+     */
+    getCriticalAlerts: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view critical alerts");
+        }
+        
+        const { getCriticalAlerts } = await import("./executive-analytics");
+        return await getCriticalAlerts();
+      }),
+
+    /**
+     * Get Assessor Performance
+     * 
+     * Returns performance analytics for all assessors.
+     * 
+     * @requires Executive role
+     * @returns Assessor performance data
+     */
+    getAssessorPerformance: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view assessor performance");
+        }
+        
+        const { getAssessorPerformance } = await import("./executive-analytics");
+        return await getAssessorPerformance();
+      }),
+
+    /**
+     * Get Panel Beater Analytics
+     * 
+     * Returns analytics for panel beater performance.
+     * 
+     * @requires Executive role
+     * @returns Panel beater analytics
+     */
+    getPanelBeaterAnalytics: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view panel beater analytics");
+        }
+        
+        const { getPanelBeaterAnalytics } = await import("./executive-analytics");
+        return await getPanelBeaterAnalytics();
+      }),
+
+    /**
+     * Get Cost Savings Trends
+     * 
+     * Returns cost savings trends over the last 6 months.
+     * 
+     * @requires Executive role
+     * @returns Cost savings trends
+     */
+    getCostSavingsTrends: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view cost savings trends");
+        }
+        
+        const { getCostSavingsTrends } = await import("./executive-analytics");
+        return await getCostSavingsTrends();
+      }),
+
+    /**
+     * Get Workflow Bottlenecks
+     * 
+     * Returns workflow bottleneck analysis.
+     * 
+     * @requires Executive role
+     * @returns Workflow bottleneck data
+     */
+    getWorkflowBottlenecks: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view workflow bottlenecks");
+        }
+        
+        const { getWorkflowBottlenecks } = await import("./executive-analytics");
+        return await getWorkflowBottlenecks();
+      }),
+
+    /**
+     * Get Financial Overview
+     * 
+     * Returns financial overview including payouts, reserves, and fraud prevented.
+     * 
+     * @requires Executive role
+     * @returns Financial overview data
+     */
+    getFinancialOverview: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view financial overview");
+        }
+        
+        const { getFinancialOverview } = await import("./executive-analytics");
+        return await getFinancialOverview();
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

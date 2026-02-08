@@ -29,6 +29,7 @@ import InsurerExternalAssessmentUpload from "@/pages/InsurerExternalAssessmentUp
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 import ClaimDocuments from "./pages/ClaimDocuments";
 import PortalHub from "./pages/PortalHub";
+import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 
 function Router() {
   return (
@@ -41,6 +42,13 @@ function Router() {
       <Route path="/portal-hub">
         <ProtectedRoute allowedRoles={["insurer", "assessor", "panel_beater", "claimant", "admin"]}>
           <PortalHub />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Executive Dashboard */}
+      <Route path="/executive">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ExecutiveDashboard />
         </ProtectedRoute>
       </Route>
       
