@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search } from "lucide-react";
+import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -348,6 +348,15 @@ export default function InsurerClaimsTriage() {
                             >
                               <BarChart3 className="h-3 w-3 mr-1" />
                               Compare
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 px-2"
+                              onClick={() => setLocation(`/insurer/claims/${claim.id}/quote-comparison`)}
+                            >
+                              <DollarSign className="h-3 w-3 mr-1" />
+                              Quotes
                             </Button>
                           </div>
                         </div>

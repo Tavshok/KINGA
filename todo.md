@@ -1930,3 +1930,19 @@
 - [x] Build assessor performance dashboard with freemium gates  
 - [x] Test Toyota Hilux PDF upload end-to-end (11 photos extracted successfully)
 - [x] Generate comprehensive PDF analysis report for Toyota Hilux assessment
+
+
+## Additional Feature Enhancements - IN PROGRESS
+- [x] Integrate quote comparison button into triage workflow
+- [x] Build assessor performance leaderboard with rankings
+- [x] Create admin tier management UI panel
+- [ ] Generate visual graphs for Toyota Hilux report (damage breakdown, cost comparison, fraud gauge, physics diagram)
+- [ ] Enhance report generation system to include dashboard-style visualizations
+
+
+## Automated Graph Generation Integration - COMPLETE
+- [x] Create graph generation service module in backend
+- [x] Integrate graph generation into AI assessment workflow
+- [x] Update comparison view to display generated graphs
+- [x] Regenerate Toyota Hilux report with embedded visualizations
+- [x] Test complete workflow end-to-end

@@ -30,6 +30,8 @@ export const users = mysqlTable("users", {
   performanceScore: int("performance_score").default(70), // 0-100 scale, default 70
   totalAssessmentsCompleted: int("total_assessments_completed").default(0),
   averageVarianceFromFinal: int("average_variance_from_final"), // Percentage variance from final approved cost
+  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default("0.00"), // Accuracy percentage
+  avgCompletionTime: decimal("avg_completion_time", { precision: 6, scale: 2 }).default("0.00"), // Average hours to complete
   
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -143,7 +145,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   repairToValueRatio: int("repair_to_value_ratio"), // Percentage (0-100+)
   totalLossReasoning: text("total_loss_reasoning"), // Explanation for total loss determination
    damagedComponentsJson: text("damaged_components_json"), // Full component list with severity
-  physicsAnalysis: text("physics_analysis"), // Physics-based accident analysis JSONrity
+  physicsAnalysis: text("physics_analysis"), // Physics-based accident analysis JSON
+  graphUrls: text("graph_urls"), // Generated visualization graph URLs (JSON)
   
   // AI model details
   modelVersion: varchar("model_version", { length: 50 }),

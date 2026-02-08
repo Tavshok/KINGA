@@ -1012,6 +1012,40 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           assignedClaims,
         };
       }),
+
+    /**
+     * Get Assessor Leaderboard
+     * 
+     * Returns all assessors ranked by performance score
+     * 
+     * @returns Leaderboard data with rankings
+     */
+    getLeaderboard: protectedProcedure
+      .query(async () => {
+        const { getDb } = await import("./db");
+        const { users } = await import("../drizzle/schema");
+        const { eq, desc } = await import("drizzle-orm");
+
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        // Get all assessors ordered by performance score
+        const assessors = await db
+          .select({
+            id: users.id,
+            name: users.name,
+            tier: users.assessorTier,
+            performanceScore: users.performanceScore,
+            accuracyScore: users.accuracyScore,
+            avgCompletionTime: users.avgCompletionTime,
+            totalAssessments: users.totalAssessmentsCompleted,
+          })
+          .from(users)
+          .where(eq(users.role, "assessor"))
+          .orderBy(desc(users.performanceScore));
+
+        return assessors;
+      }),
   }),
 
   // Assessor Evaluations

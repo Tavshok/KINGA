@@ -476,6 +476,43 @@ export default function InsurerComparisonView() {
                     <p className="text-sm text-muted-foreground">Damage Analysis</p>
                     <p className="text-sm mt-1">{aiAssessment.damageDescription || "N/A"}</p>
                   </div>
+                  
+                  {/* Visualization Graphs */}
+                  {aiAssessment.graphUrls && (() => {
+                    try {
+                      const graphs = JSON.parse(aiAssessment.graphUrls);
+                      if (graphs && Object.keys(graphs).length > 0) {
+                        return (
+                          <>
+                            <Separator />
+                            <div>
+                              <p className="text-sm text-muted-foreground mb-3">Analysis Visualizations</p>
+                              <div className="grid grid-cols-2 gap-2">
+                                {graphs.damageBreakdown && (
+                                  <div className="col-span-2">
+                                    <img src={graphs.damageBreakdown} alt="Damage Breakdown" className="w-full rounded-md border" />
+                                  </div>
+                                )}
+                                {graphs.fraudGauge && (
+                                  <div>
+                                    <img src={graphs.fraudGauge} alt="Fraud Risk" className="w-full rounded-md border" />
+                                  </div>
+                                )}
+                                {graphs.physicsValidation && (
+                                  <div>
+                                    <img src={graphs.physicsValidation} alt="Physics Analysis" className="w-full rounded-md border" />
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        );
+                      }
+                    } catch (e) {
+                      console.error("Failed to parse graph URLs:", e);
+                    }
+                    return null;
+                  })()}
                 </div>
               ) : (
                 <div className="text-center py-8 text-muted-foreground">

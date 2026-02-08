@@ -768,6 +768,50 @@ Provide your response in JSON format.`;
       updatedAt: new Date(),
     }).where(eq(aiAssessments.claimId, claimId));
     
+    // Generate visualization graphs
+    try {
+      const { generateClaimGraphs } = await import("./graph-generation");
+      
+      // Prepare damage components data
+      const damageComponents: Record<string, number> = {};
+      analysis.damagedComponents.forEach((component: any) => {
+        damageComponents[component.name] = component.estimatedCost || 0;
+      });
+      
+      // Generate graphs
+      const graphs = await generateClaimGraphs({
+        claimId,
+        claimNumber: claim.claimNumber,
+        vehicleInfo: {
+          make: claim.vehicleMake || "Unknown",
+          model: claim.vehicleModel || "Unknown",
+          registration: claim.vehicleRegistration || "Unknown",
+        },
+        damageComponents,
+        costComparison: {
+          aiAssessment: analysis.estimatedCost || 0,
+          panelBeaterQuotes: [], // Will be populated when quotes are submitted
+        },
+        fraudRiskScore: combinedFraudScore,
+        physicsData: {
+          impactForceKn: (physicsAnalysis.impactForce?.magnitude || physicsAnalysis.impactForce) as number || 45,
+          estimatedSpeedKmh: ((physicsAnalysis as any).speedEstimate?.estimatedSpeedKmh || (physicsAnalysis as any).estimatedSpeedKmh) || 35,
+          damageSeverity: analysis.structuralDamageSeverity || "moderate",
+        },
+      });
+      
+      // Store graph URLs in AI assessment
+      await db.update(aiAssessments).set({
+        graphUrls: JSON.stringify(graphs),
+        updatedAt: new Date(),
+      }).where(eq(aiAssessments.claimId, claimId));
+      
+      console.log(`[AI Assessment] Generated visualization graphs for claim ${claim.claimNumber}`);
+    } catch (error) {
+      console.error("Graph generation failed:", error);
+      // Continue without graphs if generation fails
+    }
+    
   } catch (error) {
     console.error("Physics analysis failed:", error);
     // Continue without physics analysis if it fails

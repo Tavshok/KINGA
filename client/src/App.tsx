@@ -20,7 +20,9 @@ import InsurerClaimsTriage from "./pages/InsurerClaimsTriage";
 import InsurerClaimDetails from "./pages/InsurerClaimDetails";
 import InsurerComparisonView from "./pages/InsurerComparisonView";
 import InsurerQuoteComparison from "./pages/InsurerQuoteComparison";
-import AssessorPerformanceDashboard from "./pages/AssessorPerformanceDashboard";
+import AssessorPerformanceDashboard from "@/pages/AssessorPerformanceDashboard";
+import AssessorLeaderboard from "@/pages/AssessorLeaderboard";
+import AdminTierManagement from "@/pages/AdminTierManagement";
 import FraudAnalyticsDashboard from "./pages/FraudAnalyticsDashboard";
 import BatchExport from "@/pages/BatchExport";
 import InsurerExternalAssessmentUpload from "@/pages/InsurerExternalAssessmentUpload";
@@ -66,13 +68,11 @@ function Router() {
           <InsurerClaimDetails />
         </ProtectedRoute>
       </Route>
-      
-      <Route path="/insurer/claims/:id/comparison">
+          <Route path="/insurer/claims/:claimId/quote-comparison">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-          <InsurerComparisonView />
+          <InsurerQuoteComparison />
         </ProtectedRoute>
-      </Route>
-      
+      </Route>   
       <Route path="/insurer/quote-optimization/:id">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerQuoteComparison />
@@ -128,6 +128,11 @@ function Router() {
           <AssessorPerformanceDashboard />
         </ProtectedRoute>
       </Route>
+      <Route path="/assessor/leaderboard">
+        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
+          <AssessorLeaderboard />
+        </ProtectedRoute>
+      </Route>
       
       <Route path="/assessor/performance">
         <ProtectedRoute allowedRoles={["assessor", "admin"]}>
@@ -164,6 +169,11 @@ function Router() {
       <Route path="/admin">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/tier-management">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <AdminTierManagement />
         </ProtectedRoute>
       </Route>
       
