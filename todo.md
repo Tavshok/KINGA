@@ -2570,3 +2570,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Document all findings and recommendations
 - [ ] Prioritize improvements by impact
 - [ ] Create checkpoint with test scripts
+
+
+## Rigorous Workflow & UX Testing (2026-02-09)
+- [x] Create comprehensive workflow test script (25 tests covering critical issues)
+- [ ] TEST: PDF upload & processing (timeout issue)
+- [ ] TEST: Assessment results report generation (missing photos, broken visualizations)
+- [ ] TEST: Create claim from assessment (validation error)
+- [ ] TEST: Edit extracted data functionality
+- [ ] TEST: Navigation and back button flow
+- [ ] TEST: Python integration - image extraction
+- [ ] TEST: Python integration - physics validation
+- [ ] TEST: Python integration - fraud detection
+- [ ] TEST: LLM integration - data extraction accuracy
+- [ ] TEST: Error handling (large files, corrupted PDFs, invalid types)
+- [ ] TEST: Loading states and progress indicators
+- [ ] TEST: Mobile responsiveness
+- [ ] TEST: Browser compatibility (Chrome, Firefox, Safari, Edge)
+- [ ] TEST: End-to-end claim lifecycle scenario
+- [ ] Document all issues found with severity ratings
+- [ ] Create prioritized fix list based on test results
