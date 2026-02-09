@@ -5,14 +5,19 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   CheckCircle2, FileText, Car, DollarSign, AlertTriangle, Loader2, 
   Edit3, Save, X, ZoomIn, Shield, Activity, TrendingUp, AlertCircle,
-  Brain, Gauge, Target
+  Brain, Gauge, Target, Download, FileDown
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
+import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
+import { FraudRiskRadarChart } from "@/components/FraudRiskRadarChart";
+import { CostBreakdownChart } from "@/components/CostBreakdownChart";
 
 interface ExtractedData {
   vehicleMake?: string;
@@ -42,6 +47,7 @@ export default function AssessmentResults() {
   const [editedData, setEditedData] = useState<ExtractedData>({});
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [damageSections, setDamageSections] = useState<DamageSection[]>([]);
+  const [damagedComponents, setDamagedComponents] = useState<string[]>([]);
   
   // Load data from sessionStorage on mount
   useEffect(() => {
@@ -74,9 +80,10 @@ export default function AssessmentResults() {
   // Parse damage description into structured sections
   const parseDamageDescription = (description: string) => {
     const sections: DamageSection[] = [];
+    const components: string[] = [];
     
     // Common vehicle components to look for
-    const components = [
+    const componentKeywords = [
       'front bumper', 'rear bumper', 'hood', 'bonnet', 'fender', 'door', 
       'windshield', 'windscreen', 'headlight', 'taillight', 'mirror', 
       'roof', 'trunk', 'boot', 'quarter panel', 'grille', 'wheel'
@@ -89,7 +96,7 @@ export default function AssessmentResults() {
       const lowerLine = line.toLowerCase();
       
       // Find matching component
-      const matchedComponent = components.find(comp => lowerLine.includes(comp));
+      const matchedComponent = componentKeywords.find(comp => lowerLine.includes(comp));
       
       if (matchedComponent) {
         // Determine severity based on keywords
@@ -106,6 +113,8 @@ export default function AssessmentResults() {
           description: line.trim(),
           severity
         });
+        
+        components.push(matchedComponent);
       }
     });
     
@@ -116,9 +125,11 @@ export default function AssessmentResults() {
         description: description,
         severity: 'moderate'
       });
+      components.push('general damage');
     }
     
     setDamageSections(sections);
+    setDamagedComponents(components);
   };
 
   // Create claim mutation
@@ -189,6 +200,12 @@ export default function AssessmentResults() {
     setIsEditing(false);
   };
 
+  const handleExportReport = () => {
+    toast.info("PDF Export", {
+      description: "Report export functionality coming soon"
+    });
+  };
+
   const getSeverityColor = (severity: 'minor' | 'moderate' | 'severe') => {
     switch (severity) {
       case 'minor': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
@@ -197,10 +214,36 @@ export default function AssessmentResults() {
     }
   };
 
-  const getConfidenceColor = (confidence: number) => {
-    if (confidence >= 90) return 'text-green-600';
-    if (confidence >= 70) return 'text-yellow-600';
-    return 'text-orange-600';
+  // Mock data for visualizations (will be replaced with real AI analysis)
+  const mockPhysicsData = {
+    impactSpeed: 45,
+    impactForce: 125,
+    energyDissipated: 85,
+    deceleration: 3.2,
+    damageConsistency: 'consistent' as const,
+    physicsScore: 88
+  };
+
+  const mockFraudData = {
+    indicators: {
+      claimHistory: 2,
+      damageConsistency: 3,
+      documentAuthenticity: 2,
+      behavioralPatterns: 3,
+      ownershipVerification: 2,
+      geographicRisk: 4
+    },
+    overallRisk: 'low' as const,
+    riskScore: 25,
+    flaggedIssues: []
+  };
+
+  const mockCostBreakdown = {
+    labor: extractedData?.estimatedCost ? extractedData.estimatedCost * 0.4 : 2000,
+    parts: extractedData?.estimatedCost ? extractedData.estimatedCost * 0.45 : 2250,
+    materials: extractedData?.estimatedCost ? extractedData.estimatedCost * 0.10 : 500,
+    other: extractedData?.estimatedCost ? extractedData.estimatedCost * 0.05 : 250,
+    total: extractedData?.estimatedCost || 5000
   };
 
   // Show loading state while data is being loaded
@@ -217,8 +260,8 @@ export default function AssessmentResults() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Success Header */}
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
             <CheckCircle2 className="w-8 h-8 text-green-600" />
@@ -230,8 +273,8 @@ export default function AssessmentResults() {
             AI has successfully extracted and analyzed the assessment document
           </p>
           
-          {/* Edit Mode Toggle */}
-          <div className="mt-4">
+          {/* Action Buttons */}
+          <div className="mt-4 flex gap-2 justify-center flex-wrap">
             {!isEditing ? (
               <Button
                 onClick={() => setIsEditing(true)}
@@ -240,10 +283,10 @@ export default function AssessmentResults() {
                 className="gap-2"
               >
                 <Edit3 className="w-4 h-4" />
-                Edit Extracted Data
+                Edit Data
               </Button>
             ) : (
-              <div className="flex gap-2 justify-center">
+              <>
                 <Button
                   onClick={handleSaveEdits}
                   size="sm"
@@ -261,101 +304,160 @@ export default function AssessmentResults() {
                   <X className="w-4 h-4" />
                   Cancel
                 </Button>
-              </div>
+              </>
             )}
+            <Button
+              onClick={handleExportReport}
+              variant="outline"
+              size="sm"
+              className="gap-2"
+            >
+              <FileDown className="w-4 h-4" />
+              Export PDF
+            </Button>
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-3 gap-6 mb-8">
-          {/* Left Column - Main Data */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Vehicle Information */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Car className="w-5 h-5 text-blue-600" />
-                  </div>
-                  <h2 className="text-xl font-semibold">Vehicle Information</h2>
-                </div>
-                <Badge variant="outline" className="gap-1">
-                  <Target className="w-3 h-3" />
-                  95% Confidence
-                </Badge>
-              </div>
-              
-              {!isEditing ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Make & Model</p>
-                    <p className="font-medium">
-                      {extractedData.vehicleMake} {extractedData.vehicleModel}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Year</p>
-                    <p className="font-medium">{extractedData.vehicleYear || "N/A"}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Registration</p>
-                    <p className="font-medium">
-                      {extractedData.vehicleRegistration || extractedData.registration || "N/A"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Claimant</p>
-                    <p className="font-medium">{extractedData.claimantName || "N/A"}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm text-gray-500 block mb-1">Make</label>
-                    <Input
-                      value={editedData.vehicleMake || ""}
-                      onChange={(e) => setEditedData({...editedData, vehicleMake: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500 block mb-1">Model</label>
-                    <Input
-                      value={editedData.vehicleModel || ""}
-                      onChange={(e) => setEditedData({...editedData, vehicleModel: e.target.value})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500 block mb-1">Year</label>
-                    <Input
-                      type="number"
-                      value={editedData.vehicleYear || ""}
-                      onChange={(e) => setEditedData({...editedData, vehicleYear: parseInt(e.target.value)})}
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm text-gray-500 block mb-1">Registration</label>
-                    <Input
-                      value={editedData.vehicleRegistration || editedData.registration || ""}
-                      onChange={(e) => setEditedData({...editedData, vehicleRegistration: e.target.value})}
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-sm text-gray-500 block mb-1">Claimant Name</label>
-                    <Input
-                      value={editedData.claimantName || ""}
-                      onChange={(e) => setEditedData({...editedData, claimantName: e.target.value})}
-                    />
-                  </div>
-                </div>
-              )}
-            </Card>
+        {/* Tabbed Content */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-5 mb-8">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="damage">Damage Analysis</TabsTrigger>
+            <TabsTrigger value="physics">Physics</TabsTrigger>
+            <TabsTrigger value="fraud">Fraud Risk</TabsTrigger>
+            <TabsTrigger value="cost">Cost Breakdown</TabsTrigger>
+          </TabsList>
 
-            {/* Structured Damage Breakdown */}
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Vehicle Information */}
+              <Card className="p-6 lg:col-span-2">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Car className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <h2 className="text-xl font-semibold">Vehicle Information</h2>
+                  </div>
+                  <Badge variant="outline" className="gap-1">
+                    <Target className="w-3 h-3" />
+                    95% Confidence
+                  </Badge>
+                </div>
+                
+                {!isEditing ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-gray-500">Make & Model</p>
+                      <p className="font-medium">
+                        {extractedData.vehicleMake} {extractedData.vehicleModel}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Year</p>
+                      <p className="font-medium">{extractedData.vehicleYear || "N/A"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Registration</p>
+                      <p className="font-medium">
+                        {extractedData.vehicleRegistration || extractedData.registration || "N/A"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-500">Claimant</p>
+                      <p className="font-medium">{extractedData.claimantName || "N/A"}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm text-gray-500 block mb-1">Make</label>
+                      <Input
+                        value={editedData.vehicleMake || ""}
+                        onChange={(e) => setEditedData({...editedData, vehicleMake: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500 block mb-1">Model</label>
+                      <Input
+                        value={editedData.vehicleModel || ""}
+                        onChange={(e) => setEditedData({...editedData, vehicleModel: e.target.value})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500 block mb-1">Year</label>
+                      <Input
+                        type="number"
+                        value={editedData.vehicleYear || ""}
+                        onChange={(e) => setEditedData({...editedData, vehicleYear: parseInt(e.target.value)})}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-500 block mb-1">Registration</label>
+                      <Input
+                        value={editedData.vehicleRegistration || editedData.registration || ""}
+                        onChange={(e) => setEditedData({...editedData, vehicleRegistration: e.target.value})}
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="text-sm text-gray-500 block mb-1">Claimant Name</label>
+                      <Input
+                        value={editedData.claimantName || ""}
+                        onChange={(e) => setEditedData({...editedData, claimantName: e.target.value})}
+                      />
+                    </div>
+                  </div>
+                )}
+              </Card>
+
+              {/* AI Confidence Score */}
+              <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Brain className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <h3 className="font-semibold">AI Analysis</h3>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-gray-600">Overall Confidence</span>
+                      <span className="text-sm font-semibold text-green-600">92%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{width: '92%'}}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-gray-600">Data Extraction</span>
+                      <span className="text-sm font-semibold text-green-600">95%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-green-600 h-2 rounded-full" style={{width: '95%'}}></div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-gray-600">Cost Estimation</span>
+                      <span className="text-sm font-semibold text-yellow-600">85%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="bg-yellow-600 h-2 rounded-full" style={{width: '85%'}}></div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            </div>
+
+            {/* Damage Summary */}
             <Card className="p-6">
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <AlertTriangle className="w-5 h-5 text-orange-600" />
                 </div>
-                <h2 className="text-xl font-semibold">Damage Assessment</h2>
+                <h2 className="text-xl font-semibold">Damage Summary</h2>
               </div>
               
               {!isEditing ? (
@@ -421,7 +523,7 @@ export default function AssessmentResults() {
               )}
             </Card>
 
-            {/* Extracted Photos */}
+            {/* Damage Photos */}
             {extractedData.damagePhotos && extractedData.damagePhotos.length > 0 && (
               <Card className="p-6">
                 <div className="flex items-center gap-3 mb-4">
@@ -458,131 +560,34 @@ export default function AssessmentResults() {
                 </div>
               </Card>
             )}
-          </div>
+          </TabsContent>
 
-          {/* Right Column - AI Analysis */}
-          <div className="space-y-6">
-            {/* AI Confidence Score */}
-            <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-blue-100 rounded-lg">
-                  <Brain className="w-5 h-5 text-blue-600" />
-                </div>
-                <h3 className="font-semibold">AI Analysis</h3>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-gray-600">Overall Confidence</span>
-                    <span className="text-sm font-semibold text-green-600">92%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-600 h-2 rounded-full" style={{width: '92%'}}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-gray-600">Data Extraction</span>
-                    <span className="text-sm font-semibold text-green-600">95%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-green-600 h-2 rounded-full" style={{width: '95%'}}></div>
-                  </div>
-                </div>
-                <div>
-                  <div className="flex justify-between mb-1">
-                    <span className="text-sm text-gray-600">Cost Estimation</span>
-                    <span className="text-sm font-semibold text-yellow-600">85%</span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div className="bg-yellow-600 h-2 rounded-full" style={{width: '85%'}}></div>
-                  </div>
-                </div>
-              </div>
-            </Card>
+          {/* Damage Analysis Tab */}
+          <TabsContent value="damage">
+            <VehicleDamageVisualization 
+              damagedComponents={damagedComponents}
+              estimatedCost={extractedData.estimatedCost}
+            />
+          </TabsContent>
 
-            {/* Fraud Risk Indicator */}
-            <Card className="p-6 bg-gradient-to-br from-green-50 to-emerald-50">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-green-100 rounded-lg">
-                  <Shield className="w-5 h-5 text-green-600" />
-                </div>
-                <h3 className="font-semibold">Fraud Risk</h3>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-600 mb-2">LOW</div>
-                <p className="text-sm text-gray-600">
-                  No suspicious patterns detected
-                </p>
-              </div>
-              <div className="mt-4 space-y-2">
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span>Damage consistent with incident</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span>Photos appear authentic</span>
-                </div>
-                <div className="flex items-center gap-2 text-sm">
-                  <CheckCircle2 className="w-4 h-4 text-green-600" />
-                  <span>Cost estimate reasonable</span>
-                </div>
-              </div>
-            </Card>
+          {/* Physics Tab */}
+          <TabsContent value="physics">
+            <PhysicsAnalysisChart data={mockPhysicsData} />
+          </TabsContent>
 
-            {/* Physics Validation */}
-            <Card className="p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-2 bg-purple-100 rounded-lg">
-                  <Activity className="w-5 h-5 text-purple-600" />
-                </div>
-                <h3 className="font-semibold">Physics Validation</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Damage Pattern</span>
-                  <Badge className="bg-green-100 text-green-800">Valid</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Impact Analysis</span>
-                  <Badge className="bg-green-100 text-green-800">Consistent</Badge>
-                </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Severity Match</span>
-                  <Badge className="bg-green-100 text-green-800">Confirmed</Badge>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 mt-4">
-                Full physics analysis will be performed when claim is created
-              </p>
-            </Card>
+          {/* Fraud Risk Tab */}
+          <TabsContent value="fraud">
+            <FraudRiskRadarChart {...mockFraudData} />
+          </TabsContent>
 
-            {/* Original Document */}
-            {extractedData.pdfUrl && (
-              <Card className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-purple-100 rounded-lg">
-                    <FileText className="w-5 h-5 text-purple-600" />
-                  </div>
-                  <h3 className="font-semibold">Source Document</h3>
-                </div>
-                <a
-                  href={extractedData.pdfUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline text-sm flex items-center gap-2"
-                >
-                  <FileText className="w-4 h-4" />
-                  View Original PDF →
-                </a>
-              </Card>
-            )}
-          </div>
-        </div>
+          {/* Cost Breakdown Tab */}
+          <TabsContent value="cost">
+            <CostBreakdownChart breakdown={mockCostBreakdown} />
+          </TabsContent>
+        </Tabs>
 
         {/* Action Buttons */}
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center mt-8">
           <Button
             onClick={handleCreateClaim}
             size="lg"
