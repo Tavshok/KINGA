@@ -1,0 +1,163 @@
+{
+  "summary": {
+    "total": 16,
+    "passed": 15,
+    "failed": 1,
+    "pass_rate": 93.75
+  },
+  "results": [
+    {
+      "test": "KE Test 1",
+      "mass": 1500,
+      "velocity": 40,
+      "expected": 92592,
+      "calculated": 92592.59,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "KE Test 2",
+      "mass": 1500,
+      "velocity": 60,
+      "expected": 208417,
+      "calculated": 208333.33,
+      "variance": 0.04,
+      "status": "PASS"
+    },
+    {
+      "test": "KE Test 3",
+      "mass": 1500,
+      "velocity": 100,
+      "expected": 578700,
+      "calculated": 578703.7,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "KE Test 4",
+      "mass": 2000,
+      "velocity": 50,
+      "expected": 193210,
+      "calculated": 192901.23,
+      "variance": 0.16,
+      "status": "PASS"
+    },
+    {
+      "test": "KE Test 5",
+      "mass": 1200,
+      "velocity": 80,
+      "expected": 296296,
+      "calculated": 296296.3,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "Force Test 1",
+      "mass": 1500,
+      "deceleration": 166.7,
+      "expected": 250050,
+      "calculated": 250050.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "Force Test 2",
+      "mass": 1500,
+      "deceleration": 185.2,
+      "expected": 277800,
+      "calculated": 277800.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "Force Test 3",
+      "mass": 2000,
+      "deceleration": 69.45,
+      "expected": 138900,
+      "calculated": 138900.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "G-Force Test 1",
+      "acceleration": 98.1,
+      "expected": 10,
+      "calculated": 10.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "G-Force Test 2",
+      "acceleration": 196.2,
+      "expected": 20,
+      "calculated": 20.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "G-Force Test 3",
+      "acceleration": 294.3,
+      "expected": 30,
+      "calculated": 30.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "G-Force Test 4",
+      "acceleration": 490.5,
+      "expected": 50,
+      "calculated": 50.0,
+      "variance": 0.0,
+      "status": "PASS"
+    },
+    {
+      "test": "Damage Pattern Test 1",
+      "name": "Rear-End Collision - Inconsistent",
+      "accident_type": "rear_end",
+      "damage_locations": [
+        "front_bumper",
+        "hood"
+      ],
+      "expected": "impossible",
+      "calculated": "impossible",
+      "status": "PASS"
+    },
+    {
+      "test": "Damage Pattern Test 2",
+      "name": "Head-On Collision - Consistent",
+      "accident_type": "head_on",
+      "damage_locations": [
+        "front_bumper",
+        "hood",
+        "radiator"
+      ],
+      "expected": "consistent",
+      "calculated": "consistent",
+      "status": "PASS"
+    },
+    {
+      "test": "Damage Pattern Test 3",
+      "name": "Side Impact - Consistent",
+      "accident_type": "side_impact",
+      "damage_locations": [
+        "driver_door",
+        "b_pillar"
+      ],
+      "expected": "consistent",
+      "calculated": "consistent",
+      "status": "PASS"
+    },
+    {
+      "test": "Damage Pattern Test 4",
+      "name": "Low-Speed - Exaggerated",
+      "accident_type": "parking_lot",
+      "damage_locations": [
+        "frame",
+        "structural"
+      ],
+      "expected": "inconsistent",
+      "calculated": "impossible",
+      "status": "FAIL"
+    }
+  ]
+}

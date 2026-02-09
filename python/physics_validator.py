@@ -89,6 +89,24 @@ class PhysicsValidator:
             )
         
         # 3. Validate damage location vs accident type
+        # Map specific components to general locations
+        def normalize_location(loc):
+            loc_lower = loc.lower()
+            if any(x in loc_lower for x in ['front', 'bumper', 'hood', 'radiator', 'grille', 'headlight']):
+                return 'front'
+            elif any(x in loc_lower for x in ['rear', 'trunk', 'taillight', 'back']):
+                return 'rear'
+            elif any(x in loc_lower for x in ['left', 'driver']):
+                return 'left_side'
+            elif any(x in loc_lower for x in ['right', 'passenger']):
+                return 'right_side'
+            elif any(x in loc_lower for x in ['roof', 'top']):
+                return 'roof'
+            else:
+                return loc_lower
+        
+        normalized_damage_locs = [normalize_location(loc) for loc in damage_locations]
+        
         expected_damage_locations = {
             "rear_end": ["rear"],
             "side_impact": ["left_side", "right_side"],
@@ -98,7 +116,7 @@ class PhysicsValidator:
         }
         
         expected_locs = expected_damage_locations.get(accident_type, [])
-        if expected_locs and not any(loc in damage_locations for loc in expected_locs):
+        if expected_locs and not any(loc in normalized_damage_locs for loc in expected_locs):
             flags.append(
                 f"IMPOSSIBLE DAMAGE PATTERN: {accident_type} accident reported, "
                 f"but damage at {damage_locations}. Expected damage at {expected_locs}"
@@ -155,9 +173,19 @@ class PhysicsValidator:
             if g_force > 20:
                 recommendations.append("Verify medical records for occupant injuries")
         
+        # 9. Determine damage consistency status
+        damage_consistency = "consistent"
+        if any("IMPOSSIBLE" in flag for flag in flags):
+            damage_consistency = "impossible"
+        elif any("MISMATCH" in flag or "UNUSUAL" in flag for flag in flags):
+            damage_consistency = "inconsistent"
+        elif not is_valid:
+            damage_consistency = "questionable"
+        
         return {
             "is_valid": is_valid,
             "confidence": confidence,
+            "damageConsistency": damage_consistency,
             "flags": flags,
             "physics_analysis": physics_analysis,
             "recommendations": recommendations,
