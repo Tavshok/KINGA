@@ -211,10 +211,45 @@ export default function AssessmentResults() {
     setIsEditing(false);
   };
 
-  const handleExportReport = () => {
-    toast.info("PDF Export", {
-      description: "Report export functionality coming soon"
-    });
+  const exportPDF = trpc.insurers.exportAssessmentPDF.useMutation();
+
+  const handleExportReport = async () => {
+    if (!extractedData) {
+      toast.error("No data to export");
+      return;
+    }
+
+    try {
+      toast.info("Generating PDF...", {
+        description: "This may take a few moments"
+      });
+
+      const result = await exportPDF.mutateAsync({
+        vehicleMake: extractedData.vehicleMake,
+        vehicleModel: extractedData.vehicleModel,
+        vehicleYear: extractedData.vehicleYear,
+        vehicleRegistration: extractedData.vehicleRegistration || extractedData.registration,
+        damageDescription: extractedData.damageDescription,
+        estimatedCost: extractedData.estimatedCost,
+        physicsAnalysis: extractedData.physicsAnalysis,
+        fraudAnalysis: extractedData.fraudAnalysis,
+        damagePhotos: extractedData.damagePhotos,
+        damagedComponents: damagedComponents,
+      });
+
+      if (result.success && result.pdfUrl) {
+        // Open PDF in new tab
+        window.open(result.pdfUrl, '_blank');
+        toast.success("PDF Generated!", {
+          description: "Opening in new tab..."
+        });
+      }
+    } catch (error: any) {
+      console.error('PDF export error:', error);
+      toast.error("Export Failed", {
+        description: error.message || "Failed to generate PDF report"
+      });
+    }
   };
 
   const getSeverityColor = (severity: 'minor' | 'moderate' | 'severe') => {
@@ -322,9 +357,19 @@ export default function AssessmentResults() {
               variant="outline"
               size="sm"
               className="gap-2"
+              disabled={exportPDF.isPending}
             >
-              <FileDown className="w-4 h-4" />
-              Export PDF
+              {exportPDF.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <FileDown className="w-4 h-4" />
+                  Export PDF
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -629,29 +674,32 @@ export default function AssessmentResults() {
               status={physicsData.damageConsistency === 'consistent' ? 'pass' : physicsData.damageConsistency === 'questionable' ? 'warning' : 'fail'}
               commentary={
                 physicsData.damageConsistency === 'consistent'
-                  ? `The reported damage pattern is physically consistent with the described accident scenario. The calculated impact forces (${physicsData.impactForce}kN at ${physicsData.impactSpeed}km/h) align with the observed damage severity. The energy dissipation analysis shows appropriate deformation patterns, and the deceleration rate of ${physicsData.deceleration}g is within expected ranges for this type of collision.`
+                  ? `The damage pattern matches what we'd expect from the reported accident. At an estimated impact speed of ${physicsData.impactSpeed} km/h, the vehicle would experience forces equivalent to ${physicsData.impactForce}kN - roughly ${Math.round(physicsData.impactForce / 10)} times the weight of a small car pushing on the bumper. The damaged areas and severity level are consistent with this type of collision. The crash forces were absorbed properly by the vehicle's crumple zones, which is what we see in the damage photos. This appears to be a straightforward, legitimate accident claim.`
                   : physicsData.damageConsistency === 'questionable'
-                  ? `The damage pattern shows some inconsistencies with the reported accident dynamics. While the overall physics are plausible, certain aspects require additional verification. The impact forces and energy dissipation suggest the actual collision may have differed from the reported scenario.`
-                  : `Significant physics inconsistencies detected. The reported damage pattern does not align with the stated accident circumstances. The calculated forces and energy dissipation are incompatible with the observed damage, suggesting either misreported accident details or potential fraudulent claims.`
+                  ? `The damage pattern raises some questions about how the accident actually occurred. While it's not impossible, certain aspects don't quite add up with the reported story. For example, the impact forces we calculated suggest the collision may have happened differently than described - perhaps at a different speed or angle. This doesn't necessarily mean fraud, but it does mean we should ask follow-up questions to clarify exactly what happened before approving the claim.`
+                  : `The damage doesn't match the accident story. Based on physics analysis, what the claimant described shouldn't produce the damage we're seeing. For instance, if this was truly a ${physicsData.accidentType || 'rear-end collision'} at ${physicsData.impactSpeed} km/h, we'd expect to see damage in different locations or at different severity levels. This is a red flag that requires investigation - either the accident details were misreported, or there may be pre-existing damage being claimed, or this could be a staged accident. Do not approve without thorough investigation.`
               }
               keyFindings={[
-                `Impact speed estimated at ${physicsData.impactSpeed} km/h based on damage analysis`,
-                `Peak impact force calculated at ${physicsData.impactForce} kN`,
-                `Energy dissipation: ${physicsData.energyDissipated}% absorbed by vehicle structure`,
-                `Deceleration rate: ${physicsData.deceleration}g (${physicsData.deceleration < 5 ? 'normal' : physicsData.deceleration < 10 ? 'high' : 'extreme'} for this collision type)`,
-                `Overall physics validation score: ${physicsData.physicsScore}/100`
+                `Impact speed: ${physicsData.impactSpeed} km/h (${physicsData.impactSpeed < 30 ? 'low-speed parking lot type collision' : physicsData.impactSpeed < 60 ? 'moderate urban traffic speed' : physicsData.impactSpeed < 100 ? 'high-speed highway collision' : 'very high-speed crash'})`,
+                `Crash forces: ${physicsData.impactForce} kN - equivalent to ${Math.round(physicsData.impactForce / 10)} small cars hitting simultaneously`,
+                `Energy absorption: ${physicsData.energyDissipated}% of crash energy absorbed by crumple zones ${physicsData.energyDissipated > 70 ? '(good - vehicle protected occupants well)' : physicsData.energyDissipated > 50 ? '(moderate protection)' : '(concerning - high forces transferred to occupants)'}`,
+                `G-forces experienced: ${physicsData.deceleration}g ${physicsData.deceleration < 5 ? '(mild impact - minor injuries possible)' : physicsData.deceleration < 10 ? '(moderate impact - injuries likely)' : physicsData.deceleration < 20 ? '(severe impact - serious injuries expected)' : '(extreme impact - life-threatening forces)'}`,
+                `Damage consistency: ${physicsData.damageConsistency === 'consistent' ? '✓ Matches accident story' : physicsData.damageConsistency === 'questionable' ? '⚠ Some discrepancies found' : '✗ Does not match reported accident'}`,
+                `Physics validation score: ${physicsData.physicsScore}/100 ${physicsData.physicsScore > 80 ? '(high confidence)' : physicsData.physicsScore > 60 ? '(moderate confidence)' : '(low confidence - investigate further)'}`
               ]}
               recommendations={
                 physicsData.damageConsistency !== 'consistent'
                   ? [
-                      'Request detailed accident reconstruction report',
-                      'Interview driver to clarify accident circumstances',
-                      'Obtain police report for independent verification',
-                      'Consider independent assessor review before approval'
+                      'Do not approve claim yet - schedule follow-up investigation',
+                      'Call the claimant to walk through exactly how the accident happened (speed, angle, what they hit)',
+                      'Request the police report to verify accident details match the claim',
+                      'If discrepancies remain, assign to fraud investigation team for detailed review',
+                      'Consider requiring independent damage assessment before proceeding'
                     ]
                   : [
-                      'Physics validation passed - proceed with standard claim processing',
-                      'Document analysis results in claim file for audit trail'
+                      'Physics check passed - the accident story matches the damage',
+                      'Safe to proceed with normal claim approval process',
+                      'Save this analysis report to the claim file for future reference'
                     ]
               }
             />

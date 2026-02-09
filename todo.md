@@ -2590,3 +2590,24 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] TEST: End-to-end claim lifecycle scenario
 - [ ] Document all issues found with severity ratings
 - [ ] Create prioritized fix list based on test results
+
+
+## Enhanced Reporting & Testing (2026-02-09)
+- [x] Improve physics commentary for non-technical insurance adjusters
+- [x] Make force calculations explanation more accessible
+- [x] Enhance damage consistency findings with clear language
+- [x] Add context to G-force and energy dissipation metrics
+- [x] Implement server-side PDF export for assessment reports
+- [x] Include all visualizations in PDF export (HTML tables and formatted data)
+- [x] Include AI commentary in PDF export
+- [x] Add professional formatting to exported PDFs
+- [x] Install wkhtmltopdf for PDF generation
+- [x] Add Export PDF button to AssessmentResults page
+- [x] Add loading state to PDF export button
+- [ ] Execute workflow test with real external assessment PDF
+- [ ] Verify PDF upload completes without timeout
+- [ ] Verify all images extracted and displayed
+- [ ] Verify physics and fraud analysis running correctly
+- [ ] Verify report generation with all visualizations
+- [ ] Document test results and any issues found
+- [ ] Create final checkpoint with tested enhancements

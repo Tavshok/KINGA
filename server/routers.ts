@@ -52,6 +52,7 @@ import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmit
 import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor";
+import { exportAssessmentPDF } from "./pdf-export";
 
 export const appRouter = router({
   system: systemRouter,
@@ -78,6 +79,9 @@ export const appRouter = router({
           throw new Error(`Failed to process assessment: ${error.message || 'Unknown error'}`);
         }
       }),
+
+    // Export assessment report as PDF
+    exportAssessmentPDF,
 
     /**
      * Get Cost Optimization Analysis
