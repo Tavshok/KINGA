@@ -2515,3 +2515,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Restart server with improved error handling
 - [ ] TEST (User): Upload real PDF document to verify fix
 - [ ] Create checkpoint after successful test
+
+
+## Timeout Fix (2026-02-09)
+- [x] Increase tRPC client timeout for PDF upload (5 minutes)
+- [x] Add timeout configuration to Python script execution (2 minutes for image extraction, 1 minute for AI analysis)
+- [x] Add abort controller to fetch requests
+- [x] Restart server with timeout changes
+- [ ] TEST (User): Upload real PDF to verify timeout fix
+- [ ] Create checkpoint after successful test

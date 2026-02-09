@@ -212,9 +212,15 @@ export async function processExternalAssessment(
 }
 
 // Helper function to run Python script with arguments
-function runPythonScript(scriptPath: string, args: string[] = []): Promise<any> {
+function runPythonScript(scriptPath: string, args: string[] = [], timeoutMs: number = 120000): Promise<any> {
   return new Promise((resolve, reject) => {
     const pythonProcess = spawn('python3', [scriptPath, ...args]);
+    
+    // Set timeout for Python script execution
+    const timeout = setTimeout(() => {
+      pythonProcess.kill();
+      reject(new Error(`Python script timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
 
     let output = '';
     let error = '';
@@ -228,6 +234,8 @@ function runPythonScript(scriptPath: string, args: string[] = []): Promise<any> 
     });
 
     pythonProcess.on('close', (code) => {
+      clearTimeout(timeout);
+      
       if (code !== 0) {
         console.error(`Python script error: ${error}`);
         reject(new Error(`Python script failed with code ${code}: ${error}`));
@@ -246,9 +254,15 @@ function runPythonScript(scriptPath: string, args: string[] = []): Promise<any> 
 }
 
 // Helper function to run Python script with stdin input
-function runPythonScriptWithInput(scriptPath: string, input: any): Promise<any> {
+function runPythonScriptWithInput(scriptPath: string, input: any, timeoutMs: number = 60000): Promise<any> {
   return new Promise((resolve, reject) => {
     const pythonProcess = spawn('python3', [scriptPath]);
+    
+    // Set timeout for Python script execution
+    const timeout = setTimeout(() => {
+      pythonProcess.kill();
+      reject(new Error(`Python script timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
 
     let output = '';
     let error = '';
@@ -265,6 +279,8 @@ function runPythonScriptWithInput(scriptPath: string, input: any): Promise<any> 
     pythonProcess.stdin.end();
 
     pythonProcess.on('close', (code) => {
+      clearTimeout(timeout);
+      
       if (code !== 0) {
         console.error(`Python script error: ${error}`);
         // Don't reject - return empty result instead
