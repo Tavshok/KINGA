@@ -35,6 +35,8 @@ import InternalAssessorDashboard from "./pages/InternalAssessorDashboard";
 import RiskManagerDashboard from "./pages/RiskManagerDashboard";
 import ClaimsManagerDashboard from "./pages/ClaimsManagerDashboard";
 import AssessmentResults from "./pages/AssessmentResults";
+import NewAssessmentUpload from "./pages/NewAssessmentUpload";
+import SimpleUpload from "./pages/SimpleUpload";
 
 function Router() {
   return (
@@ -47,6 +49,20 @@ function Router() {
       <Route path="/assessment-results">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <AssessmentResults />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* New Assessment Upload (Debug) */}
+      <Route path="/new-upload">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <NewAssessmentUpload />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Simple Upload (NEW SYSTEM) */}
+      <Route path="/simple-upload">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <SimpleUpload />
         </ProtectedRoute>
       </Route>
       

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Extraction Data</title>
+    <style>
+        body { font-family: Arial; padding: 20px; }
+        .result { background: #f0f0f0; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        pre { background: #fff; padding: 10px; border: 1px solid #ccc; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>Extraction Data Test</h1>
+    
+    <button onclick="testDebugEndpoint()">Test Debug Endpoint (Mock Data)</button>
+    <button onclick="testRealUpload()">Test Real Upload</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        async function testDebugEndpoint() {
+            const resultsDiv = document.getElementById('results');
+            resultsDiv.innerHTML = '<p>Testing debug endpoint...</p>';
+            
+            try {
+                const response = await fetch('/api/debug/test-extraction');
+                const data = await response.json();
+                
+                resultsDiv.innerHTML = `
+                    <div class="result">
+                        <h2 class="success">✅ Debug Endpoint Success</h2>
+                        <p><strong>Vehicle Make:</strong> ${data.vehicleMake}</p>
+                        <p><strong>Vehicle Model:</strong> ${data.vehicleModel}</p>
+                        <p><strong>Year:</strong> ${data.vehicleYear}</p>
+                        <p><strong>Registration:</strong> ${data.vehicleRegistration}</p>
+                        <p><strong>Claimant:</strong> ${data.claimantName}</p>
+                        <h3>Full Response:</h3>
+                        <pre>${JSON.stringify(data, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="result"><h2 class="error">❌ Error</h2><p>${error.message}</p></div>`;
+            }
+        }
+        
+        async function testRealUpload() {
+            alert('Please use the main upload page for real PDF testing');
+        }
+    </script>
+</body>
+</html>

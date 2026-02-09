@@ -147,6 +147,13 @@ export default function InsurerDashboard() {
                   Upload External Assessment
                 </Button>
                 <Button 
+                  variant="outline"
+                  onClick={() => setLocation("/new-upload")}
+                >
+                  <Upload className="mr-2 h-4 w-4" />
+                  Debug Upload (Test)
+                </Button>
+                <Button 
                   variant="secondary"
                   onClick={() => setLocation("/insurer/fraud-analytics")}
                 >

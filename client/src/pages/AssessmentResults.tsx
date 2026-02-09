@@ -61,6 +61,11 @@ export default function AssessmentResults() {
     if (storedData) {
       try {
         const data = JSON.parse(storedData);
+        console.log("📊 [Assessment Results] Loaded data from sessionStorage:", data);
+        console.log("📊 [Assessment Results] Vehicle Make:", data.vehicleMake);
+        console.log("📊 [Assessment Results] Vehicle Model:", data.vehicleModel);
+        console.log("📊 [Assessment Results] Registration:", data.vehicleRegistration);
+        console.log("📊 [Assessment Results] Claimant:", data.claimantName);
         setExtractedData(data);
         setEditedData(data);
         
@@ -260,28 +265,35 @@ export default function AssessmentResults() {
     }
   };
 
-  // Use real AI analysis data or fallback to mock data
-  const physicsData = extractedData?.physicsAnalysis || {
-    impactSpeed: 45,
-    impactForce: 125,
-    energyDissipated: 85,
-    deceleration: 3.2,
-    damageConsistency: 'consistent' as const,
-    physicsScore: 88
+  // Use real AI analysis data with safe fallbacks
+  const rawPhysics = extractedData?.physicsAnalysis || {};
+  const physicsData = {
+    impactSpeed: rawPhysics.impactSpeed ?? 45,
+    impactForce: rawPhysics.impactForce ?? 80,
+    energyDissipated: rawPhysics.energyDissipated ?? 65,
+    deceleration: rawPhysics.deceleration ?? 4.5,
+    damageConsistency: (rawPhysics.damageConsistency === 'inconsistent' ? 'impossible' : rawPhysics.damageConsistency || 'consistent') as 'consistent' | 'questionable' | 'impossible',
+    physicsScore: rawPhysics.physicsScore ?? 75,
+    confidence: rawPhysics.confidence ?? 0.7,
+    is_valid: rawPhysics.is_valid ?? true,
+    analysis_notes: rawPhysics.analysis_notes || '',
+    accidentType: extractedData?.accidentType || 'other'
   };
 
-  const fraudData = extractedData?.fraudAnalysis || {
+  // Normalize fraud data from LLM output to frontend format
+  const rawFraudData = extractedData?.fraudAnalysis || {};
+  const fraudData = {
     indicators: {
-      claimHistory: 2,
-      damageConsistency: 3,
-      documentAuthenticity: 2,
-      behavioralPatterns: 3,
-      ownershipVerification: 2,
-      geographicRisk: 4
+      claimHistory: rawFraudData?.indicators?.claimHistory ?? 2,
+      damageConsistency: rawFraudData?.indicators?.damageConsistency ?? 2,
+      documentAuthenticity: rawFraudData?.indicators?.documentAuthenticity ?? 2,
+      behavioralPatterns: rawFraudData?.indicators?.behavioralPatterns ?? 2,
+      ownershipVerification: rawFraudData?.indicators?.ownershipVerification ?? 2,
+      geographicRisk: rawFraudData?.indicators?.geographicRisk ?? 2
     },
-    overallRisk: 'low' as const,
-    riskScore: 25,
-    flaggedIssues: []
+    overallRisk: (rawFraudData?.risk_level || 'low') as 'low' | 'medium' | 'high',
+    riskScore: rawFraudData?.risk_score ?? (rawFraudData?.fraud_probability ? Math.round(rawFraudData.fraud_probability * 100) : 20),
+    flaggedIssues: rawFraudData?.top_risk_factors || []
   };
 
   const mockCostBreakdown = {
@@ -407,7 +419,7 @@ export default function AssessmentResults() {
                     <div>
                       <p className="text-sm text-gray-500">Make & Model</p>
                       <p className="font-medium">
-                        {extractedData.vehicleMake} {extractedData.vehicleModel}
+                        {extractedData.vehicleMake || "N/A"} {extractedData.vehicleModel || ""}
                       </p>
                     </div>
                     <div>

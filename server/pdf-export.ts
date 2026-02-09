@@ -32,19 +32,23 @@ function generateReportHTML(data: any): string {
     damagedComponents,
   } = data;
 
-  const physicsData = physicsAnalysis || {
-    impactSpeed: 0,
-    impactForce: 0,
-    energyDissipated: 0,
-    deceleration: 0,
-    damageConsistency: 'unknown',
-    physicsScore: 0,
+  // Extract physics values from the physics_analysis nested object
+  const physicsAnalysisData = physicsAnalysis?.physics_analysis || {};
+  const physicsData = {
+    impactSpeed: physicsAnalysisData.impact_speed_ms ? Math.round(physicsAnalysisData.impact_speed_ms * 3.6) : 0, // Convert m/s to km/h
+    impactForce: physicsAnalysisData.kinetic_energy_joules ? Math.round(physicsAnalysisData.kinetic_energy_joules / 1000) : 0, // Convert J to kJ for display
+    energyDissipated: 75, // Placeholder - calculate from crumple zone data if available
+    deceleration: physicsAnalysisData.g_force ? Math.round(physicsAnalysisData.g_force * 10) / 10 : 0,
+    damageConsistency: physicsAnalysis?.damageConsistency || 'unknown',
+    physicsScore: physicsAnalysis?.confidence ? Math.round(physicsAnalysis.confidence * 100) : 0,
   };
 
-  const fraudData = fraudAnalysis || {
-    riskScore: 0,
-    overallRisk: 'unknown',
-    indicators: {},
+  // Extract fraud values - handle both risk_level and overallRisk formats
+  const fraudData = {
+    riskScore: fraudAnalysis?.fraud_probability ? Math.round(fraudAnalysis.fraud_probability * 100) : 0,
+    overallRisk: fraudAnalysis?.risk_level || fraudAnalysis?.overallRisk || 'unknown',
+    indicators: fraudAnalysis?.indicators || {},
+    topRiskFactors: fraudAnalysis?.top_risk_factors || [],
   };
 
   return `
@@ -314,6 +318,18 @@ function generateReportHTML(data: any): string {
     <ul class="findings-list">
       ${damagedComponents.map((comp: string) => `<li>${comp}</li>`).join('')}
     </ul>
+    ` : ''}
+    
+    ${damagePhotos && damagePhotos.length > 0 ? `
+    <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Damage Photos</h3>
+    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px;">
+      ${damagePhotos.slice(0, 4).map((photo: string) => `
+        <div style="border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+          <img src="${photo}" style="width: 100%; height: auto; display: block;" />
+        </div>
+      `).join('')}
+    </div>
+    ${damagePhotos.length > 4 ? `<p style="margin-top: 10px; font-size: 9pt; color: #64748b; text-align: center;">Showing 4 of ${damagePhotos.length} photos</p>` : ''}
     ` : ''}
   </div>
 

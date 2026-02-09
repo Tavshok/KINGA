@@ -73,25 +73,6 @@ export const appRouter = router({
         };
       }),
 
-    // TEST: Immediate return endpoint (requires auth)
-    testUpload: protectedProcedure
-      .input(z.object({
-        fileName: z.string(),
-        fileData: z.string(),
-      }))
-      .mutation(async ({ input, ctx }) => {
-        console.log('🧪 TEST ENDPOINT REACHED!');
-        console.log(`File: ${input.fileName}`);
-        console.log(`Data length: ${input.fileData.length}`);
-        
-        return {
-          success: true,
-          message: 'Test endpoint reached successfully',
-          fileName: input.fileName,
-          dataLength: input.fileData.length
-        };
-      }),
-
     // Upload external assessment document for AI analysis
     uploadExternalAssessment: protectedProcedure
       .input(z.object({
@@ -116,7 +97,7 @@ export const appRouter = router({
       }),
 
     // Export assessment report as PDF
-    exportAssessmentPDF,
+    exportAssessmentPDF: exportAssessmentPDF,
 
     /**
      * Get Cost Optimization Analysis

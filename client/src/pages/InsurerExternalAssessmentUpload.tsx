@@ -18,36 +18,44 @@ export default function InsurerExternalAssessmentUpload() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [processingStage, setProcessingStage] = useState<string>("");
+  const [processingStage, setProcessingStage] = useState("");
+  const [extractedResult, setExtractedResult] = useState<any>(null);
 
-  const uploadAssessment = trpc.insurers.testUpload.useMutation({
-    onSuccess: (data) => {
-      console.log("✅ [PDF Upload] Upload success! Data received:", data);
-      setUploadProgress(100);
-      setProcessingStage("Complete!");
-      
-      // Store data in sessionStorage for the results page
-      sessionStorage.setItem('assessmentResults', JSON.stringify(data));
-      console.log("✅ [PDF Upload] Data stored in sessionStorage");
-      
-      // Show success message
-      toast.success("Assessment uploaded and analyzed successfully!");
-      console.log("✅ [PDF Upload] Toast shown");
-      
-      // Redirect to results page after brief delay
-      setTimeout(() => {
-        console.log("🚀 [PDF Upload] Attempting redirect to /assessment-results");
-        setLocation("/assessment-results");
-        console.log("✅ [PDF Upload] setLocation called");
-      }, 500);
-    },
-    onError: (error) => {
-      toast.error(`Upload failed: ${error.message}`);
-      setUploading(false);
-      setUploadProgress(0);
-      setProcessingStage("");
-    },
-  });
+  // Use direct fetch instead of tRPC for multipart upload
+  const handleUploadSuccess = (data: any) => {
+    console.log("✅ [PDF Upload] Upload success! Data received:", data);
+    console.log("📦 [PDF Upload] Vehicle Make:", data.vehicleMake);
+    console.log("📦 [PDF Upload] Vehicle Model:", data.vehicleModel);
+    console.log("📦 [PDF Upload] Vehicle Year:", data.vehicleYear);
+    console.log("📦 [PDF Upload] Registration:", data.vehicleRegistration);
+    console.log("📦 [PDF Upload] Claimant:", data.claimantName);
+    console.log("📦 [PDF Upload] Estimated Cost:", data.estimatedCost);
+    
+    setUploadProgress(100);
+    setProcessingStage("Complete!");
+    
+    // SET THE EXTRACTED RESULT STATE TO DISPLAY INLINE
+    setExtractedResult(data);
+    console.log("✅ [PDF Upload] extractedResult state set");
+    
+    // Store data in sessionStorage for the results page
+    sessionStorage.setItem('assessmentResults', JSON.stringify(data));
+    console.log("✅ [PDF Upload] Data stored in sessionStorage");
+    
+    // Show success message
+    toast.success("Assessment uploaded and analyzed successfully!");
+    console.log("✅ [PDF Upload] Toast shown");
+    
+    // Stop uploading state
+    setUploading(false);
+  };
+
+  const handleUploadError = (error: string) => {
+    toast.error(`Upload failed: ${error}`);
+    setUploading(false);
+    setUploadProgress(0);
+    setProcessingStage("");
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -74,50 +82,74 @@ export default function InsurerExternalAssessmentUpload() {
     setUploadProgress(10);
     setProcessingStage("Uploading PDF...");
 
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      const base64 = e.target?.result as string;
-      const base64Data = base64.split(",")[1]; // Remove data:application/pdf;base64, prefix
-
-      setUploadProgress(20);
-      setProcessingStage("Extracting images from PDF...");
-      
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setUploadProgress(prev => {
-          if (prev < 90) {
-            const increment = Math.random() * 10;
-            const newProgress = Math.min(prev + increment, 90);
-            
-            // Update stage based on progress
-            if (newProgress > 30 && newProgress < 50) {
-              setProcessingStage("Running physics validation...");
-            } else if (newProgress >= 50 && newProgress < 70) {
-              setProcessingStage("Analyzing fraud indicators...");
-            } else if (newProgress >= 70) {
-              setProcessingStage("Generating comprehensive report...");
-            }
-            
-            return newProgress;
+    // Simulate progress updates
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev < 90) {
+          const increment = Math.random() * 10;
+          const newProgress = Math.min(prev + increment, 90);
+          
+          // Update stage based on progress
+          if (newProgress > 20 && newProgress < 40) {
+            setProcessingStage("Extracting images from PDF...");
+          } else if (newProgress >= 40 && newProgress < 60) {
+            setProcessingStage("Running physics validation...");
+          } else if (newProgress >= 60 && newProgress < 80) {
+            setProcessingStage("Analyzing fraud indicators...");
+          } else if (newProgress >= 80) {
+            setProcessingStage("Generating comprehensive report...");
           }
-          return prev;
-        });
-      }, 800);
-
-      uploadAssessment.mutate(
-        {
-          fileName: selectedFile.name,
-          fileData: base64Data,
-        },
-        {
-          onSettled: () => {
-            clearInterval(progressInterval);
-          }
+          
+          return newProgress;
         }
-      );
-    };
-    reader.readAsDataURL(selectedFile);
+        return prev;
+      });
+    }, 800);
+
+    try {
+      // Use FormData for multipart upload
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      console.log('🚀 [PDF Upload] Using DIRECT FETCH to /api/upload-assessment (v2)');
+      const response = await fetch('/api/upload-assessment', {
+        method: 'POST',
+        body: formData,
+        credentials: 'include',
+      });
+
+      clearInterval(progressInterval);
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Upload failed');
+      }
+
+      const data = await response.json();
+      console.log("📦 [PDF Upload] ===== RESPONSE START =====");
+      console.log("📦 [PDF Upload] Response status:", response.status);
+      console.log("📦 [PDF Upload] Response headers:", Object.fromEntries(response.headers.entries()));
+      console.log("📦 [PDF Upload] Raw response data:", data);
+      console.log("📦 [PDF Upload] Data type:", typeof data);
+      console.log("📦 [PDF Upload] Has 'result' key:", 'result' in data);
+      console.log("📦 [PDF Upload] ===== RESPONSE END =====");
+      console.log("📦 [PDF Upload] Vehicle Make:", data.vehicleMake);
+      console.log("📦 [PDF Upload] Vehicle Model:", data.vehicleModel);
+      console.log("📦 [PDF Upload] Registration:", data.vehicleRegistration);
+      console.log("📦 [PDF Upload] Claimant:", data.claimantName);
+      
+      // Store result to display inline instead of redirecting
+      setExtractedResult(data);
+      setUploadProgress(100);
+      toast.success("Extraction complete! See results below.");
+      
+      // Also store in sessionStorage for compatibility
+      handleUploadSuccess(data);
+      
+    } catch (error: any) {
+      clearInterval(progressInterval);
+      handleUploadError(error.message || 'Upload failed');
+    }
   };
 
   return (
@@ -235,6 +267,36 @@ export default function InsurerExternalAssessmentUpload() {
                     <li>Fraud detection with impossible damage pattern analysis</li>
                     <li>Side-by-side comparison: Original Assessment vs KINGA AI Analysis</li>
                   </ul>
+                </div>
+              )}
+              
+              {/* Inline Results Display */}
+              {extractedResult && (
+                <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 space-y-4">
+                  <h3 className="text-xl font-bold text-green-900">✅ Extraction Complete!</h3>
+                  
+                  <div className="bg-white rounded p-4 space-y-2">
+                    <h4 className="font-semibold text-gray-900">Vehicle Information:</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <div><span className="font-medium">Make:</span> {extractedResult.vehicleMake || 'N/A'}</div>
+                      <div><span className="font-medium">Model:</span> {extractedResult.vehicleModel || 'N/A'}</div>
+                      <div><span className="font-medium">Year:</span> {extractedResult.vehicleYear || 'N/A'}</div>
+                      <div><span className="font-medium">Registration:</span> {extractedResult.vehicleRegistration || 'N/A'}</div>
+                      <div><span className="font-medium">Claimant:</span> {extractedResult.claimantName || 'N/A'}</div>
+                      <div><span className="font-medium">Estimated Cost:</span> ${extractedResult.estimatedCost || '0'}</div>
+                    </div>
+                  </div>
+                  
+                  <details className="bg-white rounded p-4">
+                    <summary className="font-semibold cursor-pointer">View Full JSON Response</summary>
+                    <pre className="text-xs mt-2 overflow-auto max-h-96 bg-gray-50 p-2 rounded">
+                      {JSON.stringify(extractedResult, null, 2)}
+                    </pre>
+                  </details>
+                  
+                  <Button onClick={() => setLocation('/assessment-results')} className="w-full">
+                    View Full Analysis Report
+                  </Button>
                 </div>
               )}
             </CardContent>
