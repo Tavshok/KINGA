@@ -9,6 +9,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
+import { Progress } from "@/components/ui/progress";
 
 
 export default function InsurerExternalAssessmentUpload() {
@@ -16,10 +17,14 @@ export default function InsurerExternalAssessmentUpload() {
   const [, setLocation] = useLocation();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [processingStage, setProcessingStage] = useState<string>("");
 
   const uploadAssessment = trpc.insurers.uploadExternalAssessment.useMutation({
     onSuccess: (data) => {
       console.log("✅ [PDF Upload] Upload success! Data received:", data);
+      setUploadProgress(100);
+      setProcessingStage("Complete!");
       
       // Store data in sessionStorage for the results page
       sessionStorage.setItem('assessmentResults', JSON.stringify(data));
@@ -29,14 +34,18 @@ export default function InsurerExternalAssessmentUpload() {
       toast.success("Assessment uploaded and analyzed successfully!");
       console.log("✅ [PDF Upload] Toast shown");
       
-      // Redirect to results page immediately
-      console.log("🚀 [PDF Upload] Attempting redirect to /assessment-results");
-      setLocation("/assessment-results");
-      console.log("✅ [PDF Upload] setLocation called");
+      // Redirect to results page after brief delay
+      setTimeout(() => {
+        console.log("🚀 [PDF Upload] Attempting redirect to /assessment-results");
+        setLocation("/assessment-results");
+        console.log("✅ [PDF Upload] setLocation called");
+      }, 500);
     },
     onError: (error) => {
       toast.error(`Upload failed: ${error.message}`);
       setUploading(false);
+      setUploadProgress(0);
+      setProcessingStage("");
     },
   });
 
@@ -62,6 +71,8 @@ export default function InsurerExternalAssessmentUpload() {
     }
 
     setUploading(true);
+    setUploadProgress(10);
+    setProcessingStage("Uploading PDF...");
 
     // Convert file to base64
     const reader = new FileReader();
@@ -69,10 +80,42 @@ export default function InsurerExternalAssessmentUpload() {
       const base64 = e.target?.result as string;
       const base64Data = base64.split(",")[1]; // Remove data:application/pdf;base64, prefix
 
-      uploadAssessment.mutate({
-        fileName: selectedFile.name,
-        fileData: base64Data,
-      });
+      setUploadProgress(20);
+      setProcessingStage("Extracting images from PDF...");
+      
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => {
+          if (prev < 90) {
+            const increment = Math.random() * 10;
+            const newProgress = Math.min(prev + increment, 90);
+            
+            // Update stage based on progress
+            if (newProgress > 30 && newProgress < 50) {
+              setProcessingStage("Running physics validation...");
+            } else if (newProgress >= 50 && newProgress < 70) {
+              setProcessingStage("Analyzing fraud indicators...");
+            } else if (newProgress >= 70) {
+              setProcessingStage("Generating comprehensive report...");
+            }
+            
+            return newProgress;
+          }
+          return prev;
+        });
+      }, 800);
+
+      uploadAssessment.mutate(
+        {
+          fileName: selectedFile.name,
+          fileData: base64Data,
+        },
+        {
+          onSettled: () => {
+            clearInterval(progressInterval);
+          }
+        }
+      );
     };
     reader.readAsDataURL(selectedFile);
   };
@@ -161,17 +204,39 @@ export default function InsurerExternalAssessmentUpload() {
                 )}
               </div>
 
+              {/* Progress Indicator */}
+              {uploading && (
+                <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-6 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">{processingStage}</p>
+                      <p className="text-xs text-gray-600 mt-1">This may take 30-60 seconds...</p>
+                    </div>
+                    <span className="text-2xl font-bold text-blue-600">{Math.round(uploadProgress)}%</span>
+                  </div>
+                  <Progress value={uploadProgress} className="h-3" />
+                  <div className="grid grid-cols-4 gap-2 text-xs text-gray-600">
+                    <div className={uploadProgress > 20 ? "text-green-600 font-semibold" : ""}>✓ Uploading PDF</div>
+                    <div className={uploadProgress > 40 ? "text-green-600 font-semibold" : ""}>✓ Extracting Images</div>
+                    <div className={uploadProgress > 60 ? "text-green-600 font-semibold" : ""}>✓ Physics Analysis</div>
+                    <div className={uploadProgress > 80 ? "text-green-600 font-semibold" : ""}>✓ Fraud Detection</div>
+                  </div>
+                </div>
+              )}
+
               {/* Instructions */}
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-                <p className="text-sm font-medium text-blue-900">What happens after upload:</p>
-                <ul className="text-sm text-blue-800 space-y-1 ml-4 list-disc">
-                  <li>AI extracts vehicle information, damage details, and photos from the PDF</li>
-                  <li>Automatic damage assessment with component-level analysis</li>
-                  <li>Physics-based validation of accident dynamics and forces</li>
-                  <li>Fraud detection with impossible damage pattern analysis</li>
-                  <li>Side-by-side comparison: Original Assessment vs KINGA AI Analysis</li>
-                </ul>
-              </div>
+              {!uploading && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-medium text-blue-900">What happens after upload:</p>
+                  <ul className="text-sm text-blue-800 space-y-1 ml-4 list-disc">
+                    <li>AI extracts vehicle information, damage details, and photos from the PDF</li>
+                    <li>Automatic damage assessment with component-level analysis</li>
+                    <li>Physics-based validation of accident dynamics and forces</li>
+                    <li>Fraud detection with impossible damage pattern analysis</li>
+                    <li>Side-by-side comparison: Original Assessment vs KINGA AI Analysis</li>
+                  </ul>
+                </div>
+              )}
             </CardContent>
           </Card>
 

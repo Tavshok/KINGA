@@ -51,6 +51,7 @@ import { storagePut } from "./storage";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
+import { processExternalAssessment } from "./assessment-processor";
 
 export const appRouter = router({
   system: systemRouter,
@@ -62,83 +63,9 @@ export const appRouter = router({
         fileData: z.string(), // base64 encoded PDF
       }))
       .mutation(async ({ input, ctx }) => {
-        // Convert base64 to buffer
-        const fileBuffer = Buffer.from(input.fileData, "base64");
-
-        // Upload PDF to S3
-        const { url: pdfUrl } = await storagePut(
-          `external-assessments/${nanoid()}-${input.fileName}`,
-          fileBuffer,
-          "application/pdf"
-        );
-
-        // Store PDF URL for reference - LLM will extract all data including photos
-        console.log(`PDF uploaded successfully: ${pdfUrl}`);
-
-        // Extract data from PDF using LLM vision
-        const extractionResponse = await invokeLLM({
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert at extracting structured data from vehicle damage assessment reports. Extract all relevant information including vehicle details, damage description, claimant info, and repair costs."
-            },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Extract the following from this assessment report: vehicle make, model, year, registration number, claimant name, detailed damage description (including all damage photos you see in the PDF), and estimated repair cost. Please describe all damage photos in detail."
-                },
-                {
-                  type: "file_url",
-                  file_url: {
-                    url: pdfUrl,
-                    mime_type: "application/pdf" as "application/pdf"
-                  }
-                }
-              ] as any
-            }
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "assessment_extraction",
-              strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  vehicleMake: { type: "string" },
-                  vehicleModel: { type: "string" },
-                  vehicleYear: { type: "integer" },
-                  vehicleRegistration: { type: "string" },
-                  claimantName: { type: "string" },
-                  damageDescription: { type: "string" },
-                  estimatedCost: { type: "number" }
-                },
-                required: ["vehicleMake", "vehicleModel", "vehicleYear", "vehicleRegistration", "damageDescription"],
-                additionalProperties: false
-              }
-            }
-          }
-        });
-
-        const extractedData = JSON.parse((extractionResponse.choices[0].message.content as string) || "{}");
-
-        // Return extracted data without creating a claim
-        // The frontend will display this data and allow user to create claim manually
-        // FORCE RELOAD - timestamp: 2026-02-09 10:15
-        console.log("✅ [Server] External assessment data extracted successfully");
-        
-        return {
-          pdfUrl: pdfUrl,
-          vehicleMake: extractedData.vehicleMake,
-          vehicleModel: extractedData.vehicleModel,
-          vehicleYear: extractedData.vehicleYear,
-          vehicleRegistration: extractedData.vehicleRegistration,
-          claimantName: extractedData.claimantName,
-          damageDescription: extractedData.damageDescription,
-          estimatedCost: extractedData.estimatedCost,
-        };
+        // Use enhanced assessment processor with AI analysis
+        const result = await processExternalAssessment(input.fileName, input.fileData);
+        return result;
       }),
 
     /**

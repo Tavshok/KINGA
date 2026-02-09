@@ -31,6 +31,10 @@ interface ExtractedData {
   estimatedCost?: number;
   pdfUrl?: string;
   damagePhotos?: string[];
+  accidentType?: string;
+  damagedComponents?: string[];
+  physicsAnalysis?: any;
+  fraudAnalysis?: any;
 }
 
 interface DamageSection {
@@ -61,6 +65,11 @@ export default function AssessmentResults() {
         // Parse damage description into structured sections
         if (data.damageDescription) {
           parseDamageDescription(data.damageDescription);
+        }
+        
+        // Set damaged components from AI extraction
+        if (data.damagedComponents && data.damagedComponents.length > 0) {
+          setDamagedComponents(data.damagedComponents);
         }
         
         // Clear the data after loading to prevent stale data on refresh
@@ -214,8 +223,8 @@ export default function AssessmentResults() {
     }
   };
 
-  // Mock data for visualizations (will be replaced with real AI analysis)
-  const mockPhysicsData = {
+  // Use real AI analysis data or fallback to mock data
+  const physicsData = extractedData?.physicsAnalysis || {
     impactSpeed: 45,
     impactForce: 125,
     energyDissipated: 85,
@@ -224,7 +233,7 @@ export default function AssessmentResults() {
     physicsScore: 88
   };
 
-  const mockFraudData = {
+  const fraudData = extractedData?.fraudAnalysis || {
     indicators: {
       claimHistory: 2,
       damageConsistency: 3,
@@ -572,12 +581,12 @@ export default function AssessmentResults() {
 
           {/* Physics Tab */}
           <TabsContent value="physics">
-            <PhysicsAnalysisChart data={mockPhysicsData} />
+            <PhysicsAnalysisChart data={physicsData} />
           </TabsContent>
 
           {/* Fraud Risk Tab */}
           <TabsContent value="fraud">
-            <FraudRiskRadarChart {...mockFraudData} />
+            <FraudRiskRadarChart {...fraudData} />
           </TabsContent>
 
           {/* Cost Breakdown Tab */}
