@@ -63,9 +63,20 @@ export const appRouter = router({
         fileData: z.string(), // base64 encoded PDF
       }))
       .mutation(async ({ input, ctx }) => {
-        // Use enhanced assessment processor with AI analysis
-        const result = await processExternalAssessment(input.fileName, input.fileData);
-        return result;
+        try {
+          console.log(`📤 Processing external assessment: ${input.fileName}`);
+          
+          // Use enhanced assessment processor with AI analysis
+          const result = await processExternalAssessment(input.fileName, input.fileData);
+          
+          console.log(`✅ Assessment processed successfully`);
+          return result;
+        } catch (error: any) {
+          console.error(`❌ Assessment processing failed:`, error);
+          
+          // Return a structured error response
+          throw new Error(`Failed to process assessment: ${error.message || 'Unknown error'}`);
+        }
       }),
 
     /**

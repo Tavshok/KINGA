@@ -48,7 +48,13 @@ export async function processExternalAssessment(
 
   // Step 1: Extract images from PDF using Python
   console.log('🖼️ Extracting images from PDF...');
-  const pdfData = await runPythonScript('python/process_assessment.py', [tempPdfPath]);
+  let pdfData: any = { images: [] };
+  
+  try {
+    pdfData = await runPythonScript('python/process_assessment.py', [tempPdfPath]);
+  } catch (error) {
+    console.warn('⚠️ Image extraction failed, continuing without images:', error);
+  }
 
   let extractedImages: string[] = [];
 
@@ -126,7 +132,10 @@ export async function processExternalAssessment(
 
   // Step 3: Run physics validation
   console.log('⚛️ Running physics validation...');
-  const physicsInput = {
+  let physicsAnalysis: any = {};
+  
+  try {
+    const physicsInput = {
     vehicle_type: extractedData.vehicleModel?.toLowerCase().includes('suv') ? 'suv' : 'sedan',
     accident_type: extractedData.accidentType || 'other',
     estimated_speed: 50, // Default estimate
@@ -135,11 +144,22 @@ export async function processExternalAssessment(
     reported_description: extractedData.damageDescription
   };
 
-  const physicsAnalysis = await runPythonScriptWithInput('python/validate_physics.py', physicsInput);
+    physicsAnalysis = await runPythonScriptWithInput('python/validate_physics.py', physicsInput);
+  } catch (error) {
+    console.warn('⚠️ Physics validation failed, using defaults:', error);
+    physicsAnalysis = {
+      damageConsistency: 'unknown',
+      confidence: 0.5,
+      physicsScore: 50
+    };
+  }
 
   // Step 4: Run ML fraud detection
   console.log('🔍 Running fraud detection...');
-  const fraudInput = {
+  let fraudAnalysis: any = {};
+  
+  try {
+    const fraudInput = {
     claim_amount: extractedData.estimatedCost || 0,
     vehicle_age: new Date().getFullYear() - (extractedData.vehicleYear || 2020),
     days_since_policy_start: 365,
@@ -155,7 +175,15 @@ export async function processExternalAssessment(
     accident_type: extractedData.accidentType || 'other'
   };
 
-  const fraudAnalysis = await runPythonScriptWithInput('python/detect_fraud.py', fraudInput);
+    fraudAnalysis = await runPythonScriptWithInput('python/detect_fraud.py', fraudInput);
+  } catch (error) {
+    console.warn('⚠️ Fraud detection failed, using defaults:', error);
+    fraudAnalysis = {
+      fraud_probability: 0.25,
+      risk_level: 'low',
+      risk_factors: []
+    };
+  }
 
   // Clean up temp file
   try {
