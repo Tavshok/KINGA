@@ -20,7 +20,7 @@ export default function InsurerExternalAssessmentUpload() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [processingStage, setProcessingStage] = useState<string>("");
 
-  const uploadAssessment = trpc.insurers.uploadExternalAssessment.useMutation({
+  const uploadAssessment = trpc.insurers.testUpload.useMutation({
     onSuccess: (data) => {
       console.log("✅ [PDF Upload] Upload success! Data received:", data);
       setUploadProgress(100);

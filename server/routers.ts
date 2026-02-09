@@ -51,12 +51,47 @@ import { storagePut } from "./storage";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
-import { processExternalAssessment } from "./assessment-processor";
+import { processExternalAssessment } from "./assessment-processor-minimal";
 import { exportAssessmentPDF } from "./pdf-export";
 
 export const appRouter = router({
   system: systemRouter,
   insurers: router({
+    // TEST: Public endpoint (no auth required)
+    testPublic: publicProcedure
+      .input(z.object({
+        message: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        console.log('🧪 PUBLIC TEST ENDPOINT REACHED!');
+        console.log(`Message: ${input.message}`);
+        
+        return {
+          success: true,
+          echo: input.message,
+          timestamp: new Date().toISOString()
+        };
+      }),
+
+    // TEST: Immediate return endpoint (requires auth)
+    testUpload: protectedProcedure
+      .input(z.object({
+        fileName: z.string(),
+        fileData: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        console.log('🧪 TEST ENDPOINT REACHED!');
+        console.log(`File: ${input.fileName}`);
+        console.log(`Data length: ${input.fileData.length}`);
+        
+        return {
+          success: true,
+          message: 'Test endpoint reached successfully',
+          fileName: input.fileName,
+          dataLength: input.fileData.length
+        };
+      }),
+
     // Upload external assessment document for AI analysis
     uploadExternalAssessment: protectedProcedure
       .input(z.object({

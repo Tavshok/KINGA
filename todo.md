@@ -2611,3 +2611,31 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Verify report generation with all visualizations
 - [ ] Document test results and any issues found
 - [ ] Create final checkpoint with tested enhancements
+
+
+## CRITICAL: PDF Upload Still Failing (2026-02-09)
+- [x] Check server logs for actual error message (500 errors found)
+- [x] Verify Python scripts are executable and working (scripts exist and are executable)
+- [x] Create simplified assessment processor for debugging
+- [x] Remove LLM PDF extraction temporarily
+- [x] Remove image extraction temporarily
+- [x] Add detailed logging to each processing step
+- [x] Restart server with simplified processor
+- [ ] WAITING: User to test PDF upload with simplified processor
+- [ ] Identify which step is causing "Service Unavailable" (LLM extraction suspected)
+- [ ] Fix the root cause once identified
+- [ ] Re-enable LLM extraction after fix
+- [ ] Re-enable image extraction after fix
+- [ ] Test with real PDF upload end-to-end
+- [ ] Verify all data flows correctly to results page
+- [ ] Create checkpoint after successful test
+
+
+## tRPC Endpoint Testing (2026-02-09)
+- [ ] Create test endpoint that returns immediately without any processing
+- [ ] Test if tRPC endpoint is being reached at all
+- [ ] Check if S3 storage service is available
+- [ ] Test base64 to buffer conversion separately
+- [ ] Identify exact point of failure
+- [ ] Fix root cause
+- [ ] Restore full assessment processor functionality
