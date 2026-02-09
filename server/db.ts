@@ -745,19 +745,79 @@ Provide your response in JSON format.`;
     
     const forensicFraudScore = forensicAnalysis.overallFraudScore;
     
-    const combinedFraudScore = Math.min(100, Math.max(analysis.fraudRiskScore, physicsFraudScore, forensicFraudScore));
+    // ========== ENHANCED ML FRAUD DETECTION ==========
+    // Run enhanced ML fraud detection with driver demographics and ownership verification
+    let mlFraudResult;
+    try {
+      const { predictEnhancedFraud, extractFraudInputFromClaim } = await import("./fraud-detection-enhanced");
+      
+      const fraudInput = extractFraudInputFromClaim(claim, {
+        estimatedCost: estimatedRepairCost,
+        estimatedVehicleValue,
+        physicsAnalysis,
+      });
+      
+      // Add physics and forensic scores to input
+      fraudInput.physics_validation_score = physicsFraudScore > 50 ? 0.3 : 0.8;
+      fraudInput.image_forensics_score = forensicFraudScore > 50 ? 0.3 : 0.8;
+      
+      mlFraudResult = await predictEnhancedFraud(fraudInput);
+      
+      console.log(`[Enhanced ML Fraud Detection] Claim ${claimId}:`, {
+        ml_fraud_score: mlFraudResult.ml_fraud_score,
+        ownership_risk_score: mlFraudResult.ownership_risk_score,
+        staged_accident_confidence: mlFraudResult.staged_accident_indicators.confidence,
+        risk_level: mlFraudResult.risk_level,
+      });
+      
+    } catch (error) {
+      console.error("Enhanced ML fraud detection failed:", error);
+      mlFraudResult = null;
+    }
+    
+    // Combine all fraud scores: AI vision, physics, forensic, and ML
+    let combinedFraudScore;
+    if (mlFraudResult) {
+      // Use ML model as primary score, weighted with other indicators
+      combinedFraudScore = Math.round(
+        mlFraudResult.fraud_probability * 40 +  // ML model (40%)
+        physicsFraudScore * 0.25 +              // Physics (25%)
+        forensicFraudScore * 0.25 +             // Forensics (25%)
+        analysis.fraudRiskScore * 0.10          // AI vision (10%)
+      );
+    } else {
+      // Fallback to original scoring if ML fails
+      combinedFraudScore = Math.min(100, Math.max(analysis.fraudRiskScore, physicsFraudScore, forensicFraudScore));
+    }
+    
     const combinedFraudLevel = combinedFraudScore > 70 ? "high" : combinedFraudScore > 40 ? "medium" : "low";
     
-    // Update claim with combined fraud assessment
+    // Compile all fraud flags
+    const allFraudFlags = [
+      ...analysis.fraudIndicators,
+      ...physicsAnalysis.fraudIndicators.impossibleDamagePatterns,
+      ...physicsAnalysis.fraudIndicators.unrelatedDamage,
+      ...physicsAnalysis.fraudIndicators.stagedAccidentIndicators,
+    ];
+    
+    if (mlFraudResult) {
+      allFraudFlags.push(...mlFraudResult.ownership_analysis.risk_factors);
+      allFraudFlags.push(...mlFraudResult.staged_accident_indicators.indicators);
+      if (mlFraudResult.top_risk_factors) {
+        allFraudFlags.push(...mlFraudResult.top_risk_factors);
+      }
+    }
+    
+    // Update claim with enhanced fraud assessment
+    // TODO: Uncomment ML fraud scores after running `pnpm db:push` to update TypeScript types
     await db.update(claims).set({ 
       aiAssessmentCompleted: 1,
       fraudRiskScore: combinedFraudScore,
-      fraudFlags: JSON.stringify([
-        ...analysis.fraudIndicators,
-        ...physicsAnalysis.fraudIndicators.impossibleDamagePatterns,
-        ...physicsAnalysis.fraudIndicators.unrelatedDamage,
-        ...physicsAnalysis.fraudIndicators.stagedAccidentIndicators,
-      ]),
+      fraudFlags: JSON.stringify(allFraudFlags),
+      // mlFraudScore: mlFraudResult && mlFraudResult.ml_fraud_score ? String(mlFraudResult.ml_fraud_score) : null,
+      // ownershipRiskScore: mlFraudResult ? String(mlFraudResult.ownership_risk_score) : null,
+      // stagedAccidentConfidence: mlFraudResult ? String(mlFraudResult.staged_accident_indicators.confidence) : null,
+      // fraudAnalysisJson: mlFraudResult ? JSON.stringify(mlFraudResult) : null,
       updatedAt: new Date() 
     }).where(eq(claims.id, claimId));
     
