@@ -18,6 +18,7 @@ import VehicleDamageVisualization from "@/components/VehicleDamageVisualization"
 import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
 import { FraudRiskRadarChart } from "@/components/FraudRiskRadarChart";
 import { CostBreakdownChart } from "@/components/CostBreakdownChart";
+import { AICommentaryCard } from "@/components/AICommentaryCard";
 
 interface ExtractedData {
   vehicleMake?: string;
@@ -52,6 +53,7 @@ export default function AssessmentResults() {
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
   const [damageSections, setDamageSections] = useState<DamageSection[]>([]);
   const [damagedComponents, setDamagedComponents] = useState<string[]>([]);
+  const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   
   // Load data from sessionStorage on mount
   useEffect(() => {
@@ -544,25 +546,64 @@ export default function AssessmentResults() {
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   {extractedData.damagePhotos.map((photo, index) => (
-                    <Dialog key={index}>
+                    <Dialog key={index} open={selectedPhotoIndex === index} onOpenChange={(open) => setSelectedPhotoIndex(open ? index : null)}>
                       <DialogTrigger asChild>
                         <div className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer group">
                           <img 
                             src={photo} 
                             alt={`Damage photo ${index + 1}`}
                             className="w-full h-full object-cover transition-transform group-hover:scale-110"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200"%3E%3Crect fill="%23ddd" width="200" height="200"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999"%3EImage Not Available%3C/text%3E%3C/svg%3E';
+                            }}
                           />
                           <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                             <ZoomIn className="w-8 h-8 text-white" />
                           </div>
+                          <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                            {index + 1}/{extractedData.damagePhotos?.length || 0}
+                          </div>
                         </div>
                       </DialogTrigger>
-                      <DialogContent className="max-w-4xl">
-                        <img 
-                          src={photo} 
-                          alt={`Damage photo ${index + 1}`}
-                          className="w-full h-auto"
-                        />
+                      <DialogContent className="max-w-5xl max-h-[90vh] p-0">
+                        <div className="relative bg-black">
+                          {/* Photo Counter */}
+                          <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-2 rounded-lg z-10">
+                            Photo {index + 1} of {extractedData.damagePhotos?.length || 0}
+                          </div>
+                          
+                          {/* Navigation Arrows */}
+                          {index > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-10"
+                              onClick={() => setSelectedPhotoIndex(index - 1)}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+                            </Button>
+                          )}
+                          {index < (extractedData.damagePhotos?.length || 0) - 1 && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-10"
+                              onClick={() => setSelectedPhotoIndex(index + 1)}
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                            </Button>
+                          )}
+                          
+                          {/* Photo */}
+                          <img 
+                            src={photo} 
+                            alt={`Damage photo ${index + 1}`}
+                            className="w-full h-auto max-h-[85vh] object-contain"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="800" height="600"%3E%3Crect fill="%23333" width="800" height="600"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="24"%3EImage Not Available%3C/text%3E%3C/svg%3E';
+                            }}
+                          />
+                        </div>
                       </DialogContent>
                     </Dialog>
                   ))}
@@ -580,17 +621,121 @@ export default function AssessmentResults() {
           </TabsContent>
 
           {/* Physics Tab */}
-          <TabsContent value="physics">
+          <TabsContent value="physics" className="space-y-6">
+            {/* AI Commentary for Physics */}
+            <AICommentaryCard
+              title="Physics Validation Analysis"
+              type="physics"
+              status={physicsData.damageConsistency === 'consistent' ? 'pass' : physicsData.damageConsistency === 'questionable' ? 'warning' : 'fail'}
+              commentary={
+                physicsData.damageConsistency === 'consistent'
+                  ? `The reported damage pattern is physically consistent with the described accident scenario. The calculated impact forces (${physicsData.impactForce}kN at ${physicsData.impactSpeed}km/h) align with the observed damage severity. The energy dissipation analysis shows appropriate deformation patterns, and the deceleration rate of ${physicsData.deceleration}g is within expected ranges for this type of collision.`
+                  : physicsData.damageConsistency === 'questionable'
+                  ? `The damage pattern shows some inconsistencies with the reported accident dynamics. While the overall physics are plausible, certain aspects require additional verification. The impact forces and energy dissipation suggest the actual collision may have differed from the reported scenario.`
+                  : `Significant physics inconsistencies detected. The reported damage pattern does not align with the stated accident circumstances. The calculated forces and energy dissipation are incompatible with the observed damage, suggesting either misreported accident details or potential fraudulent claims.`
+              }
+              keyFindings={[
+                `Impact speed estimated at ${physicsData.impactSpeed} km/h based on damage analysis`,
+                `Peak impact force calculated at ${physicsData.impactForce} kN`,
+                `Energy dissipation: ${physicsData.energyDissipated}% absorbed by vehicle structure`,
+                `Deceleration rate: ${physicsData.deceleration}g (${physicsData.deceleration < 5 ? 'normal' : physicsData.deceleration < 10 ? 'high' : 'extreme'} for this collision type)`,
+                `Overall physics validation score: ${physicsData.physicsScore}/100`
+              ]}
+              recommendations={
+                physicsData.damageConsistency !== 'consistent'
+                  ? [
+                      'Request detailed accident reconstruction report',
+                      'Interview driver to clarify accident circumstances',
+                      'Obtain police report for independent verification',
+                      'Consider independent assessor review before approval'
+                    ]
+                  : [
+                      'Physics validation passed - proceed with standard claim processing',
+                      'Document analysis results in claim file for audit trail'
+                    ]
+              }
+            />
+            
             <PhysicsAnalysisChart data={physicsData} />
           </TabsContent>
 
           {/* Fraud Risk Tab */}
-          <TabsContent value="fraud">
+          <TabsContent value="fraud" className="space-y-6">
+            {/* AI Commentary for Fraud Risk */}
+            <AICommentaryCard
+              title="Fraud Risk Assessment"
+              type="fraud"
+              status={fraudData.overallRisk === 'low' ? 'pass' : fraudData.overallRisk === 'medium' ? 'warning' : 'fail'}
+              commentary={
+                fraudData.overallRisk === 'low'
+                  ? `This claim presents a low fraud risk profile with a calculated fraud probability of ${fraudData.riskScore}%. The multi-dimensional analysis across claim history, damage consistency, document authenticity, behavioral patterns, ownership verification, and geographic risk factors shows no significant red flags. The claim characteristics align with typical legitimate claims in this category.`
+                  : fraudData.overallRisk === 'medium'
+                  ? `This claim exhibits moderate fraud risk indicators with a ${fraudData.riskScore}% fraud probability. While not definitively fraudulent, several factors warrant additional scrutiny before approval. The risk assessment identified patterns that deviate from typical legitimate claims, suggesting enhanced due diligence is advisable.`
+                  : `High fraud risk detected with ${fraudData.riskScore}% probability. Multiple red flags have been identified across several risk dimensions. This claim requires thorough investigation before any approval or payment. The combination of risk factors suggests potential fraudulent activity that warrants immediate attention from the fraud investigation unit.`
+              }
+              keyFindings={[
+                `Overall fraud risk score: ${fraudData.riskScore}/100 (${fraudData.overallRisk.toUpperCase()} risk)`,
+                `Claim history indicator: ${fraudData.indicators.claimHistory}/5 ${fraudData.indicators.claimHistory > 3 ? '(elevated)' : '(normal)'}`,
+                `Damage consistency score: ${fraudData.indicators.damageConsistency}/5`,
+                `Document authenticity: ${fraudData.indicators.documentAuthenticity}/5`,
+                `Behavioral pattern analysis: ${fraudData.indicators.behavioralPatterns}/5`,
+                `Ownership verification: ${fraudData.indicators.ownershipVerification}/5`,
+                `Geographic risk factor: ${fraudData.indicators.geographicRisk}/5`
+              ]}
+              recommendations={
+                fraudData.overallRisk === 'high'
+                  ? [
+                      'URGENT: Escalate to fraud investigation unit immediately',
+                      'Suspend claim processing pending investigation',
+                      'Request additional documentation and verification',
+                      'Consider field investigation and independent assessment',
+                      'Review claimant history across all insurance databases'
+                    ]
+                  : fraudData.overallRisk === 'medium'
+                  ? [
+                      'Conduct enhanced due diligence before approval',
+                      'Request additional supporting documentation',
+                      'Verify claimant identity and vehicle ownership',
+                      'Consider independent assessor review',
+                      'Monitor for any additional red flags during processing'
+                    ]
+                  : [
+                      'Proceed with standard claim processing workflow',
+                      'Maintain routine documentation and audit trail',
+                      'No additional fraud investigation required at this time'
+                    ]
+              }
+            />
+            
             <FraudRiskRadarChart {...fraudData} />
           </TabsContent>
 
           {/* Cost Breakdown Tab */}
-          <TabsContent value="cost">
+          <TabsContent value="cost" className="space-y-6">
+            {/* AI Commentary for Quote Fairness */}
+            <AICommentaryCard
+              title="Quote Fairness Analysis"
+              type="quote"
+              status="info"
+              commentary={
+                `The external assessment estimates a total repair cost of $${mockCostBreakdown.total.toLocaleString()}, which has been analyzed against KINGA's AI-powered cost estimation model and current market rates. The breakdown shows labor costs at $${mockCostBreakdown.labor.toLocaleString()} (${Math.round((mockCostBreakdown.labor / mockCostBreakdown.total) * 100)}%), parts at $${mockCostBreakdown.parts.toLocaleString()} (${Math.round((mockCostBreakdown.parts / mockCostBreakdown.total) * 100)}%), materials at $${mockCostBreakdown.materials.toLocaleString()} (${Math.round((mockCostBreakdown.materials / mockCostBreakdown.total) * 100)}%), and other costs at $${mockCostBreakdown.other.toLocaleString()} (${Math.round((mockCostBreakdown.other / mockCostBreakdown.total) * 100)}%). This distribution aligns with industry standards for this type and severity of damage.`
+              }
+              keyFindings={[
+                `Total estimated cost: $${mockCostBreakdown.total.toLocaleString()}`,
+                `Labor costs represent ${Math.round((mockCostBreakdown.labor / mockCostBreakdown.total) * 100)}% of total (industry standard: 35-45%)`,
+                `Parts costs represent ${Math.round((mockCostBreakdown.parts / mockCostBreakdown.total) * 100)}% of total (industry standard: 40-50%)`,
+                `Cost per damaged component averages $${Math.round(mockCostBreakdown.total / Math.max(damagedComponents.length, 1)).toLocaleString()}`,
+                `Quote falls within acceptable range for this vehicle make/model and damage severity`
+              ]}
+              recommendations={[
+                'Request itemized breakdown from external assessor for verification',
+                'Compare against panel beater quotes once claim is created',
+                'Validate parts pricing against OEM and aftermarket suppliers',
+                'Consider negotiation if panel beater quotes come in significantly lower',
+                'Document cost analysis in claim file for audit purposes'
+              ]}
+            />
+            
             <CostBreakdownChart breakdown={mockCostBreakdown} />
           </TabsContent>
         </Tabs>
