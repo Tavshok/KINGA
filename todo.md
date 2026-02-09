@@ -2384,3 +2384,23 @@
 - [x] Clean up unused state and imports
 - [x] Test complete workflow
 - [x] Save checkpoint
+
+
+## CRITICAL: PDF Upload Server Error
+
+### Root Cause Found
+- [x] Upload API returns 500 Internal Server Error
+- [x] uploadExternalAssessment procedure trying to INSERT claim into database
+- [x] Should only extract data and return it, NOT create claim
+- [ ] Frontend redirect code never runs because onSuccess never fires
+
+### Fix Tasks
+- [x] Find uploadExternalAssessment procedure in routers.ts
+- [x] Remove claim creation logic
+- [x] Keep only PDF extraction and data return
+- [ ] Test upload returns data without creating claim (requires dev environment relaunch)
+- [ ] Verify redirect works after fix (requires dev environment relaunch)
+- [x] Save checkpoint
+
+### Note
+Code changes are complete but tsx watch not picking up changes despite multiple server restarts. Requires full dev environment relaunch from Management UI (click "Relaunch to update" button).

@@ -19,14 +19,20 @@ export default function InsurerExternalAssessmentUpload() {
 
   const uploadAssessment = trpc.insurers.uploadExternalAssessment.useMutation({
     onSuccess: (data) => {
+      console.log("✅ [PDF Upload] Upload success! Data received:", data);
+      
       // Store data in sessionStorage for the results page
       sessionStorage.setItem('assessmentResults', JSON.stringify(data));
+      console.log("✅ [PDF Upload] Data stored in sessionStorage");
       
       // Show success message
       toast.success("Assessment uploaded and analyzed successfully!");
+      console.log("✅ [PDF Upload] Toast shown");
       
       // Redirect to results page immediately
+      console.log("🚀 [PDF Upload] Attempting redirect to /assessment-results");
       setLocation("/assessment-results");
+      console.log("✅ [PDF Upload] setLocation called");
     },
     onError: (error) => {
       toast.error(`Upload failed: ${error.message}`);

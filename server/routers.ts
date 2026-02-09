@@ -124,43 +124,20 @@ export const appRouter = router({
 
         const extractedData = JSON.parse((extractionResponse.choices[0].message.content as string) || "{}");
 
-        // Create a new claim from extracted data with damage photos
-        const claimNumber = `EXT-${nanoid(10).toUpperCase()}`;
-        await createClaim({
-          claimNumber,
-          claimantId: ctx.user.id, // Use current user as claimant for now
+        // Return extracted data without creating a claim
+        // The frontend will display this data and allow user to create claim manually
+        // FORCE RELOAD - timestamp: 2026-02-09 10:15
+        console.log("✅ [Server] External assessment data extracted successfully");
+        
+        return {
+          pdfUrl: pdfUrl,
           vehicleMake: extractedData.vehicleMake,
           vehicleModel: extractedData.vehicleModel,
           vehicleYear: extractedData.vehicleYear,
           vehicleRegistration: extractedData.vehicleRegistration,
-          incidentDate: new Date(),
-          incidentDescription: extractedData.damageDescription,
-          damagePhotos: JSON.stringify([pdfUrl]), // Store PDF URL for reference
-          status: "submitted",
-          policyVerified: 0, // Use 0 for false
-        });
-
-        // Get the created claim
-        const claim = await getClaimByNumber(claimNumber);
-        if (!claim) {
-          throw new Error("Failed to create claim");
-        }
-
-        // Always trigger AI assessment for external assessments
-        // The PDF itself contains damage information that can be analyzed
-        try {
-          await triggerAiAssessment(claim.id);
-          console.log(`AI assessment automatically triggered for external assessment claim ${claimNumber}`);
-        } catch (error) {
-          console.error(`Failed to trigger AI assessment for claim ${claimNumber}:`, error);
-          // Don't fail the claim creation if AI assessment fails
-        }
-
-        return {
-          claimId: claim.id,
-          claimNumber: claim.claimNumber,
-          pdfUrl: pdfUrl,
-          ...extractedData
+          claimantName: extractedData.claimantName,
+          damageDescription: extractedData.damageDescription,
+          estimatedCost: extractedData.estimatedCost,
         };
       }),
 
