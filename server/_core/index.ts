@@ -8,6 +8,7 @@ import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { uploadAssessmentRouter } from "../upload-assessment";
+import { setupWebSocketServer } from "../websocket";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -65,6 +66,14 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
   });
+
+  // Start WebSocket server on port 8080 for real-time analytics
+  const wsPort = 8080;
+  try {
+    setupWebSocketServer(wsPort);
+  } catch (error) {
+    console.error(`Failed to start WebSocket server on port ${wsPort}:`, error);
+  }
 }
 
 startServer().catch(console.error);

@@ -37,6 +37,10 @@ import ClaimsManagerDashboard from "./pages/ClaimsManagerDashboard";
 import AssessmentResults from "./pages/AssessmentResults";
 import NewAssessmentUpload from "./pages/NewAssessmentUpload";
 import SimpleUpload from "./pages/SimpleUpload";
+import ClaimsCostTrend from "./pages/analytics/ClaimsCostTrend";
+import FraudHeatmap from "./pages/analytics/FraudHeatmap";
+import FleetRisk from "./pages/analytics/FleetRisk";
+import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
 
 function Router() {
   return (
@@ -45,6 +49,28 @@ function Router() {
       <Route path="/login" component={Login} />
       <Route path="/unauthorized" component={Unauthorized} />
       
+      {/* Analytics Dashboards */}
+      <Route path="/analytics/claims-cost">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ClaimsCostTrend />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/analytics/fraud-heatmap">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <FraudHeatmap />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/analytics/fleet-risk">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <FleetRisk />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/analytics/panel-beater">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <PanelBeaterPerformance />
+        </ProtectedRoute>
+      </Route>
+
       {/* Assessment Results */}
       <Route path="/assessment-results">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
