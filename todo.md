@@ -3006,3 +3006,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Set up model deployment automation (SageMaker endpoints)
 - [x] Create MLOps documentation and deployment guides
 - [ ] Create checkpoint with ML training pipeline implementation
+
+
+## MLflow Deployment & Automated Retraining
+- [x] Create MLflow tracking server ECS task definition
+- [x] Set up RDS PostgreSQL backend for MLflow
+- [x] Deploy MLflow on ECS with ALB
+- [x] Configure MLflow S3 artifact storage
+- [x] Create fraud detection training Airflow DAG
+- [x] Implement data retrieval from SageMaker Feature Store in DAG
+- [x] Implement model training and validation steps in DAG
+- [x] Implement automated model promotion logic in DAG
+- [x] Set up CloudWatch alarms for fraud model performance
+- [x] Set up CloudWatch alarms for damage model performance
+- [x] Set up CloudWatch alarms for cost model performance
+- [x] Configure SNS topics for retraining notifications
+- [x] Test end-to-end automated retraining workflow
+- [x] Create deployment documentation and runbooks
+- [ ] Create checkpoint with MLflow deployment and automated retraining

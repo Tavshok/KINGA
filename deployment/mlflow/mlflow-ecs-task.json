@@ -1,0 +1,57 @@
+{
+  "family": "kinga-mlflow-tracking-server",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/kinga-mlflow-task-role",
+  "containerDefinitions": [
+    {
+      "name": "mlflow-server",
+      "image": "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/kinga/mlflow:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 5000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "MLFLOW_BACKEND_STORE_URI",
+          "value": "postgresql://${DB_USER}:${DB_PASSWORD}@${DB_HOST}:5432/mlflow"
+        },
+        {
+          "name": "MLFLOW_DEFAULT_ARTIFACT_ROOT",
+          "value": "s3://kinga-mlflow-artifacts/"
+        },
+        {
+          "name": "MLFLOW_S3_ENDPOINT_URL",
+          "value": "https://s3.${AWS_REGION}.amazonaws.com"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DB_PASSWORD",
+          "valueFrom": "arn:aws:secretsmanager:${AWS_REGION}:${AWS_ACCOUNT_ID}:secret:kinga/mlflow/db-password"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/kinga-mlflow",
+          "awslogs-region": "${AWS_REGION}",
+          "awslogs-stream-prefix": "mlflow"
+        }
+      },
+      "healthCheck": {
+        "command": ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
