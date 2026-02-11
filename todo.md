@@ -3494,3 +3494,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix notifications.test.ts (schema field alignment)
 - [x] Add missing database columns (tenant_id on 6 tables, approval tracking on claims)
 - [x] Verify all tests pass: 17/17 files, 252 passed, 2 skipped, 0 failed
+
+## Dual Assessor Governance & Marketplace Architecture (February 11, 2026)
+- [x] Research insurance assessor governance frameworks and marketplace best practices
+- [x] Design assessor identity and classification model (insurer-owned vs marketplace)
+- [x] Design assignment routing workflow with intelligent matching
+- [x] Design marketplace onboarding architecture with certification
+- [x] Design performance intelligence scoring framework
+- [x] Design assessor recommendation engine
+- [x] Design evidence immutability enforcement
+- [x] Design cross-insurer isolation for marketplace assessors
+- [x] Design assignment lifecycle automation
+- [x] Design assessor certification and rating framework
+- [x] Design full audit logging architecture
+- [x] Develop security threat model for dual assessor access
+- [x] Document governance compliance alignment (POPIA/GDPR/FSCA)
+- [x] Design dashboard blueprint for insurer-owned assessors
+- [x] Design dashboard blueprint for marketplace assessors
+- [x] Generate comprehensive Dual Assessor Governance Architecture document
+- [x] Save to GitHub
