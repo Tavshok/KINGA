@@ -41,6 +41,7 @@ import ClaimsCostTrend from "./pages/analytics/ClaimsCostTrend";
 import FraudHeatmap from "./pages/analytics/FraudHeatmap";
 import FleetRisk from "./pages/analytics/FleetRisk";
 import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
+import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 
 function Router() {
   return (
@@ -50,6 +51,11 @@ function Router() {
       <Route path="/unauthorized" component={Unauthorized} />
       
       {/* Analytics Dashboards */}
+      <Route path="/analytics">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <AnalyticsHub />
+        </ProtectedRoute>
+      </Route>
       <Route path="/analytics/claims-cost">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <ClaimsCostTrend />
