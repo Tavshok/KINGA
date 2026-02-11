@@ -2977,3 +2977,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create deployment documentation and runbooks
 - [ ] Test infrastructure deployment in staging environment
 - [ ] Create checkpoint with IaC implementation
+
+
+## ML Data Ingestion & Feature Engineering Pipelines
+- [x] Design ML data architecture and feature store schema
+- [x] Implement event consumers for claims lifecycle data ingestion
+- [x] Create S3 data lake structure with raw/processed/curated layers
+- [x] Build feature engineering workflows for fraud detection
+- [x] Build feature engineering workflows for damage assessment
+- [x] Build feature engineering workflows for cost prediction
+- [x] Integrate with feature store (AWS SageMaker Feature Store or Feast)
+- [x] Implement dataset versioning and lineage tracking
+- [x] Create ML pipeline monitoring and data quality checks
+- [x] Document ML pipeline architecture and workflows
+- [ ] Create checkpoint with ML pipeline implementation
