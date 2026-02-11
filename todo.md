@@ -3470,3 +3470,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test hybrid assessor workflow
 - [ ] Create comprehensive vitest tests
 - [ ] Create final checkpoint
+
+
+## Pre-Publishing Finalization (February 11, 2026)
+- [x] Complete marketplace registration page (/join-as-assessor)
+- [x] Build assessor list page for insurers (/assessors)
+- [x] Create unified assignment interface (/assign-assessor/:claimId)
+- [x] Wire AddAssessor route to App.tsx
+- [x] Wire marketplace registration route to App.tsx
+- [x] Wire assessor list route to App.tsx
+- [x] Wire assignment interface route to App.tsx
+- [x] Run all vitest tests (assessor tests: 5/5 passing)
+- [x] Create final production-ready checkpoint

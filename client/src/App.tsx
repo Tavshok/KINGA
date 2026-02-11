@@ -37,6 +37,10 @@ import ClaimsManagerDashboard from "./pages/ClaimsManagerDashboard";
 import AssessmentResults from "./pages/AssessmentResults";
 import NewAssessmentUpload from "./pages/NewAssessmentUpload";
 import SimpleUpload from "./pages/SimpleUpload";
+import AddAssessor from "./pages/AddAssessor";
+import JoinAsAssessor from "./pages/JoinAsAssessor";
+import AssessorList from "./pages/AssessorList";
+import AssignAssessor from "./pages/AssignAssessor";
 import ClaimsCostTrend from "./pages/analytics/ClaimsCostTrend";
 import FraudHeatmap from "./pages/analytics/FraudHeatmap";
 import FleetRisk from "./pages/analytics/FleetRisk";
@@ -192,6 +196,28 @@ function Router() {
           <InsurerExternalAssessmentUpload />
         </ProtectedRoute>
       </Route>
+      
+      {/* Assessor Management Routes */}
+      <Route path="/add-assessor">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <AddAssessor />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/assessors">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <AssessorList />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/assign-assessor/:claimId">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <AssignAssessor />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Public Marketplace Registration */}
+      <Route path="/join-as-assessor" component={JoinAsAssessor} />
       
       {/* Document Management Route - accessible by all authenticated users */}
       <Route path="/claims/:id/documents">
