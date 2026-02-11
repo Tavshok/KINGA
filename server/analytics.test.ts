@@ -240,7 +240,7 @@ describe('Analytics Endpoints', () => {
       // Verify performance data structure if available
       if (result.length > 0) {
         const firstPanelBeater = result[0];
-        expect(firstPanelBeater).toHaveProperty('id');
+        expect(firstPanelBeater).toHaveProperty('panelBeaterId');
         expect(firstPanelBeater).toHaveProperty('name');
         expect(firstPanelBeater).toHaveProperty('businessName');
         expect(firstPanelBeater).toHaveProperty('city');
@@ -251,7 +251,7 @@ describe('Analytics Endpoints', () => {
         expect(firstPanelBeater).toHaveProperty('onTimePct');
         expect(firstPanelBeater).toHaveProperty('reworkRate');
         
-        expect(typeof firstPanelBeater.id).toBe('number');
+        expect(typeof firstPanelBeater.panelBeaterId).toBe('number');
         expect(typeof firstPanelBeater.totalJobs).toBe('number');
         expect(typeof firstPanelBeater.avgQuote).toBe('number');
         expect(typeof firstPanelBeater.avgTurnaroundDays).toBe('number');

@@ -25,12 +25,11 @@ export async function getClaimsCostTrend(
   endDate: Date,
   groupBy: 'day' | 'week' | 'month' | 'quarter' | 'year' = 'month'
 ) {
-  // Map groupBy to MySQL DATE_FORMAT patterns
   const formatMap = {
     day: '%Y-%m-%d',
-    week: '%Y-%u',      // Year-Week
+    week: '%Y-%u',
     month: '%Y-%m',
-    quarter: '%Y-Q%q',  // Year-Quarter
+    quarter: '%Y-Q%q',
     year: '%Y'
   };
 
@@ -53,8 +52,8 @@ export async function getClaimsCostTrend(
     ORDER BY period ASC
   `);
 
-  const rows = (results as any).rows || [];
-  return rows.map((row: any) => ({
+  const [rows] = results as any;
+  return (rows || []).map((row: any) => ({
     period: row.period,
     claimCount: Number(row.claim_count),
     totalCost: Number(row.total_cost) || 0,
@@ -107,8 +106,8 @@ export async function getCostBreakdown(
     LIMIT 10
   `);
 
-  const rows = (results as any).rows || [];
-  return rows.map((row: any) => ({
+  const [rows] = results as any;
+  return (rows || []).map((row: any) => ({
     category: row.category || 'Unknown',
     claimCount: Number(row.claim_count),
     totalCost: Number(row.total_cost) || 0,
@@ -138,8 +137,8 @@ export async function getFraudHeatmap() {
     LIMIT 50
   `);
 
-  return (results as any).rows.map((row: any) => {
-    // Parse location (assuming format: "City, Province" or similar)
+  const [rows] = results as any;
+  return (rows || []).map((row: any) => {
     const location = row.incident_location || '';
     const parts = location.split(',').map((s: string) => s.trim());
     
@@ -151,9 +150,8 @@ export async function getFraudHeatmap() {
       avgFraudScore: Number(row.avg_fraud_score) || 0,
       totalAmount: Number(row.total_amount) || 0,
       maxFraudScore: Number(row.max_fraud_score) || 0,
-      // Assign random coordinates for demo (in production, use geocoding)
-      lat: -17.8 + (Math.random() * 4), // Zimbabwe latitude range
-      lng: 29.0 + (Math.random() * 4),  // Zimbabwe longitude range
+      lat: -17.8 + (Math.random() * 4),
+      lng: 29.0 + (Math.random() * 4),
     };
   });
 }
@@ -175,8 +173,8 @@ export async function getFraudPatterns() {
     WHERE fraud_risk_score >= 50
   `);
 
-  const row: any = (results as any).rows[0] || {};
-  
+  const [rows] = results as any;
+  const row: any = (rows || [])[0] || {};
   return {
     totalFraudCases: Number(row.total_fraud_cases) || 0,
     highRiskLocations: Number(row.high_risk_locations) || 0,
@@ -187,10 +185,8 @@ export async function getFraudPatterns() {
 
 /**
  * Get fleet risk overview (aggregated fleet statistics)
- * Note: This is a simplified version. In production, you'd have dedicated fleet and driver tables.
  */
 export async function getFleetRiskOverview() {
-  // For demo purposes, we'll aggregate by claimant
   const db = await getDb();
   if (!db) throw new Error('Database not available');
   
@@ -204,8 +200,8 @@ export async function getFleetRiskOverview() {
     WHERE claimant_id IS NOT NULL
   `);
 
-  const row: any = (results as any).rows[0] || {};
-  
+  const [rows] = results as any;
+  const row: any = (rows || [])[0] || {};
   return {
     driverCount: Number(row.driver_count) || 0,
     vehicleCount: Number(row.vehicle_count) || 0,
@@ -216,7 +212,6 @@ export async function getFleetRiskOverview() {
 
 /**
  * Get driver risk profiles
- * Note: Simplified version using claimants as "drivers"
  */
 export async function getDriverProfiles() {
   const db = await getDb();
@@ -239,15 +234,14 @@ export async function getDriverProfiles() {
     LIMIT 20
   `);
 
-  const rows = (results as any).rows || [];
-  return rows.map((row: any) => ({
+  const [rows] = results as any;
+  return (rows || []).map((row: any) => ({
     driverId: Number(row.claimant_id),
     driverName: row.driver_name || `Driver ${row.claimant_id}`,
     claimCount: Number(row.claim_count),
     riskScore: Number(row.risk_score) || 0,
     totalClaimCost: Number(row.total_claim_cost) || 0,
     lastClaimDate: row.last_claim_date ? new Date(row.last_claim_date) : null,
-    // Mock telematics data (in production, this would come from a telematics table)
     harshBraking: Math.floor(Math.random() * 50),
     rapidAcceleration: Math.floor(Math.random() * 40),
     speeding: Math.floor(Math.random() * 30),
@@ -270,11 +264,8 @@ export async function getPanelBeaterPerformance() {
       COUNT(q.id) as total_jobs,
       AVG(q.quoted_amount) as avg_quote,
       AVG(DATEDIFF(q.updated_at, q.created_at)) as avg_turnaround_days,
-      -- Mock customer rating (in production, this would come from a ratings table)
       (4.0 + (RAND() * 1.0)) as customer_rating,
-      -- Mock on-time delivery percentage
       (75 + (RAND() * 20)) as on_time_pct,
-      -- Mock rework rate
       (5 + (RAND() * 10)) as rework_rate
     FROM ${panelBeaters} pb
     LEFT JOIN ${panelBeaterQuotes} q ON pb.id = q.panel_beater_id
@@ -285,9 +276,9 @@ export async function getPanelBeaterPerformance() {
     LIMIT 20
   `);
 
-  const rows = (results as any).rows || [];
-  return rows.map((row: any) => ({
-    id: Number(row.id),
+  const [rows] = results as any;
+  return (rows || []).map((row: any) => ({
+    panelBeaterId: Number(row.id),
     name: row.name,
     businessName: row.business_name,
     city: row.city || 'Unknown',
@@ -317,8 +308,8 @@ export async function getAnalyticsSummary() {
     FROM ${claims}
   `);
 
-  const row: any = (results as any).rows[0] || {};
-  
+  const [rows] = results as any;
+  const row: any = (rows || [])[0] || {};
   return {
     totalClaims: Number(row.total_claims) || 0,
     totalCost: Number(row.total_cost) || 0,

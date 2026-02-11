@@ -12,6 +12,7 @@ import type { inferProcedureInput } from "@trpc/server";
 describe("Police Report Integration", () => {
   let testClaimId: number;
   let testUserId: number;
+  const testRunId = Date.now();
 
   // Create test context
   const createTestContext = (userId: number, role: string = "assessor") => ({
@@ -29,35 +30,34 @@ describe("Police Report Integration", () => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
-    // Create test user
-    const [userResult] = await db.execute(
-      "INSERT INTO user (email, name, role, open_id) VALUES (?, ?, ?, ?)",
-      ["test-assessor@test.com", "Test Assessor", "assessor", "test-assessor-id"]
+    // Create test user - use unique openId to avoid duplicate key errors
+    const uniqueId = `test-police-${Date.now()}`;
+    const userResult = await db.execute(
+      `INSERT INTO users (email, name, role, openId) VALUES ('${uniqueId}@test.com', 'Test Police Assessor', 'assessor', '${uniqueId}')`
     );
-    testUserId = (userResult as any).insertId;
+    testUserId = (userResult as any)[0]?.insertId || (userResult as any).insertId;
 
     // Create test claim with specific speed in description
-    const [claimResult] = await db.execute(
+    const claimResult = await db.execute(
       `INSERT INTO claims (
         claim_number, claimant_id, vehicle_make, vehicle_model, vehicle_year,
         vehicle_registration, incident_date, incident_location, incident_description,
         status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        "TEST-CLAIM-001",
-        testUserId,
-        "Toyota",
-        "Hilux",
+      ) VALUES (
+        'TEST-POLICE-001-${testRunId}',
+        ${testUserId},
+        'Toyota',
+        'Hilux',
         2017,
-        "AFV2713",
-        new Date("2024-07-13"),
-        "40KM PEG ALONG MUTARE-MASVINGO ROAD",
-        "Accident occurred while driving at 60 km/h in blind spot",
-        "pending_triage",
-        new Date(),
-      ]
+        'AFV2713',
+        '2024-07-13',
+        '40KM PEG ALONG MUTARE-MASVINGO ROAD',
+        'Accident occurred while driving at 60 km/h in blind spot',
+        'submitted',
+        NOW()
+      )`
     );
-    testClaimId = (claimResult as any).insertId;
+    testClaimId = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
   });
 
   afterAll(async () => {
@@ -65,9 +65,13 @@ describe("Police Report Integration", () => {
     if (!db) return;
 
     // Cleanup test data
-    await db.execute("DELETE FROM police_reports WHERE claim_id = ?", [testClaimId]);
-    await db.execute("DELETE FROM claims WHERE id = ?", [testClaimId]);
-    await db.execute("DELETE FROM user WHERE id = ?", [testUserId]);
+    try {
+      await db.execute(`DELETE FROM police_reports WHERE claim_id = ${testClaimId}`);
+      await db.execute(`DELETE FROM claims WHERE id = ${testClaimId}`);
+      await db.execute(`DELETE FROM users WHERE id = ${testUserId}`);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
   });
 
   it("should create police report with speed discrepancy detection", async () => {
@@ -101,24 +105,23 @@ describe("Police Report Integration", () => {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
 
-    const [claimResult] = await db.execute(
+    const claimResult = await db.execute(
       `INSERT INTO claims (
         claim_number, claimant_id, vehicle_make, vehicle_model, vehicle_year,
         incident_location, incident_description, status, created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        "TEST-CLAIM-002",
-        testUserId,
-        "Toyota",
-        "Quantum",
+      ) VALUES (
+        'TEST-POLICE-002-${testRunId}',
+        ${testUserId},
+        'Toyota',
+        'Quantum',
         2015,
-        "Harare CBD",
-        "Rear-end collision",
-        "pending_triage",
-        new Date(),
-      ]
+        'Harare CBD',
+        'Rear-end collision',
+        'submitted',
+        NOW()
+      )`
     );
-    const claim2Id = (claimResult as any).insertId;
+    const claim2Id = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
 
     type PoliceReportInput = inferProcedureInput<typeof appRouter.policeReports.create>;
     const input: PoliceReportInput = {
@@ -136,8 +139,12 @@ describe("Police Report Integration", () => {
     expect(report?.locationMismatch).toBe(1);
 
     // Cleanup
-    await db.execute("DELETE FROM police_reports WHERE claim_id = ?", [claim2Id]);
-    await db.execute("DELETE FROM claims WHERE id = ?", [claim2Id]);
+    try {
+      await db.execute(`DELETE FROM police_reports WHERE claim_id = ${claim2Id}`);
+      await db.execute(`DELETE FROM claims WHERE id = ${claim2Id}`);
+    } catch (e) {
+      // Ignore cleanup errors
+    }
   });
 
   it("should retrieve police report by claim ID", async () => {

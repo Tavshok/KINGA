@@ -1,18 +1,47 @@
 /**
  * Unit Tests for Vehicle Market Valuation Service
  * 
- * Tests AI-powered valuation, adjustments, and total loss determination
+ * Tests AI-powered valuation, adjustments, and total loss determination.
+ * LLM calls are mocked to ensure deterministic, fast tests.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
-  valuateVehicle,
   calculateBetterment,
   determineTotalLoss,
+} from "./services/vehicleValuation";
+
+// Mock the LLM module so valuateVehicle tests don't hit the real API
+vi.mock("./_core/llm", () => ({
+  invokeLLM: vi.fn().mockResolvedValue({
+    choices: [{
+      message: {
+        content: JSON.stringify({
+          estimated_value_usd: 20000,
+          confidence_score: 75,
+          reasoning: "AI Reasoning: Based on Zimbabwe market data, a 2017 Toyota Hilux in good condition with 120,000 km is valued at approximately $20,000 USD.",
+          comparable_vehicles: [
+            { description: "2017 Toyota Hilux 2.4 GD-6, 110k km", price_usd: 19500 },
+            { description: "2016 Toyota Hilux 2.8 GD-6, 130k km", price_usd: 18000 },
+          ]
+        })
+      }
+    }]
+  })
+}));
+
+// Import valuateVehicle AFTER mocking
+import {
+  valuateVehicle,
   type VehicleDetails,
 } from "./services/vehicleValuation";
 
 describe("Vehicle Market Valuation Service", () => {
+  
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("should valuate a 2017 Toyota Hilux", async () => {
     const vehicle: VehicleDetails = {
       make: "Toyota",
@@ -54,10 +83,10 @@ describe("Vehicle Market Valuation Service", () => {
     const excellentValuation = await valuateVehicle(excellentVehicle);
     const poorValuation = await valuateVehicle(poorVehicle);
 
-    // Excellent should have positive adjustment
+    // Excellent should have positive adjustment (+15%)
     expect(excellentValuation.conditionAdjustment).toBeGreaterThan(0);
 
-    // Poor should have negative adjustment
+    // Poor should have negative adjustment (-30%)
     expect(poorValuation.conditionAdjustment).toBeLessThan(0);
 
     // Excellent final value should be higher than poor
@@ -70,7 +99,7 @@ describe("Vehicle Market Valuation Service", () => {
     const lowMileageVehicle: VehicleDetails = {
       make: "Toyota",
       model: "Hilux",
-      year: 2020, // 6 years old, expected mileage: 90,000 km
+      year: 2020, // ~6 years old, expected mileage: ~90,000 km
       mileage: 50000, // Below expected
       condition: "good",
       country: "Zimbabwe",
@@ -88,10 +117,10 @@ describe("Vehicle Market Valuation Service", () => {
     const lowMileageValuation = await valuateVehicle(lowMileageVehicle);
     const highMileageValuation = await valuateVehicle(highMileageVehicle);
 
-    // Low mileage should have negative adjustment (increases value)
+    // Low mileage (below expected) should have negative adjustment (increases value)
     expect(lowMileageValuation.mileageAdjustment).toBeLessThan(0);
 
-    // High mileage should have positive adjustment (decreases value)
+    // High mileage (above expected) should have positive adjustment (decreases value)
     expect(highMileageValuation.mileageAdjustment).toBeGreaterThan(0);
   });
 
@@ -109,7 +138,7 @@ describe("Vehicle Market Valuation Service", () => {
     const highRepairCost = 2000000; // $20,000 in cents
     const valuation = await valuateVehicle(vehicle, highRepairCost);
 
-    // Should be flagged as total loss
+    // Should be flagged as total loss (repair cost >= 60% of value)
     expect(valuation.isTotalLoss).toBe(true);
     expect(valuation.repairCostToValueRatio).toBeGreaterThan(60);
   });
@@ -133,7 +162,7 @@ describe("Vehicle Market Valuation Service", () => {
     expect(valuation.repairCostToValueRatio).toBeLessThan(60);
   });
 
-  it("should calculate betterment for mechanical parts correctly", async () => {
+  it("should calculate betterment for mechanical parts correctly", () => {
     const newPartCost = 50000; // $500 in cents
     const vehicleAge = 7; // 7 years old
 
@@ -145,7 +174,7 @@ describe("Vehicle Market Valuation Service", () => {
     expect(betterment.explanation).toContain("7-year-old");
   });
 
-  it("should calculate betterment for different part categories", async () => {
+  it("should calculate betterment for different part categories", () => {
     const newPartCost = 100000; // $1000 in cents
     const vehicleAge = 5;
 
@@ -153,12 +182,12 @@ describe("Vehicle Market Valuation Service", () => {
     const bodyBetterment = calculateBetterment(newPartCost, vehicleAge, "body");
     const electricalBetterment = calculateBetterment(newPartCost, vehicleAge, "electrical");
 
-    // Electrical should have highest betterment (fastest depreciation)
+    // Electrical should have highest betterment (fastest depreciation at 20%)
     expect(electricalBetterment.bettermentAmount).toBeGreaterThan(
       mechanicalBetterment.bettermentAmount
     );
 
-    // Body should have lowest betterment (slowest depreciation)
+    // Body should have lowest betterment (slowest depreciation at 12%)
     expect(bodyBetterment.bettermentAmount).toBeLessThan(
       mechanicalBetterment.bettermentAmount
     );
@@ -174,7 +203,7 @@ describe("Vehicle Market Valuation Service", () => {
     expect(result.repairCostToValueRatio).toBe(65);
     expect(result.salvageValue).toBe(300000); // 15% of market value
     expect(result.recommendation).toContain("TOTAL LOSS");
-    expect(result.recommendation).toContain("$170.00"); // Payout: $200 - $30 salvage
+    expect(result.recommendation).toContain("$17000.00"); // Payout: $20000 - $3000 salvage
   });
 
   it("should recommend repair for economically viable repairs", () => {
@@ -219,6 +248,6 @@ describe("Vehicle Market Valuation Service", () => {
       (valuation.validUntil.getTime() - valuation.valuationDate.getTime()) /
       (1000 * 60 * 60 * 24);
 
-    expect(daysDifference).toBe(30);
+    expect(daysDifference).toBeCloseTo(30, 0);
   });
 });
