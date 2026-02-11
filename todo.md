@@ -3513,3 +3513,44 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Design dashboard blueprint for marketplace assessors
 - [x] Generate comprehensive Dual Assessor Governance Architecture document
 - [x] Save to GitHub
+
+
+## Configurable Standard Claims Workflow Engine (February 11, 2026)
+- [ ] Research workflow engine patterns (state machines, BPMN, event-driven)
+- [ ] Research insurance claims lifecycle standards (ISO, ACORD)
+- [ ] Design workflow state machine architecture
+- [ ] Define standard claim lifecycle stages (submission → triage → assessment → approval → repair → closure)
+- [ ] Design configuration schema for insurer-level customization
+- [ ] Design SLA timing rules configuration model
+- [ ] Design assignment rules configuration model
+- [ ] Design validation requirements configuration model
+- [ ] Design notification triggers configuration model
+- [ ] Design transition guard rule model
+- [ ] Design workflow version control strategy
+- [ ] Design governance enforcement model (prevent core stage modification)
+- [ ] Design audit logging for all workflow transitions
+- [ ] Design analytics tracking for workflow performance
+- [ ] Design multi-stakeholder access control across workflow stages
+- [ ] Design scalability architecture (event-driven, async processing)
+- [ ] Generate comprehensive Configurable Workflow Engine Architecture document
+- [ ] Save to GitHub
+
+
+## Configurable Standard Claims Workflow Engine Architecture (February 11, 2026)
+- [x] Research workflow engine patterns (Temporal, Camunda) and insurance claims lifecycle standards
+- [x] Design workflow state machine with fixed stages and transition guards
+- [x] Define standard claim lifecycle stages (9 immutable stages)
+- [x] Design configuration schema for tenant-level customization
+- [x] Design SLA timing rules and timer queue architecture
+- [x] Design assignment rules configuration (manual, round-robin, weighted)
+- [x] Design validation requirements configuration
+- [x] Design notification triggers configuration
+- [x] Design workflow version control strategy
+- [x] Design governance enforcement model (stage immutability, RBAC)
+- [x] Design scalability architecture (sharding, transfer queues, task queues)
+- [x] Design analytics tracking and observability
+- [x] Design multi-stakeholder access control
+- [x] Develop security threat model
+- [x] Document governance compliance alignment (POPIA/GDPR/FSCA/ISO 27001)
+- [x] Generate comprehensive Configurable Workflow Engine Architecture document
+- [x] Save to GitHub
