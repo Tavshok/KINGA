@@ -24,7 +24,15 @@ The platform implements a defense-in-depth security architecture spanning authen
 
 **Current Implementation:**
 
-The platform employs Manus OAuth 2.0 for centralized authentication across all user roles. OAuth flows are handled server-side via the `/api/oauth/callback` endpoint, which exchanges authorization codes for JWT access tokens. Session management uses HTTP-only, secure, SameSite=Strict cookies with a 30-day expiration and automatic renewal on activity. The JWT payload contains user identity (OpenID, email, name) and role assignment (admin, user, insurer, assessor, panel_beater). Role-based access control (RBAC) is enforced at the tRPC procedure level through two middleware patterns: `protectedProcedure` (requires authentication) and role-specific procedures such as `adminProcedure` (requires admin role). Authorization checks occur before business logic execution, ensuring that unauthorized requests are rejected with HTTP 401 (unauthenticated) or 403 (forbidden) responses before database access.
+The platform implements a hybrid authentication architecture that supports both OAuth 2.0 (via Manus OAuth provider) and traditional username/password authentication. This dual-mode approach accommodates different insurer requirements and user preferences while maintaining consistent security controls across both authentication methods.
+
+**OAuth 2.0 Flow:** OAuth flows are handled server-side via the `/api/oauth/callback` endpoint, which exchanges authorization codes for JWT access tokens. This method is recommended for insurers with existing identity providers and supports single sign-on (SSO) integration.
+
+**Username/Password Flow:** Traditional authentication uses bcrypt-hashed passwords stored in the database with configurable complexity requirements (minimum 12 characters, uppercase, lowercase, numbers, special characters). Password reset functionality is provided via secure email tokens with 1-hour expiration.
+
+**Session Management:** Regardless of authentication method, session management uses HTTP-only, secure, SameSite=Strict cookies with a 30-day expiration and automatic renewal on activity. The JWT payload contains user identity (OpenID, email, name) and role assignment (admin, user, insurer, assessor, panel_beater).
+
+**Authorization:** Role-based access control (RBAC) is enforced at the tRPC procedure level through two middleware patterns: `protectedProcedure` (requires authentication) and role-specific procedures such as `adminProcedure` (requires admin role). Authorization checks occur before business logic execution, ensuring that unauthorized requests are rejected with HTTP 401 (unauthenticated) or 403 (forbidden) responses before database access.
 
 **Security Controls:**
 
@@ -36,7 +44,8 @@ The platform employs Manus OAuth 2.0 for centralized authentication across all u
 | Concurrent session limits | Not currently enforced | Planned (Sprint 4, data retention policy) |
 | Account lockout after failed attempts | Delegated to Manus OAuth provider (5 attempts, 15-minute lockout) | Operational |
 | Role-based access control | tRPC middleware enforces role checks on 138+ procedures | Operational |
-| API key rotation | Not applicable (OAuth-only authentication) | N/A |
+| API key rotation | Not applicable (session-based authentication) | N/A |
+| Hybrid authentication support | OAuth 2.0 and username/password | Operational |
 
 **Known Gaps and Remediation:**
 
