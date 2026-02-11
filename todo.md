@@ -3245,3 +3245,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Deploy Prometheus monitoring server (Docker Compose configuration)
 - [x] Deploy Grafana dashboard (Docker Compose configuration)
 - [x] Create monitoring deployment documentation
+
+## Failure Decomposition & Risk Prioritisation Report (February 11, 2026)
+- [x] Deep codebase investigation for all failing/partial components
+- [x] Validate runtime behaviour and integration points
+- [x] Cross-reference audit findings with current implementation
+- [x] Generate comprehensive Failure Decomposition report
+- [x] Save report to GitHub
