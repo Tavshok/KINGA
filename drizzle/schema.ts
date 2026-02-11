@@ -20,6 +20,7 @@ export const users = mysqlTable("users", {
   role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]).default("user").notNull(),
   insurerRole: mysqlEnum("insurer_role", ["claims_processor", "internal_assessor", "risk_manager", "claims_manager", "executive"]), // Hierarchical roles for insurer users
   organizationId: int("organization_id"), // Link to organizations table for team members
+  tenantId: varchar("tenant_id", { length: 64 }), // Link to tenants table for multi-tenant isolation
   emailVerified: tinyint("email_verified").default(0).notNull(), // Email verification status
   
   // Assessor tier system (for freemium model)
@@ -1263,3 +1264,39 @@ export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
 
 export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
 export type InsertEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
+
+/**
+ * Tenants - Multi-tenant isolation for insurers
+ */
+export const tenants = mysqlTable("tenants", {
+  id: varchar("id", { length: 64 }).primaryKey(), // tenant-{uuid}
+  name: varchar("name", { length: 255 }).notNull(),
+  displayName: varchar("display_name", { length: 255 }).notNull(),
+  
+  // Tier and status
+  tier: mysqlEnum("tier", ["tier-basic", "tier-professional", "tier-enterprise"]).default("tier-basic").notNull(),
+  status: mysqlEnum("status", ["active", "inactive", "suspended"]).default("active").notNull(),
+  
+  // Encryption
+  encryptionKeyId: varchar("encryption_key_id", { length: 255 }), // KMS key ID for tenant-specific encryption
+  
+  // Contact information
+  contactName: varchar("contact_name", { length: 255 }),
+  contactEmail: varchar("contact_email", { length: 320 }),
+  contactPhone: varchar("contact_phone", { length: 20 }),
+  
+  // Billing
+  billingEmail: varchar("billing_email", { length: 320 }),
+  
+  // Configuration
+  configJson: text("config_json"), // JSON object for tenant-specific configuration
+  
+  // Timestamps
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  activatedAt: timestamp("activated_at"),
+  suspendedAt: timestamp("suspended_at"),
+});
+
+export type Tenant = typeof tenants.$inferSelect;
+export type InsertTenant = typeof tenants.$inferInsert;
