@@ -1,0 +1,117 @@
+groups:
+  - name: kinga_service_alerts
+    interval: 30s
+    rules:
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value }} errors/sec for {{ $labels.job }}"
+
+      - alert: CriticalErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical error rate detected"
+          description: "Error rate is {{ $value }} errors/sec for {{ $labels.job }}"
+
+      - alert: SlowResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_ms_bucket[5m])) > 2000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow API response time"
+          description: "P95 response time is {{ $value }}ms for {{ $labels.job }}"
+
+      - alert: ServiceDown
+        expr: up == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service is down"
+          description: "{{ $labels.job }} has been down for more than 2 minutes"
+
+      - alert: HighMemoryUsage
+        expr: process_resident_memory_bytes > 1073741824
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "{{ $labels.job }} is using {{ humanize $value }} of memory"
+
+  - name: kinga_database_alerts
+    interval: 30s
+    rules:
+      - alert: SlowDatabaseQueries
+        expr: histogram_quantile(0.95, rate(db_query_duration_ms_bucket[5m])) > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Slow database queries detected"
+          description: "P95 query time is {{ $value }}ms"
+
+      - alert: HighDatabaseConnections
+        expr: db_connections_active > 18
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection count"
+          description: "Active connections: {{ $value }} (threshold: 18/20)"
+
+  - name: kinga_event_alerts
+    interval: 30s
+    rules:
+      - alert: HighEventFailureRate
+        expr: rate(events_failed_total[5m]) / rate(events_published_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High event failure rate"
+          description: "Event failure rate is {{ $value | humanizePercentage }}"
+
+      - alert: CriticalEventFailureRate
+        expr: rate(events_failed_total[2m]) / rate(events_published_total[2m]) > 0.10
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical event failure rate"
+          description: "Event failure rate is {{ $value | humanizePercentage }}"
+
+      - alert: HighConsumerLag
+        expr: kafka_consumer_lag > 1000
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High consumer lag"
+          description: "Consumer lag is {{ $value }} messages for {{ $labels.consumer_group }}"
+
+      - alert: CriticalConsumerLag
+        expr: kafka_consumer_lag > 10000
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Critical consumer lag"
+          description: "Consumer lag is {{ $value }} messages for {{ $labels.consumer_group }}"
+
+      - alert: MessagesInDLQ
+        expr: dlq_messages_total > 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Messages in dead letter queue"
+          description: "{{ $value }} messages in DLQ for {{ $labels.topic }}"

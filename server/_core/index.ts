@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import rateLimit from "express-rate-limit";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { appRouter } from "../routers";
@@ -32,9 +33,37 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
-  // Configure body parser with larger size limit for file uploads
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  
+  // Trust proxy for rate limiting (required for X-Forwarded-For)
+  app.set('trust proxy', 1);
+  
+  // Rate limiters
+  const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // 100 requests per window
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+  });
+
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10, // 10 auth attempts per window
+    message: { error: 'Too many authentication attempts.' },
+  });
+
+  // Configure body parser with size limits
+  app.use(express.json({ limit: "1mb" })); // Default 1MB
+  app.use(express.urlencoded({ limit: "1mb", extended: true }));
+  
+  // Override for upload endpoints
+  app.use("/api/upload", express.json({ limit: "15mb" }));
+  app.use("/api/trpc/documents.upload", express.json({ limit: "15mb" }));
+  app.use("/api/trpc/claims.uploadImage", express.json({ limit: "15mb" }));
+  // Apply rate limiters
+  app.use('/api/trpc', globalLimiter);
+  app.use('/api/oauth', authLimiter);
+  
   // OAuth callback under /api/oauth/callback
   registerOAuthRoutes(app);
   

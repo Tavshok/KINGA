@@ -3233,3 +3233,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Generate Stability Improvement Checklist with 90 actionable items across 10 domains, sprint planning guide, and production readiness milestones
 - [x] Save all remediation documents to docs/remediation/ directory
 - [x] Commit remediation documents to GitHub repository
+
+## Sprint 1: Security Patches & Critical Testing (February 11, 2026)
+- [x] Install express-rate-limit package
+- [x] Implement API rate limiting middleware (global 100 req/15min, auth 10 req/15min)
+- [x] Implement file scanner module with MIME validation, magic byte verification, and ClamAV integration
+- [x] Integrate file scanning into all upload procedures
+- [x] Reduce Express JSON limit from 50MB to 1MB with 15MB override for uploads
+- [x] Create claims.test.ts with full CRUD lifecycle tests
+- [x] Create workflow.test.ts with state machine transition tests
+- [x] Deploy Prometheus monitoring server (Docker Compose configuration)
+- [x] Deploy Grafana dashboard (Docker Compose configuration)
+- [x] Create monitoring deployment documentation
