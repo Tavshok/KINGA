@@ -53,10 +53,12 @@ import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor-minimal";
 import { exportAssessmentPDF } from "./pdf-export";
+import { assessorOnboardingRouter } from "./routers/assessor-onboarding";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
   system: systemRouter,
+  assessorOnboarding: assessorOnboardingRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)
     testPublic: publicProcedure

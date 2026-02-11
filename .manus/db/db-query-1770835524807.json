@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE users ADD COLUMN tenant_id VARCHAR(64) AFTER organization_id;\nCREATE INDEX idx_users_tenant_id ON users(tenant_id);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nALTER TABLE users ADD COLUMN tenant_id VARCHAR(64) AFTER organization_id;\nCREATE INDEX idx_users_tenant_id ON users(tenant_id);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2736
+}

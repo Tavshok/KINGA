@@ -1308,3 +1308,161 @@ export const tenants = mysqlTable("tenants", {
 
 export type Tenant = typeof tenants.$inferSelect;
 export type InsertTenant = typeof tenants.$inferInsert;
+
+/**
+ * Assessors - Professional assessors with classification system
+ * Supports insurer-owned, marketplace, and hybrid assessors
+ */
+export const assessors = mysqlTable("assessors", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull().unique(), // Links to users table
+  professionalLicenseNumber: varchar("professional_license_number", { length: 100 }).notNull().unique(),
+  licenseExpiryDate: timestamp("license_expiry_date").notNull(),
+  
+  // Assessor classification
+  assessorType: mysqlEnum("assessor_type", ["insurer_owned", "marketplace", "hybrid"]).notNull(),
+  primaryTenantId: varchar("primary_tenant_id", { length: 64 }), // For insurer-owned and hybrid assessors
+  marketplaceEnabled: tinyint("marketplace_enabled").default(0).notNull(), // Can accept marketplace assignments
+  
+  // Marketplace profile
+  marketplaceStatus: mysqlEnum("marketplace_status", ["pending_approval", "active", "suspended", "inactive"]).default("pending_approval"),
+  marketplaceOnboardedAt: timestamp("marketplace_onboarded_at"),
+  marketplaceBio: text("marketplace_bio"), // Public profile description
+  marketplaceHourlyRate: decimal("marketplace_hourly_rate", { precision: 10, scale: 2 }), // Suggested rate for marketplace
+  marketplaceAvailability: mysqlEnum("marketplace_availability", ["full_time", "part_time", "weekends_only", "on_demand"]).default("on_demand"),
+  
+  // Specializations and certifications
+  specializations: text("specializations"), // JSON array: ["vehicle", "property", "marine"]
+  certifications: text("certifications"), // JSON array: ["IICRC", "ASE", "I-CAR"]
+  certificationLevel: mysqlEnum("certification_level", ["junior", "senior", "expert", "master"]).notNull(),
+  yearsOfExperience: int("years_of_experience"),
+  
+  // Geographic coverage
+  serviceRegions: text("service_regions"), // JSON array: ["Harare", "Bulawayo"]
+  maxTravelDistanceKm: int("max_travel_distance_km").default(50),
+  
+  // Performance metrics (unified across all types)
+  activeStatus: tinyint("active_status").default(1).notNull(),
+  performanceScore: decimal("performance_score", { precision: 5, scale: 2 }), // 0.00 to 100.00
+  totalAssessmentsCompleted: int("total_assessments_completed").default(0),
+  averageAccuracyScore: decimal("average_accuracy_score", { precision: 5, scale: 2 }), // Compared to AI baseline
+  averageTurnaroundHours: decimal("average_turnaround_hours", { precision: 8, scale: 2 }),
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // 0.00 to 5.00 (marketplace ratings)
+  totalRatingsCount: int("total_ratings_count").default(0),
+  
+  // Marketplace earnings (for marketplace and hybrid assessors)
+  totalMarketplaceEarnings: decimal("total_marketplace_earnings", { precision: 12, scale: 2 }).default("0.00"),
+  pendingPayout: decimal("pending_payout", { precision: 12, scale: 2 }).default("0.00"),
+  lastPayoutDate: timestamp("last_payout_date"),
+  
+  // Compliance and verification
+  backgroundCheckStatus: mysqlEnum("background_check_status", ["pending", "passed", "failed"]).default("pending"),
+  backgroundCheckDate: timestamp("background_check_date"),
+  insuranceVerified: tinyint("insurance_verified").default(0), // Professional indemnity insurance
+  insuranceExpiryDate: timestamp("insurance_expiry_date"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Assessor = typeof assessors.$inferSelect;
+export type InsertAssessor = typeof assessors.$inferInsert;
+
+/**
+ * Assessor-Insurer Relationships
+ * Tracks relationships between assessors and insurers (both BYOA and marketplace)
+ */
+export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relationships", {
+  id: int("id").autoincrement().primaryKey(),
+  assessorId: int("assessor_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Relationship type
+  relationshipType: mysqlEnum("relationship_type", ["insurer_owned", "marketplace_contract", "preferred_vendor"]).notNull(),
+  relationshipStatus: mysqlEnum("relationship_status", ["active", "suspended", "terminated"]).default("active"),
+  
+  // Contract details
+  contractStartDate: timestamp("contract_start_date").notNull(),
+  contractEndDate: timestamp("contract_end_date"),
+  contractedRatePerAssessment: decimal("contracted_rate_per_assessment", { precision: 10, scale: 2 }), // For insurer-owned assessors
+  marketplaceCommissionRate: decimal("marketplace_commission_rate", { precision: 5, scale: 2 }), // For marketplace assessors (e.g., 15.00 = 15%)
+  
+  // Performance tracking (tenant-specific)
+  performanceRating: decimal("performance_rating", { precision: 3, scale: 2 }), // Insurer-specific rating 0.00 to 5.00
+  totalAssignmentsCompleted: int("total_assignments_completed").default(0),
+  totalAssignmentsRejected: int("total_assignments_rejected").default(0),
+  averageCompletionTimeHours: decimal("average_completion_time_hours", { precision: 8, scale: 2 }),
+  
+  // Preferred vendor status (for marketplace assessors)
+  isPreferredVendor: tinyint("is_preferred_vendor").default(0),
+  preferredVendorSince: timestamp("preferred_vendor_since"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AssessorInsurerRelationship = typeof assessorInsurerRelationships.$inferSelect;
+export type InsertAssessorInsurerRelationship = typeof assessorInsurerRelationships.$inferInsert;
+
+/**
+ * Marketplace Assessor Reviews
+ * Ratings and reviews for marketplace assessors
+ */
+export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_reviews", {
+  id: int("id").autoincrement().primaryKey(),
+  assessorId: int("assessor_id").notNull(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  reviewerUserId: int("reviewer_user_id").notNull(), // Insurer user who left review
+  
+  // Rating (1-5 stars)
+  overallRating: int("overall_rating").notNull(), // 1-5
+  accuracyRating: int("accuracy_rating"), // 1-5
+  professionalismRating: int("professionalism_rating"), // 1-5
+  timelinessRating: int("timeliness_rating"), // 1-5
+  communicationRating: int("communication_rating"), // 1-5
+  
+  // Review content
+  reviewText: text("review_text"),
+  wouldHireAgain: tinyint("would_hire_again"),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type AssessorMarketplaceReview = typeof assessorMarketplaceReviews.$inferSelect;
+export type InsertAssessorMarketplaceReview = typeof assessorMarketplaceReviews.$inferInsert;
+
+/**
+ * Marketplace Transactions
+ * Tracks commission and payouts for marketplace assessments
+ */
+export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
+  id: int("id").autoincrement().primaryKey(),
+  assignmentId: int("assignment_id").notNull(), // Links to assessor_claim_assignments (to be added)
+  assessorId: int("assessor_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  claimId: int("claim_id").notNull(),
+  
+  // Financial details
+  assessmentFee: decimal("assessment_fee", { precision: 10, scale: 2 }).notNull(), // Total fee charged to insurer
+  kingaCommission: decimal("kinga_commission", { precision: 10, scale: 2 }).notNull(), // KINGA's commission
+  assessorPayout: decimal("assessor_payout", { precision: 10, scale: 2 }).notNull(), // Assessor's net earnings
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(), // Percentage (e.g., 15.00)
+  
+  // Transaction status
+  transactionStatus: mysqlEnum("transaction_status", ["pending", "completed", "paid_out", "disputed", "refunded"]).default("pending"),
+  completedAt: timestamp("completed_at"),
+  paidOutAt: timestamp("paid_out_at"),
+  
+  // Payment details
+  paymentMethod: varchar("payment_method", { length: 50 }), // "stripe", "bank_transfer", "mobile_money"
+  paymentReference: varchar("payment_reference", { length: 100 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MarketplaceTransaction = typeof marketplaceTransactions.$inferSelect;
+export type InsertMarketplaceTransaction = typeof marketplaceTransactions.$inferInsert;
