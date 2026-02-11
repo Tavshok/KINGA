@@ -3388,3 +3388,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Document compliance alignment (POPIA/GDPR)
 - [x] Generate comprehensive Hybrid Multi-Tenant Data Architecture document
 - [x] Save to GitHub
+
+
+## Hierarchical Multi-Stakeholder Access Architecture (February 11, 2026)
+- [x] Analyze stakeholder requirements (insurers, fleet operators, brokers, panel beaters, internal)
+- [x] Design identity hierarchy model with tenant/sub-tenant relationships
+- [x] Design Attribute-Based Access Control (ABAC) policy framework
+- [x] Design access evaluation flow and decision engine
+- [x] Design token and authentication strategy (JWT with ABAC claims)
+- [x] Design data tagging strategy for resource-level access control
+- [x] Design claim assignment-based access for repairers
+- [x] Design policyholder/fleet relationship-based access
+- [x] Design API and event bus access filtering enforcement
+- [x] Design full audit logging of access activity
+- [x] Design scalable stakeholder onboarding workflow
+- [x] Develop security threat model for multi-stakeholder access
+- [x] Document governance compliance alignment (POPIA/GDPR)
+- [x] Generate comprehensive Hierarchical Multi-Stakeholder Access Architecture document
+- [x] Save to GitHub
