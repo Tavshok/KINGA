@@ -56,6 +56,7 @@ export const panelBeaters = mysqlTable("panel_beaters", {
   city: varchar("city", { length: 100 }),
   approved: tinyint("approved").default(1).notNull(),
   userId: int("user_id"), // Link to users table if they have login access
+  tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -70,6 +71,7 @@ export const claims = mysqlTable("claims", {
   id: int("id").autoincrement().primaryKey(),
   claimantId: int("claimant_id").notNull(), // Reference to users table
   claimNumber: varchar("claim_number", { length: 50 }).notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   
   // Vehicle information
   vehicleMake: varchar("vehicle_make", { length: 100 }),
@@ -163,6 +165,7 @@ export const claimComments = mysqlTable("claim_comments", {
   
   content: text("content").notNull(),
   
+    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -200,6 +203,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   modelVersion: varchar("model_version", { length: 50 }),
   processingTime: int("processing_time"), // milliseconds
   
+  tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -232,6 +236,7 @@ export const assessorEvaluations = mysqlTable("assessor_evaluations", {
   
   status: mysqlEnum("status", ["pending", "in_progress", "completed", "submitted"]).default("pending").notNull(),
   
+    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -272,6 +277,7 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
   
   status: mysqlEnum("status", ["draft", "submitted", "modified", "accepted", "rejected"]).default("draft").notNull(),
   
+    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -302,6 +308,7 @@ export const appointments = mysqlTable("appointments", {
   
   status: mysqlEnum("status", ["scheduled", "confirmed", "completed", "cancelled"]).default("scheduled").notNull(),
   
+    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -486,6 +493,7 @@ export const fraudIndicators = mysqlTable("fraud_indicators", {
   investigationStatus: mysqlEnum("investigation_status", ["pending", "in_progress", "completed", "closed"]).default("pending"),
   investigationNotes: text("investigation_notes"),
   
+    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

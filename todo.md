@@ -3341,3 +3341,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create tenants table in database
 - [x] Run tenant provisioning CLI to create first tenant (Demo Insurance Company)
 - [x] Test implementations and create checkpoint
+
+
+## Tenant-Aware Implementation (February 11, 2026)
+- [ ] Update claims router to filter by tenant_id
+- [ ] Update quotes router to filter by tenant_id
+- [ ] Update assessments router to filter by tenant_id
+- [ ] Update users router to filter by tenant_id
+- [ ] Update panel beaters router to filter by tenant_id
+- [ ] Update insurers router to filter by tenant_id
+- [x] Add tenant_id to all relevant database tables (schema updated, migration pending)
+- [ ] Run database migration (pnpm db:push)
+- [ ] Backfill tenant_id for existing data
+- [ ] Add foreign key constraints
+- [ ] Create tenant admin portal page
+- [ ] Build tenant settings management UI
+- [ ] Create tenant user management interface
+- [ ] Implement tenant switching component for platform admins
+- [ ] Add tenant impersonation logging
+- [ ] Test tenant isolation and data filtering
+- [ ] Create checkpoint
