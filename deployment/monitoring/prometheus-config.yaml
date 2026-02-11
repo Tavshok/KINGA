@@ -1,0 +1,339 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: monitoring
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      evaluation_interval: 15s
+      external_labels:
+        cluster: 'kinga-production'
+        environment: 'production'
+
+    # Alertmanager configuration
+    alerting:
+      alertmanagers:
+        - static_configs:
+            - targets:
+                - alertmanager:9093
+
+    # Load rules once and periodically evaluate them
+    rule_files:
+      - /etc/prometheus/rules/*.yml
+
+    # Scrape configurations
+    scrape_configs:
+      # Prometheus itself
+      - job_name: 'prometheus'
+        static_configs:
+          - targets: ['localhost:9090']
+
+      # Kubernetes API server
+      - job_name: 'kubernetes-apiservers'
+        kubernetes_sd_configs:
+          - role: endpoints
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_namespace, __meta_kubernetes_service_name, __meta_kubernetes_endpoint_port_name]
+            action: keep
+            regex: default;kubernetes;https
+
+      # Kubernetes nodes
+      - job_name: 'kubernetes-nodes'
+        kubernetes_sd_configs:
+          - role: node
+        scheme: https
+        tls_config:
+          ca_file: /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        bearer_token_file: /var/run/secrets/kubernetes.io/serviceaccount/token
+        relabel_configs:
+          - action: labelmap
+            regex: __meta_kubernetes_node_label_(.+)
+
+      # Kubernetes pods
+      - job_name: 'kubernetes-pods'
+        kubernetes_sd_configs:
+          - role: pod
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+          - source_labels: [__address__, __meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)(?::\d+)?;(\d+)
+            replacement: $1:$2
+            target_label: __address__
+          - action: labelmap
+            regex: __meta_kubernetes_pod_label_(.+)
+          - source_labels: [__meta_kubernetes_namespace]
+            action: replace
+            target_label: kubernetes_namespace
+          - source_labels: [__meta_kubernetes_pod_name]
+            action: replace
+            target_label: kubernetes_pod_name
+
+      # KINGA Monolith
+      - job_name: 'kinga-monolith'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - kinga-services
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: kinga-monolith
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port]
+            action: replace
+            regex: ([^:]+)
+            target_label: __address__
+            replacement: $1:3000
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+            replacement: /api/metrics
+
+      # Notification Service
+      - job_name: 'notification-service'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - kinga-services
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app]
+            action: keep
+            regex: notification-service
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__address__]
+            action: replace
+            regex: ([^:]+)(?::\d+)?
+            replacement: $1:3001
+            target_label: __address__
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+            action: replace
+            target_label: __metrics_path__
+            regex: (.+)
+            replacement: /metrics
+
+      # Kafka Metrics (via JMX Exporter)
+      - job_name: 'kafka'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - kafka
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_strimzi_io_kind]
+            action: keep
+            regex: Kafka
+          - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+            action: keep
+            regex: true
+          - source_labels: [__address__]
+            action: replace
+            regex: ([^:]+)(?::\d+)?
+            replacement: $1:9404
+            target_label: __address__
+
+      # Kafka Exporter
+      - job_name: 'kafka-exporter'
+        kubernetes_sd_configs:
+          - role: pod
+            namespaces:
+              names:
+                - kafka
+        relabel_configs:
+          - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+            action: keep
+            regex: kafka-exporter
+          - source_labels: [__address__]
+            action: replace
+            regex: ([^:]+)(?::\d+)?
+            replacement: $1:9308
+            target_label: __address__
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-rules
+  namespace: monitoring
+data:
+  kinga-alerts.yml: |
+    groups:
+      - name: kinga_events
+        interval: 30s
+        rules:
+          # Event processing rate alerts
+          - alert: HighEventFailureRate
+            expr: |
+              rate(kinga_events_failed_total[5m]) / rate(kinga_events_consumed_total[5m]) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              service: '{{ $labels.service }}'
+            annotations:
+              summary: "High event failure rate detected"
+              description: "Service {{ $labels.service }} has a failure rate of {{ $value | humanizePercentage }} over the last 5 minutes"
+
+          - alert: CriticalEventFailureRate
+            expr: |
+              rate(kinga_events_failed_total[5m]) / rate(kinga_events_consumed_total[5m]) > 0.10
+            for: 2m
+            labels:
+              severity: critical
+              service: '{{ $labels.service }}'
+            annotations:
+              summary: "Critical event failure rate detected"
+              description: "Service {{ $labels.service }} has a critical failure rate of {{ $value | humanizePercentage }}"
+
+          # Consumer lag alerts
+          - alert: HighConsumerLag
+            expr: |
+              kafka_consumergroup_lag > 1000
+            for: 10m
+            labels:
+              severity: warning
+              consumer_group: '{{ $labels.consumergroup }}'
+            annotations:
+              summary: "High consumer lag detected"
+              description: "Consumer group {{ $labels.consumergroup }} has a lag of {{ $value }} messages"
+
+          - alert: CriticalConsumerLag
+            expr: |
+              kafka_consumergroup_lag > 10000
+            for: 5m
+            labels:
+              severity: critical
+              consumer_group: '{{ $labels.consumergroup }}'
+            annotations:
+              summary: "Critical consumer lag detected"
+              description: "Consumer group {{ $labels.consumergroup }} has a critical lag of {{ $value }} messages"
+
+          # Dead letter queue alerts
+          - alert: MessagesInDLQ
+            expr: |
+              kafka_topic_partition_current_offset{topic="kinga.dead-letter-queue"} > 0
+            for: 5m
+            labels:
+              severity: warning
+            annotations:
+              summary: "Messages in dead letter queue"
+              description: "Dead letter queue has {{ $value }} messages that require investigation"
+
+          # Event processing duration alerts
+          - alert: SlowEventProcessing
+            expr: |
+              histogram_quantile(0.95, rate(kinga_events_processing_duration_seconds_bucket[5m])) > 5
+            for: 10m
+            labels:
+              severity: warning
+              service: '{{ $labels.service }}'
+            annotations:
+              summary: "Slow event processing detected"
+              description: "95th percentile event processing time for {{ $labels.service }} is {{ $value }}s"
+
+      - name: kinga_services
+        interval: 30s
+        rules:
+          # Service availability
+          - alert: ServiceDown
+            expr: |
+              up{job=~"kinga-monolith|notification-service"} == 0
+            for: 2m
+            labels:
+              severity: critical
+              service: '{{ $labels.job }}'
+            annotations:
+              summary: "Service is down"
+              description: "Service {{ $labels.job }} has been down for more than 2 minutes"
+
+          # High CPU usage
+          - alert: HighCPUUsage
+            expr: |
+              rate(process_cpu_seconds_total{job=~"kinga-monolith|notification-service"}[5m]) > 0.8
+            for: 10m
+            labels:
+              severity: warning
+              service: '{{ $labels.job }}'
+            annotations:
+              summary: "High CPU usage detected"
+              description: "Service {{ $labels.job }} CPU usage is {{ $value | humanizePercentage }}"
+
+          # High memory usage
+          - alert: HighMemoryUsage
+            expr: |
+              process_resident_memory_bytes{job=~"kinga-monolith|notification-service"} / 1024 / 1024 / 1024 > 1.5
+            for: 10m
+            labels:
+              severity: warning
+              service: '{{ $labels.job }}'
+            annotations:
+              summary: "High memory usage detected"
+              description: "Service {{ $labels.job }} memory usage is {{ $value }}GB"
+
+          # High error rate
+          - alert: HighErrorRate
+            expr: |
+              rate(http_requests_total{status=~"5.."}[5m]) / rate(http_requests_total[5m]) > 0.05
+            for: 5m
+            labels:
+              severity: warning
+              service: '{{ $labels.job }}'
+            annotations:
+              summary: "High HTTP error rate detected"
+              description: "Service {{ $labels.job }} has an error rate of {{ $value | humanizePercentage }}"
+
+      - name: kafka_cluster
+        interval: 30s
+        rules:
+          # Kafka broker availability
+          - alert: KafkaBrokerDown
+            expr: |
+              kafka_brokers < 3
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Kafka broker down"
+              description: "Only {{ $value }} Kafka brokers are available (expected 3)"
+
+          # Under-replicated partitions
+          - alert: UnderReplicatedPartitions
+            expr: |
+              kafka_topic_partition_under_replicated_partition > 0
+            for: 5m
+            labels:
+              severity: warning
+              topic: '{{ $labels.topic }}'
+            annotations:
+              summary: "Under-replicated partitions detected"
+              description: "Topic {{ $labels.topic }} has {{ $value }} under-replicated partitions"
+
+          # Offline partitions
+          - alert: OfflinePartitions
+            expr: |
+              kafka_controller_kafkacontroller_offlinepartitionscount > 0
+            for: 2m
+            labels:
+              severity: critical
+            annotations:
+              summary: "Offline partitions detected"
+              description: "{{ $value }} partitions are offline"

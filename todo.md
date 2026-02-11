@@ -2918,3 +2918,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Refactor AI damage assessment to emit events
 - [x] Refactor fraud detection to emit events
 - [x] Create event documentation and testing utilities
+
+
+## Kafka Cluster Deployment & Notification Service Extraction
+- [x] Create Kafka cluster deployment manifests with Strimzi operator
+- [x] Configure SASL authentication for Kafka users
+- [x] Create initial Kafka topics for KINGA events
+- [x] Deploy Kafka cluster to Kubernetes (or local Docker Compose for development)
+- [x] Extract notification service as standalone microservice
+- [x] Implement event subscribers in notification service (ClaimSubmitted, AssessmentCompleted)
+- [x] Configure notification service to consume from Kafka topics
+- [x] Test end-to-end event flow from monolith to notification service
+- [x] Implement Prometheus metrics exporters in services
+- [x] Create Grafana dashboards for event monitoring (throughput, lag, DLQ)
+- [x] Deploy Prometheus and Grafana for monitoring
+- [x] Test complete monitoring stack with live events
+- [x] Create checkpoint with Kafka deployment and notification service

@@ -1,0 +1,277 @@
+{
+  "kinga-events-dashboard": {
+    "dashboard": {
+      "title": "KINGA Event-Driven Architecture",
+      "tags": ["kinga", "events", "kafka"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Event Throughput",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(kinga_events_consumed_total[5m])",
+              "legendFormat": "{{service}} - consumed"
+            },
+            {
+              "expr": "rate(kinga_events_published_total[5m])",
+              "legendFormat": "{{service}} - published"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "id": 2,
+          "title": "Event Failure Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(kinga_events_failed_total[5m])",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "id": 3,
+          "title": "Consumer Lag",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "kafka_consumergroup_lag",
+              "legendFormat": "{{consumergroup}} - {{topic}}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8}
+        },
+        {
+          "id": 4,
+          "title": "Event Processing Duration (p95)",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(kinga_events_processing_duration_seconds_bucket[5m]))",
+              "legendFormat": "{{service}}"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8}
+        },
+        {
+          "id": 5,
+          "title": "Dead Letter Queue Size",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "kafka_topic_partition_current_offset{topic=\"kinga.dead-letter-queue\"}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 16, "w": 6, "h": 4}
+        },
+        {
+          "id": 6,
+          "title": "Total Events Processed (24h)",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "increase(kinga_events_consumed_total[24h])"
+            }
+          ],
+          "gridPos": {"x": 6, "y": 16, "w": 6, "h": 4}
+        },
+        {
+          "id": 7,
+          "title": "Event Success Rate",
+          "type": "gauge",
+          "targets": [
+            {
+              "expr": "(rate(kinga_events_consumed_total[5m]) - rate(kinga_events_failed_total[5m])) / rate(kinga_events_consumed_total[5m])"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 16, "w": 6, "h": 4}
+        },
+        {
+          "id": 8,
+          "title": "Active Consumers",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "kafka_consumergroup_members"
+            }
+          ],
+          "gridPos": {"x": 18, "y": 16, "w": 6, "h": 4}
+        }
+      ]
+    }
+  },
+  "kinga-services-dashboard": {
+    "dashboard": {
+      "title": "KINGA Services Health",
+      "tags": ["kinga", "services", "health"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Service Uptime",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "up{job=~\"kinga-monolith|notification-service\"}",
+              "legendFormat": "{{job}}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 12, "h": 4}
+        },
+        {
+          "id": 2,
+          "title": "CPU Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(process_cpu_seconds_total{job=~\"kinga-monolith|notification-service\"}[5m])",
+              "legendFormat": "{{job}}"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 12, "h": 8}
+        },
+        {
+          "id": 3,
+          "title": "Memory Usage",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "process_resident_memory_bytes{job=~\"kinga-monolith|notification-service\"} / 1024 / 1024",
+              "legendFormat": "{{job}} (MB)"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}
+        },
+        {
+          "id": 4,
+          "title": "HTTP Request Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total[5m])",
+              "legendFormat": "{{job}} - {{method}} {{status}}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8}
+        },
+        {
+          "id": 5,
+          "title": "HTTP Error Rate",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(http_requests_total{status=~\"5..\"}[5m])",
+              "legendFormat": "{{job}}"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8}
+        },
+        {
+          "id": 6,
+          "title": "HTTP Response Time (p95)",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))",
+              "legendFormat": "{{job}}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8}
+        }
+      ]
+    }
+  },
+  "kafka-cluster-dashboard": {
+    "dashboard": {
+      "title": "Kafka Cluster Health",
+      "tags": ["kafka", "cluster"],
+      "timezone": "browser",
+      "panels": [
+        {
+          "id": 1,
+          "title": "Active Brokers",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "kafka_brokers"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4}
+        },
+        {
+          "id": 2,
+          "title": "Total Topics",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "count(kafka_topic_partitions)"
+            }
+          ],
+          "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4}
+        },
+        {
+          "id": 3,
+          "title": "Under-Replicated Partitions",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "sum(kafka_topic_partition_under_replicated_partition)"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4}
+        },
+        {
+          "id": 4,
+          "title": "Offline Partitions",
+          "type": "stat",
+          "targets": [
+            {
+              "expr": "kafka_controller_kafkacontroller_offlinepartitionscount"
+            }
+          ],
+          "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4}
+        },
+        {
+          "id": 5,
+          "title": "Messages In Per Second",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(kafka_server_brokertopicmetrics_messagesin_total[5m])",
+              "legendFormat": "broker-{{broker}}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8}
+        },
+        {
+          "id": 6,
+          "title": "Bytes In Per Second",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "rate(kafka_server_brokertopicmetrics_bytesin_total[5m])",
+              "legendFormat": "broker-{{broker}}"
+            }
+          ],
+          "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8}
+        },
+        {
+          "id": 7,
+          "title": "Consumer Group Lag by Topic",
+          "type": "graph",
+          "targets": [
+            {
+              "expr": "kafka_consumergroup_lag",
+              "legendFormat": "{{consumergroup}} - {{topic}}"
+            }
+          ],
+          "gridPos": {"x": 0, "y": 12, "w": 24, "h": 8}
+        }
+      ]
+    }
+  }
+}
