@@ -2855,8 +2855,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 ### Damage Analysis Enhancement
 - [x] Add comprehensive damage breakdown by component (left fender, left door, left mirror, left quarter panel)
 - [x] Show severity levels for each damaged component
-- [ ] Add repair vs replace recommendations
-- [ ] Include estimated repair time per component
+- [x] Add repair vs replace recommendations
+- [x] Include estimated repair time per component
 - [x] Add visual damage location diagram
 
 ### Physics & Fraud Integration
@@ -2869,9 +2869,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 ### Cost Breakdown Visualization
 - [x] Extract itemized costs from PDF (labor, parts, materials, paint)
 - [x] Create interactive cost breakdown chart (donut + bar chart)
-- [ ] Compare AI estimate vs external assessment costs
+- [x] Compare AI estimate vs external assessment costs
 - [x] Show cost per damaged component
-- [ ] Add market rate comparison for parts
+- [x] Add market rate comparison for parts
 - [x] Highlight cost outliers and potential inflation via AI commentary
 
 
@@ -2886,3 +2886,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add detailed cost breakdown visualization
 - [x] Improve damage analysis component breakdown
 - [x] Test end-to-end with real PDF (ZIMPLATS FORD RANGER AFU6364)
+
+
+## Assessment Results v2 Enhancements (2026-02-11)
+- [x] Add image classification in extract_images.py (damage_photo vs document based on size, resolution, page text)
+- [x] Add 6th "Quotes" tab to AssessmentResults page
+- [x] Add photo gallery filter tabs (Damage / Document / All)
+- [x] Add component repair vs replace recommendations UI
+- [x] Add multi-quote comparison bar chart with savings highlight
+- [x] Add enhanced cost summary cards (agreed cost, original quote, savings, market value)
+- [x] Add assessor name and repairer name display in overview
+- [x] Add excess/deductible and betterment display in cost tab
+- [x] Add itemized cost table in quotes tab
+- [x] Write vitest tests for v2 assessment processor types and logic

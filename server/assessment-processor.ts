@@ -3,12 +3,13 @@
  * 
  * Pipeline:
  * 1. Upload PDF to S3
- * 2. Extract images from PDF (Python PyMuPDF)
+ * 2. Extract & classify images from PDF (Python PyMuPDF)
  * 3. Extract text from PDF (Node.js pdf-parse, Python OCR fallback)
- * 4. Extract structured data with LLM (including itemized costs)
- * 5. Run physics validation (Python physics_validator.py with numpy/scipy)
- * 6. Run fraud detection (Python fraud_ml_model.py) - cross-references physics results
- * 7. Return comprehensive assessment result
+ * 4. Extract structured data with LLM (including all cost figures & quotes)
+ * 5. Generate component repair/replace recommendations (LLM)
+ * 6. Run physics validation (Python physics_validator.py with numpy/scipy)
+ * 7. Run fraud detection (Python fraud_ml_model.py) - cross-references physics results
+ * 8. Return comprehensive assessment result with multi-quote comparison
  */
 
 import { spawn } from 'child_process';
@@ -38,6 +39,29 @@ interface CostBreakdown {
   paint?: number;
   sublet?: number;
   other?: number;
+}
+
+interface ComponentRecommendation {
+  component: string;
+  action: 'repair' | 'replace';
+  severity: 'minor' | 'moderate' | 'severe';
+  estimatedCost: number;
+  laborHours: number;
+  reasoning: string;
+}
+
+interface QuoteFigure {
+  label: string;
+  amount: number;
+  source: string;
+  type: 'original' | 'agreed' | 'ai' | 'reference';
+  description?: string;
+}
+
+interface PhotoWithClassification {
+  url: string;
+  classification: 'damage_photo' | 'document';
+  page?: number;
 }
 
 interface PhysicsAnalysis {
@@ -99,9 +123,20 @@ interface AssessmentResult {
   damageDescription?: string;
   damageLocation?: string;
   estimatedCost?: number;
+  originalQuote?: number;
+  agreedCost?: number;
+  marketValue?: number;
+  savings?: number;
+  excessAmount?: number;
+  betterment?: number;
+  assessorName?: string;
+  repairerName?: string;
   itemizedCosts?: ItemizedCost[];
   costBreakdown?: CostBreakdown;
+  componentRecommendations?: ComponentRecommendation[];
+  quotes?: QuoteFigure[];
   damagePhotos: string[];
+  allPhotos?: PhotoWithClassification[];
   accidentType?: string;
   damagedComponents: string[];
   physicsAnalysis: PhysicsAnalysis;
@@ -151,28 +186,25 @@ export async function processExternalAssessment(
   writeFileSync(tempPdfPath, fileBuffer);
 
   // ============================================================
-  // STEP 1: Extract images from PDF using Python PyMuPDF
+  // STEP 1: Extract & classify images from PDF
   // ============================================================
-  console.log('\n🖼️ Step 1: Extracting images from PDF (Python PyMuPDF)...');
-  let extractedImages: string[] = [];
+  console.log('\n🖼️ Step 1: Extracting and classifying images from PDF...');
+  let damagePhotoUrls: string[] = [];
+  let allPhotos: PhotoWithClassification[] = [];
   
   try {
-    // Use dedicated extract_images.py that writes to a temp file (avoids stdout buffer issues)
     const imgOutputPath = join('/tmp', `kinga-images-${nanoid()}.json`);
     const imgResult = await runPythonScript(
       join(PYTHON_DIR, 'extract_images.py'), 
       [tempPdfPath, imgOutputPath],
-      120000 // 2 minutes for large PDFs
+      120000
     );
     
-    console.log(`📸 Image extraction result: ${JSON.stringify(imgResult)}`);
+    console.log(`📸 Image extraction: ${imgResult.total_images} total (${imgResult.damage_photos} damage, ${imgResult.document_images} document)`);
     
     if (imgResult.success && imgResult.total_images > 0) {
-      // Read the full image data from the temp file
       const imgFileData = readFileSync(imgOutputPath, 'utf-8');
       const imgData = JSON.parse(imgFileData);
-      
-      console.log(`📸 Found ${imgData.total_images} images in temp file, uploading to S3...`);
       
       for (const img of imgData.images) {
         if (img.full_data) {
@@ -184,15 +216,20 @@ export async function processExternalAssessment(
               imgBuffer,
               `image/${ext}`
             );
-            extractedImages.push(imgUrl);
+            
+            const classification = img.classification || 'damage_photo';
+            allPhotos.push({ url: imgUrl, classification, page: img.page });
+            
+            if (classification === 'damage_photo') {
+              damagePhotoUrls.push(imgUrl);
+            }
           } catch (e: any) {
             console.warn(`⚠️ Failed to upload image: ${e.message}`);
           }
         }
       }
-      console.log(`✅ Uploaded ${extractedImages.length} damage photos`);
+      console.log(`✅ Uploaded ${damagePhotoUrls.length} damage photos, ${allPhotos.length - damagePhotoUrls.length} document images`);
       
-      // Clean up temp file
       try { unlinkSync(imgOutputPath); } catch (e) {}
     }
   } catch (error: any) {
@@ -205,7 +242,6 @@ export async function processExternalAssessment(
   console.log('\n📝 Step 2: Extracting text from PDF...');
   let extractedText = '';
   
-  // Primary: Node.js pdf-parse
   try {
     const { PDFParse } = await import('pdf-parse');
     const parser = new PDFParse({ data: new Uint8Array(fileBuffer) });
@@ -217,7 +253,6 @@ export async function processExternalAssessment(
     console.error(`❌ Node.js text extraction failed: ${error.message}`);
   }
   
-  // Fallback: Python OCR
   if (extractedText.length < 100) {
     console.log('🔄 Trying Python OCR fallback...');
     try {
@@ -234,7 +269,7 @@ export async function processExternalAssessment(
   }
 
   // ============================================================
-  // STEP 3: Extract structured data with LLM
+  // STEP 3: Extract structured data with LLM (all cost figures)
   // ============================================================
   console.log('\n🤖 Step 3: Extracting structured data with LLM...');
   
@@ -244,25 +279,31 @@ export async function processExternalAssessment(
         role: "system",
         content: `You are an expert at extracting structured data from vehicle damage assessment reports. 
 Extract ALL available information with precision. For missing fields, return empty string "" (not "null").
+
+CRITICAL COST EXTRACTION RULES:
+- Extract EVERY cost figure mentioned anywhere in the document
+- "Original Repairer Quote" or "Repairer's Estimate" = originalQuote
+- "Agreed Cost" or "Final Cost" or "Negotiated Amount" = agreedCost  
+- "Market Value" or "Retail Value" = marketValue
+- "Savings" or "Reduction" = savings (difference between original and agreed)
+- "Excess" or "Deductible" = excessAmount
+- "Betterment" or "Depreciation" = betterment
+- For estimatedCost, use the AGREED cost if available, otherwise the original quote
+- Extract assessor name and repairer/panel beater name
+
 For itemized costs, extract EVERY line item you can find - labor items, parts, materials, paint, sublet work.
 If no individual line items exist but a total cost is given, estimate a reasonable breakdown:
-- For side impacts: ~40% parts, ~35% labor, ~15% paint, ~10% materials
-- For rear-end: ~50% parts, ~30% labor, ~10% paint, ~10% materials  
-- For head-on: ~45% parts, ~35% labor, ~10% paint, ~10% materials
+- For side impacts: ~35% labor, ~40% parts, ~15% paint, ~10% materials
+- For rear-end: ~30% labor, ~50% parts, ~10% paint, ~10% materials  
+- For head-on: ~35% labor, ~45% parts, ~10% paint, ~10% materials
 Always populate costBreakdown with estimated category totals that sum to the total cost.
-For damagedComponents, infer from damage description (e.g., 'left handside' = left fender, left door, left mirror, left quarter panel).
-Be thorough: extract exact dollar amounts, component names, and descriptions as they appear.`
+For damagedComponents, infer from damage description (e.g., 'left handside' = left fender, left door, left mirror, left quarter panel).`
       },
       {
         role: "user",
         content: `Extract ALL information from this vehicle damage assessment report.
 
-CRITICAL RULES:
-1. Return actual values found. For missing fields, use empty string "".
-2. For estimatedCost, use the AGREED cost (after negotiation) if available, otherwise the original quote.
-3. For costBreakdown, ALWAYS provide estimated category totals that sum to the total cost.
-4. For damagedComponents, INFER from damage location if not explicitly listed.
-5. For itemizedCosts, if no line items exist, create estimated items based on damage type and total cost.
+CRITICAL: Extract every cost figure mentioned. Look for original quotes, agreed costs, market values, savings, excess amounts, betterment, assessor names, repairer names.
 
 === DOCUMENT TEXT ===
 ${extractedText}
@@ -289,14 +330,21 @@ ${extractedText}
             policeReportReference: { type: "string" },
             damageDescription: { type: "string" },
             damageLocation: { type: "string" },
-            estimatedCost: { type: "number" },
-            marketValue: { type: "number", description: "Vehicle market value if mentioned" },
+            estimatedCost: { type: "number", description: "Use agreed cost if available, otherwise original quote" },
+            originalQuote: { type: "number", description: "Original repairer quote/estimate before negotiation" },
+            agreedCost: { type: "number", description: "Final agreed cost after assessment/negotiation" },
+            marketValue: { type: "number", description: "Vehicle market/retail value" },
+            savings: { type: "number", description: "Savings amount (original - agreed)" },
+            excessAmount: { type: "number", description: "Insurance excess/deductible amount" },
+            betterment: { type: "number", description: "Betterment/depreciation amount" },
+            assessorName: { type: "string", description: "Name of the assessor or assessment company" },
+            repairerName: { type: "string", description: "Name of the repair shop or panel beater" },
             estimatedSpeed: { type: "number", description: "Estimated impact speed km/h, infer from accident type if not stated" },
             accidentType: { type: "string", description: "rear_end, side_impact, head_on, parking_lot, highway, rollover, or other" },
             damagedComponents: { 
               type: "array",
               items: { type: "string" },
-              description: "List of ALL damaged parts/components mentioned"
+              description: "List of ALL damaged parts/components mentioned or inferred"
             },
             itemizedCosts: {
               type: "array",
@@ -324,13 +372,8 @@ ${extractedText}
               },
               required: ["labor", "parts", "materials", "paint", "sublet", "other"],
               additionalProperties: false,
-              description: "Summary totals by category"
-            },
-            repairCostAgreed: { type: "number", description: "Final agreed repair cost (after negotiation)" },
-            savings: { type: "number", description: "Savings amount if mentioned" },
-            assessorName: { type: "string", description: "Name of the assessor" },
-            repairerName: { type: "string", description: "Name of the repair shop" },
-            excessAmount: { type: "number", description: "Insurance excess amount if mentioned" }
+              description: "Summary totals by category - MUST sum to the total cost"
+            }
           },
           required: ["vehicleMake", "vehicleModel", "vehicleYear", "vehicleRegistration"],
           additionalProperties: false
@@ -360,9 +403,12 @@ ${extractedText}
   console.log(`  Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}`);
   console.log(`  Registration: ${extractedData.vehicleRegistration}`);
   console.log(`  Claimant: ${extractedData.claimantName || 'NOT FOUND'}`);
-  console.log(`  Total Cost: $${extractedData.estimatedCost || 'NOT FOUND'}`);
-  console.log(`  Agreed Cost: $${extractedData.repairCostAgreed || 'NOT FOUND'}`);
+  console.log(`  Original Quote: $${extractedData.originalQuote || 'NOT FOUND'}`);
+  console.log(`  Agreed Cost: $${extractedData.agreedCost || 'NOT FOUND'}`);
   console.log(`  Market Value: $${extractedData.marketValue || 'NOT FOUND'}`);
+  console.log(`  Savings: $${extractedData.savings || 'NOT FOUND'}`);
+  console.log(`  Assessor: ${extractedData.assessorName || 'NOT FOUND'}`);
+  console.log(`  Repairer: ${extractedData.repairerName || 'NOT FOUND'}`);
   console.log(`  Itemized Costs: ${extractedData.itemizedCosts?.length || 0} items`);
   console.log(`  Damaged Components: ${extractedData.damagedComponents?.length || 0} items`);
 
@@ -378,7 +424,7 @@ ${extractedText}
     hasPoliceReport: !!extractedData.policeReportReference,
     hasDamagedComponents: !!(extractedData.damagedComponents && extractedData.damagedComponents.length > 0),
     hasMarketValue: !!extractedData.marketValue,
-    hasPhotos: extractedImages.length > 0
+    hasPhotos: damagePhotoUrls.length > 0
   };
   
   for (const [key, has] of Object.entries(dataQuality)) {
@@ -392,12 +438,88 @@ ${extractedText}
   console.log(`📊 Data Completeness: ${completeness}%`);
 
   // ============================================================
-  // STEP 4: Physics Validation (Python physics_validator.py)
+  // STEP 4: Generate component repair/replace recommendations
   // ============================================================
-  console.log('\n⚛️ Step 4: Running physics validation (Python)...');
+  console.log('\n🔧 Step 4: Generating component repair/replace recommendations...');
+  let componentRecommendations: ComponentRecommendation[] = [];
+  
+  const components = extractedData.damagedComponents || [];
+  const totalCost = extractedData.agreedCost || extractedData.estimatedCost || 0;
+  
+  if (components.length > 0 && totalCost > 0) {
+    try {
+      const recResponse = await invokeLLM({
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert vehicle damage assessor. For each damaged component, recommend whether to REPAIR or REPLACE based on damage severity and cost-effectiveness. Be realistic with costs and labor hours.`
+          },
+          {
+            role: "user",
+            content: `Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}
+Accident type: ${extractedData.accidentType || 'unknown'}
+Total agreed cost: $${totalCost}
+Damage description: ${extractedData.damageDescription || extractedData.damageLocation || 'unknown'}
+
+Damaged components: ${components.join(', ')}
+
+For EACH component, provide repair vs replace recommendation. The sum of all component costs should approximately equal the total cost of $${totalCost}.`
+          }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "component_recommendations",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                recommendations: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      component: { type: "string", description: "Component name" },
+                      action: { type: "string", description: "Either 'repair' or 'replace'" },
+                      severity: { type: "string", description: "Either 'minor', 'moderate', or 'severe'" },
+                      estimatedCost: { type: "number", description: "Estimated cost for this component" },
+                      laborHours: { type: "number", description: "Estimated labor hours" },
+                      reasoning: { type: "string", description: "Brief explanation for the recommendation" }
+                    },
+                    required: ["component", "action", "severity", "estimatedCost", "laborHours", "reasoning"],
+                    additionalProperties: false
+                  }
+                }
+              },
+              required: ["recommendations"],
+              additionalProperties: false
+            }
+          }
+        }
+      });
+      
+      const recData = JSON.parse(recResponse.choices[0].message.content as string);
+      componentRecommendations = (recData.recommendations || []).map((r: any) => ({
+        ...r,
+        action: r.action === 'replace' ? 'replace' : 'repair',
+        severity: ['minor', 'moderate', 'severe'].includes(r.severity) ? r.severity : 'moderate'
+      }));
+      
+      console.log(`✅ Generated ${componentRecommendations.length} component recommendations`);
+      for (const rec of componentRecommendations) {
+        console.log(`   ${rec.component}: ${rec.action.toUpperCase()} ($${rec.estimatedCost}, ${rec.laborHours}h, ${rec.severity})`);
+      }
+    } catch (error: any) {
+      console.warn(`⚠️ Component recommendations failed: ${error.message}`);
+    }
+  }
+
+  // ============================================================
+  // STEP 5: Physics Validation (Python physics_validator.py)
+  // ============================================================
+  console.log('\n⚛️ Step 5: Running physics validation (Python)...');
   let physicsAnalysis: PhysicsAnalysis;
   
-  // Determine vehicle type and parameters for physics
   const modelLower = (extractedData.vehicleModel || '').toLowerCase();
   const vehicleType = modelLower.includes('ranger') || modelLower.includes('hilux') || modelLower.includes('truck') || modelLower.includes('pickup') ? 'truck' :
     modelLower.includes('suv') || modelLower.includes('fortuner') || modelLower.includes('pajero') ? 'suv' : 'sedan';
@@ -410,13 +532,9 @@ ${extractedText}
     estimatedSpeed = speedByType[extractedData.accidentType || ''] || 50;
   }
   
-  const damageSeverity = (extractedData.estimatedCost || 0) > 8000 ? 'severe' : 
-    (extractedData.estimatedCost || 0) > 3000 ? 'moderate' : 'minor';
+  const damageSeverity = totalCost > 8000 ? 'severe' : totalCost > 3000 ? 'moderate' : 'minor';
   
-  // Map damaged components to damage locations
-  const damageLocations = (extractedData.damagedComponents || []).length > 0 
-    ? extractedData.damagedComponents 
-    : [extractedData.damageLocation || 'unknown'];
+  const damageLocations = components.length > 0 ? components : [extractedData.damageLocation || 'unknown'];
   
   try {
     const physicsInput = JSON.stringify({
@@ -434,34 +552,26 @@ ${extractedText}
       30000
     );
     
-    // Enrich with derived values for the frontend
     const pa = physicsResult.physics_analysis || {};
     const impactSpeedKmh = (pa.impact_speed_ms || 0) * 3.6;
     const impactForceKN = pa.vehicle_mass_kg && pa.impact_speed_ms 
-      ? (pa.vehicle_mass_kg * pa.impact_speed_ms / 0.1) / 1000 // F = mv/t in kN
+      ? (pa.vehicle_mass_kg * pa.impact_speed_ms / 0.1) / 1000
       : 0;
     
     physicsAnalysis = {
       ...physicsResult,
       impactSpeed: Math.round(impactSpeedKmh) || estimatedSpeed,
       impactForce: Math.round(impactForceKN),
-      energyDissipated: Math.round((pa.kinetic_energy_joules || 0) * 0.6 / (pa.kinetic_energy_joules || 1) * 100), // ~60% absorbed
+      energyDissipated: Math.round((pa.kinetic_energy_joules || 0) * 0.6 / (pa.kinetic_energy_joules || 1) * 100),
       deceleration: Math.round((pa.g_force || 0) * 10) / 10,
       physicsScore: Math.round((physicsResult.confidence || 0.5) * 100)
     };
     
-    console.log(`✅ Physics validation complete:`);
-    console.log(`   Valid: ${physicsAnalysis.is_valid}`);
-    console.log(`   Consistency: ${physicsAnalysis.damageConsistency}`);
-    console.log(`   Confidence: ${physicsAnalysis.confidence}`);
-    console.log(`   Flags: ${physicsAnalysis.flags?.length || 0}`);
-    console.log(`   Impact: ${physicsAnalysis.impactSpeed} km/h, ${physicsAnalysis.impactForce} kN, ${physicsAnalysis.deceleration}g`);
+    console.log(`✅ Physics validation complete: Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
     
   } catch (error: any) {
-    console.warn(`⚠️ Python physics validation failed: ${error.message}`);
-    console.warn('⚠️ Falling back to LLM physics analysis...');
+    console.warn(`⚠️ Python physics failed: ${error.message}, falling back to LLM...`);
     
-    // Fallback to LLM-based physics
     try {
       const physicsResponse = await invokeLLM({
         messages: [
@@ -476,12 +586,12 @@ ${extractedText}
             schema: {
               type: "object",
               properties: {
-                impactSpeed: { type: "number", description: "Impact speed in km/h" },
-                impactForce: { type: "number", description: "Impact force in kN" },
-                energyDissipated: { type: "number", description: "Percentage of energy absorbed by crumple zones, 0-100" },
-                deceleration: { type: "number", description: "G-forces experienced during impact" },
-                damageConsistency: { type: "string", description: "One of: consistent, inconsistent, impossible" },
-                physicsScore: { type: "integer", description: "Physics validation score from 0-100 where 100 is fully consistent" },
+                impactSpeed: { type: "number" },
+                impactForce: { type: "number" },
+                energyDissipated: { type: "number", description: "Percentage 0-100" },
+                deceleration: { type: "number" },
+                damageConsistency: { type: "string", description: "consistent, inconsistent, or impossible" },
+                physicsScore: { type: "integer", description: "0-100" },
                 confidence: { type: "number" },
                 is_valid: { type: "boolean" },
                 analysis_notes: { type: "string" }
@@ -505,23 +615,23 @@ ${extractedText}
   }
 
   // ============================================================
-  // STEP 5: Fraud Detection (Python fraud_ml_model.py) 
+  // STEP 6: Fraud Detection (Python fraud_ml_model.py) 
   //         Cross-references physics results
   // ============================================================
-  console.log('\n🔍 Step 5: Running fraud detection (Python)...');
+  console.log('\n🔍 Step 6: Running fraud detection (Python)...');
   let fraudAnalysis: FraudAnalysis;
   
   try {
     const fraudInput = JSON.stringify({
-      claim_amount: extractedData.estimatedCost || 0,
+      claim_amount: totalCost,
       vehicle_age: new Date().getFullYear() - (extractedData.vehicleYear || 2020),
-      previous_claims_count: 0, // Unknown for external assessments
+      previous_claims_count: 0,
       damage_severity_score: damageSeverity === 'severe' ? 0.9 : damageSeverity === 'moderate' ? 0.6 : 0.3,
       physics_validation_score: physicsAnalysis.confidence || 0.5,
       has_witnesses: false,
       has_police_report: !!extractedData.policeReportReference,
-      has_photos: extractedImages.length > 0,
-      is_high_value: (extractedData.estimatedCost || 0) > 10000,
+      has_photos: damagePhotoUrls.length > 0,
+      is_high_value: totalCost > 10000,
       accident_type: extractedData.accidentType || 'other'
     });
     
@@ -531,31 +641,26 @@ ${extractedText}
       30000
     );
     
-    // Build cross-reference between physics and fraud
     const physicsFlagsCount = physicsAnalysis.flags?.length || 0;
     const physicsContributes = physicsFlagsCount > 0 || !physicsAnalysis.is_valid;
     
-    // Adjust fraud score based on physics findings
     let adjustedFraudProb = fraudResult.fraud_probability || 0;
     if (physicsContributes) {
       adjustedFraudProb = Math.min(1.0, adjustedFraudProb + (physicsFlagsCount * 0.1));
     }
     
-    // Build risk indicators (1-5 scale)
     const indicators = {
-      claimHistory: 2, // Unknown for external assessments
+      claimHistory: 2,
       damageConsistency: physicsAnalysis.is_valid ? 2 : physicsAnalysis.damageConsistency === 'inconsistent' ? 4 : 3,
-      documentAuthenticity: extractedImages.length > 3 ? 1 : extractedImages.length > 0 ? 2 : 4,
+      documentAuthenticity: damagePhotoUrls.length > 3 ? 1 : damagePhotoUrls.length > 0 ? 2 : 4,
       behavioralPatterns: 2,
       ownershipVerification: extractedData.claimantName ? 2 : 4,
       geographicRisk: 2
     };
     
-    // Determine risk level
     const riskScore = Math.round(adjustedFraudProb * 100);
     const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : 'high';
     
-    // Combine risk factors from Python + physics cross-reference
     const topRiskFactors = [...(fraudResult.top_risk_factors || [])];
     if (physicsContributes) {
       for (const flag of (physicsAnalysis.flags || [])) {
@@ -579,24 +684,19 @@ ${extractedText}
           ? `Physics validation raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}. This increased the fraud risk score.`
           : `Physics validation passed with no flags. Damage is ${physicsAnalysis.damageConsistency} with the reported accident.`
       },
-      analysis_notes: `Fraud probability: ${(adjustedFraudProb * 100).toFixed(1)}%. ${physicsContributes ? 'Physics inconsistencies detected - fraud risk elevated.' : 'Physics validation supports the claim.'} ${topRiskFactors.length > 0 ? 'Risk factors: ' + topRiskFactors.join('; ') : 'No significant risk factors identified.'}`
+      analysis_notes: `Fraud probability: ${(adjustedFraudProb * 100).toFixed(1)}%. ${physicsContributes ? 'Physics inconsistencies detected.' : 'Physics validation supports the claim.'} ${topRiskFactors.length > 0 ? 'Risk factors: ' + topRiskFactors.join('; ') : 'No significant risk factors identified.'}`
     };
     
-    console.log(`✅ Fraud detection complete:`);
-    console.log(`   Risk: ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
-    console.log(`   Physics cross-ref: ${physicsContributes ? 'CONTRIBUTES to fraud risk' : 'Supports claim'}`);
-    console.log(`   Risk factors: ${topRiskFactors.length}`);
+    console.log(`✅ Fraud detection: ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
     
   } catch (error: any) {
-    console.warn(`⚠️ Python fraud detection failed: ${error.message}`);
-    console.warn('⚠️ Falling back to LLM fraud analysis...');
+    console.warn(`⚠️ Python fraud failed: ${error.message}, falling back to LLM...`);
     
-    // Fallback to LLM
     try {
       const fraudResponse = await invokeLLM({
         messages: [
           { role: "system", content: "You are an insurance fraud detection expert. Be fair and objective." },
-          { role: "user", content: `Analyze fraud risk: ${extractedData.vehicleMake} ${extractedData.vehicleModel}, $${extractedData.estimatedCost}, ${extractedData.accidentType}, physics score: ${physicsAnalysis.physicsScore}/100, ${extractedImages.length} photos` }
+          { role: "user", content: `Analyze fraud risk: ${extractedData.vehicleMake} ${extractedData.vehicleModel}, $${totalCost}, ${extractedData.accidentType}, physics score: ${physicsAnalysis.physicsScore}/100, ${damagePhotoUrls.length} photos` }
         ],
         response_format: {
           type: "json_schema",
@@ -612,9 +712,9 @@ ${extractedText}
                 indicators: {
                   type: "object",
                   properties: {
-                    claimHistory: { type: "integer", description: "Risk score 1-5 where 1=low risk, 5=high risk" }, damageConsistency: { type: "integer", description: "Risk score 1-5" },
-                    documentAuthenticity: { type: "integer", description: "Risk score 1-5" }, behavioralPatterns: { type: "integer", description: "Risk score 1-5" },
-                    ownershipVerification: { type: "integer", description: "Risk score 1-5" }, geographicRisk: { type: "integer", description: "Risk score 1-5" }
+                    claimHistory: { type: "integer" }, damageConsistency: { type: "integer" },
+                    documentAuthenticity: { type: "integer" }, behavioralPatterns: { type: "integer" },
+                    ownershipVerification: { type: "integer" }, geographicRisk: { type: "integer" }
                   },
                   required: ["claimHistory", "damageConsistency", "documentAuthenticity", "behavioralPatterns", "ownershipVerification", "geographicRisk"],
                   additionalProperties: false
@@ -649,18 +749,73 @@ ${extractedText}
     }
   }
 
+  // ============================================================
+  // STEP 7: Build multi-quote comparison
+  // ============================================================
+  console.log('\n💰 Step 7: Building quote comparison...');
+  
+  const quotes: QuoteFigure[] = [];
+  const originalQuote = extractedData.originalQuote || 0;
+  const agreedCost = extractedData.agreedCost || 0;
+  const aiEstimate = componentRecommendations.reduce((sum, r) => sum + r.estimatedCost, 0);
+  const mktValue = extractedData.marketValue || 0;
+  
+  if (originalQuote > 0) {
+    quotes.push({
+      label: 'Original Repairer Quote',
+      amount: originalQuote,
+      source: extractedData.repairerName || 'Repairer',
+      type: 'original',
+      description: `Initial repair estimate from ${extractedData.repairerName || 'the repairer'}`
+    });
+  }
+  
+  if (agreedCost > 0) {
+    quotes.push({
+      label: 'Agreed Cost (Negotiated)',
+      amount: agreedCost,
+      source: extractedData.assessorName || 'Assessor',
+      type: 'agreed',
+      description: `Cost agreed after assessment by ${extractedData.assessorName || 'the assessor'}`
+    });
+  }
+  
+  if (aiEstimate > 0) {
+    quotes.push({
+      label: 'AI Component Estimate',
+      amount: aiEstimate,
+      source: 'KINGA AutoVerify',
+      type: 'ai',
+      description: 'Sum of individual component repair/replace estimates by AI'
+    });
+  }
+  
+  if (mktValue > 0) {
+    quotes.push({
+      label: 'Vehicle Market Value',
+      amount: mktValue,
+      source: 'Market Reference',
+      type: 'reference',
+      description: 'Current market value of the vehicle for reference'
+    });
+  }
+  
+  console.log(`📊 Quotes: ${quotes.length} figures compiled`);
+  for (const q of quotes) {
+    console.log(`   ${q.label}: $${q.amount.toLocaleString()} (${q.type})`);
+  }
+
   // Clean up temp file
   try { unlinkSync(tempPdfPath); } catch (e) { /* ignore */ }
 
   console.log(`\n${'='.repeat(60)}`);
   console.log(`✅ ASSESSMENT PROCESSING COMPLETE`);
   console.log(`📊 Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}`);
-  console.log(`📊 Registration: ${extractedData.vehicleRegistration}`);
-  console.log(`📊 Cost: $${extractedData.estimatedCost} (Agreed: $${extractedData.repairCostAgreed || 'N/A'})`);
-  console.log(`📊 Photos: ${extractedImages.length}`);
+  console.log(`📊 Photos: ${damagePhotoUrls.length} damage + ${allPhotos.length - damagePhotoUrls.length} document`);
+  console.log(`📊 Components: ${componentRecommendations.length} recommendations`);
+  console.log(`📊 Quotes: ${quotes.length} figures`);
   console.log(`📊 Physics: ${physicsAnalysis.damageConsistency} (score ${physicsAnalysis.physicsScore}/100)`);
   console.log(`📊 Fraud: ${fraudAnalysis.risk_level} (score ${fraudAnalysis.risk_score}/100)`);
-  console.log(`📊 Cross-ref: Physics ${fraudAnalysis.physics_cross_reference?.physics_contributes_to_fraud ? 'ELEVATES' : 'supports'} fraud risk`);
   console.log(`📊 Completeness: ${completeness}%`);
   console.log(`${'='.repeat(60)}\n`);
   
@@ -678,10 +833,21 @@ ${extractedText}
     policeReportReference: extractedData.policeReportReference || undefined,
     damageDescription: extractedData.damageDescription || undefined,
     damageLocation: extractedData.damageLocation || undefined,
-    estimatedCost: extractedData.repairCostAgreed || extractedData.estimatedCost || 0,
+    estimatedCost: agreedCost || extractedData.estimatedCost || 0,
+    originalQuote: originalQuote || undefined,
+    agreedCost: agreedCost || undefined,
+    marketValue: mktValue || undefined,
+    savings: extractedData.savings || (originalQuote && agreedCost ? originalQuote - agreedCost : undefined),
+    excessAmount: extractedData.excessAmount || undefined,
+    betterment: extractedData.betterment || undefined,
+    assessorName: extractedData.assessorName || undefined,
+    repairerName: extractedData.repairerName || undefined,
     itemizedCosts: extractedData.itemizedCosts || [],
     costBreakdown: extractedData.costBreakdown,
-    damagePhotos: extractedImages,
+    componentRecommendations,
+    quotes,
+    damagePhotos: damagePhotoUrls,
+    allPhotos,
     accidentType: extractedData.accidentType || undefined,
     damagedComponents: extractedData.damagedComponents || [],
     physicsAnalysis,
@@ -700,14 +866,12 @@ function runPythonScript(scriptPath: string, args: string[] = [], timeoutMs: num
     console.log(`🐍 Running: python3 ${scriptPath} ${args.map(a => a.substring(0, 80)).join(' ')}`);
     
     // CRITICAL: Clear PYTHONPATH and PYTHONHOME to prevent Python 3.13 libs from being loaded by Python 3.11
-    // The server process inherits PYTHONPATH/PYTHONHOME pointing to Python 3.13,
-    // which causes SRE module mismatch errors when Python 3.11 tries to use them.
     const cleanEnv = { ...process.env };
     delete cleanEnv.PYTHONPATH;
     delete cleanEnv.PYTHONHOME;
     
     const pythonProcess = spawn('python3', [scriptPath, ...args], {
-      cwd: PYTHON_DIR, // Run from python directory so relative imports work
+      cwd: PYTHON_DIR,
       env: cleanEnv
     });
     

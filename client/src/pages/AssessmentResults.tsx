@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,8 @@ import {
   CheckCircle2, FileText, Car, DollarSign, AlertTriangle, Loader2, 
   Edit3, Save, X, ZoomIn, ZoomOut, Shield, Activity, TrendingUp, AlertCircle,
   Brain, Gauge, Target, FileDown, ChevronLeft, ChevronRight, 
-  Maximize2, RotateCcw, Camera, Link2, ArrowRight
+  Maximize2, RotateCcw, Camera, Link2, ArrowRight, Wrench, Replace,
+  BarChart3, ArrowDown, ArrowUp, Minus
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -27,6 +28,29 @@ interface ItemizedCost {
   category?: string;
 }
 
+interface ComponentRecommendation {
+  component: string;
+  action: 'repair' | 'replace';
+  severity: 'minor' | 'moderate' | 'severe';
+  estimatedCost: number;
+  laborHours: number;
+  reasoning: string;
+}
+
+interface QuoteFigure {
+  label: string;
+  amount: number;
+  source: string;
+  type: 'original' | 'agreed' | 'ai' | 'reference';
+  description?: string;
+}
+
+interface PhotoWithClassification {
+  url: string;
+  classification: 'damage_photo' | 'document';
+  page?: number;
+}
+
 interface ExtractedData {
   vehicleMake?: string;
   vehicleModel?: string;
@@ -37,8 +61,17 @@ interface ExtractedData {
   claimNumber?: string;
   damageDescription?: string;
   estimatedCost?: number;
+  originalQuote?: number;
+  agreedCost?: number;
+  marketValue?: number;
+  savings?: number;
+  excessAmount?: number;
+  betterment?: number;
+  assessorName?: string;
+  repairerName?: string;
   pdfUrl?: string;
   damagePhotos?: string[];
+  allPhotos?: PhotoWithClassification[];
   accidentType?: string;
   accidentDate?: string;
   accidentLocation?: string;
@@ -55,6 +88,8 @@ interface ExtractedData {
     sublet?: number;
     other?: number;
   };
+  componentRecommendations?: ComponentRecommendation[];
+  quotes?: QuoteFigure[];
   missingData?: string[];
   dataQuality?: Record<string, boolean>;
   dataCompleteness?: number;
@@ -66,67 +101,66 @@ interface DamageSection {
   severity: 'minor' | 'moderate' | 'severe';
 }
 
-// ─── Image Gallery with Zoom/Pan ───────────────────────────────────────
-function ImageGallery({ photos }: { photos: string[] }) {
+// ─── Image Gallery with Classification Filter & Zoom/Pan ──────────────
+type PhotoFilter = 'all' | 'damage' | 'document';
+
+function ImageGallery({ 
+  damagePhotos, 
+  allPhotos 
+}: { 
+  damagePhotos: string[]; 
+  allPhotos?: PhotoWithClassification[];
+}) {
+  const [filter, setFilter] = useState<PhotoFilter>('damage');
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const imgContainerRef = useRef<HTMLDivElement>(null);
 
-  const resetView = useCallback(() => {
-    setZoom(1);
-    setPan({ x: 0, y: 0 });
-  }, []);
+  const filteredPhotos = useMemo(() => {
+    if (!allPhotos || allPhotos.length === 0) {
+      // Fallback: all damagePhotos treated as damage
+      return filter === 'document' ? [] : damagePhotos;
+    }
+    switch (filter) {
+      case 'damage': return allPhotos.filter(p => p.classification === 'damage_photo').map(p => p.url);
+      case 'document': return allPhotos.filter(p => p.classification === 'document').map(p => p.url);
+      default: return allPhotos.map(p => p.url);
+    }
+  }, [filter, damagePhotos, allPhotos]);
+
+  const damageCount = allPhotos ? allPhotos.filter(p => p.classification === 'damage_photo').length : damagePhotos.length;
+  const documentCount = allPhotos ? allPhotos.filter(p => p.classification === 'document').length : 0;
+  const totalCount = allPhotos ? allPhotos.length : damagePhotos.length;
+
+  const resetView = useCallback(() => { setZoom(1); setPan({ x: 0, y: 0 }); }, []);
+
+  useEffect(() => { setCurrentIndex(0); resetView(); }, [filter, resetView]);
 
   const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.5, 5));
   const handleZoomOut = () => {
-    setZoom(prev => {
-      const newZoom = Math.max(prev - 0.5, 1);
-      if (newZoom === 1) setPan({ x: 0, y: 0 });
-      return newZoom;
-    });
+    setZoom(prev => { const nz = Math.max(prev - 0.5, 1); if (nz === 1) setPan({ x: 0, y: 0 }); return nz; });
   };
-
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? -0.25 : 0.25;
-    setZoom(prev => {
-      const newZoom = Math.max(1, Math.min(prev + delta, 5));
-      if (newZoom === 1) setPan({ x: 0, y: 0 });
-      return newZoom;
-    });
+    setZoom(prev => { const nz = Math.max(1, Math.min(prev + delta, 5)); if (nz === 1) setPan({ x: 0, y: 0 }); return nz; });
   }, []);
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (zoom <= 1) return;
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y });
-  };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || zoom <= 1) return;
-    setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
-  };
-
+  const handleMouseDown = (e: React.MouseEvent) => { if (zoom <= 1) return; setIsDragging(true); setDragStart({ x: e.clientX - pan.x, y: e.clientY - pan.y }); };
+  const handleMouseMove = (e: React.MouseEvent) => { if (!isDragging || zoom <= 1) return; setPan({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); };
   const handleMouseUp = () => setIsDragging(false);
-
-  const goToPhoto = (index: number) => {
-    setCurrentIndex(index);
-    resetView();
-  };
-
-  const goNext = () => goToPhoto(Math.min(currentIndex + 1, photos.length - 1));
+  const goToPhoto = (i: number) => { setCurrentIndex(i); resetView(); };
+  const goNext = () => goToPhoto(Math.min(currentIndex + 1, filteredPhotos.length - 1));
   const goPrev = () => goToPhoto(Math.max(currentIndex - 1, 0));
 
-  if (photos.length === 0) {
+  if (totalCount === 0) {
     return (
       <Card className="p-8 text-center">
         <Camera className="w-12 h-12 mx-auto text-gray-300 mb-3" />
-        <p className="text-gray-500 font-medium">No damage photos extracted</p>
-        <p className="text-sm text-gray-400 mt-1">Photos could not be extracted from this PDF. The document may not contain embedded images.</p>
+        <p className="text-gray-500 font-medium">No photos extracted</p>
+        <p className="text-sm text-gray-400 mt-1">The document may not contain embedded images.</p>
       </Card>
     );
   }
@@ -136,174 +170,121 @@ function ImageGallery({ photos }: { photos: string[] }) {
       <Card className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-indigo-100 rounded-lg">
-              <Camera className="w-5 h-5 text-indigo-600" />
-            </div>
-            <h2 className="text-xl font-semibold">Damage Photos</h2>
-            <Badge variant="secondary">{photos.length} photos</Badge>
+            <div className="p-2 bg-indigo-100 rounded-lg"><Camera className="w-5 h-5 text-indigo-600" /></div>
+            <h2 className="text-xl font-semibold">Photo Gallery</h2>
+            <Badge variant="secondary">{totalCount} total</Badge>
           </div>
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={handleZoomOut} disabled={zoom <= 1} className="h-8 w-8">
-              <ZoomOut className="w-4 h-4" />
-            </Button>
+            <Button variant="ghost" size="icon" onClick={handleZoomOut} disabled={zoom <= 1} className="h-8 w-8"><ZoomOut className="w-4 h-4" /></Button>
             <span className="text-xs text-gray-500 w-12 text-center">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="icon" onClick={handleZoomIn} disabled={zoom >= 5} className="h-8 w-8">
-              <ZoomIn className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={resetView} className="h-8 w-8">
-              <RotateCcw className="w-4 h-4" />
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => { resetView(); setIsFullscreen(true); }} className="h-8 w-8">
-              <Maximize2 className="w-4 h-4" />
-            </Button>
+            <Button variant="ghost" size="icon" onClick={handleZoomIn} disabled={zoom >= 5} className="h-8 w-8"><ZoomIn className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={resetView} className="h-8 w-8"><RotateCcw className="w-4 h-4" /></Button>
+            <Button variant="ghost" size="icon" onClick={() => { resetView(); setIsFullscreen(true); }} className="h-8 w-8"><Maximize2 className="w-4 h-4" /></Button>
           </div>
         </div>
 
-        {/* Main Image Viewer */}
-        <div 
-          ref={imgContainerRef}
-          className="relative bg-gray-900 rounded-lg overflow-hidden select-none"
-          style={{ height: '420px', cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
-          onWheel={handleWheel}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
-        >
-          {/* Navigation Arrows */}
-          {currentIndex > 0 && (
-            <Button
-              variant="ghost" size="icon"
-              className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-10 h-10 w-10 rounded-full"
-              onClick={(e) => { e.stopPropagation(); goPrev(); }}
-            >
-              <ChevronLeft className="w-6 h-6" />
-            </Button>
-          )}
-          {currentIndex < photos.length - 1 && (
-            <Button
-              variant="ghost" size="icon"
-              className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-10 h-10 w-10 rounded-full"
-              onClick={(e) => { e.stopPropagation(); goNext(); }}
-            >
-              <ChevronRight className="w-6 h-6" />
-            </Button>
-          )}
-
-          {/* Photo Counter */}
-          <div className="absolute top-3 left-3 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg z-10 font-medium">
-            {currentIndex + 1} / {photos.length}
-          </div>
-
-          {/* Image */}
-          <div className="w-full h-full flex items-center justify-center overflow-hidden">
-            <img 
-              src={photos[currentIndex]} 
-              alt={`Damage photo ${currentIndex + 1}`}
-              className="max-w-full max-h-full object-contain"
-              style={{
-                transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
-                transition: isDragging ? 'none' : 'transform 0.15s ease-out',
-                pointerEvents: 'none'
-              }}
-              draggable={false}
-              onError={(e) => {
-                (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23333" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="16"%3EImage Not Available%3C/text%3E%3C/svg%3E';
-              }}
-            />
-          </div>
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-4">
+          <Button
+            variant={filter === 'damage' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('damage')}
+            className="gap-1.5"
+          >
+            <Camera className="w-3.5 h-3.5" /> Damage Photos
+            <Badge variant="secondary" className="ml-1 text-xs px-1.5">{damageCount}</Badge>
+          </Button>
+          <Button
+            variant={filter === 'document' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('document')}
+            className="gap-1.5"
+          >
+            <FileText className="w-3.5 h-3.5" /> Documents
+            <Badge variant="secondary" className="ml-1 text-xs px-1.5">{documentCount}</Badge>
+          </Button>
+          <Button
+            variant={filter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilter('all')}
+            className="gap-1.5"
+          >
+            All
+            <Badge variant="secondary" className="ml-1 text-xs px-1.5">{totalCount}</Badge>
+          </Button>
         </div>
 
-        {/* Filmstrip Thumbnails */}
-        <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
-          {photos.map((photo, index) => (
-            <button
-              key={index}
-              onClick={() => goToPhoto(index)}
-              className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${
-                index === currentIndex ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-400'
-              }`}
+        {filteredPhotos.length === 0 ? (
+          <div className="h-48 flex items-center justify-center bg-gray-50 rounded-lg">
+            <p className="text-gray-400">No {filter === 'damage' ? 'damage' : 'document'} photos in this category</p>
+          </div>
+        ) : (
+          <>
+            {/* Main Image Viewer */}
+            <div 
+              className="relative bg-gray-900 rounded-lg overflow-hidden select-none"
+              style={{ height: '420px', cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
+              onWheel={handleWheel}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseUp}
             >
-              <img 
-                src={photo} 
-                alt={`Thumbnail ${index + 1}`}
-                className="w-full h-full object-cover"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="10"%3E?%3C/text%3E%3C/svg%3E';
-                }}
-              />
-            </button>
-          ))}
-        </div>
+              {currentIndex > 0 && (
+                <Button variant="ghost" size="icon" className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-10 h-10 w-10 rounded-full" onClick={(e) => { e.stopPropagation(); goPrev(); }}>
+                  <ChevronLeft className="w-6 h-6" />
+                </Button>
+              )}
+              {currentIndex < filteredPhotos.length - 1 && (
+                <Button variant="ghost" size="icon" className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-10 h-10 w-10 rounded-full" onClick={(e) => { e.stopPropagation(); goNext(); }}>
+                  <ChevronRight className="w-6 h-6" />
+                </Button>
+              )}
+              <div className="absolute top-3 left-3 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg z-10 font-medium">
+                {currentIndex + 1} / {filteredPhotos.length}
+              </div>
+              <div className="w-full h-full flex items-center justify-center overflow-hidden">
+                <img 
+                  src={filteredPhotos[currentIndex]} 
+                  alt={`Photo ${currentIndex + 1}`}
+                  className="max-w-full max-h-full object-contain"
+                  style={{ transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, transition: isDragging ? 'none' : 'transform 0.15s ease-out', pointerEvents: 'none' }}
+                  draggable={false}
+                  onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23333" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="16"%3EImage Not Available%3C/text%3E%3C/svg%3E'; }}
+                />
+              </div>
+            </div>
+
+            {/* Filmstrip */}
+            <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
+              {filteredPhotos.map((photo, index) => (
+                <button key={index} onClick={() => goToPhoto(index)} className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === currentIndex ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-400'}`}>
+                  <img src={photo} alt={`Thumb ${index + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="10"%3E?%3C/text%3E%3C/svg%3E'; }} />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </Card>
 
       {/* Fullscreen Dialog */}
       <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
         <DialogContent className="max-w-[95vw] max-h-[95vh] p-0 bg-black border-none">
           <div className="relative w-full h-[90vh]">
-            {/* Controls */}
             <div className="absolute top-4 right-4 z-20 flex gap-2">
-              <Button variant="ghost" size="icon" onClick={handleZoomOut} className="bg-black/50 hover:bg-black/70 text-white h-9 w-9">
-                <ZoomOut className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={handleZoomIn} className="bg-black/50 hover:bg-black/70 text-white h-9 w-9">
-                <ZoomIn className="w-4 h-4" />
-              </Button>
-              <Button variant="ghost" size="icon" onClick={resetView} className="bg-black/50 hover:bg-black/70 text-white h-9 w-9">
-                <RotateCcw className="w-4 h-4" />
-              </Button>
+              <Button variant="ghost" size="icon" onClick={handleZoomOut} className="bg-black/50 hover:bg-black/70 text-white h-9 w-9"><ZoomOut className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={handleZoomIn} className="bg-black/50 hover:bg-black/70 text-white h-9 w-9"><ZoomIn className="w-4 h-4" /></Button>
+              <Button variant="ghost" size="icon" onClick={resetView} className="bg-black/50 hover:bg-black/70 text-white h-9 w-9"><RotateCcw className="w-4 h-4" /></Button>
             </div>
-
-            {/* Counter */}
-            <div className="absolute top-4 left-4 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg z-20 font-medium">
-              {currentIndex + 1} / {photos.length}
+            <div className="absolute top-4 left-4 z-20 bg-black/60 text-white text-sm px-3 py-1.5 rounded-lg">{currentIndex + 1} / {filteredPhotos.length}</div>
+            {currentIndex > 0 && <Button variant="ghost" size="icon" className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-20 h-12 w-12 rounded-full" onClick={goPrev}><ChevronLeft className="w-8 h-8" /></Button>}
+            {currentIndex < filteredPhotos.length - 1 && <Button variant="ghost" size="icon" className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-20 h-12 w-12 rounded-full" onClick={goNext}><ChevronRight className="w-8 h-8" /></Button>}
+            <div className="w-full h-full flex items-center justify-center overflow-hidden" onWheel={handleWheel} onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp} style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}>
+              <img src={filteredPhotos[currentIndex]} alt={`Photo ${currentIndex + 1}`} className="max-w-full max-h-full object-contain" style={{ transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`, transition: isDragging ? 'none' : 'transform 0.15s ease-out', pointerEvents: 'none' }} draggable={false} />
             </div>
-
-            {/* Navigation */}
-            {currentIndex > 0 && (
-              <Button variant="ghost" size="icon" className="absolute left-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-20 h-12 w-12 rounded-full" onClick={goPrev}>
-                <ChevronLeft className="w-8 h-8" />
-              </Button>
-            )}
-            {currentIndex < photos.length - 1 && (
-              <Button variant="ghost" size="icon" className="absolute right-4 top-1/2 -translate-y-1/2 bg-black/50 hover:bg-black/70 text-white z-20 h-12 w-12 rounded-full" onClick={goNext}>
-                <ChevronRight className="w-8 h-8" />
-              </Button>
-            )}
-
-            {/* Image */}
-            <div 
-              className="w-full h-full flex items-center justify-center overflow-hidden"
-              onWheel={handleWheel}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              style={{ cursor: zoom > 1 ? (isDragging ? 'grabbing' : 'grab') : 'default' }}
-            >
-              <img 
-                src={photos[currentIndex]} 
-                alt={`Damage photo ${currentIndex + 1}`}
-                className="max-w-full max-h-full object-contain"
-                style={{
-                  transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
-                  transition: isDragging ? 'none' : 'transform 0.15s ease-out',
-                  pointerEvents: 'none'
-                }}
-                draggable={false}
-              />
-            </div>
-
-            {/* Filmstrip */}
             <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 bg-black/60 px-3 py-2 rounded-lg z-20">
-              {photos.map((photo, index) => (
-                <button
-                  key={index}
-                  onClick={() => goToPhoto(index)}
-                  className={`flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all ${
-                    index === currentIndex ? 'border-white' : 'border-transparent hover:border-white/50'
-                  }`}
-                >
+              {filteredPhotos.map((photo, index) => (
+                <button key={index} onClick={() => goToPhoto(index)} className={`flex-shrink-0 w-12 h-12 rounded overflow-hidden border-2 transition-all ${index === currentIndex ? 'border-white' : 'border-transparent hover:border-white/50'}`}>
                   <img src={photo} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
@@ -319,7 +300,6 @@ function ImageGallery({ photos }: { photos: string[] }) {
 function PhysicsFraudCrossReference({ physicsAnalysis, fraudAnalysis }: { physicsAnalysis: any; fraudAnalysis: any }) {
   const crossRef = fraudAnalysis?.physics_cross_reference;
   if (!crossRef) return null;
-
   const contributes = crossRef.physics_contributes_to_fraud;
   const physicsFlags = physicsAnalysis?.flags || [];
 
@@ -334,51 +314,171 @@ function PhysicsFraudCrossReference({ physicsAnalysis, fraudAnalysis }: { physic
           {contributes ? 'Elevated Risk' : 'Consistent'}
         </Badge>
       </div>
-
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <div className="p-4 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-2">
-            <Activity className="w-4 h-4 text-purple-600" />
-            <span className="text-sm font-semibold text-gray-700">Physics Validation</span>
-          </div>
+          <div className="flex items-center gap-2 mb-2"><Activity className="w-4 h-4 text-purple-600" /><span className="text-sm font-semibold text-gray-700">Physics Validation</span></div>
           <div className="text-2xl font-bold text-purple-600">{crossRef.physics_score}/100</div>
-          <p className="text-xs text-gray-500 mt-1">
-            {physicsFlags.length > 0 ? `${physicsFlags.length} flag(s) raised` : 'No flags raised'}
-          </p>
+          <p className="text-xs text-gray-500 mt-1">{physicsFlags.length > 0 ? `${physicsFlags.length} flag(s) raised` : 'No flags raised'}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="w-4 h-4 text-blue-600" />
-            <span className="text-sm font-semibold text-gray-700">Fraud Risk Impact</span>
-          </div>
-          <div className={`text-2xl font-bold ${contributes ? 'text-amber-600' : 'text-green-600'}`}>
-            {contributes ? 'Score Elevated' : 'No Impact'}
-          </div>
-          <p className="text-xs text-gray-500 mt-1">
-            {contributes ? 'Physics inconsistencies increased fraud score' : 'Physics supports claim legitimacy'}
-          </p>
+          <div className="flex items-center gap-2 mb-2"><Shield className="w-4 h-4 text-blue-600" /><span className="text-sm font-semibold text-gray-700">Fraud Risk Impact</span></div>
+          <div className={`text-2xl font-bold ${contributes ? 'text-amber-600' : 'text-green-600'}`}>{contributes ? 'Score Elevated' : 'No Impact'}</div>
+          <p className="text-xs text-gray-500 mt-1">{contributes ? 'Physics inconsistencies increased fraud score' : 'Physics supports claim legitimacy'}</p>
         </div>
       </div>
-
-      {/* Physics Flags */}
       {physicsFlags.length > 0 && (
         <div className="mb-4 p-3 bg-white rounded-lg border border-amber-200">
           <p className="text-sm font-semibold text-amber-800 mb-2">Physics Flags Feeding Into Fraud Score:</p>
           <ul className="space-y-1">
             {physicsFlags.map((flag: string, i: number) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-amber-700">
-                <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
-                <span>{flag}</span>
-              </li>
+              <li key={i} className="flex items-start gap-2 text-sm text-amber-700"><AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" /><span>{flag}</span></li>
             ))}
           </ul>
         </div>
       )}
-
       <div className="p-3 bg-white rounded-lg border">
-        <p className="text-sm text-gray-700">
-          <strong>Analysis:</strong> {crossRef.physics_notes}
-        </p>
+        <p className="text-sm text-gray-700"><strong>Analysis:</strong> {crossRef.physics_notes}</p>
+      </div>
+    </Card>
+  );
+}
+
+// ─── Quote Comparison Bar Chart (inline SVG) ──────────────────────────
+function QuoteComparisonChart({ quotes }: { quotes: QuoteFigure[] }) {
+  if (!quotes || quotes.length === 0) return null;
+  const maxAmount = Math.max(...quotes.map(q => q.amount));
+  const colors: Record<string, string> = { original: '#ef4444', agreed: '#22c55e', ai: '#3b82f6', reference: '#a855f7' };
+  const labels: Record<string, string> = { original: 'Original', agreed: 'Agreed', ai: 'AI Estimate', reference: 'Reference' };
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="p-2 bg-blue-100 rounded-lg"><BarChart3 className="w-5 h-5 text-blue-600" /></div>
+        <h2 className="text-xl font-semibold">Quote Comparison</h2>
+        <Badge variant="secondary">{quotes.length} quotes</Badge>
+      </div>
+      <div className="space-y-4">
+        {quotes.map((quote, i) => {
+          const pct = maxAmount > 0 ? (quote.amount / maxAmount) * 100 : 0;
+          const color = colors[quote.type] || '#6b7280';
+          return (
+            <div key={i}>
+              <div className="flex items-center justify-between mb-1.5">
+                <div>
+                  <span className="text-sm font-semibold text-gray-900">{quote.label}</span>
+                  <span className="text-xs text-gray-500 ml-2">({quote.source})</span>
+                </div>
+                <span className="text-lg font-bold" style={{ color }}>${quote.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="w-full bg-gray-100 rounded-full h-6 overflow-hidden">
+                <div className="h-full rounded-full flex items-center justify-end pr-2 text-xs font-semibold text-white transition-all duration-500" style={{ width: `${Math.max(pct, 8)}%`, backgroundColor: color }}>
+                  {pct > 20 && `${Math.round(pct)}%`}
+                </div>
+              </div>
+              {quote.description && <p className="text-xs text-gray-500 mt-1">{quote.description}</p>}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Savings highlight */}
+      {quotes.length >= 2 && (() => {
+        const orig = quotes.find(q => q.type === 'original');
+        const agreed = quotes.find(q => q.type === 'agreed');
+        if (orig && agreed && orig.amount > agreed.amount) {
+          const saved = orig.amount - agreed.amount;
+          const pctSaved = ((saved / orig.amount) * 100).toFixed(1);
+          return (
+            <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <div className="flex items-center gap-2 mb-1">
+                <ArrowDown className="w-5 h-5 text-green-600" />
+                <span className="font-semibold text-green-800">Negotiation Savings</span>
+              </div>
+              <p className="text-2xl font-bold text-green-600">${saved.toLocaleString(undefined, { minimumFractionDigits: 2 })} <span className="text-sm font-normal text-green-700">({pctSaved}% reduction)</span></p>
+              <p className="text-xs text-green-600 mt-1">Difference between original repairer quote and agreed cost after assessment</p>
+            </div>
+          );
+        }
+        return null;
+      })()}
+    </Card>
+  );
+}
+
+// ─── Component Recommendations ────────────────────────────────────────
+function ComponentRecommendations({ recommendations }: { recommendations: ComponentRecommendation[] }) {
+  if (!recommendations || recommendations.length === 0) return null;
+  const totalCost = recommendations.reduce((s, r) => s + r.estimatedCost, 0);
+  const totalHours = recommendations.reduce((s, r) => s + r.laborHours, 0);
+  const repairCount = recommendations.filter(r => r.action === 'repair').length;
+  const replaceCount = recommendations.filter(r => r.action === 'replace').length;
+
+  const severityColor = (s: string) => {
+    switch (s) {
+      case 'minor': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'moderate': return 'bg-orange-100 text-orange-800 border-orange-300';
+      case 'severe': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  return (
+    <Card className="p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="p-2 bg-purple-100 rounded-lg"><Wrench className="w-5 h-5 text-purple-600" /></div>
+        <h2 className="text-xl font-semibold">Repair vs Replace Recommendations</h2>
+      </div>
+
+      {/* Summary Row */}
+      <div className="grid grid-cols-4 gap-3 mb-6">
+        <div className="p-3 bg-blue-50 rounded-lg text-center">
+          <p className="text-2xl font-bold text-blue-600">{recommendations.length}</p>
+          <p className="text-xs text-gray-600">Components</p>
+        </div>
+        <div className="p-3 bg-green-50 rounded-lg text-center">
+          <p className="text-2xl font-bold text-green-600">{repairCount}</p>
+          <p className="text-xs text-gray-600">Repair</p>
+        </div>
+        <div className="p-3 bg-red-50 rounded-lg text-center">
+          <p className="text-2xl font-bold text-red-600">{replaceCount}</p>
+          <p className="text-xs text-gray-600">Replace</p>
+        </div>
+        <div className="p-3 bg-purple-50 rounded-lg text-center">
+          <p className="text-2xl font-bold text-purple-600">{totalHours.toFixed(1)}h</p>
+          <p className="text-xs text-gray-600">Total Labor</p>
+        </div>
+      </div>
+
+      {/* Component Cards */}
+      <div className="space-y-3">
+        {recommendations.map((rec, i) => (
+          <div key={i} className={`p-4 rounded-lg border-l-4 ${rec.action === 'replace' ? 'border-l-red-500 bg-red-50/30' : 'border-l-green-500 bg-green-50/30'}`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-semibold text-gray-900 capitalize">{rec.component}</span>
+                  <Badge className={`text-xs ${rec.action === 'replace' ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                    {rec.action === 'replace' ? '⟳ REPLACE' : '🔧 REPAIR'}
+                  </Badge>
+                  <Badge className={`text-xs ${severityColor(rec.severity)}`}>{rec.severity}</Badge>
+                </div>
+                <p className="text-sm text-gray-600 mt-1">{rec.reasoning}</p>
+                <div className="flex gap-4 mt-2 text-xs text-gray-500">
+                  <span>Labor: {rec.laborHours}h</span>
+                </div>
+              </div>
+              <div className="text-right ml-4">
+                <p className="text-lg font-bold text-gray-900">${rec.estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Total */}
+      <div className="mt-4 p-4 bg-gray-100 rounded-lg flex items-center justify-between">
+        <span className="font-semibold text-gray-700">AI Component Total</span>
+        <span className="text-xl font-bold text-gray-900">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
       </div>
     </Card>
   );
@@ -424,7 +524,6 @@ export default function AssessmentResults() {
       'side panel', 'running board', 'mudguard', 'canopy', 'bull bar',
       'radiator', 'chassis', 'suspension', 'axle', 'frame'
     ];
-    
     const lines = description.split(/[.\n;]/).filter(line => line.trim().length > 0);
     lines.forEach(line => {
       const lowerLine = line.toLowerCase();
@@ -433,41 +532,25 @@ export default function AssessmentResults() {
         let severity: 'minor' | 'moderate' | 'severe' = 'moderate';
         if (lowerLine.includes('scratch') || lowerLine.includes('minor') || lowerLine.includes('small') || lowerLine.includes('dent')) severity = 'minor';
         else if (lowerLine.includes('severe') || lowerLine.includes('major') || lowerLine.includes('crushed') || lowerLine.includes('destroyed') || lowerLine.includes('replace')) severity = 'severe';
-        sections.push({
-          component: matchedComponent.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-          description: line.trim(),
-          severity
-        });
+        sections.push({ component: matchedComponent.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '), description: line.trim(), severity });
         components.push(matchedComponent);
       }
     });
-    
-    if (sections.length === 0) {
-      sections.push({ component: 'General Damage', description: description, severity: 'moderate' });
-      components.push('general damage');
-    }
-    
+    if (sections.length === 0) { sections.push({ component: 'General Damage', description: description, severity: 'moderate' }); components.push('general damage'); }
     setDamageSections(sections);
     if (components.length > 0) setDamagedComponents(components);
   };
 
   const createClaim = trpc.claims.submit.useMutation({
-    onSuccess: () => {
-      toast.success("Claim Created Successfully", { description: "Claim has been created and is ready for assessor assignment." });
-      setIsCreatingClaim(false);
-      setLocation("/claims-processor");
-    },
-    onError: (error: any) => {
-      toast.error("Error Creating Claim", { description: error.message });
-      setIsCreatingClaim(false);
-    },
+    onSuccess: () => { toast.success("Claim Created Successfully"); setIsCreatingClaim(false); setLocation("/claims-processor"); },
+    onError: (error: any) => { toast.error("Error Creating Claim", { description: error.message }); setIsCreatingClaim(false); },
   });
 
   const handleCreateClaim = () => {
     const dataToUse = isEditing ? editedData : extractedData;
     if (!dataToUse) { toast.error("No Data Available"); return; }
     const vehicleReg = dataToUse.vehicleRegistration || dataToUse.registration;
-    if (!vehicleReg || !dataToUse.vehicleMake) { toast.error("Missing Required Data", { description: "Vehicle registration and make are required." }); return; }
+    if (!vehicleReg || !dataToUse.vehicleMake) { toast.error("Missing Required Data"); return; }
     setIsCreatingClaim(true);
     createClaim.mutate({
       vehicleMake: dataToUse.vehicleMake || "",
@@ -483,20 +566,14 @@ export default function AssessmentResults() {
     });
   };
 
-  const handleSaveEdits = () => {
-    setExtractedData(editedData);
-    setIsEditing(false);
-    toast.success("Changes saved successfully");
-    if (editedData.damageDescription) parseDamageDescription(editedData.damageDescription);
-  };
-
+  const handleSaveEdits = () => { setExtractedData(editedData); setIsEditing(false); toast.success("Changes saved"); if (editedData.damageDescription) parseDamageDescription(editedData.damageDescription); };
   const handleCancelEdit = () => { setEditedData(extractedData || {}); setIsEditing(false); };
 
   const exportPDF = trpc.insurers.exportAssessmentPDF.useMutation();
   const handleExportReport = async () => {
     if (!extractedData) { toast.error("No data to export"); return; }
     try {
-      toast.info("Generating PDF...", { description: "This may take a few moments" });
+      toast.info("Generating PDF...");
       const result = await exportPDF.mutateAsync({
         vehicleMake: extractedData.vehicleMake,
         vehicleModel: extractedData.vehicleModel,
@@ -509,21 +586,8 @@ export default function AssessmentResults() {
         damagePhotos: extractedData.damagePhotos,
         damagedComponents: damagedComponents,
       });
-      if (result.success && result.pdfUrl) {
-        window.open(result.pdfUrl, '_blank');
-        toast.success("PDF Generated!", { description: "Opening in new tab..." });
-      }
-    } catch (error: any) {
-      toast.error("Export Failed", { description: error.message || "Failed to generate PDF report" });
-    }
-  };
-
-  const getSeverityColor = (severity: 'minor' | 'moderate' | 'severe') => {
-    switch (severity) {
-      case 'minor': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'moderate': return 'bg-orange-100 text-orange-800 border-orange-300';
-      case 'severe': return 'bg-red-100 text-red-800 border-red-300';
-    }
+      if (result.success && result.pdfUrl) { window.open(result.pdfUrl, '_blank'); toast.success("PDF Generated!"); }
+    } catch (error: any) { toast.error("Export Failed", { description: error.message }); }
   };
 
   // ─── Normalize physics data ──────────────────────────────────────────
@@ -571,8 +635,6 @@ export default function AssessmentResults() {
     other: realBreakdown?.other || 0,
     total: totalCost
   };
-  
-  // If breakdown sums to 0, estimate from total
   const breakdownSum = costBreakdown.labor + costBreakdown.parts + costBreakdown.materials + costBreakdown.paint + costBreakdown.sublet + costBreakdown.other;
   if (breakdownSum === 0 && totalCost > 0) {
     costBreakdown.labor = Math.round(totalCost * 0.35 * 100) / 100;
@@ -594,6 +656,9 @@ export default function AssessmentResults() {
       </div>
     );
   }
+
+  const hasQuotes = extractedData.quotes && extractedData.quotes.length > 0;
+  const hasRecommendations = extractedData.componentRecommendations && extractedData.componentRecommendations.length > 0;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 p-8">
@@ -623,17 +688,11 @@ export default function AssessmentResults() {
           {/* Action Buttons */}
           <div className="mt-4 flex gap-2 justify-center flex-wrap">
             {!isEditing ? (
-              <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="gap-2">
-                <Edit3 className="w-4 h-4" /> Edit Data
-              </Button>
+              <Button onClick={() => setIsEditing(true)} variant="outline" size="sm" className="gap-2"><Edit3 className="w-4 h-4" /> Edit Data</Button>
             ) : (
               <>
-                <Button onClick={handleSaveEdits} size="sm" className="gap-2 bg-green-600 hover:bg-green-700">
-                  <Save className="w-4 h-4" /> Save Changes
-                </Button>
-                <Button onClick={handleCancelEdit} variant="outline" size="sm" className="gap-2">
-                  <X className="w-4 h-4" /> Cancel
-                </Button>
+                <Button onClick={handleSaveEdits} size="sm" className="gap-2 bg-green-600 hover:bg-green-700"><Save className="w-4 h-4" /> Save Changes</Button>
+                <Button onClick={handleCancelEdit} variant="outline" size="sm" className="gap-2"><X className="w-4 h-4" /> Cancel</Button>
               </>
             )}
             <Button onClick={handleExportReport} variant="outline" size="sm" className="gap-2" disabled={exportPDF.isPending}>
@@ -644,12 +703,13 @@ export default function AssessmentResults() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-8">
+          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-6 mb-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="damage">Damage</TabsTrigger>
             <TabsTrigger value="physics">Physics</TabsTrigger>
             <TabsTrigger value="fraud">Fraud Risk</TabsTrigger>
             <TabsTrigger value="cost">Cost</TabsTrigger>
+            <TabsTrigger value="quotes">Quotes</TabsTrigger>
           </TabsList>
 
           {/* ═══ OVERVIEW TAB ═══ */}
@@ -674,6 +734,8 @@ export default function AssessmentResults() {
                     {extractedData.accidentDate && <div><p className="text-sm text-gray-500">Accident Date</p><p className="font-medium">{extractedData.accidentDate}</p></div>}
                     {extractedData.accidentLocation && <div><p className="text-sm text-gray-500">Location</p><p className="font-medium">{extractedData.accidentLocation}</p></div>}
                     {extractedData.accidentType && <div><p className="text-sm text-gray-500">Accident Type</p><p className="font-medium capitalize">{extractedData.accidentType.replace(/_/g, ' ')}</p></div>}
+                    {extractedData.assessorName && <div><p className="text-sm text-gray-500">Assessor</p><p className="font-medium">{extractedData.assessorName}</p></div>}
+                    {extractedData.repairerName && <div><p className="text-sm text-gray-500">Repairer</p><p className="font-medium">{extractedData.repairerName}</p></div>}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
@@ -690,7 +752,7 @@ export default function AssessmentResults() {
               <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-blue-100 rounded-lg"><Brain className="w-5 h-5 text-blue-600" /></div>
-                  <h3 className="font-semibold">AI Analysis</h3>
+                  <h3 className="text-lg font-semibold">AI Analysis</h3>
                 </div>
                 <div className="space-y-4">
                   <div>
@@ -709,6 +771,34 @@ export default function AssessmentResults() {
               </Card>
             </div>
 
+            {/* Cost Summary Cards */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card className="p-5">
+                <p className="text-sm text-gray-500 mb-1">Agreed Cost</p>
+                <p className="text-2xl font-bold text-green-600">${(extractedData.agreedCost || extractedData.estimatedCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                {extractedData.assessorName && <p className="text-xs text-gray-400 mt-1">By {extractedData.assessorName}</p>}
+              </Card>
+              {extractedData.originalQuote && extractedData.originalQuote > 0 && (
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500 mb-1">Original Quote</p>
+                  <p className="text-2xl font-bold text-red-500">${extractedData.originalQuote.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  {extractedData.repairerName && <p className="text-xs text-gray-400 mt-1">By {extractedData.repairerName}</p>}
+                </Card>
+              )}
+              {extractedData.savings && extractedData.savings > 0 && (
+                <Card className="p-5 bg-green-50/50">
+                  <p className="text-sm text-gray-500 mb-1">Savings</p>
+                  <p className="text-2xl font-bold text-green-600 flex items-center gap-1"><ArrowDown className="w-5 h-5" />${extractedData.savings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </Card>
+              )}
+              {extractedData.marketValue && extractedData.marketValue > 0 && (
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500 mb-1">Market Value</p>
+                  <p className="text-2xl font-bold text-purple-600">${extractedData.marketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </Card>
+              )}
+            </div>
+
             {/* Damage Summary */}
             <Card className="p-6">
               <div className="flex items-center gap-3 mb-4">
@@ -716,7 +806,6 @@ export default function AssessmentResults() {
                 <h2 className="text-xl font-semibold">Damage Summary</h2>
                 {extractedData.damagedComponents && <Badge variant="secondary">{extractedData.damagedComponents.length} components</Badge>}
               </div>
-              
               {!isEditing ? (
                 <div className="space-y-3">
                   {extractedData.accidentDescription && (
@@ -729,7 +818,7 @@ export default function AssessmentResults() {
                     <div key={index} className="border-l-4 border-orange-300 pl-4 py-2">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="font-semibold text-gray-900">{section.component}</span>
-                        <Badge className={`text-xs ${getSeverityColor(section.severity)}`}>{section.severity}</Badge>
+                        <Badge className={`text-xs ${section.severity === 'minor' ? 'bg-yellow-100 text-yellow-800' : section.severity === 'moderate' ? 'bg-orange-100 text-orange-800' : 'bg-red-100 text-red-800'}`}>{section.severity}</Badge>
                       </div>
                       <p className="text-sm text-gray-700">{section.description}</p>
                     </div>
@@ -743,35 +832,19 @@ export default function AssessmentResults() {
               )}
             </Card>
 
-            {/* Cost Estimate */}
-            <Card className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 bg-green-100 rounded-lg"><DollarSign className="w-5 h-5 text-green-600" /></div>
-                  <h2 className="text-xl font-semibold">Estimated Repair Cost</h2>
-                </div>
-              </div>
-              {!isEditing ? (
-                <div>
-                  <p className="text-4xl font-bold text-green-600 mb-2">${extractedData.estimatedCost?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || "0"}</p>
-                  <p className="text-sm text-gray-500">Based on extracted assessment data and AI analysis</p>
-                </div>
-              ) : (
-                <div>
-                  <label className="text-sm text-gray-500 block mb-2">Estimated Cost ($)</label>
-                  <Input type="number" value={editedData.estimatedCost || ""} onChange={(e) => setEditedData({...editedData, estimatedCost: parseFloat(e.target.value)})} />
-                </div>
-              )}
-            </Card>
-
             {/* Damage Photos */}
-            <ImageGallery photos={extractedData.damagePhotos || []} />
+            <ImageGallery damagePhotos={extractedData.damagePhotos || []} allPhotos={extractedData.allPhotos} />
           </TabsContent>
 
           {/* ═══ DAMAGE ANALYSIS TAB ═══ */}
           <TabsContent value="damage" className="space-y-6">
-            {/* Component-level breakdown */}
-            {extractedData.damagedComponents && extractedData.damagedComponents.length > 0 && (
+            {/* Component Recommendations */}
+            {hasRecommendations && (
+              <ComponentRecommendations recommendations={extractedData.componentRecommendations!} />
+            )}
+
+            {/* Component List (fallback if no recommendations) */}
+            {!hasRecommendations && extractedData.damagedComponents && extractedData.damagedComponents.length > 0 && (
               <Card className="p-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 bg-orange-100 rounded-lg"><AlertTriangle className="w-5 h-5 text-orange-600" /></div>
@@ -780,16 +853,13 @@ export default function AssessmentResults() {
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {extractedData.damagedComponents.map((comp, i) => {
-                    // Find matching itemized cost for this component
                     const matchingCost = extractedData.itemizedCosts?.find(
                       item => item.description.toLowerCase().includes(comp.toLowerCase()) || comp.toLowerCase().includes(item.description.toLowerCase().split(' ')[0])
                     );
                     return (
                       <div key={i} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                         <p className="font-medium text-gray-900 capitalize text-sm">{comp}</p>
-                        {matchingCost && (
-                          <p className="text-xs text-green-600 font-semibold mt-1">${matchingCost.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                        )}
+                        {matchingCost && <p className="text-xs text-green-600 font-semibold mt-1">${matchingCost.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>}
                       </div>
                     );
                   })}
@@ -803,8 +873,7 @@ export default function AssessmentResults() {
               estimatedCost={extractedData.estimatedCost}
             />
 
-            {/* Damage Photos in Damage Tab */}
-            <ImageGallery photos={extractedData.damagePhotos || []} />
+            <ImageGallery damagePhotos={extractedData.damagePhotos || []} allPhotos={extractedData.allPhotos} />
           </TabsContent>
 
           {/* ═══ PHYSICS TAB ═══ */}
@@ -816,20 +885,20 @@ export default function AssessmentResults() {
               commentary={
                 physicsData.analysis_notes || (
                   physicsData.damageConsistency === 'consistent'
-                    ? `The damage pattern matches what we'd expect from the reported accident. At an estimated impact speed of ${physicsData.impactSpeed} km/h, the vehicle would experience forces of approximately ${physicsData.impactForce} kN. The damaged areas and severity level are consistent with this type of collision. Physics validation score: ${physicsData.physicsScore}/100.`
+                    ? `The damage pattern matches what we'd expect from the reported accident. At an estimated impact speed of ${physicsData.impactSpeed} km/h, the vehicle would experience forces of approximately ${physicsData.impactForce} kN. Physics validation score: ${physicsData.physicsScore}/100.`
                     : physicsData.damageConsistency === 'questionable'
-                    ? `The damage pattern raises some questions. While not impossible, certain aspects don't align with the reported accident at ${physicsData.impactSpeed} km/h. The impact forces suggest the collision may have occurred differently than described.`
-                    : `The damage doesn't match the accident story. Based on physics analysis at ${physicsData.impactSpeed} km/h, the reported ${physicsData.accidentType} shouldn't produce the observed damage pattern. This requires investigation.`
+                    ? `The damage pattern raises some questions. While not impossible, certain aspects don't align with the reported accident at ${physicsData.impactSpeed} km/h.`
+                    : `The damage doesn't match the accident story. Based on physics analysis at ${physicsData.impactSpeed} km/h, the reported ${physicsData.accidentType} shouldn't produce the observed damage pattern.`
                 )
               }
               keyFindings={[
-                `Impact speed: ${physicsData.impactSpeed} km/h (${physicsData.impactSpeed < 30 ? 'low-speed' : physicsData.impactSpeed < 60 ? 'moderate' : physicsData.impactSpeed < 100 ? 'high-speed' : 'very high-speed'})`,
+                `Impact speed: ${physicsData.impactSpeed} km/h`,
                 `Crash forces: ${physicsData.impactForce} kN`,
                 `Energy absorption: ${physicsData.energyDissipated}%`,
                 `G-forces: ${physicsData.deceleration}g`,
-                `Damage consistency: ${physicsData.damageConsistency === 'consistent' ? '✓ Matches accident story' : physicsData.damageConsistency === 'questionable' ? '⚠ Some discrepancies' : '✗ Does not match'}`,
+                `Damage consistency: ${physicsData.damageConsistency === 'consistent' ? '✓ Matches' : physicsData.damageConsistency === 'questionable' ? '⚠ Discrepancies' : '✗ Does not match'}`,
                 `Physics score: ${physicsData.physicsScore}/100`,
-                ...(physicsData.flags.length > 0 ? [`Flags raised: ${physicsData.flags.join('; ')}`] : [])
+                ...(physicsData.flags.length > 0 ? [`Flags: ${physicsData.flags.join('; ')}`] : [])
               ]}
               recommendations={physicsData.recommendations.length > 0 ? physicsData.recommendations : (
                 physicsData.damageConsistency !== 'consistent'
@@ -837,10 +906,7 @@ export default function AssessmentResults() {
                   : ['Physics check passed', 'Safe to proceed with normal claim process']
               )}
             />
-            
             <PhysicsAnalysisChart data={physicsData} />
-
-            {/* Cross-reference to fraud */}
             <PhysicsFraudCrossReference physicsAnalysis={extractedData.physicsAnalysis} fraudAnalysis={extractedData.fraudAnalysis} />
           </TabsContent>
 
@@ -853,10 +919,10 @@ export default function AssessmentResults() {
               commentary={
                 extractedData.fraudAnalysis?.analysis_notes || (
                   fraudData.overallRisk === 'low'
-                    ? `This claim presents a low fraud risk profile with a calculated fraud probability of ${fraudData.riskScore}%. No significant red flags were identified across the multi-dimensional analysis.`
+                    ? `Low fraud risk profile with ${fraudData.riskScore}% probability. No significant red flags identified.`
                     : fraudData.overallRisk === 'medium'
-                    ? `This claim exhibits moderate fraud risk indicators with a ${fraudData.riskScore}% fraud probability. Several factors warrant additional scrutiny before approval.`
-                    : `High fraud risk detected with ${fraudData.riskScore}% probability. Multiple red flags have been identified. This claim requires thorough investigation.`
+                    ? `Moderate fraud risk at ${fraudData.riskScore}%. Several factors warrant additional scrutiny.`
+                    : `High fraud risk at ${fraudData.riskScore}%. Multiple red flags require investigation.`
                 )
               }
               keyFindings={[
@@ -878,46 +944,117 @@ export default function AssessmentResults() {
                     : ['Proceed with standard processing', 'Maintain routine documentation'])
               }
             />
-            
-            <FraudRiskRadarChart {...fraudData} />
-
-            {/* Cross-reference from physics */}
+            <FraudRiskRadarChart indicators={fraudData.indicators} overallRisk={fraudData.overallRisk} riskScore={fraudData.riskScore} flaggedIssues={fraudData.flaggedIssues} />
             <PhysicsFraudCrossReference physicsAnalysis={extractedData.physicsAnalysis} fraudAnalysis={extractedData.fraudAnalysis} />
           </TabsContent>
 
           {/* ═══ COST BREAKDOWN TAB ═══ */}
           <TabsContent value="cost" className="space-y-6">
+            {/* Cost Summary Cards */}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <Card className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200">
+                <p className="text-sm text-gray-600 mb-1">Agreed / Estimated Cost</p>
+                <p className="text-3xl font-bold text-green-700">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+              </Card>
+              {extractedData.excessAmount && extractedData.excessAmount > 0 && (
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500 mb-1">Excess / Deductible</p>
+                  <p className="text-2xl font-bold text-orange-600">${extractedData.excessAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </Card>
+              )}
+              {extractedData.betterment && extractedData.betterment > 0 && (
+                <Card className="p-5">
+                  <p className="text-sm text-gray-500 mb-1">Betterment / Depreciation</p>
+                  <p className="text-2xl font-bold text-amber-600">${extractedData.betterment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </Card>
+              )}
+            </div>
+
             <AICommentaryCard
               title="Quote Fairness Analysis"
               type="quote"
               status="info"
               commentary={
-                `The assessment estimates a total repair cost of $${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}. ` +
+                `Total repair cost: $${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}. ` +
                 (extractedData.itemizedCosts && extractedData.itemizedCosts.length > 0
-                  ? `The assessment includes ${extractedData.itemizedCosts.length} itemized line items covering labor, parts, materials, and other costs. `
-                  : `No itemized line items were extracted from the document. The category breakdown below is estimated based on industry averages. `) +
-                `Labor costs at $${costBreakdown.labor.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${totalCost > 0 ? Math.round((costBreakdown.labor / totalCost) * 100) : 0}%), ` +
-                `parts at $${costBreakdown.parts.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${totalCost > 0 ? Math.round((costBreakdown.parts / totalCost) * 100) : 0}%).`
+                  ? `${extractedData.itemizedCosts.length} itemized line items extracted. `
+                  : `Category breakdown estimated from industry averages. `) +
+                `Labor: $${costBreakdown.labor.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${totalCost > 0 ? Math.round((costBreakdown.labor / totalCost) * 100) : 0}%), ` +
+                `Parts: $${costBreakdown.parts.toLocaleString(undefined, { minimumFractionDigits: 2 })} (${totalCost > 0 ? Math.round((costBreakdown.parts / totalCost) * 100) : 0}%).`
               }
               keyFindings={[
-                `Total estimated cost: $${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
-                `Itemized line items: ${extractedData.itemizedCosts?.length || 0}`,
-                `Labor: ${totalCost > 0 ? Math.round((costBreakdown.labor / totalCost) * 100) : 0}% (industry standard: 30-40%)`,
-                `Parts: ${totalCost > 0 ? Math.round((costBreakdown.parts / totalCost) * 100) : 0}% (industry standard: 35-50%)`,
-                `Cost per damaged component: $${damagedComponents.length > 0 ? Math.round(totalCost / damagedComponents.length).toLocaleString() : 'N/A'}`
+                `Total: $${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}`,
+                `Line items: ${extractedData.itemizedCosts?.length || 0}`,
+                `Labor: ${totalCost > 0 ? Math.round((costBreakdown.labor / totalCost) * 100) : 0}% (standard: 30-40%)`,
+                `Parts: ${totalCost > 0 ? Math.round((costBreakdown.parts / totalCost) * 100) : 0}% (standard: 35-50%)`,
+                `Per component: $${damagedComponents.length > 0 ? Math.round(totalCost / damagedComponents.length).toLocaleString() : 'N/A'}`
               ]}
               recommendations={[
                 'Compare against panel beater quotes once claim is created',
                 'Validate parts pricing against OEM and aftermarket suppliers',
-                'Request itemized breakdown from assessor if not already provided',
+                'Request itemized breakdown from assessor if not provided',
                 'Document cost analysis in claim file for audit purposes'
               ]}
             />
             
-            <CostBreakdownChart 
-              breakdown={costBreakdown} 
-              itemizedCosts={extractedData.itemizedCosts}
-            />
+            <CostBreakdownChart breakdown={costBreakdown} itemizedCosts={extractedData.itemizedCosts} />
+          </TabsContent>
+
+          {/* ═══ QUOTES TAB ═══ */}
+          <TabsContent value="quotes" className="space-y-6">
+            {hasQuotes ? (
+              <QuoteComparisonChart quotes={extractedData.quotes!} />
+            ) : (
+              <Card className="p-8 text-center">
+                <BarChart3 className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 font-medium">No multiple quotes available</p>
+                <p className="text-sm text-gray-400 mt-1">Only a single cost figure was extracted from this assessment. Upload multiple assessments or create a claim to collect panel beater quotes for comparison.</p>
+              </Card>
+            )}
+
+            {/* Component-level AI estimate */}
+            {hasRecommendations && (
+              <ComponentRecommendations recommendations={extractedData.componentRecommendations!} />
+            )}
+
+            {/* Itemized Costs Table */}
+            {extractedData.itemizedCosts && extractedData.itemizedCosts.length > 0 && (
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-green-100 rounded-lg"><DollarSign className="w-5 h-5 text-green-600" /></div>
+                  <h2 className="text-xl font-semibold">Itemized Cost Breakdown</h2>
+                  <Badge variant="secondary">{extractedData.itemizedCosts.length} items</Badge>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 font-semibold text-gray-600">Description</th>
+                        <th className="text-left py-2 px-3 font-semibold text-gray-600">Category</th>
+                        <th className="text-right py-2 px-3 font-semibold text-gray-600">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extractedData.itemizedCosts.map((item, i) => (
+                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-3 text-gray-900">{item.description}</td>
+                          <td className="py-2 px-3"><Badge variant="outline" className="text-xs capitalize">{item.category || 'other'}</Badge></td>
+                          <td className="py-2 px-3 text-right font-medium text-gray-900">${item.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="border-t-2 border-gray-300">
+                        <td colSpan={2} className="py-3 px-3 font-bold text-gray-900">Total</td>
+                        <td className="py-3 px-3 text-right font-bold text-green-600 text-lg">
+                          ${extractedData.itemizedCosts.reduce((s, i) => s + i.amount, 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
 
