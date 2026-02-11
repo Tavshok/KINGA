@@ -3219,3 +3219,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Connect Fleet Risk dashboard to real data
 - [x] Connect Panel Beater Performance dashboard to real data
 - [x] Write vitest tests for analytics endpoints
+
+
+## Remediation Documentation (from System Audit)
+- [ ] Generate Patch Plan document (prioritised failures, code patches, architecture fixes)
+- [ ] Generate Refactor Plan document (architecture improvements, scaling readiness)
+- [ ] Generate Stability Improvement Checklist (monitoring, testing, operational readiness)
+- [ ] Save all remediation documents to GitHub repository
+
+## Remediation Documentation (February 11, 2026)
+- [x] Generate Patch Plan with prioritised failure register, architecture fixes, code patches, test coverage gaps, monitoring improvements, and scaling readiness
+- [x] Generate Refactor Plan with router decomposition, database architecture, event-driven architecture, microservice extraction, frontend improvements, and security refactoring
+- [x] Generate Stability Improvement Checklist with 90 actionable items across 10 domains, sprint planning guide, and production readiness milestones
+- [x] Save all remediation documents to docs/remediation/ directory
+- [x] Commit remediation documents to GitHub repository
