@@ -2962,3 +2962,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create GIN indexes for JSONB columns
 - [x] Implement full-text search indexes
 - [x] Create automated backup and recovery procedures
+
+
+## Infrastructure-as-Code (Terraform & AWS CDK)
+- [x] Create Terraform modules for VPC and networking
+- [x] Create Terraform modules for EKS cluster with node groups
+- [x] Create Terraform modules for RDS PostgreSQL (11 databases)
+- [x] Create Terraform modules for MSK (Managed Kafka)
+- [x] Create Terraform modules for S3 buckets and data lake
+- [x] Create Terraform modules for API Gateway
+- [x] Create Terraform modules for IAM roles and policies
+- [x] Create Terraform modules for CloudWatch monitoring and alarms
+- [x] Create AWS CDK alternative implementation
+- [x] Create deployment documentation and runbooks
+- [ ] Test infrastructure deployment in staging environment
+- [ ] Create checkpoint with IaC implementation
