@@ -2899,3 +2899,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add excess/deductible and betterment display in cost tab
 - [x] Add itemized cost table in quotes tab
 - [x] Write vitest tests for v2 assessment processor types and logic
+
+
+## Architecture Documentation
+- [x] Create comprehensive architecture audit report
+- [x] Create microservices decomposition plan with 10 services
+- [x] Document service boundaries, APIs, events, and database ownership
+- [x] Define refactoring strategies for each service
+- [x] Save architecture documents to docs/architecture/
