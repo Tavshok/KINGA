@@ -53,6 +53,7 @@ import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor-minimal";
 import { exportAssessmentPDF } from "./pdf-export";
+import { eventIntegration } from "./events/event-integration";
 
 export const appRouter = router({
   system: systemRouter,
@@ -416,6 +417,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           action: "claim_submitted",
           entityType: "claim",
           changeDescription: `Claim ${claimNumber} submitted`,
+        });
+
+        // Emit ClaimSubmitted event
+        await eventIntegration.emitClaimSubmitted({
+          claimId: newClaim.id,
+          claimNumber,
+          claimantId: ctx.user.id,
+          policyNumber: input.policyNumber,
+          incidentDate: new Date(input.incidentDate),
+          vehicleId: newClaim.id, // TODO: Create separate vehicles table
+          damageDescription: input.incidentDescription,
         });
 
         // Automatically trigger AI assessment if damage photos are provided

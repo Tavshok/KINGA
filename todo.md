@@ -2907,3 +2907,14 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Document service boundaries, APIs, events, and database ownership
 - [x] Define refactoring strategies for each service
 - [x] Save architecture documents to docs/architecture/
+
+
+## Event-Driven Architecture Implementation
+- [x] Create shared event infrastructure library (@kinga/events)
+- [x] Implement Kafka event publisher with retry logic and DLQ
+- [x] Implement Kafka event subscriber with consumer groups
+- [x] Define event schemas with versioning support
+- [x] Refactor claim-intake service to emit events
+- [x] Refactor AI damage assessment to emit events
+- [x] Refactor fraud detection to emit events
+- [x] Create event documentation and testing utilities
