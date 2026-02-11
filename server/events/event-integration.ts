@@ -7,10 +7,7 @@
  * This is a transitional module during the microservices migration.
  */
 
-import { EventPublisher } from '../../shared/events/src/publisher/event-publisher';
-import { PublishOptions } from '../../shared/events/src/types/base';
-import { initializeKafkaClient } from '../../shared/events/src/utils/kafka-client';
-import { getTopicName } from '../../shared/events/src/schemas/index';
+import { EventPublisher, PublishOptions, initializeKafkaClient, getTopicName } from '../../shared/events/src/index';
 
 /**
  * Singleton event publisher for the monolith

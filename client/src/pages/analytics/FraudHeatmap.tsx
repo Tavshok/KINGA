@@ -1,29 +1,29 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { MapPin, AlertTriangle } from 'lucide-react';
-
-// Mock data - replace with tRPC query when backend is ready
-const mockHeatmapData = [
-  { latitude: -26.2041, longitude: 28.0473, city: 'Johannesburg', province: 'Gauteng', fraud_count: 45, avg_fraud_score: 0.85, total_fraud_amount: 1350000 },
-  { latitude: -29.8587, longitude: 31.0218, city: 'Durban', province: 'KwaZulu-Natal', fraud_count: 32, avg_fraud_score: 0.78, total_fraud_amount: 960000 },
-  { latitude: -33.9249, longitude: 18.4241, city: 'Cape Town', province: 'Western Cape', fraud_count: 28, avg_fraud_score: 0.82, total_fraud_amount: 840000 },
-  { latitude: -25.7479, longitude: 28.2293, city: 'Pretoria', province: 'Gauteng', fraud_count: 24, avg_fraud_score: 0.75, total_fraud_amount: 720000 },
-  { latitude: -26.1076, longitude: 27.9825, city: 'Soweto', province: 'Gauteng', fraud_count: 19, avg_fraud_score: 0.88, total_fraud_amount: 570000 },
-  { latitude: -29.1211, longitude: 26.2146, city: 'Bloemfontein', province: 'Free State', fraud_count: 15, avg_fraud_score: 0.72, total_fraud_amount: 450000 },
-  { latitude: -33.0152, longitude: 27.9116, city: 'East London', province: 'Eastern Cape', fraud_count: 12, avg_fraud_score: 0.79, total_fraud_amount: 360000 },
-  { latitude: -25.9653, longitude: 32.5892, city: 'Nelspruit', province: 'Mpumalanga', fraud_count: 9, avg_fraud_score: 0.81, total_fraud_amount: 270000 },
-];
+import { trpc } from '@/lib/trpc';
 
 export default function FraudHeatmap() {
+  // Fetch real data from tRPC
+  const { data: heatmapData, isLoading: heatmapLoading } = trpc.analytics.fraudHeatmap.useQuery();
+  const { data: fraudPatterns, isLoading: patternsLoading } = trpc.analytics.fraudPatterns.useQuery();
+
   const getColor = (fraudScore: number) => {
-    if (fraudScore >= 0.9) return '#dc2626'; // red-600
-    if (fraudScore >= 0.8) return '#ea580c'; // orange-600
-    if (fraudScore >= 0.7) return '#ca8a04'; // yellow-600
+    if (fraudScore >= 90) return '#dc2626'; // red-600
+    if (fraudScore >= 80) return '#ea580c'; // orange-600
+    if (fraudScore >= 70) return '#ca8a04'; // yellow-600
     return '#16a34a'; // green-600
   };
 
-  const totalFraudCases = mockHeatmapData.reduce((sum, row) => sum + row.fraud_count, 0);
-  const totalFraudAmount = mockHeatmapData.reduce((sum, row) => sum + row.total_fraud_amount, 0);
+  if (heatmapLoading || patternsLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="text-center">Loading fraud analytics data...</div>
+      </div>
+    );
+  }
+
+  const chartData = heatmapData || [];
 
   return (
     <div className="container mx-auto py-8 space-y-6">
@@ -38,7 +38,7 @@ export default function FraudHeatmap() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{mockHeatmapData.length}</div>
+            <div className="text-2xl font-bold">{fraudPatterns?.highRiskLocations || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -46,7 +46,7 @@ export default function FraudHeatmap() {
             <CardTitle className="text-sm font-medium">Total Fraud Cases</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalFraudCases}</div>
+            <div className="text-2xl font-bold">{fraudPatterns?.totalFraudCases || 0}</div>
           </CardContent>
         </Card>
         <Card>
@@ -54,7 +54,7 @@ export default function FraudHeatmap() {
             <CardTitle className="text-sm font-medium">Estimated Fraud Loss</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalFraudAmount.toLocaleString()}</div>
+            <div className="text-2xl font-bold">${fraudPatterns?.estimatedFraudLoss?.toLocaleString() || '0'}</div>
           </CardContent>
         </Card>
       </div>
@@ -68,9 +68,9 @@ export default function FraudHeatmap() {
           <ResponsiveContainer width="100%" height={500}>
             <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
               <CartesianGrid />
-              <XAxis type="number" dataKey="longitude" name="Longitude" />
-              <YAxis type="number" dataKey="latitude" name="Latitude" />
-              <ZAxis type="number" dataKey="fraud_count" range={[50, 1000]} />
+              <XAxis type="number" dataKey="lng" name="Longitude" />
+              <YAxis type="number" dataKey="lat" name="Latitude" />
+              <ZAxis type="number" dataKey="fraudCount" range={[50, 1000]} />
               <Tooltip 
                 cursor={{ strokeDasharray: '3 3' }}
                 content={({ payload }) => {
@@ -86,9 +86,9 @@ export default function FraudHeatmap() {
                   );
                 }}
               />
-              <Scatter data={mockHeatmapData} fill="#8884d8">
-                {mockHeatmapData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={getColor(entry.avg_fraud_score)} />
+              <Scatter data={chartData} fill="#8884d8">
+                {chartData.map((entry: any, index: number) => (
+                  <Cell key={`cell-${index}`} fill={getColor(entry.avgFraudScore)} />
                 ))}
               </Scatter>
             </ScatterChart>
@@ -103,19 +103,19 @@ export default function FraudHeatmap() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {mockHeatmapData.slice(0, 10).map((location, index) => (
+            {chartData.slice(0, 10).map((location: any, index: number) => (
               <div key={index} className="flex items-center justify-between p-3 border rounded-lg">
                 <div className="flex items-center gap-3">
                   <MapPin className="h-5 w-5 text-red-500" />
                   <div>
-                    <p className="font-medium">{location.city}, {location.province}</p>
+                    <p className="font-medium">{location.city}{location.province && `, ${location.province}`}</p>
                     <p className="text-sm text-muted-foreground">
-                      {location.fraud_count} cases | Avg Score: {location.avg_fraud_score.toFixed(2)}
+                      {location.fraudCount} cases | Avg Score: {(location.avgFraudScore / 100).toFixed(2)}
                     </p>
                   </div>
                 </div>
                 <div className="text-right">
-                  <p className="font-semibold">${location.total_fraud_amount.toLocaleString()}</p>
+                  <p className="font-semibold">${location.totalAmount?.toLocaleString() || '0'}</p>
                   <p className="text-sm text-muted-foreground">Total Amount</p>
                 </div>
               </div>

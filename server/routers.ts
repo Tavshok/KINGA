@@ -53,7 +53,7 @@ import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor-minimal";
 import { exportAssessmentPDF } from "./pdf-export";
-import { eventIntegration } from "./events/event-integration";
+// import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
   system: systemRouter,
@@ -419,16 +419,16 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Claim ${claimNumber} submitted`,
         });
 
-        // Emit ClaimSubmitted event
-        await eventIntegration.emitClaimSubmitted({
-          claimId: newClaim.id,
-          claimNumber,
-          claimantId: ctx.user.id,
-          policyNumber: input.policyNumber,
-          incidentDate: new Date(input.incidentDate),
-          vehicleId: newClaim.id, // TODO: Create separate vehicles table
-          damageDescription: input.incidentDescription,
-        });
+        // Emit ClaimSubmitted event (temporarily disabled until Kafka is set up)
+        // await eventIntegration.emitClaimSubmitted({
+        //   claimId: newClaim.id,
+        //   claimNumber,
+        //   claimantId: ctx.user.id,
+        //   policyNumber: input.policyNumber,
+        //   incidentDate: new Date(input.incidentDate),
+        //   vehicleId: newClaim.id, // TODO: Create separate vehicles table
+        //   damageDescription: input.incidentDescription,
+        // });
 
         // Automatically trigger AI assessment if damage photos are provided
         if (input.damagePhotos && input.damagePhotos.length > 0) {
@@ -2288,6 +2288,140 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         const { getFinancialOverview } = await import("./executive-analytics");
         return await getFinancialOverview();
+      }),
+  }),
+
+  /**
+   * Analytics Router
+   * 
+   * Provides endpoints for analytics dashboards:
+   * - Claims Cost Trend Analytics
+   * - Fraud Heatmap Visualization
+   * - Fleet Risk Monitoring
+   * - Panel Beater Performance
+   */
+  analytics: router({
+    /**
+     * Get Claims Cost Trend
+     * 
+     * Returns time-series data for claim costs with flexible grouping.
+     * 
+     * @param startDate - Start date for analysis period
+     * @param endDate - End date for analysis period
+     * @param groupBy - Grouping interval (day, week, month, quarter, year)
+     * @returns Cost trend data with claim counts and costs
+     */
+    claimsCostTrend: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+        groupBy: z.enum(['day', 'week', 'month', 'quarter', 'year']).default('month'),
+      }))
+      .query(async ({ input }) => {
+        const { getClaimsCostTrend, getAnalyticsSummary } = await import("./analytics-db");
+        
+        const startDate = new Date(input.startDate);
+        const endDate = new Date(input.endDate);
+        
+        const [trendData, summary] = await Promise.all([
+          getClaimsCostTrend(startDate, endDate, input.groupBy),
+          getAnalyticsSummary(),
+        ]);
+        
+        return {
+          trendData,
+          summary,
+        };
+      }),
+
+    /**
+     * Get Cost Breakdown
+     * 
+     * Returns cost breakdown by various dimensions.
+     * 
+     * @param startDate - Start date for analysis period
+     * @param endDate - End date for analysis period
+     * @param breakdownBy - Dimension to break down by
+     * @returns Cost breakdown data
+     */
+    costBreakdown: protectedProcedure
+      .input(z.object({
+        startDate: z.string(),
+        endDate: z.string(),
+        breakdownBy: z.enum(['claim_type', 'vehicle_make', 'damage_severity']).default('vehicle_make'),
+      }))
+      .query(async ({ input }) => {
+        const { getCostBreakdown } = await import("./analytics-db");
+        
+        const startDate = new Date(input.startDate);
+        const endDate = new Date(input.endDate);
+        
+        return await getCostBreakdown(startDate, endDate, input.breakdownBy);
+      }),
+
+    /**
+     * Get Fraud Heatmap
+     * 
+     * Returns geographic distribution of fraud cases.
+     * 
+     * @returns Fraud heatmap data with locations and fraud metrics
+     */
+    fraudHeatmap: protectedProcedure
+      .query(async () => {
+        const { getFraudHeatmap } = await import("./analytics-db");
+        return await getFraudHeatmap();
+      }),
+
+    /**
+     * Get Fraud Patterns
+     * 
+     * Returns fraud statistics and patterns.
+     * 
+     * @returns Fraud pattern data
+     */
+    fraudPatterns: protectedProcedure
+      .query(async () => {
+        const { getFraudPatterns } = await import("./analytics-db");
+        return await getFraudPatterns();
+      }),
+
+    /**
+     * Get Fleet Risk Overview
+     * 
+     * Returns aggregated fleet risk statistics.
+     * 
+     * @returns Fleet risk overview data
+     */
+    fleetRiskOverview: protectedProcedure
+      .query(async () => {
+        const { getFleetRiskOverview } = await import("./analytics-db");
+        return await getFleetRiskOverview();
+      }),
+
+    /**
+     * Get Driver Profiles
+     * 
+     * Returns driver risk profiles with claim history and telematics data.
+     * 
+     * @returns Driver profile data
+     */
+    driverProfiles: protectedProcedure
+      .query(async () => {
+        const { getDriverProfiles } = await import("./analytics-db");
+        return await getDriverProfiles();
+      }),
+
+    /**
+     * Get Panel Beater Performance
+     * 
+     * Returns performance metrics for panel beaters.
+     * 
+     * @returns Panel beater performance data
+     */
+    panelBeaterPerformance: protectedProcedure
+      .query(async () => {
+        const { getPanelBeaterPerformance } = await import("./analytics-db");
+        return await getPanelBeaterPerformance();
       }),
   }),
 });

@@ -3,19 +3,20 @@ import useWebSocket, { ReadyState } from 'react-use-websocket';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Star, Clock, Wifi, WifiOff } from 'lucide-react';
-
-// Mock data - replace with tRPC query when backend is ready
-const initialPerformanceData = [
-  { panel_beater_id: '1', business_name: 'Premium Auto Body', total_repairs: 156, avg_turnaround_days: 4.2, avg_quote_amount: 18500, avg_final_amount: 17800, rework_count: 3, avg_customer_rating: 4.8, on_time_count: 148 },
-  { panel_beater_id: '2', business_name: 'QuickFix Panel Beaters', total_repairs: 189, avg_turnaround_days: 3.8, avg_quote_amount: 16200, avg_final_amount: 15900, rework_count: 8, avg_customer_rating: 4.6, on_time_count: 175 },
-  { panel_beater_id: '3', business_name: 'Elite Collision Repair', total_repairs: 142, avg_turnaround_days: 5.1, avg_quote_amount: 21000, avg_final_amount: 20500, rework_count: 5, avg_customer_rating: 4.5, on_time_count: 130 },
-  { panel_beater_id: '4', business_name: 'City Auto Works', total_repairs: 201, avg_turnaround_days: 4.5, avg_quote_amount: 17800, avg_final_amount: 17200, rework_count: 12, avg_customer_rating: 4.3, on_time_count: 185 },
-  { panel_beater_id: '5', business_name: 'Precision Body Shop', total_repairs: 128, avg_turnaround_days: 3.9, avg_quote_amount: 19200, avg_final_amount: 18800, rework_count: 4, avg_customer_rating: 4.7, on_time_count: 122 },
-];
+import { trpc } from '@/lib/trpc';
 
 export default function PanelBeaterPerformance() {
-  const [performanceData, setPerformanceData] = useState(initialPerformanceData);
+  // Fetch real data from tRPC
+  const { data: performanceDataFromAPI, isLoading } = trpc.analytics.panelBeaterPerformance.useQuery();
+  const [performanceData, setPerformanceData] = useState<any[]>([]);
   const [lastUpdate, setLastUpdate] = useState<string | null>(null);
+
+  // Initialize performance data from API
+  useEffect(() => {
+    if (performanceDataFromAPI) {
+      setPerformanceData(performanceDataFromAPI);
+    }
+  }, [performanceDataFromAPI]);
 
   // WebSocket connection to port 8080
   const { lastJsonMessage, readyState } = useWebSocket('ws://localhost:8080', {
@@ -34,10 +35,10 @@ export default function PanelBeaterPerformance() {
         
         // Update performance data based on repair status
         setPerformanceData(prev => prev.map(pb => {
-          if (pb.panel_beater_id === update.panel_beater_id.toString()) {
+          if (pb.id === update.panel_beater_id) {
             return {
               ...pb,
-              total_repairs: pb.total_repairs + (update.status === 'completed' ? 1 : 0),
+              totalJobs: pb.totalJobs + (update.status === 'completed' ? 1 : 0),
             };
           }
           return pb;
@@ -65,6 +66,14 @@ export default function PanelBeaterPerformance() {
     ));
   };
 
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="text-center">Loading panel beater performance data...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto py-8 space-y-6">
       <div className="flex justify-between items-center">
@@ -86,23 +95,20 @@ export default function PanelBeaterPerformance() {
       </div>
 
       <div className="grid gap-4">
-        {performanceData.map((pb, index) => {
-          const onTimeRate = (pb.on_time_count / pb.total_repairs) * 100;
-          const reworkRate = (pb.rework_count / pb.total_repairs) * 100;
-
+        {performanceData.map((pb: any, index: number) => {
           return (
-            <Card key={pb.panel_beater_id}>
+            <Card key={pb.id}>
               <CardHeader>
                 <div className="flex justify-between items-start">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      #{index + 1} {pb.business_name}
+                      #{index + 1} {pb.businessName}
                     </CardTitle>
-                    <CardDescription>{pb.total_repairs} repairs completed</CardDescription>
+                    <CardDescription>{pb.totalJobs} repairs completed</CardDescription>
                   </div>
                   <div className="flex items-center gap-1">
-                    {getRatingStars(pb.avg_customer_rating)}
-                    <span className="ml-2 text-sm font-medium">{pb.avg_customer_rating.toFixed(1)}</span>
+                    {getRatingStars(pb.customerRating)}
+                    <span className="ml-2 text-sm font-medium">{pb.customerRating?.toFixed(1) || '0.0'}</span>
                   </div>
                 </div>
               </CardHeader>
@@ -113,19 +119,19 @@ export default function PanelBeaterPerformance() {
                       <Clock className="h-4 w-4" />
                       Avg Turnaround
                     </p>
-                    <p className="text-lg font-semibold">{pb.avg_turnaround_days.toFixed(1)} days</p>
+                    <p className="text-lg font-semibold">{pb.avgTurnaroundDays?.toFixed(1) || '0.0'} days</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">On-Time Delivery</p>
-                    <p className="text-lg font-semibold">{onTimeRate.toFixed(1)}%</p>
+                    <p className="text-lg font-semibold">{pb.onTimePct?.toFixed(1) || '0.0'}%</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Rework Rate</p>
-                    <p className="text-lg font-semibold">{reworkRate.toFixed(1)}%</p>
+                    <p className="text-lg font-semibold">{pb.reworkRate?.toFixed(1) || '0.0'}%</p>
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Avg Quote</p>
-                    <p className="text-lg font-semibold">${pb.avg_quote_amount.toLocaleString()}</p>
+                    <p className="text-lg font-semibold">${pb.avgQuote?.toLocaleString() || '0'}</p>
                   </div>
                 </div>
               </CardContent>
