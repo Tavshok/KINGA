@@ -22,6 +22,7 @@ This directory contains the complete architecture documentation for the KINGA mu
 | **[KINGA-AWL-2026-019](KINGA-AWL-2026-019-Assessor-Workflow-Lifecycle.md)** | Assessor Workflow Lifecycle | 1.0 | Feb 12, 2026 | Complete workflow lifecycle integrated into claims state machine, including SLA enforcement, notification triggers, escalation rules, and audit logging |
 | **[KINGA-PMA-2026-020](KINGA-PMA-2026-020-Premium-Monetization-Architecture.md)** | Premium AI Tools Monetization Architecture | 1.0 | Feb 12, 2026 | Complete monetization framework for premium assessor AI tools with freemium subscription tiers, Stripe payment integration, feature gating middleware, usage metering, and ROI analytics dashboard |
 | **[KINGA-CLP-2026-021](KINGA-CLP-2026-021-Continuous-Learning-Pipeline.md)** | Continuous Learning Feedback Pipeline | 1.0 | Feb 12, 2026 | Complete ML pipeline transforming approved assessor reports into ground truth training data with automated drift detection, model retraining, privacy-preserving anonymization, MLflow version tracking, and performance monitoring |
+| **[KINGA-CGF-2026-022](KINGA-CGF-2026-022-Compliance-Governance-Framework.md)** | Compliance & Governance Framework | 1.0 | Feb 12, 2026 | Complete compliance framework covering data privacy (POPIA/GDPR), immutable audit trails, evidence integrity validation, zero-trust access control, end-to-end encryption, insider fraud monitoring, and digital signature authentication |
 
 ### Supporting Assets
 
@@ -78,6 +79,18 @@ KINGA-CLP-2026-021 (Continuous Learning Feedback Pipeline)
     ├─── Defines: Data Anonymization Strategy (PII removal, differential privacy, k-anonymity)
     ├─── Defines: Model Version Tracking (MLflow integration, lifecycle management)
     └─── Defines: Performance Monitoring Dashboards (drift detection, model performance, training pipeline)
+
+KINGA-CGF-2026-022 (Compliance & Governance Framework)
+    │
+    ├─── Defines: Data Privacy Compliance (POPIA, GDPR, Zimbabwe Data Protection Act)
+    ├─── Defines: Consent Management System (6 consent types, withdrawal workflows)
+    ├─── Defines: Data Subject Rights (7 POPIA/GDPR rights, self-service portal)
+    ├─── Defines: Immutable Audit Trails (hash-chained logging, 7-year retention)
+    ├─── Defines: Evidence Integrity Validation (photo tampering detection, blockchain anchoring)
+    ├─── Defines: Zero-Trust Access Control (RBAC + ABAC, MFA, tenant isolation)
+    ├─── Defines: End-to-End Encryption (AES-256, TLS 1.3, AWS KMS)
+    ├─── Defines: Insider Fraud Monitoring (10 threat indicators, risk scoring)
+    └─── Defines: Digital Signature Authentication (PKI, RSA-4096, X.509 certificates)
 ```
 
 **Integration Points:**
@@ -85,8 +98,11 @@ KINGA-CLP-2026-021 (Continuous Learning Feedback Pipeline)
 - KINGA-PMA-2026-020 monetizes the premium intelligence tools defined in KINGA-AEA-2026-018 Section 7
 - KINGA-CLP-2026-021 implements the continuous learning pipeline defined in KINGA-AEA-2026-018 Section 9
 - KINGA-CLP-2026-021 consumes approved assessor reports from KINGA-AWL-2026-019 Phase 9 (Feedback Submission)
-- All documents share the same database schema (4 core assessor tables + workflow tables + ML training tables)
-- Event-driven architecture (Kafka topics) connects all ecosystem services across all four documents
+- KINGA-CGF-2026-022 provides compliance controls for all data processing activities across all documents
+- KINGA-CGF-2026-022 audit trails track all workflow events from KINGA-AWL-2026-019
+- KINGA-CGF-2026-022 data anonymization integrates with KINGA-CLP-2026-021 training pipeline
+- All documents share the same database schema (4 core assessor tables + workflow tables + ML training tables + compliance tables)
+- Event-driven architecture (Kafka topics) connects all ecosystem services across all five documents
 
 ---
 

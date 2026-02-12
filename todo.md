@@ -3640,3 +3640,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Design data anonymization strategy (PII removal, differential privacy)
 - [x] Design model version tracking (MLflow, model registry)
 - [x] Design performance monitoring dashboards (model drift, prediction accuracy)
+
+
+## Compliance and Governance Framework
+- [x] Design data privacy compliance framework (POPIA/GDPR)
+- [x] Design assessor audit trail logging (immutable, hash-chained)
+- [x] Design evidence integrity validation (photo tampering detection)
+- [x] Design access audit tracking (who accessed what, when)
+- [x] Design encryption and secure document storage (AES-256, TLS 1.3)
+- [x] Design insider fraud monitoring (anomaly detection, access patterns)
+- [x] Design digital signature and report authentication (PKI, certificate management)
