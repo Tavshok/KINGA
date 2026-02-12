@@ -3664,3 +3664,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Design workflow trigger integration (Kafka events)
 - [x] Design historical claim backfill mode (bulk loading)
 - [x] Design anonymization & compliance layer (PII removal, masking)
+
+
+## Document Intelligence Pipeline Implementation
+- [ ] Implement document upload UI (/processor/upload-documents)
+- [ ] Implement document review interface (/processor/document-review/:id)
+- [ ] Implement AI classification service
+- [ ] Add database schema for document ingestion
+- [ ] Test document intelligence pipeline end-to-end
+- [ ] Create testing plan for system readiness
+
+
+## Assessor Ecosystem Testing Plan
+- [x] Create comprehensive testing plan document
+- [x] Define test scenarios for assessor onboarding workflows
+- [x] Define test scenarios for marketplace discovery and assignment
+- [x] Define test scenarios for multi-currency transactions
+- [x] Define test data requirements and setup instructions
+- [x] Document expected outcomes and success criteria

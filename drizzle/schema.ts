@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -1466,3 +1466,156 @@ export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
 
 export type MarketplaceTransaction = typeof marketplaceTransactions.$inferSelect;
 export type InsertMarketplaceTransaction = typeof marketplaceTransactions.$inferInsert;
+
+
+/**
+ * Document Ingestion Batches
+ * Tracks batches of documents uploaded for processing
+ */
+export const ingestionBatches = mysqlTable("ingestion_batches", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Batch identification
+  batchId: varchar("batch_id", { length: 36 }).notNull().unique(), // UUID
+  batchName: varchar("batch_name", { length: 255 }),
+  
+  // Source tracking
+  ingestionSource: mysqlEnum("ingestion_source", ["processor_upload", "bulk_batch", "api", "email", "legacy_import", "broker_upload"]).notNull(),
+  ingestionChannel: mysqlEnum("ingestion_channel", ["web_ui", "api", "email", "sftp"]).notNull(),
+  
+  // Uploader information
+  uploadedByUserId: int("uploaded_by_user_id"),
+  uploadedByEmail: varchar("uploaded_by_email", { length: 320 }),
+  uploadedByIpAddress: varchar("uploaded_by_ip_address", { length: 45 }),
+  
+  // Batch statistics
+  totalDocuments: int("total_documents").default(0).notNull(),
+  processedDocuments: int("processed_documents").default(0).notNull(),
+  failedDocuments: int("failed_documents").default(0).notNull(),
+  
+  // Processing status
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  startedAt: timestamp("started_at"),
+  completedAt: timestamp("completed_at"),
+  
+  // Chain of custody
+  custodyChain: json("custody_chain"), // Array of custody events
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type IngestionBatch = typeof ingestionBatches.$inferSelect;
+export type InsertIngestionBatch = typeof ingestionBatches.$inferInsert;
+
+/**
+ * Ingestion Documents
+ * Individual documents within ingestion batches
+ */
+export const ingestionDocuments = mysqlTable("ingestion_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  batchId: int("batch_id").notNull(),
+  
+  // Document identification
+  documentId: varchar("document_id", { length: 36 }).notNull().unique(), // UUID
+  originalFilename: varchar("original_filename", { length: 500 }).notNull(),
+  fileSizeBytes: int("file_size_bytes").notNull(),
+  mimeType: varchar("mime_type", { length: 100 }).notNull(),
+  
+  // Storage location
+  s3Bucket: varchar("s3_bucket", { length: 255 }).notNull(),
+  s3Key: varchar("s3_key", { length: 1024 }).notNull(),
+  s3Url: varchar("s3_url", { length: 2048 }).notNull(),
+  
+  // Hash verification
+  sha256Hash: varchar("sha256_hash", { length: 64 }).notNull(),
+  hashVerified: tinyint("hash_verified").default(0).notNull(),
+  
+  // Classification
+  documentType: mysqlEnum("document_type", ["claim_form", "police_report", "damage_image", "repair_quote", "assessor_report", "supporting_evidence", "unknown"]),
+  classificationConfidence: decimal("classification_confidence", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
+  classificationMethod: mysqlEnum("classification_method", ["ai_model", "rule_based", "manual_override"]),
+  
+  // Extraction status
+  extractionStatus: mysqlEnum("extraction_status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+  extractionStartedAt: timestamp("extraction_started_at"),
+  extractionCompletedAt: timestamp("extraction_completed_at"),
+  
+  // Validation status
+  validationStatus: mysqlEnum("validation_status", ["pending", "in_review", "approved", "rejected"]).default("pending").notNull(),
+  validatedByUserId: int("validated_by_user_id"),
+  validatedAt: timestamp("validated_at"),
+  
+  // Metadata
+  pageCount: int("page_count"),
+  languageDetected: varchar("language_detected", { length: 10 }), // ISO 639-1 code
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type IngestionDocument = typeof ingestionDocuments.$inferSelect;
+export type InsertIngestionDocument = typeof ingestionDocuments.$inferInsert;
+
+/**
+ * Extracted Document Data
+ * Structured data extracted from documents
+ */
+export const extractedDocumentData = mysqlTable("extracted_document_data", {
+  id: int("id").autoincrement().primaryKey(),
+  documentId: int("document_id").notNull(), // Foreign key to ingestion_documents
+  
+  // Claim identification
+  policyNumber: varchar("policy_number", { length: 100 }),
+  claimNumber: varchar("claim_number", { length: 100 }),
+  
+  // Insured information
+  insuredName: varchar("insured_name", { length: 255 }),
+  insuredIdNumber: varchar("insured_id_number", { length: 50 }),
+  insuredPhone: varchar("insured_phone", { length: 50 }),
+  insuredEmail: varchar("insured_email", { length: 320 }),
+  insuredAddress: text("insured_address"),
+  
+  // Incident details
+  incidentDate: date("incident_date"),
+  incidentTime: time("incident_time"),
+  incidentLocation: text("incident_location"),
+  incidentDescription: text("incident_description"),
+  
+  // Vehicle details
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  vehicleVin: varchar("vehicle_vin", { length: 50 }),
+  vehicleLicensePlate: varchar("vehicle_license_plate", { length: 20 }),
+  vehicleMass: int("vehicle_mass"), // kg
+  
+  // Repair details
+  repairCostEstimate: decimal("repair_cost_estimate", { precision: 10, scale: 2 }),
+  repairPartsList: json("repair_parts_list"), // Array of parts
+  repairLaborHours: decimal("repair_labor_hours", { precision: 6, scale: 2 }),
+  repairLaborRate: decimal("repair_labor_rate", { precision: 10, scale: 2 }),
+  
+  // Assessor observations
+  assessorName: varchar("assessor_name", { length: 255 }),
+  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+  assessorObservations: text("assessor_observations"),
+  damageSeverity: mysqlEnum("damage_severity", ["minor", "moderate", "severe", "total_loss"]),
+  
+  // Extraction metadata
+  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
+  fieldsExtractedCount: int("fields_extracted_count"),
+  fieldsMissingCount: int("fields_missing_count"),
+  
+  // Full OCR text
+  fullText: longtext("full_text"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ExtractedDocumentData = typeof extractedDocumentData.$inferSelect;
+export type InsertExtractedDocumentData = typeof extractedDocumentData.$inferInsert;
+
+// Note: claimDocuments table already exists earlier in the schema (line 350)
+// It will be extended to support both traditional uploads and document ingestion pipeline
