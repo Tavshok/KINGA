@@ -22,6 +22,13 @@
       "when": 1770913415405,
       "tag": "0002_lively_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1770919370161,
+      "tag": "0003_sweet_namorita",
+      "breakpoints": true
     }
   ]
 }

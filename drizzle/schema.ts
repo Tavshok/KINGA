@@ -2443,3 +2443,104 @@ export const automationAuditLog = mysqlTable("automation_audit_log", {
 
 export type AutomationAuditLog = typeof automationAuditLog.$inferSelect;
 export type InsertAutomationAuditLog = typeof automationAuditLog.$inferInsert;
+
+
+/**
+ * ============================================================================
+ * Dual-Layer Reporting System Tables
+ * ============================================================================
+ * 
+ * Supports immutable PDF snapshots and interactive living intelligence reports
+ * with version control, audit hashing, and governance controls.
+ */
+
+/**
+ * Report Snapshots Table
+ * Stores versioned snapshots of claim intelligence with cryptographic audit hashing
+ */
+export const reportSnapshots = mysqlTable("report_snapshots", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  claimId: int("claim_id").notNull(),
+  version: int("version").notNull(),
+  reportType: mysqlEnum("report_type", ["insurer", "assessor", "regulatory"]).notNull(),
+  intelligenceData: json("intelligence_data").notNull(),
+  auditHash: varchar("audit_hash", { length: 64 }).notNull(),
+  generatedBy: int("generated_by").notNull(),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  isImmutable: boolean("is_immutable").notNull().default(true),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+}, (table) => ({
+  claimVersionIdx: index("idx_claim_version").on(table.claimId, table.version),
+  auditHashIdx: index("idx_audit_hash").on(table.auditHash),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  generatedByIdx: index("idx_generated_by").on(table.generatedBy),
+}));
+
+export type ReportSnapshot = typeof reportSnapshots.$inferSelect;
+export type InsertReportSnapshot = typeof reportSnapshots.$inferInsert;
+
+/**
+ * PDF Reports Table
+ * Stores metadata for generated PDF reports with S3 storage references
+ */
+export const pdfReports = mysqlTable("pdf_reports", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
+  s3Url: text("s3_url").notNull(),
+  fileSizeBytes: int("file_size_bytes").notNull(),
+  generatedAt: timestamp("generated_at").defaultNow().notNull(),
+  deletedAt: timestamp("deleted_at"),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+}, (table) => ({
+  snapshotIdIdx: index("idx_snapshot_id").on(table.snapshotId),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+}));
+
+export type PdfReport = typeof pdfReports.$inferSelect;
+export type InsertPdfReport = typeof pdfReports.$inferInsert;
+
+/**
+ * Report Links Table
+ * Maps PDF snapshots to interactive report URLs with access control
+ */
+export const reportLinks = mysqlTable("report_links", {
+  id: varchar("id", { length: 255 }).primaryKey(),
+  snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
+  interactiveUrl: text("interactive_url").notNull(),
+  accessToken: varchar("access_token", { length: 255 }).notNull(),
+  qrCodeData: text("qr_code_data"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+}, (table) => ({
+  snapshotIdIdx: index("idx_snapshot_id").on(table.snapshotId),
+  accessTokenIdx: index("idx_access_token").on(table.accessToken),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+}));
+
+export type ReportLink = typeof reportLinks.$inferSelect;
+export type InsertReportLink = typeof reportLinks.$inferInsert;
+
+/**
+ * Report Access Audit Trail
+ * Logs all access events for PDF and interactive reports
+ */
+export const reportAccessAudit = mysqlTable("report_access_audit", {
+  id: int("id").autoincrement().primaryKey(),
+  reportId: varchar("report_id", { length: 255 }).notNull(),
+  reportType: mysqlEnum("report_type", ["pdf", "interactive"]).notNull(),
+  accessedBy: int("accessed_by").notNull(),
+  accessType: mysqlEnum("access_type", ["view", "download", "export", "create"]).notNull(),
+  accessedAt: timestamp("accessed_at").defaultNow().notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+}, (table) => ({
+  reportIdIdx: index("idx_report_id").on(table.reportId),
+  accessedByIdx: index("idx_accessed_by").on(table.accessedBy),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  accessedAtIdx: index("idx_accessed_at").on(table.accessedAt),
+}));
+
+export type ReportAccessAudit = typeof reportAccessAudit.$inferSelect;
+export type InsertReportAccessAudit = typeof reportAccessAudit.$inferInsert;

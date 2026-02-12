@@ -4461,3 +4461,76 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Verify all visualizations render correctly in PDF
 - [ ] Run full test suite
 - [ ] Create checkpoint with report generation framework
+
+
+## Dual-Layer Reporting System
+
+### Architecture & Documentation
+- [x] Design dual-layer reporting architecture (PDF snapshots + interactive reports)
+- [x] Create technical documentation (docs/architecture/dual-layer-reporting.md)
+- [x] Define report snapshot data model and version control schema
+- [x] Design audit hash generation algorithm
+- [x] Define interactive report component specifications
+
+### Report Snapshot Service
+- [ ] Create report_snapshots database table with version control
+- [ ] Build report snapshot service (server/report-snapshot-service.ts)
+- [ ] Implement snapshot creation from claim intelligence
+- [ ] Add version control and timestamping
+- [ ] Implement audit hash generation (SHA-256 of snapshot data)
+- [ ] Add snapshot immutability enforcement
+- [ ] Create snapshot retrieval by version
+
+### PDF Storage Service
+- [ ] Create pdf_reports database table for metadata
+- [ ] Build PDF storage service with S3 integration
+- [ ] Implement PDF upload with immutability checks
+- [ ] Add PDF version linking to snapshots
+- [ ] Implement PDF retrieval and download
+- [ ] Add PDF deletion protection (soft delete only)
+- [ ] Create PDF audit trail logging
+
+### Interactive Report Rendering Engine
+- [ ] Create interactive report page component
+- [ ] Build drill-down analytics interface
+- [ ] Implement AI vs assessor comparison tools
+- [ ] Add fraud risk exploration interface
+- [ ] Build benchmark and trend analytics
+- [ ] Integrate performance analytics
+- [ ] Add real-time data refresh capability
+- [ ] Implement export to PDF from interactive view
+
+### Report Linking Mechanism
+- [ ] Create report_links table for PDF-to-interactive mapping
+- [ ] Build report linking service
+- [ ] Generate unique interactive report URLs
+- [ ] Embed interactive report link in PDF
+- [ ] Add QR code generation for PDF-to-interactive navigation
+- [ ] Implement link expiration and access control
+
+### Governance & Security
+- [ ] Implement RBAC for report access (insurer, assessor, regulatory)
+- [ ] Add multi-tenant report isolation
+- [ ] Create report access audit trail
+- [ ] Implement report sharing controls
+- [ ] Add report download tracking
+- [ ] Build report retention policy enforcement
+
+### tRPC Procedures & Frontend
+- [ ] Create reports router with dual-layer procedures
+- [ ] Add createSnapshot procedure
+- [ ] Add generatePDF procedure
+- [ ] Add getInteractiveReport procedure
+- [ ] Add listReportVersions procedure
+- [ ] Build report generation UI with dual-layer options
+- [ ] Create interactive report viewer component
+- [ ] Add version history viewer
+
+### Testing & Deployment
+- [ ] Test PDF snapshot generation end-to-end
+- [ ] Test interactive report rendering
+- [ ] Test report linking mechanism
+- [ ] Test version control and audit hashing
+- [ ] Test RBAC and multi-tenant isolation
+- [ ] Create comprehensive vitest tests
+- [ ] Save checkpoint with dual-layer reporting system
