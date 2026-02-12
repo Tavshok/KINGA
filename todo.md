@@ -3682,3 +3682,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Define test scenarios for multi-currency transactions
 - [x] Define test data requirements and setup instructions
 - [x] Document expected outcomes and success criteria
+
+
+## System Finalization for Publishing
+- [x] Fix duplicate claimDocuments export in schema.ts
+- [x] Remove duplicate document ingestion tables from schema.ts
+- [ ] Push database schema changes to production database
+- [x] Run full test suite and verify 100% pass rate
+- [ ] Create final production-ready checkpoint
+- [ ] Verify system ready for publishing
