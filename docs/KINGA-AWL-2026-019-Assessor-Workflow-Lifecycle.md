@@ -6,7 +6,7 @@
 **Author:** Tavonga Shoko  
 **Status:** Final  
 **Classification:** Internal Technical Specification  
-**Related Documents:** KINGA-AEA-2026-018 (Assessor Ecosystem Architecture)
+**Related Documents:** [KINGA-AEA-2026-018](KINGA-AEA-2026-018-Assessor-Ecosystem-Architecture.md) (Assessor Ecosystem Architecture)
 
 ---
 
