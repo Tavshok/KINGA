@@ -3579,5 +3579,40 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Wire assessor assignment mutation end-to-end
 - [x] Polish assessor UI pages for production readiness
 - [x] Run full test suite and verify 100% pass rate
-- [ ] Save clean production-ready checkpoint
-- [ ] Merge original assessor architecture with hybrid ecosystem design
+- [x] Save clean production-ready checkpoint
+- [x] Merge original assessor architecture with hybrid ecosystem design
+
+
+## Assessor Ecosystem Architecture Merge
+- [x] Create comprehensive Assessor Ecosystem Architecture document (KINGA-AEA-2026-018)
+- [ ] Map existing implementation to new requirements
+- [ ] Document assessor assignment engine design
+- [ ] Document AI-human reconciliation layer
+- [ ] Document premium assessor intelligence tools
+- [ ] Document continuous learning feedback pipeline
+- [ ] Document event-driven integration architecture
+
+
+## Multi-Currency Support Update
+- [x] Update architecture document with multi-currency support (USD, ZIG, ZAR)
+- [x] Add currency field to marketplace_transactions table
+- [x] Update pricing examples to reflect Zimbabwe market (USD/ZIG)
+- [x] Document currency conversion requirements
+
+
+## Assessor Workflow Lifecycle Design
+- [x] Design complete assessor workflow lifecycle integrated with claims state machine
+- [x] Define immutable claim stages and state transitions
+- [x] Configure SLA parameters and enforcement logic
+- [x] Design notification triggers for all workflow events
+- [x] Define escalation rules and retry logic
+- [x] Create state transition diagram
+- [x] Map workflow events to Kafka topics
+- [x] Design audit logging model for workflow tracking
+
+
+## Documentation Index and Cross-References
+- [ ] Create comprehensive documentation index (README.md in docs/)
+- [ ] Add cross-references between architecture documents
+- [ ] Link workflow lifecycle to assessor ecosystem architecture
+- [ ] Save all documentation to GitHub repository
