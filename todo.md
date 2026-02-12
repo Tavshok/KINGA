@@ -4224,3 +4224,40 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test both endpoints accessible without authentication
 - [x] Test load balancer integration requirements
 - [x] Verify all 465 tests passing (was 455, added 10 new tests)
+
+
+## Launch Readiness Remediation - Phase 6: Error Tracking Integration (Feb 12, 2026)
+### Package Installation
+- [x] Install @sentry/node for server-side error tracking
+- [x] Install @sentry/react for client-side error tracking
+- [x] Install @sentry/tracing for performance monitoring
+
+### Server-Side Configuration
+- [x] Create server/_core/sentry.ts with Sentry initialization
+- [x] Configure Sentry with environment, release version (from package.json), and tracesSampleRate (10%)
+- [x] Add captureError function with user, tenantId, request, and extra context
+- [x] Add captureMessage function for non-error events
+- [x] Initialize Sentry in server/_core/index.ts (FIRST import for early error capture)
+- [x] Skip initialization if SENTRY_DSN not configured (development/testing)
+
+### Client-Side Configuration
+- [x] Create client/src/lib/sentry.ts with Sentry initialization
+- [x] Configure Sentry with environment, browser tracing, and session replay (10% sample rate)
+- [x] Add setUser function for user context tracking
+- [x] Add captureError function with extra context
+- [x] Update existing ErrorBoundary component to report errors to Sentry
+- [x] Initialize Sentry in client/src/main.tsx (FIRST import)
+- [x] Skip initialization if VITE_SENTRY_DSN not configured
+
+### Testing
+- [x] Create server/sentry-integration.test.ts with 13 comprehensive tests
+- [x] Test server-side error capture with user context
+- [x] Test server-side error capture with request context
+- [x] Test server-side error capture with extra context
+- [x] Test message capture (info, warning, error levels)
+- [x] Test error handling without context
+- [x] Verify all 478 tests passing (was 465, added 13 new tests)
+
+### Environment Variables (Optional - for production)
+- [ ] SENTRY_DSN - Server-side Sentry DSN (configure via webdev_request_secrets when ready)
+- [ ] VITE_SENTRY_DSN - Client-side Sentry DSN (configure via webdev_request_secrets when ready)
