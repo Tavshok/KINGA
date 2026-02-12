@@ -1,0 +1,27 @@
+{
+  "query": "SELECT * FROM tenants LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT * FROM tenants LIMIT 3;",
+  "rows": [
+    {
+      "id": "tenant-bb427411-1cb9-4767-b354-61831d4d2106",
+      "name": "demo-insurance",
+      "display_name": "Demo Insurance Company",
+      "tier": "tier-professional",
+      "status": "active",
+      "encryption_key_id": "arn:aws:kms:us-east-1:123456789012:key/tenant-bb427411-1cb9-4767-b354-61831d4d2106-1770831580645",
+      "contact_name": "John Doe",
+      "contact_email": "admin@demo-insurance.com",
+      "contact_phone": "+1-555-0100",
+      "billing_email": "admin@demo-insurance.com",
+      "config_json": "{\"features\": {\"aiAssessment\": true, \"analytics\": true, \"apiAccess\": true, \"fraudDetection\": true}, \"limits\": {\"maxClaimsPerMonth\": 1000, \"maxStorageGB\": 100, \"maxUsers\": 50}}",
+      "created_at": "2026-02-11 17:39:40",
+      "updated_at": "2026-02-11 17:39:40",
+      "activated_at": "2026-02-11 17:39:40",
+      "suspended_at": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tdisplay_name\ttier\tstatus\tencryption_key_id\tcontact_name\tcontact_email\tcontact_phone\tbilling_email\tconfig_json\tcreated_at\tupdated_at\tactivated_at\tsuspended_at\ntenant-bb427411-1cb9-4767-b354-61831d4d2106\tdemo-insurance\tDemo Insurance Company\ttier-professional\tactive\tarn:aws:kms:us-east-1:123456789012:key/tenant-bb427411-1cb9-4767-b354-61831d4d2106-1770831580645\tJohn Doe\tadmin@demo-insurance.com\t+1-555-0100\tadmin@demo-insurance.com\t{\"features\": {\"aiAssessment\": true, \"analytics\": true, \"apiAccess\": true, \"fraudDetection\": true}, \"limits\": {\"maxClaimsPerMonth\": 1000, \"maxStorageGB\": 100, \"maxUsers\": 50}}\t2026-02-11 17:39:40\t2026-02-11 17:39:40\t2026-02-11 17:39:40\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

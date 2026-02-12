@@ -1,0 +1,190 @@
+{
+  "query": "SELECT u.id, u.name, u.email, u.role, a.id as assessor_id, a.assessor_type, a.marketplace_status FROM users u LEFT JOIN assessors a ON u.id = a.user_id LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT u.id, u.name, u.email, u.role, a.id as assessor_id, a.assessor_type, a.marketplace_status FROM users u LEFT JOIN assessors a ON u.id = a.user_id LIMIT 20;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tavonga Shoko",
+      "email": "shoktav@gmail.com",
+      "role": "admin",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30055",
+      "name": "Dr. James Mutasa",
+      "email": "james.mutasa@kinga.co.zw",
+      "role": "assessor",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30056",
+      "name": "Dr. Linda Moyo",
+      "email": "linda.moyo@kinga.co.zw",
+      "role": "assessor",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30057",
+      "name": "Michael Ncube",
+      "email": "michael.ncube@example.com",
+      "role": "claimant",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30058",
+      "name": "Sarah Chikwanha",
+      "email": "sarah.chikwanha@example.com",
+      "role": "claimant",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30059",
+      "name": "John Moyo",
+      "email": "john@moyoauto.co.zw",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30220",
+      "name": "Sarah Johnson",
+      "email": "insurer@kinga-test.com",
+      "role": "insurer",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30221",
+      "name": "Michael Chen",
+      "email": "assessor@kinga-test.com",
+      "role": "assessor",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30222",
+      "name": "Emily Rodriguez",
+      "email": "assessor2@kinga-test.com",
+      "role": "assessor",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30223",
+      "name": "David Mbeki",
+      "email": "panelbeater@kinga-test.com",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30224",
+      "name": "Jessica Williams",
+      "email": "claimant@kinga-test.com",
+      "role": "claimant",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "30225",
+      "name": "Robert Taylor",
+      "email": "claimant2@kinga-test.com",
+      "role": "claimant",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "60224",
+      "name": "Martin Makanda",
+      "email": "martin.makanda@shamvagold.co.zw",
+      "role": "claimant",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "60225",
+      "name": "Shamva Primary School",
+      "email": "admin@shamvaprimary.ac.zw",
+      "role": "claimant",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "60227",
+      "name": "Yokama Investments (Nyasha)",
+      "email": "nyasha@yokama.co.zw",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "60528",
+      "name": "Panel Beater #2",
+      "email": "panelbeater2@kinga.com",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "210117",
+      "name": "AutoFix Zimbabwe",
+      "email": "autofix_zimbabwe@example.com",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "210118",
+      "name": "Quick Repairs Harare",
+      "email": "quick_repairs_harare@example.com",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "210119",
+      "name": "Premium Auto Body",
+      "email": "premium_auto_body@example.com",
+      "role": "panel_beater",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    },
+    {
+      "id": "210137",
+      "name": "Allied Insurance Company",
+      "email": "allied_insurance_company@example.com",
+      "role": "insurer",
+      "assessor_id": "NULL",
+      "assessor_type": "NULL",
+      "marketplace_status": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tassessor_id\tassessor_type\tmarketplace_status\n1\tTavonga Shoko\tshoktav@gmail.com\tadmin\tNULL\tNULL\tNULL\n30055\tDr. James Mutasa\tjames.mutasa@kinga.co.zw\tassessor\tNULL\tNULL\tNULL\n30056\tDr. Linda Moyo\tlinda.moyo@kinga.co.zw\tassessor\tNULL\tNULL\tNULL\n30057\tMichael Ncube\tmichael.ncube@example.com\tclaimant\tNULL\tNULL\tNULL\n30058\tSarah Chikwanha\tsarah.chikwanha@example.com\tclaimant\tNULL\tNULL\tNULL\n30059\tJohn Moyo\tjohn@moyoauto.co.zw\tpanel_beater\tNULL\tNULL\tNULL\n30220\tSarah Johnson\tinsurer@kinga-test.com\tinsurer\tNULL\tNULL\tNULL\n30221\tMichael Chen\tassessor@kinga-test.com\tassessor\tNULL\tNULL\tNULL\n30222\tEmily Rodriguez\tassessor2@kinga-test.com\tassessor\tNULL\tNULL\tNULL\n30223\tDavid Mbeki\tpanelbeater@kinga-test.com\tpanel_beater\tNULL\tNULL\tNULL\n30224\tJessica Williams\tclaimant@kinga-test.com\tclaimant\tNULL\tNULL\tNULL\n30225\tRobert Taylor\tclaimant2@kinga-test.com\tclaimant\tNULL\tNULL\tNULL\n60224\tMartin Makanda\tmartin.makanda@shamvagold.co.zw\tclaimant\tNULL\tNULL\tNULL\n60225\tShamva Primary School\tadmin@shamvaprimary.ac.zw\tclaimant\tNULL\tNULL\tNULL\n60227\tYokama Investments (Nyasha)\tnyasha@yokama.co.zw\tpanel_beater\tNULL\tNULL\tNULL\n60528\tPanel Beater #2\tpanelbeater2@kinga.com\tpanel_beater\tNULL\tNULL\tNULL\n210117\tAutoFix Zimbabwe\tautofix_zimbabwe@example.com\tpanel_beater\tNULL\tNULL\tNULL\n210118\tQuick Repairs Harare\tquick_repairs_harare@example.com\tpanel_beater\tNULL\tNULL\tNULL\n210119\tPremium Auto Body\tpremium_auto_body@example.com\tpanel_beater\tNULL\tNULL\tNULL\n210137\tAllied Insurance Company\tallied_insurance_company@example.com\tinsurer\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

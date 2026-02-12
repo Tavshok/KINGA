@@ -1,0 +1,112 @@
+{
+  "query": "SHOW TABLES;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW TABLES;",
+  "rows": [
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "ai_assessments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "appointments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "approval_workflow"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_evaluations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_insurer_relationships"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_marketplace_reviews"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessors"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "audit_trail"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_comments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claimant_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "email_verification_tokens"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "entity_relationships"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fraud_alerts"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fraud_indicators"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fraud_rules"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "marketplace_transactions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "notifications"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "organizations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "panel_beater_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "panel_beaters"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "police_reports"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "pre_accident_damage"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "quote_line_items"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "registration_requests"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "tenants"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "third_party_vehicles"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "user_invitations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "users"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_condition_assessment"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_market_valuations"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_YbS42LwGroxbVepAMjk4bS\n__drizzle_migrations\nai_assessments\nappointments\napproval_workflow\nassessor_evaluations\nassessor_insurer_relationships\nassessor_marketplace_reviews\nassessors\naudit_trail\nclaim_comments\nclaim_documents\nclaimant_history\nclaims\nemail_verification_tokens\nentity_relationships\nfraud_alerts\nfraud_indicators\nfraud_rules\nmarketplace_transactions\nnotifications\norganizations\npanel_beater_quotes\npanel_beaters\npolice_reports\npre_accident_damage\nquote_line_items\nregistration_requests\ntenants\nthird_party_vehicles\nuser_invitations\nusers\nvehicle_condition_assessment\nvehicle_history\nvehicle_market_valuations\n",
+  "stderr": "",
+  "execution_time_ms": 141
+}
