@@ -2028,6 +2028,12 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
   // METADATA
   capturedAt: timestamp("captured_at").defaultNow().notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // HYBRID INTELLIGENCE GOVERNANCE LAYER
+  dataScope: mysqlEnum("data_scope", ["tenant_private", "tenant_feature"]).default("tenant_private").notNull(),
+  globalSharingEnabled: tinyint("global_sharing_enabled").default(0),
+  anonymizedAt: timestamp("anonymized_at"),
+  incidentLocation: text("incident_location"), // For geographic aggregation
 }, (table) => ({
   claimIdIdx: index("idx_claim_id").on(table.claimId),
   tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
@@ -2084,3 +2090,165 @@ export const modelTrainingQueue = mysqlTable("model_training_queue", {
 
 export type ModelTrainingQueue = typeof modelTrainingQueue.$inferSelect;
 export type InsertModelTrainingQueue = typeof modelTrainingQueue.$inferInsert;
+
+
+/**
+ * Global Anonymized Dataset
+ * Tier 3: Aggregated, anonymized dataset pooled across all tenants.
+ * K-anonymity enforced, PII removed, POPIA/GDPR compliant.
+ * Hybrid Intelligence Governance Layer
+ */
+export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
+  id: int("id").autoincrement().primaryKey(),
+  anonymousRecordId: varchar("anonymous_record_id", { length: 36 }).notNull().unique(),
+  
+  // Temporal (generalized)
+  captureMonth: varchar("capture_month", { length: 7 }).notNull(),
+  
+  // Vehicle context (partially generalized)
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYearBracket: varchar("vehicle_year_bracket", { length: 20 }),
+  vehicleMass: int("vehicle_mass"),
+  
+  // Accident context
+  accidentType: varchar("accident_type", { length: 50 }),
+  province: varchar("province", { length: 50 }),
+  
+  // Damage features (retained)
+  detectedDamageComponents: json("detected_damage_components"),
+  damageSeverityScores: json("damage_severity_scores"),
+  physicsPlausibilityScore: int("physics_plausibility_score"),
+  
+  // Assessment features (retained)
+  aiEstimatedCost: int("ai_estimated_cost"),
+  assessorAdjustedCost: int("assessor_adjusted_cost"),
+  insurerApprovedCost: int("insurer_approved_cost"),
+  costVarianceAiVsAssessor: int("cost_variance_ai_vs_assessor"),
+  costVarianceAssessorVsFinal: int("cost_variance_assessor_vs_final"),
+  costVarianceAiVsFinal: int("cost_variance_ai_vs_final"),
+  
+  // Fraud features (retained)
+  aiFraudScore: int("ai_fraud_score"),
+  finalFraudOutcome: varchar("final_fraud_outcome", { length: 50 }),
+  
+  // Workflow features (retained)
+  assessorTier: varchar("assessor_tier", { length: 50 }),
+  assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
+  reassignmentCount: int("reassignment_count"),
+  approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
+  
+  // Metadata
+  anonymizedAt: timestamp("anonymized_at").defaultNow().notNull(),
+  schemaVersion: int("schema_version").notNull().default(1),
+}, (table) => ({
+  captureMonthIdx: index("idx_gad_capture_month").on(table.captureMonth),
+  vehicleMakeIdx: index("idx_gad_vehicle_make").on(table.vehicleMake),
+  provinceIdx: index("idx_gad_province").on(table.province),
+  accidentTypeIdx: index("idx_gad_accident_type").on(table.accidentType),
+  anonymizedAtIdx: index("idx_gad_anonymized_at").on(table.anonymizedAt),
+}));
+
+export type GlobalAnonymizedDataset = typeof globalAnonymizedDataset.$inferSelect;
+export type InsertGlobalAnonymizedDataset = typeof globalAnonymizedDataset.$inferInsert;
+
+/**
+ * Anonymization Audit Log
+ * Tracks all anonymization attempts, successes, and failures.
+ * POPIA/GDPR compliance audit trail.
+ * Hybrid Intelligence Governance Layer
+ */
+export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  sourceRecordId: int("source_record_id").notNull(),
+  anonymousRecordId: varchar("anonymous_record_id", { length: 36 }),
+  
+  status: mysqlEnum("status", [
+    "success",
+    "withheld_k_anonymity",
+    "withheld_pii_detected",
+    "withheld_tenant_opt_out"
+  ]).notNull(),
+  
+  quasiIdentifierHash: varchar("quasi_identifier_hash", { length: 64 }),
+  groupSize: int("group_size"),
+  
+  transformationsApplied: json("transformations_applied"),
+  
+  anonymizedByUserId: int("anonymized_by_user_id"),
+  anonymizedAt: timestamp("anonymized_at").defaultNow().notNull(),
+}, (table) => ({
+  sourceRecordIdx: index("idx_aal_source_record").on(table.sourceRecordId),
+  statusIdx: index("idx_aal_status").on(table.status),
+  anonymizedAtIdx: index("idx_aal_anonymized_at").on(table.anonymizedAt),
+}));
+
+export type AnonymizationAuditLog = typeof anonymizationAuditLog.$inferSelect;
+export type InsertAnonymizationAuditLog = typeof anonymizationAuditLog.$inferInsert;
+
+/**
+ * Dataset Access Grants
+ * RBAC enforcement for dataset tier access.
+ * Tracks external sharing of Tier 2 (Tenant Feature) data.
+ * Hybrid Intelligence Governance Layer
+ */
+export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  dataScope: mysqlEnum("data_scope", ["tenant_private", "tenant_feature", "global_anonymized"]).notNull(),
+  grantedToUserId: int("granted_to_user_id"),
+  grantedToRole: varchar("granted_to_role", { length: 50 }),
+  grantedToOrganization: varchar("granted_to_organization", { length: 255 }),
+  
+  purpose: text("purpose").notNull(),
+  expiryDate: date("expiry_date"),
+  maxRecords: int("max_records"),
+  
+  grantedByUserId: int("granted_by_user_id").notNull(),
+  grantedAt: timestamp("granted_at").defaultNow().notNull(),
+  revokedAt: timestamp("revoked_at"),
+  revokedByUserId: int("revoked_by_user_id"),
+}, (table) => ({
+  tenantIdIdx: index("idx_dag_tenant_id").on(table.tenantId),
+  dataScopeIdx: index("idx_dag_data_scope").on(table.dataScope),
+  grantedToUserIdx: index("idx_dag_granted_to_user").on(table.grantedToUserId),
+  expiryDateIdx: index("idx_dag_expiry_date").on(table.expiryDate),
+}));
+
+export type DatasetAccessGrant = typeof datasetAccessGrants.$inferSelect;
+export type InsertDatasetAccessGrant = typeof datasetAccessGrants.$inferInsert;
+
+/**
+ * Federated Learning Metadata
+ * Tracks federated learning training rounds and model aggregation.
+ * Enables privacy-preserving multi-tenant ML training.
+ * Hybrid Intelligence Governance Layer
+ */
+export const federatedLearningMetadata = mysqlTable("federated_learning_metadata", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  roundNumber: int("round_number").notNull(),
+  modelType: varchar("model_type", { length: 100 }).notNull(),
+  
+  participantCount: int("participant_count").notNull(),
+  participantTenantIds: json("participant_tenant_ids"),
+  
+  globalModelVersion: varchar("global_model_version", { length: 50 }).notNull(),
+  localModelContributions: json("local_model_contributions"),
+  aggregationMethod: varchar("aggregation_method", { length: 50 }).default("federated_averaging"),
+  
+  globalModelAccuracy: decimal("global_model_accuracy", { precision: 5, scale: 4 }),
+  convergenceStatus: mysqlEnum("convergence_status", ["converging", "converged", "diverged"]).default("converging"),
+  
+  trainingStartedAt: timestamp("training_started_at").notNull(),
+  trainingCompletedAt: timestamp("training_completed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  roundNumberIdx: index("idx_flm_round_number").on(table.roundNumber),
+  modelTypeIdx: index("idx_flm_model_type").on(table.modelType),
+  trainingStartedIdx: index("idx_flm_training_started").on(table.trainingStartedAt),
+}));
+
+export type FederatedLearningMetadata = typeof federatedLearningMetadata.$inferSelect;
+export type InsertFederatedLearningMetadata = typeof federatedLearningMetadata.$inferInsert;
