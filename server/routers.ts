@@ -12,7 +12,11 @@ import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
+import { getDb } from "./db";
+import { claims } from "../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
   createClaim,
@@ -57,6 +61,7 @@ import { assessorOnboardingRouter } from "./routers/assessor-onboarding";
 import { documentIngestionRouter } from "./routers/document-ingestion";
 import { historicalClaimsRouter } from "./routers/historical-claims";
 import { automationPoliciesRouter } from "./routers/automation-policies";
+import { claimCompletionRouter } from "./routers/claim-completion";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -65,6 +70,7 @@ export const appRouter = router({
   documentIngestion: documentIngestionRouter,
   historicalClaims: historicalClaimsRouter,
   automationPolicies: automationPoliciesRouter,
+  claimCompletion: claimCompletionRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)
     testPublic: publicProcedure
@@ -715,14 +721,37 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
-        // Update claim status to repair_assigned
-        await updateClaimStatus(input.claimId, "repair_assigned");
-        
         // Get claim and quote details
         const claim = await getClaimById(input.claimId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        
         const quotes = await getQuotesByClaimId(input.claimId);
         const selectedQuote = quotes.find(q => q.id === input.selectedQuoteId);
-
+        if (!selectedQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Selected quote not found" });
+        
+        const approvedAmount = selectedQuote.quotedAmount || 0;
+        
+        // Get active automation policy to determine approval threshold
+        const { getActiveAutomationPolicy } = await import("./automation-policy-manager");
+        const tenantId = ctx.user.tenantId || "default";
+        const policy = await getActiveAutomationPolicy(tenantId);
+        const requireManagerApprovalAbove = policy?.requireManagerApprovalAbove || 2500000; // Default 25,000 ZAR in cents
+        
+        // Determine if financial approval is required
+        const requiresFinancialApproval = approvedAmount > requireManagerApprovalAbove;
+        
+        // Update claim with technical approval
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        await db.update(claims).set({
+          status: "repair_assigned",
+          technicallyApprovedBy: ctx.user.id,
+          technicallyApprovedAt: new Date(),
+          approvedAmount,
+          updatedAt: new Date(),
+        }).where(eq(claims.id, input.claimId));
+        
         // Create audit entry
         await createAuditEntry({
           claimId: input.claimId,
@@ -730,8 +759,68 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           action: "claim_approved",
           entityType: "claim",
           entityId: input.claimId,
-          changeDescription: `Claim approved. Selected panel beater quote #${input.selectedQuoteId} for $${selectedQuote ? ((selectedQuote.quotedAmount || 0) / 100).toFixed(2) : 'N/A'}`,
+          changeDescription: `Claim technically approved. Selected panel beater quote #${input.selectedQuoteId} for R${(approvedAmount / 100).toFixed(2)}. ${requiresFinancialApproval ? 'Requires financial approval (amount exceeds threshold).' : 'No financial approval required.'}`,
         });
+        
+        console.log(`[Approval] Claim ${claim.claimNumber} technically approved by user ${ctx.user.id} for R${(approvedAmount / 100).toFixed(2)}`);
+
+        return { 
+          success: true, 
+          requiresFinancialApproval,
+          approvedAmount,
+          threshold: requireManagerApprovalAbove
+        };
+      }),
+    
+    // Financial approval for high-value claims
+    financialApproval: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        // Verify user has financial approval authority (Claims Manager or Executive)
+        if (ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
+          throw new TRPCError({ 
+            code: "FORBIDDEN", 
+            message: "Financial approval requires Claims Manager or Executive role" 
+          });
+        }
+        
+        // Get claim
+        const claim = await getClaimById(input.claimId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+        
+        // Verify technical approval exists
+        if (!claim.technicallyApprovedBy || !claim.technicallyApprovedAt) {
+          throw new TRPCError({ 
+            code: "PRECONDITION_FAILED", 
+            message: "Claim must be technically approved before financial approval" 
+          });
+        }
+        
+        // Update claim with financial approval
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+        
+        await db.update(claims).set({
+          financiallyApprovedBy: ctx.user.id,
+          financiallyApprovedAt: new Date(),
+          updatedAt: new Date(),
+        }).where(eq(claims.id, input.claimId));
+        
+        // Create audit entry
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "financial_approval",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `Claim financially approved for R${((claim.approvedAmount || 0) / 100).toFixed(2)}`,
+        });
+        
+        console.log(`[Approval] Claim ${claim.claimNumber} financially approved by user ${ctx.user.id}`);
 
         return { success: true };
       }),

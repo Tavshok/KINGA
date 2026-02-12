@@ -103,7 +103,7 @@ describe("Claims - Approve Claim Workflow", () => {
 
     expect(approvalEntry).toBeDefined();
     expect(approvalEntry?.entityType).toBe("claim");
-    expect(approvalEntry?.changeDescription).toContain("Claim approved");
+    expect(approvalEntry?.changeDescription).toContain("Claim technically approved");
     expect(approvalEntry?.changeDescription).toContain(`quote #${testQuoteId}`);
   });
 
