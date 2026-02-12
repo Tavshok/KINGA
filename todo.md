@@ -4579,3 +4579,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Clean up duplicate claims from database
 - [x] Fix seeding scripts to prevent future duplicates
 - [x] Verify claims display correctly without duplicates
+
+
+## Cleanup: Remove Bulk Test Data (Feb 12, 2026)
+- [x] Identify diverse sample claims to preserve (different vehicles, statuses, amounts)
+- [x] Delete bulk test data (875 Corolla, 798 X5, etc.)
+- [x] Keep 20-30 representative claims for testing
+- [x] Verify database has clean, diverse test data
