@@ -38,6 +38,7 @@ import {
   getAssessorEvaluationByClaimId,
   updateAssessorEvaluation,
   createAppointment,
+  emitClaimEvent,
   getAppointmentsByAssessor,
   getAppointmentsByClaimId,
   createAuditEntry,
@@ -599,6 +600,16 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Assigned to assessor ID ${input.assessorId}`,
         });
 
+        // Emit event for analytics
+        await emitClaimEvent({
+          claimId: input.claimId,
+          eventType: "assessor_assigned",
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          tenantId,
+          eventPayload: { assessorId: input.assessorId },
+        });
+
         return { success: true };
       }),
 
@@ -778,6 +789,21 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityType: "claim",
           entityId: input.claimId,
           changeDescription: `Claim technically approved. Selected panel beater quote #${input.selectedQuoteId} for R${(approvedAmount / 100).toFixed(2)}. ${requiresFinancialApproval ? 'Requires financial approval (amount exceeds threshold).' : 'No financial approval required.'}`,
+        });
+        
+        // Emit event for analytics
+        await emitClaimEvent({
+          claimId: input.claimId,
+          eventType: "claim_approved",
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          tenantId,
+          eventPayload: { 
+            selectedQuoteId: input.selectedQuoteId,
+            approvedAmount,
+            requiresFinancialApproval,
+            approvalType: "technical",
+          },
         });
         
         console.log(`[Approval] Claim ${claim.claimNumber} technically approved by user ${ctx.user.id} for R${(approvedAmount / 100).toFixed(2)}`);
@@ -1099,6 +1125,21 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Assessor evaluation submitted: $${(input.estimatedRepairCost / 100).toFixed(2)}`,
         });
 
+        // Emit event for analytics
+        const tenantId = ctx.user.tenantId || "default";
+        await emitClaimEvent({
+          claimId: input.claimId,
+          eventType: "evaluation_submitted",
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          tenantId,
+          eventPayload: { 
+            assessorId: input.assessorId,
+            estimatedRepairCost: input.estimatedRepairCost,
+            fraudRiskLevel: input.fraudRiskLevel,
+          },
+        });
+
         return { success: true };
       }),
 
@@ -1201,6 +1242,20 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           action: "quote_submitted",
           entityType: "quote",
           changeDescription: `Quote submitted: $${(input.quotedAmount / 100).toFixed(2)}`,
+        });
+
+        // Emit event for analytics
+        await emitClaimEvent({
+          claimId: input.claimId,
+          eventType: "quote_submitted",
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+          tenantId,
+          eventPayload: { 
+            panelBeaterId: input.panelBeaterId,
+            quotedAmount: input.quotedAmount,
+            quotesReceived: allQuotes.length + 1, // Include current quote
+          },
         });
 
         return { success: true };

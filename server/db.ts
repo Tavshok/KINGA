@@ -41,7 +41,9 @@ import {
   approvalWorkflow,
   InsertApprovalWorkflow,
   assessors,
-  assessorInsurerRelationships
+  assessorInsurerRelationships,
+  claimEvents,
+  InsertClaimEvent
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1723,4 +1725,44 @@ export async function getMarketplaceAssessors(filters?: {
     certifications: assessor.certifications ? JSON.parse(assessor.certifications) : [],
     serviceRegions: assessor.serviceRegions ? JSON.parse(assessor.serviceRegions) : [],
   }));
+}
+
+
+// ============================================================================
+// EVENT EMISSION
+// ============================================================================
+
+/**
+ * Emit a claim event for workflow analytics and turnaround time tracking
+ */
+export async function emitClaimEvent(params: {
+  claimId: number;
+  eventType: string;
+  userId?: number;
+  userRole?: string;
+  tenantId?: string;
+  eventPayload?: Record<string, unknown>;
+}): Promise<void> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[Events] Cannot emit event: database not available");
+    return;
+  }
+
+  try {
+    await db.insert(claimEvents).values({
+      claimId: params.claimId,
+      eventType: params.eventType,
+      userId: params.userId,
+      userRole: params.userRole,
+      tenantId: params.tenantId,
+      eventPayload: params.eventPayload || null,
+      emittedAt: new Date(),
+    });
+    
+    console.log(`[Events] Emitted ${params.eventType} for claim ${params.claimId}`);
+  } catch (error) {
+    console.error(`[Events] Failed to emit ${params.eventType}:`, error);
+    // Non-blocking: don't throw, just log
+  }
 }

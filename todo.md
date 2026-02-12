@@ -4277,3 +4277,28 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test dataset capture populates claim_intelligence_dataset table
 - [ ] Test dataset capture failure doesn't block claim completion
 - [ ] Verify all 483+ tests passing
+
+
+### Launch Readiness Remediation - Phase 8: Event Emission for Analytics (Feb 12, 2026)
+### Implementation
+- [x] Review drizzle/schema.ts claim_events table structure
+- [x] Review existing event emission patterns in dataset-capture.ts
+- [x] Create emitClaimEvent helper function in server/db.ts
+- [x] Add claimEvents import to db.ts and routers.ts
+- [x] Add event emission to assignToAssessor procedure (event_type: 'assessor_assigned')
+- [x] Add event emission to evaluation submission procedure (event_type: 'evaluation_submitted')
+- [x] Add event emission to quote submission procedure (event_type: 'quote_submitted')
+- [x] Add event emission to approveClaim procedure (event_type: 'claim_approved')
+- [x] Ensure events include claimId, userId, userRole, tenantId, eventPayload, and emittedAt timestamp
+### Testing
+- [x] Create server/event-emission.test.ts with 9 comprehensive tests
+- [x] Test emitClaimEvent helper function with all required fields
+- [x] Test emitClaimEvent without optional fields
+- [x] Test error handling for event emission
+- [x] Test assessor_assigned event emission
+- [x] Test evaluation_submitted event emission
+- [x] Test quote_submitted event emission
+- [x] Test claim_approved event emission
+- [x] Test events are chronologically ordered
+- [x] Test turnaround time calculation support between workflow stages
+- [x] Verify all 491 tests passing (was 482, added 9 new tests)
