@@ -48,6 +48,7 @@ import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
 import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 import UploadDocuments from "./pages/processor/UploadDocuments";
 import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
+import AutomationPolicies from "./pages/AutomationPolicies";
 
 function Router() {
   return (
@@ -203,6 +204,12 @@ function Router() {
       <Route path="/insurer/external-assessment">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerExternalAssessmentUpload />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/automation-policies">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <AutomationPolicies />
         </ProtectedRoute>
       </Route>
       

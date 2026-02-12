@@ -4040,3 +4040,36 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Implement email deduplication logic (notification-tracker.ts with cooldown periods)
 - [x] Add email notification cooldown period per claim (6-24 hour cooldowns by type)
 - [x] Test email notification flow end-to-end (TypeScript compiling cleanly)
+
+
+## Confidence-Governed Automation Framework - Phase 2 (Feb 12, 2026)
+### Backend API Implementation
+- [x] Create automation-policies.ts router module with tRPC procedures
+- [x] Implement createPolicy mutation with schema validation
+- [x] Implement getActivePolicy query
+- [x] Implement getPolicyHistory query
+- [x] Implement updatePolicy mutation
+- [x] Wire automation-policies router into main app router
+- [x] Fix function name mismatches (getActiveAutomationPolicy, getTenantPolicies)
+- [x] All 381 tests passing
+
+### Frontend UI Implementation
+- [x] Create AutomationPolicies.tsx page component
+- [x] Implement confidence threshold sliders (AI-only 85%, hybrid 70%)
+- [x] Add approval amount input fields (max AI-only, max hybrid, manager approval threshold)
+- [x] Create fraud risk cutoff slider (default 30%)
+- [x] Implement claim type eligibility checkboxes (eligible and excluded lists)
+- [x] Add vehicle category eligibility controls (sedan, SUV, truck, luxury, sports, commercial)
+- [x] Create policy history display card with active/inactive status
+- [x] Add route to App.tsx at /insurer/automation-policies
+- [x] Fix toast notification imports (use sonner)
+- [x] Fix schema field name alignment (eligibleVehicleCategories, excludedVehicleMakes, requireManagerApprovalAbove)
+- [x] TypeScript compilation clean
+
+### Next Steps (Phase 3)
+- [ ] Add navigation link to automation policies page in insurer dashboard sidebar
+- [ ] Test automation policy configuration in browser
+- [ ] Create automation performance analytics dashboard
+- [ ] Build automation metrics aggregation queries (AI-only accuracy, cost variance, override frequency)
+- [ ] Add Chart.js visualizations for automation trends
+- [ ] Save checkpoint with complete automation policy configuration system
