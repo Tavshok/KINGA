@@ -2730,6 +2730,111 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return await getPanelBeaterPerformance();
       }),
   }),
+
+  /**
+   * Reports Router
+   * 
+   * Handles intelligent report generation for claims
+   */
+  reports: router({
+    /**
+     * Validate Report Data
+     * 
+     * Validates claim intelligence completeness before report generation.
+     * 
+     * @param claimId - ID of the claim to validate
+     * @param role - Report role (insurer, assessor, regulatory)
+     * @returns Validation report with completeness score and errors/warnings
+     */
+    validate: protectedProcedure
+      .input(z.object({
+        claimId: z.string(),
+        role: z.enum(['insurer', 'assessor', 'regulatory']),
+      }))
+      .query(async ({ input, ctx }) => {
+        // Check permissions
+        const { hasPermission } = await import('./rbac');
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, 'viewAllClaims')) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' });
+        }
+
+        const { aggregateClaimIntelligence } = await import('./report-intelligence-aggregator');
+        const { getValidationReport } = await import('./report-validation-service');
+
+        const intelligence = await aggregateClaimIntelligence(input.claimId);
+        const validationReport = getValidationReport(intelligence, input.role);
+
+        return validationReport;
+      }),
+
+    /**
+     * Generate Report PDF
+     * 
+     * Generates a professional PDF report for a claim.
+     * 
+     * @param claimId - ID of the claim
+     * @param role - Report role (insurer, assessor, regulatory)
+     * @param includeVisualizations - Whether to include charts and gauges
+     * @param includeSupportingEvidence - Whether to include damage photos
+     * @returns PDF buffer as base64 string
+     */
+    generate: protectedProcedure
+      .input(z.object({
+        claimId: z.string(),
+        role: z.enum(['insurer', 'assessor', 'regulatory']),
+        includeVisualizations: z.boolean().default(true),
+        includeSupportingEvidence: z.boolean().default(true),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        // Check permissions
+        const { hasPermission } = await import('./rbac');
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, 'viewAllClaims')) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Insufficient permissions' });
+        }
+
+        const { aggregateClaimIntelligence } = await import('./report-intelligence-aggregator');
+        const { generateReportNarrative } = await import('./report-narrative-generator');
+        const { generateReportVisualizations } = await import('./report-visualization-generator');
+        const { generateReportPDF } = await import('./report-pdf-generator');
+        const { validateReportData } = await import('./report-validation-service');
+
+        // Aggregate intelligence
+        const intelligence = await aggregateClaimIntelligence(input.claimId);
+
+        // Validate data
+        const validation = validateReportData(intelligence, input.role);
+        if (!validation.isValid) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Report validation failed: ${validation.errors.join(', ')}`,
+          });
+        }
+
+        // Generate narrative
+        const narrative = await generateReportNarrative(intelligence, input.role);
+
+        // Generate visualizations
+        const visualizations = generateReportVisualizations(intelligence);
+
+        // Generate PDF
+        const pdfBuffer = await generateReportPDF(
+          intelligence,
+          narrative,
+          visualizations,
+          {
+            role: input.role,
+            includeVisualizations: input.includeVisualizations,
+            includeSupportingEvidence: input.includeSupportingEvidence,
+          }
+        );
+
+        // Return as base64
+        return {
+          pdf: pdfBuffer.toString('base64'),
+          filename: `${intelligence.claim.claimNumber}-${input.role}-report.pdf`,
+        };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

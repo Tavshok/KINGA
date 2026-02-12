@@ -26,6 +26,7 @@ import {
   Shield,
   FileText,
 } from "lucide-react";
+import { ReportGenerationDialog } from "@/components/ReportGenerationDialog";
 
 export default function InsurerQuoteComparison() {
   const params = useParams();
@@ -467,6 +468,10 @@ export default function InsurerQuoteComparison() {
                   <FileText className="h-4 w-4 mr-2" />
                   Request Revision
                 </Button>
+                <ReportGenerationDialog
+                  claimId={claimId.toString()}
+                  claimNumber={`CLM-${claimId}`}
+                />
               </div>
             </CardContent>
           </Card>
