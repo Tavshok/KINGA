@@ -84,6 +84,25 @@ export const claimCompletionRouter = router({
       
       console.log(`[Completion] Claim ${claim.claimNumber} completed and closed by user ${ctx.user.id}`);
 
+      // Capture claim intelligence dataset for continuous learning
+      // Non-blocking: errors won't fail claim completion
+      try {
+        const { captureClaimIntelligenceDataset } = await import("../dataset-capture");
+        
+        // Prepare approval data
+        const approvalData = {
+          approvedAmount: claim.approvedAmount || 0,
+          approvedBy: claim.technicallyApprovedBy || ctx.user.id,
+          approvedAt: claim.technicallyApprovedAt || new Date(),
+        };
+        
+        await captureClaimIntelligenceDataset(input.claimId, approvalData);
+        console.log(`[Dataset] Captured intelligence dataset for claim ${claim.claimNumber}`);
+      } catch (error) {
+        // Log error but don't fail claim completion
+        console.error(`[Dataset] Failed to capture intelligence dataset for claim ${claim.claimNumber}:`, error);
+      }
+
       return { success: true };
     }),
   

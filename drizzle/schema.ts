@@ -2033,7 +2033,7 @@ export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset",
   dataScope: mysqlEnum("data_scope", ["tenant_private", "tenant_feature"]).default("tenant_private").notNull(),
   globalSharingEnabled: tinyint("global_sharing_enabled").default(0),
   anonymizedAt: timestamp("anonymized_at"),
-  incidentLocation: text("incident_location"), // For geographic aggregation
+  // incidentLocation: text("incident_location"), // For geographic aggregation - TODO: Add after migration
 }, (table) => ({
   claimIdIdx: index("idx_claim_id").on(table.claimId),
   tenantIdIdx: index("idx_tenant_id").on(table.tenantId),

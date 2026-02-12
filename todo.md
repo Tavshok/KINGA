@@ -4261,3 +4261,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 ### Environment Variables (Optional - for production)
 - [ ] SENTRY_DSN - Server-side Sentry DSN (configure via webdev_request_secrets when ready)
 - [ ] VITE_SENTRY_DSN - Client-side Sentry DSN (configure via webdev_request_secrets when ready)
+
+
+## Launch Readiness Remediation - Phase 7: Dataset Capture Activation (Feb 12, 2026)
+### Implementation
+- [ ] Review server/dataset-capture.ts to understand captureClaimIntelligenceDataset function
+- [ ] Review server/routers/claim-completion.ts to understand completeClaim workflow
+- [ ] Integrate captureClaimIntelligenceDataset call into completeClaim procedure
+- [ ] Add non-blocking error handling (try-catch with logging, don't fail claim completion)
+- [ ] Ensure dataset capture only triggers on successful completion (status = 'completed')
+
+### Testing
+- [ ] Create server/dataset-capture-activation.test.ts
+- [ ] Test dataset capture triggered on claim completion
+- [ ] Test dataset capture populates claim_intelligence_dataset table
+- [ ] Test dataset capture failure doesn't block claim completion
+- [ ] Verify all 483+ tests passing

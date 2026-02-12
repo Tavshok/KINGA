@@ -128,12 +128,13 @@ export async function captureClaimIntelligenceDataset(
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     
-    // 1. Fetch claim details
-    const claim = await getClaimById(claimId);
-    if (!claim) {
+    // 1. Fetch claim details (fetch without tenant filtering for dataset capture)
+    const claimResult = await db.select().from(claims).where(eq(claims.id, claimId)).limit(1);
+    if (claimResult.length === 0) {
       console.error(`Cannot capture dataset: claim ${claimId} not found`);
       return;
     }
+    const claim = claimResult[0];
     
     // 2. Fetch AI assessment
     const aiAssessmentResult = await db.select()
