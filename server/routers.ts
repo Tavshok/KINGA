@@ -545,15 +545,18 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        
+        // Verify claim belongs to user's tenant before assignment
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new Error("Claim not found or access denied");
         
         await assignClaimToAssessor(input.claimId, input.assessorId);
         
         // Automatically progress status to assessment_pending
         await updateClaimStatus(input.claimId, "assessment_pending");
 
-        // Get claim and assessor details for notification
-        const tenantId = ctx.user.tenantId || "default";
-        const claim = await getClaimById(input.claimId, tenantId);
+        // Get assessor details for notification
         const assessors = await getUsersByRole("assessor");
         const assessor = assessors.find(a => a.id === input.assessorId);
 
@@ -1206,8 +1209,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // Get quotes for a claim
     byClaim: protectedProcedure
       .input(z.object({ claimId: z.number() }))
-      .query(async ({ input }) => {
-        return await getQuotesByClaimId(input.claimId);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        return await getQuotesByClaimId(input.claimId, tenantId);
       }),
 
     // Get quotes with line items for comparison
@@ -1361,8 +1366,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
   aiAssessments: router({
     byClaim: protectedProcedure
       .input(z.object({ claimId: z.number() }))
-      .query(async ({ input }) => {
-        return await getAiAssessmentByClaimId(input.claimId);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        return await getAiAssessmentByClaimId(input.claimId, tenantId);
       }),
     all: protectedProcedure
       .query(async () => {

@@ -4163,3 +4163,46 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix approveClaim test to include tenantId in mock user and claim
 - [x] Fix policeReport test to include tenantId in both test claims
 - [x] Verify all 437 tests passing (was 437, no new tests added)
+
+
+## Launch Readiness Remediation - Phase 4: Tenant Isolation Tests (Feb 12, 2026)
+### Test Infrastructure
+- [x] Create server/tenant-isolation.test.ts with 18 comprehensive tests
+- [x] Set up two test tenants (tenant_a, tenant_b)
+- [x] Create test users for each tenant (insurers, assessors) with dynamic IDs
+- [x] Create test claims for each tenant
+
+### Claim Visibility Isolation Tests
+- [x] Test tenant A user queries claims → only sees tenant A claims
+- [x] Test tenant B user queries claims → only sees tenant B claims
+- [x] Test attempt to access other tenant's claim by ID → returns undefined
+- [x] Test getById tRPC procedure enforces tenant filtering
+- [x] Test cross-tenant claim access prevention via tRPC
+
+### Assessor Assignment Isolation Tests
+- [x] Test tenant A assessor assigned to tenant A claim → succeeds
+- [x] Test cross-tenant claim access via assignment → fails with error
+- [x] Test myAssignments only shows tenant-specific claims to assessors
+- [x] Add tenant validation before assignment in assignToAssessor procedure
+
+### Quote Submission Isolation Tests
+- [x] Test quote submission to tenant A claim → succeeds
+- [x] Test tenant filtering when retrieving quotes via db function
+- [x] Test cross-tenant quote access via tRPC → returns empty array
+- [x] Add tenant validation to quotes.byClaim procedure
+
+### Assessment Isolation Tests
+- [x] Test AI assessment for tenant A claim → accessible by tenant A users
+- [x] Test AI assessment for tenant B claim → not accessible by tenant A users
+- [x] Test assessor evaluation isolation across tenants
+- [x] Test assessment tRPC procedures enforce tenant isolation
+- [x] Add tenant validation to aiAssessments.byClaim procedure
+
+### Comprehensive Cross-Tenant Prevention
+- [x] Test all cross-tenant data access vectors are blocked
+- [x] Test all query functions respect tenant filtering
+
+### Validation
+- [x] Run all tenant isolation tests (18 new tests)
+- [x] Verify zero cross-tenant data access
+- [x] Verify all 455 tests passing (was 437, added 18 new tests)
