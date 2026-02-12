@@ -145,6 +145,9 @@ export function hasPermission(
 ): boolean {
   if (!user) return false;
   
+  // System admin role has all permissions (superuser)
+  if (user.role === "admin") return true;
+  
   const role = user.insurerRole as InsurerRole | null;
   if (!role) return false;
   
@@ -240,6 +243,9 @@ export function canViewClaim(
   claim: { assignedAssessorId?: number | null; createdBy?: number | null }
 ): boolean {
   if (!user) return false;
+  
+  // System admin role can view all claims (superuser)
+  if (user.role === "admin") return true;
   
   const role = user.insurerRole as InsurerRole | null;
   if (!role) return false;

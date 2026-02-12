@@ -120,8 +120,8 @@ export const claimCompletionRouter = router({
     .mutation(async ({ ctx, input }) => {
       if (!ctx.user) throw new Error("Not authenticated");
       
-      // Verify user has authority to reopen claims
-      if (ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
+      // Verify user has authority to reopen claims (Claims Manager, Executive, or Admin)
+      if (ctx.user.role !== "admin" && ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
         throw new TRPCError({ 
           code: "FORBIDDEN", 
           message: "Reopening claims requires Claims Manager or Executive role" 

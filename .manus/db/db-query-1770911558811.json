@@ -1,0 +1,354 @@
+{
+  "query": "DESCRIBE claims;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute DESCRIBE claims;",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "claimant_id",
+      "Type": "int(11)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "claim_number",
+      "Type": "varchar(50)",
+      "Null": "NO",
+      "Key": "UNI",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "tenant_id",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_make",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_model",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_year",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_registration",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "incident_date",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "incident_description",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "incident_location",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "damage_photos",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "policy_number",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "policy_verified",
+      "Type": "tinyint(4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "status",
+      "Type": "enum('submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected')",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "submitted",
+      "Extra": ""
+    },
+    {
+      "Field": "workflow_state",
+      "Type": "enum('created','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "created",
+      "Extra": ""
+    },
+    {
+      "Field": "assigned_assessor_id",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assigned_panel_beater_id",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "selected_panel_beater_ids",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "ai_assessment_triggered",
+      "Type": "tinyint(4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "ai_assessment_completed",
+      "Type": "tinyint(4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_risk_score",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_flags",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updated_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "external_assessment_url",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "workflowState",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "technicallyApprovedBy",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "technicallyApprovedAt",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "financiallyApprovedBy",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "financiallyApprovedAt",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "approvedAmount",
+      "Type": "double",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "closedBy",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "closedAt",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_risk_level",
+      "Type": "enum('low','medium','high')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "requires_gm_consultation",
+      "Type": "tinyint(4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "technically_approved_by",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "technically_approved_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "financially_approved_by",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "financially_approved_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "approved_amount",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "closed_by",
+      "Type": "int(11)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "closed_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint(11)\tNO\tPRI\tNULL\tauto_increment\nclaimant_id\tint(11)\tNO\tMUL\tNULL\t\nclaim_number\tvarchar(50)\tNO\tUNI\tNULL\t\ntenant_id\tvarchar(255)\tYES\t\tNULL\t\nvehicle_make\tvarchar(100)\tYES\t\tNULL\t\nvehicle_model\tvarchar(100)\tYES\t\tNULL\t\nvehicle_year\tint(11)\tYES\t\tNULL\t\nvehicle_registration\tvarchar(50)\tYES\t\tNULL\t\nincident_date\ttimestamp\tYES\t\tNULL\t\nincident_description\ttext\tYES\t\tNULL\t\nincident_location\ttext\tYES\t\tNULL\t\ndamage_photos\ttext\tYES\t\tNULL\t\npolicy_number\tvarchar(100)\tYES\t\tNULL\t\npolicy_verified\ttinyint(4)\tYES\t\t0\t\nstatus\tenum('submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected')\tNO\tMUL\tsubmitted\t\nworkflow_state\tenum('created','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed')\tYES\t\tcreated\t\nassigned_assessor_id\tint(11)\tYES\tMUL\tNULL\t\nassigned_panel_beater_id\tint(11)\tYES\t\tNULL\t\nselected_panel_beater_ids\ttext\tYES\t\tNULL\t\nai_assessment_triggered\ttinyint(4)\tYES\t\t0\t\nai_assessment_completed\ttinyint(4)\tYES\t\t0\t\nfraud_risk_score\tint(11)\tYES\t\tNULL\t\nfraud_flags\ttext\tYES\t\tNULL\t\ncreated_at\ttimestamp\tNO\tMUL\tCURRENT_TIMESTAMP\t\nupdated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nexternal_assessment_url\ttext\tYES\t\tNULL\t\nworkflowState\ttext\tYES\t\tNULL\t\ntechnicallyApprovedBy\tint(11)\tYES\t\tNULL\t\ntechnicallyApprovedAt\ttext\tYES\t\tNULL\t\nfinanciallyApprovedBy\tint(11)\tYES\t\tNULL\t\nfinanciallyApprovedAt\ttext\tYES\t\tNULL\t\napprovedAmount\tdouble\tYES\t\tNULL\t\nclosedBy\tint(11)\tYES\t\tNULL\t\nclosedAt\ttext\tYES\t\tNULL\t\nfraud_risk_level\tenum('low','medium','high')\tYES\t\tNULL\t\nrequires_gm_consultation\ttinyint(4)\tYES\t\t0\t\ntechnically_approved_by\tint(11)\tYES\t\tNULL\t\ntechnically_approved_at\ttimestamp\tYES\t\tNULL\t\nfinancially_approved_by\tint(11)\tYES\t\tNULL\t\nfinancially_approved_at\ttimestamp\tYES\t\tNULL\t\napproved_amount\tint(11)\tYES\t\tNULL\t\nclosed_by\tint(11)\tYES\t\tNULL\t\nclosed_at\ttimestamp\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 112
+}

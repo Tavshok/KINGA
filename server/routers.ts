@@ -824,8 +824,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
-        // Verify user has financial approval authority (Claims Manager or Executive)
-        if (ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
+        // Verify user has financial approval authority (Claims Manager, Executive, or Admin)
+        if (ctx.user.role !== "admin" && ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "executive") {
           throw new TRPCError({ 
             code: "FORBIDDEN", 
             message: "Financial approval requires Claims Manager or Executive role" 

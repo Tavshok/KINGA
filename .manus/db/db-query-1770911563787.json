@@ -1,0 +1,35 @@
+{
+  "query": "SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'claims' AND COLUMN_NAME IN ('workflow_state', 'closed_at', 'approved_amount', 'assigned_panel_beater_id', 'status');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT COLUMN_NAME, DATA_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'claims' AND COLUMN_NAME IN ('workflow_state', 'closed_at', 'approved_amount', 'assigned_panel_beater_id', 'status');",
+  "rows": [
+    {
+      "COLUMN_NAME": "status",
+      "DATA_TYPE": "enum",
+      "IS_NULLABLE": "NO"
+    },
+    {
+      "COLUMN_NAME": "workflow_state",
+      "DATA_TYPE": "enum",
+      "IS_NULLABLE": "YES"
+    },
+    {
+      "COLUMN_NAME": "assigned_panel_beater_id",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "YES"
+    },
+    {
+      "COLUMN_NAME": "approved_amount",
+      "DATA_TYPE": "int",
+      "IS_NULLABLE": "YES"
+    },
+    {
+      "COLUMN_NAME": "closed_at",
+      "DATA_TYPE": "timestamp",
+      "IS_NULLABLE": "YES"
+    }
+  ],
+  "messages": [],
+  "stdout": "COLUMN_NAME\tDATA_TYPE\tIS_NULLABLE\nstatus\tenum\tNO\nworkflow_state\tenum\tYES\nassigned_panel_beater_id\tint\tYES\napproved_amount\tint\tYES\nclosed_at\ttimestamp\tYES\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

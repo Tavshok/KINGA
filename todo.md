@@ -4302,3 +4302,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test events are chronologically ordered
 - [x] Test turnaround time calculation support between workflow stages
 - [x] Verify all 491 tests passing (was 482, added 9 new tests)
+
+
+## Production Error Fixes (Feb 2026)
+- [x] Fix RBAC hasPermission() to treat admin role as superuser with all permissions
+- [x] Fix canViewClaim() to allow admin role full access
+- [x] Fix financial approval procedure to allow admin role
+- [x] Fix claim-completion reopenClaim to allow admin role
+- [x] Fix Executive Dashboard 500 errors (all 7 tRPC endpoints now return 200)
+- [x] Verify all portal pages load without errors (Executive, Insurer, Assessor, Panel Beater, Claimant, Admin, Portal Hub)
