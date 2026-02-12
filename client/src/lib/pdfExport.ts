@@ -68,13 +68,15 @@ export function generateComparisonPDF(data: ClaimData): void {
   const doc = new jsPDF();
   let yPos = 20;
 
-  // Header with logo placeholder
-  doc.setFontSize(20);
-  doc.setTextColor(16, 185, 129); // Emerald green
-  doc.text('KINGA', 20, yPos);
+  // Add logo to header
+  const logoImg = new Image();
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png';
+  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 40, 15);
+  
+  // Header text next to logo
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text('Insurance Claims Analysis', 20, yPos + 5);
+  doc.text('Insurance Claims Analysis', 65, yPos + 5);
   
   yPos += 15;
 
@@ -272,10 +274,19 @@ export function generateComparisonPDF(data: ClaimData): void {
     }
   }
 
-  // Footer
+  // Add watermark and footer to all pages
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Add watermark logo (centered, faint)
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setGState({ opacity: 0.1 });
+    doc.addImage(logoImg, 'PNG', (pageWidth - 80) / 2, (pageHeight - 30) / 2, 80, 30);
+    doc.setGState({ opacity: 1 });
+    
+    // Footer text
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(
@@ -304,13 +315,15 @@ export function generateFraudAnalyticsPDF(data: {
   const doc = new jsPDF();
   let yPos = 20;
 
-  // Header
-  doc.setFontSize(20);
-  doc.setTextColor(16, 185, 129);
-  doc.text('KINGA', 20, yPos);
+  // Add logo to header
+  const logoImg = new Image();
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png';
+  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 40, 15);
+  
+  // Header text next to logo
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text('Fraud Analytics Report', 20, yPos + 5);
+  doc.text('Fraud Analytics Report', 65, yPos + 5);
   
   yPos += 15;
 
@@ -390,10 +403,19 @@ export function generateFraudAnalyticsPDF(data: {
     yPos = (doc as any).lastAutoTable.finalY + 10;
   }
 
-  // Footer
+  // Add watermark and footer to all pages
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Add watermark logo (centered, faint)
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setGState({ opacity: 0.1 });
+    doc.addImage(logoImg, 'PNG', (pageWidth - 80) / 2, (pageHeight - 30) / 2, 80, 30);
+    doc.setGState({ opacity: 1 });
+    
+    // Footer text
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(
@@ -429,13 +451,15 @@ export function generateDamageReportPDF(data: {
   const doc = new jsPDF();
   let yPos = 20;
 
-  // Header with logo placeholder
-  doc.setFontSize(20);
-  doc.setTextColor(16, 185, 129); // Emerald green
-  doc.text('KINGA', 20, yPos);
+  // Add logo to header
+  const logoImg = new Image();
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png';
+  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 40, 15);
+  
+  // Header text next to logo
   doc.setFontSize(10);
   doc.setTextColor(100, 100, 100);
-  doc.text('Damage Component Analysis', 20, yPos + 5);
+  doc.text('Damage Component Analysis', 65, yPos + 5);
   
   yPos += 15;
 
@@ -633,10 +657,19 @@ export function generateDamageReportPDF(data: {
   doc.text(descriptionLines, 20, yPos);
   yPos += descriptionLines.length * 4 + 10;
 
-  // Footer
+  // Add watermark and footer to all pages
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
+    
+    // Add watermark logo (centered, faint)
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    doc.setGState({ opacity: 0.1 });
+    doc.addImage(logoImg, 'PNG', (pageWidth - 80) / 2, (pageHeight - 30) / 2, 80, 30);
+    doc.setGState({ opacity: 1 });
+    
+    // Footer text
     doc.setFontSize(8);
     doc.setTextColor(150, 150, 150);
     doc.text(

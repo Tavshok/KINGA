@@ -60,6 +60,11 @@ export default function DashboardLayout({
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
+          <img 
+            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png" 
+            alt="KINGA" 
+            className="h-24 w-auto object-contain mb-4"
+          />
           <div className="flex flex-col items-center gap-6">
             <h1 className="text-2xl font-semibold tracking-tight text-center">
               Sign in to continue
@@ -170,9 +175,11 @@ function DashboardLayoutContent({
               </button>
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="font-semibold tracking-tight truncate">
-                    Navigation
-                  </span>
+                  <img 
+                    src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png" 
+                    alt="KINGA" 
+                    className="h-8 w-auto object-contain"
+                  />
                 </div>
               ) : null}
             </div>

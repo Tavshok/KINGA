@@ -4593,3 +4593,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update HTML title and meta tags
 - [x] Update UI components with new branding
 - [x] Remove "AutoVerify AI" references throughout codebase
+
+
+## Logo Integration (Feb 12, 2026)
+- [x] Upload new KINGA logo to project public assets
+- [x] Add logo to navigation header (DashboardLayout and public pages)
+- [x] Add logo to login/authentication pages
+- [x] Integrate logo watermark into PDF comparison reports
+- [x] Integrate logo watermark into PDF fraud analytics reports
+- [x] Integrate logo watermark into PDF damage component reports
+- [x] Test logo display across all pages and reports
