@@ -740,6 +740,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Determine if financial approval is required
         const requiresFinancialApproval = approvedAmount > requireManagerApprovalAbove;
         
+        // Validate state transition to repair_assigned
+        const { validateStateTransition } = await import("./workflow-validator");
+        validateStateTransition(claim.status as any, "repair_assigned");
+        
         // Update claim with technical approval
         const db = await getDb();
         if (!db) throw new Error("Database not available");

@@ -47,7 +47,10 @@ describe("Claims - Approve Claim Workflow", () => {
     });
     testClaimId = Number(result[0].insertId);
 
-    // Progress claim to comparison status
+    // Progress claim through valid workflow to comparison status
+    await updateClaimStatus(testClaimId, "assessment_pending");
+    await updateClaimStatus(testClaimId, "assessment_in_progress");
+    await updateClaimStatus(testClaimId, "quotes_pending");
     await updateClaimStatus(testClaimId, "comparison");
 
     // Create a test quote

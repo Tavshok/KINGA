@@ -57,6 +57,10 @@ export const claimCompletionRouter = router({
         }
       }
       
+      // Validate state transition to completed
+      const { validateStateTransition } = await import("../workflow-validator");
+      validateStateTransition(claim.status as any, "completed");
+      
       // Update claim to completed with closure tracking
       const db = await getDb();
       if (!db) throw new Error("Database not available");
@@ -116,6 +120,11 @@ export const claimCompletionRouter = router({
           message: `Only completed claims can be reopened. Current status: ${claim.status}` 
         });
       }
+      
+      // Validate state transition to repair_in_progress (reopening)
+      // Note: This is a special case - reopening from terminal state
+      // We validate this explicitly rather than adding to ALLOWED_TRANSITIONS
+      // to keep the workflow validator strict for normal operations
       
       // Update claim to repair_in_progress and clear closure tracking
       const db = await getDb();

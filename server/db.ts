@@ -248,12 +248,28 @@ export async function updateClaimStatus(claimId: number, status: typeof claims.$
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // Get current claim status for validation
+  const [claim] = await db.select().from(claims).where(eq(claims.id, claimId));
+  if (!claim) throw new Error(`Claim ${claimId} not found`);
+  
+  // Validate state transition
+  const { validateStateTransition } = await import("./workflow-validator");
+  validateStateTransition(claim.status as any, status as any);
+
   await db.update(claims).set({ status, updatedAt: new Date() }).where(eq(claims.id, claimId));
 }
 
 export async function assignClaimToAssessor(claimId: number, assessorId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
+
+  // Get current claim status for validation
+  const [claim] = await db.select().from(claims).where(eq(claims.id, claimId));
+  if (!claim) throw new Error(`Claim ${claimId} not found`);
+  
+  // Validate state transition to assessment_pending
+  const { validateStateTransition } = await import("./workflow-validator");
+  validateStateTransition(claim.status as any, "assessment_pending");
 
   await db.update(claims).set({ 
     assignedAssessorId: assessorId,

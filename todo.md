@@ -4092,3 +4092,25 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test role-based financial approval restrictions
 - [x] Test claim closure tracking
 - [x] Verify all 395 tests passing (was 381, added 14 new tests)
+
+
+## Launch Readiness Remediation - Phase 2: State Transition Validator (Feb 12, 2026)
+### Backend Implementation
+- [x] Create server/workflow-validator.ts with ALLOWED_TRANSITIONS map
+- [x] Define all valid state transitions (submitted → assessment_pending, etc.)
+- [x] Implement validateStateTransition(fromStatus, toStatus) function
+- [x] Add helper functions: getValidNextStates, isTerminalState, validateWorkflowPath
+- [x] Add clear error messages for invalid transitions with allowed states listed
+- [x] Integrate validator into updateClaimStatus (db.ts)
+- [x] Integrate validator into assignClaimToAssessor (db.ts)
+- [x] Integrate validator into approveClaim (routers.ts)
+- [x] Integrate validator into completeClaim (claim-completion.ts)
+
+### Testing
+- [x] Create workflow-validator.test.ts with 42 comprehensive test cases
+- [x] Test all valid transitions succeed (happy path, triage path, rejection path)
+- [x] Test invalid transitions are rejected (submitted → completed, backward transitions)
+- [x] Test error messages are clear and actionable
+- [x] Test helper functions (getValidNextStates, isTerminalState, validateWorkflowPath)
+- [x] Fix approveClaim test to follow valid workflow path
+- [x] Verify all 437 tests passing (was 395, added 42 new tests)
