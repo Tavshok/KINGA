@@ -29,7 +29,7 @@ export default function AssignAssessor() {
   const assignMutation = trpc.claims.assignToAssessor.useMutation({
     onSuccess: () => {
       alert(`Assessor successfully assigned to claim!`);
-      setLocation("/claims");
+      setLocation("/insurer/claims/triage");
     },
     onError: (error) => {
       alert(`Failed to assign assessor: ${error.message}`);
@@ -155,7 +155,7 @@ export default function AssignAssessor() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Invalid claim ID</p>
-            <Button onClick={() => setLocation("/claims")} className="mt-4">
+            <Button onClick={() => setLocation("/insurer/claims/triage")} className="mt-4">
               Back to Claims
             </Button>
           </CardContent>

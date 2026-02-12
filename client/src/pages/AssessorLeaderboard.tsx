@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/table";
 import { Trophy, Medal, Award, TrendingUp, Target, Zap, Crown } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 import { useLocation } from "wouter";
 
 export default function AssessorLeaderboard() {
@@ -205,7 +206,7 @@ export default function AssessorLeaderboard() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => setLocation("/assessor/upgrade")}
+                          onClick={() => toast.info("Premium subscriptions coming soon! We're still determining pricing for your market.")}
                         >
                           <Zap className="h-3 w-3 mr-1" />
                           Upgrade
@@ -240,7 +241,7 @@ export default function AssessorLeaderboard() {
           <CardContent>
             <Button
               className="w-full"
-              onClick={() => setLocation("/assessor/upgrade")}
+              onClick={() => toast.info("Premium subscriptions coming soon! We're still determining pricing for your market.")}
             >
               <Zap className="h-4 w-4 mr-2" />
               Upgrade to Premium - $50/month

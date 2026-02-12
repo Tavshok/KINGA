@@ -121,8 +121,15 @@ export default function InsurerExternalAssessmentUpload() {
       clearInterval(progressInterval);
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Upload failed');
+        // Check if response is JSON before parsing
+        const contentType = response.headers.get('content-type');
+        if (contentType && contentType.includes('application/json')) {
+          const error = await response.json();
+          throw new Error(error.message || 'Upload failed');
+        } else {
+          // Server returned non-JSON error (like HTML error page)
+          throw new Error(`Upload failed with status ${response.status}: ${response.statusText}`);
+        }
       }
 
       const data = await response.json();

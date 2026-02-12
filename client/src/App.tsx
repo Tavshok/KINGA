@@ -164,14 +164,21 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      <Route path="/insurer/claims/:id/comparison">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerComparisonView />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/claims/:claimId/quote-comparison">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerQuoteComparison />
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/insurer/claims/:id">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerClaimDetails />
-        </ProtectedRoute>
-      </Route>
-          <Route path="/insurer/claims/:claimId/quote-comparison">
-        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-          <InsurerQuoteComparison />
         </ProtectedRoute>
       </Route>   
       <Route path="/insurer/quote-optimization/:id">
@@ -264,11 +271,7 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/assessor/performance">
-        <ProtectedRoute allowedRoles={["assessor", "admin"]}>
-          <AssessorPerformance />
-        </ProtectedRoute>
-      </Route>
+
       
       {/* Panel Beater Routes */}
       <Route path="/panel-beater/dashboard">

@@ -208,7 +208,7 @@ export default function ExecutiveDashboard() {
                           <AlertCircle className="h-4 w-4 mr-1" />
                           Request Review
                         </Button>
-                        <Link href={`/insurer/comparison/${claim.id}`}>
+                        <Link href={`/insurer/claims/${claim.id}/comparison`}>
                           <Button size="sm" variant="ghost">
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -474,7 +474,7 @@ export default function ExecutiveDashboard() {
                   ) : alerts?.highValuePending && alerts.highValuePending.length > 0 ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {alerts.highValuePending.map((claim: any) => (
-                        <Link key={claim.id} href={`/insurer/comparison/${claim.id}`}>
+                        <Link key={claim.id} href={`/insurer/claims/${claim.id}/comparison`}>
                           <div className="p-3 bg-yellow-50 rounded border border-yellow-200 hover:border-yellow-400 cursor-pointer transition-colors">
                             <p className="font-semibold text-sm">{claim.claimNumber}</p>
                             <p className="text-xs text-slate-600">{claim.vehicleRegistration}</p>
@@ -506,7 +506,7 @@ export default function ExecutiveDashboard() {
                   ) : alerts?.highFraudRisk && alerts.highFraudRisk.length > 0 ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {alerts.highFraudRisk.map((claim: any) => (
-                        <Link key={claim.id} href={`/insurer/comparison/${claim.id}`}>
+                        <Link key={claim.id} href={`/insurer/claims/${claim.id}/comparison`}>
                           <div className="p-3 bg-red-50 rounded border border-red-200 hover:border-red-400 cursor-pointer transition-colors">
                             <p className="font-semibold text-sm">{claim.claimNumber}</p>
                             <p className="text-xs text-slate-600">{claim.vehicleRegistration}</p>
@@ -538,7 +538,7 @@ export default function ExecutiveDashboard() {
                   ) : alerts?.disputedClaims && alerts.disputedClaims.length > 0 ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {alerts.disputedClaims.map((claim: any) => (
-                        <Link key={claim.id} href={`/insurer/comparison/${claim.id}`}>
+                        <Link key={claim.id} href={`/insurer/claims/${claim.id}/comparison`}>
                           <div className="p-3 bg-purple-50 rounded border border-purple-200 hover:border-purple-400 cursor-pointer transition-colors">
                             <p className="font-semibold text-sm">{claim.claimNumber}</p>
                             <p className="text-xs text-slate-600">{claim.vehicleRegistration}</p>
@@ -570,7 +570,7 @@ export default function ExecutiveDashboard() {
                   ) : alerts?.stuckClaims && alerts.stuckClaims.length > 0 ? (
                     <div className="space-y-2 max-h-64 overflow-y-auto">
                       {alerts.stuckClaims.map((claim: any) => (
-                        <Link key={claim.id} href={`/insurer/comparison/${claim.id}`}>
+                        <Link key={claim.id} href={`/insurer/claims/${claim.id}/comparison`}>
                           <div className="p-3 bg-orange-50 rounded border border-orange-200 hover:border-orange-400 cursor-pointer transition-colors">
                             <p className="font-semibold text-sm">{claim.claimNumber}</p>
                             <p className="text-xs text-slate-600">{claim.vehicleRegistration}</p>

@@ -222,7 +222,7 @@ export default function ClaimsManagerDashboard() {
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Send Back
                         </Button>
-                        <Link href={`/insurer/comparison/${claim.id}`}>
+                        <Link href={`/insurer/claims/${claim.id}/comparison`}>
                           <Button variant="outline" size="sm" className="w-full">
                             <Eye className="h-4 w-4 mr-2" />
                             Review

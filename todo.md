@@ -3729,3 +3729,34 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add document classification UI with confidence scoring
 - [ ] Test document intelligence pipeline end-to-end
 - [ ] Save final checkpoint for browser testing
+
+
+## Bug Fixes - February 12, 2026 (Browser Testing Issues)
+- [x] Fix 404 error on `/insurer/claims/:id/comparison` route
+- [x] Fix "View" button in Claims Triage page (should go to claim details)
+- [x] Fix "Compare" button in Claims Triage page (should go to comparison view)
+- [ ] Fix "Quotes" button in Claims Triage page (should go to quote comparison)
+- [ ] Fix external assessment upload JSON parsing error ("Service Unavailable" is not valid JSON)
+- [ ] Test all fixed routes end-to-end in browser
+
+
+## Comprehensive Route Audit - February 12, 2026
+- [ ] Audit ALL routes in App.tsx vs actual page files
+- [ ] Audit ALL setLocation/Link navigation calls across codebase
+- [ ] Fix all broken routes and missing pages
+- [ ] Fix external assessment upload JSON parsing error
+- [ ] Verify every route resolves correctly
+- [ ] Save checkpoint with all fixes
+
+
+## Comprehensive Route Audit - February 12, 2026
+- [x] Audit all routes in App.tsx against all navigation calls across codebase
+- [x] Fix route order: moved /insurer/claims/:id/comparison BEFORE /insurer/claims/:id
+- [x] Fix 5 broken /insurer/comparison/:id links in ExecutiveDashboard → /insurer/claims/:id/comparison
+- [x] Fix 1 broken /insurer/comparison/:id link in ClaimsManagerDashboard → /insurer/claims/:id/comparison
+- [x] Fix 2 broken /claims links in AssignAssessor → /insurer/claims/triage
+- [x] Fix 2 broken /assessor/upgrade links in AssessorLeaderboard → toast notification (subscription coming soon)
+- [x] Remove duplicate /assessor/performance route in App.tsx
+- [x] Fix external assessment upload JSON parsing error on non-JSON responses
+- [x] Verify json import in drizzle schema (was stale error, now cleared)
+- [x] All 272 tests passing (18/18 test files)
