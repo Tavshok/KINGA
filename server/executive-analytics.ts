@@ -349,3 +349,174 @@ export async function getFinancialOverview() {
     netExposure: totalPayouts + totalReserves,
   };
 }
+
+
+/**
+ * Get Claims Volume Over Time
+ * Returns daily claim counts for the specified period
+ */
+export async function getClaimsVolumeOverTime(days: number = 30) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const results = await db
+    .select({
+      date: sql<string>`DATE(${claims.createdAt})`,
+      total: sql<number>`COUNT(*)`,
+      fraudDetected: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) > 70 THEN 1 ELSE 0 END)`,
+      avgFraudScore: sql<number>`AVG(COALESCE(${claims.fraudRiskScore}, 0))`,
+    })
+    .from(claims)
+    .where(gt(claims.createdAt, startDate))
+    .groupBy(sql`DATE(${claims.createdAt})`)
+    .orderBy(sql`DATE(${claims.createdAt})`);
+
+  return results.map((r) => ({
+    date: r.date,
+    total: Number(r.total),
+    fraudDetected: Number(r.fraudDetected),
+    avgFraudScore: Number(r.avgFraudScore || 0),
+  }));
+}
+
+/**
+ * Get Fraud Detection Rate Trends
+ * Returns fraud detection metrics over time
+ */
+export async function getFraudDetectionTrends(days: number = 30) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - days);
+
+  const results = await db
+    .select({
+      date: sql<string>`DATE(${claims.createdAt})`,
+      totalClaims: sql<number>`COUNT(*)`,
+      lowRisk: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) < 30 THEN 1 ELSE 0 END)`,
+      mediumRisk: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) >= 30 AND COALESCE(${claims.fraudRiskScore}, 0) < 70 THEN 1 ELSE 0 END)`,
+      highRisk: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) >= 70 THEN 1 ELSE 0 END)`,
+      avgScore: sql<number>`AVG(COALESCE(${claims.fraudRiskScore}, 0))`,
+    })
+    .from(claims)
+    .where(gt(claims.createdAt, startDate))
+    .groupBy(sql`DATE(${claims.createdAt})`)
+    .orderBy(sql`DATE(${claims.createdAt})`);
+
+  return results.map((r) => ({
+    date: r.date,
+    totalClaims: Number(r.totalClaims),
+    lowRisk: Number(r.lowRisk),
+    mediumRisk: Number(r.mediumRisk),
+    highRisk: Number(r.highRisk),
+    avgScore: Number(r.avgScore || 0),
+    fraudRate: Number(r.totalClaims) > 0 ? (Number(r.highRisk) / Number(r.totalClaims)) * 100 : 0,
+  }));
+}
+
+/**
+ * Get Cost Breakdown By Status
+ * Returns cost analysis grouped by claim status
+ */
+export async function getCostBreakdownByStatus() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Join with aiAssessments to get estimated costs
+  const results = await db
+    .select({
+      status: sql<string>`${claims.status}`,
+      count: sql<number>`COUNT(DISTINCT ${claims.id})`,
+      totalEstimatedCost: sql<number>`SUM(COALESCE(${aiAssessments.estimatedCost}, 0))`,
+      avgEstimatedCost: sql<number>`AVG(COALESCE(${aiAssessments.estimatedCost}, 0))`,
+      totalApprovedAmount: sql<number>`SUM(COALESCE(${claims.approvedAmount}, 0))`,
+    })
+    .from(claims)
+    .leftJoin(aiAssessments, eq(claims.id, aiAssessments.claimId))
+    .groupBy(sql`${claims.status}`);
+
+  return results.map((r) => ({
+    status: r.status || "unknown",
+    count: Number(r.count),
+    totalEstimatedCost: Number(r.totalEstimatedCost || 0),
+    avgEstimatedCost: Number(r.avgEstimatedCost || 0),
+    totalApprovedAmount: Number(r.totalApprovedAmount || 0),
+  }));
+}
+
+/**
+ * Get Average Processing Time By Status
+ * Returns average time spent in each claim status
+ */
+export async function getAverageProcessingTime() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Calculate average time from creation to completion for completed claims
+  const [completedResult] = await db
+    .select({
+      avgDays: sql<number>`AVG(DATEDIFF(${claims.closedAt}, ${claims.createdAt}))`,
+    })
+    .from(claims)
+    .where(eq(claims.status, "completed"));
+
+  // Calculate average time for pending triage
+  const [triageResult] = await db
+    .select({
+      avgDays: sql<number>`AVG(DATEDIFF(NOW(), ${claims.createdAt}))`,
+    })
+    .from(claims)
+    .where(eq(claims.status, "triage"));
+
+  // Calculate average time for under assessment
+  const [assessmentResult] = await db
+    .select({
+      avgDays: sql<number>`AVG(DATEDIFF(NOW(), ${claims.createdAt}))`,
+    })
+    .from(claims)
+    .where(eq(claims.status, "assessment_in_progress"));
+
+  // Calculate average time for awaiting approval
+  const [approvalResult] = await db
+    .select({
+      avgDays: sql<number>`AVG(DATEDIFF(NOW(), ${claims.createdAt}))`,
+    })
+    .from(claims)
+    .where(eq(claims.status, "quotes_pending"));
+
+  return {
+    completed: Number(completedResult?.avgDays || 0),
+    pendingTriage: Number(triageResult?.avgDays || 0),
+    underAssessment: Number(assessmentResult?.avgDays || 0),
+    awaitingApproval: Number(approvalResult?.avgDays || 0),
+  };
+}
+
+/**
+ * Get Fraud Risk Distribution
+ * Returns distribution of claims by fraud risk level
+ */
+export async function getFraudRiskDistribution() {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const [results] = await db
+    .select({
+      lowRisk: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) < 30 THEN 1 ELSE 0 END)`,
+      mediumRisk: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) >= 30 AND COALESCE(${claims.fraudRiskScore}, 0) < 70 THEN 1 ELSE 0 END)`,
+      highRisk: sql<number>`SUM(CASE WHEN COALESCE(${claims.fraudRiskScore}, 0) >= 70 THEN 1 ELSE 0 END)`,
+      total: sql<number>`COUNT(*)`,
+    })
+    .from(claims);
+
+  return {
+    lowRisk: Number(results?.lowRisk || 0),
+    mediumRisk: Number(results?.mediumRisk || 0),
+    highRisk: Number(results?.highRisk || 0),
+    total: Number(results?.total || 0),
+  };
+}

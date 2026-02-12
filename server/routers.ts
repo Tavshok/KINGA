@@ -2486,6 +2486,115 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { getFinancialOverview } = await import("./executive-analytics");
         return await getFinancialOverview();
       }),
+
+    /**
+     * Get Claims Volume Over Time
+     * 
+     * Returns daily claim counts for trend analysis.
+     * 
+     * @requires Executive role
+     * @param days - Number of days to look back (default: 30)
+     * @returns Time-series claim volume data
+     */
+    getClaimsVolumeOverTime: protectedProcedure
+      .input(z.object({ days: z.number().default(30) }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view claims volume trends");
+        }
+        
+        const { getClaimsVolumeOverTime } = await import("./executive-analytics");
+        return await getClaimsVolumeOverTime(input.days);
+      }),
+
+    /**
+     * Get Fraud Detection Trends
+     * 
+     * Returns fraud detection metrics over time.
+     * 
+     * @requires Executive role
+     * @param days - Number of days to look back (default: 30)
+     * @returns Time-series fraud detection data
+     */
+    getFraudDetectionTrends: protectedProcedure
+      .input(z.object({ days: z.number().default(30) }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view fraud detection trends");
+        }
+        
+        const { getFraudDetectionTrends } = await import("./executive-analytics");
+        return await getFraudDetectionTrends(input.days);
+      }),
+
+    /**
+     * Get Cost Breakdown By Status
+     * 
+     * Returns cost analysis grouped by claim status.
+     * 
+     * @requires Executive role
+     * @returns Cost breakdown data
+     */
+    getCostBreakdownByStatus: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view cost breakdown");
+        }
+        
+        const { getCostBreakdownByStatus } = await import("./executive-analytics");
+        return await getCostBreakdownByStatus();
+      }),
+
+    /**
+     * Get Average Processing Time
+     * 
+     * Returns average time spent in each claim status.
+     * 
+     * @requires Executive role
+     * @returns Processing time metrics
+     */
+    getAverageProcessingTime: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view processing time metrics");
+        }
+        
+        const { getAverageProcessingTime } = await import("./executive-analytics");
+        return await getAverageProcessingTime();
+      }),
+
+    /**
+     * Get Fraud Risk Distribution
+     * 
+     * Returns distribution of claims by fraud risk level.
+     * 
+     * @requires Executive role
+     * @returns Fraud risk distribution data
+     */
+    getFraudRiskDistribution: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        
+        const { hasPermission } = await import("./rbac");
+        if (ctx.user.role !== 'admin' && !hasPermission(ctx.user, "viewAllClaims")) {
+          throw new Error("Only executives can view fraud risk distribution");
+        }
+        
+        const { getFraudRiskDistribution } = await import("./executive-analytics");
+        return await getFraudRiskDistribution();
+      }),
   }),
 
   /**

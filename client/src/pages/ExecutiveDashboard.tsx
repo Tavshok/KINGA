@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import Plot from "react-plotly.js";
+import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import {
   exportKPIsToPDF,
   exportAlertsToPDF,
@@ -326,8 +327,9 @@ export default function ExecutiveDashboard() {
 
         {/* Tabs for Different Dashboards */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 bg-white shadow-md">
+          <TabsList className="grid w-full grid-cols-6 bg-white shadow-md">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="alerts">Critical Alerts</TabsTrigger>
             <TabsTrigger value="assessors">Assessors</TabsTrigger>
             <TabsTrigger value="panel-beaters">Panel Beaters</TabsTrigger>
@@ -443,6 +445,11 @@ export default function ExecutiveDashboard() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Analytics Tab */}
+          <TabsContent value="analytics" className="space-y-4">
+            <ExecutiveAnalyticsCharts />
           </TabsContent>
 
           {/* Critical Alerts Tab */}
