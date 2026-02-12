@@ -46,6 +46,7 @@ import FraudHeatmap from "./pages/analytics/FraudHeatmap";
 import FleetRisk from "./pages/analytics/FleetRisk";
 import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
 import AnalyticsHub from "./pages/analytics/AnalyticsHub";
+import UploadDocuments from "./pages/processor/UploadDocuments";
 
 function Router() {
   return (
@@ -218,6 +219,13 @@ function Router() {
       
       {/* Public Marketplace Registration */}
       <Route path="/join-as-assessor" component={JoinAsAssessor} />
+      
+      {/* Document Intelligence Pipeline */}
+      <Route path="/processor/upload-documents">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <UploadDocuments />
+        </ProtectedRoute>
+      </Route>
       
       {/* Document Management Route - accessible by all authenticated users */}
       <Route path="/claims/:id/documents">
