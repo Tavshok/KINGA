@@ -3010,6 +3010,106 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     /**
+     * Send Report Email
+     * 
+     * Sends a generated report via email to specified recipients.
+     * 
+     * @param snapshotId - ID of the report snapshot
+     * @param pdfReportId - ID of the PDF report
+     * @param recipients - Array of recipient email addresses
+     * @returns Email delivery status
+     */
+    sendEmail: protectedProcedure
+      .input(z.object({
+        snapshotId: z.string(),
+        pdfReportId: z.string(),
+        recipients: z.array(z.object({
+          email: z.string().email(),
+          name: z.string(),
+        })).optional(),
+        sendToStakeholders: z.boolean().default(true),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { canAccessReport } = await import('./report-governance-service');
+        const { getSnapshotById } = await import('./report-snapshot-service');
+        const { getPdfReportById } = await import('./pdf-storage-service');
+        const { sendReportEmail, sendReportToStakeholders, getReportStakeholders } = await import('./report-email-service');
+
+        // Check permissions
+        const accessCheck = await canAccessReport(ctx.user, input.snapshotId);
+        if (!accessCheck.allowed) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: accessCheck.reason });
+        }
+
+        // Get snapshot and PDF report
+        const snapshot = await getSnapshotById(input.snapshotId);
+        if (!snapshot) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Snapshot not found' });
+        }
+
+        const pdfReport = await getPdfReportById(input.pdfReportId);
+        if (!pdfReport) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'PDF report not found' });
+        }
+
+        const intelligence = snapshot.intelligenceData as any;
+        const claimNumber = intelligence.claim?.claimNumber || 'Unknown';
+
+        let totalSent = 0;
+        let totalFailed = 0;
+
+        // Send to specified recipients
+        if (input.recipients && input.recipients.length > 0) {
+          for (const recipient of input.recipients) {
+            const success = await sendReportEmail({
+              recipientEmail: recipient.email,
+              recipientName: recipient.name,
+              claimNumber,
+              reportType: snapshot.reportType,
+              pdfUrl: pdfReport.s3Url,
+              generatedBy: ctx.user.name || 'System',
+              tenantId: ctx.user.tenantId || 'default',
+            });
+
+            if (success) {
+              totalSent++;
+            } else {
+              totalFailed++;
+            }
+          }
+        }
+
+        // Send to stakeholders if requested
+        if (input.sendToStakeholders) {
+          const stakeholders = await getReportStakeholders(
+            snapshot.claimId,
+            snapshot.reportType,
+            ctx.user.tenantId || 'default'
+          );
+
+          const result = await sendReportToStakeholders(
+            {
+              claimNumber,
+              reportType: snapshot.reportType,
+              pdfUrl: pdfReport.s3Url,
+              generatedBy: ctx.user.name || 'System',
+              tenantId: ctx.user.tenantId || 'default',
+            },
+            stakeholders
+          );
+
+          totalSent += result.sent;
+          totalFailed += result.failed;
+        }
+
+        return {
+          sent: totalSent,
+          failed: totalFailed,
+          message: `Successfully sent ${totalSent} emails${totalFailed > 0 ? `, ${totalFailed} failed` : ''}`,
+        };
+      }),
+
+    /**
      * Get Report Access History
      * 
      * Retrieves access audit trail for a report.
