@@ -1,4 +1,4 @@
-# KINGA - AutoVerify AI Project TODO
+# KINGA Project TODO
 
 ## Phase 1: Database Schema & Core Setup
 - [x] Update database schema with all required tables (claims, assessments, quotes, audit_trail, panel_beaters, appointments)
@@ -4586,3 +4586,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Delete bulk test data (875 Corolla, 798 X5, etc.)
 - [x] Keep 20-30 representative claims for testing
 - [x] Verify database has clean, diverse test data
+
+
+## Branding Update: Rename to KINGA (Feb 12, 2026)
+- [x] Update application title in package.json
+- [x] Update HTML title and meta tags
+- [x] Update UI components with new branding
+- [x] Remove "AutoVerify AI" references throughout codebase
