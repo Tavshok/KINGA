@@ -4206,3 +4206,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Run all tenant isolation tests (18 new tests)
 - [x] Verify zero cross-tenant data access
 - [x] Verify all 455 tests passing (was 437, added 18 new tests)
+
+
+## Launch Readiness Remediation - Phase 5: Health Check Endpoints (Feb 12, 2026)
+### Backend Implementation
+- [x] Update existing systemRouter in server/_core/systemRouter.ts
+- [x] Implement health endpoint returning uptime, version, timestamp, and ok status
+- [x] Implement ready endpoint with database connectivity check (SELECT 1 query)
+- [x] Add package.json version reading using import.meta.url
+- [x] Add process uptime calculation from startTime
+- [x] Both endpoints are public (no authentication required)
+
+### Testing
+- [x] Create health-check.test.ts with 10 comprehensive tests
+- [x] Test health endpoint returns all required fields (ok, uptime, version, timestamp)
+- [x] Test ready endpoint returns true when database is connected
+- [x] Test both endpoints accessible without authentication
+- [x] Test load balancer integration requirements
+- [x] Verify all 465 tests passing (was 455, added 10 new tests)
