@@ -3650,3 +3650,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Design encryption and secure document storage (AES-256, TLS 1.3)
 - [x] Design insider fraud monitoring (anomaly detection, access patterns)
 - [x] Design digital signature and report authentication (PKI, certificate management)
+
+
+## Document Intelligence Ingestion Pipeline
+- [x] Design document intake service (manual upload, bulk batch, API, email ingestion)
+- [x] Design document classification engine (AI/rule-based, 7 document types)
+- [x] Design multi-modal extraction engine (OCR, handwriting, image extraction)
+- [x] Design structured field extraction (policy number, claim number, vehicle details, etc.)
+- [x] Design validation & human review layer (processor review interface)
+- [x] Design claim object construction engine (database entity creation)
+- [x] Design evidence preservation & governance layer (immutable storage, hash verification)
+- [x] Design AI training dataset builder (damage models, cost estimation, fraud patterns)
+- [x] Design workflow trigger integration (Kafka events)
+- [x] Design historical claim backfill mode (bulk loading)
+- [x] Design anonymization & compliance layer (PII removal, masking)

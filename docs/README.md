@@ -23,6 +23,7 @@ This directory contains the complete architecture documentation for the KINGA mu
 | **[KINGA-PMA-2026-020](KINGA-PMA-2026-020-Premium-Monetization-Architecture.md)** | Premium AI Tools Monetization Architecture | 1.0 | Feb 12, 2026 | Complete monetization framework for premium assessor AI tools with freemium subscription tiers, Stripe payment integration, feature gating middleware, usage metering, and ROI analytics dashboard |
 | **[KINGA-CLP-2026-021](KINGA-CLP-2026-021-Continuous-Learning-Pipeline.md)** | Continuous Learning Feedback Pipeline | 1.0 | Feb 12, 2026 | Complete ML pipeline transforming approved assessor reports into ground truth training data with automated drift detection, model retraining, privacy-preserving anonymization, MLflow version tracking, and performance monitoring |
 | **[KINGA-CGF-2026-022](KINGA-CGF-2026-022-Compliance-Governance-Framework.md)** | Compliance & Governance Framework | 1.0 | Feb 12, 2026 | Complete compliance framework covering data privacy (POPIA/GDPR), immutable audit trails, evidence integrity validation, zero-trust access control, end-to-end encryption, insider fraud monitoring, and digital signature authentication |
+| **[KINGA-DIP-2026-023](KINGA-DIP-2026-023-Document-Intelligence-Pipeline.md)** | Document Intelligence Ingestion Pipeline | 1.0 | Feb 12, 2026 | Complete IDP system automating claim intake from mixed document bundles with AI classification (7 types), multi-modal extraction (OCR, handwriting, images), structured field extraction (15+ fields), human validation, claim construction, evidence preservation, and AI training dataset generation |
 
 ### Supporting Assets
 
@@ -91,6 +92,20 @@ KINGA-CGF-2026-022 (Compliance & Governance Framework)
     ├─── Defines: End-to-End Encryption (AES-256, TLS 1.3, AWS KMS)
     ├─── Defines: Insider Fraud Monitoring (10 threat indicators, risk scoring)
     └─── Defines: Digital Signature Authentication (PKI, RSA-4096, X.509 certificates)
+
+KINGA-DIP-2026-023 (Document Intelligence Ingestion Pipeline)
+    │
+    ├─── Defines: Document Intake Service (manual upload, bulk batch, API, email ingestion)
+    ├─── Defines: Document Classification Engine (AI + rule-based, 7 document types, 95%+ accuracy)
+    ├─── Defines: Multi-Modal Extraction Engine (OCR, handwriting recognition, image extraction)
+    ├─── Defines: Structured Field Extraction (15+ claim fields with confidence scoring)
+    ├─── Defines: Validation & Human Review Layer (processor review interface, completeness scoring)
+    ├─── Defines: Claim Object Construction Engine (automated claim creation from validated documents)
+    ├─── Defines: Evidence Preservation & Governance (immutable storage, SHA-256 hashing, tamper detection)
+    ├─── Defines: AI Training Dataset Builder (damage detection, cost estimation, fraud pattern datasets)
+    ├─── Defines: Workflow Trigger Integration (4 Kafka events for downstream processing)
+    ├─── Defines: Historical Claim Backfill Mode (bulk loading for legacy claims)
+    └─── Defines: Anonymization & Compliance Layer (PII removal, ID masking, POPIA/GDPR compliance)
 ```
 
 **Integration Points:**
@@ -101,8 +116,11 @@ KINGA-CGF-2026-022 (Compliance & Governance Framework)
 - KINGA-CGF-2026-022 provides compliance controls for all data processing activities across all documents
 - KINGA-CGF-2026-022 audit trails track all workflow events from KINGA-AWL-2026-019
 - KINGA-CGF-2026-022 data anonymization integrates with KINGA-CLP-2026-021 training pipeline
-- All documents share the same database schema (4 core assessor tables + workflow tables + ML training tables + compliance tables)
-- Event-driven architecture (Kafka topics) connects all ecosystem services across all five documents
+- KINGA-DIP-2026-023 automates claim intake and generates training data for KINGA-CLP-2026-021
+- KINGA-DIP-2026-023 triggers KINGA-AWL-2026-019 workflows upon claim creation from documents
+- KINGA-DIP-2026-023 evidence preservation integrates with KINGA-CGF-2026-022 compliance controls
+- All documents share the same database schema (4 core assessor tables + workflow tables + ML training tables + compliance tables + document ingestion tables)
+- Event-driven architecture (Kafka topics) connects all ecosystem services across all six documents
 
 ---
 
