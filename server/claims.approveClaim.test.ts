@@ -26,6 +26,8 @@ describe("Claims - Approve Claim Workflow", () => {
     name: "Test Insurer",
     email: "insurer@test.com",
     role: "insurer" as const,
+    tenantId: "default",
+    insurerRole: "claims_handler" as const,
   };
 
   beforeAll(async () => {
@@ -44,6 +46,7 @@ describe("Claims - Approve Claim Workflow", () => {
       damagePhotos: JSON.stringify(["https://example.com/photo1.jpg"]),
       policyNumber: "POL-TEST-001",
       selectedPanelBeaterIds: JSON.stringify([1, 2, 3]),
+      tenantId: "default",
     });
     testClaimId = Number(result[0].insertId);
 

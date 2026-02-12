@@ -23,6 +23,7 @@ describe("Police Report Integration", () => {
       role,
       openId: "test-open-id",
       createdAt: new Date(),
+      tenantId: "default",
     },
   });
 
@@ -42,7 +43,7 @@ describe("Police Report Integration", () => {
       `INSERT INTO claims (
         claim_number, claimant_id, vehicle_make, vehicle_model, vehicle_year,
         vehicle_registration, incident_date, incident_location, incident_description,
-        status, created_at
+        status, created_at, tenant_id
       ) VALUES (
         'TEST-POLICE-001-${testRunId}',
         ${testUserId},
@@ -54,7 +55,8 @@ describe("Police Report Integration", () => {
         '40KM PEG ALONG MUTARE-MASVINGO ROAD',
         'Accident occurred while driving at 60 km/h in blind spot',
         'submitted',
-        NOW()
+        NOW(),
+        'default'
       )`
     );
     testClaimId = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
@@ -108,7 +110,7 @@ describe("Police Report Integration", () => {
     const claimResult = await db.execute(
       `INSERT INTO claims (
         claim_number, claimant_id, vehicle_make, vehicle_model, vehicle_year,
-        incident_location, incident_description, status, created_at
+        incident_location, incident_description, status, created_at, tenant_id
       ) VALUES (
         'TEST-POLICE-002-${testRunId}',
         ${testUserId},
@@ -118,7 +120,8 @@ describe("Police Report Integration", () => {
         'Harare CBD',
         'Rear-end collision',
         'submitted',
-        NOW()
+        NOW(),
+        'default'
       )`
     );
     const claim2Id = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;

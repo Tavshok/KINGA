@@ -135,8 +135,9 @@ export const appRouter = router({
           throw new Error("Only insurers can access cost optimization");
         }
 
+        const tenantId = ctx.user.tenantId || "default";
         // Get all quotes for the claim
-        const quotes = await getQuotesByClaimId(input.claimId);
+        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
         if (quotes.length === 0) {
           return null; // No quotes yet
         }
@@ -467,7 +468,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // Get claims by claimant
     myClaims: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      return await getClaimsByClaimant(ctx.user.id);
+      const tenantId = ctx.user.tenantId || "default";
+      return await getClaimsByClaimant(ctx.user.id, tenantId);
     }),
 
     // Get claims by status (insurers)
@@ -486,21 +488,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           "rejected"
         ]),
       }))
-      .query(async ({ input }) => {
-        return await getClaimsByStatus(input.status);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        return await getClaimsByStatus(input.status, tenantId);
       }),
 
     // Get claims assigned to assessor
     myAssignments: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      return await getClaimsByAssessor(ctx.user.id);
+      const tenantId = ctx.user.tenantId || "default";
+      return await getClaimsByAssessor(ctx.user.id, tenantId);
     }),
 
     // Get claims by assessor ID
     byAssessor: protectedProcedure
       .input(z.object({ assessorId: z.number() }))
-      .query(async ({ input }) => {
-        return await getClaimsByAssessor(input.assessorId);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        return await getClaimsByAssessor(input.assessorId, tenantId);
       }),
 
     // Get claims for panel beater
@@ -514,8 +521,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // Get single claim by ID
     getById: protectedProcedure
       .input(z.object({ id: z.number() }))
-      .query(async ({ input }) => {
-        return await getClaimById(input.id);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        return await getClaimById(input.id, tenantId);
       }),
 
     /**
@@ -543,7 +552,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         await updateClaimStatus(input.claimId, "assessment_pending");
 
         // Get claim and assessor details for notification
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         const assessors = await getUsersByRole("assessor");
         const assessor = assessors.find(a => a.id === input.assessorId);
 
@@ -644,8 +654,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         await updateClaimStatus(input.claimId, "assessment_in_progress");
 
         // Get claim and AI assessment details for notification
-        const claim = await getClaimById(input.claimId);
-        const aiAssessment = await getAiAssessmentByClaimId(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
+        const aiAssessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
 
         // Send email notification about AI assessment completion
         if (claim && aiAssessment) {
@@ -722,10 +733,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!ctx.user) throw new Error("Not authenticated");
         
         // Get claim and quote details
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
         
-        const quotes = await getQuotesByClaimId(input.claimId);
+        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
         const selectedQuote = quotes.find(q => q.id === input.selectedQuoteId);
         if (!selectedQuote) throw new TRPCError({ code: "NOT_FOUND", message: "Selected quote not found" });
         
@@ -733,7 +745,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         // Get active automation policy to determine approval threshold
         const { getActiveAutomationPolicy } = await import("./automation-policy-manager");
-        const tenantId = ctx.user.tenantId || "default";
         const policy = await getActiveAutomationPolicy(tenantId);
         const requireManagerApprovalAbove = policy?.requireManagerApprovalAbove || 2500000; // Default 25,000 ZAR in cents
         
@@ -793,7 +804,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
         
         // Get claim
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
         
         // Verify technical approval exists
@@ -841,9 +853,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({
         assessorId: z.number(),
       }))
-      .query(async ({ input }) => {
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        
         // Get all claims assigned to this assessor
-        const assessments = await getClaimsByAssessor(input.assessorId);
+        const assessments = await getClaimsByAssessor(input.assessorId, tenantId);
 
         const totalAssessments = assessments.length;
         if (totalAssessments === 0) {
@@ -896,7 +911,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         for (const claim of assessments) {
           // Get AI assessment
-          const aiAssessment = await getAiAssessmentByClaimId(claim.id);
+          const aiAssessment = await getAiAssessmentByClaimId(claim.id, tenantId);
           if (aiAssessment) {
             if (aiAssessment.fraudRiskLevel === "high") {
               fraudCasesDetected++;
@@ -911,7 +926,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           }
 
           // Get quotes
-          const quotes = await getQuotesByClaimId(claim.id);
+          const quotes = await getQuotesByClaimId(claim.id, tenantId);
           for (const quote of quotes) {
             initialEstimates += quote.quotedAmount || 0;
           }
@@ -1087,8 +1102,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // Get evaluation by claim
     byClaim: protectedProcedure
       .input(z.object({ claimId: z.number() }))
-      .query(async ({ input }) => {
-        return await getAssessorEvaluationByClaimId(input.claimId);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        return await getAssessorEvaluationByClaimId(input.claimId, tenantId);
       }),
   }),
 
@@ -1128,7 +1145,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         // Check if all quotes have been received (3 panel beaters)
         const allQuotes = await getQuotesByClaimId(input.claimId);
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         
         if (allQuotes.length >= 3) {
           // All quotes received, progress to comparison stage
@@ -1195,8 +1213,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // Get quotes with line items for comparison
     getWithLineItems: protectedProcedure
       .input(z.object({ claimId: z.number() }))
-      .query(async ({ input }) => {
-        const quotes = await getQuotesByClaimId(input.claimId);
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
         
         // Fetch line items for each quote
         const quotesWithItems = await Promise.all(
@@ -1615,7 +1635,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
 
         // Get claim details for cross-validation
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
         // Calculate discrepancies
@@ -1745,7 +1766,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
 
         // Get claim details
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
         // Get assessor evaluation for repair cost
@@ -1993,7 +2015,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
         
         // Check if user can access this claim
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
         requireClaimAccess(ctx.user, claim);
         
@@ -2022,6 +2045,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .query(async ({ input, ctx }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
+        const tenantId = ctx.user.tenantId || "default";
         const { getClaimComments } = await import("./workflow");
         const { hasPermission, requireClaimAccess } = await import("./rbac");
         
@@ -2031,7 +2055,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
         
         // Check if user can access this claim
-        const claim = await getClaimById(input.claimId);
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
         requireClaimAccess(ctx.user, claim);
         
@@ -2214,7 +2238,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { requireClaimAccess } = await import("./rbac");
         
         // Check if user can access this claim
-        const claim = await getClaimById(input.claimId);
+        const tenantId = ctx.user.tenantId || "default";
+        const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
         requireClaimAccess(ctx.user, claim);
         

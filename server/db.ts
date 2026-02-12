@@ -189,49 +189,73 @@ export async function createClaim(data: InsertClaim) {
   return result;
 }
 
-export async function getClaimById(id: number) {
+export async function getClaimById(id: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return undefined;
 
-  const result = await db.select().from(claims).where(eq(claims.id, id)).limit(1);
+  const conditions = tenantId 
+    ? and(eq(claims.id, id), eq(claims.tenantId, tenantId))
+    : eq(claims.id, id);
+  
+  const result = await db.select().from(claims).where(conditions).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getClaimByNumber(claimNumber: string) {
+export async function getClaimByNumber(claimNumber: string, tenantId?: string) {
   const db = await getDb();
   if (!db) return undefined;
 
-  const result = await db.select().from(claims).where(eq(claims.claimNumber, claimNumber)).limit(1);
+  const conditions = tenantId
+    ? and(eq(claims.claimNumber, claimNumber), eq(claims.tenantId, tenantId))
+    : eq(claims.claimNumber, claimNumber);
+  
+  const result = await db.select().from(claims).where(conditions).limit(1);
   return result.length > 0 ? result[0] : undefined;
 }
 
-export async function getClaimsByClaimant(claimantId: number) {
+export async function getClaimsByClaimant(claimantId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
 
-  return await db.select().from(claims).where(eq(claims.claimantId, claimantId)).orderBy(desc(claims.createdAt));
+  const conditions = tenantId
+    ? and(eq(claims.claimantId, claimantId), eq(claims.tenantId, tenantId))
+    : eq(claims.claimantId, claimantId);
+  
+  return await db.select().from(claims).where(conditions).orderBy(desc(claims.createdAt));
 }
 
-export async function getClaimsByStatus(status: typeof claims.$inferSelect.status) {
+export async function getClaimsByStatus(status: typeof claims.$inferSelect.status, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
 
-  return await db.select().from(claims).where(eq(claims.status, status)).orderBy(desc(claims.createdAt));
+  const conditions = tenantId
+    ? and(eq(claims.status, status), eq(claims.tenantId, tenantId))
+    : eq(claims.status, status);
+  
+  return await db.select().from(claims).where(conditions).orderBy(desc(claims.createdAt));
 }
 
-export async function getClaimsByAssessor(assessorId: number) {
+export async function getClaimsByAssessor(assessorId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
 
-  return await db.select().from(claims).where(eq(claims.assignedAssessorId, assessorId)).orderBy(desc(claims.createdAt));
+  const conditions = tenantId
+    ? and(eq(claims.assignedAssessorId, assessorId), eq(claims.tenantId, tenantId))
+    : eq(claims.assignedAssessorId, assessorId);
+  
+  return await db.select().from(claims).where(conditions).orderBy(desc(claims.createdAt));
 }
 
-export async function getClaimsForPanelBeater(panelBeaterId: number) {
+export async function getClaimsForPanelBeater(panelBeaterId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
 
   // Get claims where this panel beater was selected by the claimant
-  const allClaims = await db.select().from(claims).orderBy(desc(claims.createdAt));
+  const query = tenantId
+    ? db.select().from(claims).where(eq(claims.tenantId, tenantId)).orderBy(desc(claims.createdAt))
+    : db.select().from(claims).orderBy(desc(claims.createdAt));
+  
+  const allClaims = await query;
   
   return allClaims.filter(claim => {
     if (!claim.selectedPanelBeaterIds) return false;
@@ -921,12 +945,22 @@ export async function createAiAssessment(data: InsertAiAssessment) {
   return result;
 }
 
-export async function getAiAssessmentByClaimId(claimId: number) {
+export async function getAiAssessmentByClaimId(claimId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return null;
 
-  const result = await db.select().from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
-  return result.length > 0 ? result[0] : null;
+  if (tenantId) {
+    // Join with claims to enforce tenant filtering
+    const result = await db.select({ assessment: aiAssessments })
+      .from(aiAssessments)
+      .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+      .where(and(eq(aiAssessments.claimId, claimId), eq(claims.tenantId, tenantId)))
+      .limit(1);
+    return result.length > 0 ? result[0].assessment : null;
+  } else {
+    const result = await db.select().from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
+    return result.length > 0 ? result[0] : null;
+  }
 }
 
 // ============================================================================
@@ -941,12 +975,22 @@ export async function createAssessorEvaluation(data: InsertAssessorEvaluation) {
   return result;
 }
 
-export async function getAssessorEvaluationByClaimId(claimId: number) {
+export async function getAssessorEvaluationByClaimId(claimId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return null;
 
-  const result = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, claimId)).limit(1);
-  return result.length > 0 ? result[0] : null;
+  if (tenantId) {
+    // Join with claims to enforce tenant filtering
+    const result = await db.select({ evaluation: assessorEvaluations })
+      .from(assessorEvaluations)
+      .innerJoin(claims, eq(assessorEvaluations.claimId, claims.id))
+      .where(and(eq(assessorEvaluations.claimId, claimId), eq(claims.tenantId, tenantId)))
+      .limit(1);
+    return result.length > 0 ? result[0].evaluation : null;
+  } else {
+    const result = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, claimId)).limit(1);
+    return result.length > 0 ? result[0] : null;
+  }
 }
 
 export async function updateAssessorEvaluation(id: number, data: Partial<InsertAssessorEvaluation>) {
@@ -968,11 +1012,20 @@ export async function createPanelBeaterQuote(data: InsertPanelBeaterQuote) {
   return result;
 }
 
-export async function getQuotesByClaimId(claimId: number) {
+export async function getQuotesByClaimId(claimId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
 
-  return await db.select().from(panelBeaterQuotes).where(eq(panelBeaterQuotes.claimId, claimId));
+  if (tenantId) {
+    // Join with claims to enforce tenant filtering
+    const result = await db.select({ quote: panelBeaterQuotes })
+      .from(panelBeaterQuotes)
+      .innerJoin(claims, eq(panelBeaterQuotes.claimId, claims.id))
+      .where(and(eq(panelBeaterQuotes.claimId, claimId), eq(claims.tenantId, tenantId)));
+    return result.map(r => r.quote);
+  } else {
+    return await db.select().from(panelBeaterQuotes).where(eq(panelBeaterQuotes.claimId, claimId));
+  }
 }
 
 export async function getQuoteById(id: number) {
@@ -990,11 +1043,21 @@ export async function updateQuote(id: number, data: Partial<InsertPanelBeaterQuo
   await db.update(panelBeaterQuotes).set({ ...data, updatedAt: new Date() }).where(eq(panelBeaterQuotes.id, id));
 }
 
-export async function getQuotesByPanelBeater(panelBeaterId: number) {
+export async function getQuotesByPanelBeater(panelBeaterId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];
 
-  return await db.select().from(panelBeaterQuotes).where(eq(panelBeaterQuotes.panelBeaterId, panelBeaterId)).orderBy(desc(panelBeaterQuotes.createdAt));
+  if (tenantId) {
+    // Join with claims to enforce tenant filtering
+    const result = await db.select({ quote: panelBeaterQuotes })
+      .from(panelBeaterQuotes)
+      .innerJoin(claims, eq(panelBeaterQuotes.claimId, claims.id))
+      .where(and(eq(panelBeaterQuotes.panelBeaterId, panelBeaterId), eq(claims.tenantId, tenantId)))
+      .orderBy(desc(panelBeaterQuotes.createdAt));
+    return result.map(r => r.quote);
+  } else {
+    return await db.select().from(panelBeaterQuotes).where(eq(panelBeaterQuotes.panelBeaterId, panelBeaterId)).orderBy(desc(panelBeaterQuotes.createdAt));
+  }
 }
 
 // ============================================================================

@@ -4114,3 +4114,52 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test helper functions (getValidNextStates, isTerminalState, validateWorkflowPath)
 - [x] Fix approveClaim test to follow valid workflow path
 - [x] Verify all 437 tests passing (was 395, added 42 new tests)
+
+
+## Launch Readiness Remediation - Phase 3: Tenant-Scoped Queries (Feb 12, 2026)
+### Audit Phase
+- [ ] Search for all db.select() calls in server/routers.ts
+- [ ] Search for all db.select() calls in server/db.ts
+- [ ] Identify queries on claims table missing tenantId filtering
+- [ ] Identify queries on aiAssessments table missing tenant filtering
+- [ ] Identify queries on assessorEvaluations table missing tenant filtering
+- [ ] Identify queries on panelBeaterQuotes table missing tenant filtering
+- [ ] Document all query locations requiring updates
+
+### Helper Functions
+- [ ] Create getTenantClaimsQuery() helper in server/db.ts
+- [ ] Create getTenantAssessmentsQuery() helper with join to claims
+- [ ] Create getTenantEvaluationsQuery() helper with join to claims
+- [ ] Create getTenantQuotesQuery() helper with join to claims
+- [ ] Add tenantId parameter to existing query functions
+
+### Query Updates
+- [ ] Update getClaimsByStatus to filter by tenantId
+- [ ] Update getClaimsByAssessor to filter by tenantId
+- [ ] Update getClaimsByClaimant to filter by tenantId
+- [ ] Update getAllClaims queries to filter by tenantId
+- [ ] Update assessment queries to filter by claim tenantId
+- [ ] Update quote queries to filter by claim tenantId
+- [ ] Update all other entity queries with tenant filtering
+
+### Testing
+- [ ] Verify all 437+ tests still passing
+- [ ] Prepare for tenant isolation tests in Phase 4
+
+
+## Launch Readiness Remediation - Phase 3: Tenant-Scoped Queries (Feb 12, 2026)
+### Backend Implementation
+- [x] Audit all db.select() calls in server/routers.ts and server/db.ts
+- [x] Identify queries missing tenantId filtering (61 total, 18-22 requiring updates)
+- [x] Add tenantId parameter to 6 claim query functions (getClaimById, getClaimsByStatus, etc.)
+- [x] Add tenantId parameter to getAiAssessmentByClaimId (join with claims)
+- [x] Add tenantId parameter to getAssessorEvaluationByClaimId (join with claims)
+- [x] Add tenantId parameter to getQuotesByClaimId, getQuotesByPanelBeater (join with claims)
+- [x] Update 15+ callers in routers.ts to pass ctx.user.tenantId || "default"
+- [x] Fix duplicate tenantId declarations in procedures
+- [x] Update test fixtures to include tenantId="default"
+
+### Testing
+- [x] Fix approveClaim test to include tenantId in mock user and claim
+- [x] Fix policeReport test to include tenantId in both test claims
+- [x] Verify all 437 tests passing (was 437, no new tests added)
