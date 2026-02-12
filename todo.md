@@ -4571,3 +4571,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add repair completion notification
 - [x] Integrate notifications into existing workflow procedures
 - [x] Test email delivery for all workflow events
+
+
+## Bug Fix: Duplicate Claims Display (Feb 12, 2026)
+- [x] Investigate duplicate claims in database (CLM-EVENT- prefix)
+- [x] Identify seeding scripts causing duplicates
+- [x] Clean up duplicate claims from database
+- [x] Fix seeding scripts to prevent future duplicates
+- [x] Verify claims display correctly without duplicates
