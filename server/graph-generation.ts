@@ -107,26 +107,44 @@ export async function generateClaimGraphs(
 function createPythonScript(data: GraphGenerationData): string {
   const { claimId, vehicleInfo, damageComponents, costComparison, fraudRiskScore, physicsData } = data;
   
-  const componentsJson = JSON.stringify(damageComponents);
-  const quotesArray = costComparison.panelBeaterQuotes.map((q, i) => `'Panel Beater ${i + 1}': ${q}`).join(', ');
+  const componentsJson = JSON.stringify(damageComponents).replace(/'/g, "\\'");
+  
+  // Build cost comparison entries safely
+  const costEntries: string[] = [];
+  costEntries.push(`'AI Assessment': ${costComparison.aiAssessment || 0}`);
+  if (costComparison.humanAssessor) {
+    costEntries.push(`'Human Assessor': ${costComparison.humanAssessor}`);
+  }
+  costComparison.panelBeaterQuotes.forEach((q, i) => {
+    costEntries.push(`'Panel Beater ${i + 1}': ${q}`);
+  });
+  const costComparisonPython = costEntries.join(',\n    ');
+  
+  // Ensure damage_components has at least one entry for pie chart
+  const safeComponentsJson = Object.keys(damageComponents).length === 0 
+    ? JSON.stringify({"No damage detected": 1}).replace(/'/g, "\\\'")
+    : componentsJson;
   
   return `#!/usr/bin/env python3
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from matplotlib.patches import Wedge, Circle
 import numpy as np
 import json
 
-plt.style.use('seaborn-v0_8-darkgrid')
+try:
+    plt.style.use('seaborn-v0_8-darkgrid')
+except:
+    plt.style.use('ggplot')
 plt.rcParams['font.family'] = 'sans-serif'
 plt.rcParams['font.size'] = 10
 
 # Data
-damage_components = json.loads('${componentsJson}')
+damage_components = json.loads('${safeComponentsJson}')
 cost_comparison = {
-    'AI Assessment': ${costComparison.aiAssessment},
-    ${costComparison.humanAssessor ? `'Human Assessor': ${costComparison.humanAssessor},` : ''}
-    ${quotesArray}
+    ${costComparisonPython}
 }
 fraud_risk_score = ${fraudRiskScore}
 impact_force_kn = ${physicsData.impactForceKn}

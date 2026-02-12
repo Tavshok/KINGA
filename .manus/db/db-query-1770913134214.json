@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, name, approved FROM panel_beaters LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, name, approved FROM panel_beaters LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "John Moyo",
+      "approved": "1"
+    },
+    {
+      "id": "2",
+      "name": "Sarah Ncube",
+      "approved": "1"
+    },
+    {
+      "id": "3",
+      "name": "David Chikwanha",
+      "approved": "1"
+    },
+    {
+      "id": "4",
+      "name": "Grace Mlambo",
+      "approved": "1"
+    },
+    {
+      "id": "5",
+      "name": "Peter Sibanda",
+      "approved": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tapproved\n1\tJohn Moyo\t1\n2\tSarah Ncube\t1\n3\tDavid Chikwanha\t1\n4\tGrace Mlambo\t1\n5\tPeter Sibanda\t1\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

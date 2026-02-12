@@ -61,7 +61,7 @@ export const automationPoliciesRouter = router({
    * Get the active automation policy for the current tenant
    */
   getActivePolicy: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.user.tenantId || "default";
+    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
     const policy = await getActiveAutomationPolicy(tenantId);
     return policy;
   }),
@@ -70,7 +70,7 @@ export const automationPoliciesRouter = router({
    * Get policy history for the current tenant
    */
   getPolicyHistory: protectedProcedure.query(async ({ ctx }) => {
-    const tenantId = ctx.user.tenantId || "default";
+    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
     const history = await getTenantPolicies(tenantId);
     return history;
   }),

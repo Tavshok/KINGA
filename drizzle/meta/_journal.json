@@ -15,6 +15,13 @@
       "when": 1770375063213,
       "tag": "0001_worried_spitfire",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1770913415405,
+      "tag": "0002_lively_thundra",
+      "breakpoints": true
     }
   ]
 }

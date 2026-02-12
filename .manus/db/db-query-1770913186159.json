@@ -1,0 +1,23 @@
+{
+  "query": "SELECT * FROM panel_beaters LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT * FROM panel_beaters LIMIT 1;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs",
+      "email": "john@moyoauto.co.zw",
+      "phone": "+263 77 123 4567",
+      "address": "15 Seke Road",
+      "city": "Harare",
+      "approved": "1",
+      "user_id": "NULL",
+      "created_at": "2026-02-06 11:09:56",
+      "updated_at": "2026-02-06 11:09:56"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tbusiness_name\temail\tphone\taddress\tcity\tapproved\tuser_id\tcreated_at\tupdated_at\n1\tJohn Moyo\tMoyo Auto Body Repairs\tjohn@moyoauto.co.zw\t+263 77 123 4567\t15 Seke Road\tHarare\t1\tNULL\t2026-02-06 11:09:56\t2026-02-06 11:09:56\n",
+  "stderr": "",
+  "execution_time_ms": 60
+}

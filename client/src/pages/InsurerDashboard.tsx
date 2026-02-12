@@ -130,54 +130,111 @@ export default function InsurerDashboard() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-center py-12 text-muted-foreground space-y-4">
-              <div>
-                <p>No claims to display</p>
-                <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
-              </div>
-              <div className="flex gap-3 justify-center">
-                <Button onClick={() => setLocation("/insurer/claims/triage")}>
-                  View Claims Triage
-                </Button>
-                <Button 
-                  variant="secondary"
-                  onClick={() => setLocation("/insurer/external-assessment")}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Upload External Assessment
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setLocation("/new-upload")}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  Debug Upload (Test)
-                </Button>
-                <Button 
-                  variant="secondary"
-                  onClick={() => setLocation("/insurer/fraud-analytics")}
-                >
-                  <BarChart3 className="mr-2 h-4 w-4" />
-                  Fraud Analytics
-                </Button>
-                <Button 
-                  variant="outline"
-                  onClick={() => setLocation("/insurer/batch-export")}
-                >
-                  <FileText className="mr-2 h-4 w-4" />
-                  Batch Export
-                </Button>
-                {user?.role === "admin" && (
+            {allClaims.length > 0 ? (
+              <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-left text-muted-foreground">
+                        <th className="py-2 px-3">Claim #</th>
+                        <th className="py-2 px-3">Vehicle</th>
+                        <th className="py-2 px-3">Status</th>
+                        <th className="py-2 px-3">Date</th>
+                        <th className="py-2 px-3">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allClaims.slice(0, 10).map((claim: any) => (
+                        <tr key={claim.id} className="border-b hover:bg-muted/50">
+                          <td className="py-2 px-3 font-medium">{claim.claimNumber}</td>
+                          <td className="py-2 px-3">{claim.vehicleMake} {claim.vehicleModel}</td>
+                          <td className="py-2 px-3">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              claim.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                              claim.status === 'triage' ? 'bg-yellow-100 text-yellow-800' :
+                              claim.status === 'comparison' ? 'bg-purple-100 text-purple-800' :
+                              claim.status === 'completed' ? 'bg-green-100 text-green-800' :
+                              'bg-gray-100 text-gray-800'
+                            }`}>
+                              {claim.status?.replace(/_/g, ' ')}
+                            </span>
+                          </td>
+                          <td className="py-2 px-3 text-muted-foreground">{new Date(claim.createdAt).toLocaleDateString()}</td>
+                          <td className="py-2 px-3">
+                            <Button size="sm" variant="outline" onClick={() => setLocation(`/insurer/claims/${claim.id}`)}>
+                              View
+                            </Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="flex gap-3 justify-center flex-wrap pt-2">
+                  <Button onClick={() => setLocation("/insurer/claims/triage")}>
+                    View Claims Triage
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setLocation("/insurer/external-assessment")}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload External Assessment
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setLocation("/insurer/fraud-analytics")}
+                  >
+                    <BarChart3 className="mr-2 h-4 w-4" />
+                    Fraud Analytics
+                  </Button>
                   <Button 
                     variant="outline"
-                    onClick={() => setLocation("/admin/dashboard")}
+                    onClick={() => setLocation("/insurer/batch-export")}
                   >
-                    <Settings className="mr-2 h-4 w-4" />
-                    Admin Panel
+                    <FileText className="mr-2 h-4 w-4" />
+                    Batch Export
                   </Button>
-                )}
+                  {user?.role === "admin" && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setLocation("/admin/dashboard")}
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Admin Panel
+                    </Button>
+                  )}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="text-center py-12 text-muted-foreground space-y-4">
+                <div>
+                  <p>No claims to display</p>
+                  <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
+                </div>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  <Button onClick={() => setLocation("/insurer/claims/triage")}>
+                    View Claims Triage
+                  </Button>
+                  <Button 
+                    variant="secondary"
+                    onClick={() => setLocation("/insurer/external-assessment")}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload External Assessment
+                  </Button>
+                  {user?.role === "admin" && (
+                    <Button 
+                      variant="outline"
+                      onClick={() => setLocation("/admin/dashboard")}
+                    >
+                      <Settings className="mr-2 h-4 w-4" />
+                      Admin Panel
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

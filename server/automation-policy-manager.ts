@@ -36,17 +36,18 @@ export async function createAutomationPolicy(config: InsertAutomationPolicy): Pr
 /**
  * Get active automation policy for a tenant
  */
-export async function getActiveAutomationPolicy(tenantId: string): Promise<AutomationPolicy | null> {
+export async function getActiveAutomationPolicy(tenantId?: string): Promise<AutomationPolicy | null> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
+  
+  const conditions = tenantId
+    ? and(eq(automationPolicies.tenantId, tenantId), eq(automationPolicies.isActive, true))
+    : eq(automationPolicies.isActive, true);
   
   const policies = await db
     .select()
     .from(automationPolicies)
-    .where(and(
-      eq(automationPolicies.tenantId, tenantId),
-      eq(automationPolicies.isActive, true)
-    ))
+    .where(conditions)
     .limit(1);
   
   return policies.length > 0 ? policies[0] : null;
@@ -97,16 +98,15 @@ export async function deactivateAutomationPolicy(policyId: number): Promise<void
 /**
  * Get all policies for a tenant (active and inactive)
  */
-export async function getTenantPolicies(tenantId: string): Promise<AutomationPolicy[]> {
+export async function getTenantPolicies(tenantId?: string): Promise<AutomationPolicy[]> {
   const db = await getDb();
   if (!db) throw new Error("Database connection failed");
   
-  const policies = await db
-    .select()
-    .from(automationPolicies)
-    .where(eq(automationPolicies.tenantId, tenantId));
+  const query = tenantId
+    ? db.select().from(automationPolicies).where(eq(automationPolicies.tenantId, tenantId))
+    : db.select().from(automationPolicies);
   
-  return policies;
+  return await query;
 }
 
 /**

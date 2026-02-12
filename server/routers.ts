@@ -136,7 +136,7 @@ export const appRouter = router({
           throw new Error("Only insurers can access cost optimization");
         }
 
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         // Get all quotes for the claim
         const quotes = await getQuotesByClaimId(input.claimId, tenantId);
         if (quotes.length === 0) {
@@ -469,7 +469,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     // Get claims by claimant
     myClaims: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
       return await getClaimsByClaimant(ctx.user.id, tenantId);
     }),
 
@@ -491,14 +491,14 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getClaimsByStatus(input.status, tenantId);
       }),
 
     // Get claims assigned to assessor
     myAssignments: protectedProcedure.query(async ({ ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
-      const tenantId = ctx.user.tenantId || "default";
+      const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
       return await getClaimsByAssessor(ctx.user.id, tenantId);
     }),
 
@@ -507,7 +507,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ assessorId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getClaimsByAssessor(input.assessorId, tenantId);
       }),
 
@@ -524,7 +524,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ id: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getClaimById(input.id, tenantId);
       }),
 
@@ -546,7 +546,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         
         // Verify claim belongs to user's tenant before assignment
         const claim = await getClaimById(input.claimId, tenantId);
@@ -668,7 +668,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         await updateClaimStatus(input.claimId, "assessment_in_progress");
 
         // Get claim and AI assessment details for notification
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         const aiAssessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
 
@@ -747,7 +747,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!ctx.user) throw new Error("Not authenticated");
         
         // Get claim and quote details
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
         
@@ -833,7 +833,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
         
         // Get claim
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
         
@@ -884,7 +884,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         
         // Get all claims assigned to this assessor
         const assessments = await getClaimsByAssessor(input.assessorId, tenantId);
@@ -1126,7 +1126,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
 
         // Emit event for analytics
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         await emitClaimEvent({
           claimId: input.claimId,
           eventType: "evaluation_submitted",
@@ -1148,7 +1148,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getAssessorEvaluationByClaimId(input.claimId, tenantId);
       }),
   }),
@@ -1189,7 +1189,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         // Check if all quotes have been received (3 panel beaters)
         const allQuotes = await getQuotesByClaimId(input.claimId);
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         
         if (allQuotes.length >= 3) {
@@ -1266,7 +1266,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getQuotesByClaimId(input.claimId, tenantId);
       }),
 
@@ -1275,7 +1275,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const quotes = await getQuotesByClaimId(input.claimId, tenantId);
         
         // Fetch line items for each quote
@@ -1423,7 +1423,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getAiAssessmentByClaimId(input.claimId, tenantId);
       }),
     all: protectedProcedure
@@ -1697,7 +1697,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
 
         // Get claim details for cross-validation
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
@@ -1828,7 +1828,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
 
         // Get claim details
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
@@ -2077,7 +2077,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
         
         // Check if user can access this claim
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
         requireClaimAccess(ctx.user, claim);
@@ -2107,7 +2107,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .query(async ({ input, ctx }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const { getClaimComments } = await import("./workflow");
         const { hasPermission, requireClaimAccess } = await import("./rbac");
         
@@ -2300,7 +2300,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { requireClaimAccess } = await import("./rbac");
         
         // Check if user can access this claim
-        const tenantId = ctx.user.tenantId || "default";
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
         requireClaimAccess(ctx.user, claim);

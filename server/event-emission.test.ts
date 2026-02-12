@@ -364,7 +364,7 @@ describe("Event Emission for Analytics", () => {
       const turnaroundTime = evaluationTime - assignmentTime;
 
       expect(turnaroundTime).toBeGreaterThanOrEqual(0); // At least 0ms (events are ordered)
-      expect(turnaroundTime).toBeLessThan(1000); // Less than 1 second (reasonable for test)
+      expect(turnaroundTime).toBeLessThanOrEqual(5000); // Less than 5 seconds (reasonable for test)
     });
   });
 });

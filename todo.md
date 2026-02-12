@@ -4311,3 +4311,33 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix claim-completion reopenClaim to allow admin role
 - [x] Fix Executive Dashboard 500 errors (all 7 tRPC endpoints now return 200)
 - [x] Verify all portal pages load without errors (Executive, Insurer, Assessor, Panel Beater, Claimant, Admin, Portal Hub)
+
+
+## Production Readiness - Admin Tenant & E2E Testing (Feb 2026)
+- [ ] Fix tenant filtering so admin user sees all claims across all portals
+- [ ] Fix Insurer Dashboard to show claims for admin users
+- [ ] Fix Assessor Dashboard to show claims for admin users
+- [ ] Fix Admin Panel to show claims for admin users
+- [ ] Audit TypeScript compilation for type/name errors
+- [ ] Fix any TypeScript errors found
+- [ ] Test full claim lifecycle: submit claim as claimant
+- [ ] Test full claim lifecycle: triage claim as insurer
+- [ ] Test full claim lifecycle: assign assessor
+- [ ] Test full claim lifecycle: complete assessment
+- [ ] Test full claim lifecycle: approve and complete claim
+- [ ] Verify all portals work without errors on published site
+
+
+## Production Readiness - Admin Tenant & E2E Fixes (Feb 12, 2026)
+- [x] Make admin user bypass tenant filtering (see all claims across all portals)
+- [x] Fix Insurer Dashboard showing 0 claims for admin user
+- [x] Full TypeScript audit - zero type/name errors
+- [x] Run database migration to sync schema with Drizzle definitions (51 new columns/tables)
+- [x] E2E test: Submit a new claim as claimant (CLM-GTWIKA0KUB)
+- [x] E2E test: Triage claim as insurer (248 pending claims visible)
+- [x] E2E test: View claim detail and comparison page
+- [x] Verify all portals load without errors (Executive, Insurer, Assessor, Panel Beater, Claimant, Admin, Portal Hub)
+- [x] Run full test suite (29 files, 491 tests passed, 0 failures)
+- [x] Create missing fraud_ml_model_enhanced.py Python script
+- [x] Fix graph-generation.ts Python template syntax error
+- [x] Fix flaky event-emission timing test assertion
