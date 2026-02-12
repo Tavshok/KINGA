@@ -2544,3 +2544,459 @@ export const reportAccessAudit = mysqlTable("report_access_audit", {
 
 export type ReportAccessAudit = typeof reportAccessAudit.$inferSelect;
 export type InsertReportAccessAudit = typeof reportAccessAudit.$inferInsert;
+
+
+// ============================================================================
+// INSURANCE AGENCY PLATFORM SCHEMA
+// ============================================================================
+
+/**
+ * Insurance Carriers - Insurance companies offering products through KINGA
+ */
+export const insuranceCarriers = mysqlTable("insurance_carriers", {
+  id: int("id").autoincrement().primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  shortCode: varchar("short_code", { length: 50 }).notNull().unique(), // e.g., "ZIMNAT", "FIDELITY"
+  isActive: tinyint("is_active").default(1).notNull(),
+  
+  // Commission structure
+  defaultCommissionRate: decimal("default_commission_rate", { precision: 5, scale: 2 }).notNull(), // Percentage (e.g., 15.00 for 15%)
+  
+  // API integration (if carrier has API)
+  apiEndpoint: varchar("api_endpoint", { length: 500 }),
+  apiCredentials: text("api_credentials"), // Encrypted JSON with API keys
+  apiEnabled: tinyint("api_enabled").default(0),
+  
+  // Contact information
+  contactEmail: varchar("contact_email", { length: 320 }),
+  contactPhone: varchar("contact_phone", { length: 20 }),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InsuranceCarrier = typeof insuranceCarriers.$inferSelect;
+export type InsertInsuranceCarrier = typeof insuranceCarriers.$inferInsert;
+
+/**
+ * Insurance Products - Product catalog per carrier
+ */
+export const insuranceProducts = mysqlTable("insurance_products", {
+  id: int("id").autoincrement().primaryKey(),
+  carrierId: int("carrier_id").notNull(),
+  
+  productName: varchar("product_name", { length: 255 }).notNull(),
+  productCode: varchar("product_code", { length: 50 }).notNull(),
+  coverageType: mysqlEnum("coverage_type", ["comprehensive", "third_party", "third_party_fire_theft"]).notNull(),
+  
+  // Pricing
+  basePremiumMonthly: int("base_premium_monthly"), // Base premium in cents
+  basePremiumAnnual: int("base_premium_annual"), // Base premium in cents
+  
+  // Coverage limits (in cents)
+  vehicleDamageLimit: int("vehicle_damage_limit"),
+  thirdPartyLiabilityLimit: int("third_party_liability_limit"),
+  personalAccidentLimit: int("personal_accident_limit"),
+  
+  // Excess options (JSON array of amounts in cents)
+  excessOptions: text("excess_options"), // e.g., [50000, 100000, 200000]
+  
+  // Eligibility rules (JSON)
+  eligibilityRules: text("eligibility_rules"), // Min/max vehicle age, driver age, etc.
+  
+  // Commission override for this product
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }), // Overrides carrier default if set
+  
+  isActive: tinyint("is_active").default(1).notNull(),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InsuranceProduct = typeof insuranceProducts.$inferSelect;
+export type InsertInsuranceProduct = typeof insuranceProducts.$inferInsert;
+
+/**
+ * Fleet Vehicles - Registry of all vehicles for insurance purposes
+ */
+export const fleetVehicles = mysqlTable("fleet_vehicles", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Vehicle identification
+  vin: varchar("vin", { length: 17 }).unique(),
+  registrationNumber: varchar("registration_number", { length: 50 }).notNull().unique(),
+  
+  // Vehicle details
+  make: varchar("make", { length: 100 }).notNull(),
+  model: varchar("model", { length: 100 }).notNull(),
+  year: int("year").notNull(),
+  color: varchar("color", { length: 50 }),
+  engineNumber: varchar("engine_number", { length: 100 }),
+  chassisNumber: varchar("chassis_number", { length: 100 }),
+  
+  // Valuation
+  currentValuation: int("current_valuation"), // Current market value in cents
+  valuationDate: timestamp("valuation_date"),
+  valuationSource: varchar("valuation_source", { length: 100 }), // e.g., "KINGA AI", "Manual", "External API"
+  
+  // Risk assessment
+  maintenanceScore: int("maintenance_score"), // 0-100 score based on maintenance records
+  riskScore: int("risk_score"), // 0-100 overall risk score
+  claimsHistoryCount: int("claims_history_count").default(0),
+  
+  // Owner information
+  ownerId: int("owner_id").notNull(), // Reference to users table
+  
+  // Vehicle images (S3 URLs, JSON array)
+  vehicleImages: text("vehicle_images"), // [front, back, left, right, interior, dashboard]
+  
+  // Registration documents
+  registrationBookUrl: varchar("registration_book_url", { length: 500 }),
+  registrationBookS3Key: varchar("registration_book_s3_key", { length: 500 }),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FleetVehicle = typeof fleetVehicles.$inferSelect;
+export type InsertFleetVehicle = typeof fleetVehicles.$inferInsert;
+
+/**
+ * Insurance Quotes - Quote requests and responses
+ */
+export const insuranceQuotes = mysqlTable("insurance_quotes", {
+  id: int("id").autoincrement().primaryKey(),
+  quoteNumber: varchar("quote_number", { length: 50 }).notNull().unique(),
+  
+  // Customer and vehicle
+  customerId: int("customer_id").notNull(), // Reference to users table
+  vehicleId: int("vehicle_id").notNull(), // Reference to fleet_vehicles table
+  
+  // Carrier and product
+  carrierId: int("carrier_id").notNull(),
+  productId: int("product_id").notNull(),
+  
+  // Quote details
+  premiumAmount: int("premium_amount").notNull(), // Monthly or annual premium in cents
+  premiumFrequency: mysqlEnum("premium_frequency", ["monthly", "annual"]).default("monthly").notNull(),
+  excessAmount: int("excess_amount"), // Chosen excess in cents
+  
+  // Coverage details (JSON)
+  coverageLimits: text("coverage_limits"), // Detailed coverage breakdown
+  
+  // Driver information (JSON)
+  driverDetails: text("driver_details"), // Age, years licensed, violations, etc.
+  
+  // Risk assessment
+  riskProfile: text("risk_profile"), // JSON with risk factors and scores
+  
+  // Quote validity
+  quoteValidUntil: timestamp("quote_valid_until").notNull(),
+  
+  // Status
+  status: mysqlEnum("status", ["pending", "accepted", "rejected", "expired"]).default("pending").notNull(),
+  
+  // KINGA insights (JSON)
+  kingaInsights: text("kinga_insights"), // Claims reputation, settlement times, recommendations
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InsuranceQuote = typeof insuranceQuotes.$inferSelect;
+export type InsertInsuranceQuote = typeof insuranceQuotes.$inferInsert;
+
+/**
+ * Insurance Policies - Active insurance policies
+ */
+export const insurancePolicies = mysqlTable("insurance_policies", {
+  id: int("id").autoincrement().primaryKey(),
+  policyNumber: varchar("policy_number", { length: 100 }).notNull().unique(),
+  
+  // Link to quote
+  quoteId: int("quote_id"), // Reference to insurance_quotes table
+  
+  // Customer and vehicle
+  customerId: int("customer_id").notNull(),
+  vehicleId: int("vehicle_id").notNull(),
+  
+  // Carrier and product
+  carrierId: int("carrier_id").notNull(),
+  productId: int("product_id").notNull(),
+  
+  // Policy terms
+  premiumAmount: int("premium_amount").notNull(), // In cents
+  premiumFrequency: mysqlEnum("premium_frequency", ["monthly", "annual"]).default("monthly").notNull(),
+  excessAmount: int("excess_amount"), // In cents
+  
+  // Coverage period
+  coverageStartDate: timestamp("coverage_start_date").notNull(),
+  coverageEndDate: timestamp("coverage_end_date").notNull(),
+  
+  // Coverage details (JSON)
+  coverageLimits: text("coverage_limits"),
+  
+  // Status
+  status: mysqlEnum("status", ["pending", "active", "endorsed", "cancelled", "expired", "renewed"]).default("pending").notNull(),
+  
+  // Cancellation
+  cancellationReason: text("cancellation_reason"),
+  cancellationDate: timestamp("cancellation_date"),
+  cancelledBy: int("cancelled_by"), // User ID who cancelled
+  
+  // Renewal
+  renewalReminderSent: tinyint("renewal_reminder_sent").default(0),
+  renewalReminderDate: timestamp("renewal_reminder_date"),
+  renewedToPolicyId: int("renewed_to_policy_id"), // Link to new policy if renewed
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InsurancePolicy = typeof insurancePolicies.$inferSelect;
+export type InsertInsurancePolicy = typeof insurancePolicies.$inferInsert;
+
+/**
+ * Policy Endorsements - Mid-term policy modifications
+ */
+export const policyEndorsements = mysqlTable("policy_endorsements", {
+  id: int("id").autoincrement().primaryKey(),
+  policyId: int("policy_id").notNull(),
+  endorsementNumber: varchar("endorsement_number", { length: 50 }).notNull().unique(),
+  
+  // Endorsement type and details
+  endorsementType: mysqlEnum("endorsement_type", [
+    "add_driver",
+    "remove_driver",
+    "change_vehicle",
+    "adjust_coverage",
+    "change_excess",
+    "other"
+  ]).notNull(),
+  
+  endorsementDetails: text("endorsement_details").notNull(), // JSON with specific changes
+  
+  // Financial impact
+  premiumAdjustment: int("premium_adjustment"), // Change in premium (can be negative)
+  newPremiumAmount: int("new_premium_amount"), // New total premium
+  
+  // Effective date
+  effectiveDate: timestamp("effective_date").notNull(),
+  
+  // Approval
+  createdBy: int("created_by").notNull(), // User ID who requested endorsement
+  approvedBy: int("approved_by"), // User ID who approved
+  approvedAt: timestamp("approved_at"),
+  
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PolicyEndorsement = typeof policyEndorsements.$inferSelect;
+export type InsertPolicyEndorsement = typeof policyEndorsements.$inferInsert;
+
+/**
+ * Policy Documents - Document storage with versioning
+ */
+export const policyDocuments = mysqlTable("policy_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  policyId: int("policy_id").notNull(),
+  
+  // Document type
+  documentType: mysqlEnum("document_type", [
+    "policy_schedule",
+    "certificate_of_insurance",
+    "endorsement",
+    "cancellation_notice",
+    "renewal_notice",
+    "other"
+  ]).notNull(),
+  
+  // Document storage
+  documentUrl: varchar("document_url", { length: 500 }).notNull(),
+  s3Key: varchar("s3_key", { length: 500 }).notNull(),
+  
+  // Versioning
+  version: int("version").notNull().default(1),
+  
+  // Metadata
+  fileName: varchar("file_name", { length: 255 }),
+  fileSize: int("file_size"), // Bytes
+  mimeType: varchar("mime_type", { length: 100 }),
+  
+  // Audit
+  uploadedBy: int("uploaded_by"), // User ID
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PolicyDocument = typeof policyDocuments.$inferSelect;
+export type InsertPolicyDocument = typeof policyDocuments.$inferInsert;
+
+/**
+ * Commission Records - Track agency commissions
+ */
+export const commissionRecords = mysqlTable("commission_records", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Policy reference
+  policyId: int("policy_id").notNull(),
+  carrierId: int("carrier_id").notNull(),
+  productId: int("product_id").notNull(),
+  
+  // Commission calculation
+  premiumAmount: int("premium_amount").notNull(), // Policy premium in cents
+  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(), // Percentage
+  commissionAmount: int("commission_amount").notNull(), // Calculated commission in cents
+  
+  // Commission type
+  commissionType: mysqlEnum("commission_type", ["new_business", "renewal"]).notNull(),
+  
+  // Payment tracking
+  paymentStatus: mysqlEnum("payment_status", ["pending", "paid", "disputed"]).default("pending").notNull(),
+  paymentDate: timestamp("payment_date"),
+  paymentReference: varchar("payment_reference", { length: 100 }),
+  
+  // Period
+  commissionPeriod: varchar("commission_period", { length: 20 }), // e.g., "2026-02"
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type CommissionRecord = typeof commissionRecords.$inferSelect;
+export type InsertCommissionRecord = typeof commissionRecords.$inferInsert;
+
+/**
+ * Customer Documents - KYC and verification documents
+ */
+export const customerDocuments = mysqlTable("customer_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customer_id").notNull(),
+  
+  // Document type
+  documentType: mysqlEnum("document_type", [
+    "id_document",
+    "drivers_license",
+    "proof_of_residence",
+    "vehicle_registration",
+    "other"
+  ]).notNull(),
+  
+  // Document storage
+  documentUrl: varchar("document_url", { length: 500 }).notNull(),
+  s3Key: varchar("s3_key", { length: 500 }).notNull(),
+  
+  // Verification
+  verificationStatus: mysqlEnum("verification_status", ["pending", "verified", "rejected"]).default("pending").notNull(),
+  verifiedAt: timestamp("verified_at"),
+  verifiedBy: int("verified_by"), // User ID
+  rejectionReason: text("rejection_reason"),
+  
+  // Metadata
+  fileName: varchar("file_name", { length: 255 }),
+  fileSize: int("file_size"),
+  mimeType: varchar("mime_type", { length: 100 }),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export type CustomerDocument = typeof customerDocuments.$inferSelect;
+export type InsertCustomerDocument = typeof customerDocuments.$inferInsert;
+
+/**
+ * Insurance Audit Logs - Complete audit trail for insurance operations
+ */
+export const insuranceAuditLogs = mysqlTable("insurance_audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Timestamp
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  
+  // User context
+  userId: int("user_id").notNull(),
+  userRole: varchar("user_role", { length: 50 }),
+  
+  // Action details
+  action: varchar("action", { length: 100 }).notNull(), // e.g., "quote_created", "policy_issued", "endorsement_approved"
+  entityType: varchar("entity_type", { length: 50 }).notNull(), // e.g., "policy", "quote", "document"
+  entityId: int("entity_id").notNull(),
+  
+  // Changes (JSON)
+  changes: text("changes"), // Before/after values
+  
+  // Request context
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+});
+
+export type InsuranceAuditLog = typeof insuranceAuditLogs.$inferSelect;
+export type InsertInsuranceAuditLog = typeof insuranceAuditLogs.$inferInsert;
+
+/**
+ * Customer Consent - GDPR/POPIA compliance
+ */
+export const customerConsent = mysqlTable("customer_consent", {
+  id: int("id").autoincrement().primaryKey(),
+  customerId: int("customer_id").notNull(),
+  
+  // Consent type
+  consentType: mysqlEnum("consent_type", [
+    "data_processing",
+    "marketing",
+    "third_party_sharing",
+    "credit_check",
+    "automated_decision_making"
+  ]).notNull(),
+  
+  // Consent status
+  consentGiven: tinyint("consent_given").notNull(),
+  consentDate: timestamp("consent_date").defaultNow().notNull(),
+  
+  // Withdrawal
+  withdrawnDate: timestamp("withdrawn_date"),
+  
+  // Context
+  consentMethod: varchar("consent_method", { length: 50 }), // e.g., "web_form", "email", "phone"
+  consentVersion: varchar("consent_version", { length: 20 }), // Version of terms accepted
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+});
+
+export type CustomerConsent = typeof customerConsent.$inferSelect;
+export type InsertCustomerConsent = typeof customerConsent.$inferInsert;
+
+/**
+ * Link claims to insurance policies
+ */
+export const policyClaimLinks = mysqlTable("policy_claim_links", {
+  id: int("id").autoincrement().primaryKey(),
+  policyId: int("policy_id").notNull(),
+  claimId: int("claim_id").notNull(),
+  
+  // Verification
+  coverageVerified: tinyint("coverage_verified").default(0),
+  verifiedBy: int("verified_by"), // User ID
+  verifiedAt: timestamp("verified_at"),
+  
+  // Coverage decision
+  coverageApproved: tinyint("coverage_approved"),
+  coverageDecisionReason: text("coverage_decision_reason"),
+  
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PolicyClaimLink = typeof policyClaimLinks.$inferSelect;
+export type InsertPolicyClaimLink = typeof policyClaimLinks.$inferInsert;
