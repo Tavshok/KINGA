@@ -1619,3 +1619,357 @@ export type InsertExtractedDocumentData = typeof extractedDocumentData.$inferIns
 
 // Note: claimDocuments table already exists earlier in the schema (line 350)
 // It will be extended to support both traditional uploads and document ingestion pipeline
+
+
+// ============================================================
+// HISTORICAL CLAIM INTELLIGENCE PIPELINE TABLES
+// ============================================================
+
+/**
+ * Historical Claims Master
+ * Central record for each historical claim imported into the intelligence pipeline.
+ * Links all documents, extracted data, ground truth, and variance analysis.
+ */
+export const historicalClaims = mysqlTable("historical_claims", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  batchId: int("batch_id"), // Link to ingestion batch
+  
+  // Claim identification
+  claimReference: varchar("claim_reference", { length: 100 }), // Original claim number from insurer
+  policyNumber: varchar("policy_number", { length: 100 }),
+  
+  // Vehicle details (extracted)
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+  vehicleVin: varchar("vehicle_vin", { length: 50 }),
+  vehicleColor: varchar("vehicle_color", { length: 50 }),
+  
+  // Accident details (extracted)
+  incidentDate: date("incident_date"),
+  incidentLocation: text("incident_location"),
+  incidentDescription: text("incident_description"),
+  accidentType: varchar("accident_type", { length: 100 }), // rear_end, head_on, side_impact, rollover, etc.
+  estimatedSpeed: int("estimated_speed"), // km/h
+  
+  // Claimant details (extracted)
+  claimantName: varchar("claimant_name", { length: 255 }),
+  claimantIdNumber: varchar("claimant_id_number", { length: 50 }),
+  claimantContact: varchar("claimant_contact", { length: 100 }),
+  
+  // Cost summary
+  totalPanelBeaterQuote: decimal("total_panel_beater_quote", { precision: 12, scale: 2 }), // Original quote
+  totalAssessorEstimate: decimal("total_assessor_estimate", { precision: 12, scale: 2 }), // Assessor's estimate
+  totalAiEstimate: decimal("total_ai_estimate", { precision: 12, scale: 2 }), // AI prediction
+  finalApprovedCost: decimal("final_approved_cost", { precision: 12, scale: 2 }), // Ground truth
+  
+  // Repair decision
+  repairDecision: mysqlEnum("repair_decision", ["repair", "total_loss", "cash_settlement", "rejected"]),
+  
+  // Assessor involved
+  assessorName: varchar("assessor_name", { length: 255 }),
+  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+  
+  // Processing status
+  pipelineStatus: mysqlEnum("pipeline_status", [
+    "pending",
+    "documents_uploaded",
+    "classification_complete",
+    "extraction_complete",
+    "ground_truth_captured",
+    "variance_calculated",
+    "complete",
+    "failed"
+  ]).default("pending").notNull(),
+  
+  // Data quality
+  dataQualityScore: int("data_quality_score"), // 0-100
+  fieldsExtracted: int("fields_extracted"),
+  fieldsMissing: int("fields_missing"),
+  manualCorrections: int("manual_corrections").default(0),
+  
+  // Document count
+  totalDocuments: int("total_documents").default(0),
+  
+  // Extraction log (audit trail)
+  extractionLog: json("extraction_log"), // Array of extraction events
+  
+  // Error tracking
+  lastError: text("last_error"),
+  retryCount: int("retry_count").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type HistoricalClaim = typeof historicalClaims.$inferSelect;
+export type InsertHistoricalClaim = typeof historicalClaims.$inferInsert;
+
+/**
+ * Extracted Repair Items
+ * Itemized repair data extracted from panel beater quotes and assessor reports.
+ * Each row represents one line item from a document.
+ */
+export const extractedRepairItems = mysqlTable("extracted_repair_items", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull(),
+  documentId: int("document_id"), // Link to ingestion_documents
+  sourceType: mysqlEnum("source_type", ["panel_beater_quote", "assessor_report", "ai_estimate"]).notNull(),
+  
+  // Item details
+  itemNumber: int("item_number"),
+  description: varchar("description", { length: 500 }).notNull(),
+  partNumber: varchar("part_number", { length: 100 }),
+  
+  // Categorization
+  category: mysqlEnum("category", ["parts", "labor", "paint", "diagnostic", "sundries", "sublet", "other"]).notNull(),
+  damageLocation: varchar("damage_location", { length: 200 }), // front_bumper, rear_door, etc.
+  
+  // Action
+  repairAction: mysqlEnum("repair_action", ["repair", "replace", "refinish", "blend", "remove_refit"]),
+  
+  // Pricing
+  quantity: decimal("quantity", { precision: 10, scale: 2 }).default("1.00"),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
+  lineTotal: decimal("line_total", { precision: 10, scale: 2 }),
+  
+  // Labor
+  laborHours: decimal("labor_hours", { precision: 6, scale: 2 }),
+  laborRate: decimal("labor_rate", { precision: 10, scale: 2 }),
+  
+  // Parts quality
+  partsQuality: mysqlEnum("parts_quality", ["oem", "genuine", "aftermarket", "used", "reconditioned"]),
+  
+  // Betterment
+  bettermentPercent: decimal("betterment_percent", { precision: 5, scale: 2 }),
+  bettermentAmount: decimal("betterment_amount", { precision: 10, scale: 2 }),
+  
+  // Extraction confidence
+  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
+  isHandwritten: tinyint("is_handwritten").default(0), // Flag for handwritten items
+  manuallyVerified: tinyint("manually_verified").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ExtractedRepairItem = typeof extractedRepairItems.$inferSelect;
+export type InsertExtractedRepairItem = typeof extractedRepairItems.$inferInsert;
+
+/**
+ * Cost Components
+ * Aggregated cost breakdown per historical claim per source.
+ * Captures labor, parts, materials, paint, sublet totals.
+ */
+export const costComponents = mysqlTable("cost_components", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull(),
+  sourceType: mysqlEnum("source_type", ["panel_beater_quote", "assessor_report", "ai_estimate", "final_approved"]).notNull(),
+  documentId: int("document_id"), // Link to source document
+  
+  // Cost breakdown
+  laborCost: decimal("labor_cost", { precision: 12, scale: 2 }).default("0.00"),
+  partsCost: decimal("parts_cost", { precision: 12, scale: 2 }).default("0.00"),
+  paintCost: decimal("paint_cost", { precision: 12, scale: 2 }).default("0.00"),
+  materialsCost: decimal("materials_cost", { precision: 12, scale: 2 }).default("0.00"),
+  subletCost: decimal("sublet_cost", { precision: 12, scale: 2 }).default("0.00"),
+  sundries: decimal("sundries", { precision: 12, scale: 2 }).default("0.00"),
+  vatAmount: decimal("vat_amount", { precision: 12, scale: 2 }).default("0.00"),
+  totalExclVat: decimal("total_excl_vat", { precision: 12, scale: 2 }).default("0.00"),
+  totalInclVat: decimal("total_incl_vat", { precision: 12, scale: 2 }).default("0.00"),
+  
+  // Labor details
+  totalLaborHours: decimal("total_labor_hours", { precision: 8, scale: 2 }),
+  averageLaborRate: decimal("average_labor_rate", { precision: 10, scale: 2 }),
+  
+  // Parts details
+  totalPartsCount: int("total_parts_count"),
+  oemPartsCount: int("oem_parts_count"),
+  aftermarketPartsCount: int("aftermarket_parts_count"),
+  repairVsReplaceRatio: decimal("repair_vs_replace_ratio", { precision: 5, scale: 2 }), // % replaced
+  
+  // Betterment
+  totalBetterment: decimal("total_betterment", { precision: 12, scale: 2 }).default("0.00"),
+  
+  // Extraction metadata
+  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type CostComponent = typeof costComponents.$inferSelect;
+export type InsertCostComponent = typeof costComponents.$inferInsert;
+
+/**
+ * AI Prediction Logs
+ * Audit trail of every AI prediction made during historical claim processing.
+ * Used for model accuracy tracking and continuous learning.
+ */
+export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Prediction type
+  predictionType: mysqlEnum("prediction_type", [
+    "cost_estimate",
+    "fraud_detection",
+    "document_classification",
+    "damage_assessment",
+    "repair_vs_replace",
+    "total_loss_determination",
+    "physics_validation"
+  ]).notNull(),
+  
+  // Model details
+  modelName: varchar("model_name", { length: 100 }).notNull(), // e.g., "gpt-4o", "kinga-fraud-v1"
+  modelVersion: varchar("model_version", { length: 50 }),
+  
+  // Input summary
+  inputSummary: text("input_summary"), // Brief description of what was sent to the model
+  inputTokens: int("input_tokens"),
+  
+  // Prediction output
+  predictedValue: decimal("predicted_value", { precision: 12, scale: 2 }), // For numeric predictions (cost)
+  predictedLabel: varchar("predicted_label", { length: 100 }), // For classification predictions
+  confidenceScore: decimal("confidence_score", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
+  predictionJson: json("prediction_json"), // Full structured prediction output
+  
+  // Ground truth comparison (filled after ground truth is captured)
+  actualValue: decimal("actual_value", { precision: 12, scale: 2 }),
+  actualLabel: varchar("actual_label", { length: 100 }),
+  varianceAmount: decimal("variance_amount", { precision: 12, scale: 2 }), // predicted - actual
+  variancePercent: decimal("variance_percent", { precision: 8, scale: 2 }), // ((predicted - actual) / actual) * 100
+  isAccurate: tinyint("is_accurate"), // Within acceptable threshold
+  
+  // Processing metadata
+  processingTimeMs: int("processing_time_ms"),
+  outputTokens: int("output_tokens"),
+  totalCost: decimal("total_cost", { precision: 10, scale: 6 }), // API cost in USD
+  
+  // Error tracking
+  errorOccurred: tinyint("error_occurred").default(0),
+  errorMessage: text("error_message"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AiPredictionLog = typeof aiPredictionLogs.$inferSelect;
+export type InsertAiPredictionLog = typeof aiPredictionLogs.$inferInsert;
+
+/**
+ * Final Approval Records (Ground Truth)
+ * The definitive record of what was actually approved and paid.
+ * This is the training label for ML models.
+ */
+export const finalApprovalRecords = mysqlTable("final_approval_records", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Final decision
+  finalDecision: mysqlEnum("final_decision", ["approved_repair", "approved_total_loss", "cash_settlement", "rejected", "withdrawn"]).notNull(),
+  
+  // Final costs
+  finalApprovedAmount: decimal("final_approved_amount", { precision: 12, scale: 2 }).notNull(),
+  finalLaborCost: decimal("final_labor_cost", { precision: 12, scale: 2 }),
+  finalPartsCost: decimal("final_parts_cost", { precision: 12, scale: 2 }),
+  finalPaintCost: decimal("final_paint_cost", { precision: 12, scale: 2 }),
+  finalSubletCost: decimal("final_sublet_cost", { precision: 12, scale: 2 }),
+  finalBetterment: decimal("final_betterment", { precision: 12, scale: 2 }),
+  
+  // Decision maker
+  approvedByName: varchar("approved_by_name", { length: 255 }),
+  approvedByRole: varchar("approved_by_role", { length: 100 }),
+  approvalDate: date("approval_date"),
+  
+  // Assessor involved
+  assessorName: varchar("assessor_name", { length: 255 }),
+  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+  assessorEstimate: decimal("assessor_estimate", { precision: 12, scale: 2 }),
+  
+  // Repair outcome
+  repairShopName: varchar("repair_shop_name", { length: 255 }),
+  actualRepairDuration: int("actual_repair_duration"), // Days
+  customerSatisfaction: int("customer_satisfaction"), // 1-5
+  
+  // Notes
+  approvalNotes: text("approval_notes"),
+  conditions: text("conditions"), // JSON array of conditions
+  
+  // Data source
+  dataSource: mysqlEnum("data_source", ["extracted_from_document", "manual_entry", "system_import"]).notNull(),
+  capturedByUserId: int("captured_by_user_id"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type FinalApprovalRecord = typeof finalApprovalRecords.$inferSelect;
+export type InsertFinalApprovalRecord = typeof finalApprovalRecords.$inferInsert;
+
+/**
+ * Variance Datasets
+ * Pre-computed variance analysis comparing different cost sources.
+ * Used for analytics dashboards, assessor benchmarking, and ML training.
+ */
+export const varianceDatasets = mysqlTable("variance_datasets", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Comparison type
+  comparisonType: mysqlEnum("comparison_type", [
+    "quote_vs_final",       // Panel beater quote vs final approved
+    "ai_vs_final",          // AI prediction vs final approved
+    "assessor_vs_final",    // Assessor estimate vs final approved
+    "quote_vs_assessor",    // Panel beater quote vs assessor
+    "ai_vs_assessor",       // AI vs assessor
+    "quote_vs_ai"           // Panel beater quote vs AI
+  ]).notNull(),
+  
+  // Source values
+  sourceALabel: varchar("source_a_label", { length: 100 }).notNull(), // e.g., "Panel Beater Quote"
+  sourceAAmount: decimal("source_a_amount", { precision: 12, scale: 2 }).notNull(),
+  sourceBLabel: varchar("source_b_label", { length: 100 }).notNull(), // e.g., "Final Approved"
+  sourceBAmount: decimal("source_b_amount", { precision: 12, scale: 2 }).notNull(),
+  
+  // Variance calculation
+  varianceAmount: decimal("variance_amount", { precision: 12, scale: 2 }).notNull(), // A - B
+  variancePercent: decimal("variance_percent", { precision: 8, scale: 2 }).notNull(), // ((A - B) / B) * 100
+  absoluteVariancePercent: decimal("absolute_variance_percent", { precision: 8, scale: 2 }).notNull(), // |variance%|
+  
+  // Component-level variance (JSON)
+  laborVariance: decimal("labor_variance", { precision: 12, scale: 2 }),
+  partsVariance: decimal("parts_variance", { precision: 12, scale: 2 }),
+  paintVariance: decimal("paint_variance", { precision: 12, scale: 2 }),
+  
+  // Categorization
+  varianceCategory: mysqlEnum("variance_category", [
+    "within_threshold",   // < 5%
+    "minor_variance",     // 5-15%
+    "significant_variance", // 15-30%
+    "major_variance",     // 30-50%
+    "extreme_variance"    // > 50%
+  ]).notNull(),
+  
+  // Vehicle context (for segmented analysis)
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  accidentType: varchar("accident_type", { length: 100 }),
+  
+  // Assessor context (for benchmarking)
+  assessorName: varchar("assessor_name", { length: 255 }),
+  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+  
+  // Flags
+  isFraudSuspected: tinyint("is_fraud_suspected").default(0),
+  isOutlier: tinyint("is_outlier").default(0),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type VarianceDataset = typeof varianceDatasets.$inferSelect;
+export type InsertVarianceDataset = typeof varianceDatasets.$inferInsert;

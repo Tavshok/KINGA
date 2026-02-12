@@ -47,6 +47,7 @@ import FleetRisk from "./pages/analytics/FleetRisk";
 import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
 import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 import UploadDocuments from "./pages/processor/UploadDocuments";
+import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
 
 function Router() {
   return (
@@ -231,6 +232,13 @@ function Router() {
       <Route path="/processor/upload-documents">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <UploadDocuments />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Historical Claims Intelligence Pipeline */}
+      <Route path="/historical-claims">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <HistoricalClaimsPipeline />
         </ProtectedRoute>
       </Route>
       

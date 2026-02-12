@@ -3777,4 +3777,50 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix 503 error on external assessment upload in production (Python removed)
 - [x] Run existing tests to verify no regressions (321 passed, 0 failed)
 - [ ] Test assessment upload end-to-end in browser (requires login)
-- [ ] Save checkpoint with refactored assessment processor
+- [x] Save checkpoint with refactored assessment processor
+
+
+## Historical Claim PDF Intelligence Pipeline (February 12, 2026)
+### Database Schema
+- [x] Create historicalClaims table (claim master)
+- [x] Create claimDocuments table (document metadata + classification)
+- [x] Create extractedRepairItems table (itemized repair data)
+- [x] Create costComponents table (labor, parts, materials, paint, sublet)
+- [x] Create aiPredictionLogs table (AI prediction audit trail)
+- [x] Create finalApprovalRecords table (ground truth)
+- [x] Create varianceDatasets table (quote vs final vs AI comparisons)
+- [x] Run migrations with direct SQL (drizzle-kit interactive workaround)
+
+### Server-Side Pipeline
+- [x] Build document intelligence pipeline engine (server/pipeline/document-intelligence.ts)
+- [x] Implement OCR extraction (pdf-parse + LLM vision for handwritten content)
+- [x] Implement document classification (panel beater quote, police report, claim form, evidence)
+- [x] Implement structured data extraction (vehicle, accident, repair items, costs)
+- [x] Implement ground truth capture (final approved cost, decision, assessor)
+- [x] Implement variance dataset generation (panel beater vs final, AI vs final, assessor vs AI)
+- [x] Build async processing queue for bulk ingestion (sequential with error handling)
+
+### tRPC Routers
+- [x] Build pipeline router (uploadAndProcess, listClaims, getClaimDetail, retryProcessing)
+- [x] Build analytics router (getAnalyticsSummary, getAssessorBenchmarks, getVehicleCostPatterns)
+- [x] Build ground truth router (captureGroundTruth with auto variance generation)
+
+### Frontend — Document Management
+- [x] Build bulk upload page with drag-and-drop (HistoricalClaimsPipeline.tsx)
+- [x] Build processing queue status view (Claims tab with status filters)
+- [x] Build document detail view with extraction summary table
+- [ ] Build manual correction interface for extracted data (Phase 2)
+- [x] Build ground truth capture form (Ground Truth tab with full cost breakdown)
+
+### Frontend — Analytics Dashboard
+- [x] Build average cost variance tables (Analytics tab)
+- [x] Build repair vs replace frequency analysis (Analytics tab)
+- [x] Build fraud pattern indicators (Analytics tab)
+- [x] Build assessor performance benchmarks (Analytics tab)
+- [x] Build AI prediction accuracy tracking (Analytics tab)
+
+### Testing
+- [x] Write tests for document classification logic (19 tests)
+- [x] Write tests for variance categorization (5 tests)
+- [x] Write tests for pipeline processing result structure (2 tests)
+- [x] Write tests for data quality scoring and cost breakdown validation (12 tests)

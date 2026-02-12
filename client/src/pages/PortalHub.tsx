@@ -9,7 +9,8 @@ import {
   User, 
   Shield,
   ArrowRight,
-  LogOut
+  LogOut,
+  Database
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -62,6 +63,15 @@ export default function PortalHub() {
       path: "/claimant/dashboard",
       color: "from-purple-500 to-pink-500",
       roles: ["claimant", "admin"]
+    },
+    {
+      id: "historical-claims",
+      title: "Historical Claims Intelligence",
+      description: "Ingest historical PDFs, extract data, and build ML training datasets",
+      icon: Database,
+      path: "/historical-claims",
+      color: "from-teal-500 to-cyan-500",
+      roles: ["insurer", "admin"]
     },
     {
       id: "admin",
