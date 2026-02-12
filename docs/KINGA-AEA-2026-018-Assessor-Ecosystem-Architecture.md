@@ -7,7 +7,7 @@
 **Author:** Tavonga Shoko  
 **Status:** Final  
 **Classification:** Internal Architecture Specification  
-**Related Documents:** [KINGA-AWL-2026-019](KINGA-AWL-2026-019-Assessor-Workflow-Lifecycle.md) (Assessor Workflow Lifecycle), [KINGA-PMA-2026-020](KINGA-PMA-2026-020-Premium-Monetization-Architecture.md) (Premium Monetization Architecture)
+**Related Documents:** [KINGA-AWL-2026-019](KINGA-AWL-2026-019-Assessor-Workflow-Lifecycle.md) (Assessor Workflow Lifecycle), [KINGA-PMA-2026-020](KINGA-PMA-2026-020-Premium-Monetization-Architecture.md) (Premium Monetization Architecture), [KINGA-CLP-2026-021](KINGA-CLP-2026-021-Continuous-Learning-Pipeline.md) (Continuous Learning Feedback Pipeline)
 
 ---
 

@@ -21,6 +21,7 @@ This directory contains the complete architecture documentation for the KINGA mu
 | **[KINGA-AEA-2026-018](KINGA-AEA-2026-018-Assessor-Ecosystem-Architecture.md)** | Assessor Ecosystem Architecture | 1.1 | Feb 12, 2026 | Complete specification of the assessor ecosystem supporting three participation models (Internal, BYOA, Marketplace) with AI-human reconciliation, premium intelligence tools, and multi-currency support |
 | **[KINGA-AWL-2026-019](KINGA-AWL-2026-019-Assessor-Workflow-Lifecycle.md)** | Assessor Workflow Lifecycle | 1.0 | Feb 12, 2026 | Complete workflow lifecycle integrated into claims state machine, including SLA enforcement, notification triggers, escalation rules, and audit logging |
 | **[KINGA-PMA-2026-020](KINGA-PMA-2026-020-Premium-Monetization-Architecture.md)** | Premium AI Tools Monetization Architecture | 1.0 | Feb 12, 2026 | Complete monetization framework for premium assessor AI tools with freemium subscription tiers, Stripe payment integration, feature gating middleware, usage metering, and ROI analytics dashboard |
+| **[KINGA-CLP-2026-021](KINGA-CLP-2026-021-Continuous-Learning-Pipeline.md)** | Continuous Learning Feedback Pipeline | 1.0 | Feb 12, 2026 | Complete ML pipeline transforming approved assessor reports into ground truth training data with automated drift detection, model retraining, privacy-preserving anonymization, MLflow version tracking, and performance monitoring |
 
 ### Supporting Assets
 
@@ -65,12 +66,27 @@ KINGA-PMA-2026-020 (Premium Monetization Architecture)
     ├─── Defines: Usage Metering Architecture (API call tracking)
     ├─── Defines: ROI Analytics Dashboard (performance uplift, cost optimization, revenue growth)
     └─── Defines: Performance-Based Incentives (20-30% discounts for top assessors)
+
+KINGA-CLP-2026-021 (Continuous Learning Feedback Pipeline)
+    │
+    ├─── Defines: Ground Truth Data Extraction Pipeline (eligibility criteria, batch ingestion)
+    ├─── Defines: Label Validation Process (quality checks, outlier detection, manual review)
+    ├─── Defines: AI Retraining Triggers (data drift, concept drift, performance degradation)
+    ├─── Defines: Model Evaluation Metrics (F1 score 0.92+, MAPE <8%, AUC-ROC 0.88+)
+    ├─── Defines: Fraud Pattern Learning (5 categories, ensemble classifier)
+    ├─── Defines: Cost Optimization Learning (aftermarket parts, repair vs replace)
+    ├─── Defines: Data Anonymization Strategy (PII removal, differential privacy, k-anonymity)
+    ├─── Defines: Model Version Tracking (MLflow integration, lifecycle management)
+    └─── Defines: Performance Monitoring Dashboards (drift detection, model performance, training pipeline)
 ```
 
 **Integration Points:**
 - KINGA-AWL-2026-019 implements the workflow orchestration for the assessor ecosystem defined in KINGA-AEA-2026-018
-- Both documents share the same database schema (4 core tables: `assessors`, `assessor_insurer_relationships`, `assessor_marketplace_reviews`, `marketplace_transactions`)
-- Event-driven architecture (Kafka topics) connects all ecosystem services defined in KINGA-AEA-2026-018 with workflow phases in KINGA-AWL-2026-019
+- KINGA-PMA-2026-020 monetizes the premium intelligence tools defined in KINGA-AEA-2026-018 Section 7
+- KINGA-CLP-2026-021 implements the continuous learning pipeline defined in KINGA-AEA-2026-018 Section 9
+- KINGA-CLP-2026-021 consumes approved assessor reports from KINGA-AWL-2026-019 Phase 9 (Feedback Submission)
+- All documents share the same database schema (4 core assessor tables + workflow tables + ML training tables)
+- Event-driven architecture (Kafka topics) connects all ecosystem services across all four documents
 
 ---
 
