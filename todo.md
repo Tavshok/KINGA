@@ -3571,3 +3571,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Document governance compliance alignment (POPIA/GDPR/FSCA/ISO 27001)
 - [x] Generate comprehensive Hybrid AI-Human Assessor Workflow Architecture document
 - [x] Save to GitHub
+
+
+## Technical Debt Resolution (Pre-Architecture Merge)
+- [x] Reconcile database schema drift (Drizzle vs actual PostgreSQL)
+- [x] Resolve kafkajs TypeScript errors in shared/events/
+- [x] Wire assessor assignment mutation end-to-end
+- [x] Polish assessor UI pages for production readiness
+- [x] Run full test suite and verify 100% pass rate
+- [ ] Save clean production-ready checkpoint
+- [ ] Merge original assessor architecture with hybrid ecosystem design

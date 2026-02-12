@@ -26,14 +26,26 @@ export default function AssignAssessor() {
     minAverageRating: undefined,
   });
 
+  const assignMutation = trpc.claims.assignToAssessor.useMutation({
+    onSuccess: () => {
+      alert(`Assessor successfully assigned to claim!`);
+      setLocation("/claims");
+    },
+    onError: (error) => {
+      alert(`Failed to assign assessor: ${error.message}`);
+    },
+  });
+
   const handleAssign = (assessorId: number) => {
     if (!claimId) {
       alert("No claim ID provided");
       return;
     }
     
-    // Placeholder for assignment - will be wired to backend after type issues resolved
-    alert(`Assignment feature ready! Would assign assessor ${assessorId} to claim ${claimId}. This will be connected to the backend in the next update.`);
+    assignMutation.mutate({
+      claimId,
+      assessorId,
+    });
   };
 
   const renderAssessorCard = (assessor: any, isMarketplace: boolean = false) => (
@@ -121,8 +133,16 @@ export default function AssignAssessor() {
             size="sm" 
             className="w-full"
             onClick={() => handleAssign(assessor.id)}
+            disabled={assignMutation.isPending}
           >
-            Assign to Claim
+            {assignMutation.isPending ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Assigning...
+              </>
+            ) : (
+              "Assign to Claim"
+            )}
           </Button>
         </div>
       </CardContent>
