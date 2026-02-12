@@ -3760,3 +3760,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix external assessment upload JSON parsing error on non-JSON responses
 - [x] Verify json import in drizzle schema (was stale error, now cleared)
 - [x] All 272 tests passing (18/18 test files)
+
+
+## External Assessment Upload 503 Fix - February 12, 2026
+- [ ] Diagnose 503 error on external assessment upload
+- [ ] Fix server-side upload/analysis procedure
+- [ ] Test upload with PDF document
+
+
+## Assessment Processor Refactoring - LLM-First Architecture (February 12, 2026)
+- [x] Replace PyMuPDF PDF extraction with Node.js pdf-parse + LLM vision
+- [x] Refactor physics validation: LLM-first with inline TypeScript fallback (remove Python)
+- [x] Refactor fraud detection: LLM-first with inline TypeScript scoring fallback (remove Python)
+- [x] Add ML-ready plugin interface (IModelPlugin) for future trained scikit-learn/TensorFlow models
+- [x] Remove runPythonScript dependency from assessment processor
+- [x] Fix 503 error on external assessment upload in production (Python removed)
+- [x] Run existing tests to verify no regressions (321 passed, 0 failed)
+- [ ] Test assessment upload end-to-end in browser (requires login)
+- [ ] Save checkpoint with refactored assessment processor

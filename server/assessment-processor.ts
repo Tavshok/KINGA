@@ -1,30 +1,35 @@
 /**
- * Enhanced Assessment Processing with AI + Python Analysis
+ * KINGA Assessment Processor — LLM-First Architecture with ML-Ready Plugin System
+ * 
+ * Architecture:
+ *   Primary Intelligence: LLM (vision + structured output)
+ *   Fallback: Inline TypeScript calculations (deterministic)
+ *   Future: Pluggable ML models (scikit-learn, TensorFlow) via IModelPlugin interface
  * 
  * Pipeline:
  * 1. Upload PDF to S3
- * 2. Extract & classify images from PDF (Python PyMuPDF)
- * 3. Extract text from PDF (Node.js pdf-parse, Python OCR fallback)
- * 4. Extract structured data with LLM (including all cost figures & quotes)
+ * 2. Extract text from PDF (Node.js pdf-parse — no Python)
+ * 3. Extract structured data with LLM (text + PDF vision)
+ * 4. Classify and extract images from PDF via LLM vision
  * 5. Generate component repair/replace recommendations (LLM)
- * 6. Run physics validation (Python physics_validator.py with numpy/scipy)
- * 7. Run fraud detection (Python fraud_ml_model.py) - cross-references physics results
+ * 6. Run physics validation (LLM-first, TypeScript fallback)
+ * 7. Run fraud detection (LLM-first, TypeScript fallback)
  * 8. Return comprehensive assessment result with multi-quote comparison
+ * 
+ * ML-Ready: When trained models become available, implement IModelPlugin
+ * and register them via registerPlugin(). They will take priority over
+ * LLM analysis for their respective domains.
  */
 
-import { spawn } from 'child_process';
-import { writeFileSync, unlinkSync, readFileSync } from 'fs';
-import { join, resolve, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { writeFileSync, unlinkSync } from 'fs';
+import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
 import { invokeLLM } from './_core/llm';
 
-// Use absolute path for Python scripts (ESM compatible)
-const __filename_esm = fileURLToPath(import.meta.url);
-const __dirname_esm = dirname(__filename_esm);
-const PROJECT_ROOT = resolve(__dirname_esm, '..');
-const PYTHON_DIR = join(PROJECT_ROOT, 'python');
+// ============================================================
+// TYPE DEFINITIONS
+// ============================================================
 
 interface ItemizedCost {
   description: string;
@@ -146,9 +151,78 @@ interface AssessmentResult {
   dataCompleteness: number;
 }
 
-/**
- * Clean "null" strings from LLM output
- */
+// ============================================================
+// ML-READY PLUGIN INTERFACE
+// ============================================================
+// When trained models are available (from KINGA-CLP-2026-021
+// Continuous Learning Pipeline), implement this interface and
+// register via registerPlugin(). Plugins take priority over LLM.
+
+export interface IModelPlugin {
+  /** Unique identifier for this plugin */
+  id: string;
+  /** Domain: 'physics', 'fraud', 'cost', 'classification' */
+  domain: 'physics' | 'fraud' | 'cost' | 'classification';
+  /** Semantic version of the trained model */
+  version: string;
+  /** Whether the model is trained and ready */
+  isReady(): boolean;
+  /** Run prediction. Returns null if model can't handle this input. */
+  predict(input: Record<string, any>): Promise<Record<string, any> | null>;
+  /** Model metadata for audit trail */
+  metadata(): { trainedOn: string; accuracy: number; datasetSize: number };
+}
+
+/** Registry of ML model plugins */
+const modelPlugins: Map<string, IModelPlugin> = new Map();
+
+/** Register a trained ML model plugin */
+export function registerPlugin(plugin: IModelPlugin): void {
+  console.log(`🔌 Registered ML plugin: ${plugin.id} (${plugin.domain} v${plugin.version})`);
+  modelPlugins.set(plugin.domain, plugin);
+}
+
+/** Get a registered plugin for a domain, if available and ready */
+function getPlugin(domain: string): IModelPlugin | null {
+  const plugin = modelPlugins.get(domain);
+  if (plugin && plugin.isReady()) {
+    return plugin;
+  }
+  return null;
+}
+
+// ============================================================
+// VEHICLE PHYSICS CONSTANTS (TypeScript — no numpy needed)
+// ============================================================
+
+const VEHICLE_MASSES: Record<string, number> = {
+  sedan: 1500, suv: 2000, truck: 2500, van: 1800, hatchback: 1200, coupe: 1400,
+};
+
+const TYPICAL_SPEEDS: Record<string, [number, number]> = {
+  rear_end: [20, 60], side_impact: [30, 80], head_on: [40, 100],
+  parking_lot: [5, 20], highway: [80, 120], rollover: [40, 100],
+};
+
+const SEVERITY_ENERGY_RANGES: Record<string, [number, number]> = {
+  minor: [0, 50000], moderate: [50000, 150000], severe: [150000, 400000],
+  total_loss: [400000, Infinity],
+};
+
+const EXPECTED_DAMAGE_LOCATIONS: Record<string, string[]> = {
+  rear_end: ['rear'], side_impact: ['left_side', 'right_side'],
+  head_on: ['front'], parking_lot: ['rear', 'front', 'left_side', 'right_side'],
+  highway: ['front', 'rear'],
+};
+
+const GRAVITY = 9.81;
+const CRUMPLE_DISTANCE = 0.5; // meters
+
+// ============================================================
+// HELPER FUNCTIONS
+// ============================================================
+
+/** Clean "null" strings from LLM output */
 function cleanNullStrings(value: any): any {
   if (typeof value === 'string') {
     const trimmed = value.trim().toLowerCase();
@@ -159,6 +233,222 @@ function cleanNullStrings(value: any): any {
   }
   return value;
 }
+
+/** Normalize damage location to general area */
+function normalizeDamageLocation(loc: string): string {
+  const lower = loc.toLowerCase();
+  // Check rear BEFORE front because 'rear bumper' contains 'bumper' which would match front
+  if (['rear', 'trunk', 'taillight', 'back'].some(x => lower.includes(x))) return 'rear';
+  if (['front', 'bumper', 'hood', 'radiator', 'grille', 'headlight'].some(x => lower.includes(x))) return 'front';
+  if (['left', 'driver'].some(x => lower.includes(x))) return 'left_side';
+  if (['right', 'passenger'].some(x => lower.includes(x))) return 'right_side';
+  if (['roof', 'top'].some(x => lower.includes(x))) return 'roof';
+  return lower;
+}
+
+/** Determine vehicle type from model name */
+function inferVehicleType(model: string): string {
+  const lower = (model || '').toLowerCase();
+  if (['ranger', 'hilux', 'truck', 'pickup', 'navara', 'triton', 'bt-50'].some(x => lower.includes(x))) return 'truck';
+  if (['suv', 'fortuner', 'pajero', 'rav4', 'tucson', 'sportage', 'x-trail'].some(x => lower.includes(x))) return 'suv';
+  if (['van', 'quantum', 'hiace', 'transporter'].some(x => lower.includes(x))) return 'van';
+  if (['polo', 'jazz', 'swift', 'i20', 'fiesta'].some(x => lower.includes(x))) return 'hatchback';
+  return 'sedan';
+}
+
+// ============================================================
+// PHYSICS VALIDATION ENGINE (TypeScript — replaces Python)
+// ============================================================
+
+/**
+ * Inline physics validation using collision dynamics.
+ * Same formulas as physics_validator.py but runs natively in Node.js.
+ * Uses: KE = 0.5mv², F = mΔv/Δt, a = v²/2d, G = a/9.81
+ */
+function validatePhysicsInline(
+  vehicleType: string,
+  accidentType: string,
+  estimatedSpeed: number,
+  damageSeverity: string,
+  damageLocations: string[],
+): PhysicsAnalysis {
+  const flags: string[] = [];
+  
+  // 1. Calculate kinetic energy
+  const vehicleMass = VEHICLE_MASSES[vehicleType.toLowerCase()] || 1500;
+  const speedMs = estimatedSpeed / 3.6;
+  const kineticEnergy = 0.5 * vehicleMass * (speedMs * speedMs);
+  
+  // 2. Validate speed vs damage severity
+  const expectedRange = SEVERITY_ENERGY_RANGES[damageSeverity] || [0, Infinity];
+  if (kineticEnergy < expectedRange[0] || kineticEnergy > expectedRange[1]) {
+    flags.push(
+      `MISMATCH: Reported ${damageSeverity} damage inconsistent with impact energy (${(kineticEnergy / 1000).toFixed(1)} kJ). Expected range: ${(expectedRange[0] / 1000).toFixed(1)}-${expectedRange[1] === Infinity ? '∞' : (expectedRange[1] / 1000).toFixed(1)} kJ`
+    );
+  }
+  
+  // 3. Validate damage location vs accident type
+  const normalizedLocs = damageLocations.map(normalizeDamageLocation);
+  const expectedLocs = EXPECTED_DAMAGE_LOCATIONS[accidentType] || [];
+  if (expectedLocs.length > 0 && !normalizedLocs.some(loc => expectedLocs.includes(loc))) {
+    flags.push(
+      `IMPOSSIBLE DAMAGE PATTERN: ${accidentType} accident reported, but damage at ${damageLocations.join(', ')}. Expected damage at ${expectedLocs.join(', ')}`
+    );
+  }
+  
+  // 4. Calculate deceleration and G-force
+  const deceleration = speedMs > 0 ? (speedMs * speedMs) / (2 * CRUMPLE_DISTANCE) : 0;
+  const gForce = deceleration / GRAVITY;
+  
+  if (gForce > 50) {
+    flags.push(`FATAL COLLISION: Calculated g-force (${gForce.toFixed(1)}g) suggests fatal or near-fatal impact. Verify occupant injuries reported.`);
+  } else if (gForce > 20) {
+    flags.push(`SEVERE IMPACT: Calculated g-force (${gForce.toFixed(1)}g) suggests serious injuries likely. Verify injury claims.`);
+  }
+  
+  // 5. Validate speed vs accident type
+  const typicalRange = TYPICAL_SPEEDS[accidentType] || [0, 200];
+  if (estimatedSpeed < typicalRange[0] || estimatedSpeed > typicalRange[1]) {
+    flags.push(`UNUSUAL SPEED: Reported speed (${estimatedSpeed} km/h) is atypical for ${accidentType} accidents. Typical range: ${typicalRange[0]}-${typicalRange[1]} km/h`);
+  }
+  
+  // 6. Check impossible damage combinations
+  if (normalizedLocs.includes('roof') && !['rollover', 'falling_object'].includes(accidentType)) {
+    flags.push(`IMPOSSIBLE: Roof damage reported in ${accidentType} accident. Roof damage typically only occurs in rollovers or falling objects.`);
+  }
+  
+  // 7. Calculate impact force (F = mv/t, contact time ~0.1s)
+  const impactForce = vehicleMass * speedMs / 0.1;
+  
+  // 8. Calculate energy dissipation percentage (crumple zone absorbs ~60%)
+  const energyDissipated = kineticEnergy > 0 ? 60 : 0;
+  
+  // 9. Confidence and consistency
+  const confidence = Math.max(0, Math.min(1, 1.0 - (flags.length * 0.2)));
+  const physicsScore = Math.round(confidence * 100);
+  
+  let damageConsistency = 'consistent';
+  if (flags.some(f => f.includes('IMPOSSIBLE'))) damageConsistency = 'impossible';
+  else if (flags.some(f => f.includes('MISMATCH') || f.includes('UNUSUAL'))) damageConsistency = 'inconsistent';
+  else if (flags.length > 0) damageConsistency = 'questionable';
+  
+  const recommendations: string[] = [];
+  if (flags.length > 0) {
+    recommendations.push('Request additional photos of damage');
+    recommendations.push('Interview driver for detailed accident description');
+    recommendations.push('Request police report for independent verification');
+    if (gForce > 20) recommendations.push('Verify medical records for occupant injuries');
+  }
+  
+  return {
+    is_valid: flags.length === 0,
+    confidence,
+    damageConsistency,
+    flags,
+    physics_analysis: {
+      kinetic_energy_joules: kineticEnergy,
+      vehicle_mass_kg: vehicleMass,
+      impact_speed_ms: speedMs,
+      deceleration_ms2: deceleration,
+      g_force: gForce,
+    },
+    recommendations,
+    impactSpeed: Math.round(estimatedSpeed),
+    impactForce: Math.round(impactForce / 1000), // kN
+    energyDissipated,
+    deceleration: Math.round(gForce * 10) / 10,
+    physicsScore,
+  };
+}
+
+// ============================================================
+// FRAUD DETECTION ENGINE (TypeScript — replaces Python)
+// ============================================================
+
+/**
+ * Rule-based fraud scoring engine.
+ * Same logic as fraud_ml_model.py's _rule_based_fraud_detection().
+ * When a trained RandomForest model is available, register it as a
+ * plugin and it will automatically take priority.
+ */
+function detectFraudInline(
+  claimAmount: number,
+  vehicleAge: number,
+  previousClaimsCount: number,
+  damageSeverityScore: number,
+  physicsValidationScore: number,
+  hasWitnesses: boolean,
+  hasPoliceReport: boolean,
+  hasPhotos: boolean,
+  isHighValue: boolean,
+  accidentType: string,
+): { fraudProbability: number; riskLevel: string; topRiskFactors: string[]; recommendations: string[] } {
+  let fraudScore = 0;
+  const riskFactors: string[] = [];
+  
+  // High claim amount
+  if (claimAmount > 10000) {
+    fraudScore += 0.2;
+    riskFactors.push('high_claim_amount');
+  }
+  
+  // Multiple previous claims
+  if (previousClaimsCount > 2) {
+    fraudScore += 0.3;
+    riskFactors.push('multiple_previous_claims');
+  }
+  
+  // Low physics validation score
+  if (physicsValidationScore < 0.5) {
+    fraudScore += 0.4;
+    riskFactors.push('failed_physics_validation');
+  }
+  
+  // No witnesses or police report
+  if (!hasWitnesses && !hasPoliceReport) {
+    fraudScore += 0.2;
+    riskFactors.push('no_independent_verification');
+  }
+  
+  // No photos
+  if (!hasPhotos) {
+    fraudScore += 0.15;
+    riskFactors.push('no_photographic_evidence');
+  }
+  
+  // High value claim on old vehicle
+  if (isHighValue && vehicleAge > 10) {
+    fraudScore += 0.25;
+    riskFactors.push('high_value_old_vehicle');
+  }
+  
+  // Severe damage with low-speed accident type
+  if (damageSeverityScore > 0.7 && accidentType === 'parking_lot') {
+    fraudScore += 0.2;
+    riskFactors.push('severe_damage_low_speed_scenario');
+  }
+  
+  fraudScore = Math.min(1.0, fraudScore);
+  
+  const riskLevel = fraudScore < 0.3 ? 'low' : fraudScore < 0.6 ? 'medium' : fraudScore < 0.8 ? 'high' : 'critical';
+  
+  const recommendations: string[] = [];
+  if (fraudScore > 0.5) {
+    recommendations.push('Conduct in-person vehicle inspection');
+    recommendations.push('Interview claimant and witnesses');
+    recommendations.push('Request additional documentation');
+  }
+  if (fraudScore > 0.7) {
+    recommendations.push('Escalate to fraud investigation team');
+    recommendations.push('Consider claim denial pending investigation');
+  }
+  
+  return { fraudProbability: fraudScore, riskLevel, topRiskFactors: riskFactors, recommendations };
+}
+
+// ============================================================
+// MAIN ASSESSMENT PROCESSOR
+// ============================================================
 
 export async function processExternalAssessment(
   fileName: string,
@@ -171,6 +461,7 @@ export async function processExternalAssessment(
   console.log(`\n${'='.repeat(60)}`);
   console.log(`📄 PROCESSING ASSESSMENT: ${fileName}`);
   console.log(`📦 File size: ${fileBuffer.length} bytes`);
+  console.log(`🏗️ Architecture: LLM-First + TypeScript Fallback + ML-Ready Plugins`);
   console.log(`${'='.repeat(60)}`);
 
   // Upload PDF to S3
@@ -181,65 +472,14 @@ export async function processExternalAssessment(
   );
   console.log(`✅ PDF uploaded to S3: ${pdfUrl}`);
 
-  // Save PDF temporarily for processing
+  // Save PDF temporarily for local processing
   const tempPdfPath = join('/tmp', `assessment-${nanoid()}.pdf`);
   writeFileSync(tempPdfPath, fileBuffer);
 
   // ============================================================
-  // STEP 1: Extract & classify images from PDF
+  // STEP 1: Extract text from PDF (Node.js — no Python)
   // ============================================================
-  console.log('\n🖼️ Step 1: Extracting and classifying images from PDF...');
-  let damagePhotoUrls: string[] = [];
-  let allPhotos: PhotoWithClassification[] = [];
-  
-  try {
-    const imgOutputPath = join('/tmp', `kinga-images-${nanoid()}.json`);
-    const imgResult = await runPythonScript(
-      join(PYTHON_DIR, 'extract_images.py'), 
-      [tempPdfPath, imgOutputPath],
-      120000
-    );
-    
-    console.log(`📸 Image extraction: ${imgResult.total_images} total (${imgResult.damage_photos} damage, ${imgResult.document_images} document)`);
-    
-    if (imgResult.success && imgResult.total_images > 0) {
-      const imgFileData = readFileSync(imgOutputPath, 'utf-8');
-      const imgData = JSON.parse(imgFileData);
-      
-      for (const img of imgData.images) {
-        if (img.full_data) {
-          try {
-            const imgBuffer = Buffer.from(img.full_data, 'base64');
-            const ext = img.format || 'jpeg';
-            const { url: imgUrl } = await storagePut(
-              `damage-photos/${nanoid()}.${ext}`,
-              imgBuffer,
-              `image/${ext}`
-            );
-            
-            const classification = img.classification || 'damage_photo';
-            allPhotos.push({ url: imgUrl, classification, page: img.page });
-            
-            if (classification === 'damage_photo') {
-              damagePhotoUrls.push(imgUrl);
-            }
-          } catch (e: any) {
-            console.warn(`⚠️ Failed to upload image: ${e.message}`);
-          }
-        }
-      }
-      console.log(`✅ Uploaded ${damagePhotoUrls.length} damage photos, ${allPhotos.length - damagePhotoUrls.length} document images`);
-      
-      try { unlinkSync(imgOutputPath); } catch (e) {}
-    }
-  } catch (error: any) {
-    console.warn(`⚠️ Image extraction failed: ${error.message}`);
-  }
-
-  // ============================================================
-  // STEP 2: Extract text from PDF
-  // ============================================================
-  console.log('\n📝 Step 2: Extracting text from PDF...');
+  console.log('\n📝 Step 1: Extracting text from PDF (Node.js pdf-parse)...');
   let extractedText = '';
   
   try {
@@ -248,31 +488,53 @@ export async function processExternalAssessment(
     const textResult = await parser.getText();
     extractedText = textResult.text || '';
     await parser.destroy();
-    console.log(`✅ Node.js text extraction: ${extractedText.length} chars`);
+    console.log(`✅ Text extraction: ${extractedText.length} chars`);
   } catch (error: any) {
-    console.error(`❌ Node.js text extraction failed: ${error.message}`);
+    console.error(`❌ Text extraction failed: ${error.message}`);
   }
   
+  // If text extraction yielded very little, try LLM vision on the PDF directly
   if (extractedText.length < 100) {
-    console.log('🔄 Trying Python OCR fallback...');
-    try {
-      const ocrResult = await runPythonScript(
-        join(PYTHON_DIR, 'extract_pdf_text_ocr.py'), 
-        [tempPdfPath], 
-        180000
-      );
-      extractedText = ocrResult.text || '';
-      console.log(`✅ Python OCR: ${extractedText.length} chars`);
-    } catch (error: any) {
-      console.error(`❌ Python OCR also failed: ${error.message}`);
-    }
+    console.log('🔄 Low text yield — will rely on LLM vision for PDF content...');
   }
 
   // ============================================================
-  // STEP 3: Extract structured data with LLM (all cost figures)
+  // STEP 2: Extract structured data with LLM (text + PDF vision)
   // ============================================================
-  console.log('\n🤖 Step 3: Extracting structured data with LLM...');
+  console.log('\n🤖 Step 2: Extracting structured data with LLM...');
   
+  // Build message content — use text if available, plus PDF vision
+  const userContent: any[] = [];
+  
+  if (extractedText.length > 50) {
+    userContent.push({
+      type: "text",
+      text: `Extract ALL information from this vehicle damage assessment report.
+
+CRITICAL: Extract every cost figure mentioned. Look for original quotes, agreed costs, market values, savings, excess amounts, betterment, assessor names, repairer names.
+
+=== DOCUMENT TEXT ===
+${extractedText}
+=== END DOCUMENT ===`
+    });
+  }
+  
+  // Always include the PDF file for vision analysis
+  userContent.push({
+    type: "file_url",
+    file_url: {
+      url: pdfUrl,
+      mime_type: "application/pdf" as const,
+    }
+  });
+  
+  if (extractedText.length <= 50) {
+    userContent.push({
+      type: "text",
+      text: "Extract ALL information from this vehicle damage assessment report PDF. The text extraction yielded minimal results, so please read the PDF visually. Extract every cost figure, vehicle details, claimant info, damage descriptions, and assessor/repairer names."
+    });
+  }
+
   const extractionResponse = await invokeLLM({
     messages: [
       {
@@ -301,13 +563,7 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
       },
       {
         role: "user",
-        content: `Extract ALL information from this vehicle damage assessment report.
-
-CRITICAL: Extract every cost figure mentioned. Look for original quotes, agreed costs, market values, savings, excess amounts, betterment, assessor names, repairer names.
-
-=== DOCUMENT TEXT ===
-${extractedText}
-=== END DOCUMENT ===`
+        content: userContent
       }
     ],
     response_format: {
@@ -424,7 +680,7 @@ ${extractedText}
     hasPoliceReport: !!extractedData.policeReportReference,
     hasDamagedComponents: !!(extractedData.damagedComponents && extractedData.damagedComponents.length > 0),
     hasMarketValue: !!extractedData.marketValue,
-    hasPhotos: damagePhotoUrls.length > 0
+    hasPhotos: false, // Will be updated after image classification
   };
   
   for (const [key, has] of Object.entries(dataQuality)) {
@@ -436,6 +692,114 @@ ${extractedText}
 
   const completeness = Math.round((Object.values(dataQuality).filter(v => v).length / Object.keys(dataQuality).length) * 100);
   console.log(`📊 Data Completeness: ${completeness}%`);
+
+  // ============================================================
+  // STEP 3: Classify images in PDF via LLM vision
+  // ============================================================
+  console.log('\n🖼️ Step 3: Classifying images in PDF via LLM vision...');
+  let damagePhotoUrls: string[] = [];
+  let allPhotos: PhotoWithClassification[] = [];
+  
+  try {
+    const imageClassResponse = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are analyzing a vehicle damage assessment PDF. Identify all images in the document and classify each as either:
+- "damage_photo": Actual photographs of vehicle damage (dents, scratches, broken parts, accident scene)
+- "document": Logos, stamps, signatures, diagrams, letterheads, or other non-damage images
+
+For each damage photo, describe what damage is visible. Report the page number where each image appears.`
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "file_url",
+              file_url: { url: pdfUrl, mime_type: "application/pdf" as const }
+            },
+            {
+              type: "text",
+              text: "Analyze this PDF and identify all images. For each image, classify it as 'damage_photo' or 'document' and describe what you see."
+            }
+          ]
+        }
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "image_classification",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              totalImages: { type: "integer", description: "Total number of images found" },
+              damagePhotoCount: { type: "integer" },
+              documentImageCount: { type: "integer" },
+              images: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    page: { type: "integer" },
+                    classification: { type: "string", description: "damage_photo or document" },
+                    description: { type: "string" },
+                    damageVisible: { type: "string", description: "Description of visible damage, empty if not a damage photo" }
+                  },
+                  required: ["page", "classification", "description", "damageVisible"],
+                  additionalProperties: false
+                }
+              },
+              overallDamageAssessment: { type: "string", description: "Summary of all visible damage from photos" }
+            },
+            required: ["totalImages", "damagePhotoCount", "documentImageCount", "images", "overallDamageAssessment"],
+            additionalProperties: false
+          }
+        }
+      }
+    });
+    
+    const imageData = JSON.parse(imageClassResponse.choices[0].message.content as string);
+    console.log(`📸 LLM identified ${imageData.totalImages} images (${imageData.damagePhotoCount} damage, ${imageData.documentImageCount} document)`);
+    
+    // For damage photos identified by LLM, we store the PDF URL as the photo reference
+    // since we can't extract individual images without native libraries
+    if (imageData.damagePhotoCount > 0) {
+      // Store the PDF URL as the damage photo source
+      for (const img of imageData.images) {
+        if (img.classification === 'damage_photo') {
+          allPhotos.push({
+            url: pdfUrl,
+            classification: 'damage_photo',
+            page: img.page,
+          });
+          damagePhotoUrls.push(pdfUrl);
+        } else {
+          allPhotos.push({
+            url: pdfUrl,
+            classification: 'document',
+            page: img.page,
+          });
+        }
+      }
+      
+      // Update data quality
+      dataQuality.hasPhotos = true;
+      // Remove 'Photos' from missing data if it was there
+      const photosIdx = missingData.indexOf(' Photos');
+      if (photosIdx >= 0) missingData.splice(photosIdx, 1);
+    }
+    
+    if (imageData.overallDamageAssessment) {
+      console.log(`🔍 Damage summary: ${imageData.overallDamageAssessment.substring(0, 200)}`);
+    }
+    
+  } catch (error: any) {
+    console.warn(`⚠️ Image classification failed: ${error.message}`);
+  }
+
+  // Deduplicate damage photo URLs
+  damagePhotoUrls = Array.from(new Set(damagePhotoUrls));
 
   // ============================================================
   // STEP 4: Generate component repair/replace recommendations
@@ -515,68 +879,73 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
   }
 
   // ============================================================
-  // STEP 5: Physics Validation (Python physics_validator.py)
+  // STEP 5: Physics Validation (Plugin → LLM → TypeScript)
   // ============================================================
-  console.log('\n⚛️ Step 5: Running physics validation (Python)...');
+  console.log('\n⚛️ Step 5: Running physics validation...');
   let physicsAnalysis: PhysicsAnalysis;
   
-  const modelLower = (extractedData.vehicleModel || '').toLowerCase();
-  const vehicleType = modelLower.includes('ranger') || modelLower.includes('hilux') || modelLower.includes('truck') || modelLower.includes('pickup') ? 'truck' :
-    modelLower.includes('suv') || modelLower.includes('fortuner') || modelLower.includes('pajero') ? 'suv' : 'sedan';
-  
+  const vehicleType = inferVehicleType(extractedData.vehicleModel || '');
   let estimatedSpeed = extractedData.estimatedSpeed || 0;
   if (!estimatedSpeed) {
     const speedByType: Record<string, number> = {
-      'parking_lot': 15, 'rear_end': 40, 'side_impact': 55, 'head_on': 70, 'highway': 100
+      parking_lot: 15, rear_end: 40, side_impact: 55, head_on: 70, highway: 100
     };
     estimatedSpeed = speedByType[extractedData.accidentType || ''] || 50;
   }
   
   const damageSeverity = totalCost > 8000 ? 'severe' : totalCost > 3000 ? 'moderate' : 'minor';
-  
   const damageLocations = components.length > 0 ? components : [extractedData.damageLocation || 'unknown'];
   
-  try {
-    const physicsInput = JSON.stringify({
-      vehicle_type: vehicleType,
-      accident_type: extractedData.accidentType || 'other',
-      estimated_speed: estimatedSpeed,
-      damage_severity: damageSeverity,
-      damage_locations: damageLocations,
-      reported_description: extractedData.accidentDescription || extractedData.damageDescription || ''
-    });
-    
-    const physicsResult = await runPythonScript(
-      join(PYTHON_DIR, 'physics_validator.py'),
-      [physicsInput],
-      30000
-    );
-    
-    const pa = physicsResult.physics_analysis || {};
-    const impactSpeedKmh = (pa.impact_speed_ms || 0) * 3.6;
-    const impactForceKN = pa.vehicle_mass_kg && pa.impact_speed_ms 
-      ? (pa.vehicle_mass_kg * pa.impact_speed_ms / 0.1) / 1000
-      : 0;
-    
-    physicsAnalysis = {
-      ...physicsResult,
-      impactSpeed: Math.round(impactSpeedKmh) || estimatedSpeed,
-      impactForce: Math.round(impactForceKN),
-      energyDissipated: Math.round((pa.kinetic_energy_joules || 0) * 0.6 / (pa.kinetic_energy_joules || 1) * 100),
-      deceleration: Math.round((pa.g_force || 0) * 10) / 10,
-      physicsScore: Math.round((physicsResult.confidence || 0.5) * 100)
-    };
-    
-    console.log(`✅ Physics validation complete: Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
-    
-  } catch (error: any) {
-    console.warn(`⚠️ Python physics failed: ${error.message}, falling back to LLM...`);
-    
+  // Try ML plugin first (future trained models)
+  const physicsPlugin = getPlugin('physics');
+  if (physicsPlugin) {
+    console.log(`🔌 Using ML plugin: ${physicsPlugin.id} v${physicsPlugin.version}`);
+    try {
+      const pluginResult = await physicsPlugin.predict({
+        vehicle_type: vehicleType,
+        accident_type: extractedData.accidentType || 'other',
+        estimated_speed: estimatedSpeed,
+        damage_severity: damageSeverity,
+        damage_locations: damageLocations,
+      });
+      if (pluginResult) {
+        physicsAnalysis = pluginResult as unknown as PhysicsAnalysis;
+        console.log(`✅ ML plugin physics: Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+      } else {
+        throw new Error('Plugin returned null');
+      }
+    } catch (error: any) {
+      console.warn(`⚠️ ML plugin failed: ${error.message}, falling back to LLM...`);
+      physicsPlugin === null; // Clear so we fall through
+    }
+  }
+  
+  // If no plugin result, try LLM-first approach
+  if (!physicsPlugin || !physicsAnalysis!) {
     try {
       const physicsResponse = await invokeLLM({
         messages: [
-          { role: "system", content: "You are a vehicle accident physics expert. Provide realistic physics analysis." },
-          { role: "user", content: `Analyze: ${extractedData.vehicleMake} ${extractedData.vehicleModel} (${vehicleType}), ${extractedData.accidentType} at ~${estimatedSpeed} km/h, ${damageSeverity} damage. Damage: ${extractedData.damageDescription || 'unknown'}` }
+          {
+            role: "system",
+            content: `You are a vehicle accident physics expert and forensic engineer. Analyze the collision scenario using physics principles:
+- Kinetic energy: KE = 0.5 × mass × velocity²
+- Impact force: F = mass × Δv / contact_time
+- G-force: deceleration / 9.81
+- Validate damage patterns against accident type
+- Check if reported damage is physically consistent with the scenario
+Be precise with calculations. Flag any physical impossibilities or inconsistencies.`
+          },
+          {
+            role: "user",
+            content: `Analyze this collision scenario:
+Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} (${vehicleType}, ~${VEHICLE_MASSES[vehicleType] || 1500}kg)
+Accident type: ${extractedData.accidentType || 'unknown'}
+Estimated speed: ~${estimatedSpeed} km/h
+Damage severity: ${damageSeverity}
+Damage locations: ${damageLocations.join(', ')}
+Damage description: ${extractedData.damageDescription || extractedData.accidentDescription || 'unknown'}
+Total repair cost: $${totalCost}`
+          }
         ],
         response_format: {
           type: "json_schema",
@@ -586,117 +955,128 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
             schema: {
               type: "object",
               properties: {
-                impactSpeed: { type: "number" },
-                impactForce: { type: "number" },
-                energyDissipated: { type: "number", description: "Percentage 0-100" },
-                deceleration: { type: "number" },
-                damageConsistency: { type: "string", description: "consistent, inconsistent, or impossible" },
-                physicsScore: { type: "integer", description: "0-100" },
-                confidence: { type: "number" },
-                is_valid: { type: "boolean" },
-                analysis_notes: { type: "string" }
+                impactSpeed: { type: "number", description: "Impact speed in km/h" },
+                impactForce: { type: "number", description: "Impact force in kN" },
+                energyDissipated: { type: "number", description: "Energy dissipation percentage 0-100" },
+                deceleration: { type: "number", description: "G-force experienced" },
+                damageConsistency: { type: "string", description: "consistent, inconsistent, questionable, or impossible" },
+                physicsScore: { type: "integer", description: "Physics plausibility score 0-100" },
+                confidence: { type: "number", description: "Confidence in analysis 0-1" },
+                is_valid: { type: "boolean", description: "Whether the scenario is physically plausible" },
+                flags: { type: "array", items: { type: "string" }, description: "Any physics flags or warnings" },
+                analysis_notes: { type: "string", description: "Detailed analysis explanation" }
               },
-              required: ["impactSpeed", "impactForce", "energyDissipated", "deceleration", "damageConsistency", "physicsScore", "confidence", "is_valid", "analysis_notes"],
+              required: ["impactSpeed", "impactForce", "energyDissipated", "deceleration", "damageConsistency", "physicsScore", "confidence", "is_valid", "flags", "analysis_notes"],
               additionalProperties: false
             }
           }
         }
       });
-      const pc = JSON.parse(physicsResponse.choices[0].message.content as string);
-      physicsAnalysis = { ...pc, flags: [], recommendations: [], physics_analysis: {} } as PhysicsAnalysis;
-    } catch {
+      
+      const llmPhysics = JSON.parse(physicsResponse.choices[0].message.content as string);
+      
+      // Also run inline TypeScript validation for cross-reference
+      const inlinePhysics = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
+      
+      // Merge: use LLM's qualitative analysis with inline's precise calculations
       physicsAnalysis = {
-        is_valid: true, confidence: 0.5, damageConsistency: 'unknown',
-        flags: [], physics_analysis: { kinetic_energy_joules: 0, vehicle_mass_kg: 0, impact_speed_ms: 0, deceleration_ms2: 0, g_force: 0 },
-        recommendations: ['Physics analysis unavailable'], impactSpeed: estimatedSpeed,
-        impactForce: 0, energyDissipated: 0, deceleration: 0, physicsScore: 50
+        is_valid: llmPhysics.is_valid,
+        confidence: llmPhysics.confidence,
+        damageConsistency: llmPhysics.damageConsistency,
+        flags: [...(llmPhysics.flags || []), ...inlinePhysics.flags.filter(f => !llmPhysics.flags?.some((lf: string) => lf.includes(f.substring(0, 20))))],
+        physics_analysis: inlinePhysics.physics_analysis, // Use precise calculations
+        recommendations: inlinePhysics.recommendations,
+        impactSpeed: llmPhysics.impactSpeed || inlinePhysics.impactSpeed,
+        impactForce: llmPhysics.impactForce || inlinePhysics.impactForce,
+        energyDissipated: llmPhysics.energyDissipated || inlinePhysics.energyDissipated,
+        deceleration: llmPhysics.deceleration || inlinePhysics.deceleration,
+        physicsScore: llmPhysics.physicsScore,
       };
+      
+      console.log(`✅ Physics validation (LLM + TypeScript): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+      
+    } catch (error: any) {
+      console.warn(`⚠️ LLM physics failed: ${error.message}, using TypeScript fallback...`);
+      
+      // Pure TypeScript fallback (deterministic, always works)
+      physicsAnalysis = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
+      console.log(`✅ Physics validation (TypeScript): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
     }
   }
 
   // ============================================================
-  // STEP 6: Fraud Detection (Python fraud_ml_model.py) 
-  //         Cross-references physics results
+  // STEP 6: Fraud Detection (Plugin → LLM → TypeScript)
   // ============================================================
-  console.log('\n🔍 Step 6: Running fraud detection (Python)...');
+  console.log('\n🔍 Step 6: Running fraud detection...');
   let fraudAnalysis: FraudAnalysis;
   
-  try {
-    const fraudInput = JSON.stringify({
-      claim_amount: totalCost,
-      vehicle_age: new Date().getFullYear() - (extractedData.vehicleYear || 2020),
-      previous_claims_count: 0,
-      damage_severity_score: damageSeverity === 'severe' ? 0.9 : damageSeverity === 'moderate' ? 0.6 : 0.3,
-      physics_validation_score: physicsAnalysis.confidence || 0.5,
-      has_witnesses: false,
-      has_police_report: !!extractedData.policeReportReference,
-      has_photos: damagePhotoUrls.length > 0,
-      is_high_value: totalCost > 10000,
-      accident_type: extractedData.accidentType || 'other'
-    });
-    
-    const fraudResult = await runPythonScript(
-      join(PYTHON_DIR, 'fraud_ml_model.py'),
-      ['predict', fraudInput],
-      30000
+  const fraudPlugin = getPlugin('fraud');
+  
+  if (fraudPlugin) {
+    console.log(`🔌 Using ML plugin: ${fraudPlugin.id} v${fraudPlugin.version}`);
+    try {
+      const pluginResult = await fraudPlugin.predict({
+        claim_amount: totalCost,
+        vehicle_age: new Date().getFullYear() - (extractedData.vehicleYear || 2020),
+        previous_claims_count: 0,
+        damage_severity_score: damageSeverity === 'severe' ? 0.9 : damageSeverity === 'moderate' ? 0.6 : 0.3,
+        physics_validation_score: physicsAnalysis.confidence || 0.5,
+        has_photos: damagePhotoUrls.length > 0,
+        has_police_report: !!extractedData.policeReportReference,
+        accident_type: extractedData.accidentType || 'other',
+      });
+      if (pluginResult) {
+        fraudAnalysis = pluginResult as unknown as FraudAnalysis;
+        console.log(`✅ ML plugin fraud: ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
+      } else {
+        throw new Error('Plugin returned null');
+      }
+    } catch (error: any) {
+      console.warn(`⚠️ ML plugin failed: ${error.message}, falling back to LLM...`);
+    }
+  }
+  
+  if (!fraudPlugin || !fraudAnalysis!) {
+    // Run inline TypeScript fraud scoring first (deterministic baseline)
+    const inlineFraud = detectFraudInline(
+      totalCost,
+      new Date().getFullYear() - (extractedData.vehicleYear || 2020),
+      0,
+      damageSeverity === 'severe' ? 0.9 : damageSeverity === 'moderate' ? 0.6 : 0.3,
+      physicsAnalysis.confidence || 0.5,
+      false,
+      !!extractedData.policeReportReference,
+      damagePhotoUrls.length > 0,
+      totalCost > 10000,
+      extractedData.accidentType || 'other',
     );
     
-    const physicsFlagsCount = physicsAnalysis.flags?.length || 0;
-    const physicsContributes = physicsFlagsCount > 0 || !physicsAnalysis.is_valid;
-    
-    let adjustedFraudProb = fraudResult.fraud_probability || 0;
-    if (physicsContributes) {
-      adjustedFraudProb = Math.min(1.0, adjustedFraudProb + (physicsFlagsCount * 0.1));
-    }
-    
-    const indicators = {
-      claimHistory: 2,
-      damageConsistency: physicsAnalysis.is_valid ? 2 : physicsAnalysis.damageConsistency === 'inconsistent' ? 4 : 3,
-      documentAuthenticity: damagePhotoUrls.length > 3 ? 1 : damagePhotoUrls.length > 0 ? 2 : 4,
-      behavioralPatterns: 2,
-      ownershipVerification: extractedData.claimantName ? 2 : 4,
-      geographicRisk: 2
-    };
-    
-    const riskScore = Math.round(adjustedFraudProb * 100);
-    const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : 'high';
-    
-    const topRiskFactors = [...(fraudResult.top_risk_factors || [])];
-    if (physicsContributes) {
-      for (const flag of (physicsAnalysis.flags || [])) {
-        topRiskFactors.push(`Physics: ${flag}`);
-      }
-    }
-    
-    fraudAnalysis = {
-      fraud_probability: adjustedFraudProb,
-      risk_level: riskLevel,
-      risk_score: riskScore,
-      confidence: fraudResult.confidence || 0.7,
-      top_risk_factors: topRiskFactors,
-      recommendations: fraudResult.recommendations || [],
-      indicators,
-      physics_cross_reference: {
-        physics_flags_count: physicsFlagsCount,
-        physics_score: physicsAnalysis.physicsScore,
-        physics_contributes_to_fraud: physicsContributes,
-        physics_notes: physicsContributes 
-          ? `Physics validation raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}. This increased the fraud risk score.`
-          : `Physics validation passed with no flags. Damage is ${physicsAnalysis.damageConsistency} with the reported accident.`
-      },
-      analysis_notes: `Fraud probability: ${(adjustedFraudProb * 100).toFixed(1)}%. ${physicsContributes ? 'Physics inconsistencies detected.' : 'Physics validation supports the claim.'} ${topRiskFactors.length > 0 ? 'Risk factors: ' + topRiskFactors.join('; ') : 'No significant risk factors identified.'}`
-    };
-    
-    console.log(`✅ Fraud detection: ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
-    
-  } catch (error: any) {
-    console.warn(`⚠️ Python fraud failed: ${error.message}, falling back to LLM...`);
-    
     try {
+      // LLM fraud analysis for richer context
       const fraudResponse = await invokeLLM({
         messages: [
-          { role: "system", content: "You are an insurance fraud detection expert. Be fair and objective." },
-          { role: "user", content: `Analyze fraud risk: ${extractedData.vehicleMake} ${extractedData.vehicleModel}, $${totalCost}, ${extractedData.accidentType}, physics score: ${physicsAnalysis.physicsScore}/100, ${damagePhotoUrls.length} photos` }
+          {
+            role: "system",
+            content: `You are an insurance fraud detection expert with deep knowledge of common fraud patterns in African insurance markets. Analyze the claim for fraud indicators. Be fair and objective — most claims are legitimate. Consider:
+- Damage consistency with reported accident
+- Cost reasonableness for the vehicle and damage
+- Documentation completeness
+- Physics validation results
+- Common fraud patterns (staged accidents, inflated costs, phantom damage)`
+          },
+          {
+            role: "user",
+            content: `Analyze fraud risk for this claim:
+Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}
+Claim amount: $${totalCost}
+Accident type: ${extractedData.accidentType || 'unknown'}
+Physics validation: ${physicsAnalysis.is_valid ? 'PASSED' : 'FAILED'} (score: ${physicsAnalysis.physicsScore}/100, ${physicsAnalysis.damageConsistency})
+Physics flags: ${physicsAnalysis.flags.length > 0 ? physicsAnalysis.flags.join('; ') : 'None'}
+Photos available: ${damagePhotoUrls.length > 0 ? 'Yes' : 'No'}
+Police report: ${extractedData.policeReportReference ? 'Yes' : 'No'}
+Damage description: ${extractedData.damageDescription || 'unknown'}
+Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inlineFraud.riskLevel})`
+          }
         ],
         response_format: {
           type: "json_schema",
@@ -706,15 +1086,18 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
             schema: {
               type: "object",
               properties: {
-                fraud_probability: { type: "number" },
-                risk_level: { type: "string" },
-                risk_score: { type: "integer" },
+                fraud_probability: { type: "number", description: "0-1 probability" },
+                risk_level: { type: "string", description: "low, medium, high, or critical" },
+                risk_score: { type: "integer", description: "0-100" },
                 indicators: {
                   type: "object",
                   properties: {
-                    claimHistory: { type: "integer" }, damageConsistency: { type: "integer" },
-                    documentAuthenticity: { type: "integer" }, behavioralPatterns: { type: "integer" },
-                    ownershipVerification: { type: "integer" }, geographicRisk: { type: "integer" }
+                    claimHistory: { type: "integer", description: "1-5 risk level" },
+                    damageConsistency: { type: "integer", description: "1-5 risk level" },
+                    documentAuthenticity: { type: "integer", description: "1-5 risk level" },
+                    behavioralPatterns: { type: "integer", description: "1-5 risk level" },
+                    ownershipVerification: { type: "integer", description: "1-5 risk level" },
+                    geographicRisk: { type: "integer", description: "1-5 risk level" }
                   },
                   required: ["claimHistory", "damageConsistency", "documentAuthenticity", "behavioralPatterns", "ownershipVerification", "geographicRisk"],
                   additionalProperties: false
@@ -728,24 +1111,92 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
           }
         }
       });
-      const fc = JSON.parse(fraudResponse.choices[0].message.content as string);
-      fraudAnalysis = {
-        ...fc, confidence: 0.7, recommendations: [],
-        physics_cross_reference: {
-          physics_flags_count: physicsAnalysis.flags?.length || 0,
-          physics_score: physicsAnalysis.physicsScore,
-          physics_contributes_to_fraud: !physicsAnalysis.is_valid,
-          physics_notes: 'LLM fallback analysis'
+      
+      const llmFraud = JSON.parse(fraudResponse.choices[0].message.content as string);
+      
+      // Cross-reference physics results
+      const physicsFlagsCount = physicsAnalysis.flags?.length || 0;
+      const physicsContributes = physicsFlagsCount > 0 || !physicsAnalysis.is_valid;
+      
+      // Blend LLM analysis with inline scoring
+      let adjustedFraudProb = (llmFraud.fraud_probability + inlineFraud.fraudProbability) / 2;
+      if (physicsContributes) {
+        adjustedFraudProb = Math.min(1.0, adjustedFraudProb + (physicsFlagsCount * 0.1));
+      }
+      
+      const riskScore = Math.round(adjustedFraudProb * 100);
+      const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'critical';
+      
+      const topRiskFactors = [...(llmFraud.top_risk_factors || [])];
+      if (physicsContributes) {
+        for (const flag of physicsAnalysis.flags) {
+          topRiskFactors.push(`Physics: ${flag}`);
         }
-      } as FraudAnalysis;
-    } catch {
+      }
+      
       fraudAnalysis = {
-        fraud_probability: 0.15, risk_level: 'low', risk_score: 15, confidence: 0.5,
-        top_risk_factors: [], recommendations: [],
-        indicators: { claimHistory: 2, damageConsistency: 2, documentAuthenticity: 2, behavioralPatterns: 2, ownershipVerification: 2, geographicRisk: 2 },
-        physics_cross_reference: { physics_flags_count: 0, physics_score: 50, physics_contributes_to_fraud: false, physics_notes: 'Analysis unavailable' },
-        analysis_notes: 'Fraud analysis could not be completed'
+        fraud_probability: adjustedFraudProb,
+        risk_level: riskLevel,
+        risk_score: riskScore,
+        confidence: 0.8,
+        top_risk_factors: topRiskFactors,
+        recommendations: inlineFraud.recommendations,
+        indicators: llmFraud.indicators,
+        physics_cross_reference: {
+          physics_flags_count: physicsFlagsCount,
+          physics_score: physicsAnalysis.physicsScore,
+          physics_contributes_to_fraud: physicsContributes,
+          physics_notes: physicsContributes 
+            ? `Physics validation raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}. This increased the fraud risk score.`
+            : `Physics validation passed with no flags. Damage is ${physicsAnalysis.damageConsistency} with the reported accident.`
+        },
+        analysis_notes: llmFraud.analysis_notes || `Fraud probability: ${(adjustedFraudProb * 100).toFixed(1)}%. ${physicsContributes ? 'Physics inconsistencies detected.' : 'Physics validation supports the claim.'}`
       };
+      
+      console.log(`✅ Fraud detection (LLM + TypeScript): ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
+      
+    } catch (error: any) {
+      console.warn(`⚠️ LLM fraud failed: ${error.message}, using TypeScript fallback...`);
+      
+      // Pure TypeScript fallback
+      const physicsFlagsCount = physicsAnalysis.flags?.length || 0;
+      const physicsContributes = physicsFlagsCount > 0 || !physicsAnalysis.is_valid;
+      
+      let adjustedProb = inlineFraud.fraudProbability;
+      if (physicsContributes) {
+        adjustedProb = Math.min(1.0, adjustedProb + (physicsFlagsCount * 0.1));
+      }
+      
+      const riskScore = Math.round(adjustedProb * 100);
+      const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'critical';
+      
+      fraudAnalysis = {
+        fraud_probability: adjustedProb,
+        risk_level: riskLevel,
+        risk_score: riskScore,
+        confidence: 0.7,
+        top_risk_factors: inlineFraud.topRiskFactors,
+        recommendations: inlineFraud.recommendations,
+        indicators: {
+          claimHistory: 2,
+          damageConsistency: physicsAnalysis.is_valid ? 2 : 4,
+          documentAuthenticity: damagePhotoUrls.length > 0 ? 2 : 4,
+          behavioralPatterns: 2,
+          ownershipVerification: extractedData.claimantName ? 2 : 4,
+          geographicRisk: 2,
+        },
+        physics_cross_reference: {
+          physics_flags_count: physicsFlagsCount,
+          physics_score: physicsAnalysis.physicsScore,
+          physics_contributes_to_fraud: physicsContributes,
+          physics_notes: physicsContributes 
+            ? `Physics validation raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}.`
+            : `Physics validation passed. Damage is ${physicsAnalysis.damageConsistency}.`
+        },
+        analysis_notes: `TypeScript fallback analysis. Fraud probability: ${(adjustedProb * 100).toFixed(1)}%.`
+      };
+      
+      console.log(`✅ Fraud detection (TypeScript): ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
     }
   }
 
@@ -810,13 +1261,15 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
 
   console.log(`\n${'='.repeat(60)}`);
   console.log(`✅ ASSESSMENT PROCESSING COMPLETE`);
+  console.log(`🏗️ Architecture: LLM-First + TypeScript Fallback`);
   console.log(`📊 Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}`);
-  console.log(`📊 Photos: ${damagePhotoUrls.length} damage + ${allPhotos.length - damagePhotoUrls.length} document`);
+  console.log(`📊 Photos: ${damagePhotoUrls.length} damage identified via LLM vision`);
   console.log(`📊 Components: ${componentRecommendations.length} recommendations`);
   console.log(`📊 Quotes: ${quotes.length} figures`);
   console.log(`📊 Physics: ${physicsAnalysis.damageConsistency} (score ${physicsAnalysis.physicsScore}/100)`);
   console.log(`📊 Fraud: ${fraudAnalysis.risk_level} (score ${fraudAnalysis.risk_score}/100)`);
   console.log(`📊 Completeness: ${completeness}%`);
+  console.log(`🔌 ML Plugins: ${modelPlugins.size} registered (${Array.from(modelPlugins.keys()).join(', ') || 'none'})`);
   console.log(`${'='.repeat(60)}\n`);
   
   return {
@@ -856,61 +1309,4 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
     dataQuality,
     dataCompleteness: completeness
   };
-}
-
-/**
- * Run a Python script with CLI arguments and return parsed JSON output
- */
-function runPythonScript(scriptPath: string, args: string[] = [], timeoutMs: number = 120000): Promise<any> {
-  return new Promise((resolve, reject) => {
-    console.log(`🐍 Running: python3 ${scriptPath} ${args.map(a => a.substring(0, 80)).join(' ')}`);
-    
-    // CRITICAL: Clear PYTHONPATH and PYTHONHOME to prevent Python 3.13 libs from being loaded by Python 3.11
-    const cleanEnv = { ...process.env };
-    delete cleanEnv.PYTHONPATH;
-    delete cleanEnv.PYTHONHOME;
-    
-    const pythonProcess = spawn('python3', [scriptPath, ...args], {
-      cwd: PYTHON_DIR,
-      env: cleanEnv
-    });
-    
-    const timeout = setTimeout(() => {
-      pythonProcess.kill();
-      reject(new Error(`Python script timed out after ${timeoutMs}ms`));
-    }, timeoutMs);
-
-    let output = '';
-    let error = '';
-
-    pythonProcess.stdout.on('data', (data: Buffer) => {
-      output += data.toString();
-    });
-
-    pythonProcess.stderr.on('data', (data: Buffer) => {
-      error += data.toString();
-    });
-
-    pythonProcess.on('close', (code) => {
-      clearTimeout(timeout);
-      
-      if (code !== 0) {
-        console.error(`❌ Python script failed (code ${code}): ${error.substring(0, 300)}`);
-        reject(new Error(`Python script failed with code ${code}: ${error.substring(0, 300)}`));
-        return;
-      }
-
-      if (error) {
-        console.warn(`⚠️ Python stderr (non-fatal): ${error.substring(0, 200)}`);
-      }
-
-      try {
-        const result = JSON.parse(output);
-        resolve(result);
-      } catch (e) {
-        console.error(`❌ Failed to parse Python output (${output.length} chars): ${output.substring(0, 200)}`);
-        reject(new Error(`Failed to parse Python output: ${e}`));
-      }
-    });
-  });
 }
