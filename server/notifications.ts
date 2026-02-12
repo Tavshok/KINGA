@@ -6,6 +6,7 @@
  */
 
 import { notifyOwner } from "./_core/notification";
+import { shouldSendNotification, recordNotificationSent } from "./notification-tracker";
 
 export interface NotificationData {
   recipientEmail: string;
@@ -17,7 +18,13 @@ export interface NotificationData {
 /**
  * Send notification when claim is assigned to assessor
  */
-export async function notifyAssessorAssignment(data: NotificationData) {
+export async function notifyAssessorAssignment(data: NotificationData & { claimId: number }) {
+  // Check if notification was recently sent
+  if (!shouldSendNotification(data.claimId, "assessor_assignment")) {
+    console.log(`[Notification] Skipping duplicate assessor assignment for claim ${data.claimNumber}`);
+    return;
+  }
+  
   const title = `New Claim Assignment: ${data.claimNumber}`;
   const content = `
 Hello ${data.recipientName},
@@ -37,6 +44,7 @@ KINGA AutoVerify AI Team
 
   // For now, notify owner (in production, this would send to the assessor's email)
   await notifyOwner({ title, content });
+  recordNotificationSent(data.claimId, "assessor_assignment");
   
   console.log(`[Notification] Assessor assignment sent to ${data.recipientEmail}`);
 }
@@ -44,7 +52,13 @@ KINGA AutoVerify AI Team
 /**
  * Send notification when panel beater submits a quote
  */
-export async function notifyQuoteSubmitted(data: NotificationData) {
+export async function notifyQuoteSubmitted(data: NotificationData & { claimId: number }) {
+  // Check if notification was recently sent
+  if (!shouldSendNotification(data.claimId, "quote_submitted")) {
+    console.log(`[Notification] Skipping duplicate quote submission for claim ${data.claimNumber}`);
+    return;
+  }
+  
   const title = `Quote Submitted for Claim ${data.claimNumber}`;
   const content = `
 Hello,
@@ -63,6 +77,7 @@ KINGA AutoVerify AI Team
   `.trim();
 
   await notifyOwner({ title, content });
+  recordNotificationSent(data.claimId, "quote_submitted");
   
   console.log(`[Notification] Quote submission notification sent`);
 }
@@ -70,7 +85,13 @@ KINGA AutoVerify AI Team
 /**
  * Send notification when fraud indicators are detected
  */
-export async function notifyFraudDetected(data: NotificationData) {
+export async function notifyFraudDetected(data: NotificationData & { claimId: number }) {
+  // Check if notification was recently sent
+  if (!shouldSendNotification(data.claimId, "fraud_detected")) {
+    console.log(`[Notification] Skipping duplicate fraud alert for claim ${data.claimNumber}`);
+    return;
+  }
+  
   const title = `⚠️ Fraud Indicators Detected: ${data.claimNumber}`;
   const content = `
 URGENT: Fraud indicators have been detected for claim ${data.claimNumber}.
@@ -90,6 +111,7 @@ KINGA AutoVerify AI Team
   `.trim();
 
   await notifyOwner({ title, content });
+  recordNotificationSent(data.claimId, "fraud_detected");
   
   console.log(`[Notification] Fraud alert sent for claim ${data.claimNumber}`);
 }
@@ -97,7 +119,13 @@ KINGA AutoVerify AI Team
 /**
  * Send notification when AI assessment is completed
  */
-export async function notifyAiAssessmentComplete(data: NotificationData) {
+export async function notifyAiAssessmentComplete(data: NotificationData & { claimId: number }) {
+  // Check if notification was recently sent
+  if (!shouldSendNotification(data.claimId, "ai_assessment_complete")) {
+    console.log(`[Notification] Skipping duplicate AI assessment notification for claim ${data.claimNumber}`);
+    return;
+  }
+  
   const title = `AI Assessment Completed: ${data.claimNumber}`;
   const content = `
 Hello,
@@ -116,6 +144,7 @@ KINGA AutoVerify AI Team
   `.trim();
 
   await notifyOwner({ title, content });
+  recordNotificationSent(data.claimId, "ai_assessment_complete");
   
   console.log(`[Notification] AI assessment completion sent for claim ${data.claimNumber}`);
 }
@@ -123,7 +152,13 @@ KINGA AutoVerify AI Team
 /**
  * Send notification when claim status changes
  */
-export async function notifyClaimStatusChange(data: NotificationData) {
+export async function notifyClaimStatusChange(data: NotificationData & { claimId: number }) {
+  // Check if notification was recently sent
+  if (!shouldSendNotification(data.claimId, "status_change")) {
+    console.log(`[Notification] Skipping duplicate status change for claim ${data.claimNumber}`);
+    return;
+  }
+  
   const title = `Claim Status Update: ${data.claimNumber}`;
   const content = `
 Hello ${data.recipientName},
@@ -139,6 +174,7 @@ KINGA AutoVerify AI Team
   `.trim();
 
   await notifyOwner({ title, content });
+  recordNotificationSent(data.claimId, "status_change");
   
   console.log(`[Notification] Status change notification sent for claim ${data.claimNumber}`);
 }

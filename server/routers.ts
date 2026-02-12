@@ -542,6 +542,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Send email notification to assessor
         if (claim && assessor && assessor.email) {
           await notifyAssessorAssignment({
+            claimId: input.claimId,
             recipientEmail: assessor.email,
             recipientName: assessor.name || "Assessor",
             claimNumber: claim.claimNumber,
@@ -641,6 +642,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Send email notification about AI assessment completion
         if (claim && aiAssessment) {
           await notifyAiAssessmentComplete({
+            claimId: input.claimId,
             recipientEmail: ctx.user.email || "",
             recipientName: ctx.user.name || "Insurer",
             claimNumber: claim.claimNumber,
@@ -1562,6 +1564,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // If there are significant discrepancies, create fraud alert
         if (speedDiscrepancy && speedDiscrepancy > 10) {
           await notifyFraudDetected({
+            claimId: input.claimId,
             recipientEmail: "admin@kinga.com",
             recipientName: "Admin",
             claimNumber: claim.claimNumber || `CLAIM-${input.claimId}`,
