@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext, index } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext, index, bigint, boolean } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -2252,3 +2252,194 @@ export const federatedLearningMetadata = mysqlTable("federated_learning_metadata
 
 export type FederatedLearningMetadata = typeof federatedLearningMetadata.$inferSelect;
 export type InsertFederatedLearningMetadata = typeof federatedLearningMetadata.$inferInsert;
+
+
+// ============================================================================
+// CONFIDENCE-GOVERNED CLAIM AUTOMATION FRAMEWORK
+// ============================================================================
+
+/**
+ * Automation Policies
+ * Insurer-configurable automation policies for claim processing.
+ * Defines confidence thresholds, claim type eligibility, financial limits, and vehicle rules.
+ * Confidence-Governed Automation Framework
+ */
+export const automationPolicies = mysqlTable("automation_policies", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  policyName: varchar("policy_name", { length: 255 }).notNull(),
+  
+  // Confidence Thresholds
+  minAutomationConfidence: int("min_automation_confidence").notNull().default(85),
+  minHybridConfidence: int("min_hybrid_confidence").notNull().default(60),
+  
+  // Claim Type Eligibility
+  eligibleClaimTypes: json("eligible_claim_types").notNull(),
+  excludedClaimTypes: json("excluded_claim_types").notNull(),
+  
+  // Financial Limits
+  maxAiOnlyApprovalAmount: bigint("max_ai_only_approval_amount", { mode: "number" }).notNull().default(5000000),
+  maxHybridApprovalAmount: bigint("max_hybrid_approval_amount", { mode: "number" }).notNull().default(20000000),
+  
+  // Fraud Risk Cutoff
+  maxFraudScoreForAutomation: int("max_fraud_score_for_automation").notNull().default(30),
+  
+  // Vehicle Category Rules
+  eligibleVehicleCategories: json("eligible_vehicle_categories").notNull(),
+  excludedVehicleMakes: json("excluded_vehicle_makes").notNull(),
+  minVehicleYear: int("min_vehicle_year").notNull().default(2010),
+  maxVehicleAge: int("max_vehicle_age").notNull().default(15),
+  
+  // Override Controls
+  requireManagerApprovalAbove: bigint("require_manager_approval_above", { mode: "number" }).notNull().default(10000000),
+  allowPolicyOverride: boolean("allow_policy_override").notNull().default(true),
+  
+  // Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  createdByUserId: int("created_by_user_id"),
+  isActive: boolean("is_active").notNull().default(true),
+}, (table) => ({
+  tenantActiveIdx: index("idx_tenant_active").on(table.tenantId, table.isActive),
+  policyNameIdx: index("idx_policy_name").on(table.policyName),
+}));
+
+export type AutomationPolicy = typeof automationPolicies.$inferSelect;
+export type InsertAutomationPolicy = typeof automationPolicies.$inferInsert;
+
+/**
+ * Claim Confidence Scores
+ * Per-claim confidence score breakdown from AI confidence scoring engine.
+ * Tracks 6 component scores and composite confidence score (0-100).
+ * Confidence-Governed Automation Framework
+ */
+export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  
+  // Component Scores (0-100)
+  damageCertainty: decimal("damage_certainty", { precision: 5, scale: 2 }).notNull(),
+  physicsStrength: decimal("physics_strength", { precision: 5, scale: 2 }).notNull(),
+  fraudConfidence: decimal("fraud_confidence", { precision: 5, scale: 2 }).notNull(),
+  historicalAccuracy: decimal("historical_accuracy", { precision: 5, scale: 2 }).notNull(),
+  dataCompleteness: decimal("data_completeness", { precision: 5, scale: 2 }).notNull(),
+  vehicleRiskIntelligence: decimal("vehicle_risk_intelligence", { precision: 5, scale: 2 }).notNull(),
+  
+  // Composite Score
+  compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
+  
+  // Scoring Metadata
+  scoringVersion: varchar("scoring_version", { length: 50 }).notNull().default("v1.0"),
+  scoringTimestamp: timestamp("scoring_timestamp").defaultNow().notNull(),
+  
+  // Component Score Details (JSON)
+  damageCertaintyBreakdown: json("damage_certainty_breakdown"),
+  physicsValidationDetails: json("physics_validation_details"),
+  fraudAnalysisDetails: json("fraud_analysis_details"),
+  historicalAccuracyDetails: json("historical_accuracy_details"),
+  dataCompletenessDetails: json("data_completeness_details"),
+  vehicleRiskDetails: json("vehicle_risk_details"),
+}, (table) => ({
+  claimIdIdx: index("idx_claim_id").on(table.claimId),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  compositeScoreIdx: index("idx_composite_score").on(table.compositeConfidenceScore),
+  scoringTimestampIdx: index("idx_scoring_timestamp").on(table.scoringTimestamp),
+}));
+
+export type ClaimConfidenceScore = typeof claimConfidenceScores.$inferSelect;
+export type InsertClaimConfidenceScore = typeof claimConfidenceScores.$inferInsert;
+
+/**
+ * Claim Routing Decisions
+ * Routing decision audit trail for claim workflow assignment.
+ * Tracks AI-only, hybrid, or manual workflow routing with rationale.
+ * Confidence-Governed Automation Framework
+ */
+export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  confidenceScoreId: int("confidence_score_id").notNull(),
+  automationPolicyId: int("automation_policy_id").notNull(),
+  
+  // Routing Decision
+  routedWorkflow: mysqlEnum("routed_workflow", ["ai_only", "hybrid", "manual"]).notNull(),
+  routingReason: text("routing_reason").notNull(),
+  
+  // Policy Application Snapshot
+  policyThresholdsApplied: json("policy_thresholds_applied").notNull(),
+  
+  // Decision Metadata
+  decisionTimestamp: timestamp("decision_timestamp").defaultNow().notNull(),
+  decisionMadeBySystem: boolean("decision_made_by_system").notNull().default(true),
+  decisionMadeByUserId: int("decision_made_by_user_id"),
+  
+  // Override Tracking
+  wasOverridden: boolean("was_overridden").notNull().default(false),
+  overrideReason: text("override_reason"),
+  overriddenByUserId: int("overridden_by_user_id"),
+  overriddenAt: timestamp("overridden_at"),
+}, (table) => ({
+  claimIdIdx: index("idx_claim_id").on(table.claimId),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  routedWorkflowIdx: index("idx_routed_workflow").on(table.routedWorkflow),
+  decisionTimestampIdx: index("idx_decision_timestamp").on(table.decisionTimestamp),
+}));
+
+export type ClaimRoutingDecision = typeof claimRoutingDecisions.$inferSelect;
+export type InsertClaimRoutingDecision = typeof claimRoutingDecisions.$inferInsert;
+
+/**
+ * Automation Audit Log
+ * Full automation event log for regulatory compliance and performance tracking.
+ * Tracks confidence scores, routing decisions, policy application, and cost variances.
+ * Confidence-Governed Automation Framework
+ */
+export const automationAuditLog = mysqlTable("automation_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  
+  // Confidence Score Reference
+  confidenceScoreId: int("confidence_score_id").notNull(),
+  compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
+  
+  // Routing Decision Reference
+  routingDecisionId: int("routing_decision_id").notNull(),
+  routedWorkflow: mysqlEnum("routed_workflow", ["ai_only", "hybrid", "manual"]).notNull(),
+  routingReason: text("routing_reason").notNull(),
+  
+  // Policy Application
+  automationPolicyId: int("automation_policy_id").notNull(),
+  policySnapshot: json("policy_snapshot").notNull(),
+  
+  // Cost Tracking
+  aiEstimatedCost: bigint("ai_estimated_cost", { mode: "number" }).notNull(),
+  assessorAdjustedCost: bigint("assessor_adjusted_cost", { mode: "number" }),
+  finalApprovedCost: bigint("final_approved_cost", { mode: "number" }),
+  costVarianceAiVsFinal: decimal("cost_variance_ai_vs_final", { precision: 5, scale: 2 }),
+  
+  // Timestamps
+  decisionMadeAt: timestamp("decision_made_at").notNull(),
+  claimApprovedAt: timestamp("claim_approved_at"),
+  claimRejectedAt: timestamp("claim_rejected_at"),
+  
+  // Override Tracking
+  wasOverridden: boolean("was_overridden").notNull().default(false),
+  overrideReason: text("override_reason"),
+  overriddenByUserId: int("overridden_by_user_id"),
+  
+  // Audit Metadata
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  claimIdIdx: index("idx_claim_id").on(table.claimId),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  routedWorkflowIdx: index("idx_routed_workflow").on(table.routedWorkflow),
+  compositeScoreIdx: index("idx_composite_score").on(table.compositeConfidenceScore),
+  decisionMadeAtIdx: index("idx_decision_made_at").on(table.decisionMadeAt),
+  wasOverriddenIdx: index("idx_was_overridden").on(table.wasOverridden),
+}));
+
+export type AutomationAuditLog = typeof automationAuditLog.$inferSelect;
+export type InsertAutomationAuditLog = typeof automationAuditLog.$inferInsert;

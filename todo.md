@@ -3966,4 +3966,69 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 ### Phase 8: Documentation & Delivery
 - [x] Complete architecture document (docs/architecture/hybrid-intelligence-governance.md)
 - [x] Update todo.md with completion status
-- [ ] Save checkpoint (Governance Layer)
+- [x] Save checkpoint (Governance Layer) - version fda3f376
+
+## KINGA Confidence-Governed Claim Automation Framework (February 12, 2026)
+### Phase 1: Architecture Design
+- [x] Design AI confidence scoring model (multi-factor weighted scoring)
+- [x] Design insurer automation policy schema
+- [x] Design claim routing decision tree
+- [x] Design automation audit trail structure
+- [x] Generate docs/architecture/confidence-governed-automation.md (10 sections, comprehensive)
+
+### Phase 2: Database Schema
+- [x] Create automation_policies table (insurer-specific thresholds)
+- [x] Create claim_confidence_scores table (per-claim confidence breakdown)
+- [x] Create claim_routing_decisions table (routing audit trail)
+- [x] Create automation_audit_log table (full automation event log)
+- [x] Run migrations (migrate-automation-framework.mjs)
+
+### Phase 3: AI Confidence Scoring Engine
+- [x] Implement damage detection certainty scorer (calculateDamageCertainty)
+- [x] Implement physics validation strength scorer (calculatePhysicsStrength)
+- [x] Implement fraud scoring confidence analyzer (calculateFraudConfidence)
+- [x] Implement historical AI accuracy pattern lookup (calculateHistoricalAccuracy)
+- [x] Implement data completeness metrics calculator (calculateDataCompleteness)
+- [x] Implement vehicle risk intelligence scorer (calculateVehicleRiskIntelligence)
+- [x] Build composite confidence score aggregator (calculateCompositeConfidenceScore)
+
+### Phase 4: Automation Policy Configuration
+- [ ] Implement policy CRUD operations
+- [ ] Implement minimum automation confidence threshold validator
+- [ ] Implement claim type eligibility rules
+- [ ] Implement maximum AI-only approval amount enforcer
+- [ ] Implement fraud risk cutoff rules
+- [ ] Implement vehicle category automation rules
+- [ ] Build policy inheritance (tenant → insurer → global defaults)
+
+### Phase 5: Claim Routing Decision Engine
+- [ ] Implement AI-only workflow eligibility checker
+- [ ] Implement hybrid AI + assessor workflow router
+- [ ] Implement manual assessor workflow fallback
+- [ ] Build dynamic routing decision logic
+- [ ] Implement routing decision audit logger
+
+### Phase 6: Automation Audit Logging
+- [ ] Implement confidence score change logger
+- [ ] Implement routing decision logger
+- [ ] Implement policy override logger
+- [ ] Implement automation outcome tracker
+- [ ] Build audit trail query API
+
+### Phase 7: Insurer Policy Configuration UI
+- [ ] Build automation policy configuration page
+- [ ] Build confidence threshold slider controls
+- [ ] Build claim type eligibility checkboxes
+- [ ] Build automation dashboard with metrics
+- [ ] Build routing decision audit viewer
+
+### Phase 8: Testing
+- [ ] Write tests for confidence scoring logic
+- [ ] Write tests for routing decision engine
+- [ ] Write tests for policy validation
+- [ ] Write integration tests for full automation workflow
+
+### Phase 9: Documentation & Delivery
+- [ ] Complete architecture document
+- [ ] Update todo.md with completion status
+- [ ] Save checkpoint
