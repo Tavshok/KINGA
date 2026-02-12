@@ -562,15 +562,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const assessor = assessors.find(a => a.id === input.assessorId);
 
         // Send email notification to assessor
-        if (claim && assessor && assessor.email) {
-          await notifyAssessorAssignment({
+        if (claim && assessor) {
+          const { notifyAssessorAssignment: notifyAssignment } = await import('./workflow-notifications');
+          const { getUserById } = await import('./db');
+          
+          // Get claimant details
+          const claimant = await getUserById(claim.claimantId);
+          
+          await notifyAssignment({
             claimId: input.claimId,
-            recipientEmail: assessor.email,
-            recipientName: assessor.name || "Assessor",
+            assessorId: input.assessorId,
             claimNumber: claim.claimNumber,
-            vehicleMake: claim.vehicleMake || "",
-            vehicleModel: claim.vehicleModel || "",
-            incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
+            claimantName: claimant?.name || 'Claimant',
+            tenantId: tenantId || 'default',
           });
         }
 
@@ -807,6 +811,33 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         
         console.log(`[Approval] Claim ${claim.claimNumber} technically approved by user ${ctx.user.id} for R${(approvedAmount / 100).toFixed(2)}`);
+
+        // Send notifications
+        const { notifyClaimApproval, notifyPanelBeaterSelection } = await import('./workflow-notifications');
+        const { getPanelBeaterById } = await import('./db');
+        
+        // Get panel beater details
+        const panelBeater = await getPanelBeaterById(selectedQuote.panelBeaterId);
+        
+        // Notify claimant of approval
+        await notifyClaimApproval({
+          claimId: input.claimId,
+          claimNumber: claim.claimNumber,
+          claimantId: claim.claimantId,
+          approvedAmount,
+          selectedPanelBeater: panelBeater?.businessName || 'Selected Panel Beater',
+          tenantId: tenantId || 'default',
+        });
+        
+        // Notify panel beater of selection
+        await notifyPanelBeaterSelection({
+          claimId: input.claimId,
+          panelBeaterId: selectedQuote.panelBeaterId,
+          claimNumber: claim.claimNumber,
+          claimantName: 'Claimant', // TODO: Get from user table
+          approvedAmount,
+          tenantId: tenantId || 'default',
+        });
 
         return { 
           success: true, 
@@ -1257,6 +1288,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             quotesReceived: allQuotes.length + 1, // Include current quote
           },
         });
+        
+        // Send email notification for quote submission
+        if (claim) {
+          const { notifyQuoteSubmission } = await import('./workflow-notifications');
+          await notifyQuoteSubmission({
+            claimId: input.claimId,
+            panelBeaterId: input.panelBeaterId,
+            claimNumber: claim.claimNumber,
+            quotedAmount: input.quotedAmount,
+            estimatedDays: input.estimatedDuration || 0,
+            tenantId: tenantId || 'default',
+          });
+        }
 
         return { success: true };
       }),
@@ -2728,6 +2772,105 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .query(async () => {
         const { getPanelBeaterPerformance } = await import("./analytics-db");
         return await getPanelBeaterPerformance();
+      }),
+  }),
+
+  /**
+   * Panel Beater Analytics Router
+   * 
+   * Comprehensive performance analytics for panel beaters:
+   * - Quote acceptance rates
+   * - Cost competitiveness
+   * - Turnaround time metrics
+   * - Quality and reliability scores
+   */
+  panelBeaterAnalytics: router({
+    /**
+     * Get All Panel Beater Performance Metrics
+     * 
+     * Returns comprehensive performance data for all panel beaters.
+     * 
+     * @returns Array of panel beater performance metrics
+     */
+    getAllPerformance: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getAllPanelBeaterPerformance } = await import('./panel-beater-analytics');
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        return await getAllPanelBeaterPerformance(tenantId);
+      }),
+
+    /**
+     * Get Single Panel Beater Performance
+     * 
+     * Returns detailed performance metrics for a specific panel beater.
+     * 
+     * @param panelBeaterId - ID of the panel beater
+     * @returns Panel beater performance metrics
+     */
+    getPerformance: protectedProcedure
+      .input(z.object({
+        panelBeaterId: z.number(),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { getPanelBeaterPerformance } = await import('./panel-beater-analytics');
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        return await getPanelBeaterPerformance(input.panelBeaterId, tenantId);
+      }),
+
+    /**
+     * Get Top Performing Panel Beaters
+     * 
+     * Returns the top N panel beaters based on composite performance score.
+     * 
+     * @param limit - Number of top performers to return (default: 5)
+     * @returns Array of top panel beater performance metrics
+     */
+    getTopPerformers: protectedProcedure
+      .input(z.object({
+        limit: z.number().default(5),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { getTopPanelBeaters } = await import('./panel-beater-analytics');
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        return await getTopPanelBeaters(input.limit, tenantId);
+      }),
+
+    /**
+     * Get Panel Beater Performance Trends
+     * 
+     * Returns historical performance trends for a panel beater.
+     * 
+     * @param panelBeaterId - ID of the panel beater
+     * @param months - Number of months to include (default: 6)
+     * @returns Array of monthly performance data
+     */
+    getTrends: protectedProcedure
+      .input(z.object({
+        panelBeaterId: z.number(),
+        months: z.number().default(6),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { getPanelBeaterTrends } = await import('./panel-beater-analytics');
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        return await getPanelBeaterTrends(input.panelBeaterId, input.months, tenantId);
+      }),
+
+    /**
+     * Compare Panel Beaters
+     * 
+     * Returns side-by-side performance comparison for multiple panel beaters.
+     * 
+     * @param panelBeaterIds - Array of panel beater IDs to compare
+     * @returns Array of panel beater performance metrics
+     */
+    compare: protectedProcedure
+      .input(z.object({
+        panelBeaterIds: z.array(z.number()),
+      }))
+      .query(async ({ input, ctx }) => {
+        const { comparePanelBeaters } = await import('./panel-beater-analytics');
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        return await comparePanelBeaters(input.panelBeaterIds, tenantId);
       }),
   }),
 

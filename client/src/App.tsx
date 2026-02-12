@@ -45,6 +45,7 @@ import ClaimsCostTrend from "./pages/analytics/ClaimsCostTrend";
 import FraudHeatmap from "./pages/analytics/FraudHeatmap";
 import FleetRisk from "./pages/analytics/FleetRisk";
 import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
+import PanelBeaterPerformanceDashboard from "./pages/PanelBeaterPerformance";
 import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 import UploadDocuments from "./pages/processor/UploadDocuments";
 import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
@@ -175,6 +176,12 @@ function Router() {
       <Route path="/insurer/claims/:claimId/quote-comparison">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerQuoteComparison />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurer/panel-beater-performance">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <PanelBeaterPerformanceDashboard />
         </ProtectedRoute>
       </Route>
       
