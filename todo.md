@@ -3824,3 +3824,87 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Write tests for variance categorization (5 tests)
 - [x] Write tests for pipeline processing result structure (2 tests)
 - [x] Write tests for data quality scoring and cost breakdown validation (12 tests)
+
+
+## KINGA Production Hardening & Intelligence Maturity (February 12, 2026)
+### Phase 1: Platform Health Audit
+- [x] Audit end-to-end claims workflow reliability (ingestion → AI → assessor → approval → dashboard)
+- [x] Identify broken transitions and unwired UI actions
+- [x] Identify missing state mutations and partial implementations
+- [x] Identify event propagation failures
+- [x] Generate docs/architecture/workflow-gap-audit.md (15 critical gaps identified, 40% workflow completeness)
+
+### Phase 2: Claim Intelligence Dataset Capture Layer
+- [x] Design claim_intelligence_dataset table schema (57 columns, schema versioning, multi-tenant)
+- [x] Implement event logging hooks in claim lifecycle (1/7 hooks added, emitClaimEvent function)
+- [x] Capture claim context (vehicle, accident, police report)
+- [x] Capture damage features (components, severity, physics score)
+- [x] Capture assessment features (AI vs Assessor vs Final cost, variances)
+- [x] Capture fraud features (AI score, explanation, outcome)
+- [x] Capture workflow features (assessor_id, turnaround time, reassignments)
+- [x] Generate docs/architecture/claim-intelligence-dataset.md (comprehensive 11-section spec)
+
+### Phase 3: Ground Truth Learning Loop
+- [ ] Implement GroundTruthCaptureService triggered on final approval
+- [ ] Lock final approved values for training
+- [ ] Generate model training records
+- [ ] Record assessor vs AI performance metrics
+- [ ] Record cost optimization intelligence
+- [ ] Create ModelTrainingQueue event emitter
+- [ ] Create AssessorPerformanceAnalytics tracker
+- [ ] Generate docs/architecture/continuous-learning-loop.md
+
+### Phase 4: E2E Claim Validation Test Suite
+- [ ] Create tests/e2e/full-claim-lifecycle.test.ts
+- [ ] Test mixed PDF ingestion
+- [ ] Test handwritten annotation extraction
+- [ ] Test image damage detection
+- [ ] Test AI + assessor reconciliation
+- [ ] Test final approval completion
+- [ ] Validate data persistence integrity
+- [ ] Validate event emission completeness
+- [ ] Validate dataset capture completeness
+- [ ] Validate dashboard metric population
+
+### Phase 5: Intelligence Dashboard Completion
+- [ ] Insurer Dashboard: AI vs Assessor cost variance
+- [ ] Insurer Dashboard: Fraud detection effectiveness
+- [ ] Insurer Dashboard: Claim processing cycle analytics
+- [ ] Insurer Dashboard: Repair cost optimization savings
+- [ ] Insurer Dashboard: Assessor performance benchmarking
+- [ ] Assessor Dashboard: AI comparison insights
+- [ ] Assessor Dashboard: Cost optimization recommendations
+- [ ] Assessor Dashboard: Turnaround efficiency analytics
+- [ ] Assessor Dashboard: Premium tool performance delta
+- [ ] KINGA Admin Dashboard: Dataset growth metrics
+- [ ] KINGA Admin Dashboard: Model accuracy drift
+- [ ] KINGA Admin Dashboard: Fraud pattern evolution
+- [ ] KINGA Admin Dashboard: Platform usage analytics
+- [ ] KINGA Admin Dashboard: Marketplace performance metrics
+- [ ] Generate docs/architecture/intelligence-dashboard-spec.md
+
+### Phase 6: Observability & Model Traceability
+- [ ] Implement LLM decision inputs and outputs logging
+- [ ] Track model fallback usage frequency
+- [ ] Track physics validation override frequency
+- [ ] Track fraud scoring distribution
+- [ ] Track claim outcome drift over time
+- [ ] Create /metrics endpoint
+- [ ] Create ModelExplainability logs
+- [ ] Extend ClaimAuditTrail for traceability
+
+### Phase 7: Production Data Ingestion Pipeline
+- [ ] Create scripts/backfill/historical-claim-ingestion.ts
+- [ ] Process thousands of mixed-format PDFs
+- [ ] Extract structured claim intelligence
+- [ ] Backfill dataset capture tables
+- [ ] Flag incomplete or low-confidence extractions
+
+### Phase 8: Readiness Validation
+- [ ] Calculate workflow completeness score
+- [ ] Calculate dataset capture completeness score
+- [ ] Calculate AI traceability score
+- [ ] Calculate dashboard intelligence coverage score
+- [ ] Calculate learning loop operational score
+- [ ] Generate KINGA Production Intelligence Readiness Report
+- [ ] Validate ≥ 90% readiness threshold

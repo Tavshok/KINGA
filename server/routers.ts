@@ -425,16 +425,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Claim ${claimNumber} submitted`,
         });
 
-        // Emit ClaimSubmitted event (temporarily disabled until Kafka is set up)
-        // await eventIntegration.emitClaimSubmitted({
-        //   claimId: newClaim.id,
-        //   claimNumber,
-        //   claimantId: ctx.user.id,
-        //   policyNumber: input.policyNumber,
-        //   incidentDate: new Date(input.incidentDate),
-        //   vehicleId: newClaim.id, // TODO: Create separate vehicles table
-        //   damageDescription: input.incidentDescription,
-        // });
+        // Emit claim_submitted event (Phase 2: Dataset Capture)
+        const { emitClaimEvent } = await import("./dataset-capture");
+        await emitClaimEvent({
+          claimId: newClaim.id,
+          eventType: "claim_submitted",
+          payload: {
+            claimNumber,
+            damagePhotoCount: input.damagePhotos.length,
+            policyVerified: false,
+            vehicleYear: input.vehicleYear,
+            vehicleMake: input.vehicleMake,
+            vehicleModel: input.vehicleModel,
+          },
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+        });
 
         // Automatically trigger AI assessment if damage photos are provided
         if (input.damagePhotos && input.damagePhotos.length > 0) {

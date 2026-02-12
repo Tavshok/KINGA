@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext, index } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -1973,3 +1973,114 @@ export const varianceDatasets = mysqlTable("variance_datasets", {
 
 export type VarianceDataset = typeof varianceDatasets.$inferSelect;
 export type InsertVarianceDataset = typeof varianceDatasets.$inferInsert;
+
+
+/**
+ * Claim Intelligence Dataset
+ * Comprehensive ML training dataset captured at final approval.
+ * Used for continuous learning, model retraining, and benchmarking.
+ * Phase 2: Production Hardening & Intelligence Maturity
+ */
+export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  
+  // Schema version for feature evolution
+  schemaVersion: int("schema_version").notNull().default(1),
+  
+  // CLAIM CONTEXT FEATURES
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  vehicleMass: int("vehicle_mass"), // kg, for physics validation
+  accidentType: varchar("accident_type", { length: 50 }), // 'frontal', 'rear', 'side', 'rollover', 'multi-impact'
+  impactDirection: varchar("impact_direction", { length: 50 }), // 'front', 'rear', 'left', 'right', 'top'
+  accidentDescriptionText: text("accident_description_text"),
+  policeReportPresence: tinyint("police_report_presence").default(0),
+  
+  // DAMAGE FEATURES
+  detectedDamageComponents: json("detected_damage_components"), // Array of component names
+  damageSeverityScores: json("damage_severity_scores"), // Map of component → severity (0-100)
+  llmDamageReasoning: text("llm_damage_reasoning"),
+  physicsPlausibilityScore: int("physics_plausibility_score"), // 0-100
+  
+  // ASSESSMENT FEATURES
+  aiEstimatedCost: int("ai_estimated_cost"), // cents
+  assessorAdjustedCost: int("assessor_adjusted_cost"), // cents
+  insurerApprovedCost: int("insurer_approved_cost"), // cents (ground truth)
+  costVarianceAiVsAssessor: int("cost_variance_ai_vs_assessor"), // percentage
+  costVarianceAssessorVsFinal: int("cost_variance_assessor_vs_final"), // percentage
+  costVarianceAiVsFinal: int("cost_variance_ai_vs_final"), // percentage
+  
+  // FRAUD FEATURES
+  aiFraudScore: int("ai_fraud_score"), // 0-100
+  fraudExplanation: text("fraud_explanation"),
+  finalFraudOutcome: varchar("final_fraud_outcome", { length: 50 }), // 'legitimate', 'fraudulent', 'suspicious', 'under_investigation'
+  
+  // WORKFLOW FEATURES
+  assessorId: int("assessor_id"),
+  assessorTier: varchar("assessor_tier", { length: 50 }), // 'free', 'premium', 'enterprise'
+  assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
+  reassignmentCount: int("reassignment_count").default(0),
+  approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
+  
+  // METADATA
+  capturedAt: timestamp("captured_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  claimIdIdx: index("idx_claim_id").on(table.claimId),
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  capturedAtIdx: index("idx_captured_at").on(table.capturedAt),
+  schemaVersionIdx: index("idx_schema_version").on(table.schemaVersion),
+}));
+
+export type ClaimIntelligenceDataset = typeof claimIntelligenceDataset.$inferSelect;
+export type InsertClaimIntelligenceDataset = typeof claimIntelligenceDataset.$inferInsert;
+
+/**
+ * Claim Events
+ * Immutable event log for all claim state transitions and actions.
+ * Used for timeline reconstruction, turnaround calculation, and audit trail.
+ * Phase 2: Production Hardening & Intelligence Maturity
+ */
+export const claimEvents = mysqlTable("claim_events", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  eventPayload: json("event_payload"), // Flexible payload for event-specific data
+  userId: int("user_id"), // Who triggered the event (NULL for system events)
+  userRole: varchar("user_role", { length: 50 }), // Role at time of event
+  tenantId: varchar("tenant_id", { length: 255 }),
+  emittedAt: timestamp("emitted_at").defaultNow().notNull(),
+}, (table) => ({
+  claimIdIdx: index("idx_claim_id").on(table.claimId),
+  eventTypeIdx: index("idx_event_type").on(table.eventType),
+  emittedAtIdx: index("idx_emitted_at").on(table.emittedAt),
+}));
+
+export type ClaimEvent = typeof claimEvents.$inferSelect;
+export type InsertClaimEvent = typeof claimEvents.$inferInsert;
+
+/**
+ * Model Training Queue
+ * Queue for tracking claims ready for ML model retraining.
+ * Decouples dataset capture from model training.
+ * Phase 2: Production Hardening & Intelligence Maturity
+ */
+export const modelTrainingQueue = mysqlTable("model_training_queue", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  datasetRecordId: int("dataset_record_id").notNull(), // FK to claim_intelligence_dataset
+  trainingPriority: varchar("training_priority", { length: 50 }).default("normal"), // 'high', 'normal', 'low'
+  processed: tinyint("processed").default(0),
+  processedAt: timestamp("processed_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  processedIdx: index("idx_processed").on(table.processed),
+  trainingPriorityIdx: index("idx_training_priority").on(table.trainingPriority),
+  createdAtIdx: index("idx_created_at").on(table.createdAt),
+}));
+
+export type ModelTrainingQueue = typeof modelTrainingQueue.$inferSelect;
+export type InsertModelTrainingQueue = typeof modelTrainingQueue.$inferInsert;
