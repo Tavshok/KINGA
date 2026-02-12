@@ -4395,3 +4395,69 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test complete claim lifecycle with all roles
 - [ ] Verify analytics charts display correct data
 - [ ] Create final checkpoint with all features complete
+
+
+## Intelligent Report Generation Framework (Feb 12, 2026)
+
+### Architecture & Documentation
+- [x] Design report architecture and data flow
+- [x] Create technical documentation (docs/architecture/intelligent-report-generation.md)
+- [x] Define report schemas and templates for each role (insurer, assessor, regulatory)
+- [x] Design visualization standards and component specifications
+
+### Data Aggregation & Intelligence Extraction
+- [x] Build claim intelligence aggregation service (server/report-intelligence-aggregator.ts)
+- [x] Extract damage assessment data from AI and assessor evaluations
+- [x] Extract cost comparison data from quotes and AI estimates
+- [x] Extract fraud risk data from all detection sources
+- [x] Extract physics validation results
+- [ ] Build workflow audit trail extraction service
+
+### LLM-Powered Narrative Generation
+- [ ] Create report narrative generator using invokeLLM (server/report-narrative-generator.ts)
+- [ ] Implement insurer report template with executive summary
+- [ ] Implement assessor report template with technical details
+- [ ] Implement regulatory/audit report template with compliance focus
+- [ ] Add AI explainability sections to all templates
+- [ ] Test narrative generation with real claim data
+
+### Visualization Components
+- [ ] Create confidence gauge component (SVG-based)
+- [ ] Create cost comparison chart component (Chart.js)
+- [ ] Create fraud risk heat scale component
+- [ ] Create claim workflow timeline chart component
+- [ ] Create damage severity visual legend component
+- [ ] Test all visualization components with sample data
+
+### PDF Generation Service
+- [ ] Set up PDF generation library (puppeteer or similar)
+- [ ] Create PDF report templates with embedded charts
+- [ ] Implement image embedding for damage photos and annotated images
+- [ ] Add page numbering, headers, and footers
+- [ ] Implement table of contents generation
+- [ ] Test PDF generation with full report data
+
+### Report Validation Service
+- [ ] Create report validation service (server/report-validator.ts)
+- [ ] Validate evidence completeness (photos, quotes, assessments)
+- [ ] Validate AI explainability inclusion
+- [ ] Validate audit trail inclusion
+- [ ] Validate template compliance
+- [ ] Add validation error reporting
+
+### tRPC Procedures & Frontend UI
+- [ ] Create reports.generate tRPC procedure
+- [ ] Create reports.validate tRPC procedure
+- [ ] Create reports.download tRPC procedure
+- [ ] Build report generation UI page
+- [ ] Add report preview functionality
+- [ ] Add report download button
+- [ ] Test report generation from frontend
+
+### Testing & Finalization
+- [ ] Test insurer report generation end-to-end
+- [ ] Test assessor report generation end-to-end
+- [ ] Test regulatory report generation end-to-end
+- [ ] Verify all visualizations render correctly in PDF
+- [ ] Run full test suite
+- [ ] Create checkpoint with report generation framework
