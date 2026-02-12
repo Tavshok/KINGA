@@ -20,6 +20,7 @@ This directory contains the complete architecture documentation for the KINGA mu
 |------------|-------|---------|------|-------------|
 | **[KINGA-AEA-2026-018](KINGA-AEA-2026-018-Assessor-Ecosystem-Architecture.md)** | Assessor Ecosystem Architecture | 1.1 | Feb 12, 2026 | Complete specification of the assessor ecosystem supporting three participation models (Internal, BYOA, Marketplace) with AI-human reconciliation, premium intelligence tools, and multi-currency support |
 | **[KINGA-AWL-2026-019](KINGA-AWL-2026-019-Assessor-Workflow-Lifecycle.md)** | Assessor Workflow Lifecycle | 1.0 | Feb 12, 2026 | Complete workflow lifecycle integrated into claims state machine, including SLA enforcement, notification triggers, escalation rules, and audit logging |
+| **[KINGA-PMA-2026-020](KINGA-PMA-2026-020-Premium-Monetization-Architecture.md)** | Premium AI Tools Monetization Architecture | 1.0 | Feb 12, 2026 | Complete monetization framework for premium assessor AI tools with freemium subscription tiers, Stripe payment integration, feature gating middleware, usage metering, and ROI analytics dashboard |
 
 ### Supporting Assets
 
@@ -53,6 +54,17 @@ KINGA-AWL-2026-019 (Assessor Workflow Lifecycle)
     ├─── Specifies: Retry & Reassignment Logic
     ├─── Specifies: Kafka Event Mapping (8 topics)
     └─── Specifies: Audit Logging Model (hash-chained immutability)
+
+KINGA-PMA-2026-020 (Premium Monetization Architecture)
+    │
+    ├─── Defines: Subscription Tier System (Free, Premium, Enterprise)
+    ├─── Defines: Free Trial Logic (14-day trial with credit card required)
+    ├─── Defines: Usage-Based Pricing (hybrid model with overage billing)
+    ├─── Defines: Payment Gateway Integration (Stripe + PayFast)
+    ├─── Defines: Feature Gating Middleware (server-side + client-side)
+    ├─── Defines: Usage Metering Architecture (API call tracking)
+    ├─── Defines: ROI Analytics Dashboard (performance uplift, cost optimization, revenue growth)
+    └─── Defines: Performance-Based Incentives (20-30% discounts for top assessors)
 ```
 
 **Integration Points:**
