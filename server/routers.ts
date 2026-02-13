@@ -3634,6 +3634,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         return createServiceRequest({
           vehicleId: input.vehicleId,
+          ownerId: ctx.user.id,
           serviceType: input.serviceType,
           priority: input.priority,
           description: input.description,

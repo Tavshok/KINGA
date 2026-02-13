@@ -23,8 +23,11 @@ export type ServiceQuote = DbServiceQuote;
  */
 export async function createServiceRequest(data: {
   vehicleId: number;
-  serviceType: string;
+  ownerId: number;
+  requestType?: "maintenance" | "repair" | "inspection" | "emergency";
+  serviceType: string; // Will be mapped to serviceCategory
   priority: "low" | "medium" | "high" | "urgent";
+  title?: string;
   description: string;
   preferredDate?: Date | null;
   budget?: number | null; // in cents
@@ -35,11 +38,12 @@ export async function createServiceRequest(data: {
 
   const result = await db.insert(serviceRequests).values({
     vehicleId: data.vehicleId,
-    serviceType: data.serviceType,
-    priority: data.priority,
+    ownerId: data.ownerId,
+    requestType: data.requestType || "maintenance",
+    serviceCategory: data.serviceType as any,
+    urgency: data.priority === "urgent" ? "critical" : data.priority as any,
+    title: data.title || "Service Request",
     description: data.description,
-    preferredDate: data.preferredDate || null,
-    budget: data.budget || null,
     status: "open",
     tenantId: data.tenantId,
   });

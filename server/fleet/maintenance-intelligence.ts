@@ -165,7 +165,7 @@ export async function getMaintenanceAlerts(
       make: vehicle.make,
       model: vehicle.model,
       alertType,
-      serviceType: schedule.maintenanceType,
+      serviceType: schedule.maintenanceType as string,
       dueDate: schedule.nextDueDate,
       dueMileage: schedule.nextDueMileage,
       currentMileage: 0, // Will be populated from vehicle_mileage_logs if needed
@@ -216,7 +216,7 @@ export async function createMaintenanceSchedule(data: {
     lastServiceMileage: data.lastServiceMileage || null,
     nextDueDate: data.nextDueDate || null,
     nextDueMileage: data.nextDueMileage || null,
-    isActive: true,
+    isActive: 1,
     tenantId: data.tenantId,
   });
 
@@ -235,6 +235,7 @@ export async function recordMaintenanceService(data: {
   cost: number; // in cents
   description: string | null;
   nextServiceDue: Date | null;
+  recordedBy?: number;
   tenantId: string;
 }) {
   const db = await getDb();
@@ -245,11 +246,10 @@ export async function recordMaintenanceService(data: {
     vehicleId: data.vehicleId,
     serviceType: data.serviceType,
     serviceDate: data.serviceDate,
-    mileageAtService: data.mileageAtService,
+    serviceMileage: data.mileageAtService,
     serviceProvider: data.serviceProvider,
-    cost: data.cost,
-    description: data.description,
-    nextServiceDue: data.nextServiceDue,
+    totalCost: data.cost,
+    recordedBy: data.recordedBy || 1, // TODO: Get from context
     tenantId: data.tenantId,
   });
 
@@ -268,7 +268,7 @@ export async function recordMaintenanceService(data: {
       .where(
         and(
           eq(maintenanceSchedules.vehicleId, data.vehicleId),
-          eq(maintenanceSchedules.maintenanceType, data.serviceType)
+          eq(maintenanceSchedules.maintenanceType, data.serviceType as any)
         )
       );
   }
@@ -296,7 +296,7 @@ async function getIntervalMileage(vehicleId: number, serviceType: string): Promi
     .where(
       and(
         eq(maintenanceSchedules.vehicleId, vehicleId),
-        eq(maintenanceSchedules.maintenanceType, serviceType)
+        eq(maintenanceSchedules.maintenanceType, serviceType as any)
       )
     )
     .limit(1);
@@ -355,7 +355,7 @@ export async function updateVehicleMileage(vehicleId: number, newMileage: number
   for (const schedule of schedules) {
     if (schedule.nextDueMileage && newMileage >= schedule.nextDueMileage) {
       // Maintenance is due - could trigger notification here
-      console.log(`Maintenance due for vehicle ${vehicleId}: ${schedule.serviceType}`);
+      console.log(`Maintenance due for vehicle ${vehicleId}: ${schedule.maintenanceType}`);
     }
   }
 
