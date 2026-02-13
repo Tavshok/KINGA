@@ -4702,3 +4702,78 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Build underwriting decision audit trail
 - [ ] Implement document encryption
 - [ ] Create access control for sensitive data
+
+
+## Fleet Management Intelligence Platform (Feb 13, 2026)
+
+### Architecture & Documentation
+- [x] Create comprehensive fleet management architecture documentation
+- [x] Design database schema for fleet entities
+- [x] Define API contracts for fleet operations
+- [x] Document event schema for maintenance alerts
+- [x] Create dashboard specifications
+
+### 1. Fleet Registry Module
+- [ ] Build fleet registration form with vehicle details
+- [ ] Implement document upload (registration books, ownership docs, inspection photos)
+- [ ] Create vehicle specifications storage
+- [ ] Add VIN/chassis number tracking
+- [ ] Store current insurer and policy details
+- [ ] Implement replacement value tracking
+
+### 2. Maintenance Intelligence Engine
+- [ ] Track service intervals (mileage and time-based)
+- [ ] Implement maintenance due date prediction
+- [ ] Create maintenance alert generation system
+- [ ] Build historical service records tracking
+- [ ] Calculate maintenance compliance score
+- [ ] Add preventative maintenance scheduling
+- [ ] Implement regulatory inspection reminders
+- [ ] Create safety compliance alerts
+
+### 3. Service Quote Marketplace
+- [ ] Build quote request form with problem descriptions
+- [ ] Implement image upload for service requests
+- [ ] Create service provider quote submission interface
+- [ ] Build quote comparison with AI cost optimization
+- [ ] Add price benchmarking analytics
+- [ ] Implement repair duration prediction
+- [ ] Track service provider historical performance
+- [ ] Create cost deviation alerts
+
+### 4. Vehicle Valuation Engine Integration
+- [ ] Integrate with existing KINGA valuation AI
+- [ ] Generate insurance valuation reports
+- [ ] Provide resale value estimation
+- [ ] Calculate depreciation curves
+- [ ] Generate replacement cost intelligence
+- [ ] Create PDF export for valuation reports
+
+### 5. Fleet Risk Intelligence Scoring
+- [ ] Calculate risk scores based on maintenance compliance
+- [ ] Factor in claims frequency
+- [ ] Consider vehicle age and class
+- [ ] Analyze repair cost trends
+- [ ] Feed risk scores into insurance premium optimization
+- [ ] Integrate with fraud detection models
+- [ ] Provide underwriting intelligence data
+
+### 6. Fleet Dashboard and Visualization
+- [ ] Create maintenance compliance charts
+- [ ] Build claims frequency analytics
+- [ ] Add cost optimization insights
+- [ ] Display risk score trends
+- [ ] Implement vehicle downtime analysis
+- [ ] Create fleet overview dashboard
+
+### 7. Claims Integration
+- [ ] Auto-populate claims data from fleet vehicles
+- [ ] Provide maintenance context to claims
+- [ ] Feed valuation data into claims system
+- [ ] Add risk intelligence metadata to claims AI
+
+### 8. Security and Governance
+- [ ] Implement tenant-level data isolation
+- [ ] Add fleet owner RBAC controls
+- [ ] Create full audit trail for fleet record changes
+- [ ] Implement document encryption

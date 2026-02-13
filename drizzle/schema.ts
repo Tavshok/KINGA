@@ -3000,3 +3000,427 @@ export const policyClaimLinks = mysqlTable("policy_claim_links", {
 
 export type PolicyClaimLink = typeof policyClaimLinks.$inferSelect;
 export type InsertPolicyClaimLink = typeof policyClaimLinks.$inferInsert;
+
+
+// ============================================================================
+// FLEET MANAGEMENT PLATFORM TABLES
+// ============================================================================
+
+/**
+ * Fleets - Groups of vehicles owned by fleet owners
+ */
+export const fleets = mysqlTable("fleets", {
+  id: int("id").autoincrement().primaryKey(),
+  ownerId: int("owner_id").notNull(), // Link to users table
+  tenantId: varchar("tenant_id", { length: 64 }), // Multi-tenant isolation
+  
+  fleetName: varchar("fleet_name", { length: 255 }).notNull(),
+  fleetType: mysqlEnum("fleet_type", ["mining", "logistics", "corporate", "rental", "public_transport", "agriculture", "construction"]).notNull(),
+  
+  // Fleet statistics
+  totalVehicles: int("total_vehicles").default(0),
+  activeVehicles: int("active_vehicles").default(0),
+  
+  // Fleet metadata
+  description: text("description"),
+  primaryLocation: varchar("primary_location", { length: 255 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Fleet = typeof fleets.$inferSelect;
+export type InsertFleet = typeof fleets.$inferInsert;
+
+/**
+ * Fleet Documents - Documents associated with fleets and vehicles
+ */
+export const fleetDocuments = mysqlTable("fleet_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  fleetId: int("fleet_id"),
+  vehicleId: int("vehicle_id"),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  documentType: mysqlEnum("document_type", [
+    "registration_book",
+    "ownership_certificate",
+    "inspection_report",
+    "insurance_policy",
+    "service_history",
+    "photo",
+    "valuation_report",
+    "other"
+  ]).notNull(),
+  
+  documentName: varchar("document_name", { length: 255 }).notNull(),
+  s3Key: varchar("s3_key", { length: 500 }).notNull(),
+  s3Url: text("s3_url").notNull(),
+  fileSize: int("file_size"), // in bytes
+  mimeType: varchar("mime_type", { length: 100 }),
+  
+  // Verification
+  verificationStatus: mysqlEnum("verification_status", ["pending", "verified", "rejected"]).default("pending"),
+  verifiedBy: int("verified_by"),
+  verifiedAt: timestamp("verified_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  uploadedBy: int("uploaded_by").notNull(),
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+});
+
+export type FleetDocument = typeof fleetDocuments.$inferSelect;
+export type InsertFleetDocument = typeof fleetDocuments.$inferInsert;
+
+/**
+ * Maintenance Schedules - Scheduled maintenance for vehicles
+ */
+export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Schedule definition
+  maintenanceType: mysqlEnum("maintenance_type", [
+    "oil_change",
+    "tire_rotation",
+    "brake_inspection",
+    "engine_service",
+    "transmission_service",
+    "annual_inspection",
+    "safety_inspection",
+    "filter_replacement",
+    "battery_check",
+    "coolant_flush",
+    "custom"
+  ]).notNull(),
+  description: text("description"),
+  
+  // Interval configuration
+  intervalType: mysqlEnum("interval_type", ["mileage", "time", "both"]).notNull(),
+  mileageInterval: int("mileage_interval"), // in km
+  timeInterval: int("time_interval"), // in days
+  
+  // Current status
+  lastServiceDate: timestamp("last_service_date"),
+  lastServiceMileage: int("last_service_mileage"),
+  nextDueDate: timestamp("next_due_date"),
+  nextDueMileage: int("next_due_mileage"),
+  
+  // Alert configuration
+  alertDaysBefore: int("alert_days_before").default(7),
+  alertMileageBefore: int("alert_mileage_before").default(500),
+  
+  isActive: tinyint("is_active").default(1),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type MaintenanceSchedule = typeof maintenanceSchedules.$inferSelect;
+export type InsertMaintenanceSchedule = typeof maintenanceSchedules.$inferInsert;
+
+/**
+ * Maintenance Records - Historical maintenance performed
+ */
+export const maintenanceRecords = mysqlTable("maintenance_records", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull(),
+  scheduleId: int("schedule_id"),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Service details
+  serviceDate: timestamp("service_date").notNull(),
+  serviceMileage: int("service_mileage"),
+  serviceType: varchar("service_type", { length: 255 }).notNull(),
+  serviceProvider: varchar("service_provider", { length: 255 }),
+  serviceLocation: varchar("service_location", { length: 255 }),
+  
+  // Cost information (in cents)
+  laborCost: int("labor_cost"),
+  partsCost: int("parts_cost"),
+  totalCost: int("total_cost"),
+  
+  // Service items
+  serviceItems: text("service_items"), // JSON array
+  partsReplaced: text("parts_replaced"), // JSON array
+  
+  // Documentation
+  invoiceUrl: text("invoice_url"),
+  serviceReportUrl: text("service_report_url"),
+  
+  // Compliance
+  isCompliant: tinyint("is_compliant").default(1),
+  wasOverdue: tinyint("was_overdue").default(0),
+  daysOverdue: int("days_overdue"),
+  
+  performedBy: int("performed_by"),
+  recordedBy: int("recorded_by").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type MaintenanceRecord = typeof maintenanceRecords.$inferSelect;
+export type InsertMaintenanceRecord = typeof maintenanceRecords.$inferInsert;
+
+/**
+ * Maintenance Alerts - Notifications for upcoming/overdue maintenance
+ */
+export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull(),
+  scheduleId: int("schedule_id"),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  alertType: mysqlEnum("alert_type", [
+    "upcoming_maintenance",
+    "overdue_maintenance",
+    "inspection_due",
+    "safety_alert",
+    "compliance_alert"
+  ]).notNull(),
+  
+  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
+  
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  dueDate: timestamp("due_date"),
+  dueMileage: int("due_mileage"),
+  
+  status: mysqlEnum("status", ["pending", "acknowledged", "resolved", "dismissed"]).default("pending"),
+  acknowledgedBy: int("acknowledged_by"),
+  acknowledgedAt: timestamp("acknowledged_at"),
+  resolvedAt: timestamp("resolved_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type MaintenanceAlert = typeof maintenanceAlerts.$inferSelect;
+export type InsertMaintenanceAlert = typeof maintenanceAlerts.$inferInsert;
+
+/**
+ * Service Requests - Requests for repairs or maintenance quotes
+ */
+export const serviceRequests = mysqlTable("service_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull(),
+  fleetId: int("fleet_id"),
+  ownerId: int("owner_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Request details
+  requestType: mysqlEnum("request_type", ["maintenance", "repair", "inspection", "emergency"]).notNull(),
+  serviceCategory: mysqlEnum("service_category", [
+    "engine",
+    "transmission",
+    "brakes",
+    "suspension",
+    "electrical",
+    "bodywork",
+    "tires",
+    "hvac",
+    "general"
+  ]).notNull(),
+  
+  title: varchar("title", { length: 255 }).notNull(),
+  description: text("description").notNull(),
+  urgency: mysqlEnum("urgency", ["low", "medium", "high", "critical"]).default("medium"),
+  
+  // Vehicle condition
+  currentMileage: int("current_mileage"),
+  problemImages: text("problem_images"), // JSON array of S3 URLs
+  diagnosticCodes: text("diagnostic_codes"), // JSON array of OBD codes
+  
+  // Request status
+  status: mysqlEnum("status", [
+    "open",
+    "quotes_received",
+    "quote_accepted",
+    "in_progress",
+    "completed",
+    "cancelled"
+  ]).default("open"),
+  quotesReceived: int("quotes_received").default(0),
+  
+  // Selected quote
+  selectedQuoteId: int("selected_quote_id"),
+  selectedProviderId: int("selected_provider_id"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+  completedAt: timestamp("completed_at"),
+});
+
+export type ServiceRequest = typeof serviceRequests.$inferSelect;
+export type InsertServiceRequest = typeof serviceRequests.$inferInsert;
+
+/**
+ * Service Quotes - Quotes from service providers
+ */
+export const serviceQuotes = mysqlTable("service_quotes", {
+  id: int("id").autoincrement().primaryKey(),
+  requestId: int("request_id").notNull(),
+  providerId: int("provider_id").notNull(), // Link to panel_beaters or service_providers
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Quote details (in cents)
+  quotedAmount: int("quoted_amount").notNull(),
+  laborCost: int("labor_cost"),
+  partsCost: int("parts_cost"),
+  additionalCosts: int("additional_costs"),
+  
+  // Timeline
+  estimatedDuration: int("estimated_duration"), // in hours
+  availabilityDate: timestamp("availability_date"),
+  completionDate: timestamp("completion_date"),
+  
+  // Quote items
+  quoteLineItems: text("quote_line_items"), // JSON array
+  partsRequired: text("parts_required"), // JSON array
+  
+  // Provider information
+  providerName: varchar("provider_name", { length: 255 }).notNull(),
+  providerLocation: varchar("provider_location", { length: 255 }),
+  providerRating: decimal("provider_rating", { precision: 3, scale: 2 }),
+  providerCompletedJobs: int("provider_completed_jobs"),
+  
+  // AI analysis
+  aiCostScore: int("ai_cost_score"), // 0-100
+  costDeviationPercent: decimal("cost_deviation_percent", { precision: 5, scale: 2 }),
+  recommendationScore: int("recommendation_score"), // 0-100
+  
+  // Status
+  status: mysqlEnum("status", ["pending", "accepted", "rejected", "expired"]).default("pending"),
+  validUntil: timestamp("valid_until"),
+  
+  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
+  acceptedAt: timestamp("accepted_at"),
+});
+
+export type ServiceQuote = typeof serviceQuotes.$inferSelect;
+export type InsertServiceQuote = typeof serviceQuotes.$inferInsert;
+
+/**
+ * Service Providers - Mechanics, dealerships, and service centers
+ */
+export const serviceProviders = mysqlTable("service_providers", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  providerName: varchar("provider_name", { length: 255 }).notNull(),
+  providerType: mysqlEnum("provider_type", ["panel_beater", "mechanic", "dealership", "specialist"]).notNull(),
+  
+  // Contact information
+  contactPerson: varchar("contact_person", { length: 255 }),
+  email: varchar("email", { length: 320 }),
+  phone: varchar("phone", { length: 20 }),
+  address: text("address"),
+  city: varchar("city", { length: 100 }),
+  region: varchar("region", { length: 100 }),
+  
+  // Specializations
+  specializations: text("specializations"), // JSON array
+  certifications: text("certifications"), // JSON array
+  
+  // Performance metrics
+  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+  totalJobsCompleted: int("total_jobs_completed").default(0),
+  averageCompletionTime: decimal("average_completion_time", { precision: 6, scale: 2 }), // hours
+  averageCostDeviation: decimal("average_cost_deviation", { precision: 5, scale: 2 }), // %
+  onTimeCompletionRate: decimal("on_time_completion_rate", { precision: 5, scale: 2 }), // %
+  
+  // Status
+  isActive: tinyint("is_active").default(1),
+  isVerified: tinyint("is_verified").default(0),
+  verifiedAt: timestamp("verified_at"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ServiceProvider = typeof serviceProviders.$inferSelect;
+export type InsertServiceProvider = typeof serviceProviders.$inferInsert;
+
+/**
+ * Fleet Risk Scores - Risk intelligence for vehicles
+ */
+export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull().unique(),
+  fleetId: int("fleet_id"),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Overall risk score (0-100, higher = more risky)
+  overallRiskScore: int("overall_risk_score").notNull(),
+  
+  // Component scores
+  maintenanceRisk: int("maintenance_risk"),
+  claimsRisk: int("claims_risk"),
+  vehicleAgeRisk: int("vehicle_age_risk"),
+  usageRisk: int("usage_risk"),
+  repairCostRisk: int("repair_cost_risk"),
+  
+  // Risk factors
+  riskFactors: text("risk_factors"), // JSON array
+  
+  // Insurance impact
+  premiumImpact: mysqlEnum("premium_impact", ["decrease", "neutral", "increase"]),
+  recommendedPremiumAdjustment: decimal("recommended_premium_adjustment", { precision: 5, scale: 2 }), // %
+  
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+  nextReviewDate: timestamp("next_review_date"),
+});
+
+export type FleetRiskScore = typeof fleetRiskScores.$inferSelect;
+export type InsertFleetRiskScore = typeof fleetRiskScores.$inferInsert;
+
+/**
+ * Fleet Audit Logs - Comprehensive audit trail
+ */
+export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  entityType: mysqlEnum("entity_type", [
+    "fleet",
+    "vehicle",
+    "maintenance",
+    "service_request",
+    "quote",
+    "document"
+  ]).notNull(),
+  entityId: int("entity_id").notNull(),
+  
+  action: mysqlEnum("action", ["create", "update", "delete", "view", "export"]).notNull(),
+  userId: int("user_id").notNull(),
+  userName: varchar("user_name", { length: 255 }),
+  
+  changesBefore: text("changes_before"), // JSON snapshot
+  changesAfter: text("changes_after"), // JSON snapshot
+  
+  ipAddress: varchar("ip_address", { length: 45 }),
+  userAgent: text("user_agent"),
+  
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+});
+
+export type FleetAuditLog = typeof fleetAuditLogs.$inferSelect;
+export type InsertFleetAuditLog = typeof fleetAuditLogs.$inferInsert;
+
+/**
+ * Vehicle Mileage Logs - Track odometer readings
+ */
+export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  mileage: int("mileage").notNull(), // Current odometer reading
+  recordedDate: timestamp("recorded_date").notNull(),
+  recordedBy: int("recorded_by").notNull(),
+  
+  // Context
+  recordType: mysqlEnum("record_type", ["manual", "service", "inspection", "claim", "automated"]).default("manual"),
+  notes: text("notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type VehicleMileageLog = typeof vehicleMileageLogs.$inferSelect;
+export type InsertVehicleMileageLog = typeof vehicleMileageLogs.$inferInsert;
