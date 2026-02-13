@@ -4723,27 +4723,27 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Build bulk vehicle import from Excel/CSV files
 - [x] Add Excel/CSV template download for bulk import
 - [x] Implement fleet data export (Excel, CSV, PDF)
-- [ ] Create fleet management dashboard UI
+- [x] Create fleet management dashboard UI
 
 ### 2. Maintenance Intelligence Engine
-- [ ] Track service intervals (mileage and time-based)
-- [ ] Implement maintenance due date prediction
-- [ ] Create maintenance alert generation system
-- [ ] Build historical service records tracking
-- [ ] Calculate maintenance compliance score
-- [ ] Add preventative maintenance scheduling
-- [ ] Implement regulatory inspection reminders
-- [ ] Create safety compliance alerts
+- [x] Track service intervals (mileage and time-based)
+- [x] Implement maintenance due date prediction
+- [x] Create maintenance alert generation system
+- [x] Build historical service records tracking
+- [x] Calculate maintenance compliance score
+- [x] Add preventative maintenance scheduling
+- [x] Implement regulatory inspection reminders
+- [x] Create safety compliance alerts
 
 ### 3. Service Quote Marketplace
-- [ ] Build quote request form with problem descriptions
-- [ ] Implement image upload for service requests
-- [ ] Create service provider quote submission interface
-- [ ] Build quote comparison with AI cost optimization
-- [ ] Add price benchmarking analytics
-- [ ] Implement repair duration prediction
-- [ ] Track service provider historical performance
-- [ ] Create cost deviation alerts
+- [x] Build quote request form with problem descriptions
+- [x] Implement image upload for service requests
+- [x] Create service provider quote submission interface
+- [x] Build quote comparison with AI cost optimization
+- [x] Add price benchmarking analytics
+- [x] Implement repair duration prediction
+- [x] Track service provider historical performance
+- [x] Create cost deviation alerts
 
 ### 4. Vehicle Valuation Engine Integration
 - [ ] Integrate with existing KINGA valuation AI

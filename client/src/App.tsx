@@ -50,6 +50,7 @@ import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 import UploadDocuments from "./pages/processor/UploadDocuments";
 import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
 import AutomationPolicies from "./pages/AutomationPolicies";
+import FleetManagement from "./pages/FleetManagement";
 
 function Router() {
   return (
@@ -217,6 +218,12 @@ function Router() {
       <Route path="/insurer/automation-policies">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <AutomationPolicies />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/fleet-management">
+        <ProtectedRoute allowedRoles={["insurer", "admin", "claimant"]}>
+          <FleetManagement />
         </ProtectedRoute>
       </Route>
       

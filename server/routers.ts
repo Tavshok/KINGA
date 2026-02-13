@@ -3506,6 +3506,237 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         await deleteFleetVehicle(input.id);
         return { success: true };
       }),
+
+    // Maintenance Intelligence Procedures
+
+    // Get maintenance alerts for a vehicle or fleet
+    getMaintenanceAlerts: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number().optional(),
+        fleetId: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const { getMaintenanceAlerts } = await import('./fleet/maintenance-intelligence');
+        return getMaintenanceAlerts(input.vehicleId, input.fleetId);
+      }),
+
+    // Get compliance score for a vehicle
+    getComplianceScore: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { calculateComplianceScore } = await import('./fleet/maintenance-intelligence');
+        return calculateComplianceScore(input.vehicleId);
+      }),
+
+    // Create maintenance schedule
+    createMaintenanceSchedule: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+        serviceType: z.string(),
+        intervalMileage: z.number().optional(),
+        intervalDays: z.number().optional(),
+        lastServiceDate: z.string().optional(),
+        lastServiceMileage: z.number().optional(),
+        nextDueDate: z.string().optional(),
+        nextDueMileage: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createMaintenanceSchedule } = await import('./fleet/maintenance-intelligence');
+        
+        return createMaintenanceSchedule({
+          vehicleId: input.vehicleId,
+          serviceType: input.serviceType,
+          intervalMileage: input.intervalMileage,
+          intervalDays: input.intervalDays,
+          lastServiceDate: input.lastServiceDate ? new Date(input.lastServiceDate) : undefined,
+          lastServiceMileage: input.lastServiceMileage,
+          nextDueDate: input.nextDueDate ? new Date(input.nextDueDate) : undefined,
+          nextDueMileage: input.nextDueMileage,
+          tenantId: ctx.user.tenantId || 'default',
+        });
+      }),
+
+    // Record maintenance service
+    recordMaintenanceService: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+        serviceType: z.string(),
+        serviceDate: z.string(),
+        mileageAtService: z.number().optional(),
+        serviceProvider: z.string(),
+        cost: z.number(),
+        description: z.string().optional(),
+        nextServiceDue: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { recordMaintenanceService } = await import('./fleet/maintenance-intelligence');
+        
+        return recordMaintenanceService({
+          vehicleId: input.vehicleId,
+          serviceType: input.serviceType,
+          serviceDate: new Date(input.serviceDate),
+          mileageAtService: input.mileageAtService || null,
+          serviceProvider: input.serviceProvider,
+          cost: Math.round(input.cost * 100), // Convert to cents
+          description: input.description || null,
+          nextServiceDue: input.nextServiceDue ? new Date(input.nextServiceDue) : null,
+          tenantId: ctx.user.tenantId || 'default',
+        });
+      }),
+
+    // Get maintenance history
+    getMaintenanceHistory: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getMaintenanceHistory } = await import('./fleet/maintenance-intelligence');
+        return getMaintenanceHistory(input.vehicleId);
+      }),
+
+    // Get vehicle maintenance schedules
+    getVehicleMaintenanceSchedules: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getVehicleMaintenanceSchedules } = await import('./fleet/maintenance-intelligence');
+        return getVehicleMaintenanceSchedules(input.vehicleId);
+      }),
+
+    // Update vehicle mileage
+    updateVehicleMileage: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+        newMileage: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateVehicleMileage } = await import('./fleet/maintenance-intelligence');
+        return updateVehicleMileage(input.vehicleId, input.newMileage);
+      }),
+
+    // Service Quote Marketplace Procedures
+
+    // Create service request
+    createServiceRequest: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number(),
+        serviceType: z.string(),
+        priority: z.enum(["low", "medium", "high", "urgent"]),
+        description: z.string(),
+        preferredDate: z.string().optional(),
+        budget: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createServiceRequest } = await import('./fleet/service-marketplace');
+        
+        return createServiceRequest({
+          vehicleId: input.vehicleId,
+          serviceType: input.serviceType,
+          priority: input.priority,
+          description: input.description,
+          preferredDate: input.preferredDate ? new Date(input.preferredDate) : undefined,
+          budget: input.budget ? Math.round(input.budget * 100) : undefined,
+          tenantId: ctx.user.tenantId || 'default',
+        });
+      }),
+
+    // Get service requests
+    getServiceRequests: protectedProcedure
+      .input(z.object({
+        vehicleId: z.number().optional(),
+        fleetId: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const { getServiceRequests } = await import('./fleet/service-marketplace');
+        return getServiceRequests(input.vehicleId, input.fleetId);
+      }),
+
+    // Submit service quote
+    submitServiceQuote: protectedProcedure
+      .input(z.object({
+        serviceRequestId: z.number(),
+        providerId: z.number(),
+        quotedPrice: z.number(),
+        estimatedDuration: z.number(),
+        validUntil: z.string(),
+        description: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { submitServiceQuote } = await import('./fleet/service-marketplace');
+        
+        return submitServiceQuote({
+          serviceRequestId: input.serviceRequestId,
+          providerId: input.providerId,
+          quotedPrice: Math.round(input.quotedPrice * 100),
+          estimatedDuration: input.estimatedDuration,
+          validUntil: new Date(input.validUntil),
+          description: input.description,
+          tenantId: ctx.user.tenantId || 'default',
+        });
+      }),
+
+    // Get service quotes
+    getServiceQuotes: protectedProcedure
+      .input(z.object({
+        serviceRequestId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getServiceQuotes } = await import('./fleet/service-marketplace');
+        return getServiceQuotes(input.serviceRequestId);
+      }),
+
+    // Accept service quote
+    acceptServiceQuote: protectedProcedure
+      .input(z.object({
+        quoteId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const { acceptServiceQuote } = await import('./fleet/service-marketplace');
+        return acceptServiceQuote(input.quoteId);
+      }),
+
+    // Register service provider
+    registerServiceProvider: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        contactEmail: z.string(),
+        contactPhone: z.string(),
+        address: z.string(),
+        serviceTypes: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { registerServiceProvider } = await import('./fleet/service-marketplace');
+        
+        return registerServiceProvider({
+          name: input.name,
+          contactEmail: input.contactEmail,
+          contactPhone: input.contactPhone,
+          address: input.address,
+          serviceTypes: input.serviceTypes,
+          tenantId: ctx.user.tenantId || 'default',
+        });
+      }),
+
+    // Get service providers
+    getServiceProviders: protectedProcedure
+      .query(async () => {
+        const { getServiceProviders } = await import('./fleet/service-marketplace');
+        return getServiceProviders();
+      }),
+
+    // Complete service request
+    completeServiceRequest: protectedProcedure
+      .input(z.object({
+        serviceRequestId: z.number(),
+        rating: z.number().min(1).max(5),
+      }))
+      .mutation(async ({ input }) => {
+        const { completeServiceRequest } = await import('./fleet/service-marketplace');
+        return completeServiceRequest(input.serviceRequestId, input.rating);
+      }),
   }),
 });
 
