@@ -61,7 +61,7 @@ export default function DashboardLayout({
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-8 p-8 max-w-md w-full">
           <img 
-            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png" 
+            src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/XlSqWNhiGxKiigDt.png" 
             alt="KINGA" 
             className="h-24 w-auto object-contain mb-4"
           />
@@ -176,7 +176,7 @@ function DashboardLayoutContent({
               {!isCollapsed ? (
                 <div className="flex items-center gap-2 min-w-0">
                   <img 
-                    src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png" 
+                    src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/XlSqWNhiGxKiigDt.png" 
                     alt="KINGA" 
                     className="h-8 w-auto object-contain"
                   />

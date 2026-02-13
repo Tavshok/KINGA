@@ -70,7 +70,7 @@ export function generateComparisonPDF(data: ClaimData): void {
 
   // Add logo to header
   const logoImg = new Image();
-  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png';
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/XlSqWNhiGxKiigDt.png';
   doc.addImage(logoImg, 'PNG', 20, yPos - 5, 15, 15);
   
   // Header text next to logo
@@ -317,7 +317,7 @@ export function generateFraudAnalyticsPDF(data: {
 
   // Add logo to header
   const logoImg = new Image();
-  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png';
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/XlSqWNhiGxKiigDt.png';
   doc.addImage(logoImg, 'PNG', 20, yPos - 5, 15, 15);
   
   // Header text next to logo
@@ -453,7 +453,7 @@ export function generateDamageReportPDF(data: {
 
   // Add logo to header
   const logoImg = new Image();
-  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png';
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/XlSqWNhiGxKiigDt.png';
   doc.addImage(logoImg, 'PNG', 20, yPos - 5, 15, 15);
   
   // Header text next to logo

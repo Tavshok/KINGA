@@ -4943,3 +4943,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test PDF export functionality
 - [ ] Test logo display across all pages
 - [ ] Create checkpoint with fixes
+
+
+## Replace Generated Logo with Original KINGA Logo (Feb 13, 2026)
+- [x] Upload original KINGA logo to S3 CDN
+- [x] Replace logo URL in KingaLogo.tsx component
+- [x] Replace logo URL in DashboardLayout.tsx component (2 instances)
+- [x] Replace logo URL in pdfExport.ts (3 PDF functions)
+- [ ] Test logo display across platform
+- [ ] Create checkpoint with original logo
