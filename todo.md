@@ -4929,3 +4929,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Integrate download button in InsuranceDashboard.tsx
 - [ ] Test PDF generation with sample policies
 - [ ] Create checkpoint with PDF generation feature
+
+
+## Claims Platform PDF Export & Logo Display Fixes (Feb 13, 2026)
+- [x] Investigate existing PDF export functionality for claims assessment reports
+- [x] Check if PDF export is implemented or missing
+- [x] Fix PDF export for claims assessment reports (replaced hardcoded logo URLs)
+- [x] Generate professional KINGA logo with shield and African patterns
+- [x] Save logo to /client/public/kinga-logo.png
+- [x] Fix logo display in DashboardLayout component
+- [x] Fix logo display in KingaLogo component
+- [x] Update all PDF export functions to use local logo
+- [ ] Test PDF export functionality
+- [ ] Test logo display across all pages
+- [ ] Create checkpoint with fixes

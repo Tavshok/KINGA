@@ -70,8 +70,8 @@ export function generateComparisonPDF(data: ClaimData): void {
 
   // Add logo to header
   const logoImg = new Image();
-  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png';
-  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 40, 15);
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png';
+  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 15, 15);
   
   // Header text next to logo
   doc.setFontSize(10);
@@ -283,7 +283,7 @@ export function generateComparisonPDF(data: ClaimData): void {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setGState({ opacity: 0.1 });
-    doc.addImage(logoImg, 'PNG', (pageWidth - 80) / 2, (pageHeight - 30) / 2, 80, 30);
+    doc.addImage(logoImg, 'PNG', (pageWidth - 60) / 2, (pageHeight - 60) / 2, 60, 60);
     doc.setGState({ opacity: 1 });
     
     // Footer text
@@ -317,8 +317,8 @@ export function generateFraudAnalyticsPDF(data: {
 
   // Add logo to header
   const logoImg = new Image();
-  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png';
-  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 40, 15);
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png';
+  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 15, 15);
   
   // Header text next to logo
   doc.setFontSize(10);
@@ -412,7 +412,7 @@ export function generateFraudAnalyticsPDF(data: {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setGState({ opacity: 0.1 });
-    doc.addImage(logoImg, 'PNG', (pageWidth - 80) / 2, (pageHeight - 30) / 2, 80, 30);
+    doc.addImage(logoImg, 'PNG', (pageWidth - 60) / 2, (pageHeight - 60) / 2, 60, 60);
     doc.setGState({ opacity: 1 });
     
     // Footer text
@@ -453,8 +453,8 @@ export function generateDamageReportPDF(data: {
 
   // Add logo to header
   const logoImg = new Image();
-  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/lhcjVPkokmXiyQUo.png';
-  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 40, 15);
+  logoImg.src = 'https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png';
+  doc.addImage(logoImg, 'PNG', 20, yPos - 5, 15, 15);
   
   // Header text next to logo
   doc.setFontSize(10);
@@ -666,7 +666,7 @@ export function generateDamageReportPDF(data: {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setGState({ opacity: 0.1 });
-    doc.addImage(logoImg, 'PNG', (pageWidth - 80) / 2, (pageHeight - 30) / 2, 80, 30);
+    doc.addImage(logoImg, 'PNG', (pageWidth - 60) / 2, (pageHeight - 60) / 2, 60, 60);
     doc.setGState({ opacity: 1 });
     
     // Footer text

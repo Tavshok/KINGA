@@ -27,7 +27,7 @@ export default function KingaLogo({ showText = true, size = "md", className = ""
   return (
     <div className={`flex items-center gap-2 ${className}`}>
       <img 
-        src="/kinga-logo.png" 
+        src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/oURawYHBPiosuFsR.png" 
         alt="KINGA Logo" 
         className={`${sizeClasses[size]} object-contain`}
       />
