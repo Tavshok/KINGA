@@ -51,6 +51,7 @@ import UploadDocuments from "./pages/processor/UploadDocuments";
 import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
 import AutomationPolicies from "./pages/AutomationPolicies";
 import FleetManagement from "./pages/FleetManagement";
+import InsuranceQuote from "./pages/InsuranceQuote";
 
 function Router() {
   return (
@@ -225,6 +226,10 @@ function Router() {
         <ProtectedRoute allowedRoles={["insurer", "admin", "claimant"]}>
           <FleetManagement />
         </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurance/quote">
+        <InsuranceQuote />
       </Route>
       
       {/* Assessor Management Routes */}

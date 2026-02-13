@@ -3737,6 +3737,130 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return completeServiceRequest(input.serviceRequestId, input.rating);
       }),
   }),
+
+  // Insurance Agency Platform
+  insurance: router({
+    // Get vehicle valuation estimate
+    getVehicleValuation: publicProcedure
+      .input(z.object({
+        make: z.string(),
+        model: z.string(),
+        year: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateVehicleValuation } = await import('./insurance/valuation-engine');
+        return generateVehicleValuation(input);
+      }),
+
+    // Request insurance quote
+    requestQuote: publicProcedure
+      .input(z.object({
+        registrationNumber: z.string(),
+        make: z.string(),
+        model: z.string(),
+        year: z.number(),
+        currentValue: z.number(),
+        driverAge: z.number(),
+        annualMileage: z.enum(['low', 'medium', 'high']),
+        phoneNumber: z.string(),
+        email: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { createQuote, createVehicle, getVehicleByRegistration, getAllActiveCarriers, getProductsByCarrier } = await import('./insurance/insurance-db');
+        const { calculateVehicleRiskScore } = await import('./insurance/valuation-engine');
+        
+        // For now, use a dummy customer ID (in production, this would be the logged-in user or a guest customer)
+        const customerId = 1; // TODO: Create proper customer management
+        
+        // Step 1: Check if vehicle exists, if not create it
+        let vehicle = await getVehicleByRegistration(input.registrationNumber);
+        
+        if (!vehicle) {
+          // Calculate risk score for new vehicle
+          const riskScore = await calculateVehicleRiskScore(input.make, input.model, input.year);
+          
+          vehicle = await createVehicle({
+            registrationNumber: input.registrationNumber,
+            make: input.make,
+            model: input.model,
+            year: input.year,
+            currentValuation: input.currentValue,
+            riskScore,
+            ownerId: customerId, // Use the same customer ID
+            tenantId: 'default',
+          });
+        }
+        
+        // Step 2: Get default carrier and product (for now, use first active carrier)
+        const carriers = await getAllActiveCarriers();
+        if (carriers.length === 0) {
+          throw new Error('No active insurance carriers available');
+        }
+        const carrier = carriers[0];
+        
+        const products = await getProductsByCarrier(carrier.id);
+        if (products.length === 0) {
+          throw new Error('No insurance products available');
+        }
+        const product = products[0];
+        
+        // Step 3: Calculate premium based on risk factors
+        const basePremium = input.currentValue * 0.05; // 5% of vehicle value
+        const ageFactor = input.driverAge < 25 ? 1.5 : input.driverAge > 60 ? 1.2 : 1.0;
+        const mileageFactor = input.annualMileage === 'high' ? 1.3 : input.annualMileage === 'low' ? 0.9 : 1.0;
+        
+        const annualPremium = Math.round(basePremium * ageFactor * mileageFactor);
+        const monthlyPremium = Math.round(annualPremium / 12);
+        
+        // Step 4: Create quote
+        const quoteNumber = `QT-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+        const quoteValidUntil = new Date();
+        quoteValidUntil.setDate(quoteValidUntil.getDate() + 30); // Valid for 30 days
+        
+        const quote = await createQuote({
+          quoteNumber,
+          customerId,
+          vehicleId: vehicle.id,
+          carrierId: carrier.id,
+          productId: product.id,
+          premiumAmount: monthlyPremium,
+          premiumFrequency: 'monthly',
+          excessAmount: 50000, // Default $500 excess
+          driverDetails: JSON.stringify({
+            age: input.driverAge,
+            annualMileage: input.annualMileage,
+            phoneNumber: input.phoneNumber,
+            email: input.email,
+          }),
+          riskProfile: JSON.stringify({
+            vehicleRisk: vehicle.riskScore,
+            driverAgeRisk: input.driverAge < 25 ? 'high' : input.driverAge > 60 ? 'medium' : 'low',
+            mileageRisk: input.annualMileage,
+          }),
+          quoteValidUntil,
+          status: 'pending',
+          tenantId: 'default',
+        });
+        
+        return {
+          quoteId: quote.id,
+          quoteNumber: quote.quoteNumber,
+          premiumAmount: monthlyPremium,
+          annualPremium,
+          validUntil: quoteValidUntil,
+        };
+      }),
+
+    // Get quote details
+    getQuote: publicProcedure
+      .input(z.object({
+        quoteId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getQuoteById } = await import('./insurance/insurance-db');
+        return getQuoteById(input.quoteId);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

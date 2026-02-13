@@ -4831,3 +4831,43 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add README for docs/architecture directory
 - [ ] Ensure all markdown files are properly formatted
 - [ ] Verify documentation is accessible in GitHub repository
+
+
+## Insurance Onboarding Portal (Feb 13, 2026)
+- [ ] Create insurance quote request form with 7 streamlined fields
+- [ ] Implement vehicle make/model autocomplete with free-form input
+- [ ] Integrate KINGA valuation engine for vehicle value estimation
+- [ ] Build instant quote calculation and display
+- [ ] Create single-insurer integration framework
+- [ ] Add quote acceptance and policy issuance workflow
+- [ ] Build insurance customer dashboard
+
+## Service Marketplace UI (Feb 13, 2026)
+- [ ] Create service request submission form with image upload
+- [ ] Build quote comparison table with provider ratings
+- [ ] Implement provider directory and profile pages
+- [ ] Add quote acceptance and service booking workflow
+- [ ] Create service history tracking UI
+
+## GitHub Documentation Commit (Feb 13, 2026)
+- [ ] Commit kinga-agency-platform.md to GitHub
+- [ ] Commit fleet-management-platform.md to GitHub
+- [ ] Add README updates for new modules
+- [ ] Push all architecture documentation changes
+
+## Insurance Onboarding Portal (Agency Platform)
+- [x] Create insurance database schema (carriers, products, quotes, policies, fleet vehicles)
+- [x] Implement vehicle valuation engine using claims intelligence
+- [x] Create insurance-db.ts with database helper functions
+- [x] Seed database with sample carrier and products
+- [x] Create InsuranceQuote.tsx page with 7-field frictionless form
+- [x] Add /insurance/quote route to App.tsx
+- [x] Implement getVehicleValuation tRPC procedure
+- [x] Implement requestQuote tRPC procedure with vehicle creation and risk scoring
+- [ ] Test insurance quote flow in browser
+- [ ] Add quote details page to view generated quotes
+- [ ] Implement quote acceptance workflow
+- [ ] Create policy issuance system
+- [ ] Build insurance dashboard for viewing policies
+- [ ] Add previous insurer tracking for competitive intelligence
+- [ ] Create carrier adapter framework for multi-insurer support
