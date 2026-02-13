@@ -5283,3 +5283,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 
 **See:** `/docs/ML-IMPLEMENTATION-STATUS.md` for detailed status and roadmap
 
+
+
+## Truth Synthesis Schema Alignment Fix (Feb 13, 2026)
+- [ ] Read historicalClaims schema to identify correct field names
+- [ ] Fix finalSettlementAmount field reference
+- [ ] Fix assessorId field reference (use assessorName or assessorLicenseNumber)
+- [ ] Fix claimDate field reference (use incidentDate)
+- [ ] Fix document type enum (damage_photo → damage_image)
+- [ ] Add null safety checks for all async db calls
+- [ ] Re-enable truth-synthesis.ts (rename from .disabled)
+- [ ] Update truth-synthesis router with correct procedures
+- [ ] Test truth synthesis workflow
+- [ ] Create checkpoint with working truth synthesis
+
