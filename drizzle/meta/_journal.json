@@ -43,6 +43,13 @@
       "when": 1770959266384,
       "tag": "0005_windy_micromacro",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1770959791865,
+      "tag": "0006_glorious_the_professor",
+      "breakpoints": true
     }
   ]
 }

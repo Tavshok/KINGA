@@ -2648,6 +2648,38 @@ export const fleetVehicles = mysqlTable("fleet_vehicles", {
   
   // Owner information
   ownerId: int("owner_id").notNull(), // Reference to users table
+  fleetId: int("fleet_id"), // Reference to fleets table
+  
+  // Vehicle specifications
+  engineCapacity: int("engine_capacity"), // in cc
+  vehicleMass: int("vehicle_mass"), // in kg
+  fuelType: mysqlEnum("fuel_type", ["petrol", "diesel", "electric", "hybrid"]),
+  transmissionType: mysqlEnum("transmission_type", ["manual", "automatic"]),
+  
+  // Usage classification
+  usageType: mysqlEnum("usage_type", ["private", "commercial", "logistics", "mining", "agriculture", "public_transport"]),
+  primaryUse: text("primary_use"),
+  averageMonthlyMileage: int("average_monthly_mileage"),
+  
+  // Insurance details
+  currentInsurer: varchar("current_insurer", { length: 255 }),
+  policyNumber: varchar("policy_number", { length: 100 }),
+  policyStartDate: timestamp("policy_start_date"),
+  policyEndDate: timestamp("policy_end_date"),
+  coverageType: mysqlEnum("coverage_type", ["comprehensive", "third_party", "third_party_fire_theft"]),
+  
+  // Valuation details
+  purchasePrice: int("purchase_price"), // in cents
+  purchaseDate: timestamp("purchase_date"),
+  replacementValue: int("replacement_value"), // in cents
+  
+  // Status
+  status: mysqlEnum("status", ["active", "inactive", "sold", "written_off", "under_repair"]).default("active"),
+  lastInspectionDate: timestamp("last_inspection_date"),
+  nextInspectionDue: timestamp("next_inspection_due"),
+  
+  // Compliance
+  maintenanceComplianceScore: int("maintenance_compliance_score"), // 0-100
   
   // Vehicle images (S3 URLs, JSON array)
   vehicleImages: text("vehicle_images"), // [front, back, left, right, interior, dashboard]

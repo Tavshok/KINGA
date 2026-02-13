@@ -4714,12 +4714,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create dashboard specifications
 
 ### 1. Fleet Registry Module
-- [ ] Build fleet registration form with vehicle details
-- [ ] Implement document upload (registration books, ownership docs, inspection photos)
-- [ ] Create vehicle specifications storage
-- [ ] Add VIN/chassis number tracking
-- [ ] Store current insurer and policy details
-- [ ] Implement replacement value tracking
+- [x] Build fleet registration form with vehicle details
+- [x] Implement document upload (registration books, ownership docs, inspection photos)
+- [x] Create vehicle specifications storage
+- [x] Add VIN/chassis number tracking
+- [x] Store current insurer and policy details
+- [x] Implement replacement value tracking
+- [x] Build bulk vehicle import from Excel/CSV files
+- [x] Add Excel/CSV template download for bulk import
+- [x] Implement fleet data export (Excel, CSV, PDF)
+- [ ] Create fleet management dashboard UI
 
 ### 2. Maintenance Intelligence Engine
 - [ ] Track service intervals (mileage and time-based)

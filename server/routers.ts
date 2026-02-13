@@ -3276,6 +3276,237 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return history;
       }),
   }),
+
+  /**
+   * Fleet Management Router
+   * Handles vehicle fleet registration, maintenance tracking, and service marketplace
+   */
+  fleet: router({
+    // Create a new fleet
+    createFleet: protectedProcedure
+      .input(z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        businessType: z.enum(["logistics", "mining", "agriculture", "public_transport", "corporate", "rental"]),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createFleet } = await import('./fleet/fleet-db');
+        
+        const fleet = await createFleet({
+          fleetName: input.name,
+          description: input.description || null,
+          fleetType: input.businessType,
+          ownerId: ctx.user.id,
+          tenantId: ctx.user.tenantId || 'default',
+        });
+        
+        return fleet;
+      }),
+
+    // Get fleets owned by current user
+    getMyFleets: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getFleetsByOwner } = await import('./fleet/fleet-db');
+        return getFleetsByOwner(ctx.user.id);
+      }),
+
+    // Get fleet by ID
+    getFleetById: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getFleetById } = await import('./fleet/fleet-db');
+        return getFleetById(input.id);
+      }),
+
+    // Register a single vehicle
+    registerVehicle: protectedProcedure
+      .input(z.object({
+        fleetId: z.number().optional(),
+        registrationNumber: z.string(),
+        vin: z.string().optional(),
+        make: z.string(),
+        model: z.string(),
+        year: z.number(),
+        engineCapacity: z.number().optional(),
+        vehicleMass: z.number().optional(),
+        color: z.string().optional(),
+        fuelType: z.enum(["petrol", "diesel", "electric", "hybrid"]).optional(),
+        transmissionType: z.enum(["manual", "automatic"]).optional(),
+        usageType: z.enum(["private", "commercial", "logistics", "mining", "agriculture", "public_transport"]).optional(),
+        primaryUse: z.string().optional(),
+        averageMonthlyMileage: z.number().optional(),
+        currentInsurer: z.string().optional(),
+        policyNumber: z.string().optional(),
+        policyStartDate: z.string().optional(),
+        policyEndDate: z.string().optional(),
+        coverageType: z.enum(["comprehensive", "third_party", "third_party_fire_theft"]).optional(),
+        purchasePrice: z.number().optional(),
+        purchaseDate: z.string().optional(),
+        currentValuation: z.number().optional(),
+        replacementValue: z.number().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createFleetVehicle } = await import('./fleet/fleet-db');
+        
+        const vehicle = await createFleetVehicle({
+          ...input,
+          ownerId: ctx.user.id,
+          tenantId: ctx.user.tenantId || 'default',
+          policyStartDate: input.policyStartDate ? new Date(input.policyStartDate) : null,
+          policyEndDate: input.policyEndDate ? new Date(input.policyEndDate) : null,
+          purchaseDate: input.purchaseDate ? new Date(input.purchaseDate) : null,
+          purchasePrice: input.purchasePrice ? Math.round(input.purchasePrice * 100) : null,
+          currentValuation: input.currentValuation ? Math.round(input.currentValuation * 100) : null,
+          replacementValue: input.replacementValue ? Math.round(input.replacementValue * 100) : null,
+          status: "active",
+          riskScore: 50,
+          maintenanceComplianceScore: 70,
+        });
+        
+        return vehicle;
+      }),
+
+    // Get vehicles for a fleet
+    getFleetVehicles: protectedProcedure
+      .input(z.object({
+        fleetId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getFleetVehiclesByFleetId } = await import('./fleet/fleet-db');
+        return getFleetVehiclesByFleetId(input.fleetId);
+      }),
+
+    // Get all vehicles owned by current user
+    getMyVehicles: protectedProcedure
+      .query(async ({ ctx }) => {
+        const { getFleetVehiclesByOwner } = await import('./fleet/fleet-db');
+        return getFleetVehiclesByOwner(ctx.user.id);
+      }),
+
+    // Download import template
+    downloadImportTemplate: protectedProcedure
+      .mutation(async () => {
+        const { generateImportTemplate } = await import('./fleet/bulk-import-export');
+        const buffer = generateImportTemplate();
+        return {
+          data: buffer.toString('base64'),
+          filename: 'vehicle-import-template.xlsx',
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        };
+      }),
+
+    // Bulk import vehicles from Excel/CSV
+    bulkImportVehicles: protectedProcedure
+      .input(z.object({
+        fleetId: z.number(),
+        fileData: z.string(), // base64 encoded file
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { parseVehicleFile, importVehicles } = await import('./fleet/bulk-import-export');
+        
+        // Decode base64 file data
+        const fileBuffer = Buffer.from(input.fileData, 'base64');
+        
+        // Parse file
+        const vehicles = await parseVehicleFile(fileBuffer, input.mimeType);
+        
+        // Import vehicles
+        const result = await importVehicles(
+          vehicles,
+          input.fleetId,
+          ctx.user.id,
+          ctx.user.tenantId || 'default'
+        );
+        
+        return result;
+      }),
+
+    // Export fleet vehicles to Excel
+    exportFleetToExcel: protectedProcedure
+      .input(z.object({
+        fleetId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const { exportFleetVehiclesToExcel } = await import('./fleet/bulk-import-export');
+        
+        const buffer = await exportFleetVehiclesToExcel(input.fleetId);
+        
+        return {
+          data: buffer.toString('base64'),
+          filename: `fleet-${input.fleetId}-vehicles.xlsx`,
+          mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        };
+      }),
+
+    // Export fleet vehicles to CSV
+    exportFleetToCSV: protectedProcedure
+      .input(z.object({
+        fleetId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const { exportFleetVehiclesToCSV } = await import('./fleet/bulk-import-export');
+        
+        const buffer = await exportFleetVehiclesToCSV(input.fleetId);
+        
+        return {
+          data: buffer.toString('base64'),
+          filename: `fleet-${input.fleetId}-vehicles.csv`,
+          mimeType: 'text/csv',
+        };
+      }),
+
+    // Get vehicle by ID
+    getVehicleById: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const { getFleetVehicleById } = await import('./fleet/fleet-db');
+        return getFleetVehicleById(input.id);
+      }),
+
+    // Update vehicle
+    updateVehicle: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+        data: z.object({
+          registrationNumber: z.string().optional(),
+          make: z.string().optional(),
+          model: z.string().optional(),
+          year: z.number().optional(),
+          color: z.string().optional(),
+          status: z.enum(["active", "inactive", "sold", "written_off", "under_repair"]).optional(),
+          currentValuation: z.number().optional(),
+          replacementValue: z.number().optional(),
+        }),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateFleetVehicle } = await import('./fleet/fleet-db');
+        
+        // Convert prices to cents if provided
+        const updateData = {
+          ...input.data,
+          currentValuation: input.data.currentValuation ? Math.round(input.data.currentValuation * 100) : undefined,
+          replacementValue: input.data.replacementValue ? Math.round(input.data.replacementValue * 100) : undefined,
+        };
+        
+        return updateFleetVehicle(input.id, updateData);
+      }),
+
+    // Delete vehicle
+    deleteVehicle: protectedProcedure
+      .input(z.object({
+        id: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const { deleteFleetVehicle } = await import('./fleet/fleet-db');
+        await deleteFleetVehicle(input.id);
+        return { success: true };
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;
