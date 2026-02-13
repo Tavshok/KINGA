@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
-import { Loader2, FileText, Shield, Clock, CheckCircle, XCircle, AlertCircle, Plus } from "lucide-react";
+import { Loader2, FileText, Shield, Clock, CheckCircle, XCircle, AlertCircle, Plus, Download } from "lucide-react";
 
 /**
  * Insurance Dashboard
@@ -26,7 +26,42 @@ export default function InsuranceDashboard() {
   // Fetch customer's quotes
   const { data: quotes, isLoading: quotesLoading } = trpc.insurance.getMyQuotes.useQuery();
   
+  // PDF download mutation
+  const downloadPDFMutation = trpc.insurance.downloadPolicyPDF.useMutation();
+  
   const isLoading = policiesLoading || quotesLoading;
+  
+  // Handle PDF download
+  const handleDownloadPDF = async (policyId: number, policyNumber: string) => {
+    try {
+      const result = await downloadPDFMutation.mutateAsync({ policyId });
+      
+      if (result.success && result.data) {
+        // Convert base64 to blob
+        const byteCharacters = atob(result.data);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+          byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: 'application/pdf' });
+        
+        // Create download link
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = result.filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        toast.success('Policy document downloaded successfully');
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to download policy document');
+    }
+  };
   
   if (isLoading) {
     return (
@@ -207,9 +242,18 @@ export default function InsuranceDashboard() {
                     )}
                     
                     <div className="flex gap-3 mt-6 pt-6 border-t">
-                      <Button variant="outline" className="flex-1">
-                        <FileText className="mr-2 h-4 w-4" />
-                        View Policy Document
+                      <Button 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => handleDownloadPDF(policy.id, policy.policyNumber)}
+                        disabled={downloadPDFMutation.isPending}
+                      >
+                        {downloadPDFMutation.isPending ? (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="mr-2 h-4 w-4" />
+                        )}
+                        Download Policy PDF
                       </Button>
                       <Button variant="outline" className="flex-1">
                         View Claims

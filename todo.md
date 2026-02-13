@@ -4910,3 +4910,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [ ] Send policy issuance confirmation
 - [ ] Test complete workflow end-to-end
 - [ ] Create checkpoint with offline payment system
+
+
+## PDF Policy Document Generation Feature (Feb 13, 2026)
+- [x] Install PDF generation library (pdfkit)
+- [x] Create policy document template with KINGA branding
+- [x] Design policy document structure:
+  - [x] Header with KINGA logo and policy number
+  - [x] Policy holder information section
+  - [x] Vehicle details section
+  - [x] Coverage details and limits
+  - [x] Premium breakdown (monthly/annual)
+  - [x] Policy period (start/end dates)
+  - [x] Terms and conditions
+  - [x] Footer with contact information
+- [x] Create server-side PDF generation module (server/insurance/policy-pdf-generator.ts)
+- [x] Add tRPC procedure for generating policy PDF (downloadPolicyPDF)
+- [x] Integrate download button in InsuranceDashboard.tsx
+- [ ] Test PDF generation with sample policies
+- [ ] Create checkpoint with PDF generation feature

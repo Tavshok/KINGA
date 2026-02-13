@@ -15,7 +15,7 @@ import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
-import { claims, insuranceQuotes } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -4005,6 +4005,88 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return await db.select()
           .from(insuranceQuotes)
           .where(eq(insuranceQuotes.customerId, ctx.user.id));
+      }),
+
+    // Download policy PDF
+    downloadPolicyPDF: protectedProcedure
+      .input(z.object({
+        policyId: z.number(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new Error('Database connection failed');
+        
+        // Get policy details
+        const policies = await db.select()
+          .from(insurancePolicies)
+          .where(eq(insurancePolicies.id, input.policyId));
+        
+        if (!policies || policies.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Policy not found' });
+        }
+        
+        const policy = policies[0];
+        
+        // Verify ownership
+        if (policy.customerId !== ctx.user.id) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'You do not have access to this policy' });
+        }
+        
+        // Get vehicle details
+        const vehicles = await db.select()
+          .from(fleetVehicles)
+          .where(eq(fleetVehicles.id, policy.vehicleId));
+        
+        if (!vehicles || vehicles.length === 0) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Vehicle not found' });
+        }
+        
+        const vehicle = vehicles[0];
+        
+        // Get carrier details
+        const carriers = await db.select()
+          .from(insuranceCarriers)
+          .where(eq(insuranceCarriers.id, policy.carrierId));
+        
+        const carrier = carriers && carriers.length > 0 ? carriers[0] : null;
+        
+        // Get product details
+        const products = await db.select()
+          .from(insuranceProducts)
+          .where(eq(insuranceProducts.id, policy.productId));
+        
+        const product = products && products.length > 0 ? products[0] : null;
+        
+        // Generate PDF
+        const { generatePolicyPDF } = await import('./insurance/policy-pdf-generator');
+        const pdfBuffer = await generatePolicyPDF({
+          policyNumber: policy.policyNumber,
+          customerName: ctx.user.name || 'N/A',
+          customerEmail: ctx.user.email || undefined,
+          customerPhone: 'N/A',
+          vehicleMake: vehicle.make,
+          vehicleModel: vehicle.model,
+          vehicleYear: vehicle.year,
+          vehicleRegistration: vehicle.registrationNumber,
+          vehicleValue: 0, // Vehicle value not stored in fleetVehicles
+          productName: product?.productName || 'Comprehensive Motor Insurance',
+          carrierName: carrier?.name || 'Zimbabwe Insurance Corporation',
+          premiumAmount: policy.premiumAmount,
+          premiumFrequency: policy.premiumFrequency,
+          excessAmount: policy.excessAmount || undefined,
+          coverageStartDate: new Date(policy.coverageStartDate),
+          coverageEndDate: new Date(policy.coverageEndDate),
+          coverageLimits: policy.coverageLimits || undefined,
+        });
+        
+        // Convert buffer to base64 for transmission
+        const base64PDF = pdfBuffer.toString('base64');
+        
+        return {
+          success: true,
+          filename: `policy-${policy.policyNumber}.pdf`,
+          data: base64PDF,
+        };
       }),
   }),
 });
