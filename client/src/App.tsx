@@ -55,6 +55,7 @@ import InsuranceQuote from "./pages/InsuranceQuote";
 import QuoteDetails from "./pages/QuoteDetails";
 import PaymentVerification from "./pages/PaymentVerification";
 import InsuranceDashboard from "./pages/InsuranceDashboard";
+import ReviewQueue from "./pages/ReviewQueue";
 
 function Router() {
   return (
@@ -284,6 +285,13 @@ function Router() {
       <Route path="/historical-claims">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <HistoricalClaimsPipeline />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* ML Training Data Review Queue */}
+      <Route path="/ml/review/queue">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ReviewQueue />
         </ProtectedRoute>
       </Route>
       

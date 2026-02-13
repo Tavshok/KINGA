@@ -1,0 +1,1 @@
+ALTER TABLE `ingestion_documents` ADD `historical_claim_id` int;

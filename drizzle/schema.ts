@@ -1516,6 +1516,7 @@ export const ingestionDocuments = mysqlTable("ingestion_documents", {
   id: int("id").autoincrement().primaryKey(),
   tenantId: varchar("tenant_id", { length: 64 }).notNull(),
   batchId: int("batch_id").notNull(),
+  historicalClaimId: int("historical_claim_id"), // Link to historical_claims table
   
   // Document identification
   documentId: varchar("document_id", { length: 36 }).notNull().unique(), // UUID

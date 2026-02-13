@@ -63,6 +63,7 @@ import { documentIngestionRouter } from "./routers/document-ingestion";
 import { historicalClaimsRouter } from "./routers/historical-claims";
 import { automationPoliciesRouter } from "./routers/automation-policies";
 import { claimCompletionRouter } from "./routers/claim-completion";
+import { mlRouter } from "./routers/ml";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -72,6 +73,7 @@ export const appRouter = router({
   historicalClaims: historicalClaimsRouter,
   automationPolicies: automationPoliciesRouter,
   claimCompletion: claimCompletionRouter,
+  ml: mlRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)
     testPublic: publicProcedure

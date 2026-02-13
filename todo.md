@@ -5043,3 +5043,75 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Verify dataset separation logic
 - [ ] Test monitoring dashboard metrics
 - [ ] Create checkpoint with complete implementation
+
+
+## Phase 2: Safe Historical Claims Learning Implementation (Feb 13, 2026)
+
+### Priority 1: Confidence Scoring Engine
+- [x] Create confidence scoring service module (server/ml/confidence-scoring.ts)
+- [x] Implement assessor report score component (0-100)
+- [x] Implement damage photo evidence score component (0-100)
+- [x] Implement panel beater quote score component (0-100)
+- [x] Implement data completeness score component (0-100)
+- [x] Implement fraud marker detection score component (0-100)
+- [x] Implement claim dispute history score component (0-100)
+- [x] Implement multi-quote availability score component (0-100)
+- [x] Implement temporal cost consistency score component (0-100)
+- [x] Create weighted scoring model (configurable weights)
+- [x] Implement confidence category assignment (HIGH/MEDIUM/LOW)
+- [x] Add anomaly detection layer
+- [x] Create confidence explanation logging
+- [x] Add tRPC procedures for confidence scoring (ml router)
+- [ ] Unit test all scoring components
+
+### Priority 2: Batch Ingestion Interface
+- [ ] Create batch upload page (/ml/admin/ingest)
+- [ ] Implement ZIP file upload component
+- [ ] Add folder-per-claim parsing logic
+- [ ] Create multi-document claim association
+- [ ] Build real-time processing progress tracker
+- [ ] Implement batch failure recovery mechanism
+- [ ] Create batch risk preview report component
+- [ ] Display confidence score distribution chart
+- [ ] Show extraction accuracy rate metrics
+- [ ] Display metadata completeness metrics
+- [ ] Show anomaly detection flags summary
+- [ ] Add batch summary export functionality
+- [ ] Create tRPC procedures for batch ingestion
+- [ ] Test with sample historical claims ZIP
+
+### Priority 3: Review Queue Dashboard
+- [x] Create review queue page (/ml/review/queue)
+- [x] Build claims list with filtering and sorting
+- [x] Implement document inspection viewer (card-based)
+- [x] Create confidence score breakdown display
+- [x] Add evidence completeness summary panel
+- [x] Show training eligibility recommendation (via confidence badges)
+- [x] Implement approval workflow (approve button)
+- [x] Implement rejection workflow (reject button)
+- [x] Create structured rejection reason tagging
+- [x] Add reviewer audit logging (via tRPC mutations)
+- [x] Build daily throughput metrics dashboard (stats cards)
+- [x] Show approval rate statistics
+- [x] Create tRPC procedures for review queue
+- [ ] Test approval/rejection workflows
+
+### Safety Controls & Audit Logging
+- [ ] Enforce no training dataset inclusion without confidence scoring
+- [ ] Implement MEDIUM confidence manual review requirement
+- [ ] Block LOW confidence claims from training dataset
+- [ ] Create comprehensive audit log for all approvals
+- [ ] Add audit log for all rejections
+- [ ] Log confidence score calculations
+- [ ] Log anomaly detections
+- [ ] Create audit trail viewer
+
+### Testing & Validation
+- [ ] Test confidence scoring with sample claims
+- [ ] Validate weighted scoring algorithm
+- [ ] Test batch upload with ZIP file
+- [ ] Verify progress tracking accuracy
+- [ ] Test review queue workflows
+- [ ] Validate safety controls enforcement
+- [ ] Check audit logging completeness
+- [ ] Create checkpoint for Phase 2
