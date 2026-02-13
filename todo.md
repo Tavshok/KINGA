@@ -4871,3 +4871,42 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Build insurance dashboard for viewing policies
 - [ ] Add previous insurer tracking for competitive intelligence
 - [ ] Create carrier adapter framework for multi-insurer support
+
+## Insurance Quote-to-Policy Workflow (Offline Payment Support)
+- [x] Design payment workflow supporting cash, bank transfer, mobile money (EcoCash, OneMoney)
+- [x] Update insurance_quotes schema to add payment tracking fields
+- [x] Add payment methods enum (cash, bank_transfer, ecocash, onemoney, rtgs, zipit)
+- [x] Build quote details page (/insurance/quote/:id) with:
+  - [x] Quote summary with coverage details
+  - [x] Premium breakdown (monthly/annual)
+  - [x] Payment instructions for each method
+  - [x] Bank account details for transfers
+  - [x] Mobile money numbers
+  - [x] Cash payment office addresses
+  - [x] Upload proof of payment functionality
+- [x] Create payment verification dashboard for insurers:
+  - [x] Pending payments list with quote details
+  - [x] Payment proof viewer (uploaded receipts/screenshots)
+  - [x] Manual payment confirmation workflow
+  - [x] Payment rejection with reason
+  - [x] Payment amount verification
+- [x] Implement policy issuance after payment confirmation:
+  - [x] Automatic policy creation on payment approval
+  - [x] Policy number generation
+  - [ ] Policy document PDF generation (future enhancement)
+  - [ ] Email policy documents to customer (future enhancement)
+  - [x] Update quote status to "accepted"
+- [x] Build customer insurance dashboard (/insurance/dashboard):
+  - [x] Active policies list with expiry dates
+  - [x] Pending quotes awaiting payment
+  - [x] Rejected payments with reasons
+  - [x] Policy renewal reminders (UI ready)
+  - [ ] Download policy documents (future enhancement)
+  - [ ] View claims filed under policies (future enhancement)
+- [ ] Add payment notification system (future enhancement):
+  - [ ] Notify insurers of new payment submissions
+  - [ ] Notify customers of payment confirmation
+  - [ ] Notify customers of payment rejection
+  - [ ] Send policy issuance confirmation
+- [ ] Test complete workflow end-to-end
+- [ ] Create checkpoint with offline payment system

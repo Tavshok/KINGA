@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  allowedRoles: string[];
+  allowedRoles?: string[];
 }
 
 /**
@@ -35,8 +35,8 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
     return <Redirect to="/login" />;
   }
 
-  // Check if user's role is allowed
-  if (!allowedRoles.includes(user.role)) {
+  // Check if user's role is allowed (if allowedRoles is specified)
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Redirect to="/unauthorized" />;
   }
 

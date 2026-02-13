@@ -50,6 +50,13 @@
       "when": 1770959791865,
       "tag": "0006_glorious_the_professor",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1770968848054,
+      "tag": "0007_aromatic_franklin_richards",
+      "breakpoints": true
     }
   ]
 }

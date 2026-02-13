@@ -2729,7 +2729,19 @@ export const insuranceQuotes = mysqlTable("insurance_quotes", {
   quoteValidUntil: timestamp("quote_valid_until").notNull(),
   
   // Status
-  status: mysqlEnum("status", ["pending", "accepted", "rejected", "expired"]).default("pending").notNull(),
+  status: mysqlEnum("status", ["pending", "payment_pending", "payment_submitted", "payment_verified", "accepted", "rejected", "expired"]).default("pending").notNull(),
+  
+  // Payment tracking
+  paymentMethod: mysqlEnum("payment_method", ["cash", "bank_transfer", "ecocash", "onemoney", "rtgs", "zipit"]),
+  paymentReferenceNumber: varchar("payment_reference_number", { length: 100 }), // Bank ref, mobile money ref, etc.
+  paymentProofS3Key: varchar("payment_proof_s3_key", { length: 500 }), // S3 key for uploaded receipt/screenshot
+  paymentProofS3Url: varchar("payment_proof_s3_url", { length: 500 }), // S3 URL for uploaded proof
+  paymentAmount: int("payment_amount"), // Amount paid in cents (for verification)
+  paymentDate: timestamp("payment_date"), // When customer made payment
+  paymentSubmittedAt: timestamp("payment_submitted_at"), // When customer uploaded proof
+  paymentVerifiedAt: timestamp("payment_verified_at"), // When insurer verified payment
+  paymentVerifiedBy: int("payment_verified_by"), // User ID of insurer who verified
+  paymentRejectionReason: text("payment_rejection_reason"), // If payment rejected
   
   // KINGA insights (JSON)
   kingaInsights: text("kinga_insights"), // Claims reputation, settlement times, recommendations

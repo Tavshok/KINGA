@@ -52,6 +52,9 @@ import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
 import AutomationPolicies from "./pages/AutomationPolicies";
 import FleetManagement from "./pages/FleetManagement";
 import InsuranceQuote from "./pages/InsuranceQuote";
+import QuoteDetails from "./pages/QuoteDetails";
+import PaymentVerification from "./pages/PaymentVerification";
+import InsuranceDashboard from "./pages/InsuranceDashboard";
 
 function Router() {
   return (
@@ -230,6 +233,22 @@ function Router() {
       
       <Route path="/insurance/quote">
         <InsuranceQuote />
+      </Route>
+      
+      <Route path="/insurance/quote/:quoteId">
+        <QuoteDetails />
+      </Route>
+      
+      <Route path="/insurance/payments">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <PaymentVerification />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/insurance/dashboard">
+        <ProtectedRoute>
+          <InsuranceDashboard />
+        </ProtectedRoute>
       </Route>
       
       {/* Assessor Management Routes */}
