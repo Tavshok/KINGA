@@ -3468,3 +3468,253 @@ export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
 
 export type VehicleMileageLog = typeof vehicleMileageLogs.$inferSelect;
 export type InsertVehicleMileageLog = typeof vehicleMileageLogs.$inferInsert;
+
+
+
+
+// ============================================================================
+// LEARNING GOVERNANCE FRAMEWORK - Training Dataset Management
+// ============================================================================
+
+/**
+ * Training Data Scores - Confidence scoring for training dataset inclusion
+ */
+export const trainingDataScores = mysqlTable("training_data_scores", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Overall confidence score (0-100)
+  trainingConfidenceScore: decimal("training_confidence_score", { precision: 5, scale: 2 }).notNull(),
+  trainingConfidenceCategory: mysqlEnum("training_confidence_category", [
+    "HIGH",
+    "MEDIUM",
+    "LOW"
+  ]).notNull(),
+  
+  // Individual scoring components (0-100 each)
+  assessorReportScore: decimal("assessor_report_score", { precision: 5, scale: 2 }).default("0.00"),
+  supportingPhotosScore: decimal("supporting_photos_score", { precision: 5, scale: 2 }).default("0.00"),
+  panelBeaterQuotesScore: decimal("panel_beater_quotes_score", { precision: 5, scale: 2 }).default("0.00"),
+  evidenceCompletenessScore: decimal("evidence_completeness_score", { precision: 5, scale: 2 }).default("0.00"),
+  handwrittenAdjustmentsScore: decimal("handwritten_adjustments_score", { precision: 5, scale: 2 }).default("0.00"),
+  fraudMarkersScore: decimal("fraud_markers_score", { precision: 5, scale: 2 }).default("0.00"),
+  disputeHistoryScore: decimal("dispute_history_score", { precision: 5, scale: 2 }).default("0.00"),
+  competingQuotesScore: decimal("competing_quotes_score", { precision: 5, scale: 2 }).default("0.00"),
+  
+  // Scoring metadata
+  scoringAlgorithmVersion: varchar("scoring_algorithm_version", { length: 20 }),
+  scoringNotes: text("scoring_notes"), // JSON: detailed scoring breakdown
+  
+  // Anomaly and bias detection
+  anomalyDetected: tinyint("anomaly_detected").default(0),
+  anomalyReason: text("anomaly_reason"),
+  biasRiskDetected: tinyint("bias_risk_detected").default(0),
+  biasRiskReason: text("bias_risk_reason"),
+  
+  scoredAt: timestamp("scored_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TrainingDataScore = typeof trainingDataScores.$inferSelect;
+export type InsertTrainingDataScore = typeof trainingDataScores.$inferInsert;
+
+/**
+ * Claim Review Queue - Human-in-the-loop approval workflow
+ */
+export const claimReviewQueue = mysqlTable("claim_review_queue", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  reviewStatus: mysqlEnum("review_status", [
+    "pending_review",
+    "in_review",
+    "approved",
+    "rejected",
+    "needs_more_info"
+  ]).default("pending_review"),
+  
+  reviewPriority: mysqlEnum("review_priority", ["low", "medium", "high"]).default("medium"),
+  
+  // Routing logic
+  routedReason: varchar("routed_reason", { length: 255 }), // Why routed to manual review
+  automatedValidationLevel: varchar("automated_validation_level", { length: 50 }), // Level 1, 2, 3
+  
+  // Review assignment
+  assignedTo: int("assigned_to"), // User ID of reviewer
+  assignedAt: timestamp("assigned_at"),
+  
+  // Review outcome
+  reviewedBy: int("reviewed_by"), // User ID of reviewer
+  reviewedAt: timestamp("reviewed_at"),
+  reviewDecision: mysqlEnum("review_decision", ["approve", "reject", "request_more_info"]),
+  reviewNotes: text("review_notes"),
+  
+  // Dataset inclusion decision
+  includeInTrainingDataset: tinyint("include_in_training_dataset").default(0),
+  includeInReferenceDataset: tinyint("include_in_reference_dataset").default(1), // Default: all go to reference
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ClaimReviewQueue = typeof claimReviewQueue.$inferSelect;
+export type InsertClaimReviewQueue = typeof claimReviewQueue.$inferInsert;
+
+/**
+ * Training Dataset - Claims approved for AI model training
+ */
+export const trainingDataset = mysqlTable("training_dataset", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Dataset version tracking
+  datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
+  
+  // Inclusion metadata
+  includedAt: timestamp("included_at").defaultNow().notNull(),
+  includedBy: int("included_by").notNull(), // User ID or system
+  inclusionReason: text("inclusion_reason"),
+  
+  // Training usage tracking
+  usedInModelVersions: text("used_in_model_versions"), // JSON array of model versions
+  lastUsedForTraining: timestamp("last_used_for_training"),
+  
+  // Quality flags
+  isActive: tinyint("is_active").default(1), // Can be deactivated if quality issues found
+  deactivatedAt: timestamp("deactivated_at"),
+  deactivationReason: text("deactivation_reason"),
+});
+
+export type TrainingDatasetEntry = typeof trainingDataset.$inferSelect;
+export type InsertTrainingDatasetEntry = typeof trainingDataset.$inferInsert;
+
+/**
+ * Reference Dataset - All claims for benchmarking (not for training)
+ */
+export const referenceDataset = mysqlTable("reference_dataset", {
+  id: int("id").autoincrement().primaryKey(),
+  historicalClaimId: int("historical_claim_id").notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  // Dataset version tracking
+  datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
+  
+  // Inclusion metadata
+  includedAt: timestamp("included_at").defaultNow().notNull(),
+  
+  // Usage tracking
+  usedForBenchmarking: tinyint("used_for_benchmarking").default(0),
+  usedForAnalytics: tinyint("used_for_analytics").default(0),
+  lastAccessedAt: timestamp("last_accessed_at"),
+  
+  // Reference purpose tags
+  referencePurpose: text("reference_purpose"), // JSON array: ["benchmarking", "analytics", "audit"]
+});
+
+export type ReferenceDatasetEntry = typeof referenceDataset.$inferSelect;
+export type InsertReferenceDatasetEntry = typeof referenceDataset.$inferInsert;
+
+/**
+ * Model Version Registry - ML governance and version tracking
+ */
+export const modelVersionRegistry = mysqlTable("model_version_registry", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  modelName: varchar("model_name", { length: 255 }).notNull(),
+  modelVersion: varchar("model_version", { length: 50 }).notNull().unique(),
+  
+  // Model metadata
+  modelType: varchar("model_type", { length: 100 }), // e.g., "damage_assessment", "fraud_detection"
+  algorithmUsed: varchar("algorithm_used", { length: 100 }),
+  
+  // Training metadata
+  trainingDatasetVersion: varchar("training_dataset_version", { length: 50 }),
+  trainingClaimCount: int("training_claim_count"),
+  trainingStartedAt: timestamp("training_started_at"),
+  trainingCompletedAt: timestamp("training_completed_at"),
+  trainingDuration: int("training_duration"), // Minutes
+  
+  // Performance metrics
+  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }),
+  precisionScore: decimal("precision_score", { precision: 5, scale: 2 }),
+  recallScore: decimal("recall_score", { precision: 5, scale: 2 }),
+  f1Score: decimal("f1_score", { precision: 5, scale: 2 }),
+  
+  // Validation results
+  biasDriftValidation: varchar("bias_drift_validation", { length: 50 }), // "passed", "failed", "warning"
+  fraudDetectionStability: varchar("fraud_detection_stability", { length: 50 }),
+  performanceBenchmark: text("performance_benchmark"), // JSON: detailed metrics
+  
+  // Deployment status
+  deploymentStatus: mysqlEnum("deployment_status", [
+    "training",
+    "validation",
+    "staging",
+    "production",
+    "deprecated",
+    "archived"
+  ]).default("training"),
+  
+  deployedAt: timestamp("deployed_at"),
+  deployedBy: int("deployed_by"), // User ID
+  
+  // Approval workflow
+  approvalStatus: mysqlEnum("approval_status", [
+    "pending_validation",
+    "pending_approval",
+    "approved",
+    "rejected"
+  ]).default("pending_validation"),
+  approvedBy: int("approved_by"), // User ID
+  approvedAt: timestamp("approved_at"),
+  approvalNotes: text("approval_notes"),
+  
+  // Model artifacts
+  modelArtifactUrl: text("model_artifact_url"), // S3 URL to model file
+  modelConfigUrl: text("model_config_url"), // S3 URL to config
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type ModelVersionRegistry = typeof modelVersionRegistry.$inferSelect;
+export type InsertModelVersionRegistry = typeof modelVersionRegistry.$inferInsert;
+
+/**
+ * Model Training Audit Log - Full audit trail of training activities
+ */
+export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }),
+  
+  modelVersionId: int("model_version_id").notNull(),
+  
+  eventType: mysqlEnum("event_type", [
+    "training_started",
+    "training_completed",
+    "training_failed",
+    "validation_started",
+    "validation_completed",
+    "deployment_requested",
+    "deployment_approved",
+    "deployment_rejected",
+    "model_deprecated",
+    "dataset_added",
+    "dataset_removed"
+  ]).notNull(),
+  
+  eventDescription: text("event_description"),
+  eventMetadata: text("event_metadata"), // JSON: detailed event data
+  
+  performedBy: int("performed_by"), // User ID or system
+  performedAt: timestamp("performed_at").defaultNow().notNull(),
+  
+  ipAddress: varchar("ip_address", { length: 45 }),
+});
+
+export type ModelTrainingAuditLogEntry = typeof modelTrainingAuditLog.$inferSelect;
+export type InsertModelTrainingAuditLogEntry = typeof modelTrainingAuditLog.$inferInsert;

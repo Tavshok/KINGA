@@ -4952,3 +4952,94 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Replace logo URL in pdfExport.ts (3 PDF functions)
 - [ ] Test logo display across platform
 - [ ] Create checkpoint with original logo
+
+
+## Safe Historical Claims Ingestion & Learning Governance Framework (Feb 13, 2026)
+
+### Phase 1: Database Schema Design
+- [x] Design historicalClaims table for ingested claims (reused existing)
+- [x] Design claimDocuments table for multi-format documents per claim (reused existing)
+- [x] Design trainingDataScores table for confidence scoring
+- [x] Design trainingDataset and referenceDataset tables for separation
+- [x] Design claimReviewQueue table for approval workflow
+- [x] Design modelVersionRegistry table for ML governance
+- [x] Design ingestionBatches table for batch tracking (reused existing)
+- [x] Push schema changes to database
+- [x] Create comprehensive governance documentation (58 pages)
+- [x] Create ingestion service infrastructure
+- [x] Fix TypeScript compilation errors
+
+### Phase 2: Historical Claims Ingestion Pipeline
+- [ ] Create batch upload endpoint (ZIP with folder-per-claim structure)
+- [ ] Create individual claim upload endpoint
+- [ ] Implement document grouping by claim logic
+- [ ] Build OCR + LLM-assisted data extraction service
+- [ ] Implement feature engineering for damage, cost, fraud indicators
+- [ ] Add metadata tagging (country, insurer, year, currency, vehicle class)
+- [ ] Create ingestion status tracking
+- [ ] Build document format validation (PDF, images, handwritten notes)
+
+### Phase 3: Training Data Confidence Scoring Engine
+- [ ] Implement confidence scoring algorithm based on:
+  - [ ] Assessor report presence
+  - [ ] Supporting photos availability
+  - [ ] Panel beater quotes presence
+  - [ ] Evidence completeness
+  - [ ] Handwritten adjustments detection
+  - [ ] Fraud markers presence
+  - [ ] Claim dispute history
+  - [ ] Number of competing quotes
+- [ ] Calculate training_confidence_score (0-100)
+- [ ] Assign training_confidence_category (HIGH/MEDIUM/LOW)
+- [ ] Store scores in trainingDataScores table
+
+### Phase 4: Dataset Separation & Approval Workflow
+- [ ] Implement training dataset inclusion logic (confidence threshold)
+- [ ] Implement reference dataset storage (all claims)
+- [ ] Build automated Level 1 validation
+- [ ] Build Level 2 borderline claim detection
+- [ ] Create review queue routing logic
+- [ ] Implement admin approval workflow (Level 3)
+- [ ] Add anomaly detection screening
+- [ ] Add bias risk detection
+- [ ] Create audit logging for dataset additions
+
+### Phase 5: Review Queue UI
+- [ ] Create admin review queue page (/admin/training-review)
+- [ ] Build claim inspection interface with:
+  - [ ] Document viewer for all claim files
+  - [ ] Confidence score display
+  - [ ] Feature extraction results
+  - [ ] Fraud indicators display
+  - [ ] Metadata summary
+- [ ] Add approve/reject actions
+- [ ] Add bulk approval capability
+- [ ] Show pending review count badge
+
+### Phase 6: Ingestion Monitoring Dashboard
+- [ ] Create ingestion dashboard page (/admin/ingestion-monitor)
+- [ ] Display metrics:
+  - [ ] Historical ingestion success rate
+  - [ ] Dataset completeness percentage
+  - [ ] Training confidence distribution chart
+  - [ ] OCR extraction confidence metrics
+  - [ ] Bias distribution by insurer, region, year
+  - [ ] Feature availability metrics
+- [ ] Add batch ingestion history table
+- [ ] Show training vs reference dataset split
+
+### Phase 7: Governance Documentation
+- [ ] Generate docs/architecture/safe-historical-ingestion.md
+- [ ] Generate docs/governance/training-data-governance-policy.md
+- [ ] Generate docs/ml/model-versioning-governance.md
+- [ ] Document API endpoints
+- [ ] Create admin user guide
+
+### Phase 8: Testing & Delivery
+- [ ] Test batch ZIP upload with sample historical claims
+- [ ] Test individual claim upload
+- [ ] Test confidence scoring with various claim qualities
+- [ ] Test approval workflow end-to-end
+- [ ] Verify dataset separation logic
+- [ ] Test monitoring dashboard metrics
+- [ ] Create checkpoint with complete implementation
