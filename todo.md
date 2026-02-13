@@ -5115,3 +5115,171 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Validate safety controls enforcement
 - [ ] Check audit logging completeness
 - [ ] Create checkpoint for Phase 2
+
+
+## Phase 2B: Multi-Reference Truth Synthesis System (Feb 13, 2026)
+
+### Phase 1: Database Schema Extensions
+- [ ] Add `multi_reference_truth` table for storing synthesized ground truth values
+- [ ] Add `assessor_deviation_metrics` table for tracking assessor variance patterns
+- [ ] Add `regional_benchmarks` table for parts/labor cost baselines
+- [ ] Add `similar_claims_clusters` table for k-nearest neighbor analysis
+- [ ] Extend `training_data_scores` table with deviation scoring fields
+- [ ] Add `training_weight` field to training_dataset table (0.0-1.0)
+- [ ] Add `negotiated_adjustment` boolean flag to training_dataset
+- [ ] Add `deviation_reason` enum field (negotiation, fraud, regional_variance, data_quality)
+- [ ] Push schema changes to database
+
+### Phase 2: Truth Synthesis Engine
+- [ ] Create truth synthesis service module (server/ml/truth-synthesis.ts)
+- [ ] Implement photo damage severity analysis component
+- [ ] Build panel beater quote statistical clustering algorithm
+- [ ] Create regional parts/labor benchmark lookup system
+- [ ] Implement k-nearest neighbors similar claims finder
+- [ ] Integrate fraud probability scores from existing fraud detection
+- [ ] Add final settlement amount weighting
+- [ ] Create weighted consensus algorithm combining all 6 components
+- [ ] Implement confidence interval calculation for synthesized truth
+- [ ] Add explanation logging for truth synthesis decisions
+
+### Phase 3: Deviation Detection & Weighted Labels
+- [ ] Create assessor deviation scoring algorithm
+- [ ] Implement deviation threshold configuration (default: ±20%)
+- [ ] Build negotiated adjustment tagging logic
+- [ ] Create training weight calculation formula
+- [ ] Implement automatic weight reduction for high-deviation claims
+- [ ] Add deviation reason classification logic
+- [ ] Create tRPC procedures for truth synthesis
+- [ ] Integrate truth synthesis into confidence scoring engine
+
+### Phase 4: Deviation Review Queue & Analytics
+- [ ] Create deviation review queue page (/ml/review/deviations)
+- [ ] Build deviation claims list with filtering
+- [ ] Display side-by-side comparison (assessor vs synthesized truth)
+- [ ] Show all 6 truth components with individual scores
+- [ ] Implement manual truth override workflow
+- [ ] Create assessor variance analytics dashboard (/ml/analytics/assessor-variance)
+- [ ] Build assessor bias scoring metrics
+- [ ] Display regional variance patterns
+- [ ] Show vehicle type variance trends
+- [ ] Create panel beater relationship analysis
+- [ ] Add temporal variance tracking
+- [ ] Build export functionality for variance reports
+
+### Phase 5: Testing & Documentation
+- [ ] Test truth synthesis with sample historical claims
+- [ ] Verify deviation detection accuracy
+- [ ] Test weighted training label assignment
+- [ ] Validate assessor variance analytics
+- [ ] Create multi-reference truth methodology documentation
+- [ ] Update ML operations playbook with truth synthesis procedures
+- [ ] Create checkpoint with multi-reference truth system
+
+
+## Phase 2: Safe Historical Claims Learning Implementation (Feb 13, 2026) - PARTIALLY COMPLETE
+
+### ✅ Completed Components
+
+#### Governance Documentation (58 Pages)
+- [x] Safe Historical Ingestion Architecture (22 pages) - `/docs/architecture/safe-historical-ingestion.md`
+- [x] Training Data Governance Framework (18 pages) - `/docs/governance/training-data-governance.md`
+- [x] ML Operations Playbook (18 pages) - `/docs/ml/ml-operations-playbook.md`
+- [x] ML Implementation Status Document - `/docs/ML-IMPLEMENTATION-STATUS.md`
+
+#### Database Schema (10 New Tables)
+- [x] training_data_scores table
+- [x] claim_review_queue table
+- [x] training_dataset table (with training_weight, negotiated_adjustment, deviation_reason)
+- [x] reference_dataset table
+- [x] model_version_registry table
+- [x] model_training_audit_log table
+- [x] multi_reference_truth table
+- [x] assessor_deviation_metrics table
+- [x] regional_benchmarks table
+- [x] similar_claims_clusters table
+
+#### Confidence Scoring Engine
+- [x] Create confidence scoring service module (server/ml/confidence-scoring.ts)
+- [x] Implement 8-component weighted scoring algorithm
+- [x] Automatic confidence categorization (HIGH/MEDIUM/LOW)
+- [x] 6-layer anomaly detection
+- [x] Human-readable explanation logging
+- [x] Database persistence of scoring results
+
+#### Review Queue Dashboard
+- [x] Create ReviewQueue.tsx page at /ml/review/queue
+- [x] Real-time statistics dashboard
+- [x] Filterable claims list with confidence badges
+- [x] Document inspection viewer
+- [x] Confidence score breakdown display
+- [x] Approval/rejection workflows
+- [x] Structured rejection reason tagging
+- [x] Reviewer audit logging
+
+#### ML Router
+- [x] Create ml.ts router with tRPC procedures
+- [x] calculateConfidenceScore procedure
+- [x] getReviewQueue procedure
+- [x] approveClaim procedure
+- [x] rejectClaim procedure
+
+### ⚠️ Partially Implemented (Pending Schema Fixes)
+
+#### Multi-Reference Truth Synthesis Engine
+- [x] 6-component truth synthesis algorithm (server/ml/truth-synthesis.ts.disabled)
+- [x] Weighted consensus calculation
+- [x] Assessor deviation detection
+- [x] Training weight calculation
+- [ ] Fix schema field name mismatches (finalSettlementAmount, assessorId, etc.)
+- [ ] Fix document type enum alignment (damage_photo vs damage_image)
+- [ ] Add null safety checks for async db calls
+- [ ] Re-enable truth-synthesis.ts
+
+#### Truth Synthesis Router
+- [x] Router stub created (server/routers/truth-synthesis.ts)
+- [ ] Implement synthesizeTruth procedure
+- [ ] Implement getSynthesisResult procedure
+- [ ] Implement getDeviationQueue procedure
+- [ ] Implement approveForTraining procedure
+- [ ] Implement overrideTruth procedure
+- [ ] Implement getAssessorVariance procedure
+
+### ❌ Not Yet Implemented
+
+#### Batch Ingestion Interface
+- [ ] Create BatchIngestion.tsx page at /ml/admin/ingest
+- [ ] ZIP upload with folder-per-claim structure
+- [ ] Real-time processing progress tracking
+- [ ] Batch risk preview report
+- [ ] Batch failure recovery mechanisms
+- [ ] Error handling and retry logic
+
+#### Deviation Review Queue
+- [ ] Create DeviationQueue.tsx page at /ml/review/deviations
+- [ ] Side-by-side comparison (assessor vs synthesized truth)
+- [ ] Deviation reason display
+- [ ] Manual truth override workflow
+- [ ] Assessor feedback mechanism
+
+#### Assessor Variance Analytics
+- [ ] Create AssessorAnalytics.tsx page at /ml/admin/assessors
+- [ ] Assessor performance metrics dashboard
+- [ ] Regional variance patterns visualization
+- [ ] Vehicle type variance patterns
+- [ ] Time-series deviation trends
+- [ ] Systematic bias detection alerts
+
+#### Model Version Registry UI
+- [ ] Create ModelRegistry.tsx page at /ml/admin/models
+- [ ] Model version tracking dashboard
+- [ ] Training dataset composition viewer
+- [ ] Performance metrics over time
+- [ ] Model rollback capabilities
+- [ ] A/B testing configuration
+
+### 📊 Overall Completion: ~55% (5.5 of 11 components)
+
+**Estimated Remaining Effort:** 30-44 hours to complete all components
+
+**See:** `/docs/ML-IMPLEMENTATION-STATUS.md` for detailed status and roadmap
+

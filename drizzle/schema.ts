@@ -3587,6 +3587,19 @@ export const trainingDataset = mysqlTable("training_dataset", {
   isActive: tinyint("is_active").default(1), // Can be deactivated if quality issues found
   deactivatedAt: timestamp("deactivated_at"),
   deactivationReason: text("deactivation_reason"),
+  
+  // Multi-Reference Truth fields
+  trainingWeight: decimal("training_weight", { precision: 3, scale: 2 }).default("1.00"), // 0.00-1.00
+  negotiatedAdjustment: tinyint("negotiated_adjustment").default(0), // Boolean: assessor value deviates from truth
+  deviationReason: mysqlEnum("deviation_reason", [
+    "none",
+    "negotiation",
+    "fraud",
+    "regional_variance",
+    "data_quality",
+    "assessor_bias",
+    "manual_override"
+  ]).default("none"),
 });
 
 export type TrainingDatasetEntry = typeof trainingDataset.$inferSelect;
@@ -3719,3 +3732,172 @@ export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
 
 export type ModelTrainingAuditLogEntry = typeof modelTrainingAuditLog.$inferSelect;
 export type InsertModelTrainingAuditLogEntry = typeof modelTrainingAuditLog.$inferInsert;
+
+
+// =====================================
+// Multi-Reference Truth Synthesis Tables
+// =====================================
+
+/**
+ * Multi-Reference Truth - Synthesized ground truth from multiple evidence sources
+ * Treats assessor values as advisory, not absolute truth
+ */
+export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
+  id: int("id").primaryKey().autoincrement(),
+  historicalClaimId: int("historical_claim_id").notNull(),
+  
+  // Synthesized truth value (consensus from all components)
+  synthesizedValue: decimal("synthesized_value", { precision: 10, scale: 2 }).notNull(),
+  confidenceInterval: decimal("confidence_interval", { precision: 5, scale: 2 }), // ±% range
+  
+  // Individual component scores (0-100)
+  photoDamageSeverityScore: int("photo_damage_severity_score"),
+  panelBeaterQuoteClusterScore: int("panel_beater_quote_cluster_score"),
+  regionalBenchmarkScore: int("regional_benchmark_score"),
+  similarClaimsScore: int("similar_claims_score"),
+  fraudProbabilityScore: int("fraud_probability_score"),
+  settlementAmountScore: int("settlement_amount_score"),
+  
+  // Component values
+  photoDamageEstimate: decimal("photo_damage_estimate", { precision: 10, scale: 2 }),
+  panelBeaterMedian: decimal("panel_beater_median", { precision: 10, scale: 2 }),
+  regionalBenchmark: decimal("regional_benchmark", { precision: 10, scale: 2 }),
+  similarClaimsAverage: decimal("similar_claims_average", { precision: 10, scale: 2 }),
+  finalSettlement: decimal("final_settlement", { precision: 10, scale: 2 }),
+  
+  // Assessor comparison
+  assessorValue: decimal("assessor_value", { precision: 10, scale: 2 }),
+  assessorDeviation: decimal("assessor_deviation", { precision: 5, scale: 2 }), // % deviation
+  deviationAbsolute: decimal("deviation_absolute", { precision: 10, scale: 2 }),
+  
+  // Synthesis metadata
+  synthesisMethod: varchar("synthesis_method", { length: 50 }), // weighted_average, median, etc.
+  componentsUsed: int("components_used"), // Number of components available
+  synthesisQuality: mysqlEnum("synthesis_quality", ["high", "medium", "low"]),
+  
+  synthesizedAt: timestamp("synthesized_at").defaultNow().notNull(),
+  synthesizedBy: varchar("synthesized_by", { length: 50 }), // system or user ID
+  
+  // Explanation
+  synthesisExplanation: text("synthesis_explanation"), // Human-readable explanation
+});
+
+export type MultiReferenceTruth = typeof multiReferenceTruth.$inferSelect;
+export type InsertMultiReferenceTruth = typeof multiReferenceTruth.$inferInsert;
+
+/**
+ * Assessor Deviation Metrics - Track assessor variance patterns
+ * Detect systematic biases across assessors, regions, vehicle types
+ */
+export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics", {
+  id: int("id").primaryKey().autoincrement(),
+  assessorId: int("assessor_id"),
+  assessorName: varchar("assessor_name", { length: 255 }),
+  
+  // Time period
+  periodStart: date("period_start").notNull(),
+  periodEnd: date("period_end").notNull(),
+  
+  // Aggregated metrics
+  totalClaims: int("total_claims").notNull(),
+  averageDeviation: decimal("average_deviation", { precision: 5, scale: 2 }), // % avg deviation
+  medianDeviation: decimal("median_deviation", { precision: 5, scale: 2 }),
+  standardDeviation: decimal("standard_deviation", { precision: 5, scale: 2 }),
+  
+  // Bias indicators
+  overvaluationRate: decimal("overvaluation_rate", { precision: 5, scale: 2 }), // % of claims overvalued
+  undervaluationRate: decimal("undervaluation_rate", { precision: 5, scale: 2 }),
+  consistencyScore: int("consistency_score"), // 0-100
+  
+  // Segmentation
+  region: varchar("region", { length: 100 }),
+  vehicleType: varchar("vehicle_type", { length: 50 }),
+  panelBeaterId: int("panel_beater_id"), // Relationship bias
+  
+  // Quality indicators
+  dataQualityScore: int("data_quality_score"), // 0-100
+  sampleSize: int("sample_size"),
+  
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+
+export type AssessorDeviationMetrics = typeof assessorDeviationMetrics.$inferSelect;
+export type InsertAssessorDeviationMetrics = typeof assessorDeviationMetrics.$inferInsert;
+
+/**
+ * Regional Benchmarks - Parts and labor cost baselines by region
+ * Used for truth synthesis and deviation detection
+ */
+export const regionalBenchmarks = mysqlTable("regional_benchmarks", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  // Geographic
+  region: varchar("region", { length: 100 }).notNull(),
+  city: varchar("city", { length: 100 }),
+  
+  // Vehicle segmentation
+  vehicleType: varchar("vehicle_type", { length: 50 }),
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  yearRange: varchar("year_range", { length: 20 }), // e.g., "2018-2022"
+  
+  // Cost benchmarks
+  laborRatePerHour: decimal("labor_rate_per_hour", { precision: 10, scale: 2 }),
+  paintCostPerPanel: decimal("paint_cost_per_panel", { precision: 10, scale: 2 }),
+  
+  // Common parts (JSON: part_name -> avg_cost)
+  commonPartsCosts: text("common_parts_costs"), // JSON object
+  
+  // Statistical metrics
+  sampleSize: int("sample_size"),
+  confidenceLevel: decimal("confidence_level", { precision: 5, scale: 2 }), // e.g., 95.0
+  
+  // Temporal
+  effectiveFrom: date("effective_from").notNull(),
+  effectiveTo: date("effective_to"),
+  
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  dataSource: varchar("data_source", { length: 255 }), // e.g., "historical_claims", "market_survey"
+});
+
+export type RegionalBenchmark = typeof regionalBenchmarks.$inferSelect;
+export type InsertRegionalBenchmark = typeof regionalBenchmarks.$inferInsert;
+
+/**
+ * Similar Claims Clusters - K-nearest neighbor groups for comparison
+ * Used to find similar historical claims for truth synthesis
+ */
+export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
+  id: int("id").primaryKey().autoincrement(),
+  historicalClaimId: int("historical_claim_id").notNull(),
+  
+  // Similarity features (used for clustering)
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  damageType: varchar("damage_type", { length: 100 }),
+  damageSeverity: mysqlEnum("damage_severity", ["minor", "moderate", "severe", "total_loss"]),
+  region: varchar("region", { length: 100 }),
+  
+  // Cluster assignment
+  clusterId: int("cluster_id"),
+  clusterSize: int("cluster_size"),
+  
+  // Similar claims (JSON: array of claim IDs with similarity scores)
+  similarClaims: text("similar_claims"), // JSON: [{claim_id, similarity_score, cost}]
+  
+  // Statistical summary
+  clusterMedianCost: decimal("cluster_median_cost", { precision: 10, scale: 2 }),
+  clusterAverageCost: decimal("cluster_average_cost", { precision: 10, scale: 2 }),
+  clusterStdDev: decimal("cluster_std_dev", { precision: 10, scale: 2 }),
+  
+  // Quality metrics
+  similarityThreshold: decimal("similarity_threshold", { precision: 5, scale: 2 }), // e.g., 0.85
+  kNeighbors: int("k_neighbors"), // Number of neighbors used
+  
+  clusteredAt: timestamp("clustered_at").defaultNow().notNull(),
+  clusteringAlgorithm: varchar("clustering_algorithm", { length: 50 }), // e.g., "k-means", "dbscan"
+});
+
+export type SimilarClaimsCluster = typeof similarClaimsClusters.$inferSelect;
+export type InsertSimilarClaimsCluster = typeof similarClaimsClusters.$inferInsert;

@@ -1,0 +1,625 @@
+/**
+ * Multi-Reference Truth Synthesis Engine
+ * 
+ * Constructs ground truth from multiple evidence sources instead of blindly trusting assessor values.
+ * Treats assessor valuations as advisory benchmarks, not absolute truth.
+ * 
+ * Components:
+ * 1. Photo Damage Severity Analysis (AI vision)
+ * 2. Panel Beater Quote Statistical Clustering
+ * 3. Regional Parts/Labor Benchmarks
+ * 4. Similar Historical Claims (k-NN)
+ * 5. Fraud Probability Scores
+ * 6. Final Settlement Amounts
+ */
+
+import { getDb } from "../db";
+import {
+  historicalClaims,
+  ingestionDocuments,
+  extractedDocumentData,
+  panelBeaterQuotes,
+  regionalBenchmarks,
+  similarClaimsClusters,
+  fraudIndicators,
+  multiReferenceTruth,
+  type InsertMultiReferenceTruth,
+} from "../../drizzle/schema";
+import { eq, and, sql } from "drizzle-orm";
+import { invokeLLM } from "../_core/llm";
+
+/**
+ * Component weights for truth synthesis
+ * Must sum to 1.0
+ */
+const SYNTHESIS_WEIGHTS = {
+  photoDamageSeverity: 0.25,
+  panelBeaterQuoteCluster: 0.25,
+  regionalBenchmark: 0.15,
+  similarClaims: 0.15,
+  fraudProbability: 0.10,
+  settlementAmount: 0.10,
+};
+
+/**
+ * Deviation threshold for flagging negotiated adjustments
+ * If assessor value deviates more than this % from synthesized truth, flag it
+ */
+const DEVIATION_THRESHOLD = 20; // 20%
+
+interface TruthComponent {
+  score: number; // 0-100
+  value: number | null; // Estimated cost
+  confidence: number; // 0-1
+  explanation: string;
+}
+
+interface SynthesisResult {
+  synthesizedValue: number;
+  confidenceInterval: number;
+  components: {
+    photoDamageSeverity: TruthComponent;
+    panelBeaterQuoteCluster: TruthComponent;
+    regionalBenchmark: TruthComponent;
+    similarClaims: TruthComponent;
+    fraudProbability: TruthComponent;
+    settlementAmount: TruthComponent;
+  };
+  assessorDeviation: number; // % deviation
+  deviationAbsolute: number; // Absolute $ difference
+  synthesisQuality: "high" | "medium" | "low";
+  explanation: string;
+}
+
+/**
+ * Component 1: Photo Damage Severity Analysis
+ * Use AI vision to analyze damage photos and estimate repair cost
+ */
+async function analyzePhotoDamageSeverity(
+  claimId: number
+): Promise<TruthComponent> {
+  const db = await getDb();
+
+  // Get damage photos for this claim
+  const photos = await db
+    .select()
+    .from(ingestionDocuments)
+    .where(
+      and(
+        eq(ingestionDocuments.historicalClaimId, claimId),
+        eq(ingestionDocuments.documentType, "damage_photo")
+      )
+    );
+
+  if (photos.length === 0) {
+    return {
+      score: 0,
+      value: null,
+      confidence: 0,
+      explanation: "No damage photos available",
+    };
+  }
+
+  // Use LLM vision to analyze damage severity
+  // In production, this would call a specialized damage assessment model
+  const photoUrls = photos.map((p) => p.s3Url).filter(Boolean) as string[];
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert vehicle damage assessor. Analyze the damage photos and estimate the repair cost in USD. Consider visible damage severity, affected panels, and typical repair costs.",
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text",
+              text: "Analyze these vehicle damage photos and provide a repair cost estimate. Return ONLY a JSON object with {estimatedCost: number, severity: string, confidence: number (0-1), explanation: string}",
+            },
+            ...photoUrls.slice(0, 5).map((url) => ({
+              type: "image_url" as const,
+              image_url: { url },
+            })),
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "damage_assessment",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              estimatedCost: { type: "number" },
+              severity: { type: "string" },
+              confidence: { type: "number" },
+              explanation: { type: "string" },
+            },
+            required: ["estimatedCost", "severity", "confidence", "explanation"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+
+    return {
+      score: Math.min(100, result.confidence * 100),
+      value: result.estimatedCost,
+      confidence: result.confidence,
+      explanation: `AI photo analysis: ${result.severity} damage - ${result.explanation}`,
+    };
+  } catch (error) {
+    console.error("Photo damage analysis failed:", error);
+    return {
+      score: 0,
+      value: null,
+      confidence: 0,
+      explanation: "Photo analysis failed",
+    };
+  }
+}
+
+/**
+ * Component 2: Panel Beater Quote Statistical Clustering
+ * Analyze distribution of panel beater quotes to find consensus value
+ */
+async function analyzePanelBeaterQuotes(
+  claimId: number
+): Promise<TruthComponent> {
+  const db = await getDb();
+
+  // Get all panel beater quotes for this claim
+  const quotes = await db
+    .select()
+    .from(panelBeaterQuotes)
+    .where(eq(panelBeaterQuotes.claimId, claimId));
+
+  if (quotes.length === 0) {
+    return {
+      score: 0,
+      value: null,
+      confidence: 0,
+      explanation: "No panel beater quotes available",
+    };
+  }
+
+  // Calculate statistical measures
+  const quoteTotals = quotes.map((q) => parseFloat(q.totalCost || "0"));
+  const median = calculateMedian(quoteTotals);
+  const mean = quoteTotals.reduce((a, b) => a + b, 0) / quoteTotals.length;
+  const stdDev = calculateStdDev(quoteTotals, mean);
+
+  // Remove outliers (values > 2 std dev from mean)
+  const filteredQuotes = quoteTotals.filter(
+    (q) => Math.abs(q - mean) <= 2 * stdDev
+  );
+  const consensusValue =
+    filteredQuotes.length > 0
+      ? filteredQuotes.reduce((a, b) => a + b, 0) / filteredQuotes.length
+      : median;
+
+  // Confidence based on quote agreement (low std dev = high confidence)
+  const coefficientOfVariation = stdDev / mean;
+  const confidence = Math.max(0, 1 - coefficientOfVariation);
+
+  return {
+    score: Math.min(100, confidence * 100),
+    value: consensusValue,
+    confidence,
+    explanation: `${quotes.length} quotes: median=$${median.toFixed(2)}, consensus=$${consensusValue.toFixed(2)} (${filteredQuotes.length} after outlier removal)`,
+  };
+}
+
+/**
+ * Component 3: Regional Parts/Labor Benchmarks
+ * Compare against regional cost benchmarks for similar repairs
+ */
+async function analyzeRegionalBenchmarks(
+  claimId: number
+): Promise<TruthComponent> {
+  const db = await getDb();
+
+  // Get claim details
+  const claim = await db
+    .select()
+    .from(historicalClaims)
+    .where(eq(historicalClaims.id, claimId))
+    .limit(1);
+
+  if (claim.length === 0) {
+    return {
+      score: 0,
+      value: null,
+      confidence: 0,
+      explanation: "Claim not found",
+    };
+  }
+
+  const claimData = claim[0];
+
+  // Find matching regional benchmark
+  const benchmark = await db
+    .select()
+    .from(regionalBenchmarks)
+    .where(
+      and(
+        eq(regionalBenchmarks.region, claimData.region || ""),
+        eq(regionalBenchmarks.vehicleType, claimData.vehicleType || "")
+      )
+    )
+    .limit(1);
+
+  if (benchmark.length === 0) {
+    return {
+      score: 30, // Low score but not zero - still useful signal
+      value: null,
+      confidence: 0.3,
+      explanation: "No regional benchmark available for this vehicle type/region",
+    };
+  }
+
+  const benchmarkData = benchmark[0];
+
+  // Estimate cost based on benchmark labor rates and parts costs
+  // This is simplified - in production, would parse extracted repair items
+  const estimatedLaborHours = 10; // Default estimate
+  const laborCost =
+    parseFloat(benchmarkData.laborRatePerHour || "0") * estimatedLaborHours;
+  const partsCost = 500; // Simplified - would calculate from common parts
+
+  const benchmarkEstimate = laborCost + partsCost;
+
+  return {
+    score: 70, // Medium-high score
+    value: benchmarkEstimate,
+    confidence: 0.7,
+    explanation: `Regional benchmark: $${parseFloat(benchmarkData.laborRatePerHour || "0").toFixed(2)}/hr labor rate in ${benchmarkData.region}`,
+  };
+}
+
+/**
+ * Component 4: Similar Historical Claims (k-NN)
+ * Find similar claims and use their costs as reference
+ */
+async function analyzeSimilarClaims(
+  claimId: number
+): Promise<TruthComponent> {
+  const db = await getDb();
+
+  // Get similar claims cluster
+  const cluster = await db
+    .select()
+    .from(similarClaimsClusters)
+    .where(eq(similarClaimsClusters.historicalClaimId, claimId))
+    .limit(1);
+
+  if (cluster.length === 0) {
+    return {
+      score: 0,
+      value: null,
+      confidence: 0,
+      explanation: "No similar claims cluster found",
+    };
+  }
+
+  const clusterData = cluster[0];
+
+  // Use cluster median as reference value
+  const medianCost = parseFloat(clusterData.clusterMedianCost || "0");
+  const clusterSize = clusterData.clusterSize || 0;
+
+  // Confidence based on cluster size (more similar claims = higher confidence)
+  const confidence = Math.min(1, clusterSize / 20); // Max confidence at 20+ similar claims
+
+  return {
+    score: Math.min(100, confidence * 100),
+    value: medianCost,
+    confidence,
+    explanation: `${clusterSize} similar claims: median cost=$${medianCost.toFixed(2)}`,
+  };
+}
+
+/**
+ * Component 5: Fraud Probability Scores
+ * Adjust truth synthesis based on fraud risk
+ */
+async function analyzeFraudProbability(
+  claimId: number
+): Promise<TruthComponent> {
+  const db = await getDb();
+
+  // Get fraud indicators for this claim
+  const fraudData = await db
+    .select()
+    .from(fraudIndicators)
+    .where(eq(fraudIndicators.claimId, claimId))
+    .limit(1);
+
+  if (fraudData.length === 0) {
+    return {
+      score: 50, // Neutral - no fraud data
+      value: null,
+      confidence: 0.5,
+      explanation: "No fraud analysis available",
+    };
+  }
+
+  const fraud = fraudData[0];
+  const fraudScore = parseFloat(fraud.overallFraudScore || "0");
+
+  // High fraud score reduces confidence in all other components
+  // This doesn't provide a cost estimate, but flags suspicious claims
+  const confidence = 1 - fraudScore / 100;
+
+  return {
+    score: Math.min(100, (1 - fraudScore / 100) * 100),
+    value: null, // Fraud detection doesn't estimate cost
+    confidence,
+    explanation: `Fraud risk: ${fraudScore.toFixed(1)}% - ${fraud.riskLevel || "unknown"} risk`,
+  };
+}
+
+/**
+ * Component 6: Final Settlement Amount
+ * Use actual settlement as ground truth (if available)
+ */
+async function analyzeSettlementAmount(
+  claimId: number
+): Promise<TruthComponent> {
+  const db = await getDb();
+
+  // Get claim with settlement data
+  const claim = await db
+    .select()
+    .from(historicalClaims)
+    .where(eq(historicalClaims.id, claimId))
+    .limit(1);
+
+  if (claim.length === 0 || !claim[0].finalSettlementAmount) {
+    return {
+      score: 0,
+      value: null,
+      confidence: 0,
+      explanation: "No settlement amount available",
+    };
+  }
+
+  const settlementAmount = parseFloat(claim[0].finalSettlementAmount || "0");
+
+  // Settlement is high-confidence ground truth (actual payout)
+  return {
+    score: 95,
+    value: settlementAmount,
+    confidence: 0.95,
+    explanation: `Final settlement: $${settlementAmount.toFixed(2)}`,
+  };
+}
+
+/**
+ * Synthesize ground truth from all components
+ */
+export async function synthesizeGroundTruth(
+  claimId: number,
+  assessorValue: number
+): Promise<SynthesisResult> {
+  // Analyze all 6 components
+  const [
+    photoDamage,
+    panelBeaterQuotes,
+    regionalBenchmark,
+    similarClaims,
+    fraudProbability,
+    settlementAmount,
+  ] = await Promise.all([
+    analyzePhotoDamageSeverity(claimId),
+    analyzePanelBeaterQuotes(claimId),
+    analyzeRegionalBenchmarks(claimId),
+    analyzeSimilarClaims(claimId),
+    analyzeFraudProbability(claimId),
+    analyzeSettlementAmount(claimId),
+  ]);
+
+  // Calculate weighted consensus value
+  const components = [
+    { component: photoDamage, weight: SYNTHESIS_WEIGHTS.photoDamageSeverity },
+    {
+      component: panelBeaterQuotes,
+      weight: SYNTHESIS_WEIGHTS.panelBeaterQuoteCluster,
+    },
+    { component: regionalBenchmark, weight: SYNTHESIS_WEIGHTS.regionalBenchmark },
+    { component: similarClaims, weight: SYNTHESIS_WEIGHTS.similarClaims },
+    { component: fraudProbability, weight: SYNTHESIS_WEIGHTS.fraudProbability },
+    { component: settlementAmount, weight: SYNTHESIS_WEIGHTS.settlementAmount },
+  ];
+
+  // Filter components with valid values
+  const validComponents = components.filter((c) => c.component.value !== null);
+
+  if (validComponents.length === 0) {
+    throw new Error("No valid components for truth synthesis");
+  }
+
+  // Calculate weighted average
+  let totalWeight = 0;
+  let weightedSum = 0;
+
+  for (const { component, weight } of validComponents) {
+    const adjustedWeight = weight * component.confidence;
+    weightedSum += (component.value || 0) * adjustedWeight;
+    totalWeight += adjustedWeight;
+  }
+
+  const synthesizedValue = weightedSum / totalWeight;
+
+  // Calculate confidence interval (±% range)
+  const values = validComponents.map((c) => c.component.value || 0);
+  const stdDev = calculateStdDev(values, synthesizedValue);
+  const confidenceInterval = (stdDev / synthesizedValue) * 100;
+
+  // Calculate assessor deviation
+  const deviationAbsolute = Math.abs(assessorValue - synthesizedValue);
+  const assessorDeviation = (deviationAbsolute / synthesizedValue) * 100;
+
+  // Determine synthesis quality
+  let synthesisQuality: "high" | "medium" | "low";
+  if (validComponents.length >= 4 && confidenceInterval < 15) {
+    synthesisQuality = "high";
+  } else if (validComponents.length >= 2 && confidenceInterval < 30) {
+    synthesisQuality = "medium";
+  } else {
+    synthesisQuality = "low";
+  }
+
+  // Generate explanation
+  const explanation = `Synthesized from ${validComponents.length}/6 components. Assessor value: $${assessorValue.toFixed(2)}, Synthesized truth: $${synthesizedValue.toFixed(2)} (${assessorDeviation > 0 ? "+" : ""}${assessorDeviation.toFixed(1)}% deviation)`;
+
+  return {
+    synthesizedValue,
+    confidenceInterval,
+    components: {
+      photoDamageSeverity: photoDamage,
+      panelBeaterQuoteCluster: panelBeaterQuotes,
+      regionalBenchmark,
+      similarClaims,
+      fraudProbability,
+      settlementAmount,
+    },
+    assessorDeviation,
+    deviationAbsolute,
+    synthesisQuality,
+    explanation,
+  };
+}
+
+/**
+ * Save synthesis result to database
+ */
+export async function saveSynthesisResult(
+  claimId: number,
+  assessorValue: number,
+  synthesis: SynthesisResult
+): Promise<void> {
+  const db = await getDb();
+
+  const truthData: InsertMultiReferenceTruth = {
+    historicalClaimId: claimId,
+    synthesizedValue: synthesis.synthesizedValue.toString(),
+    confidenceInterval: synthesis.confidenceInterval.toString(),
+
+    photoDamageSeverityScore: synthesis.components.photoDamageSeverity.score,
+    panelBeaterQuoteClusterScore:
+      synthesis.components.panelBeaterQuoteCluster.score,
+    regionalBenchmarkScore: synthesis.components.regionalBenchmark.score,
+    similarClaimsScore: synthesis.components.similarClaims.score,
+    fraudProbabilityScore: synthesis.components.fraudProbability.score,
+    settlementAmountScore: synthesis.components.settlementAmount.score,
+
+    photoDamageEstimate: synthesis.components.photoDamageSeverity.value?.toString(),
+    panelBeaterMedian:
+      synthesis.components.panelBeaterQuoteCluster.value?.toString(),
+    regionalBenchmark: synthesis.components.regionalBenchmark.value?.toString(),
+    similarClaimsAverage: synthesis.components.similarClaims.value?.toString(),
+    finalSettlement: synthesis.components.settlementAmount.value?.toString(),
+
+    assessorValue: assessorValue.toString(),
+    assessorDeviation: synthesis.assessorDeviation.toString(),
+    deviationAbsolute: synthesis.deviationAbsolute.toString(),
+
+    synthesisMethod: "weighted_average",
+    componentsUsed: Object.values(synthesis.components).filter(
+      (c) => c.value !== null
+    ).length,
+    synthesisQuality: synthesis.synthesisQuality,
+
+    synthesizedBy: "system",
+    synthesisExplanation: synthesis.explanation,
+  };
+
+  await db.insert(multiReferenceTruth).values(truthData);
+}
+
+/**
+ * Determine if assessor value should be flagged as negotiated adjustment
+ */
+export function isNegotiatedAdjustment(synthesis: SynthesisResult): boolean {
+  return synthesis.assessorDeviation > DEVIATION_THRESHOLD;
+}
+
+/**
+ * Calculate training weight based on synthesis quality and deviation
+ */
+export function calculateTrainingWeight(synthesis: SynthesisResult): number {
+  let weight = 1.0;
+
+  // Reduce weight for high deviation
+  if (synthesis.assessorDeviation > DEVIATION_THRESHOLD) {
+    weight *= 0.5; // 50% weight for negotiated adjustments
+  }
+
+  // Reduce weight for low synthesis quality
+  if (synthesis.synthesisQuality === "low") {
+    weight *= 0.6;
+  } else if (synthesis.synthesisQuality === "medium") {
+    weight *= 0.8;
+  }
+
+  return Math.max(0.1, weight); // Minimum 10% weight
+}
+
+/**
+ * Classify deviation reason
+ */
+export function classifyDeviationReason(
+  synthesis: SynthesisResult
+): "none" | "negotiation" | "fraud" | "regional_variance" | "data_quality" {
+  if (synthesis.assessorDeviation <= DEVIATION_THRESHOLD) {
+    return "none";
+  }
+
+  // High fraud score suggests fraud
+  if (synthesis.components.fraudProbability.score < 50) {
+    return "fraud";
+  }
+
+  // Low synthesis quality suggests data quality issues
+  if (synthesis.synthesisQuality === "low") {
+    return "data_quality";
+  }
+
+  // Regional benchmark deviation suggests regional variance
+  if (
+    synthesis.components.regionalBenchmark.value &&
+    Math.abs(
+      synthesis.components.regionalBenchmark.value - synthesis.synthesizedValue
+    ) /
+      synthesis.synthesizedValue >
+      0.2
+  ) {
+    return "regional_variance";
+  }
+
+  // Default to negotiation
+  return "negotiation";
+}
+
+// Helper functions
+function calculateMedian(numbers: number[]): number {
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+function calculateStdDev(numbers: number[], mean: number): number {
+  const squaredDiffs = numbers.map((n) => Math.pow(n - mean, 2));
+  const variance =
+    squaredDiffs.reduce((a, b) => a + b, 0) / numbers.length;
+  return Math.sqrt(variance);
+}

@@ -1,0 +1,340 @@
+/**
+ * Truth Synthesis Router
+ * tRPC procedures for multi-reference truth synthesis and deviation management
+ */
+
+import { router, protectedProcedure } from "../_core/trpc";
+import { z } from "zod";
+import { getDb } from "../db";
+import {
+  historicalClaims,
+  multiReferenceTruth,
+  trainingDataset,
+  assessorDeviationMetrics,
+  claimReviewQueue,
+  type InsertTrainingDatasetEntry,
+  type InsertClaimReviewQueue,
+} from "../../drizzle/schema";
+import { eq, and, desc, sql } from "drizzle-orm";
+import {
+  synthesizeGroundTruth,
+  saveSynthesisResult,
+  isNegotiatedAdjustment,
+  calculateTrainingWeight,
+  classifyDeviationReason,
+} from "../ml/truth-synthesis";
+
+export const truthSynthesisRouter = router({
+  /**
+   * Synthesize ground truth for a historical claim
+   */
+  synthesizeTruth: protectedProcedure
+    .input(
+      z.object({
+        claimId: z.number(),
+        assessorValue: z.number(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const { claimId, assessorValue } = input;
+
+      // Run truth synthesis
+      const synthesis = await synthesizeGroundTruth(claimId, assessorValue);
+
+      // Save to database
+      await saveSynthesisResult(claimId, assessorValue, synthesis);
+
+      // Determine if this should be flagged for review
+      const needsReview = isNegotiatedAdjustment(synthesis);
+      const trainingWeight = calculateTrainingWeight(synthesis);
+      const deviationReason = classifyDeviationReason(synthesis);
+
+      return {
+        synthesis,
+        needsReview,
+        trainingWeight,
+        deviationReason,
+      };
+    }),
+
+  /**
+   * Get synthesis result for a claim
+   */
+  getSynthesisResult: protectedProcedure
+    .input(z.object({ claimId: z.number() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const result = await db
+        .select()
+        .from(multiReferenceTruth)
+        .where(eq(multiReferenceTruth.historicalClaimId, input.claimId))
+        .orderBy(desc(multiReferenceTruth.synthesizedAt))
+        .limit(1);
+
+      return result[0] || null;
+    }),
+
+  /**
+   * Get claims with high deviation (deviation review queue)
+   */
+  getDeviationQueue: protectedProcedure
+    .input(
+      z.object({
+        minDeviation: z.number().default(20), // Minimum % deviation
+        limit: z.number().default(50),
+        offset: z.number().default(0),
+      })
+    )
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      const claims = await db
+        .select({
+          claim: historicalClaims,
+          truth: multiReferenceTruth,
+        })
+        .from(multiReferenceTruth)
+        .innerJoin(
+          historicalClaims,
+          eq(historicalClaims.id, multiReferenceTruth.historicalClaimId)
+        )
+        .where(sql`CAST(${multiReferenceTruth.assessorDeviation} AS DECIMAL) >= ${input.minDeviation}`)
+        .orderBy(desc(multiReferenceTruth.assessorDeviation))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return claims;
+    }),
+
+  /**
+   * Approve claim for training dataset with weighted label
+   */
+  approveForTraining: protectedProcedure
+    .input(
+      z.object({
+        claimId: z.number(),
+        datasetVersion: z.string(),
+        trainingWeight: z.number().min(0).max(1),
+        deviationReason: z.enum([
+          "none",
+          "negotiation",
+          "fraud",
+          "regional_variance",
+          "data_quality",
+          "assessor_bias",
+          "manual_override",
+        ]),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Check if claim has synthesis result
+      const synthesis = await db
+        .select()
+        .from(multiReferenceTruth)
+        .where(eq(multiReferenceTruth.historicalClaimId, input.claimId))
+        .limit(1);
+
+      if (synthesis.length === 0) {
+        throw new Error("No synthesis result found for this claim");
+      }
+
+      const synthData = synthesis[0];
+      const negotiatedAdjustment =
+        parseFloat(synthData.assessorDeviation || "0") > 20 ? 1 : 0;
+
+      // Add to training dataset
+      const trainingEntry: InsertTrainingDatasetEntry = {
+        historicalClaimId: input.claimId,
+        datasetVersion: input.datasetVersion,
+        includedBy: ctx.user.id,
+        inclusionReason: input.notes || "Approved via deviation review",
+        trainingWeight: input.trainingWeight.toString(),
+        negotiatedAdjustment,
+        deviationReason: input.deviationReason,
+      };
+
+      await db.insert(trainingDataset).values(trainingEntry);
+
+      // Update review queue status
+      await db
+        .update(claimReviewQueue)
+        .set({
+          reviewStatus: "approved",
+          reviewedAt: new Date(),
+          reviewedBy: ctx.user.id,
+          reviewNotes: input.notes,
+        })
+        .where(eq(claimReviewQueue.historicalClaimId, input.claimId));
+
+      return { success: true };
+    }),
+
+  /**
+   * Override synthesized truth manually
+   */
+  overrideTruth: protectedProcedure
+    .input(
+      z.object({
+        claimId: z.number(),
+        manualTruthValue: z.number(),
+        reason: z.string(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Update synthesis result with manual override
+      await db
+        .update(multiReferenceTruth)
+        .set({
+          synthesizedValue: input.manualTruthValue.toString(),
+          synthesizedBy: ctx.user.id.toString(),
+          synthesisExplanation: `Manual override: ${input.reason}`,
+        })
+        .where(eq(multiReferenceTruth.historicalClaimId, input.claimId));
+
+      return { success: true };
+    }),
+
+  /**
+   * Get assessor variance analytics
+   */
+  getAssessorVariance: protectedProcedure
+    .input(
+      z.object({
+        assessorId: z.number().optional(),
+        region: z.string().optional(),
+        periodStart: z.string().optional(),
+        periodEnd: z.string().optional(),
+      })
+    )
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      let query = db.select().from(assessorDeviationMetrics);
+
+      const conditions = [];
+      if (input.assessorId) {
+        conditions.push(eq(assessorDeviationMetrics.assessorId, input.assessorId));
+      }
+      if (input.region) {
+        conditions.push(eq(assessorDeviationMetrics.region, input.region));
+      }
+
+      if (conditions.length > 0) {
+        query = query.where(and(...conditions)) as any;
+      }
+
+      const metrics = await query.orderBy(desc(assessorDeviationMetrics.calculatedAt));
+
+      return metrics;
+    }),
+
+  /**
+   * Calculate and save assessor deviation metrics
+   */
+  calculateAssessorMetrics: protectedProcedure
+    .input(
+      z.object({
+        assessorId: z.number().optional(),
+        periodStart: z.string(),
+        periodEnd: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      const db = await getDb();
+
+      // Get all claims with synthesis results for this assessor/period
+      const claims = await db
+        .select({
+          claim: historicalClaims,
+          truth: multiReferenceTruth,
+        })
+        .from(multiReferenceTruth)
+        .innerJoin(
+          historicalClaims,
+          eq(historicalClaims.id, multiReferenceTruth.historicalClaimId)
+        )
+        .where(
+          and(
+            input.assessorId
+              ? eq(historicalClaims.assessorName, input.assessorId.toString())
+              : sql`1=1`,
+            sql`${historicalClaims.incidentDate} >= ${input.periodStart}`,
+            sql`${historicalClaims.incidentDate} <= ${input.periodEnd}`
+          )
+        );
+
+      if (claims.length === 0) {
+        throw new Error("No claims found for this period");
+      }
+
+      // Calculate metrics
+      const deviations = claims.map((c) =>
+        parseFloat(c.truth.assessorDeviation || "0")
+      );
+      const avgDeviation =
+        deviations.reduce((a, b) => a + b, 0) / deviations.length;
+      const medianDeviation = calculateMedian(deviations);
+      const stdDev = calculateStdDev(deviations, avgDeviation);
+
+      const overvaluations = deviations.filter((d) => d > 0).length;
+      const undervaluations = deviations.filter((d) => d < 0).length;
+
+      const overvaluationRate = (overvaluations / claims.length) * 100;
+      const undervaluationRate = (undervaluations / claims.length) * 100;
+
+      // Consistency score (inverse of std dev)
+      const consistencyScore = Math.max(0, 100 - stdDev);
+
+      // Save metrics
+      await db.insert(assessorDeviationMetrics).values({
+        assessorId: input.assessorId || null,
+        assessorName: claims[0]?.claim.assessorName || null,
+        periodStart: new Date(input.periodStart),
+        periodEnd: new Date(input.periodEnd),
+        totalClaims: claims.length,
+        averageDeviation: avgDeviation.toString(),
+        medianDeviation: medianDeviation.toString(),
+        standardDeviation: stdDev.toString(),
+        overvaluationRate: overvaluationRate.toString(),
+        undervaluationRate: undervaluationRate.toString(),
+        consistencyScore,
+        sampleSize: claims.length,
+      });
+
+      return {
+        totalClaims: claims.length,
+        avgDeviation,
+        medianDeviation,
+        stdDev,
+        overvaluationRate,
+        undervaluationRate,
+        consistencyScore,
+      };
+    }),
+});
+
+// Helper functions
+function calculateMedian(numbers: number[]): number {
+  const sorted = [...numbers].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 === 0
+    ? (sorted[mid - 1] + sorted[mid]) / 2
+    : sorted[mid];
+}
+
+function calculateStdDev(numbers: number[], mean: number): number {
+  const squaredDiffs = numbers.map((n) => Math.pow(n - mean, 2));
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / numbers.length;
+  return Math.sqrt(variance);
+}
