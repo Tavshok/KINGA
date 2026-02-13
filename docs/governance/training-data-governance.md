@@ -26,37 +26,64 @@ This document establishes the governance framework for managing training data us
 
 ## Governance Principles
 
-### 1. Quality First
+**Note:** These principles operate under the authority of the **KINGA Intelligence Authority Charter**, which establishes KINGA as an independent intelligence authority deriving truth from multi-source evidence rather than treating any single stakeholder as authoritative.
 
-Training data quality directly impacts model accuracy and fairness. We prioritize:
-- **Completeness** - Claims with comprehensive documentation
-- **Accuracy** - Verified and validated data
-- **Consistency** - Standardized formats and classifications
-- **Relevance** - Data representative of current claims landscape
+### 1. Independence and Neutrality
 
-### 2. Human Oversight
+KINGA operates with absolute stakeholder neutrality:
+- **No Single Source of Truth** - Assessor values, panel beater quotes, and settlement amounts are treated as advisory signals, not absolute truth
+- **Multi-Source Evidence Synthesis** - Ground truth derived from six independent sources: photo damage analysis, panel beater quote clustering, regional benchmarks, similar historical claims, fraud probability scores, and settlement outcomes
+- **Balanced Source Weighting** - No stakeholder type dominates synthesis; assessor data (40%), panel beater data (20%), independent sources (40%)
+- **Systematic Deviation Tracking** - All stakeholders (assessors, panel beaters, claimants, insurers) subject to identical quality scrutiny
+
+### 2. Confidence-Weighted Learning
+
+Training data must reflect synthesis quality and source agreement:
+- **Training Weight Assignment** - Every claim receives weight (0.0-1.0) based on synthesis quality, inter-source variance, fraud probability, and assessor deviation
+- **High-Confidence Claims (Weight 0.8-1.0)** - Strong multi-source agreement, low variance, minimal fraud risk
+- **Medium-Confidence Claims (Weight 0.5-0.7)** - Acceptable quality with moderate variance, requires human review
+- **Low-Confidence Claims (Weight 0.1-0.4)** - High variance or fraud risk, used for anomaly intelligence only
+- **Excluded Claims (Weight 0.0)** - Quality failure or confirmed fraud, completely excluded from training
+
+### 3. Negotiated Adjustment Recognition
+
+Distinguish between technical truth and negotiation outcomes:
+- **Deviation Threshold** - Claims where assessor values deviate >20% from synthesized truth flagged as "negotiated adjustments"
+- **Reduced Training Weight** - Negotiated claims receive lower weights to prevent model from learning negotiation dynamics as technical truth
+- **Deviation Reason Classification** - Every deviation classified as negotiation, fraud, regional variance, data quality, or assessor bias
+- **Temporal Pattern Tracking** - Monitor how negotiation patterns evolve over time and vary across stakeholders
+
+### 4. Anomaly Intelligence Extraction
+
+High-variance claims provide valuable intelligence:
+- **Separate Anomaly Dataset** - Claims with >25% inter-source variance maintained for pattern analysis
+- **Fraud Scheme Detection** - Anomaly clustering reveals emerging fraud before widespread impact
+- **Market Behavior Intelligence** - Variance patterns reveal stakeholder behavior, competitive dynamics, regional disparities
+- **Continuous Learning** - Anomaly analysis triggers benchmark updates, fraud model enhancement, and assessor feedback
+
+### 5. Human Oversight
 
 Critical decisions require human judgment:
-- **Borderline Cases** - Manual review for medium-confidence claims
-- **Anomalies** - Human investigation of statistical outliers
-- **Bias Risks** - Expert review of potential bias sources
+- **Borderline Cases** - Manual review for medium-confidence claims (synthesis quality 50-80)
+- **High-Deviation Claims** - Human investigation when assessor values deviate >20% from synthesized truth
+- **Anomaly Patterns** - Expert review of unusual variance clusters or fraud indicators
 - **Model Approval** - Senior approval for production deployment
 
-### 3. Transparency and Auditability
+### 6. Transparency and Auditability
 
 All decisions must be traceable:
-- **Full Audit Logs** - Every action logged with timestamp and user
-- **Decision Justifications** - Documented reasons for approvals/rejections
-- **Version Control** - Complete history of dataset changes
-- **Explainability** - Clear documentation of model behavior
+- **Full Audit Logs** - Every synthesis, training weight assignment, and approval logged with timestamp and user
+- **Decision Justifications** - Documented reasons for approvals, rejections, and weight assignments
+- **Version Control** - Complete history of dataset changes and model versions
+- **Explainability** - Clear documentation of synthesis methodology and confidence scoring
 
-### 4. Continuous Improvement
+### 7. Continuous Improvement
 
 Governance evolves with experience:
-- **Regular Reviews** - Quarterly policy assessments
-- **Feedback Loops** - Incorporate learnings from production
-- **Metric Tracking** - Monitor governance effectiveness
-- **Stakeholder Input** - Engage assessors, underwriters, data scientists
+- **Quarterly Charter Reviews** - Assess compliance with Independence Authority principles
+- **Feedback Loops** - Incorporate learnings from production, anomaly analysis, and stakeholder feedback
+- **Metric Tracking** - Monitor synthesis quality, deviation patterns, fraud detection effectiveness
+- **Stakeholder Input** - Engage assessors, panel beaters, insurers, and consumer advocates in governance reviews
 
 ---
 
