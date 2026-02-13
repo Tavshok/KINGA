@@ -3659,21 +3659,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({
         serviceRequestId: z.number(),
         providerId: z.number(),
+        providerName: z.string(),
         quotedPrice: z.number(),
         estimatedDuration: z.number(),
-        validUntil: z.string(),
-        description: z.string(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { submitServiceQuote } = await import('./fleet/service-marketplace');
         
         return submitServiceQuote({
-          serviceRequestId: input.serviceRequestId,
+          requestId: input.serviceRequestId,
           providerId: input.providerId,
-          quotedPrice: Math.round(input.quotedPrice * 100),
+          providerName: input.providerName,
+          quotedAmount: Math.round(input.quotedPrice * 100),
           estimatedDuration: input.estimatedDuration,
-          validUntil: new Date(input.validUntil),
-          description: input.description,
           tenantId: ctx.user.tenantId || 'default',
         });
       }),

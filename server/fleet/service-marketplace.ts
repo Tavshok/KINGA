@@ -1,5 +1,12 @@
 import { getDb } from "../db";
-import { serviceRequests, serviceQuotes, serviceProviders } from "../../drizzle/schema";
+import { 
+  serviceRequests, 
+  serviceQuotes, 
+  serviceProviders,
+  type ServiceRequest,
+  type ServiceQuote as DbServiceQuote,
+  type ServiceProvider as DbServiceProvider
+} from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 
 /**
@@ -7,31 +14,9 @@ import { eq, and, desc } from "drizzle-orm";
  * Connects fleet owners with service providers for maintenance and repairs
  */
 
-export interface ServiceProvider {
-  id: number;
-  name: string;
-  contactEmail: string;
-  contactPhone: string;
-  address: string;
-  serviceTypes: string[];
-  rating: number;
-  completedJobs: number;
-  averageResponseTime: number; // hours
-  isVerified: boolean;
-}
-
-export interface ServiceQuote {
-  id: number;
-  serviceRequestId: number;
-  providerId: number;
-  providerName: string;
-  quotedPrice: number; // in cents
-  estimatedDuration: number; // days
-  validUntil: Date;
-  description: string;
-  status: string;
-  submittedAt: Date;
-}
+// Use Drizzle-inferred types directly
+export type ServiceProvider = DbServiceProvider;
+export type ServiceQuote = DbServiceQuote;
 
 /**
  * Create a service request
@@ -87,24 +72,22 @@ export async function getServiceRequests(vehicleId?: number, fleetId?: number) {
  * Submit a quote for a service request
  */
 export async function submitServiceQuote(data: {
-  serviceRequestId: number;
+  requestId: number;
   providerId: number;
-  quotedPrice: number; // in cents
-  estimatedDuration: number; // days
-  validUntil: Date;
-  description: string;
+  providerName: string;
+  quotedAmount: number; // in cents
+  estimatedDuration: number; // hours
   tenantId: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
   const result = await db.insert(serviceQuotes).values({
-    serviceRequestId: data.serviceRequestId,
+    requestId: data.requestId,
     providerId: data.providerId,
-    quotedPrice: data.quotedPrice,
+    providerName: data.providerName,
+    quotedAmount: data.quotedAmount,
     estimatedDuration: data.estimatedDuration,
-    validUntil: data.validUntil,
-    description: data.description,
     status: "pending",
     tenantId: data.tenantId,
   });
@@ -120,27 +103,12 @@ export async function getServiceQuotes(serviceRequestId: number): Promise<Servic
   if (!db) throw new Error("Database not available");
 
   const quotes = await db
-    .select({
-      quote: serviceQuotes,
-      provider: serviceProviders,
-    })
+    .select()
     .from(serviceQuotes)
-    .innerJoin(serviceProviders, eq(serviceQuotes.providerId, serviceProviders.id))
-    .where(eq(serviceQuotes.serviceRequestId, serviceRequestId))
-    .orderBy(desc(serviceQuotes.createdAt));
+    .where(eq(serviceQuotes.requestId, serviceRequestId))
+    .orderBy(desc(serviceQuotes.submittedAt));
 
-  return quotes.map(({ quote, provider }) => ({
-    id: quote.id,
-    serviceRequestId: quote.serviceRequestId,
-    providerId: quote.providerId,
-    providerName: provider.name,
-    quotedPrice: quote.quotedPrice,
-    estimatedDuration: quote.estimatedDuration,
-    validUntil: quote.validUntil,
-    description: quote.description || "",
-    status: quote.status,
-    submittedAt: quote.createdAt,
-  }));
+  return quotes;
 }
 
 /**
@@ -168,7 +136,7 @@ export async function acceptServiceQuote(quoteId: number) {
     await db
       .update(serviceRequests)
       .set({ status: "in_progress" })
-      .where(eq(serviceRequests.id, quote[0].serviceRequestId));
+      .where(eq(serviceRequests.id, quote[0].requestId));
 
     // Reject other quotes for this request
     await db
@@ -176,7 +144,7 @@ export async function acceptServiceQuote(quoteId: number) {
       .set({ status: "rejected" })
       .where(
         and(
-          eq(serviceQuotes.serviceRequestId, quote[0].serviceRequestId),
+          eq(serviceQuotes.requestId, quote[0].requestId),
           eq(serviceQuotes.status, "pending")
         )
       );
@@ -224,18 +192,7 @@ export async function getServiceProviders(): Promise<ServiceProvider[]> {
 
   const providers = await db.select().from(serviceProviders);
 
-  return providers.map((p) => ({
-    id: p.id,
-    name: p.providerName,
-    contactEmail: p.email || "",
-    contactPhone: p.phone || "",
-    address: p.address || "",
-    serviceTypes: p.specializations ? JSON.parse(p.specializations) : [],
-    rating: p.averageRating ? parseFloat(p.averageRating) : 0,
-    completedJobs: p.totalJobsCompleted || 0,
-    averageResponseTime: p.averageCompletionTime ? parseFloat(p.averageCompletionTime) : 24,
-    isVerified: p.isVerified === 1,
-  }));
+  return providers;
 }
 
 /**
@@ -300,7 +257,7 @@ export async function completeServiceRequest(serviceRequestId: number, rating: n
     .from(serviceQuotes)
     .where(
       and(
-        eq(serviceQuotes.serviceRequestId, serviceRequestId),
+        eq(serviceQuotes.requestId, serviceRequestId),
         eq(serviceQuotes.status, "accepted")
       )
     )
