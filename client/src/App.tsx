@@ -56,12 +56,14 @@ import QuoteDetails from "./pages/QuoteDetails";
 import PaymentVerification from "./pages/PaymentVerification";
 import InsuranceDashboard from "./pages/InsuranceDashboard";
 import ReviewQueue from "./pages/ReviewQueue";
+import Onboarding from "./pages/Onboarding";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
+      <Route path="/onboarding" component={Onboarding} />
       <Route path="/unauthorized" component={Unauthorized} />
       
       {/* Analytics Dashboards */}

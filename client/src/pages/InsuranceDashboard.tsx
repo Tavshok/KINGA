@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Loader2, FileText, Shield, Clock, CheckCircle, XCircle, AlertCircle, Plus, Download } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 
 /**
  * Insurance Dashboard
@@ -165,16 +166,13 @@ export default function InsuranceDashboard() {
         {/* Active Policies Tab */}
         <TabsContent value="policies" className="space-y-4">
           {activePolicies.length === 0 ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Shield className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Active Policies</h3>
-                <p className="text-gray-600 mb-4">Get started by requesting a quote for your vehicle.</p>
-                <Button onClick={() => setLocation("/insurance/quote")} className="bg-emerald-600 hover:bg-emerald-700">
-                  Get a Quote
-                </Button>
-              </CardContent>
-            </Card>
+            <EmptyState
+              icon={Shield}
+              title="No Active Policies"
+              description="Get started by requesting a quote for your vehicle. Our AI-powered system will provide instant pricing."
+              actionLabel="Get a Quote"
+              onAction={() => setLocation("/insurance/quote")}
+            />
           ) : (
             activePolicies.map((policy: any) => {
               const monthlyPremium = (policy.premiumAmount / 100).toFixed(2);

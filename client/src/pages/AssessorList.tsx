@@ -3,7 +3,8 @@ import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, Mail, Phone, MapPin, Award } from "lucide-react";
+import { Loader2, Plus, Mail, Phone, MapPin, Award, Users } from "lucide-react";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function AssessorList() {
   const [, setLocation] = useLocation();
@@ -36,17 +37,13 @@ export default function AssessorList() {
       </div>
 
       {!assessors || assessors.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground mb-4">
-              You haven't added any assessors yet.
-            </p>
-            <Button onClick={() => setLocation("/add-assessor")}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add Your First Assessor
-            </Button>
-          </CardContent>
-        </Card>
+        <EmptyState
+          icon={Users}
+          title="No assessors yet"
+          description="Build your assessor team by adding internal or external assessors to handle claims."
+          actionLabel="Add Your First Assessor"
+          onAction={() => setLocation("/add-assessor")}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {assessors.map((assessor: any) => (

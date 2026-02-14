@@ -1,162 +1,31 @@
-import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Upload, FileText, Loader2, ArrowLeft } from "lucide-react";
+import { FileText, ArrowLeft } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
-import { trpc } from "@/lib/trpc";
+import { EnhancedDocumentUpload } from "@/components/EnhancedDocumentUpload";
+import { useAuth } from "@/_core/hooks/useAuth";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Progress } from "@/components/ui/progress";
 
 
 export default function InsurerExternalAssessmentUpload() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const [processingStage, setProcessingStage] = useState("");
   const [extractedResult, setExtractedResult] = useState<any>(null);
 
-  // Use direct fetch instead of tRPC for multipart upload
   const handleUploadSuccess = (data: any) => {
     console.log("✅ [PDF Upload] Upload success! Data received:", data);
-    console.log("📦 [PDF Upload] Vehicle Make:", data.vehicleMake);
-    console.log("📦 [PDF Upload] Vehicle Model:", data.vehicleModel);
-    console.log("📦 [PDF Upload] Vehicle Year:", data.vehicleYear);
-    console.log("📦 [PDF Upload] Registration:", data.vehicleRegistration);
-    console.log("📦 [PDF Upload] Claimant:", data.claimantName);
-    console.log("📦 [PDF Upload] Estimated Cost:", data.estimatedCost);
     
-    setUploadProgress(100);
-    setProcessingStage("Complete!");
-    
-    // SET THE EXTRACTED RESULT STATE TO DISPLAY INLINE
+    // Display result inline
     setExtractedResult(data);
-    console.log("✅ [PDF Upload] extractedResult state set");
     
-    // Store data in sessionStorage for the results page
+    // Store data in sessionStorage for compatibility
     sessionStorage.setItem('assessmentResults', JSON.stringify(data));
-    console.log("✅ [PDF Upload] Data stored in sessionStorage");
     
-    // Show success message
-    toast.success("Assessment uploaded and analyzed successfully!");
-    console.log("✅ [PDF Upload] Toast shown");
-    
-    // Stop uploading state
-    setUploading(false);
-  };
-
-  const handleUploadError = (error: string) => {
-    toast.error(`Upload failed: ${error}`);
-    setUploading(false);
-    setUploadProgress(0);
-    setProcessingStage("");
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.type !== "application/pdf") {
-        toast.error("Please select a PDF file");
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error("File size must be less than 10MB");
-        return;
-      }
-      setSelectedFile(file);
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      toast.error("Please select a file first");
-      return;
-    }
-
-    setUploading(true);
-    setUploadProgress(10);
-    setProcessingStage("Uploading PDF...");
-
-    // Simulate progress updates
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev < 90) {
-          const increment = Math.random() * 10;
-          const newProgress = Math.min(prev + increment, 90);
-          
-          // Update stage based on progress
-          if (newProgress > 20 && newProgress < 40) {
-            setProcessingStage("Extracting images from PDF...");
-          } else if (newProgress >= 40 && newProgress < 60) {
-            setProcessingStage("Running physics validation...");
-          } else if (newProgress >= 60 && newProgress < 80) {
-            setProcessingStage("Analyzing fraud indicators...");
-          } else if (newProgress >= 80) {
-            setProcessingStage("Generating comprehensive report...");
-          }
-          
-          return newProgress;
-        }
-        return prev;
-      });
-    }, 800);
-
-    try {
-      // Use FormData for multipart upload
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-
-      console.log('🚀 [PDF Upload] Using DIRECT FETCH to /api/upload-assessment (v2)');
-      const response = await fetch('/api/upload-assessment', {
-        method: 'POST',
-        body: formData,
-        credentials: 'include',
-      });
-
-      clearInterval(progressInterval);
-
-      if (!response.ok) {
-        // Check if response is JSON before parsing
-        const contentType = response.headers.get('content-type');
-        if (contentType && contentType.includes('application/json')) {
-          const error = await response.json();
-          throw new Error(error.message || 'Upload failed');
-        } else {
-          // Server returned non-JSON error (like HTML error page)
-          throw new Error(`Upload failed with status ${response.status}: ${response.statusText}`);
-        }
-      }
-
-      const data = await response.json();
-      console.log("📦 [PDF Upload] ===== RESPONSE START =====");
-      console.log("📦 [PDF Upload] Response status:", response.status);
-      console.log("📦 [PDF Upload] Response headers:", Object.fromEntries(response.headers.entries()));
-      console.log("📦 [PDF Upload] Raw response data:", data);
-      console.log("📦 [PDF Upload] Data type:", typeof data);
-      console.log("📦 [PDF Upload] Has 'result' key:", 'result' in data);
-      console.log("📦 [PDF Upload] ===== RESPONSE END =====");
-      console.log("📦 [PDF Upload] Vehicle Make:", data.vehicleMake);
-      console.log("📦 [PDF Upload] Vehicle Model:", data.vehicleModel);
-      console.log("📦 [PDF Upload] Registration:", data.vehicleRegistration);
-      console.log("📦 [PDF Upload] Claimant:", data.claimantName);
-      
-      // Store result to display inline instead of redirecting
-      setExtractedResult(data);
-      setUploadProgress(100);
-      toast.success("Extraction complete! See results below.");
-      
-      // Also store in sessionStorage for compatibility
-      handleUploadSuccess(data);
-      
-    } catch (error: any) {
-      clearInterval(progressInterval);
-      handleUploadError(error.message || 'Upload failed');
-    }
+    console.log("✅ [PDF Upload] Data stored and displayed");
   };
 
   return (
@@ -205,66 +74,15 @@ export default function InsurerExternalAssessmentUpload() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* File Upload */}
-              <div className="space-y-2">
-                <Label htmlFor="assessment-file">Assessment Document (PDF)</Label>
-                <div className="flex items-center gap-4">
-                  <Input
-                    id="assessment-file"
-                    type="file"
-                    accept="application/pdf"
-                    onChange={handleFileSelect}
-                    disabled={uploading}
-                    className="flex-1"
-                  />
-                  <Button
-                    onClick={handleUpload}
-                    disabled={!selectedFile || uploading}
-                    className="min-w-[120px]"
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Analyzing...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload & Analyze
-                      </>
-                    )}
-                  </Button>
-                </div>
-                {selectedFile && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <FileText className="h-4 w-4" />
-                    <span>{selectedFile.name} ({(selectedFile.size / 1024).toFixed(0)} KB)</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Progress Indicator */}
-              {uploading && (
-                <div className="bg-gradient-to-r from-blue-50 to-green-50 border border-blue-200 rounded-lg p-6 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{processingStage}</p>
-                      <p className="text-xs text-gray-600 mt-1">This may take 30-60 seconds...</p>
-                    </div>
-                    <span className="text-2xl font-bold text-blue-600">{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <Progress value={uploadProgress} className="h-3" />
-                  <div className="grid grid-cols-4 gap-2 text-xs text-gray-600">
-                    <div className={uploadProgress > 20 ? "text-green-600 font-semibold" : ""}>✓ Uploading PDF</div>
-                    <div className={uploadProgress > 40 ? "text-green-600 font-semibold" : ""}>✓ Extracting Images</div>
-                    <div className={uploadProgress > 60 ? "text-green-600 font-semibold" : ""}>✓ Physics Analysis</div>
-                    <div className={uploadProgress > 80 ? "text-green-600 font-semibold" : ""}>✓ Fraud Detection</div>
-                  </div>
-                </div>
-              )}
+              {/* Enhanced Upload Component */}
+              <EnhancedDocumentUpload
+                onSuccess={handleUploadSuccess}
+                maxFileSizeMB={10}
+                uploadEndpoint="/api/upload-assessment"
+              />
 
               {/* Instructions */}
-              {!uploading && (
+              {!extractedResult && (
                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
                   <p className="text-sm font-medium text-blue-900">What happens after upload:</p>
                   <ul className="text-sm text-blue-800 space-y-1 ml-4 list-disc">

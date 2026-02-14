@@ -5,6 +5,7 @@ import { FileText, Plus, Clock, CheckCircle } from "lucide-react";
 import { useLocation } from "wouter";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function ClaimantDashboard() {
   const { user, logout } = useAuth();
@@ -93,10 +94,13 @@ export default function ClaimantDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No claims submitted yet</p>
-                <p className="text-sm mt-2">Click "Submit New Claim" to get started</p>
-              </div>
+              <EmptyState
+                icon={FileText}
+                title="No claims yet"
+                description="You haven't submitted any insurance claims. Get started by submitting your first claim."
+                actionLabel="Submit New Claim"
+                onAction={() => setLocation('/claim/submit')}
+              />
             </CardContent>
           </Card>
 

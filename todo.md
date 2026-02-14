@@ -5309,3 +5309,14 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create stakeholder neutrality guidelines
 - [x] Update ML governance documentation to reflect charter
 - [ ] Create checkpoint with charter documentation
+
+
+## PHASE 1 - CRITICAL MVP FIXES (Current Priority)
+- [x] Build multi-step onboarding wizard for new users
+- [x] Add role-based onboarding paths (Assessor/Insurer/Fleet Manager)
+- [x] Fix document upload error handling and validation feedback
+- [x] Add retry mechanism for failed PDF extractions
+- [x] Create empty state components for all list pages
+- [x] Add empty state illustrations and CTAs
+- [ ] Complete end-to-end claims workflow testing
+- [ ] Test claims submission → triage → assessment → approval flow
