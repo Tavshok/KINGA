@@ -22,6 +22,7 @@ interface CostBreakdownChartProps {
   breakdown: CostBreakdown;
   itemizedCosts?: ItemizedCost[];
   currency?: string;
+  isEstimated?: boolean;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -42,7 +43,7 @@ const categoryColors: Record<string, string> = {
   other: '#f59e0b',
 };
 
-export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$" }: CostBreakdownChartProps) {
+export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", isEstimated = false }: CostBreakdownChartProps) {
   // Build categories from breakdown, filtering out zero values
   const allCategories = [
     { key: 'labor', label: 'Labor', value: breakdown.labor },
@@ -72,6 +73,9 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$" }:
           <DollarSign className="w-5 h-5 text-green-600" />
         </div>
         <h2 className="text-xl font-semibold">Cost Breakdown</h2>
+        {isEstimated && (
+          <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50">Estimated from industry averages</Badge>
+        )}
         {itemizedCosts && itemizedCosts.length > 0 && (
           <Badge variant="secondary">{itemizedCosts.length} line items</Badge>
         )}

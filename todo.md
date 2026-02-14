@@ -752,7 +752,7 @@
 - [ ] Build weather validation against historical data
 - [ ] Create description consistency analyzer
 - [ ] Add validation results to fraud indicators
-- [ ] Build cross-validation report view
+- [x] Build cross-validation report view
 - [ ] Create unit tests for cross-validation
 
 ### Betterment Calculations
@@ -5326,3 +5326,33 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify image URLs from extraction are valid and displayed correctly (S3 upload of extracted images)
 - [x] Test comparison view with extracted data
 - [x] Write vitest tests for critical workflow paths (15 integration tests, all passing)
+
+
+## AI ENGINE AUDIT & FIX (Feb 14, 2026)
+- [ ] Audit fraud engine logic and scoring system
+- [ ] Audit physics validation engine and impact analysis
+- [ ] Audit damage analysis and component detection
+- [ ] Fix fraud-physics-damage data flow and communication
+- [ ] Improve damage visualization diagrams (vehicle impact points, component mapping)
+- [ ] Ensure LLM prompts produce structured, accurate outputs
+- [ ] Add proper error handling for AI engine failures
+- [ ] Write tests for AI engine logic
+
+
+## 3D VEHICLE DAMAGE VISUALIZATION
+- [x] Install Three.js and @react-three/fiber + @react-three/drei
+- [x] Build 3D rotatable vehicle model with damage zone heat mapping
+- [x] Add interactive zone selection and impact direction arrows
+- [x] Fix physics engine energyDissipated hardcoded value
+- [x] Build comprehensive vehicle parts taxonomy with sub-parts and SA terminology
+- [x] Ensure LLM extraction maps to proper part names
+- [x] Build cross-validation engine (quoted parts vs photo-visible damage)
+- [x] Add LLM vision analysis to detect visible damage in photos
+- [x] Flag parts quoted but not visible in photos
+- [x] Flag visible damage not included in quotes
+- [x] Build frontend cross-validation results display
+
+- [x] Ensure all reports capture comprehensive details (cross-validation, parts taxonomy, physics, fraud, cost)
+- [x] Update PDF export to include cross-validation section
+- [x] Update PDF export to include normalized component names and zones
+- [x] Build executive summary overview with key findings from all AI engines

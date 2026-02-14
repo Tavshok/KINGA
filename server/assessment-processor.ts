@@ -26,6 +26,8 @@ import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
 import { invokeLLM } from './_core/llm';
+import { resolveComponent, normalizeComponentName, type VehiclePart } from '../shared/vehicleParts';
+import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross-validation';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -115,6 +117,8 @@ interface FraudAnalysis {
 
 interface AssessmentResult {
   pdfUrl: string;
+  crossValidation?: CrossValidationReport;
+  normalizedComponents?: { raw: string; normalized: string; partId: string | null; zone: string | null }[];
   vehicleMake: string;
   vehicleModel: string;
   vehicleYear: number;
@@ -320,8 +324,20 @@ function validatePhysicsInline(
   // 7. Calculate impact force (F = mv/t, contact time ~0.1s)
   const impactForce = vehicleMass * speedMs / 0.1;
   
-  // 8. Calculate energy dissipation percentage (crumple zone absorbs ~60%)
-  const energyDissipated = kineticEnergy > 0 ? 60 : 0;
+  // 8. Calculate energy dissipation percentage dynamically
+  // Based on: crumple zone efficiency (40-70%), damage severity, and vehicle type
+  // Modern vehicles absorb 50-70% of KE through crumple zones
+  // Higher severity = more energy absorbed by structure (less by crumple zone)
+  let crumpleEfficiency = 0.60; // Base 60% for modern vehicles
+  if (vehicleType === 'truck' || vehicleType === 'suv') crumpleEfficiency = 0.55; // Stiffer frames
+  if (vehicleType === 'hatchback') crumpleEfficiency = 0.65; // More deformable
+  
+  // Severity adjustment: severe damage means crumple zone was overwhelmed
+  if (damageSeverity === 'total_loss') crumpleEfficiency = 0.40; // Structure failed
+  else if (damageSeverity === 'severe') crumpleEfficiency = 0.50;
+  else if (damageSeverity === 'minor') crumpleEfficiency = 0.70; // Crumple zone handled it well
+  
+  const energyDissipated = kineticEnergy > 0 ? Math.round(crumpleEfficiency * 100) : 0;
   
   // 9. Confidence and consistency
   const confidence = Math.max(0, Math.min(1, 1.0 - (flags.length * 0.2)));
@@ -1287,6 +1303,69 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     console.log(`   ${q.label}: $${q.amount.toLocaleString()} (${q.type})`);
   }
 
+  // ============================================================
+  // STEP 7.5: Normalize component names via vehicle parts taxonomy
+  // ============================================================
+  console.log('\n🔧 Step 7.5: Normalizing component names via parts taxonomy...');
+  const normalizedComponents = (extractedData.damagedComponents || []).map((raw: string) => {
+    const resolved = resolveComponent(raw);
+    const normalized = normalizeComponentName(raw);
+    return {
+      raw,
+      normalized,
+      partId: resolved?.id || null,
+      zone: resolved?.zone || null,
+    };
+  });
+  console.log(`✅ Normalized ${normalizedComponents.length} components:`);
+  for (const nc of normalizedComponents) {
+    console.log(`   "${nc.raw}" → "${nc.normalized}" (zone: ${nc.zone || 'unknown'})`);
+  }
+
+  // ============================================================
+  // STEP 7.6: Cross-validate quoted parts vs photo-visible damage
+  // ============================================================
+  console.log('\n🔍 Step 7.6: Cross-validating quotes vs photos...');
+  let crossValidation: CrossValidationReport | undefined;
+  
+  if (damagePhotoUrls.length > 0 && (componentRecommendations.length > 0 || extractedData.damagedComponents?.length > 0)) {
+    try {
+      const quotedParts = componentRecommendations.length > 0
+        ? componentRecommendations.map(cr => ({
+            name: cr.component,
+            cost: cr.estimatedCost,
+            action: cr.action,
+          }))
+        : (extractedData.damagedComponents || []).map((name: string) => ({ name }));
+      
+      crossValidation = await crossValidateQuotesVsPhotos(quotedParts, damagePhotoUrls);
+      
+      console.log(`✅ Cross-validation complete:`);
+      console.log(`   Confirmed: ${crossValidation.summary.confirmedCount}`);
+      console.log(`   Quoted not visible: ${crossValidation.summary.quotedNotVisibleCount} (${crossValidation.summary.suspiciousCount} suspicious)`);
+      console.log(`   Visible not quoted: ${crossValidation.summary.visibleNotQuotedCount}`);
+      console.log(`   Risk score: ${crossValidation.summary.overallRiskScore}/100 (${crossValidation.summary.overallRiskLevel})`);
+      
+      // Feed cross-validation fraud indicators into fraud analysis
+      if (crossValidation.fraudIndicators.length > 0) {
+        fraudAnalysis.top_risk_factors.push(...crossValidation.fraudIndicators);
+        // Adjust fraud score based on cross-validation
+        const cvRiskBoost = crossValidation.summary.suspiciousCount * 0.05;
+        if (cvRiskBoost > 0) {
+          fraudAnalysis.fraud_probability = Math.min(1.0, fraudAnalysis.fraud_probability + cvRiskBoost);
+          fraudAnalysis.risk_score = Math.round(fraudAnalysis.fraud_probability * 100);
+          const rs = fraudAnalysis.risk_score;
+          fraudAnalysis.risk_level = rs < 30 ? 'low' : rs < 60 ? 'medium' : rs < 80 ? 'high' : 'critical';
+          console.log(`   ⚠️ Fraud score adjusted: +${(cvRiskBoost * 100).toFixed(0)}% → ${fraudAnalysis.risk_score}/100 (${fraudAnalysis.risk_level})`);
+        }
+      }
+    } catch (error: any) {
+      console.warn(`⚠️ Cross-validation failed: ${error.message}`);
+    }
+  } else {
+    console.log('   ⏭️ Skipped: insufficient photos or components for cross-validation');
+  }
+
   // Clean up temp file
   try { unlinkSync(tempPdfPath); } catch (e) { /* ignore */ }
 
@@ -1333,9 +1412,11 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     damagePhotos: damagePhotoUrls,
     allPhotos,
     accidentType: extractedData.accidentType || undefined,
-    damagedComponents: extractedData.damagedComponents || [],
+    damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string; partId: string | null; zone: string | null }) => nc.normalized),
     physicsAnalysis,
     fraudAnalysis,
+    crossValidation,
+    normalizedComponents,
     missingData,
     dataQuality,
     dataCompleteness: completeness

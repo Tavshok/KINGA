@@ -23,10 +23,24 @@ function generateReportHTML(data: any): string {
     vehicleRegistration,
     damageDescription,
     estimatedCost,
+    originalQuote,
+    agreedCost,
+    savings,
     physicsAnalysis,
     fraudAnalysis,
     damagePhotos,
     damagedComponents,
+    crossValidation,
+    normalizedComponents,
+    componentRecommendations,
+    itemizedCosts,
+    accidentType,
+    accidentDate,
+    accidentDescription,
+    assessorName,
+    repairerName,
+    claimantName,
+    claimNumber,
   } = data;
 
   // Extract physics values from the physics_analysis nested object
@@ -450,10 +464,192 @@ function generateReportHTML(data: any): string {
     ` : ''}
   </div>
 
+  <div class="page-break"></div>
+
+  <!-- Cross-Validation Analysis -->
+  ${crossValidation ? `
+  <div class="section">
+    <h2 class="section-title">Quote vs Photo Cross-Validation</h2>
+    
+    <div style="margin-bottom: 15px;">
+      <strong>Validation Risk: </strong>
+      <span class="badge ${crossValidation.summary?.overallRiskLevel === 'low' ? 'badge-success' : crossValidation.summary?.overallRiskLevel === 'medium' ? 'badge-warning' : 'badge-danger'}">
+        ${crossValidation.summary?.overallRiskScore || 0}/100
+      </span>
+    </div>
+
+    <div class="commentary-box">
+      <strong>Summary:</strong> ${crossValidation.summary?.confirmedCount || 0} quoted parts confirmed visible in photos.
+      ${crossValidation.summary?.suspiciousCount > 0 ? `<strong style="color:#dc2626;">${crossValidation.summary.suspiciousCount} externally-visible part(s) were quoted but not detected in photos.</strong>` : 'All externally-visible quoted parts were verified.'}
+      ${crossValidation.summary?.visibleNotQuotedCount > 0 ? ` ${crossValidation.summary.visibleNotQuotedCount} area(s) of visible damage were not included in the repair quote.` : ''}
+      ${crossValidation.summary?.legitimateHiddenCount > 0 ? ` ${crossValidation.summary.legitimateHiddenCount} internal/hidden component(s) quoted but cannot be verified from photos alone.` : ''}
+    </div>
+
+    <table>
+      <tr>
+        <th>Category</th>
+        <th>Count</th>
+        <th>Status</th>
+      </tr>
+      <tr>
+        <td>Confirmed (Quoted + Visible)</td>
+        <td>${crossValidation.summary?.confirmedCount || 0}</td>
+        <td><span class="badge badge-success">VERIFIED</span></td>
+      </tr>
+      <tr>
+        <td>Quoted Not Visible (Suspicious)</td>
+        <td>${crossValidation.summary?.suspiciousCount || 0}</td>
+        <td><span class="badge badge-danger">INVESTIGATE</span></td>
+      </tr>
+      <tr>
+        <td>Quoted Not Visible (Hidden/Internal)</td>
+        <td>${crossValidation.summary?.legitimateHiddenCount || 0}</td>
+        <td><span class="badge badge-warning">ACCEPTABLE</span></td>
+      </tr>
+      <tr>
+        <td>Visible Not Quoted</td>
+        <td>${crossValidation.summary?.visibleNotQuotedCount || 0}</td>
+        <td><span class="badge badge-warning">REVIEW</span></td>
+      </tr>
+    </table>
+
+    ${crossValidation.items && crossValidation.items.length > 0 ? `
+    <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Detailed Part Validation</h3>
+    <table>
+      <tr>
+        <th>Part Name</th>
+        <th>Zone</th>
+        <th>Category</th>
+        <th>Cost</th>
+        <th>Confidence</th>
+      </tr>
+      ${crossValidation.items.map((item: any) => `
+      <tr>
+        <td>${item.partName || item.rawName}</td>
+        <td>${item.zone || '—'}</td>
+        <td><span class="badge ${item.category === 'confirmed' ? 'badge-success' : item.category === 'quoted_not_visible' ? (item.isExternallyVisible ? 'badge-danger' : 'badge-warning') : 'badge-warning'}">
+          ${item.category === 'confirmed' ? 'Confirmed' : item.category === 'quoted_not_visible' ? (item.isExternallyVisible ? 'Suspicious' : 'Hidden') : 'Unquoted'}
+        </span></td>
+        <td>${item.quotedCost ? 'R' + item.quotedCost.toLocaleString() : '—'}</td>
+        <td>${item.confidence ? Math.round(item.confidence * 100) + '%' : '—'}</td>
+      </tr>
+      `).join('')}
+    </table>
+    ` : ''}
+
+    ${crossValidation.fraudIndicators && crossValidation.fraudIndicators.length > 0 ? `
+    <div class="recommendations">
+      <h4>Cross-Validation Fraud Indicators</h4>
+      <ul>
+        ${crossValidation.fraudIndicators.map((ind: string) => `<li>${ind}</li>`).join('')}
+      </ul>
+    </div>
+    ` : ''}
+
+    ${crossValidation.recommendations && crossValidation.recommendations.length > 0 ? `
+    <div class="recommendations" style="background: #f0fdf4; border-color: #22c55e;">
+      <h4 style="color: #166534;">Recommendations</h4>
+      <ul>
+        ${crossValidation.recommendations.map((rec: string) => `<li style="color: #166534;">${rec}</li>`).join('')}
+      </ul>
+    </div>
+    ` : ''}
+  </div>
+  ` : ''}
+
+  <!-- Component Recommendations -->
+  ${componentRecommendations && componentRecommendations.length > 0 ? `
+  <div class="page-break"></div>
+  <div class="section">
+    <h2 class="section-title">AI Component Recommendations</h2>
+    <table>
+      <tr>
+        <th>Component</th>
+        <th>Action</th>
+        <th>Severity</th>
+        <th>Est. Cost</th>
+        <th>Labour (hrs)</th>
+      </tr>
+      ${componentRecommendations.map((rec: any) => `
+      <tr>
+        <td>${rec.component}</td>
+        <td><span class="badge ${rec.action === 'replace' ? 'badge-danger' : 'badge-warning'}">${rec.action.toUpperCase()}</span></td>
+        <td><span class="badge ${rec.severity === 'severe' ? 'badge-danger' : rec.severity === 'moderate' ? 'badge-warning' : 'badge-success'}">${rec.severity}</span></td>
+        <td>R${rec.estimatedCost?.toLocaleString() || '0'}</td>
+        <td>${rec.laborHours || '—'}</td>
+      </tr>
+      `).join('')}
+      <tr style="font-weight: bold; border-top: 2px solid #2563eb;">
+        <td colspan="3">Total</td>
+        <td>R${componentRecommendations.reduce((s: number, r: any) => s + (r.estimatedCost || 0), 0).toLocaleString()}</td>
+        <td>${componentRecommendations.reduce((s: number, r: any) => s + (r.laborHours || 0), 0)}</td>
+      </tr>
+    </table>
+
+    ${componentRecommendations.some((r: any) => r.reasoning) ? `
+    <h3 style="font-size: 12pt; margin-top: 20px; margin-bottom: 10px;">Reasoning</h3>
+    ${componentRecommendations.filter((r: any) => r.reasoning).map((rec: any) => `
+    <div style="margin-bottom: 8px; padding: 8px; background: #f8fafc; border-left: 3px solid #2563eb;">
+      <strong>${rec.component}:</strong> ${rec.reasoning}
+    </div>
+    `).join('')}
+    ` : ''}
+  </div>
+  ` : ''}
+
+  <!-- Itemized Costs -->
+  ${itemizedCosts && itemizedCosts.length > 0 ? `
+  <div class="section">
+    <h2 class="section-title">Itemized Cost Breakdown</h2>
+    <table>
+      <tr>
+        <th>Description</th>
+        <th>Category</th>
+        <th style="text-align: right;">Amount</th>
+      </tr>
+      ${itemizedCosts.map((item: any) => `
+      <tr>
+        <td>${item.description}</td>
+        <td>${item.category || 'other'}</td>
+        <td style="text-align: right;">R${item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</td>
+      </tr>
+      `).join('')}
+      <tr style="font-weight: bold; border-top: 2px solid #2563eb;">
+        <td colspan="2">Total</td>
+        <td style="text-align: right;">R${itemizedCosts.reduce((s: number, i: any) => s + (i.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+      </tr>
+    </table>
+  </div>
+  ` : ''}
+
+  <!-- Normalized Component Mapping -->
+  ${normalizedComponents && normalizedComponents.length > 0 ? `
+  <div class="section">
+    <h2 class="section-title">Component Name Resolution</h2>
+    <p style="font-size: 10pt; color: #64748b; margin-bottom: 10px;">Raw component names from the assessment mapped to standardized vehicle part taxonomy</p>
+    <table>
+      <tr>
+        <th>Raw Name (from PDF)</th>
+        <th>Normalized Name</th>
+        <th>Vehicle Zone</th>
+      </tr>
+      ${normalizedComponents.map((nc: any) => `
+      <tr>
+        <td>${nc.raw}</td>
+        <td>${nc.normalized}</td>
+        <td>${nc.zone ? nc.zone.replace(/_/g, ' ') : '—'}</td>
+      </tr>
+      `).join('')}
+    </table>
+  </div>
+  ` : ''}
+
   <!-- Footer -->
   <div class="footer">
     <p><strong>KINGA AutoVerify AI</strong> - Automated Vehicle Damage Assessment System</p>
-    <p>This report was generated using advanced AI analysis and physics validation</p>
+    <p>This report was generated using advanced AI analysis, physics validation, and cross-validation</p>
+    ${claimNumber ? `<p style="margin-top: 5px;">Claim Reference: ${claimNumber}</p>` : ''}
+    ${assessorName ? `<p>Assessor: ${assessorName}</p>` : ''}
     <p style="margin-top: 10px; font-size: 8pt;">Confidential - For Insurance Use Only</p>
   </div>
 </body>
@@ -473,10 +669,24 @@ export const exportAssessmentPDF = protectedProcedure
       vehicleRegistration: z.string().optional(),
       damageDescription: z.string().optional(),
       estimatedCost: z.number().optional(),
+      originalQuote: z.number().optional(),
+      agreedCost: z.number().optional(),
+      savings: z.number().optional(),
       physicsAnalysis: z.any().optional(),
       fraudAnalysis: z.any().optional(),
       damagePhotos: z.array(z.string()).optional(),
       damagedComponents: z.array(z.string()).optional(),
+      crossValidation: z.any().optional(),
+      normalizedComponents: z.any().optional(),
+      componentRecommendations: z.any().optional(),
+      itemizedCosts: z.any().optional(),
+      accidentType: z.string().optional(),
+      accidentDate: z.string().optional(),
+      accidentDescription: z.string().optional(),
+      assessorName: z.string().optional(),
+      repairerName: z.string().optional(),
+      claimantName: z.string().optional(),
+      claimNumber: z.string().optional(),
     })
   )
   .mutation(async ({ input }: { input: any }) => {

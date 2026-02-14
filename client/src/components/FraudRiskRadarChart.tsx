@@ -3,12 +3,12 @@ import { Badge } from "@/components/ui/badge";
 import { Shield, AlertTriangle } from "lucide-react";
 
 interface FraudIndicators {
-  claimHistory: number; // 0-10
-  damageConsistency: number; // 0-10
-  documentAuthenticity: number; // 0-10
-  behavioralPatterns: number; // 0-10
-  ownershipVerification: number; // 0-10
-  geographicRisk: number; // 0-10
+  claimHistory: number; // 1-5 from backend (scaled to 0-10 for display)
+  damageConsistency: number;
+  documentAuthenticity: number;
+  behavioralPatterns: number;
+  ownershipVerification: number;
+  geographicRisk: number;
 }
 
 interface FraudRiskRadarChartProps {
@@ -36,13 +36,15 @@ export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flagge
   const maxRadius = 100;
   
   const angleStep = (2 * Math.PI) / 6; // 6 indicators
+  // Backend sends 1-5 scale indicators; normalize to 0-10 for display
+  const normalize = (v: number) => Math.min(10, Math.max(0, v * 2));
   const indicatorsArray = [
-    { label: 'Claim History', value: indicators.claimHistory, angle: 0 },
-    { label: 'Damage Match', value: indicators.damageConsistency, angle: angleStep },
-    { label: 'Documents', value: indicators.documentAuthenticity, angle: angleStep * 2 },
-    { label: 'Behavior', value: indicators.behavioralPatterns, angle: angleStep * 3 },
-    { label: 'Ownership', value: indicators.ownershipVerification, angle: angleStep * 4 },
-    { label: 'Geography', value: indicators.geographicRisk, angle: angleStep * 5 },
+    { label: 'Claim History', value: normalize(indicators.claimHistory), rawValue: indicators.claimHistory, angle: 0 },
+    { label: 'Damage Match', value: normalize(indicators.damageConsistency), rawValue: indicators.damageConsistency, angle: angleStep },
+    { label: 'Documents', value: normalize(indicators.documentAuthenticity), rawValue: indicators.documentAuthenticity, angle: angleStep * 2 },
+    { label: 'Behavior', value: normalize(indicators.behavioralPatterns), rawValue: indicators.behavioralPatterns, angle: angleStep * 3 },
+    { label: 'Ownership', value: normalize(indicators.ownershipVerification), rawValue: indicators.ownershipVerification, angle: angleStep * 4 },
+    { label: 'Geography', value: normalize(indicators.geographicRisk), rawValue: indicators.geographicRisk, angle: angleStep * 5 },
   ];
 
   // Calculate points for the data polygon
@@ -202,12 +204,12 @@ export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flagge
                 <div 
                   className="h-2 rounded-full"
                   style={{ 
-                    width: `${(ind.value / 10) * 100}%`,
-                    backgroundColor: ind.value >= 7 ? '#ef4444' : ind.value >= 4 ? '#f59e0b' : '#10b981'
+                    width: `${(ind.rawValue / 5) * 100}%`,
+                    backgroundColor: ind.rawValue >= 4 ? '#ef4444' : ind.rawValue >= 3 ? '#f59e0b' : '#10b981'
                   }}
                 ></div>
               </div>
-              <span className="font-semibold w-8 text-right">{ind.value}/10</span>
+              <span className="font-semibold w-8 text-right">{ind.rawValue}/5</span>
             </div>
           </div>
         ))}

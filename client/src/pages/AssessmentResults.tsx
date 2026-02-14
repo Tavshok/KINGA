@@ -11,7 +11,7 @@ import {
   Edit3, Save, X, ZoomIn, ZoomOut, Shield, Activity, TrendingUp, AlertCircle,
   Brain, Gauge, Target, FileDown, ChevronLeft, ChevronRight, 
   Maximize2, RotateCcw, Camera, Link2, ArrowRight, Wrench, Replace,
-  BarChart3, ArrowDown, ArrowUp, Minus
+  BarChart3, ArrowDown, ArrowUp, Minus, Eye
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
@@ -21,6 +21,12 @@ import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
 import { FraudRiskRadarChart } from "@/components/FraudRiskRadarChart";
 import { CostBreakdownChart } from "@/components/CostBreakdownChart";
 import { AICommentaryCard } from "@/components/AICommentaryCard";
+import { ExecutiveSummary } from "@/components/ExecutiveSummary";
+import { CrossValidationPanel } from "@/components/CrossValidationPanel";
+
+// Lazy-load 3D visualization to avoid bundle bloat
+import { lazy, Suspense } from "react";
+const VehicleDamageVisualization3D = lazy(() => import("@/components/VehicleDamageVisualization3D"));
 
 interface ItemizedCost {
   description: string;
@@ -93,6 +99,35 @@ interface ExtractedData {
   missingData?: string[];
   dataQuality?: Record<string, boolean>;
   dataCompleteness?: number;
+  crossValidation?: {
+    timestamp: string;
+    summary: {
+      totalQuotedParts: number;
+      totalVisibleDamage: number;
+      confirmedCount: number;
+      quotedNotVisibleCount: number;
+      visibleNotQuotedCount: number;
+      legitimateHiddenCount: number;
+      suspiciousCount: number;
+      overallRiskScore: number;
+      overallRiskLevel: string;
+    };
+    items: {
+      partName: string;
+      rawName: string;
+      zone: string | null;
+      category: 'confirmed' | 'quoted_not_visible' | 'visible_not_quoted' | 'unaffected';
+      isExternallyVisible: boolean;
+      riskLevel: string;
+      explanation: string;
+      confidence: number;
+      quotedCost?: number;
+      quotedAction?: string;
+    }[];
+    fraudIndicators: string[];
+    recommendations: string[];
+  };
+  normalizedComponents?: { raw: string; normalized: string; partId: string | null; zone: string | null }[];
 }
 
 interface DamageSection {
@@ -484,6 +519,100 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
   );
 }
 
+// ─── 3D Visualization Data Transformers ─────────────────────────────────
+
+type VehicleZone3D = "front" | "rear" | "left_side" | "right_side" | "roof" | "windshield" | "rear_glass" | "undercarriage";
+
+const COMPONENT_ZONE_MAP: Record<string, VehicleZone3D> = {
+  bumper: 'front', 'front bumper': 'front', 'rear bumper': 'rear', grille: 'front', grill: 'front',
+  headlight: 'front', headlamp: 'front', 'fog light': 'front', bonnet: 'front', hood: 'front',
+  radiator: 'front', condenser: 'front', 'intercooler': 'front', fender: 'front',
+  taillight: 'rear', 'tail light': 'rear', 'tail lamp': 'rear', 'boot lid': 'rear', trunk: 'rear',
+  'rear panel': 'rear', 'back panel': 'rear', 'tow bar': 'rear', 'number plate': 'rear',
+  door: 'left_side', 'front door': 'left_side', 'rear door': 'right_side',
+  'quarter panel': 'right_side', sill: 'left_side', 'rocker panel': 'left_side',
+  mirror: 'left_side', 'side mirror': 'left_side', 'wing mirror': 'right_side',
+  'running board': 'left_side', 'step rail': 'left_side',
+  windscreen: 'windshield', windshield: 'windshield', 'front glass': 'windshield',
+  'rear window': 'rear_glass', 'rear glass': 'rear_glass', 'back glass': 'rear_glass',
+  roof: 'roof', 'roof panel': 'roof', 'roof rack': 'roof', canopy: 'roof', 'roll bar': 'roof',
+  subframe: 'undercarriage', chassis: 'undercarriage', suspension: 'undercarriage',
+  axle: 'undercarriage', 'drive shaft': 'undercarriage', exhaust: 'undercarriage',
+  'bull bar': 'front', 'nudge bar': 'front', 'a-bar': 'front',
+};
+
+function guessZone(componentName: string): VehicleZone3D {
+  const lower = componentName.toLowerCase();
+  for (const [key, zone] of Object.entries(COMPONENT_ZONE_MAP)) {
+    if (lower.includes(key)) return zone;
+  }
+  if (lower.includes('front')) return 'front';
+  if (lower.includes('rear') || lower.includes('back')) return 'rear';
+  if (lower.includes('left') || lower.includes('lh')) return 'left_side';
+  if (lower.includes('right') || lower.includes('rh')) return 'right_side';
+  return 'front';
+}
+
+function buildDamageZones(data: ExtractedData) {
+  const zoneMap = new Map<VehicleZone3D, { components: string[]; totalCost: number; maxSeverity: number }>();
+
+  // From componentRecommendations (best source)
+  if (data.componentRecommendations && data.componentRecommendations.length > 0) {
+    for (const rec of data.componentRecommendations) {
+      const zone = guessZone(rec.component);
+      const existing = zoneMap.get(zone) || { components: [], totalCost: 0, maxSeverity: 0 };
+      existing.components.push(rec.component);
+      existing.totalCost += rec.estimatedCost || 0;
+      const sev = rec.severity === 'severe' ? 8 : rec.severity === 'moderate' ? 5 : 2;
+      existing.maxSeverity = Math.max(existing.maxSeverity, sev);
+      zoneMap.set(zone, existing);
+    }
+  } else if (data.damagedComponents && data.damagedComponents.length > 0) {
+    // Fallback: from damagedComponents list
+    for (const comp of data.damagedComponents) {
+      const zone = guessZone(comp);
+      const existing = zoneMap.get(zone) || { components: [], totalCost: 0, maxSeverity: 0 };
+      existing.components.push(comp);
+      existing.maxSeverity = Math.max(existing.maxSeverity, 5);
+      zoneMap.set(zone, existing);
+    }
+  }
+
+  // Distribute cost if not per-component
+  if (data.estimatedCost && zoneMap.size > 0) {
+    const totalFromZones = Array.from(zoneMap.values()).reduce((s, z) => s + z.totalCost, 0);
+    if (totalFromZones === 0) {
+      const perZone = data.estimatedCost / zoneMap.size;
+      Array.from(zoneMap.values()).forEach(z => { z.totalCost = perZone; });
+    }
+  }
+
+  return Array.from(zoneMap.entries()).map(([zone, info]) => ({
+    zone,
+    severity: info.maxSeverity,
+    level: (info.maxSeverity >= 8 ? 'Critical' : info.maxSeverity >= 6 ? 'Severe' : info.maxSeverity >= 3 ? 'Moderate' : 'Minor') as 'Minor' | 'Moderate' | 'Severe' | 'Critical',
+    components: info.components,
+    repairCost: info.totalCost,
+  }));
+}
+
+function buildImpactData(data: ExtractedData) {
+  const type = (data.accidentType || '').toLowerCase();
+  let direction: 'front' | 'rear' | 'left' | 'right' | 'top' | 'multi' = 'front';
+  if (type.includes('rear')) direction = 'rear';
+  else if (type.includes('side') && type.includes('left')) direction = 'left';
+  else if (type.includes('side') && type.includes('right')) direction = 'right';
+  else if (type.includes('side')) direction = 'left';
+  else if (type.includes('rollover') || type.includes('roll')) direction = 'top';
+  else if (type.includes('multi') || type.includes('pile')) direction = 'multi';
+
+  return {
+    direction,
+    speed: data.physicsAnalysis?.impactSpeed,
+    force: data.physicsAnalysis?.impactForce,
+  };
+}
+
 // ─── Main Component ────────────────────────────────────────────────────
 export default function AssessmentResults() {
   const [, setLocation] = useLocation();
@@ -581,10 +710,24 @@ export default function AssessmentResults() {
         vehicleRegistration: extractedData.vehicleRegistration || extractedData.registration,
         damageDescription: extractedData.damageDescription,
         estimatedCost: extractedData.estimatedCost,
+        originalQuote: extractedData.originalQuote,
+        agreedCost: extractedData.agreedCost,
+        savings: extractedData.savings,
         physicsAnalysis: extractedData.physicsAnalysis,
         fraudAnalysis: extractedData.fraudAnalysis,
         damagePhotos: extractedData.damagePhotos,
         damagedComponents: damagedComponents,
+        crossValidation: extractedData.crossValidation,
+        normalizedComponents: extractedData.normalizedComponents,
+        componentRecommendations: extractedData.componentRecommendations,
+        itemizedCosts: extractedData.itemizedCosts,
+        accidentType: extractedData.accidentType,
+        accidentDate: extractedData.accidentDate,
+        accidentDescription: extractedData.accidentDescription,
+        assessorName: extractedData.assessorName,
+        repairerName: extractedData.repairerName,
+        claimantName: extractedData.claimantName,
+        claimNumber: extractedData.claimNumber,
       });
       if (result.success && result.pdfUrl) { window.open(result.pdfUrl, '_blank'); toast.success("PDF Generated!"); }
     } catch (error: any) { toast.error("Export Failed", { description: error.message }); }
@@ -636,7 +779,8 @@ export default function AssessmentResults() {
     total: totalCost
   };
   const breakdownSum = costBreakdown.labor + costBreakdown.parts + costBreakdown.materials + costBreakdown.paint + costBreakdown.sublet + costBreakdown.other;
-  if (breakdownSum === 0 && totalCost > 0) {
+  const isEstimatedBreakdown = breakdownSum === 0 && totalCost > 0;
+  if (isEstimatedBreakdown) {
     costBreakdown.labor = Math.round(totalCost * 0.35 * 100) / 100;
     costBreakdown.parts = Math.round(totalCost * 0.40 * 100) / 100;
     costBreakdown.materials = Math.round(totalCost * 0.10 * 100) / 100;
@@ -703,9 +847,12 @@ export default function AssessmentResults() {
 
         {/* Tabbed Content */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full max-w-4xl mx-auto grid-cols-6 mb-8">
+          <TabsList className="grid w-full max-w-5xl mx-auto grid-cols-7 mb-8">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="damage">Damage</TabsTrigger>
+            <TabsTrigger value="validation" className="gap-1">
+              <Eye className="w-3.5 h-3.5" /> Validation
+            </TabsTrigger>
             <TabsTrigger value="physics">Physics</TabsTrigger>
             <TabsTrigger value="fraud">Fraud Risk</TabsTrigger>
             <TabsTrigger value="cost">Cost</TabsTrigger>
@@ -714,6 +861,25 @@ export default function AssessmentResults() {
 
           {/* ═══ OVERVIEW TAB ═══ */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Executive Summary */}
+            <ExecutiveSummary
+              vehicleMake={extractedData.vehicleMake}
+              vehicleModel={extractedData.vehicleModel}
+              vehicleYear={extractedData.vehicleYear}
+              vehicleRegistration={extractedData.vehicleRegistration || extractedData.registration}
+              accidentType={extractedData.accidentType}
+              totalCost={totalCost}
+              originalQuote={extractedData.originalQuote}
+              agreedCost={extractedData.agreedCost}
+              savings={extractedData.savings}
+              componentCount={damagedComponents.length}
+              physicsData={physicsData}
+              fraudData={fraudData}
+              crossValidation={extractedData.crossValidation}
+              dataCompleteness={dataCompleteness}
+              damagePhotoCount={extractedData.damagePhotos?.length || 0}
+            />
+
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Vehicle Information */}
               <Card className="p-6 lg:col-span-2">
@@ -834,6 +1000,81 @@ export default function AssessmentResults() {
 
             {/* Damage Photos */}
             <ImageGallery damagePhotos={extractedData.damagePhotos || []} allPhotos={extractedData.allPhotos} />
+          </TabsContent>
+
+          {/* ═══ VALIDATION TAB ═══ */}
+          <TabsContent value="validation" className="space-y-6">
+            {/* 3D Vehicle Visualization */}
+            <Card className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-2 bg-indigo-100 rounded-lg"><Car className="w-5 h-5 text-indigo-600" /></div>
+                <div>
+                  <h2 className="text-xl font-semibold">3D Damage Visualization</h2>
+                  <p className="text-sm text-gray-500">Rotate and zoom to inspect damage zones on the vehicle</p>
+                </div>
+              </div>
+              <Suspense fallback={
+                <div className="h-[400px] flex items-center justify-center bg-gray-50 rounded-lg">
+                  <div className="text-center">
+                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-500" />
+                    <p className="text-sm text-gray-500">Loading 3D visualization...</p>
+                  </div>
+                </div>
+              }>
+                <VehicleDamageVisualization3D
+                  damageZones={buildDamageZones(extractedData)}
+                  impactData={buildImpactData(extractedData)}
+                  height={420}
+                />
+              </Suspense>
+            </Card>
+
+            {/* Cross-Validation Panel */}
+            {extractedData.crossValidation ? (
+              <CrossValidationPanel data={extractedData.crossValidation} />
+            ) : (
+              <Card className="p-8 text-center">
+                <Eye className="w-12 h-12 mx-auto text-gray-300 mb-3" />
+                <p className="text-gray-500 font-medium">Cross-Validation Not Available</p>
+                <p className="text-sm text-gray-400 mt-1">Cross-validation requires both damage photos and quoted components. Upload an assessment with photos to enable this analysis.</p>
+              </Card>
+            )}
+
+            {/* Normalized Component Mapping */}
+            {extractedData.normalizedComponents && extractedData.normalizedComponents.length > 0 && (
+              <Card className="p-6">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 bg-purple-100 rounded-lg"><Wrench className="w-5 h-5 text-purple-600" /></div>
+                  <h2 className="text-xl font-semibold">Component Name Resolution</h2>
+                  <Badge variant="secondary">{extractedData.normalizedComponents.length} components</Badge>
+                </div>
+                <p className="text-sm text-gray-500 mb-4">Raw component names from the assessment mapped to standardized vehicle part taxonomy</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200">
+                        <th className="text-left py-2 px-3 font-semibold text-gray-600">Raw Name (from PDF)</th>
+                        <th className="text-left py-2 px-3 font-semibold text-gray-600">Normalized Name</th>
+                        <th className="text-left py-2 px-3 font-semibold text-gray-600">Vehicle Zone</th>
+                        <th className="text-left py-2 px-3 font-semibold text-gray-600">Part ID</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {extractedData.normalizedComponents.map((nc, i) => (
+                        <tr key={i} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-2 px-3 text-gray-700">{nc.raw}</td>
+                          <td className="py-2 px-3 font-medium text-gray-900">{nc.normalized}</td>
+                          <td className="py-2 px-3">
+                            {nc.zone ? <Badge variant="outline" className="text-xs capitalize">{nc.zone.replace(/_/g, ' ')}</Badge> : <span className="text-gray-400">—</span>}
+                          </td>
+                          <td className="py-2 px-3 text-xs text-gray-400 font-mono">{nc.partId || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </TabsContent>
 
           {/* ═══ DAMAGE ANALYSIS TAB ═══ */}
@@ -997,7 +1238,7 @@ export default function AssessmentResults() {
               ]}
             />
             
-            <CostBreakdownChart breakdown={costBreakdown} itemizedCosts={extractedData.itemizedCosts} />
+            <CostBreakdownChart breakdown={costBreakdown} itemizedCosts={extractedData.itemizedCosts} isEstimated={isEstimatedBreakdown} />
           </TabsContent>
 
           {/* ═══ QUOTES TAB ═══ */}
