@@ -5356,3 +5356,64 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update PDF export to include cross-validation section
 - [x] Update PDF export to include normalized component names and zones
 - [x] Build executive summary overview with key findings from all AI engines
+
+
+## HISTORICAL CLAIMS PDF INGESTION
+- [ ] Create historical_claims table with full extracted data fields
+- [ ] Create historical_ingestion_jobs table for tracking batch processing
+- [ ] Build bulk PDF upload endpoint (accepts multiple PDFs)
+- [ ] Build queue-based processing pipeline (reuse AI extraction)
+- [ ] Store extracted data: vehicle info, costs, components, damage zones, fraud indicators
+- [ ] Build historical data query endpoints (search, filter, aggregate)
+- [ ] Build cost benchmarking queries (avg cost by make/model/damage type)
+- [ ] Build fraud pattern queries (repeat claimants, vehicles, locations)
+- [ ] Build panel beater performance queries (cost accuracy, repair quality)
+- [ ] Create admin UI for bulk PDF upload with drag-and-drop
+- [ ] Add ingestion progress tracking and status dashboard
+- [ ] Integrate historical benchmarks into live assessment results
+- [ ] Test with sample historical PDFs
+- [ ] Save checkpoint with ingestion system
+
+
+## DASHBOARD INTEGRATION & CONTINUOUS LEARNING (Role-Separated)
+### Insurer Dashboard (upload/view only)
+- [x] Add Historical Claims upload section to InsurerDashboard
+- [x] Add historical claims list view to InsurerDashboard
+- [x] Show cost benchmarks for insurer's claims
+### Admin Dashboard (training/configuration)
+- [x] Add Ground Truth capture tab to AdminDashboard
+- [x] Add AI Training analytics tab to AdminDashboard (variance, assessor benchmarks, vehicle patterns)
+- [x] Add learning configuration to AdminDashboard settings
+### Continuous Learning Loop
+- [x] Build auto-feed: approved claims → historical DB automatically
+- [x] Auto-capture ground truth when claims are approved/settled
+- [x] Feed new claim data into variance datasets automatically
+- [x] Update AI benchmarks as new claims are processed
+### Live Assessment Integration
+- [x] Integrate historical benchmarks into live assessment results (internal AI signal only)
+- [x] Historical cost comparison feeds into fraud detection engine
+- [x] Assessor accuracy trends available in admin dashboard
+- [x] Update benchmarks to compare like-for-like damages (not just vehicle make/model)
+- [x] Match on damage type (front, rear, side, rollover, etc.)
+- [x] Match on damage severity (minor, moderate, severe)
+- [x] Match on affected zones (front_bumper, door_left, etc.)
+- [x] Pass damage context from assessment processor to benchmark query
+- [ ] Test continuous learning flow end-to-end
+
+
+## CLAIMANT DOCUMENT UPLOAD AUTO-FILL
+- [x] Build server-side claim document extraction endpoint (LLM vision)
+- [x] Extract: claimant name, ID, contact, vehicle details, incident description, date, location
+- [x] Build ClaimDocumentUpload component with drag-and-drop
+- [x] Add "Upload Claim Form" option alongside manual form entry
+- [x] Auto-populate claim form fields from extracted data
+- [x] Allow claimant to review and edit auto-filled fields before submitting
+- [x] Support PDF, JPG, PNG claim forms (handwritten and printed)
+- [x] Integrate into ClaimantDashboard claim submission flow
+- [x] Support vehicle registration book upload and extraction (GVM, tare, engine no, VIN)
+- [x] Add GVM, tare weight, engine number fields to claim form and extraction
+- [x] Allow multiple document types per claim: claim form, reg book, licence disc, ID document
+- [x] Support third-party claim lodging (broker, agent, company rep, family member on behalf of insured)
+- [x] Add lodger role/relationship field to claim form (self, broker, agent, company rep, family member, other)
+- [x] Add lodger contact details separate from claimant details
+- [x] Track who lodged vs who is the actual claimant in the claim record

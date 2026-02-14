@@ -73,16 +73,63 @@ export const claims = mysqlTable("claims", {
   claimNumber: varchar("claim_number", { length: 50 }).notNull().unique(),
   tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   
+  // Lodger information (who submitted the claim - may differ from claimant)
+  lodgedBy: mysqlEnum("lodged_by", ["self", "broker", "agent", "company_rep", "family_member", "legal_rep", "other"]).default("self"),
+  lodgerName: varchar("lodger_name", { length: 255 }),
+  lodgerPhone: varchar("lodger_phone", { length: 50 }),
+  lodgerEmail: varchar("lodger_email", { length: 320 }),
+  lodgerCompany: varchar("lodger_company", { length: 255 }), // Broker firm, company name, law firm
+  lodgerReference: varchar("lodger_reference", { length: 100 }), // Broker ref, agent code, etc.
+  lodgerRelationship: varchar("lodger_relationship", { length: 255 }), // Relationship to claimant if "other"
+
+  // Claimant personal details (the actual insured person)
+  claimantIdNumber: varchar("claimant_id_number", { length: 20 }),
+  claimantPhone: varchar("claimant_phone", { length: 50 }),
+  claimantEmail: varchar("claimant_email", { length: 320 }),
+  claimantAddress: text("claimant_address"),
+
   // Vehicle information
   vehicleMake: varchar("vehicle_make", { length: 100 }),
   vehicleModel: varchar("vehicle_model", { length: 100 }),
   vehicleYear: int("vehicle_year"),
   vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+  vehicleVin: varchar("vehicle_vin", { length: 50 }),
+  vehicleColor: varchar("vehicle_color", { length: 50 }),
+  vehicleMileage: varchar("vehicle_mileage", { length: 50 }),
+
+  // Vehicle Registration Book details (NaTIS)
+  vehicleEngineNumber: varchar("vehicle_engine_number", { length: 100 }),
+  vehicleGvm: varchar("vehicle_gvm", { length: 20 }), // Gross Vehicle Mass in kg
+  vehicleTareWeight: varchar("vehicle_tare_weight", { length: 20 }), // Tare weight in kg
+  vehicleEngineCapacity: varchar("vehicle_engine_capacity", { length: 20 }), // e.g. 1600cc
+  vehicleFuelType: varchar("vehicle_fuel_type", { length: 20 }), // petrol, diesel, hybrid, electric
+  vehicleFirstRegistrationDate: varchar("vehicle_first_registration_date", { length: 20 }),
+  vehicleOwnerName: varchar("vehicle_owner_name", { length: 255 }), // Registered owner from reg book
+  vehicleLicenceExpiryDate: varchar("vehicle_licence_expiry_date", { length: 20 }),
   
   // Incident details
   incidentDate: timestamp("incident_date"),
+  incidentTime: varchar("incident_time", { length: 10 }),
   incidentDescription: text("incident_description"),
   incidentLocation: text("incident_location"),
+  incidentType: mysqlEnum("incident_type", ["collision", "theft", "hail", "fire", "vandalism", "flood", "hijacking", "other"]),
+
+  // Third party details
+  thirdPartyName: varchar("third_party_name", { length: 255 }),
+  thirdPartyVehicle: varchar("third_party_vehicle", { length: 255 }),
+  thirdPartyRegistration: varchar("third_party_registration", { length: 50 }),
+  thirdPartyInsurer: varchar("third_party_insurer", { length: 255 }),
+
+  // Police report
+  policeReportNumber: varchar("police_report_number", { length: 100 }),
+  policeStation: varchar("police_station", { length: 255 }),
+
+  // Witness
+  witnessName: varchar("witness_name", { length: 255 }),
+  witnessPhone: varchar("witness_phone", { length: 50 }),
+
+  // Uploaded supporting documents (S3 URLs, stored as JSON)
+  supportingDocuments: text("supporting_documents"), // JSON array of {type, url, fileName}
   
   // Damage photos (S3 URLs, stored as JSON array)
   damagePhotos: text("damage_photos"), // JSON array of S3 URLs

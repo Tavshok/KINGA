@@ -58,6 +58,7 @@ import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor";
 import { exportAssessmentPDF } from "./pdf-export";
+import { extractClaimFormData } from "./claim-form-extractor";
 import { assessorOnboardingRouter } from "./routers/assessor-onboarding";
 import { documentIngestionRouter } from "./routers/document-ingestion";
 import { historicalClaimsRouter } from "./routers/historical-claims";
@@ -373,6 +374,45 @@ If any value is not found, use 0 for numbers and empty string for text.`;
    * - AI assessment triggering
    */
   claims: router({
+    /**
+     * Extract Claim Form Data from Document
+     * 
+     * Uses AI vision to extract claim details from uploaded documents
+     * (claim forms, registration books, licence discs, ID documents).
+     * Returns structured data to auto-populate the claim submission form.
+     */
+    extractFromDocument: protectedProcedure
+      .input(z.object({
+        fileData: z.string(), // base64 encoded file
+        fileName: z.string(),
+        mimeType: z.string(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+        // Decode base64 to buffer
+        const base64Data = input.fileData.replace(/^data:[^;]+;base64,/, "");
+        const fileBuffer = Buffer.from(base64Data, "base64");
+
+        // Extract data using AI vision
+        const extracted = await extractClaimFormData(
+          fileBuffer,
+          input.mimeType,
+          input.fileName
+        );
+
+        // Create audit entry
+        await createAuditEntry({
+          claimId: 0, // No claim yet
+          userId: ctx.user.id,
+          action: "claim_form_extracted",
+          entityType: "document",
+          changeDescription: `Extracted ${extracted.documentType} - ${input.fileName} (confidence: ${extracted.confidence}%)`,
+        });
+
+        return extracted;
+      }),
+
     /**
      * Submit New Claim
      * 
@@ -816,6 +856,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         console.log(`[Approval] Claim ${claim.claimNumber} technically approved by user ${ctx.user.id} for R${(approvedAmount / 100).toFixed(2)}`);
 
+        // Feed into continuous learning loop (non-blocking)
+        import("./continuous-learning").then(({ feedClaimToHistorical }) => {
+          feedClaimToHistorical(input.claimId).then((result) => {
+            if (result.success) {
+              console.log(`[ContinuousLearning] ${result.message}`);
+            } else {
+              console.warn(`[ContinuousLearning] ${result.message}`);
+            }
+          }).catch((err) => console.error("[ContinuousLearning] Error:", err));
+        });
+
         // Send notifications
         const { notifyClaimApproval, notifyPanelBeaterSelection } = await import('./workflow-notifications');
         const { getPanelBeaterById } = await import('./db');
@@ -901,6 +952,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         
         console.log(`[Approval] Claim ${claim.claimNumber} financially approved by user ${ctx.user.id}`);
+
+        // Feed into continuous learning loop (non-blocking)
+        import("./continuous-learning").then(({ feedClaimToHistorical }) => {
+          feedClaimToHistorical(input.claimId).then((result) => {
+            if (result.success) {
+              console.log(`[ContinuousLearning] Financial approval fed: ${result.message}`);
+            }
+          }).catch((err) => console.error("[ContinuousLearning] Error:", err));
+        });
 
         return { success: true };
       }),
@@ -1473,6 +1533,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!ctx.user) throw new Error("Not authenticated");
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         return await getAiAssessmentByClaimId(input.claimId, tenantId);
+      }),
+    historicalBenchmarks: protectedProcedure
+      .input(z.object({
+        vehicleMake: z.string(),
+        vehicleModel: z.string().optional(),
+        damageContext: z.object({
+          accidentType: z.string().optional(),
+          damageSeverity: z.string().optional(),
+          affectedZones: z.array(z.string()).optional(),
+          estimatedCost: z.number().optional(),
+        }).optional(),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const tenantId = ctx.user.tenantId || "default";
+        const { getHistoricalBenchmarks } = await import("./continuous-learning");
+        return await getHistoricalBenchmarks(tenantId, input.vehicleMake, input.vehicleModel, input.damageContext);
       }),
     all: protectedProcedure
       .query(async () => {

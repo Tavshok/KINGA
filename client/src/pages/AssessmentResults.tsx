@@ -22,6 +22,8 @@ import { FraudRiskRadarChart } from "@/components/FraudRiskRadarChart";
 import { CostBreakdownChart } from "@/components/CostBreakdownChart";
 import { AICommentaryCard } from "@/components/AICommentaryCard";
 import { ExecutiveSummary } from "@/components/ExecutiveSummary";
+// Historical benchmarks are used internally by AI engine, not shown to insurers directly
+// import { HistoricalBenchmarkCard } from "@/components/HistoricalBenchmarkCard";
 import { CrossValidationPanel } from "@/components/CrossValidationPanel";
 
 // Lazy-load 3D visualization to avoid bundle bloat
@@ -879,6 +881,7 @@ export default function AssessmentResults() {
               dataCompleteness={dataCompleteness}
               damagePhotoCount={extractedData.damagePhotos?.length || 0}
             />
+
 
             <div className="grid lg:grid-cols-3 gap-6">
               {/* Vehicle Information */}

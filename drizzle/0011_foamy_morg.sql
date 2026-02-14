@@ -1,0 +1,33 @@
+ALTER TABLE `claims` ADD `lodged_by` enum('self','broker','agent','company_rep','family_member','legal_rep','other') DEFAULT 'self';--> statement-breakpoint
+ALTER TABLE `claims` ADD `lodger_name` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `lodger_phone` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `lodger_email` varchar(320);--> statement-breakpoint
+ALTER TABLE `claims` ADD `lodger_company` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `lodger_reference` varchar(100);--> statement-breakpoint
+ALTER TABLE `claims` ADD `lodger_relationship` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `claimant_id_number` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `claimant_phone` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `claimant_email` varchar(320);--> statement-breakpoint
+ALTER TABLE `claims` ADD `claimant_address` text;--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_vin` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_color` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_mileage` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_engine_number` varchar(100);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_gvm` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_tare_weight` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_engine_capacity` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_fuel_type` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_first_registration_date` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_owner_name` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `vehicle_licence_expiry_date` varchar(20);--> statement-breakpoint
+ALTER TABLE `claims` ADD `incident_time` varchar(10);--> statement-breakpoint
+ALTER TABLE `claims` ADD `incident_type` enum('collision','theft','hail','fire','vandalism','flood','hijacking','other');--> statement-breakpoint
+ALTER TABLE `claims` ADD `third_party_name` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `third_party_vehicle` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `third_party_registration` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `third_party_insurer` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `police_report_number` varchar(100);--> statement-breakpoint
+ALTER TABLE `claims` ADD `police_station` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `witness_name` varchar(255);--> statement-breakpoint
+ALTER TABLE `claims` ADD `witness_phone` varchar(50);--> statement-breakpoint
+ALTER TABLE `claims` ADD `supporting_documents` text;
