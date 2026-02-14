@@ -18,12 +18,13 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign } from "lucide-react";
+import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign, ClipboardList } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
+import { EmptyState } from "@/components/EmptyState";
 
 export default function InsurerClaimsTriage() {
   const { user, logout } = useAuth();
@@ -35,10 +36,29 @@ export default function InsurerClaimsTriage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
 
-  // Get pending claims
-  const { data: allClaims = [], refetch: refetchClaims } = trpc.claims.byStatus.useQuery({
+  // Get pending claims (both submitted and triage status)
+  const { data: submittedClaims = [], refetch: refetchSubmitted } = trpc.claims.byStatus.useQuery({
     status: "submitted",
   });
+  const { data: triageClaims = [], refetch: refetchTriage } = trpc.claims.byStatus.useQuery({
+    status: "triage",
+  });
+  const { data: assessmentPendingClaims = [], refetch: refetchAssessment } = trpc.claims.byStatus.useQuery({
+    status: "assessment_pending",
+  });
+  
+  // Combine all claims that need triage attention
+  const allClaims = useMemo(() => [
+    ...submittedClaims,
+    ...triageClaims,
+    ...assessmentPendingClaims,
+  ], [submittedClaims, triageClaims, assessmentPendingClaims]);
+  
+  const refetchClaims = () => {
+    refetchSubmitted();
+    refetchTriage();
+    refetchAssessment();
+  };
 
   // Filter claims by registration number or claim number
   const claims = useMemo(() => {
@@ -221,10 +241,13 @@ export default function InsurerClaimsTriage() {
           </CardHeader>
           <CardContent>
             {claims.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                <p>No pending claims</p>
-                <p className="text-sm mt-2">Claims submitted by claimants will appear here</p>
-              </div>
+              <EmptyState
+                icon={ClipboardList}
+                title="No pending claims"
+                description="All claims have been processed. New claims submitted by claimants will appear here for triage."
+                actionLabel="Back to Dashboard"
+                onAction={() => setLocation('/insurer/dashboard')}
+              />
             ) : (
               <Table>
                 <TableHeader>

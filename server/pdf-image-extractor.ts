@@ -1,16 +1,24 @@
 /**
- * PDF Image Extraction using pdfjs-dist (Node.js)
- * Replaces Python-based image extraction to avoid SRE module mismatch errors
+ * PDF Image Extraction using system-level pdfimages + sharp
+ * 
+ * Strategy:
+ * 1. Write PDF buffer to temp file
+ * 2. Use `pdfimages` (from poppler-utils) to extract embedded images
+ * 3. Convert extracted images to PNG using sharp
+ * 4. Upload to S3 via storagePut
+ * 5. Return array of S3 URLs
+ * 
+ * This approach reliably extracts actual embedded images from PDFs,
+ * unlike the previous approach that just stored the PDF URL.
  */
 
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { execSync } from 'child_process';
+import { readFileSync, readdirSync, mkdirSync, existsSync, unlinkSync, rmSync } from 'fs';
 import { writeFileSync } from 'fs';
 import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
-
-// Disable worker for Node.js environment
-pdfjsLib.GlobalWorkerOptions.workerSrc = '';
+import sharp from 'sharp';
 
 interface ExtractedImage {
   url: string;
@@ -20,104 +28,164 @@ interface ExtractedImage {
 }
 
 /**
- * Extract images from PDF and upload to S3
- * @param pdfPath - Path to the PDF file
- * @returns Array of uploaded image URLs
+ * Extract images from a PDF buffer and upload to S3
+ * @param pdfBuffer - Buffer containing the PDF file
+ * @param pdfFileName - Original filename for logging
+ * @returns Array of extracted image objects with S3 URLs
  */
-export async function extractImagesFromPDF(pdfPath: string): Promise<ExtractedImage[]> {
-  console.log(`🖼️ [PDF Image Extractor] Starting extraction from: ${pdfPath}`);
+export async function extractImagesFromPDFBuffer(pdfBuffer: Buffer, pdfFileName?: string): Promise<ExtractedImage[]> {
+  const sessionId = nanoid(8);
+  const tempDir = `/tmp/pdf-extract-${sessionId}`;
+  const pdfPath = join(tempDir, 'input.pdf');
+  const imagePrefix = join(tempDir, 'img');
+  
+  console.log(`🖼️ [PDF Image Extractor] Starting extraction from: ${pdfFileName || 'buffer'} (session: ${sessionId})`);
   
   try {
-    // Load the PDF document
-    const loadingTask = pdfjsLib.getDocument(pdfPath);
-    const pdfDocument = await loadingTask.promise;
-    const numPages = pdfDocument.numPages;
+    // Create temp directory
+    mkdirSync(tempDir, { recursive: true });
     
-    console.log(`📄 [PDF Image Extractor] PDF has ${numPages} pages`);
+    // Write PDF buffer to temp file
+    writeFileSync(pdfPath, pdfBuffer);
+    console.log(`📄 [PDF Image Extractor] Wrote ${pdfBuffer.length} bytes to temp file`);
     
-    const extractedImages: ExtractedImage[] = [];
-    
-    // Process each page
-    for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-      const page = await pdfDocument.getPage(pageNum);
-      const operatorList = await page.getOperatorList();
-      
-      // Find image operators
-      for (let i = 0; i < operatorList.fnArray.length; i++) {
-        const fn = operatorList.fnArray[i];
-        
-        // Check if this is an image operation (paintImageXObject or paintInlineImageXObject)
-        if (fn === pdfjsLib.OPS.paintImageXObject || fn === pdfjsLib.OPS.paintInlineImageXObject) {
-          try {
-            const args = operatorList.argsArray[i];
-            const imageName = args[0];
-            
-            // Get the image object
-            const image = await page.objs.get(imageName);
-            
-            if (image && image.width && image.height && image.data) {
-              // Filter out very small images (likely icons or decorative elements)
-              if (image.width < 100 || image.height < 100) {
-                console.log(`⏭️ [PDF Image Extractor] Skipping small image (${image.width}x${image.height}) on page ${pageNum}`);
-                continue;
-              }
-              
-              console.log(`✅ [PDF Image Extractor] Found image on page ${pageNum}: ${image.width}x${image.height}`);
-              
-              // Convert image data to PNG buffer
-              const canvas = createCanvas(image.width, image.height, image.data);
-              const pngBuffer = canvas.toBuffer('image/png');
-              
-              // Upload to S3
-              const imageKey = `extracted-images/${nanoid()}.png`;
-              const { url } = await storagePut(imageKey, pngBuffer, 'image/png');
-              
-              extractedImages.push({
-                url,
-                width: image.width,
-                height: image.height,
-                pageNumber: pageNum
-              });
-              
-              console.log(`📤 [PDF Image Extractor] Uploaded image ${extractedImages.length}: ${url}`);
-            }
-          } catch (imgError) {
-            console.error(`❌ [PDF Image Extractor] Error processing image on page ${pageNum}:`, imgError);
-          }
-        }
+    // Use pdfimages to extract all images from the PDF
+    // -all: extract all images (including inline)
+    // -png: output as PNG format
+    try {
+      execSync(`pdfimages -all "${pdfPath}" "${imagePrefix}"`, {
+        timeout: 60000, // 60 second timeout
+        stdio: ['pipe', 'pipe', 'pipe']
+      });
+    } catch (extractError: any) {
+      console.warn(`⚠️ [PDF Image Extractor] pdfimages extraction warning: ${extractError.message}`);
+      // Try alternative: pdftoppm to render pages as images
+      try {
+        console.log(`🔄 [PDF Image Extractor] Falling back to pdftoppm page rendering...`);
+        execSync(`pdftoppm -png -r 200 "${pdfPath}" "${imagePrefix}"`, {
+          timeout: 120000,
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+      } catch (fallbackError: any) {
+        console.error(`❌ [PDF Image Extractor] Both extraction methods failed: ${fallbackError.message}`);
+        return [];
       }
     }
     
-    console.log(`✅ [PDF Image Extractor] Extraction complete. Found ${extractedImages.length} images`);
+    // Find all extracted image files
+    const files = readdirSync(tempDir).filter(f => 
+      f.startsWith('img') && (
+        f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.ppm') || 
+        f.endsWith('.pbm') || f.endsWith('.pgm') || f.endsWith('.tif') ||
+        f.endsWith('.tiff') || f.endsWith('.jp2') || f.endsWith('.jb2') ||
+        f.endsWith('.ccitt')
+      )
+    ).sort();
+    
+    console.log(`📸 [PDF Image Extractor] Found ${files.length} raw image files`);
+    
+    if (files.length === 0) {
+      console.log(`⚠️ [PDF Image Extractor] No images found in PDF, trying pdftoppm fallback...`);
+      // Fallback: render each page as an image
+      try {
+        execSync(`pdftoppm -png -r 200 "${pdfPath}" "${imagePrefix}-page"`, {
+          timeout: 120000,
+          stdio: ['pipe', 'pipe', 'pipe']
+        });
+        const pageFiles = readdirSync(tempDir).filter(f => 
+          f.startsWith('img-page') && f.endsWith('.png')
+        ).sort();
+        files.push(...pageFiles);
+        console.log(`📄 [PDF Image Extractor] Rendered ${pageFiles.length} pages as images`);
+      } catch (e) {
+        console.error(`❌ [PDF Image Extractor] Page rendering also failed`);
+      }
+    }
+    
+    const extractedImages: ExtractedImage[] = [];
+    
+    // Process each extracted image
+    for (const file of files) {
+      try {
+        const filePath = join(tempDir, file);
+        const fileBuffer = readFileSync(filePath);
+        
+        // Convert to PNG using sharp (handles ppm, pbm, tiff, etc.)
+        let pngBuffer: Buffer;
+        let metadata: sharp.Metadata;
+        
+        try {
+          const sharpInstance = sharp(fileBuffer);
+          metadata = await sharpInstance.metadata();
+          
+          // Skip very small images (icons, decorative elements, logos)
+          if ((metadata.width || 0) < 80 || (metadata.height || 0) < 80) {
+            console.log(`⏭️ [PDF Image Extractor] Skipping small image: ${file} (${metadata.width}x${metadata.height})`);
+            continue;
+          }
+          
+          // Skip very narrow images (likely borders or lines)
+          const aspectRatio = (metadata.width || 1) / (metadata.height || 1);
+          if (aspectRatio > 10 || aspectRatio < 0.1) {
+            console.log(`⏭️ [PDF Image Extractor] Skipping narrow image: ${file} (${metadata.width}x${metadata.height})`);
+            continue;
+          }
+          
+          pngBuffer = await sharpInstance.png({ quality: 90 }).toBuffer();
+        } catch (sharpError) {
+          console.warn(`⚠️ [PDF Image Extractor] Sharp conversion failed for ${file}, skipping`);
+          continue;
+        }
+        
+        // Extract page number from filename (pdfimages names like img-000.png, img-001.png)
+        const pageMatch = file.match(/(\d+)/);
+        const pageNumber = pageMatch ? parseInt(pageMatch[1]) + 1 : 1;
+        
+        // Upload to S3
+        const imageKey = `extracted-images/${sessionId}/${nanoid(10)}.png`;
+        const { url } = await storagePut(imageKey, pngBuffer, 'image/png');
+        
+        extractedImages.push({
+          url,
+          width: metadata.width || 0,
+          height: metadata.height || 0,
+          pageNumber
+        });
+        
+        console.log(`📤 [PDF Image Extractor] Uploaded image ${extractedImages.length}: ${metadata.width}x${metadata.height} from page ~${pageNumber} → ${url.substring(0, 80)}...`);
+        
+      } catch (imgError: any) {
+        console.error(`❌ [PDF Image Extractor] Error processing ${file}: ${imgError.message}`);
+      }
+    }
+    
+    console.log(`✅ [PDF Image Extractor] Extraction complete. Uploaded ${extractedImages.length} images to S3`);
     return extractedImages;
     
-  } catch (error) {
-    console.error(`❌ [PDF Image Extractor] Fatal error:`, error);
-    return []; // Return empty array instead of throwing to allow processing to continue
+  } catch (error: any) {
+    console.error(`❌ [PDF Image Extractor] Fatal error: ${error.message}`);
+    return [];
+  } finally {
+    // Cleanup temp directory
+    try {
+      rmSync(tempDir, { recursive: true, force: true });
+      console.log(`🧹 [PDF Image Extractor] Cleaned up temp directory`);
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
   }
 }
 
 /**
- * Create a canvas from image data and convert to PNG buffer
- * Uses node-canvas for server-side canvas operations
+ * Legacy function signature for backward compatibility
+ * @deprecated Use extractImagesFromPDFBuffer instead
  */
-function createCanvas(width: number, height: number, imageData: Uint8ClampedArray): any {
-  // We'll use a simpler approach: convert raw RGBA data to PNG using sharp
-  // This avoids the complexity of node-canvas
-  const sharp = require('sharp');
-  
-  return {
-    toBuffer: (format: string) => {
-      // Convert RGBA data to PNG using sharp
-      return sharp(Buffer.from(imageData), {
-        raw: {
-          width,
-          height,
-          channels: 4 // RGBA
-        }
-      })
-      .png()
-      .toBuffer();
-    }
-  };
+export async function extractImagesFromPDF(pdfPath: string): Promise<ExtractedImage[]> {
+  try {
+    const buffer = readFileSync(pdfPath);
+    return extractImagesFromPDFBuffer(buffer, pdfPath);
+  } catch (error: any) {
+    console.error(`❌ [PDF Image Extractor] Error reading file ${pdfPath}: ${error.message}`);
+    return [];
+  }
 }

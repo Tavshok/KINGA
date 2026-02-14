@@ -4,16 +4,13 @@
  */
 
 import { z } from "zod";
-import { exec } from "child_process";
-import { promisify } from "util";
 import { writeFile, unlink } from "fs/promises";
 import { join } from "path";
 import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import { storagePut } from "./storage";
 import { protectedProcedure } from "./_core/trpc";
-
-const execAsync = promisify(exec);
+import puppeteer from "puppeteer-core";
 
 /**
  * Generate HTML content for the PDF report
@@ -495,13 +492,25 @@ export const exportAssessmentPDF = protectedProcedure
       // Write HTML to file
       await writeFile(htmlPath, htmlContent, 'utf-8');
 
-      // Convert HTML to PDF using wkhtmltopdf (installed in sandbox)
-      await execAsync(
-        `wkhtmltopdf --enable-local-file-access --page-size A4 --margin-top 10mm --margin-bottom 10mm --margin-left 10mm --margin-right 10mm "${htmlPath}" "${pdfPath}"`
-      );
-
-      // Read the PDF file
-      const pdfBuffer = await import('fs/promises').then(fs => fs.readFile(pdfPath));
+      // Convert HTML to PDF using puppeteer-core + Chromium
+      let pdfBuffer: Buffer;
+      let browser;
+      try {
+        browser = await puppeteer.launch({
+          executablePath: '/usr/bin/chromium-browser',
+          headless: true,
+          args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+        });
+        const page = await browser.newPage();
+        await page.goto(`file://${htmlPath}`, { waitUntil: 'networkidle0', timeout: 30000 });
+        pdfBuffer = Buffer.from(await page.pdf({
+          format: 'A4',
+          printBackground: true,
+          margin: { top: '10mm', bottom: '10mm', left: '10mm', right: '10mm' },
+        }));
+      } finally {
+        if (browser) await browser.close();
+      }
 
       // Upload to S3
       const fileName = `assessment-report-${input.vehicleRegistration || tempId}-${Date.now()}.pdf`;

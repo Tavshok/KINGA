@@ -5,7 +5,7 @@
 
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-import { processExternalAssessment } from './assessment-processor-minimal';
+import { processExternalAssessment } from './assessment-processor';
 
 const router = Router();
 

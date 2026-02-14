@@ -56,7 +56,7 @@ import { storagePut } from "./storage";
 import { notifyAssessorAssignment, notifyAiAssessmentComplete, notifyQuoteSubmitted, notifyFraudDetected } from "./notifications";
 import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
-import { processExternalAssessment } from "./assessment-processor-minimal";
+import { processExternalAssessment } from "./assessment-processor";
 import { exportAssessmentPDF } from "./pdf-export";
 import { assessorOnboardingRouter } from "./routers/assessor-onboarding";
 import { documentIngestionRouter } from "./routers/document-ingestion";

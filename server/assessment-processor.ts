@@ -694,108 +694,139 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
   console.log(`📊 Data Completeness: ${completeness}%`);
 
   // ============================================================
-  // STEP 3: Classify images in PDF via LLM vision
+  // STEP 3: Extract actual images from PDF and classify via LLM
   // ============================================================
-  console.log('\n🖼️ Step 3: Classifying images in PDF via LLM vision...');
+  console.log('\n🖼️ Step 3: Extracting and classifying images from PDF...');
   let damagePhotoUrls: string[] = [];
   let allPhotos: PhotoWithClassification[] = [];
   
   try {
-    const imageClassResponse = await invokeLLM({
-      messages: [
-        {
-          role: "system",
-          content: `You are analyzing a vehicle damage assessment PDF. Identify all images in the document and classify each as either:
-- "damage_photo": Actual photographs of vehicle damage (dents, scratches, broken parts, accident scene)
-- "document": Logos, stamps, signatures, diagrams, letterheads, or other non-damage images
-
-For each damage photo, describe what damage is visible. Report the page number where each image appears.`
-        },
-        {
-          role: "user",
-          content: [
+    // Step 3a: Extract actual images from PDF using pdfimages + sharp
+    const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
+    const extractedImages = await extractImagesFromPDFBuffer(fileBuffer, fileName);
+    
+    console.log(`📸 Extracted ${extractedImages.length} images from PDF`);
+    
+    if (extractedImages.length > 0) {
+      // Step 3b: Use LLM to classify each extracted image as damage_photo or document
+      // Build image content for LLM classification
+      const imageContents: any[] = extractedImages.slice(0, 20).map((img, idx) => ({
+        type: "image_url" as const,
+        image_url: { url: img.url, detail: "low" as const }
+      }));
+      
+      imageContents.push({
+        type: "text" as const,
+        text: `I've shown you ${imageContents.length} images extracted from a vehicle damage assessment PDF. For each image (numbered 1 to ${imageContents.length}), classify it as either 'damage_photo' (actual vehicle damage photograph) or 'document' (logo, stamp, signature, diagram, letterhead, form). Return JSON.`
+      });
+      
+      try {
+        const classifyResponse = await invokeLLM({
+          messages: [
             {
-              type: "file_url",
-              file_url: { url: pdfUrl, mime_type: "application/pdf" as const }
+              role: "system",
+              content: "You classify images from vehicle damage assessment PDFs. Respond with JSON only."
             },
             {
-              type: "text",
-              text: "Analyze this PDF and identify all images. For each image, classify it as 'damage_photo' or 'document' and describe what you see."
+              role: "user",
+              content: imageContents
             }
-          ]
-        }
-      ],
-      response_format: {
-        type: "json_schema",
-        json_schema: {
-          name: "image_classification",
-          strict: true,
-          schema: {
-            type: "object",
-            properties: {
-              totalImages: { type: "integer", description: "Total number of images found" },
-              damagePhotoCount: { type: "integer" },
-              documentImageCount: { type: "integer" },
-              images: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    page: { type: "integer" },
-                    classification: { type: "string", description: "damage_photo or document" },
-                    description: { type: "string" },
-                    damageVisible: { type: "string", description: "Description of visible damage, empty if not a damage photo" }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "image_classification",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  classifications: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        imageIndex: { type: "integer", description: "1-based index of the image" },
+                        classification: { type: "string", description: "damage_photo or document" },
+                        description: { type: "string", description: "Brief description of what the image shows" }
+                      },
+                      required: ["imageIndex", "classification", "description"],
+                      additionalProperties: false
+                    }
                   },
-                  required: ["page", "classification", "description", "damageVisible"],
-                  additionalProperties: false
-                }
-              },
-              overallDamageAssessment: { type: "string", description: "Summary of all visible damage from photos" }
-            },
-            required: ["totalImages", "damagePhotoCount", "documentImageCount", "images", "overallDamageAssessment"],
-            additionalProperties: false
+                  overallDamageAssessment: { type: "string", description: "Summary of all visible damage" }
+                },
+                required: ["classifications", "overallDamageAssessment"],
+                additionalProperties: false
+              }
+            }
+          }
+        });
+        
+        const classData = JSON.parse(classifyResponse.choices[0].message.content as string);
+        
+        // Map classifications to extracted images
+        for (const cls of classData.classifications) {
+          const imgIdx = cls.imageIndex - 1; // Convert to 0-based
+          if (imgIdx >= 0 && imgIdx < extractedImages.length) {
+            const img = extractedImages[imgIdx];
+            const classification = cls.classification === 'damage_photo' ? 'damage_photo' : 'document';
+            
+            allPhotos.push({
+              url: img.url,
+              classification: classification as 'damage_photo' | 'document',
+              page: img.pageNumber,
+            });
+            
+            if (classification === 'damage_photo') {
+              damagePhotoUrls.push(img.url);
+            }
           }
         }
-      }
-    });
-    
-    const imageData = JSON.parse(imageClassResponse.choices[0].message.content as string);
-    console.log(`📸 LLM identified ${imageData.totalImages} images (${imageData.damagePhotoCount} damage, ${imageData.documentImageCount} document)`);
-    
-    // For damage photos identified by LLM, we store the PDF URL as the photo reference
-    // since we can't extract individual images without native libraries
-    if (imageData.damagePhotoCount > 0) {
-      // Store the PDF URL as the damage photo source
-      for (const img of imageData.images) {
-        if (img.classification === 'damage_photo') {
+        
+        // Any unclassified images default to damage_photo (better to show than hide)
+        for (let i = 0; i < extractedImages.length; i++) {
+          const alreadyClassified = allPhotos.some(p => p.url === extractedImages[i].url);
+          if (!alreadyClassified) {
+            allPhotos.push({
+              url: extractedImages[i].url,
+              classification: 'damage_photo',
+              page: extractedImages[i].pageNumber,
+            });
+            damagePhotoUrls.push(extractedImages[i].url);
+          }
+        }
+        
+        const damageCount = allPhotos.filter(p => p.classification === 'damage_photo').length;
+        const docCount = allPhotos.filter(p => p.classification === 'document').length;
+        console.log(`📸 Classified: ${damageCount} damage photos, ${docCount} document images`);
+        
+        if (classData.overallDamageAssessment) {
+          console.log(`🔍 Damage summary: ${classData.overallDamageAssessment.substring(0, 200)}`);
+        }
+        
+      } catch (classifyError: any) {
+        console.warn(`⚠️ LLM classification failed, treating all images as damage photos: ${classifyError.message}`);
+        // Fallback: treat all extracted images as damage photos
+        for (const img of extractedImages) {
           allPhotos.push({
-            url: pdfUrl,
+            url: img.url,
             classification: 'damage_photo',
-            page: img.page,
+            page: img.pageNumber,
           });
-          damagePhotoUrls.push(pdfUrl);
-        } else {
-          allPhotos.push({
-            url: pdfUrl,
-            classification: 'document',
-            page: img.page,
-          });
+          damagePhotoUrls.push(img.url);
         }
       }
       
       // Update data quality
       dataQuality.hasPhotos = true;
-      // Remove 'Photos' from missing data if it was there
       const photosIdx = missingData.indexOf(' Photos');
       if (photosIdx >= 0) missingData.splice(photosIdx, 1);
-    }
-    
-    if (imageData.overallDamageAssessment) {
-      console.log(`🔍 Damage summary: ${imageData.overallDamageAssessment.substring(0, 200)}`);
+    } else {
+      console.log('⚠️ No images could be extracted from PDF');
     }
     
   } catch (error: any) {
-    console.warn(`⚠️ Image classification failed: ${error.message}`);
+    console.warn(`⚠️ Image extraction failed: ${error.message}`);
   }
 
   // Deduplicate damage photo URLs

@@ -5,8 +5,6 @@
  * using HTML templates and WeasyPrint for PDF rendering
  */
 
-import { exec } from "child_process";
-import { promisify } from "util";
 import { writeFile, unlink } from "fs/promises";
 import path from "path";
 import type { ClaimIntelligence } from "./report-intelligence-aggregator";
@@ -16,8 +14,7 @@ import {
   generateGaugeSVG,
   generateHeatScaleSVG,
 } from "./report-visualization-generator";
-
-const execAsync = promisify(exec);
+import puppeteer from "puppeteer-core";
 
 export interface ReportPDFOptions {
   role: "insurer" | "assessor" | "regulatory";
@@ -49,24 +46,33 @@ export async function generateReportPDF(
   try {
     await writeFile(tempHtmlPath, htmlContent, "utf-8");
 
-    // Convert HTML to PDF using manus-md-to-pdf (which uses WeasyPrint internally)
-    // Note: manus-md-to-pdf accepts HTML as well, not just Markdown
-    await execAsync(`manus-md-to-pdf ${tempHtmlPath} ${tempPdfPath}`);
+    // Convert HTML to PDF using puppeteer-core + Chromium
+    let browser;
+    try {
+      browser = await puppeteer.launch({
+        executablePath: '/usr/bin/chromium-browser',
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
+      });
+      const page = await browser.newPage();
+      await page.goto(`file://${tempHtmlPath}`, { waitUntil: 'networkidle0', timeout: 30000 });
+      const pdfBuffer = Buffer.from(await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        margin: { top: '15mm', bottom: '15mm', left: '15mm', right: '15mm' },
+      }));
 
-    // Read the generated PDF
-    const fs = await import("fs/promises");
-    const pdfBuffer = await fs.readFile(tempPdfPath);
+      // Clean up temporary files
+      await unlink(tempHtmlPath).catch(() => {});
 
-    // Clean up temporary files
-    await unlink(tempHtmlPath);
-    await unlink(tempPdfPath);
-
-    return pdfBuffer;
+      return pdfBuffer;
+    } finally {
+      if (browser) await browser.close();
+    }
   } catch (error) {
     // Clean up on error
     try {
-      await unlink(tempHtmlPath);
-      await unlink(tempPdfPath);
+      await unlink(tempHtmlPath).catch(() => {});
     } catch {}
     throw error;
   }

@@ -5318,5 +5318,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add retry mechanism for failed PDF extractions
 - [x] Create empty state components for all list pages
 - [x] Add empty state illustrations and CTAs
-- [ ] Complete end-to-end claims workflow testing
-- [ ] Test claims submission → triage → assessment → approval flow
+- [x] Complete end-to-end claims workflow testing
+- [x] Test claims submission → triage → assessment → approval flow
+- [x] Fix images not showing after PDF extraction (switched from mock processor to full processor + pdfimages extraction)
+- [x] Test and fix PDF download functions (switched from wkhtmltopdf to puppeteer-core)
+- [x] Test and fix triage system workflow end-to-end (now shows submitted+triage+assessment_pending claims)
+- [x] Verify image URLs from extraction are valid and displayed correctly (S3 upload of extracted images)
+- [x] Test comparison view with extracted data
+- [x] Write vitest tests for critical workflow paths (15 integration tests, all passing)
