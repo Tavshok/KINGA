@@ -124,7 +124,7 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
         flagged: 52,
         confirmed: 31,
         falsePositives: 21,
-        savedAmount: "R1.2M",
+        savedAmount: "$1.2M",
         topIndicators: [
           "Duplicate claims",
           "Inflated repair costs",
@@ -133,13 +133,13 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
       }
     },
     costSavings: {
-      value: "R2.4M",
+      value: "$2.4M",
       change: 22.1,
       details: {
-        aiAssessmentSavings: "R1.1M",
-        fraudPrevention: "R1.2M",
-        processOptimization: "R100K",
-        avgSavingPerClaim: "R1,925"
+        aiAssessmentSavings: "$1.1M",
+        fraudPrevention: "$1.2M",
+        processOptimization: "$100K",
+        avgSavingPerClaim: "$1,925"
       }
     }
   };

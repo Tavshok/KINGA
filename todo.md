@@ -5706,3 +5706,33 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add AI comparison to Claims Processor claim details view
 - [ ] Show AI recommendation badges in all workflow stages
 - [ ] Test workflow integration with real claim data
+
+## Remove South Africa References & Localization (2026-02-15)
+
+- [x] Find all instances of "SA ID" and replace with "National ID" (none found)
+- [x] Find all instances of "ZAR" and replace with tenant currency
+- [x] Remove hardcoded "R" (Rands) currency symbol from ExecutiveKPICards
+- [x] Update AdminDashboard to remove ZAR labels
+- [x] Update HistoricalBenchmarkCard to use currency helper
+- [x] Implement tenant currency display helper function (/client/src/lib/currency.ts)
+- [ ] Update remaining components to use currency helper
+- [ ] Test currency display with USD and ZIG
+
+## Assessor Disagreement Feature (2026-02-15)
+
+- [ ] Add "Disagree with AI" checkbox to assessor evaluation form
+- [ ] Add text area for assessor to explain disagreement reasons
+- [ ] Store disagreement flag and reasons in assessor_evaluations table
+- [ ] Display disagreement reasons in comparison view
+- [ ] Add audit trail for AI disagreements
+- [ ] Show disagreement statistics in Risk Manager dashboard
+
+## Risk Manager Comparison View (2026-02-15)
+
+- [ ] Create Risk Manager comparison dashboard page
+- [ ] Add fraud investigation tools (pattern analysis, historical comparison)
+- [ ] Show claims with high AI vs Assessor variance
+- [ ] Add cross-claim pattern detection
+- [ ] Implement fraud risk scoring across multiple claims
+- [ ] Add "Escalate to Executive" workflow
+- [ ] Test Risk Manager workflow with real data

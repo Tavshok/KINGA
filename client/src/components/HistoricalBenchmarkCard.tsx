@@ -1,12 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import { formatCurrency, getCurrencySymbol } from "@/lib/currency";
 import { BarChart3, TrendingUp, TrendingDown, Minus, AlertTriangle, History, Database } from "lucide-react";
 
 interface HistoricalBenchmarkCardProps {
   vehicleMake: string;
   vehicleModel?: string;
-  currentQuotedCost: number; // In rands
+  currentQuotedCost: number; // In cents
   currentFraudScore?: number; // 0-100
 }
 
@@ -112,7 +113,7 @@ export function HistoricalBenchmarkCard({
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Avg. Historical Quote</p>
             <p className="text-lg font-semibold">
-              {avgQuote ? `R ${avgQuote.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"}
+              {avgQuote ? formatCurrency(avgQuote) : "N/A"}
             </p>
             {quoteVariance !== null && (
               <div className="flex items-center gap-1">
@@ -128,7 +129,7 @@ export function HistoricalBenchmarkCard({
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">Avg. Final Approved</p>
             <p className="text-lg font-semibold">
-              {avgFinal ? `R ${avgFinal.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "N/A"}
+              {avgFinal ? formatCurrency(avgFinal) : "N/A"}
             </p>
             {finalVariance !== null && (
               <div className="flex items-center gap-1">
@@ -171,15 +172,15 @@ export function HistoricalBenchmarkCard({
             <p className="text-xs text-muted-foreground mb-1">Current Quote Assessment</p>
             {currentQuotedCost > avgFinal * 1.3 ? (
               <p className="text-xs text-red-600 font-medium">
-                Current quote (R {currentQuotedCost.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}) is significantly higher than the historical average final approved cost. Consider negotiation or additional assessment.
+                Current quote ({formatCurrency(currentQuotedCost)}) is significantly higher than the historical average final approved cost. Consider negotiation or additional assessment.
               </p>
             ) : currentQuotedCost < avgFinal * 0.7 ? (
               <p className="text-xs text-blue-600 font-medium">
-                Current quote (R {currentQuotedCost.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}) is significantly lower than the historical average. Verify scope of work is complete.
+                Current quote ({formatCurrency(currentQuotedCost)}) is significantly lower than the historical average. Verify scope of work is complete.
               </p>
             ) : (
               <p className="text-xs text-emerald-600 font-medium">
-                Current quote (R {currentQuotedCost.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}) is within the expected range based on historical data for this vehicle type.
+                Current quote ({formatCurrency(currentQuotedCost)}) is within the expected range based on historical data for this vehicle type.
               </p>
             )}
           </div>

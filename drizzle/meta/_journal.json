@@ -134,6 +134,13 @@
       "when": 1771164320676,
       "tag": "0018_overrated_silver_surfer",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "5",
+      "when": 1771166806399,
+      "tag": "0019_loud_manta",
+      "breakpoints": true
     }
   ]
 }

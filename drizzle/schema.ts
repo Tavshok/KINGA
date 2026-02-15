@@ -280,6 +280,10 @@ export const assessorEvaluations = mysqlTable("assessor_evaluations", {
   recommendations: text("recommendations"),
   fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high"]),
   
+  // AI Disagreement tracking
+  disagreesWithAi: boolean("disagrees_with_ai").default(false),
+  aiDisagreementReason: text("ai_disagreement_reason"),
+  
   // Inspection details
   inspectionDate: timestamp("inspection_date"),
   inspectionPhotos: text("inspection_photos"), // JSON array of S3 URLs

@@ -29,6 +29,8 @@ export default function AssessorClaimDetails() {
     damageAssessment: "",
     recommendations: "",
     fraudRiskLevel: "low" as "low" | "medium" | "high",
+    disagreesWithAi: false,
+    aiDisagreementReason: "",
   });
 
   // Get claim details
@@ -70,6 +72,8 @@ export default function AssessorClaimDetails() {
       damageAssessment: evaluation.damageAssessment,
       recommendations: evaluation.recommendations || undefined,
       fraudRiskLevel: evaluation.fraudRiskLevel,
+      disagreesWithAi: evaluation.disagreesWithAi,
+      aiDisagreementReason: evaluation.disagreesWithAi ? evaluation.aiDisagreementReason : undefined,
     });
   };
 
@@ -437,6 +441,43 @@ export default function AssessorClaimDetails() {
                       <option value="high">High Risk</option>
                     </select>
                   </div>
+
+                  {/* AI Disagreement Section */}
+                  {aiAssessment && (
+                    <div className="col-span-full space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          id="disagreesWithAi"
+                          checked={evaluation.disagreesWithAi}
+                          onChange={(e) => setEvaluation(prev => ({ ...prev, disagreesWithAi: e.target.checked }))}
+                          className="h-4 w-4 rounded border-gray-300"
+                        />
+                        <Label htmlFor="disagreesWithAi" className="font-semibold text-amber-900 cursor-pointer">
+                          I disagree with the AI assessment
+                        </Label>
+                      </div>
+                      {evaluation.disagreesWithAi && (
+                        <div className="space-y-2">
+                          <Label htmlFor="aiDisagreementReason" className="text-amber-900">
+                            Please explain why you disagree with the AI's analysis *
+                          </Label>
+                          <Textarea
+                            id="aiDisagreementReason"
+                            value={evaluation.aiDisagreementReason}
+                            onChange={(e) => setEvaluation(prev => ({ ...prev, aiDisagreementReason: e.target.value }))}
+                            placeholder="E.g., AI underestimated structural damage, missed paint work, overestimated labor hours, etc."
+                            rows={4}
+                            required={evaluation.disagreesWithAi}
+                            className="bg-white"
+                          />
+                          <p className="text-xs text-amber-700">
+                            Your professional judgment helps improve the AI model. This feedback will be reviewed by the Risk Manager.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   <div className="flex gap-3 pt-4">
                     <Button

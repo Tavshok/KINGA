@@ -499,7 +499,7 @@ export default function AdminDashboard() {
                     </Select>
                   </div>
                   <div className="space-y-2">
-                    <Label>Final Approved Cost (ZAR) *</Label>
+                    <Label>Final Approved Cost *</Label>
                     <Input
                       type="number"
                       value={gtFinalCost}
@@ -514,7 +514,7 @@ export default function AdminDashboard() {
 
                 <div className="grid gap-4 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label>Parts Cost (ZAR)</Label>
+                    <Label>Parts Cost</Label>
                     <Input
                       type="number"
                       value={gtPartsCost}
@@ -523,7 +523,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Labour Cost (ZAR)</Label>
+                    <Label>Labour Cost</Label>
                     <Input
                       type="number"
                       value={gtLabourCost}
@@ -532,7 +532,7 @@ export default function AdminDashboard() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label>Paint Cost (ZAR)</Label>
+                    <Label>Paint Cost</Label>
                     <Input
                       type="number"
                       value={gtPaintCost}
@@ -703,8 +703,8 @@ export default function AdminDashboard() {
                       <TableRow>
                         <TableHead>Make / Model</TableHead>
                         <TableHead>Claims</TableHead>
-                        <TableHead>Avg Quote (ZAR)</TableHead>
-                        <TableHead>Avg Final (ZAR)</TableHead>
+                        <TableHead>Avg Quote</TableHead>
+                        <TableHead>Avg Final</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

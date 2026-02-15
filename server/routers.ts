@@ -1210,6 +1210,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         damageAssessment: z.string(),
         recommendations: z.string().optional(),
         fraudRiskLevel: z.enum(["low", "medium", "high"]),
+        disagreesWithAi: z.boolean().optional(),
+        aiDisagreementReason: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
@@ -1224,6 +1226,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           damageAssessment: input.damageAssessment,
           recommendations: input.recommendations,
           fraudRiskLevel: input.fraudRiskLevel,
+          disagreesWithAi: input.disagreesWithAi,
+          aiDisagreementReason: input.aiDisagreementReason,
           status: "submitted",
         });
         
