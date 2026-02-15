@@ -284,6 +284,11 @@ export async function getClaimsByWorkflowState(state: WorkflowState, options?: {
         incidentDate: claims.incidentDate,
         createdAt: claims.createdAt,
         claimantId: claims.claimantId,
+        fraudRiskScore: claims.fraudRiskScore,
+        fraudFlags: claims.fraudFlags,
+        estimatedCost: claims.estimatedCost,
+        approvedAmount: claims.approvedAmount,
+        technicalApprovalStatus: claims.technicalApprovalStatus,
       })
       .from(claims)
       .where(eq(claims.workflowState, state))

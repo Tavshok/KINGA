@@ -5960,3 +5960,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add ability to send claims back (to Risk Manager or Claims Processor)
 - [x] Integrate RiskBadge and AiAssessButton into Claims Manager
 - [x] Add claim review details (AI assessment summary, assessor evaluation, quotes in dialog)
+
+
+## Workflow & UX Enhancements (2026-02-15)
+- [ ] Implement automatic workflow state progression when roles complete actions
+  - [ ] Claims Processor assigns assessor → claim moves to "assigned" state
+  - [ ] Assessor completes assessment → claim moves to "under_assessment" → "internal_review"
+  - [ ] Risk Manager approves → claim moves to "technical_approval"
+  - [ ] Claims Manager closes → claim moves to "financial_decision" or "closed"
+- [ ] Build comprehensive Claims Manager review dialog
+  - [ ] Show AI assessment summary with risk score and fraud indicators
+  - [ ] Show assessor evaluation notes and recommendations
+  - [ ] Show panel beater quotes comparison table
+  - [ ] Show claim timeline and workflow history
+  - [ ] Side-by-side layout for easy comparison
+- [ ] Add pagination and filters to Claims Manager dashboard
+  - [ ] Implement pagination (20 claims per page)
+  - [ ] Add risk level filter (All, High Risk, Medium Risk, Low Risk, Not Assessed)
+  - [ ] Add date range filter (Last 7 days, Last 30 days, Last 90 days, Custom)
+  - [ ] Add estimated cost filter (ranges: <$10k, $10k-$30k, $30k-$50k, >$50k)
+  - [ ] Add search by claim number or vehicle registration

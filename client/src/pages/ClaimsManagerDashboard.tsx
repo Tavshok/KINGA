@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { 
   FileCheck, CheckCircle, XCircle, Eye, MessageSquare, AlertCircle, 
-  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield 
+  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield, ChevronLeft, ChevronRight, Filter 
 } from "lucide-react";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
+import { ClaimReviewDialog } from "@/components/ClaimReviewDialog";
 import { Link } from "wouter";
 
 export default function ClaimsManagerDashboard() {
@@ -25,6 +26,14 @@ export default function ClaimsManagerDashboard() {
   const [sendBackComments, setSendBackComments] = useState("");
   const [sendBackTarget, setSendBackTarget] = useState("risk_manager");
   const [comparisonData, setComparisonData] = useState<any>(null);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  
+  // Pagination and filters
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize] = useState(20);
+  const [riskFilter, setRiskFilter] = useState<string>("all");
+  const [dateFilter, setDateFilter] = useState<string>("all");
+  const [costFilter, setCostFilter] = useState<string>("all");
 
   // Fetch comparison data when a claim is selected
   const { data: aiAssessment } = trpc.aiAssessments.byClaim.useQuery(
@@ -88,6 +97,62 @@ export default function ClaimsManagerDashboard() {
   const uniqueReviewable = allReviewableClaims.filter(
     (claim, index, self) => index === self.findIndex(c => c.id === claim.id)
   );
+
+  // Apply filters
+  const filteredClaims = useMemo(() => {
+    let filtered = [...uniqueReviewable];
+
+    // Risk filter
+    if (riskFilter !== "all") {
+      if (riskFilter === "high") {
+        filtered = filtered.filter(c => c.fraudRiskScore >= 70);
+      } else if (riskFilter === "medium") {
+        filtered = filtered.filter(c => c.fraudRiskScore >= 40 && c.fraudRiskScore < 70);
+      } else if (riskFilter === "low") {
+        filtered = filtered.filter(c => c.fraudRiskScore < 40);
+      } else if (riskFilter === "not_assessed") {
+        filtered = filtered.filter(c => !c.fraudRiskScore);
+      }
+    }
+
+    // Date filter
+    if (dateFilter !== "all") {
+      const now = Date.now();
+      const dayMs = 24 * 60 * 60 * 1000;
+      filtered = filtered.filter(c => {
+        const claimDate = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+        if (dateFilter === "today") return now - claimDate < dayMs;
+        if (dateFilter === "week") return now - claimDate < 7 * dayMs;
+        if (dateFilter === "month") return now - claimDate < 30 * dayMs;
+        return true;
+      });
+    }
+
+    // Cost filter
+    if (costFilter !== "all") {
+      filtered = filtered.filter(c => {
+        const cost = c.estimatedCost || c.approvedAmount || 0;
+        if (costFilter === "low") return cost < 50000; // < $500
+        if (costFilter === "medium") return cost >= 50000 && cost < 200000; // $500-$2000
+        if (costFilter === "high") return cost >= 200000; // > $2000
+        return true;
+      });
+    }
+
+    return filtered;
+  }, [uniqueReviewable, riskFilter, dateFilter, costFilter]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredClaims.length / pageSize);
+  const paginatedClaims = filteredClaims.slice(
+    (currentPage - 1) * pageSize,
+    currentPage * pageSize
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [riskFilter, dateFilter, costFilter]);
 
   // Close for processing mutation
   const closeForProcessing = trpc.workflow.authorizePayment.useMutation({
@@ -176,8 +241,8 @@ export default function ClaimsManagerDashboard() {
     });
   };
 
-  const totalReviewable = uniqueReviewable.length;
-  const highRiskCount = uniqueReviewable.filter((c: any) => c.fraudRiskScore && c.fraudRiskScore >= 70).length;
+  const totalReviewable = filteredClaims.length;
+  const highRiskCount = filteredClaims.filter((c: any) => c.fraudRiskScore && c.fraudRiskScore >= 70).length;
   const recentlyClosed = completedClaims?.length || 0;
 
   return (
@@ -220,6 +285,80 @@ export default function ClaimsManagerDashboard() {
           </div>
         </div>
 
+        {/* Filters */}
+        <Card className="shadow-lg border-0">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Filter className="h-4 w-4 text-blue-600" />
+              Filters
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Label className="text-xs mb-2 block">Risk Level</Label>
+                <Select value={riskFilter} onValueChange={setRiskFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Risk Levels</SelectItem>
+                    <SelectItem value="high">High Risk (70+)</SelectItem>
+                    <SelectItem value="medium">Medium Risk (40-69)</SelectItem>
+                    <SelectItem value="low">Low Risk (&lt;40)</SelectItem>
+                    <SelectItem value="not_assessed">Not Assessed</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs mb-2 block">Date Range</Label>
+                <Select value={dateFilter} onValueChange={setDateFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Time</SelectItem>
+                    <SelectItem value="today">Today</SelectItem>
+                    <SelectItem value="week">Last 7 Days</SelectItem>
+                    <SelectItem value="month">Last 30 Days</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-xs mb-2 block">Estimated Cost</Label>
+                <Select value={costFilter} onValueChange={setCostFilter}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Amounts</SelectItem>
+                    <SelectItem value="low">Under $500</SelectItem>
+                    <SelectItem value="medium">$500 - $2,000</SelectItem>
+                    <SelectItem value="high">Over $2,000</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+              <span>Showing {paginatedClaims.length} of {filteredClaims.length} claims</span>
+              {(riskFilter !== "all" || dateFilter !== "all" || costFilter !== "all") && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setRiskFilter("all");
+                    setDateFilter("all");
+                    setCostFilter("all");
+                  }}
+                  className="text-xs h-7"
+                >
+                  Clear Filters
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Claims Review Queue */}
         <Card className="shadow-lg border-0">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-teal-50/50">
@@ -234,9 +373,10 @@ export default function ClaimsManagerDashboard() {
           <CardContent className="pt-4">
             {(queueLoading || assessedLoading) ? (
               <p className="text-center text-slate-500 py-8">Loading claims for review...</p>
-            ) : uniqueReviewable.length > 0 ? (
-              <div className="space-y-3">
-                {uniqueReviewable.slice(0, 30).map((claim: any) => (
+            ) : paginatedClaims.length > 0 ? (
+              <>
+                <div className="space-y-3">
+                  {paginatedClaims.map((claim: any) => (
                   <div
                     key={claim.id}
                     className="p-4 bg-white rounded-lg border border-slate-200 hover:border-teal-300 hover:shadow-md transition-all"
@@ -302,17 +442,53 @@ export default function ClaimsManagerDashboard() {
                           size="sm"
                           onSuccess={() => { refetchQueue(); refetchAssessed(); }}
                         />
-                        <Link href={`/insurer/claims/${claim.id}/comparison`}>
-                          <Button variant="outline" size="sm" className="w-full">
-                            <Eye className="h-4 w-4 mr-2" />
-                            Full Review
-                          </Button>
-                        </Link>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full"
+                          onClick={() => {
+                            setSelectedClaim(claim);
+                            setShowReviewDialog(true);
+                          }}
+                        >
+                          <Eye className="h-4 w-4 mr-2" />
+                          Review Details
+                        </Button>
                       </div>
                     </div>
                   </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between pt-4 border-t">
+                    <div className="text-sm text-slate-600">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        Next
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="text-center py-12">
                 <FileCheck className="h-12 w-12 text-slate-300 mx-auto mb-3" />
@@ -562,6 +738,13 @@ export default function ClaimsManagerDashboard() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Comprehensive Review Dialog */}
+        <ClaimReviewDialog
+          claimId={selectedClaim?.id || null}
+          open={showReviewDialog}
+          onOpenChange={setShowReviewDialog}
+        />
       </div>
     </div>
   );

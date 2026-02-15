@@ -1255,6 +1255,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         // Automatically progress status to quotes_pending
         await updateClaimStatus(input.claimId, "quotes_pending");
+        
+        // Progress workflow state to internal_review (assessor completed their work)
+        const { transitionWorkflowState } = await import("./workflow");
+        await transitionWorkflowState(
+          input.claimId,
+          "internal_review",
+          ctx.user.id,
+          "internal_assessor" as any
+        );
 
         // Create audit entry
         await createAuditEntry({
