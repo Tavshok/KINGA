@@ -20,7 +20,9 @@ import VehicleDamageVisualization from "@/components/VehicleDamageVisualization"
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [, params] = useRoute("/insurer/claims/:id/comparison");
+  const [, params1] = useRoute("/insurer/claims/:id/comparison");
+  const [, params2] = useRoute("/insurer/comparison/:id");
+  const params = params1 || params2;
   const claimId = params?.id ? parseInt(params.id) : 0;
 
   // Get claim details

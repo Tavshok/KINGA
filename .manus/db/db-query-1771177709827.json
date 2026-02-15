@@ -1,0 +1,130 @@
+{
+  "query": "SELECT id, claim_number, status, policy_verified FROM claims LIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_number, status, policy_verified FROM claims LIMIT 20;",
+  "rows": [
+    {
+      "id": "1",
+      "claim_number": "CLM-ED9PYRMRB7",
+      "status": "submitted",
+      "policy_verified": "1"
+    },
+    {
+      "id": "2",
+      "claim_number": "CLM-FNKE2YPFML",
+      "status": "assessment_pending",
+      "policy_verified": "1"
+    },
+    {
+      "id": "3",
+      "claim_number": "CLM-HWNFDWB8IR",
+      "status": "submitted",
+      "policy_verified": "1"
+    },
+    {
+      "id": "5",
+      "claim_number": "CLM-2024-002",
+      "status": "submitted",
+      "policy_verified": "0"
+    },
+    {
+      "id": "6",
+      "claim_number": "CLM-2024-003",
+      "status": "comparison",
+      "policy_verified": "1"
+    },
+    {
+      "id": "8",
+      "claim_number": "CLM-2024-005",
+      "status": "completed",
+      "policy_verified": "1"
+    },
+    {
+      "id": "9",
+      "claim_number": "CLM-TEST-1770381119273",
+      "status": "comparison",
+      "policy_verified": "0"
+    },
+    {
+      "id": "10",
+      "claim_number": "CLM-TEST-1770381135807",
+      "status": "repair_assigned",
+      "policy_verified": "0"
+    },
+    {
+      "id": "11",
+      "claim_number": "TEST-NOTIF-1770381820644",
+      "status": "submitted",
+      "policy_verified": "0"
+    },
+    {
+      "id": "12",
+      "claim_number": "TEST-NOTIF-1770381837288",
+      "status": "submitted",
+      "policy_verified": "0"
+    },
+    {
+      "id": "13",
+      "claim_number": "TEST-NOTIF-1770381852963",
+      "status": "submitted",
+      "policy_verified": "0"
+    },
+    {
+      "id": "60012",
+      "claim_number": "ZW1770441660997-NFOA1H",
+      "status": "assessment_pending",
+      "policy_verified": "0"
+    },
+    {
+      "id": "60013",
+      "claim_number": "ZW1770441661030-O4OZK0",
+      "status": "assessment_pending",
+      "policy_verified": "0"
+    },
+    {
+      "id": "120001",
+      "claim_number": "CLM-TEST-1770838939931",
+      "status": "comparison",
+      "policy_verified": "0"
+    },
+    {
+      "id": "120002",
+      "claim_number": "CLM-TEST-1770839012086",
+      "status": "repair_assigned",
+      "policy_verified": "0"
+    },
+    {
+      "id": "120007",
+      "claim_number": "CLM-TEST-1770839085762",
+      "status": "repair_assigned",
+      "policy_verified": "0"
+    },
+    {
+      "id": "390028",
+      "claim_number": "CLM-LOW-1770901924892",
+      "status": "completed",
+      "policy_verified": "0"
+    },
+    {
+      "id": "390033",
+      "claim_number": "CLM-HIGH-1770901925234",
+      "status": "completed",
+      "policy_verified": "0"
+    },
+    {
+      "id": "570001",
+      "claim_number": "CLM-TEST-1771097844472-001",
+      "status": "assessment_pending",
+      "policy_verified": "0"
+    },
+    {
+      "id": "570002",
+      "claim_number": "CLM-TEST-1771097844472-002",
+      "status": "assessment_pending",
+      "policy_verified": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tstatus\tpolicy_verified\n1\tCLM-ED9PYRMRB7\tsubmitted\t1\n2\tCLM-FNKE2YPFML\tassessment_pending\t1\n3\tCLM-HWNFDWB8IR\tsubmitted\t1\n5\tCLM-2024-002\tsubmitted\t0\n6\tCLM-2024-003\tcomparison\t1\n8\tCLM-2024-005\tcompleted\t1\n9\tCLM-TEST-1770381119273\tcomparison\t0\n10\tCLM-TEST-1770381135807\trepair_assigned\t0\n11\tTEST-NOTIF-1770381820644\tsubmitted\t0\n12\tTEST-NOTIF-1770381837288\tsubmitted\t0\n13\tTEST-NOTIF-1770381852963\tsubmitted\t0\n60012\tZW1770441660997-NFOA1H\tassessment_pending\t0\n60013\tZW1770441661030-O4OZK0\tassessment_pending\t0\n120001\tCLM-TEST-1770838939931\tcomparison\t0\n120002\tCLM-TEST-1770839012086\trepair_assigned\t0\n120007\tCLM-TEST-1770839085762\trepair_assigned\t0\n390028\tCLM-LOW-1770901924892\tcompleted\t0\n390033\tCLM-HIGH-1770901925234\tcompleted\t0\n570001\tCLM-TEST-1771097844472-001\tassessment_pending\t0\n570002\tCLM-TEST-1771097844472-002\tassessment_pending\t0\n",
+  "stderr": "",
+  "execution_time_ms": 249
+}

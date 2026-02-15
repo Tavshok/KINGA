@@ -136,7 +136,7 @@ export const claims = mysqlTable("claims", {
   
   // Policy information
   policyNumber: varchar("policy_number", { length: 100 }),
-  policyVerified: tinyint("policy_verified").default(0),
+  policyVerified: tinyint("policy_verified"),  // null = pending, 1 = verified, 0 = rejected
   
   // Workflow status
   status: mysqlEnum("status", [

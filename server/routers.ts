@@ -720,6 +720,29 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
+        // Get current claim status to handle multi-step transitions
+        const tenantIdForStatus = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const currentClaim = await getClaimById(input.claimId, tenantIdForStatus);
+        if (!currentClaim) throw new Error("Claim not found");
+        
+        // Progress through required intermediate states to reach assessment_in_progress
+        const currentStatus = currentClaim.status;
+        if (currentStatus === "submitted") {
+          await updateClaimStatus(input.claimId, "triage");
+          await updateClaimStatus(input.claimId, "assessment_pending");
+          await updateClaimStatus(input.claimId, "assessment_in_progress");
+        } else if (currentStatus === "triage") {
+          await updateClaimStatus(input.claimId, "assessment_pending");
+          await updateClaimStatus(input.claimId, "assessment_in_progress");
+        } else if (currentStatus === "assessment_pending") {
+          await updateClaimStatus(input.claimId, "assessment_in_progress");
+        } else if (currentStatus === "assessment_in_progress") {
+          // Already in progress, just re-run the assessment
+        } else {
+          // For other states, try direct transition (will throw if invalid)
+          await updateClaimStatus(input.claimId, "assessment_in_progress");
+        }
+        
         await triggerAiAssessment(input.claimId);
         
         // Create audit entry for manual AI assessment trigger
@@ -730,9 +753,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityType: "ai_assessment",
           changeDescription: `AI assessment manually triggered by ${ctx.user.role}${input.reason ? `: ${input.reason}` : ''}`,
         });
-        
-        // Automatically progress status to assessment_in_progress
-        await updateClaimStatus(input.claimId, "assessment_in_progress");
 
         // Get claim and AI assessment details for notification
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");

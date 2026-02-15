@@ -1,0 +1,1 @@
+ALTER TABLE `claims` MODIFY COLUMN `policy_verified` tinyint;

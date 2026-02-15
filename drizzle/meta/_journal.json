@@ -148,6 +148,13 @@
       "when": 1771170199926,
       "tag": "0020_natural_santa_claus",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "5",
+      "when": 1771177794671,
+      "tag": "0021_unknown_viper",
+      "breakpoints": true
     }
   ]
 }

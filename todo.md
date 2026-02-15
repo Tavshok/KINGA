@@ -5892,3 +5892,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Applies appropriate validation logic per incident type (forced entry → lock damage, theft → stolen items)
 - [x] Fraud engine uses incident-type-aware LLM prompt with narrative validation context
 - [x] Executive Summary displays appropriate narrative for non-collision incidents (incident type badge, narrative validation section)
+
+
+## Bugs Reported - Claims Triage & Compare (2026-02-15)
+- [x] Fix AI Assess state transition error: "Cannot transition from 'submitted' to 'assessment_in_progress'" (already fixed - multi-step transition through triage → assessment_pending → assessment_in_progress)
+- [x] Fix Compare button 404: /insurer/comparison/:id route not found (already fixed - both /insurer/claims/:id/comparison and /insurer/comparison/:id routes exist)
+- [x] Fix all claims showing "Rejected" policy status (root cause: policyVerified defaulted to 0 instead of null; fixed schema default and updated 612 existing records to null)
