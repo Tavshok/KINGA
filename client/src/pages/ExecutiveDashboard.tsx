@@ -26,6 +26,7 @@ import {
 import { Link } from "wouter";
 import Plot from "react-plotly.js";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
+import ExecutiveKPICards from "@/components/ExecutiveKPICards";
 import {
   exportKPIsToPDF,
   exportAlertsToPDF,

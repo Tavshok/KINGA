@@ -29,6 +29,7 @@ import InsurerExternalAssessmentUpload from "@/pages/InsurerExternalAssessmentUp
 import AssessorClaimDetails from "./pages/AssessorClaimDetails";
 import ClaimDocuments from "./pages/ClaimDocuments";
 import PortalHub from "./pages/PortalHub";
+import InsurerRoleSelection from "./pages/InsurerRoleSelection";
 import ExecutiveDashboard from "./pages/ExecutiveDashboard";
 import ClaimsProcessorDashboard from "./pages/ClaimsProcessorDashboard";
 import InternalAssessorDashboard from "./pages/InternalAssessorDashboard";
@@ -58,6 +59,8 @@ import InsuranceDashboard from "./pages/InsuranceDashboard";
 import ReviewQueue from "./pages/ReviewQueue";
 import Onboarding from "./pages/Onboarding";
 import MarketQuotesIngestion from "./pages/MarketQuotesIngestion";
+import TenantManagement from "./pages/admin/TenantManagement";
+import TenantRoleConfig from "./pages/admin/TenantRoleConfig";
 
 function Router() {
   return (
@@ -122,36 +125,39 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      {/* Executive Dashboard */}
-      <Route path="/executive">
+      {/* Insurer Portal - Role Selection */}
+      <Route path="/insurer-portal">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerRoleSelection />
+        </ProtectedRoute>
+      </Route>
+      
+      {/* Insurer Sub-Role Dashboards */}
+      <Route path="/insurer-portal/executive">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <ExecutiveDashboard />
         </ProtectedRoute>
       </Route>
       
-      {/* Claims Processor Dashboard */}
-      <Route path="/claims-processor">
+      <Route path="/insurer-portal/claims-processor">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <ClaimsProcessorDashboard />
         </ProtectedRoute>
       </Route>
       
-      {/* Internal Assessor Dashboard */}
-      <Route path="/internal-assessor">
+      <Route path="/insurer-portal/internal-assessor">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InternalAssessorDashboard />
         </ProtectedRoute>
       </Route>
       
-      {/* Risk Manager Dashboard */}
-      <Route path="/risk-manager">
+      <Route path="/insurer-portal/risk-manager">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <RiskManagerDashboard />
         </ProtectedRoute>
       </Route>
       
-      {/* Claims Manager Dashboard */}
-      <Route path="/claims-manager">
+      <Route path="/insurer-portal/claims-manager">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <ClaimsManagerDashboard />
         </ProtectedRoute>
@@ -366,6 +372,18 @@ function Router() {
       <Route path="/admin">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin/tenants">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <TenantManagement />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/admin/tenants/:tenantId/roles">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <TenantRoleConfig />
         </ProtectedRoute>
       </Route>
       <Route path="/admin/tier-management">
