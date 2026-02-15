@@ -10,14 +10,7 @@ import {
   Shield,
   ArrowRight,
   LogOut,
-  Database,
-  TrendingUp,
-  Users,
-  Activity,
-  Target,
-  BarChart3,
-  Truck,
-  Briefcase
+  Database
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -26,58 +19,15 @@ export default function PortalHub() {
   const [, setLocation] = useLocation();
 
   const portals = [
-    // Insurer sub-role portals
     {
       id: "executive",
       title: "Executive Dashboard",
       description: "Strategic insights, KPIs, and decision-making tools",
-      icon: TrendingUp,
+      icon: Shield,
       path: "/executive",
       color: "from-indigo-600 to-purple-600",
-      roles: ["insurer", "admin"],
-      insurerRoles: ["executive"]
+      roles: ["insurer", "admin"] // Only for executives with insurer role
     },
-    {
-      id: "claims-manager",
-      title: "Claims Manager Dashboard",
-      description: "Team oversight, approvals, and performance management",
-      icon: Users,
-      path: "/claims-manager",
-      color: "from-blue-600 to-indigo-600",
-      roles: ["insurer", "admin"],
-      insurerRoles: ["claims_manager"]
-    },
-    {
-      id: "claims-processor",
-      title: "Claims Processor Dashboard",
-      description: "Day-to-day claims handling and triage",
-      icon: Activity,
-      path: "/claims-processor",
-      color: "from-cyan-500 to-blue-500",
-      roles: ["insurer", "admin"],
-      insurerRoles: ["claims_processor"]
-    },
-    {
-      id: "internal-assessor",
-      title: "Internal Assessor Dashboard",
-      description: "In-house damage assessment and evaluation",
-      icon: Target,
-      path: "/internal-assessor",
-      color: "from-green-600 to-emerald-600",
-      roles: ["insurer", "admin"],
-      insurerRoles: ["internal_assessor"]
-    },
-    {
-      id: "risk-manager",
-      title: "Risk Manager Dashboard",
-      description: "Fraud detection, risk analytics, and compliance",
-      icon: Shield,
-      path: "/risk-manager",
-      color: "from-red-600 to-rose-600",
-      roles: ["insurer", "admin"],
-      insurerRoles: ["risk_manager"]
-    },
-    // General insurer portal (fallback)
     {
       id: "insurer",
       title: "Insurer Portal",
@@ -124,24 +74,6 @@ export default function PortalHub() {
       roles: ["insurer", "admin"]
     },
     {
-      id: "fleet-management",
-      title: "Fleet Management",
-      description: "Vehicle fleet tracking, maintenance, and analytics",
-      icon: Truck,
-      path: "/fleet-management",
-      color: "from-slate-600 to-gray-600",
-      roles: ["fleet_manager", "admin", "claimant"]
-    },
-    {
-      id: "insurance-agency",
-      title: "KINGA Agency",
-      description: "Generate insurance quotes, manage policies, and track sales",
-      icon: Briefcase,
-      path: "/insurance/dashboard",
-      color: "from-violet-600 to-purple-600",
-      roles: ["insurance_agent", "admin"]
-    },
-    {
       id: "admin",
       title: "Admin Panel",
       description: "System management and user administration",
@@ -152,23 +84,9 @@ export default function PortalHub() {
     }
   ];
 
-  const accessiblePortals = portals.filter(portal => {
-    if (!user) return false;
-    
-    // Admin sees all portals
-    if (user.role === "admin") return true;
-    
-    // Check if user's main role matches
-    if (portal.roles.includes(user.role)) {
-      // If portal requires specific insurer sub-role, check it
-      if (portal.insurerRoles && user.role === "insurer") {
-        return portal.insurerRoles.includes(user.insurerRole || "");
-      }
-      return true;
-    }
-    
-    return false;
-  });
+  const accessiblePortals = portals.filter(portal => 
+    user && portal.roles.includes(user.role)
+  );
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
