@@ -48,9 +48,6 @@ import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
 import PanelBeaterPerformanceDashboard from "./pages/PanelBeaterPerformance";
 import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 import UploadDocuments from "./pages/processor/UploadDocuments";
-// import MarketQuotesIngestion from "./pages/MarketQuotesIngestion";
-// import QuoteReview from "./pages/QuoteReview";
-// import CurrencyManagement from "./pages/CurrencyManagement";
 import HistoricalClaimsPipeline from "./pages/HistoricalClaimsPipeline";
 import AutomationPolicies from "./pages/AutomationPolicies";
 import FleetManagement from "./pages/FleetManagement";
@@ -375,22 +372,6 @@ function Router() {
           <AdminTierManagement />
         </ProtectedRoute>
       </Route>
-      {/* TODO: Re-enable after recreating MarketQuotesIngestion and QuoteReview */}
-      {/* <Route path="/admin/market-quotes">
-        <ProtectedRoute allowedRoles={["admin"]}>
-          <MarketQuotesIngestion />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/admin/market-quotes/:id">
-        <ProtectedRoute allowedRoles={["admin"]}>
-          <QuoteReview />
-        </ProtectedRoute>
-      </Route> */}
-      {/* <Route path="/admin/currency-management">
-        <ProtectedRoute allowedRoles={["admin"]}>
-          <CurrencyManagement />
-        </ProtectedRoute>
-      </Route> */}
       
       <Route path="/admin/dashboard" component={() => (
         <ProtectedRoute allowedRoles={["admin"]}>
