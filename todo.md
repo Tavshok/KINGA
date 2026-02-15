@@ -5736,3 +5736,52 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Implement fraud risk scoring across multiple claims
 - [ ] Add "Escalate to Executive" workflow
 - [ ] Test Risk Manager workflow with real data
+
+## Risk Manager Dashboard Implementation (2026-02-15)
+
+- [ ] Create Risk Manager comparison dashboard page
+- [ ] Add fraud investigation tools (pattern analysis, claim clustering)
+- [ ] Display assessor disagreement tracking across multiple claims
+- [ ] Add AI vs Assessor cost variance analysis
+- [ ] Implement fraud risk heatmap by vehicle make/model
+- [ ] Add claim timeline visualization for fraud detection
+- [ ] Create assessor disagreement report for AI model improvement
+- [ ] Add bulk claim review capability for Risk Manager
+
+## Tenant Currency Configuration (2026-02-15)
+
+- [ ] Add currency configuration UI to admin panel
+- [ ] Allow setting primary currency (USD, ZIG, etc.)
+- [ ] Allow setting secondary currency with exchange rate
+- [ ] Update all cost displays to use configured currency
+- [ ] Test currency display with USD/ZIG dual currency
+- [ ] Add currency symbol configuration
+
+## End-to-End Workflow Testing (2026-02-15)
+
+- [ ] Test claim submission by claimant
+- [ ] Test AI assessment automatic trigger
+- [ ] Test Claims Processor triage and assessor assignment
+- [ ] Test assessor evaluation with AI disagreement
+- [ ] Test Claims Manager comparison view and authorization
+- [ ] Test Risk Manager fraud investigation
+- [ ] Test Executive (GM) final approval
+- [ ] Verify AI comparison data flows correctly at each stage
+- [ ] Test document upload and download functionality
+- [ ] Test currency display throughout workflow
+
+## Historical Intelligence Security Restriction (2026-02-15)
+
+- [x] Remove HistoricalBenchmarkCard from assessor claim details page (already commented out)
+- [x] Remove historical cost intelligence from panel beater quote page (not exposed)
+- [x] Verify historical intelligence only visible in admin dashboard (confirmed)
+- [ ] Add role-based access control for historical data queries
+- [ ] Test that non-admin roles cannot access historical intelligence
+
+## Integrate Historical Intelligence into Admin Dashboard (2026-02-15)
+
+- [ ] Add HistoricalBenchmarkCard to Admin Dashboard page
+- [ ] Add historical fraud patterns by vehicle make/model to Admin Dashboard
+- [ ] Add average cost trends over time to Admin Dashboard
+- [ ] Ensure historical intelligence is only visible in Admin UI, not standalone
+- [ ] Test that historical intelligence displays correctly in Admin Dashboard
