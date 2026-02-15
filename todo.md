@@ -5567,3 +5567,102 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Replace all mock data with real database queries
 - [ ] Write comprehensive tests for tenant and analytics procedures
 - [ ] Run all tests and verify functionality
+
+
+## Advanced Analytics Implementation (Make All Tests Pass)
+
+- [ ] Implement claimsCostTrend procedure - Time-series cost analysis with groupBy intervals
+- [ ] Implement costBreakdown procedure - Cost breakdown by vehicle make/model/damage type
+- [ ] Implement fraudHeatmap procedure - Geographic fraud distribution mapping
+- [ ] Implement fraudPatterns procedure - Fraud pattern detection statistics
+- [ ] Implement fleetRiskOverview procedure - Fleet-wide risk metrics and driver counts
+- [ ] Implement driverProfiles procedure - Individual driver risk profiles with scores
+- [ ] Implement panelBeaterPerformance procedure - Panel beater performance metrics
+- [ ] Run all tests and verify 100% pass rate (543/543 tests passing)
+- [ ] Save final checkpoint with complete analytics suite
+
+
+## CRITICAL FIXES - User-Reported Issues (2026-02-15)
+
+- [x] Restore PDF upload functionality in Claims Processor dashboard
+- [x] Add assessor selection dropdown in Claims Processor (list of available assessors)
+- [x] Add "View AI Assessment" button in Claims Processor to see triage, damage analysis, physics analysis
+- [x] Fix 404 error on comparison page route `/insurer/comparison/:id`
+- [ ] Implement tenant-specific currency configuration (remove hardcoded "R" rands)
+- [ ] Add currency field to tenant configuration table
+- [ ] Update role cards to use tenant currency instead of hardcoded R50,000
+- [ ] Test PDF upload with historical claim to verify damage analysis reports generation
+
+## AI Assistance for Assessors (2026-02-15)
+
+- [x] Add AI pre-assessment panel to Assessor claim details page
+- [x] Display AI damage analysis before assessor starts evaluation
+- [x] Show fraud detection alerts and risk indicators to assessors
+- [x] Add cost optimization recommendations based on historical data
+- [x] Display physics-based accident validation results
+- [x] Allow assessors to agree/override AI recommendations
+- [x] Add "AI Co-Pilot" section showing AI confidence scores
+- [x] Integrate market rate comparisons for parts and labor costs
+- [ ] Test AI assistance features with assessor workflow
+
+## Multi-Currency Configuration (2026-02-15)
+
+- [x] Add currency fields to insurer_tenants schema (primaryCurrency, secondaryCurrency, symbols, exchangeRate)
+- [ ] Create tRPC procedure for updating tenant currency configuration
+- [ ] Create admin UI for currency configuration
+- [ ] Update role cards to use tenant currency instead of hardcoded R50,000
+- [ ] Create currency formatting helper function
+- [ ] Update all amount displays to use tenant currency
+- [ ] Test dual currency display (USD + ZIG)
+
+## Document Upload/Download Testing (2026-02-15)
+
+- [ ] Test PDF upload in Claims Processor dashboard
+- [ ] Verify document storage in S3 with correct file paths
+- [ ] Test document viewing in claim details pages (all roles)
+- [ ] Test document download functionality
+- [ ] Verify document access control (role-based visibility)
+- [ ] Test document export in batch export feature
+- [ ] Check document naming conventions and prefixes
+- [ ] Verify document metadata is correctly stored
+
+## AI Assessment Verification for All Roles (2026-02-15)
+
+- [ ] Add "Trigger AI Assessment" button to Claims Processor dashboard
+- [ ] Add "Trigger AI Assessment" button to Assessor claim details page
+- [ ] Add "View AI Assessment" button to Panel Beater quote submission page
+- [ ] Add "View AI Assessment" section to Claims Manager approval page
+- [ ] Add "View AI Assessment" section to Risk Manager dashboard
+- [ ] Create shared AIAssessmentPanel component for reuse across roles
+- [ ] Add audit trail logging for AI assessment triggers (who triggered, when)
+- [ ] Show AI vs Human assessment comparison in approval workflows
+- [ ] Add AI assessment status indicator (pending, completed, failed)
+- [ ] Test AI assessment accessibility across all roles
+
+## Automatic AI Assessment Triggers & Governance (2026-02-15)
+
+### Automatic Triggers (System-level)
+- [x] Auto-trigger AI assessment on every claim submission (default behavior)
+- [ ] Auto-trigger AI assessment on high-value claims (above tenant threshold)
+- [ ] Auto-trigger AI assessment on suspicious patterns (delayed reporting, night accidents)
+- [ ] Auto-trigger AI assessment when fraud indicators detected in submission
+
+### Multi-level Manual Triggers (Oversight)
+- [x] Claims Manager can trigger AI assessment at any time
+- [x] Risk Manager can trigger AI assessment for audit/review
+- [x] Internal Assessor can trigger AI assessment to validate external work
+- [x] Claims Processor can trigger AI assessment for additional analysis
+- [x] All roles can trigger AI assessment with optional reason
+
+### Audit & Compliance
+- [x] Track AI assessment trigger events (who, when, why)
+- [ ] Flag claims where AI assessment was NOT triggered when required
+- [ ] Alert Risk Manager when high-value claims lack AI assessment
+- [ ] Generate report of claims missing AI assessment
+- [x] Add AI assessment status to claim workflow (aiAssessmentTriggered flag)
+
+### Governance Rules
+- [ ] Prevent claim approval without AI assessment (configurable per tenant)
+- [ ] Require manager override to skip AI assessment
+- [ ] Log all AI assessment skip requests with justification
+- [ ] Escalate claims with suppressed AI assessments to Risk Manager

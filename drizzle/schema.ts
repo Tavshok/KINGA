@@ -4248,6 +4248,13 @@ export const insurerTenants = mysqlTable("insurer_tenants", {
   primaryColor: varchar("primary_color", { length: 7 }).default("#10b981"), // Default: KINGA emerald
   secondaryColor: varchar("secondary_color", { length: 7 }).default("#64748b"), // Default: slate
   
+  // Multi-currency support (Zimbabwe market: USD + ZIG)
+  primaryCurrency: varchar("primary_currency", { length: 3 }).default("USD"), // ISO 4217 code
+  primaryCurrencySymbol: varchar("primary_currency_symbol", { length: 10 }).default("$"),
+  secondaryCurrency: varchar("secondary_currency", { length: 3 }), // Optional second currency (e.g., ZIG)
+  secondaryCurrencySymbol: varchar("secondary_currency_symbol", { length: 10 }), // e.g., "ZIG" or "ZWL$"
+  exchangeRate: decimal("exchange_rate", { precision: 10, scale: 4 }), // Secondary to primary rate
+  
   // Document naming (default handled in app: KINGA-{DocType}-{ClaimNumber}-v{Version}-{Date}.pdf)
   documentNamingTemplate: text("document_naming_template"),
   

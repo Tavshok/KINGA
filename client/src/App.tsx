@@ -164,6 +164,13 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
+      {/* Alternative comparison route for backward compatibility */}
+      <Route path="/insurer/comparison/:id">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <InsurerComparisonView />
+        </ProtectedRoute>
+      </Route>
+      
       <Route path="/insurer/claims/:claimId/quote-comparison">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <InsurerQuoteComparison />

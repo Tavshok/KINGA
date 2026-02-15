@@ -707,16 +707,29 @@ If any value is not found, use 0 for numbers and empty string for text.`;
      * Initiates automated AI analysis of damage photos to estimate repair costs
      * and detect potential fraud indicators.
      * 
-     * @requires Authentication (Insurer role)
+     * @requires Authentication (Any role can trigger for oversight)
      * @param claimId - ID of the claim to assess
+     * @param reason - Optional reason for triggering (for audit trail)
      * @returns Success status
      */
     triggerAiAssessment: protectedProcedure
-      .input(z.object({ claimId: z.number() }))
+      .input(z.object({ 
+        claimId: z.number(),
+        reason: z.string().optional(),
+      }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         
         await triggerAiAssessment(input.claimId);
+        
+        // Create audit entry for manual AI assessment trigger
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "ai_assessment_triggered",
+          entityType: "ai_assessment",
+          changeDescription: `AI assessment manually triggered by ${ctx.user.role}${input.reason ? `: ${input.reason}` : ''}`,
+        });
         
         // Automatically progress status to assessment_in_progress
         await updateClaimStatus(input.claimId, "assessment_in_progress");

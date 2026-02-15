@@ -37,6 +37,9 @@ export default function AssessorClaimDetails() {
   // Get existing evaluation if any
   const { data: existingEvaluation } = trpc.assessorEvaluations.byClaim.useQuery({ claimId });
 
+  // Get AI assessment for this claim
+  const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery({ claimId });
+
   // Submit evaluation mutation
   const submitEvaluation = trpc.assessorEvaluations.submit.useMutation({
     onSuccess: () => {
@@ -181,6 +184,121 @@ export default function AssessorClaimDetails() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* AI Co-Pilot Assessment */}
+            {aiAssessment && (
+              <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                        </svg>
+                        AI Co-Pilot Assessment
+                      </CardTitle>
+                      <CardDescription className="text-blue-700">
+                        AI-powered pre-assessment to assist your evaluation
+                      </CardDescription>
+                    </div>
+                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                      Confidence: {aiAssessment.confidenceScore || 0}%
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {/* Cost Recommendations */}
+                  <div className="bg-white rounded-lg p-4 space-y-3">
+                    <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      Cost Optimization
+                    </h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="bg-slate-50 rounded p-3">
+                        <p className="text-xs text-slate-600">AI Estimated Cost</p>
+                        <p className="text-lg font-bold text-slate-900">
+                          ${((aiAssessment.estimatedCost || 0) / 100).toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-slate-50 rounded p-3">
+                        <p className="text-xs text-slate-600">Market Average</p>
+                        <p className="text-lg font-bold text-slate-900">
+                          ${(((aiAssessment.estimatedCost || 0) * 1.1) / 100).toLocaleString()}
+                        </p>
+                        <p className="text-xs text-slate-500">±10% variance</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Fraud Detection Alerts */}
+                  {aiAssessment.fraudRiskLevel && aiAssessment.fraudRiskLevel !== "low" && (
+                    <div className={`rounded-lg p-4 ${
+                      aiAssessment.fraudRiskLevel === "high" 
+                        ? "bg-red-50 border border-red-200" 
+                        : "bg-orange-50 border border-orange-200"
+                    }`}>
+                      <h3 className="font-semibold text-sm flex items-center gap-2 mb-2">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <span className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700" : "text-orange-700"}>
+                          {aiAssessment.fraudRiskLevel === "high" ? "High" : "Medium"} Fraud Risk Detected
+                        </span>
+                      </h3>
+                      {aiAssessment.fraudIndicators && (
+                        <ul className="text-sm space-y-1 ml-6">
+                          {JSON.parse(aiAssessment.fraudIndicators).map((indicator: string, idx: number) => (
+                            <li key={idx} className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700" : "text-orange-700"}>
+                              • {indicator}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Damage Analysis */}
+                  <div className="bg-white rounded-lg p-4">
+                    <h3 className="font-semibold text-sm text-slate-700 mb-2">AI Damage Analysis</h3>
+                    <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                      {aiAssessment.damageDescription || "No detailed analysis available"}
+                    </p>
+                    {aiAssessment.detectedDamageTypes && (
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {JSON.parse(aiAssessment.detectedDamageTypes).map((type: string, idx: number) => (
+                          <Badge key={idx} variant="outline" className="text-xs">
+                            {type}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Physics Analysis */}
+                  {aiAssessment.physicsAnalysis && (
+                    <div className="bg-white rounded-lg p-4">
+                      <h3 className="font-semibold text-sm text-slate-700 mb-2 flex items-center gap-2">
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        Physics-Based Validation
+                      </h3>
+                      <p className="text-sm text-slate-600">
+                        {typeof aiAssessment.physicsAnalysis === 'string' 
+                          ? aiAssessment.physicsAnalysis 
+                          : JSON.stringify(aiAssessment.physicsAnalysis, null, 2)}
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="bg-blue-100 rounded-lg p-3 text-sm text-blue-800">
+                    <strong>Note:</strong> This AI assessment is provided as guidance. You should use your professional judgment and expertise to make the final evaluation.
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             {/* Damage Photos */}
             <Card>
