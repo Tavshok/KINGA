@@ -5857,3 +5857,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Diagnose JavaScript error: manualChunks incorrectly bundled React into vendor-charts chunk
 - [x] Fix vite.config.ts manualChunks to check React paths FIRST with exact node_modules paths
 - [x] Verify fix: new build has no React internals in vendor-charts chunk
+
+
+## Critical Bug - Published Site Still Blank After Fix (2026-02-15)
+- [x] Re-diagnose: new error "Cannot access 'S' before initialization" - circular dependency from manualChunks
+- [x] Root cause: manualChunks splits modules with circular references, breaking initialization order
+- [x] Fix: removed manualChunks entirely, let Vite handle automatic code splitting
+- [x] Verified production build loads correctly in browser
