@@ -57,8 +57,9 @@ export default function ClaimsManagerDashboard() {
   }, [selectedClaim, aiAssessment, assessorEval, quotes]);
 
   // Fetch claims pending payment authorization (technical approval complete)
-  const { data: paymentQueue, isLoading: queueLoading, refetch: refetchQueue } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "financial_decision" });
+  const { data: paymentQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
+    trpc.workflow.getClaimsByState.useQuery({ state: "financial_decision", limit: 20 });
+  const paymentQueue = paymentQueueData?.items;
 
   // Authorize payment mutation
   const authorizePayment = trpc.workflow.authorizePayment.useMutation({

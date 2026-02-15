@@ -5864,3 +5864,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Root cause: manualChunks splits modules with circular references, breaking initialization order
 - [x] Fix: removed manualChunks entirely, let Vite handle automatic code splitting
 - [x] Verified production build loads correctly in browser
+
+
+## Critical Bug - Claims Processor Page Unresponsive (2026-02-15)
+- [x] Fix Claims Processor Dashboard causing "Page Unresponsive" browser dialog
+- [x] Root cause: 617 claims loaded at once with all 50+ columns, rendering 617 Dialog components
+- [x] Added pagination to getClaimsByWorkflowState (limit 20, offset-based, select only needed columns)
+- [x] Updated ClaimsProcessorDashboard with pagination controls
+- [x] Updated ClaimsManagerDashboard and RiskManagerDashboard for paginated response

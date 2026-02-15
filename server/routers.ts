@@ -2392,6 +2392,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           "closed",
           "disputed"
         ]),
+        limit: z.number().min(1).max(50).optional().default(20),
+        offset: z.number().min(0).optional().default(0),
       }))
       .query(async ({ input, ctx }) => {
         if (!ctx.user) throw new Error("Not authenticated");
@@ -2404,7 +2406,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           throw new Error("You don't have permission to view all claims");
         }
         
-        return await getClaimsByWorkflowState(input.state);
+        return await getClaimsByWorkflowState(input.state, { limit: input.limit, offset: input.offset });
       }),
 
     /**

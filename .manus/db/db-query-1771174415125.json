@@ -1,0 +1,14 @@
+{
+  "query": "SELECT workflow_state, COUNT(*) as cnt FROM claims GROUP BY workflow_state ORDER BY cnt DESC;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT workflow_state, COUNT(*) as cnt FROM claims GROUP BY workflow_state ORDER BY cnt DESC;",
+  "rows": [
+    {
+      "workflow_state": "created",
+      "cnt": "617"
+    }
+  ],
+  "messages": [],
+  "stdout": "workflow_state\tcnt\ncreated\t617\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

@@ -7,7 +7,7 @@
 
 import { getDb } from "./db";
 import { claims, claimComments, users } from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import type { WorkflowState, InsurerRole } from "./rbac";
 import { requireValidTransition, requiresGMConsultation } from "./rbac";
 import { TRPCError } from "@trpc/server";
@@ -261,15 +261,47 @@ export async function closeClaim(
 /**
  * Get claims by workflow state
  */
-export async function getClaimsByWorkflowState(state: WorkflowState) {
+export async function getClaimsByWorkflowState(state: WorkflowState, options?: { limit?: number; offset?: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  return await db
-    .select()
-    .from(claims)
-    .where(eq(claims.workflowState, state))
-    .orderBy(desc(claims.createdAt));
+  const limit = options?.limit ?? 20;
+  const offset = options?.offset ?? 0;
+
+  const [items, countResult] = await Promise.all([
+    db
+      .select({
+        id: claims.id,
+        claimNumber: claims.claimNumber,
+        claimantIdNumber: claims.claimantIdNumber,
+        vehicleRegistration: claims.vehicleRegistration,
+        vehicleMake: claims.vehicleMake,
+        vehicleModel: claims.vehicleModel,
+        policyNumber: claims.policyNumber,
+        workflowState: claims.workflowState,
+        status: claims.status,
+        incidentType: claims.incidentType,
+        incidentDate: claims.incidentDate,
+        createdAt: claims.createdAt,
+        claimantId: claims.claimantId,
+      })
+      .from(claims)
+      .where(eq(claims.workflowState, state))
+      .orderBy(desc(claims.createdAt))
+      .limit(limit)
+      .offset(offset),
+    db
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(claims)
+      .where(eq(claims.workflowState, state)),
+  ]);
+
+  return {
+    items,
+    total: Number(countResult[0]?.count ?? 0),
+    limit,
+    offset,
+  };
 }
 
 /**

@@ -17,8 +17,9 @@ export default function RiskManagerDashboard() {
   const [approvalAction, setApprovalAction] = useState<"approve" | "reject">("approve");
 
   // Fetch claims pending technical approval
-  const { data: approvalQueue, isLoading: queueLoading, refetch: refetchQueue } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "technical_approval" });
+  const { data: approvalQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
+    trpc.workflow.getClaimsByState.useQuery({ state: "technical_approval", limit: 20 });
+  const approvalQueue = approvalQueueData?.items;
 
   // Fetch high-value claims
   const { data: highValueClaims, isLoading: highValueLoading } = 

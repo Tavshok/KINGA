@@ -24,13 +24,21 @@ export default function ClaimsProcessorDashboard() {
   const [selectedClaimForAI, setSelectedClaimForAI] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
+  const [pendingPage, setPendingPage] = useState(0);
+  const [returnedPage, setReturnedPage] = useState(0);
+  const PAGE_SIZE = 20;
+
   // Fetch pending claims (submitted by claimants, awaiting processor action)
-  const { data: pendingClaims, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "created" });
+  const { data: pendingData, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = 
+    trpc.workflow.getClaimsByState.useQuery({ state: "created", limit: PAGE_SIZE, offset: pendingPage * PAGE_SIZE });
+  const pendingClaims = pendingData?.items;
+  const pendingTotal = pendingData?.total ?? 0;
 
   // Fetch returned claims (sent back by Claims Manager for review - disputed state)
-  const { data: returnedClaims, isLoading: returnedLoading } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "disputed" });
+  const { data: returnedData, isLoading: returnedLoading } = 
+    trpc.workflow.getClaimsByState.useQuery({ state: "disputed", limit: PAGE_SIZE, offset: returnedPage * PAGE_SIZE });
+  const returnedClaims = returnedData?.items;
+  const returnedTotal = returnedData?.total ?? 0;
 
   // Fetch available external assessors
   const { data: assessors, isLoading: assessorsLoading } = trpc.assessors.list.useQuery();
@@ -281,7 +289,7 @@ export default function ClaimsProcessorDashboard() {
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
                           <div>
-                            <span className="font-medium">Claimant:</span> {claim.claimantName || "N/A"}
+                            <span className="font-medium">Claimant:</span> {claim.claimantIdNumber || "N/A"}
                           </div>
                           <div>
                             <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
@@ -478,6 +486,32 @@ export default function ClaimsProcessorDashboard() {
                 <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
                 <p className="text-slate-500">No pending claims</p>
                 <p className="text-sm text-slate-400">Claims submitted by claimants will appear here</p>
+              </div>
+            )}
+            {/* Pagination Controls */}
+            {pendingTotal > PAGE_SIZE && (
+              <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                <p className="text-sm text-slate-500">
+                  Showing {pendingPage * PAGE_SIZE + 1}–{Math.min((pendingPage + 1) * PAGE_SIZE, pendingTotal)} of {pendingTotal} claims
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pendingPage === 0}
+                    onClick={() => setPendingPage(p => p - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={(pendingPage + 1) * PAGE_SIZE >= pendingTotal}
+                    onClick={() => setPendingPage(p => p + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>
