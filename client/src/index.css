@@ -49,46 +49,60 @@
 }
 
 :root {
-  /* Vibrant Green & Blue Theme */
-  --primary: oklch(0.55 0.18 195); /* Vibrant teal-blue */
+  /* KINGA Brand Colors - Extracted from Logo */
+  /* Primary: Teal/Turquoise (#4DB8A8) - Main shield pattern */
+  /* Secondary: Navy Blue (#2B4C7E) - Pattern accents */
+  /* Accent: Forest Green (#4A7C59) - KINGA text */
+  
+  --primary: oklch(0.68 0.10 185); /* Teal #4DB8A8 */
   --primary-foreground: oklch(0.99 0 0);
-  --secondary: oklch(0.60 0.15 150); /* Fresh green */
+  --secondary: oklch(0.40 0.08 250); /* Navy Blue #2B4C7E */
   --secondary-foreground: oklch(0.99 0 0);
-  --accent: oklch(0.65 0.20 180); /* Bright cyan */
+  --accent: oklch(0.55 0.08 155); /* Forest Green #4A7C59 */
   --accent-foreground: oklch(0.99 0 0);
-  --sidebar-primary: oklch(0.50 0.18 195);
+  --sidebar-primary: oklch(0.65 0.10 185);
   --sidebar-primary-foreground: oklch(0.99 0 0);
-  --chart-1: oklch(0.70 0.15 195); /* Light blue */
-  --chart-2: oklch(0.65 0.18 180); /* Cyan */
-  --chart-3: oklch(0.60 0.15 150); /* Green */
-  --chart-4: oklch(0.55 0.18 195); /* Teal */
-  --chart-5: oklch(0.50 0.20 210); /* Deep blue */
+  
+  /* Chart colors using KINGA palette */
+  --chart-1: oklch(0.68 0.10 185); /* Teal */
+  --chart-2: oklch(0.40 0.08 250); /* Navy */
+  --chart-3: oklch(0.55 0.08 155); /* Forest Green */
+  --chart-4: oklch(0.75 0.08 180); /* Light Teal */
+  --chart-5: oklch(0.35 0.06 240); /* Deep Navy */
+  
   --radius: 0.75rem;
-  --background: oklch(0.98 0.005 200); /* Subtle blue-tinted white */
-  --foreground: oklch(0.20 0.015 200);
+  
+  /* Backgrounds with subtle teal tint */
+  --background: oklch(0.99 0.005 185); /* Very subtle teal-tinted white */
+  --foreground: oklch(0.25 0.015 250); /* Navy-tinted dark text */
   --card: oklch(1 0 0);
-  --card-foreground: oklch(0.20 0.015 200);
+  --card-foreground: oklch(0.25 0.015 250);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.20 0.015 200);
-  --muted: oklch(0.95 0.01 180);
-  --muted-foreground: oklch(0.50 0.02 180);
-  --destructive: oklch(0.60 0.25 25);
+  --popover-foreground: oklch(0.25 0.015 250);
+  --muted: oklch(0.96 0.01 185);
+  --muted-foreground: oklch(0.50 0.02 185);
+  
+  /* Semantic colors */
+  --destructive: oklch(0.60 0.25 25); /* Red for errors */
   --destructive-foreground: oklch(0.99 0 0);
-  --warning: oklch(0.70 0.18 60); /* Vibrant orange */
+  --warning: oklch(0.70 0.18 60); /* Amber for warnings */
   --warning-foreground: oklch(0.15 0.02 60);
-  --success: oklch(0.65 0.18 145); /* Vibrant green */
+  --success: oklch(0.68 0.10 185); /* Teal for success */
   --success-foreground: oklch(0.99 0 0);
-  --info: oklch(0.60 0.18 230); /* Vibrant blue */
+  --info: oklch(0.60 0.18 230); /* Blue for info */
   --info-foreground: oklch(0.99 0 0);
-  --border: oklch(0.88 0.01 180);
-  --input: oklch(0.92 0.01 180);
-  --ring: oklch(0.55 0.18 195);
-  --sidebar: oklch(0.98 0.005 200);
-  --sidebar-foreground: oklch(0.20 0.015 200);
-  --sidebar-accent: oklch(0.95 0.01 180);
-  --sidebar-accent-foreground: oklch(0.20 0.015 200);
-  --sidebar-border: oklch(0.88 0.01 180);
-  --sidebar-ring: oklch(0.55 0.18 195);
+  
+  /* Borders and inputs with teal tint */
+  --border: oklch(0.90 0.01 185);
+  --input: oklch(0.94 0.01 185);
+  --ring: oklch(0.68 0.10 185); /* Teal focus ring */
+  
+  --sidebar: oklch(0.99 0.005 185);
+  --sidebar-foreground: oklch(0.25 0.015 250);
+  --sidebar-accent: oklch(0.96 0.01 185);
+  --sidebar-accent-foreground: oklch(0.25 0.015 250);
+  --sidebar-border: oklch(0.90 0.01 185);
+  --sidebar-ring: oklch(0.68 0.10 185);
 }
 
 .dark {
@@ -188,26 +202,65 @@
     }
   }
   
-  /* Gradient utilities for modern UI */
+  /* KINGA Brand Gradient Utilities */
   .gradient-primary {
-    background: linear-gradient(135deg, oklch(0.60 0.18 195) 0%, oklch(0.50 0.20 210) 100%);
+    background: linear-gradient(135deg, oklch(0.68 0.10 185) 0%, oklch(0.40 0.08 250) 100%);
   }
   
   .gradient-secondary {
-    background: linear-gradient(135deg, oklch(0.65 0.15 150) 0%, oklch(0.60 0.18 180) 100%);
+    background: linear-gradient(135deg, oklch(0.55 0.08 155) 0%, oklch(0.68 0.10 185) 100%);
   }
   
   .gradient-accent {
-    background: linear-gradient(135deg, oklch(0.70 0.20 180) 0%, oklch(0.60 0.18 195) 100%);
+    background: linear-gradient(90deg, oklch(0.68 0.10 185) 0%, oklch(0.75 0.08 180) 100%);
   }
   
+  .gradient-hero {
+    background: linear-gradient(135deg, oklch(0.68 0.10 185) 0%, oklch(0.40 0.08 250) 100%);
+  }
+  
+  .gradient-card-border {
+    background: linear-gradient(135deg, oklch(0.68 0.10 185) 0%, oklch(0.75 0.08 180) 100%);
+  }
+  
+  /* Card hover effects with KINGA teal glow */
   .card-hover {
-    transition: all 0.3s ease;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid transparent;
   }
   
   .card-hover:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 10px 25px -5px oklch(0.55 0.18 195 / 0.2);
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 28px -5px oklch(0.68 0.10 185 / 0.25),
+                0 0 0 1px oklch(0.68 0.10 185 / 0.1);
+    border-color: oklch(0.68 0.10 185 / 0.3);
+  }
+  
+  /* Button hover effects */
+  .btn-hover {
+    transition: all 0.2s ease;
+  }
+  
+  .btn-hover:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px oklch(0.68 0.10 185 / 0.3);
+  }
+  
+  .btn-hover:active {
+    transform: scale(0.98);
+  }
+  
+  /* Teal glow effect for interactive elements */
+  .teal-glow:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px oklch(0.68 0.10 185 / 0.2);
+  }
+  
+  /* Background patterns inspired by African shield */
+  .pattern-bg {
+    background-image: 
+      linear-gradient(135deg, oklch(0.99 0.005 185) 0%, oklch(0.97 0.01 185) 100%),
+      repeating-linear-gradient(45deg, transparent, transparent 35px, oklch(0.68 0.10 185 / 0.02) 35px, oklch(0.68 0.10 185 / 0.02) 70px);
   }
   
   /* Status color utilities */
