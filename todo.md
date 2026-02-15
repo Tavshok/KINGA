@@ -5516,3 +5516,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] tRPC router for market quotes (upload, review, approve/reject)
 - [ ] Admin UI for market quotes ingestion (next session)
 - [ ] Integration into Assessment/Comparison views (future - feature-flagged)
+
+
+## Market Quotes Ingestion UI - COMPLETED
+- [x] Create currencyExchangeRates table
+- [x] Integrate exchangerate-api.com for automatic rate updates
+- [x] Build tRPC procedures: currency router (getAllRates, refreshFromAPI, updateRate, addCurrency, toggleActive)
+- [x] Update pricing engine to query currencyExchangeRates table
+- [x] Build Market Quotes Upload page (drag-and-drop PDF/Excel/Image)
+- [x] Build Review Queue page showing pending quotes
+- [x] Build Line Item Editor component for correcting AI extractions
+- [x] Build Approve/Reject workflow
+- [x] Add Currency Management UI to admin settings
+- [x] Add routes to App.tsx for all new pages
+- [ ] Test complete quote ingestion workflow end-to-end (pending - files need to be recreated after sandbox reset)

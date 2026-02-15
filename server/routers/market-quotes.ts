@@ -154,29 +154,31 @@ export const marketQuotesRouter = router({
   updateLineItem: adminProcedure
     .input(z.object({
       lineItemId: z.number(),
-      partName: z.string().optional(),
-      partNumber: z.string().optional(),
-      partDescription: z.string().optional(),
-      partCategory: z.string().optional(),
-      vehicleMake: z.string().optional(),
-      vehicleModel: z.string().optional(),
-      vehicleYearFrom: z.number().optional(),
-      vehicleYearTo: z.number().optional(),
-      price: z.number().optional(),
-      currency: z.string().optional(),
-      shippingCost: z.number().optional(),
-      customsDuty: z.number().optional(),
-      clearingFees: z.number().optional(),
-      forexCharges: z.number().optional(),
-      leadTimeDays: z.number().optional(),
-      partType: z.enum(["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).optional(),
-      quantity: z.number().optional(),
+      updates: z.object({
+        partName: z.string().optional(),
+        partNumber: z.string().nullable().optional(),
+        partDescription: z.string().optional(),
+        partCategory: z.string().nullable().optional(),
+        vehicleMake: z.string().nullable().optional(),
+        vehicleModel: z.string().nullable().optional(),
+        vehicleYearFrom: z.number().optional(),
+        vehicleYearTo: z.number().optional(),
+        price: z.number().optional(),
+        currency: z.string().optional(),
+        shippingCost: z.number().optional(),
+        customsDuty: z.number().optional(),
+        clearingFees: z.number().optional(),
+        forexCharges: z.number().optional(),
+        leadTimeDays: z.number().optional(),
+        partType: z.enum(["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).optional(),
+        quantity: z.number().optional(),
+      }),
     }))
     .mutation(async ({ input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      const { lineItemId, ...updates } = input;
+      const { lineItemId, updates } = input;
       
       // Convert numeric fields to strings for decimal columns
       const updateData: any = {};
@@ -190,10 +192,10 @@ export const marketQuotesRouter = router({
       if (updates.vehicleYearTo !== undefined) updateData.vehicleYearTo = updates.vehicleYearTo;
       if (updates.price !== undefined) updateData.price = updates.price.toString();
       if (updates.currency !== undefined) updateData.currency = updates.currency;
-      if (updates.shippingCost !== undefined) updateData.shippingCost = updates.shippingCost.toString();
-      if (updates.customsDuty !== undefined) updateData.customsDuty = updates.customsDuty.toString();
-      if (updates.clearingFees !== undefined) updateData.clearingFees = updates.clearingFees.toString();
-      if (updates.forexCharges !== undefined) updateData.forexCharges = updates.forexCharges.toString();
+      if (updates.shippingCost !== undefined) updateData.shippingCost = updates.shippingCost?.toString();
+      if (updates.customsDuty !== undefined) updateData.customsDuty = updates.customsDuty?.toString();
+      if (updates.clearingFees !== undefined) updateData.clearingFees = updates.clearingFees?.toString();
+      if (updates.forexCharges !== undefined) updateData.forexCharges = updates.forexCharges?.toString();
       if (updates.leadTimeDays !== undefined) updateData.leadTimeDays = updates.leadTimeDays;
       if (updates.partType !== undefined) updateData.partType = updates.partType;
       if (updates.quantity !== undefined) updateData.quantity = updates.quantity;
