@@ -5850,3 +5850,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add error handling to Claims Processor dashboard
 - [x] Restore Fleet Management and Market Quotes cards to Portal Hub
 - [x] Verify all pages load without OOM crash
+
+
+## Critical Bug - Published Site Blank (2026-02-15)
+- [x] Fix published site showing only animated background, no React content rendering
+- [x] Diagnose JavaScript error: manualChunks incorrectly bundled React into vendor-charts chunk
+- [x] Fix vite.config.ts manualChunks to check React paths FIRST with exact node_modules paths
+- [x] Verify fix: new build has no React internals in vendor-charts chunk

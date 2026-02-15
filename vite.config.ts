@@ -170,23 +170,24 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
+          // IMPORTANT: Order matters! React core must be checked FIRST
+          // to prevent it from being pulled into other vendor chunks
+          if (id.includes('node_modules/react-dom/') || id.includes('node_modules/react/')) {
+            return 'vendor-react-dom';
+          }
           // Split chart libraries (recharts + d3)
-          if (id.includes('recharts') || id.includes('d3-')) {
+          if (id.includes('node_modules/recharts/') || id.includes('node_modules/d3-')) {
             return 'vendor-charts';
           }
           // Split PDF/export libraries (lazy-loaded on demand)
-          if (id.includes('jspdf') || id.includes('xlsx')) {
+          if (id.includes('node_modules/jspdf') || id.includes('node_modules/xlsx')) {
             return 'vendor-export';
           }
-          // Split React core
-          if (id.includes('react-dom')) {
-            return 'vendor-react-dom';
-          }
           // Split UI libraries
-          if (id.includes('@radix-ui')) {
+          if (id.includes('node_modules/@radix-ui/')) {
             return 'vendor-radix';
           }
-          if (id.includes('@tanstack')) {
+          if (id.includes('node_modules/@tanstack/')) {
             return 'vendor-tanstack';
           }
         },
