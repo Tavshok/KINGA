@@ -5516,3 +5516,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] tRPC router for market quotes (upload, review, approve/reject)
 - [ ] Admin UI for market quotes ingestion (next session)
 - [ ] Integration into Assessment/Comparison views (future - feature-flagged)
+
+
+## Insurer Sub-Roles System Expansion (Current Work)
+- [x] Update database schema: expand role enum to include fleet_manager and insurance_agent
+  - [x] Add roles: fleet_manager, insurance_agent to main role enum
+  - [x] Keep existing insurerRole field for insurer sub-roles (executive, claims_manager, claims_processor, internal_assessor, risk_manager)
+  - [x] Run db:push to apply schema changes
+- [x] Update PortalHub component
+  - [x] Add portal cards for all 5 insurer sub-roles with distinct icons and descriptions
+  - [x] Add Fleet Management portal card
+  - [x] Add KINGA Agency portal card (renamed from Insurance Quote/Agency)
+  - [x] Ensure Admin role sees ALL 12 portals
+  - [x] Ensure each insurer sub-role only sees their specific portal
+  - [x] Add proper role filtering logic for insurer sub-roles
+- [x] Update role-based access control
+  - [x] Update ProtectedRoute component to handle insurer sub-roles
+- [ ] Test complete workflow
+  - [ ] Test Admin can access all 12 portals
+  - [ ] Test role switching between all insurer sub-roles
+  - [ ] Verify each insurer sub-role sees correct dashboard

@@ -113,6 +113,13 @@
       "when": 1771107210928,
       "tag": "0015_square_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1771138101584,
+      "tag": "0016_striped_annihilus",
+      "breakpoints": true
     }
   ]
 }

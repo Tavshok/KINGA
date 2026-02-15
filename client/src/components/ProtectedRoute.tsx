@@ -36,8 +36,13 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
   }
 
   // Check if user's role is allowed (if allowedRoles is specified)
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
-    return <Redirect to="/unauthorized" />;
+  if (allowedRoles && allowedRoles.length > 0) {
+    const hasAccess = allowedRoles.includes(user.role) || 
+      (user.role === "insurer" && allowedRoles.includes("insurer"));
+    
+    if (!hasAccess) {
+      return <Redirect to="/unauthorized" />;
+    }
   }
 
   // User is authenticated and has the correct role
