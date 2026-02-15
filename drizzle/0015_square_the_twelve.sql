@@ -1,0 +1,1 @@
+ALTER TABLE `parts_pricing_baseline` ADD `part_type` enum('OEM','OEM_Equivalent','Aftermarket','Used','Unknown') DEFAULT 'Unknown';

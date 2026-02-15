@@ -2704,6 +2704,11 @@ export const fleetVehicles = mysqlTable("fleet_vehicles", {
   fuelType: mysqlEnum("fuel_type", ["petrol", "diesel", "electric", "hybrid"]),
   transmissionType: mysqlEnum("transmission_type", ["manual", "automatic"]),
   
+  // Vehicle origin (critical for parts sourcing strategy)
+  vehicleOrigin: mysqlEnum("vehicle_origin", ["Local_Assembly", "Ex_Japanese", "Ex_European", "Ex_American", "Ex_Chinese", "Unknown"]).default("Unknown"),
+  importedFrom: varchar("imported_from", { length: 100 }), // e.g., "Japan", "UK", "USA", "Germany", "China"
+  importYear: int("import_year"), // Year vehicle was imported (may differ from manufacture year)
+  
   // Usage classification
   usageType: mysqlEnum("usage_type", ["private", "commercial", "logistics", "mining", "agriculture", "public_transport"]),
   primaryUse: text("primary_use"),
@@ -3948,3 +3953,277 @@ export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
 
 export type SimilarClaimsCluster = typeof similarClaimsClusters.$inferSelect;
 export type InsertSimilarClaimsCluster = typeof similarClaimsClusters.$inferInsert;
+
+
+/**
+ * Parts Pricing Baseline - SA public data scraping baseline
+ * Stores baseline parts pricing from public SA sources (Supercheap, Midas, AutoTrader)
+ */
+export const partsPricingBaseline = mysqlTable("parts_pricing_baseline", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  // Part identification
+  partName: varchar("part_name", { length: 255 }).notNull(), // e.g., "Front Bumper", "Headlight Assembly"
+  partNumber: varchar("part_number", { length: 100 }), // OEM part number if available
+  partCategory: varchar("part_category", { length: 100 }), // e.g., "body", "lighting", "mechanical"
+  
+  // Vehicle fitment
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYearFrom: int("vehicle_year_from"),
+  vehicleYearTo: int("vehicle_year_to"),
+  
+  // Pricing
+  saBasePrice: decimal("sa_base_price", { precision: 10, scale: 2 }).notNull(), // ZAR
+  currency: varchar("currency", { length: 3 }).default("ZAR").notNull(),
+  partType: mysqlEnum("part_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).default("Unknown"),
+  
+  // Source attribution
+  source: varchar("source", { length: 100 }).notNull(), // e.g., "supercheap_auto", "midas", "manual_entry"
+  sourceUrl: text("source_url"),
+  scrapedAt: timestamp("scraped_at"),
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  
+  // Quality indicators
+  confidence: mysqlEnum("confidence", ["low", "medium", "high"]).default("medium"),
+  dataQuality: text("data_quality"), // JSON: validation notes
+});
+
+export type PartsPricingBaseline = typeof partsPricingBaseline.$inferSelect;
+export type InsertPartsPricingBaseline = typeof partsPricingBaseline.$inferInsert;
+
+/**
+ * Part Stratification - OEM vs Aftermarket vs Used pricing tiers
+ */
+export const partStratification = mysqlTable("part_stratification", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  stratumType: mysqlEnum("stratum_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used"]).notNull(),
+  priceMultiplier: decimal("price_multiplier", { precision: 5, scale: 2 }).notNull(), // e.g., 1.0 for OEM, 0.7 for Aftermarket
+  
+  // Quality indicators
+  qualityRating: int("quality_rating"), // 1-5 scale
+  warrantyMonths: int("warranty_months"),
+  description: text("description"),
+  
+  // Applicability
+  partCategory: varchar("part_category", { length: 100 }), // NULL = applies to all categories
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type PartStratification = typeof partStratification.$inferSelect;
+export type InsertPartStratification = typeof partStratification.$inferInsert;
+
+/**
+ * Regional Pricing Multipliers - Country-specific cost adjustments
+ */
+export const regionalPricingMultipliers = mysqlTable("regional_pricing_multipliers", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  country: varchar("country", { length: 100 }).notNull().unique(), // e.g., "Zimbabwe", "Botswana", "South Africa"
+  countryCode: varchar("country_code", { length: 3 }).notNull(), // ISO 3166-1 alpha-3
+  
+  // Cost components
+  transportCostMultiplier: decimal("transport_cost_multiplier", { precision: 5, scale: 2 }).notNull(), // e.g., 1.15 = +15% for transport
+  dutyRate: decimal("duty_rate", { precision: 5, scale: 2 }).notNull(), // e.g., 0.25 = 25% import duty
+  handlingFeeFlat: decimal("handling_fee_flat", { precision: 10, scale: 2 }).default("0.00"), // Flat fee in local currency
+  marginMultiplier: decimal("margin_multiplier", { precision: 5, scale: 2 }).default("1.10"), // e.g., 1.10 = 10% markup
+  
+  // Currency
+  currencyCode: varchar("currency_code", { length: 3 }).notNull(), // e.g., "ZWL", "USD", "BWP"
+  exchangeRateToUSD: decimal("exchange_rate_to_usd", { precision: 15, scale: 6 }).notNull(), // e.g., 1 ZWL = 0.0012 USD
+  exchangeRateSource: varchar("exchange_rate_source", { length: 100 }), // e.g., "RBZ", "manual", "xe.com"
+  
+  // Metadata
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+  updatedBy: int("updated_by"), // Admin user ID
+  notes: text("notes"),
+});
+
+export type RegionalPricingMultiplier = typeof regionalPricingMultipliers.$inferSelect;
+export type InsertRegionalPricingMultiplier = typeof regionalPricingMultipliers.$inferInsert;
+
+/**
+ * Parts Pricing Overrides - Admin manual overrides for specific parts/regions
+ */
+export const partsPricingOverrides = mysqlTable("parts_pricing_overrides", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  // Part identification (can be specific or wildcard)
+  partName: varchar("part_name", { length: 255 }),
+  partNumber: varchar("part_number", { length: 100 }),
+  partCategory: varchar("part_category", { length: 100 }),
+  
+  // Vehicle fitment (can be specific or wildcard)
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  
+  // Region (NULL = applies to all regions)
+  country: varchar("country", { length: 100 }),
+  
+  // Stratum (NULL = applies to all strata)
+  stratumType: mysqlEnum("stratum_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used"]),
+  
+  // Override pricing
+  overridePrice: decimal("override_price", { precision: 10, scale: 2 }),
+  overrideMultiplier: decimal("override_multiplier", { precision: 5, scale: 2 }), // Alternative: multiply baseline by this
+  
+  // Metadata
+  reason: text("reason").notNull(), // Why this override was created
+  createdBy: int("created_by").notNull(), // Admin user ID
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  expiresAt: timestamp("expires_at"), // NULL = never expires
+});
+
+export type PartsPricingOverride = typeof partsPricingOverrides.$inferSelect;
+export type InsertPartsPricingOverride = typeof partsPricingOverrides.$inferInsert;
+
+/**
+ * Parts Pricing Audit Log - Track all pricing changes for transparency
+ */
+export const partsPricingAuditLog = mysqlTable("parts_pricing_audit_log", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  changeType: mysqlEnum("change_type", ["baseline_update", "multiplier_update", "override_created", "override_deleted", "scraper_run"]).notNull(),
+  
+  // What changed
+  tableName: varchar("table_name", { length: 100 }).notNull(),
+  recordId: int("record_id"),
+  
+  // Change details
+  oldValue: text("old_value"), // JSON snapshot of old data
+  newValue: text("new_value"), // JSON snapshot of new data
+  
+  // Who/when
+  changedBy: int("changed_by"), // Admin user ID (NULL for automated scraper)
+  changedAt: timestamp("changed_at").defaultNow().notNull(),
+  
+  // Context
+  reason: text("reason"),
+  ipAddress: varchar("ip_address", { length: 45 }),
+});
+
+export type PartsPricingAuditLog = typeof partsPricingAuditLog.$inferSelect;
+export type InsertPartsPricingAuditLog = typeof partsPricingAuditLog.$inferInsert;
+
+
+/**
+ * Supplier Quotes - Admin-uploaded market quotes from SA/Zim suppliers
+ */
+export const supplierQuotes = mysqlTable("supplier_quotes", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  // Supplier information
+  supplierName: varchar("supplier_name", { length: 255 }).notNull(),
+  supplierCountry: varchar("supplier_country", { length: 100 }).notNull(), // e.g., "South Africa", "Zimbabwe", "Japan", "UAE", "Thailand", "Singapore"
+  supplierContact: varchar("supplier_contact", { length: 255 }),
+  
+  // Quote metadata
+  quoteDate: date("quote_date").notNull(),
+  quoteNumber: varchar("quote_number", { length: 100 }),
+  quoteValidUntil: date("quote_valid_until"),
+  
+  // Document
+  documentUrl: text("document_url").notNull(), // S3 URL of uploaded PDF/Excel/image
+  documentType: mysqlEnum("document_type", ["pdf", "excel", "image"]).notNull(),
+  
+  // Processing status
+  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
+  extractedAt: timestamp("extracted_at"),
+  reviewedAt: timestamp("reviewed_at"),
+  reviewedBy: int("reviewed_by"), // Admin user ID
+  
+  // Extraction results
+  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 2 }), // 0.00-1.00
+  extractionNotes: text("extraction_notes"), // JSON: extraction issues, warnings
+  
+  // Metadata
+  uploadedBy: int("uploaded_by").notNull(), // Admin user ID
+  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
+  notes: text("notes"), // Admin notes about this quote
+});
+
+export type SupplierQuote = typeof supplierQuotes.$inferSelect;
+export type InsertSupplierQuote = typeof supplierQuotes.$inferInsert;
+
+/**
+ * Supplier Quote Line Items - Individual parts from supplier quotes
+ */
+export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  quoteId: int("quote_id").notNull(), // FK to supplierQuotes
+  
+  // Part identification
+  partName: varchar("part_name", { length: 255 }).notNull(),
+  partNumber: varchar("part_number", { length: 100 }),
+  partDescription: text("part_description"),
+  partCategory: varchar("part_category", { length: 100 }),
+  
+  // Vehicle fitment (may be extracted or NULL)
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYearFrom: int("vehicle_year_from"),
+  vehicleYearTo: int("vehicle_year_to"),
+  
+  // Pricing
+  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  currency: varchar("currency", { length: 3 }).notNull(), // e.g., "ZAR", "USD", "ZWL", "JPY", "AED", "THB"
+  
+  // Import costs (for international suppliers)
+  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
+  customsDuty: decimal("customs_duty", { precision: 10, scale: 2 }),
+  clearingFees: decimal("clearing_fees", { precision: 10, scale: 2 }),
+  forexCharges: decimal("forex_charges", { precision: 10, scale: 2 }),
+  leadTimeDays: int("lead_time_days"), // Estimated delivery time
+  
+  // Part type/quality
+  partType: mysqlEnum("part_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).default("Unknown"),
+  
+  // Quantity (if specified in quote)
+  quantity: int("quantity").default(1),
+  
+  // Approval status (can approve/reject individual line items)
+  approved: boolean("approved").default(false),
+  rejectionReason: text("rejection_reason"),
+  
+  // Metadata
+  extractedAt: timestamp("extracted_at").defaultNow().notNull(),
+  lineNumber: int("line_number"), // Line number in original quote document
+});
+
+export type SupplierQuoteLineItem = typeof supplierQuoteLineItems.$inferSelect;
+export type InsertSupplierQuoteLineItem = typeof supplierQuoteLineItems.$inferInsert;
+
+/**
+ * Supplier Performance Metrics - Track supplier quote accuracy and competitiveness
+ */
+export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metrics", {
+  id: int("id").primaryKey().autoincrement(),
+  
+  supplierName: varchar("supplier_name", { length: 255 }).notNull().unique(),
+  supplierCountry: varchar("supplier_country", { length: 100 }),
+  
+  // Quote statistics
+  totalQuotesSubmitted: int("total_quotes_submitted").default(0),
+  totalQuotesApproved: int("total_quotes_approved").default(0),
+  totalQuotesRejected: int("total_quotes_rejected").default(0),
+  
+  // Pricing competitiveness (vs market average)
+  avgPriceVsMarket: decimal("avg_price_vs_market", { precision: 5, scale: 2 }), // e.g., 0.95 = 5% below market avg
+  
+  // Data quality
+  avgExtractionConfidence: decimal("avg_extraction_confidence", { precision: 5, scale: 2 }),
+  
+  // Relationship
+  firstQuoteDate: date("first_quote_date"),
+  lastQuoteDate: date("last_quote_date"),
+  
+  // Metadata
+  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
+});
+
+export type SupplierPerformanceMetric = typeof supplierPerformanceMetrics.$inferSelect;
+export type InsertSupplierPerformanceMetric = typeof supplierPerformanceMetrics.$inferInsert;

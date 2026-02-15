@@ -5417,3 +5417,102 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add lodger role/relationship field to claim form (self, broker, agent, company rep, family member, other)
 - [x] Add lodger contact details separate from claimant details
 - [x] Track who lodged vs who is the actual claimant in the claim record
+
+
+## REGIONAL PARTS PRICING SYSTEM
+### Database Schema
+- [ ] Create partsPricingBaseline table (partName, partNumber, vehicleMake, vehicleModel, category, saBasePrice, source, lastUpdated)
+- [ ] Create partStratification table (stratumType: OEM/OEM_Equivalent/Aftermarket/Used, priceMultiplier, qualityRating, warrantyMonths)
+- [ ] Create regionalPricingMultipliers table (country, transportCostMultiplier, dutyRate, handlingFeeFlat, currencyCode, exchangeRateToUSD, lastUpdated)
+- [ ] Create partsPricingOverrides table (admin manual overrides for specific parts/regions)
+- [ ] Create partsPricingAuditLog table (track all pricing changes for transparency)
+
+### Pricing Engine
+- [x] Build calculatePartPrice function (baseCost, stratum, region, currency) → final price with breakdown (getPartPricing)
+- [x] Support cost components: base + transport + duty + handling + forex charges
+- [x] Build getPartPriceRange function (returns min/max/median across all strata for a part)
+- [x] Build compareQuotedVsMarket function (quoted price vs calculated market range)
+- [x] Flag quotes that exceed market range by >20% as potential overcharging
+- [x] Build currency conversion with exchange rates (USD, ZAR, ZWL, BWP, JPY, AED, THB)
+- [x] Add vehicle origin intelligence (ex-Japanese parts sourcing optimization)
+- [x] Add regional multipliers for 5 SADC markets (SA, Zimbabwe, Botswana, Zambia, Mozambique)
+- [x] Add part type multipliers (OEM 1.0x, OEM_Equivalent 0.85x, Aftermarket 0.65x, Used 0.40x)
+- [x] Add confidence scoring based on data freshness and quantity
+
+### Market Quotes Ingestion (Admin Upload)
+- [x] Create supplierQuotes table (supplier name, country, quote date, document URL, status: pending/approved/rejected)
+- [x] Create supplierQuoteLineItems table (quote ID, part name, part number, price, currency, vehicle fitment)
+- [x] Add international supplier support (Japan, UAE, Thailand, Singapore for ex-Japanese vehicles)
+- [x] Add import cost components (shipping, customs duty, clearing fees, forex charges, lead time)
+- [x] Add vehicle origin tracking to fleetVehicles (Local_Assembly, Ex_Japanese, Ex_European, etc.)
+- [x] Add supplierPerformanceMetrics table for tracking supplier quote accuracy
+- [x] Build market quote extraction engine (PDF/Excel/image → structured parts data)
+- [x] Extract: supplier name, quote date, part names, part numbers, prices, currency, vehicle fitment
+- [x] Support PDF supplier quotes (typical format: header with supplier info, table with parts)
+- [x] Support Excel supplier quotes (columns: part name, part number, price, etc.)
+- [x] Support image quotes (OCR + LLM vision extraction)
+- [x] Create tRPC router for market quotes (upload, getPendingQuotes, getQuoteDetails, updateLineItem, approveQuote, rejectQuote)
+- [ ] Build admin review/approval UI for extracted quote data
+- [ ] Allow admin to edit extracted data before approving
+- [x] On approval: move data from supplierQuoteLineItems → partsPricingBaseline (implemented in approveQuote procedure)
+- [x] Track supplier relationships (which suppliers provide quotes regularly)
+- [x] Build supplier performance metrics (quote accuracy, pricing competitiveness)
+
+### SA Public Data Scraper
+- [ ] Build Supercheap Auto scraper (parts catalog, pricing)
+- [ ] Build Midas scraper (service pricing, common parts)
+- [ ] Build AutoTrader scraper (vehicle valuations for total loss calculations)
+- [ ] Schedule daily/weekly scraping jobs to keep baseline data fresh
+- [ ] Store scraped data in partsPricingBaseline with source attribution
+- [ ] Handle rate limiting and robots.txt compliance
+
+### Admin UI
+- [ ] Build Regional Pricing Settings page in AdminDashboard
+- [ ] Allow admin to set country-specific multipliers (transport, duty, handling)
+- [ ] Allow admin to set currency exchange rates (manual or auto-update)
+- [ ] Allow admin to view and edit partsPricingBaseline (scraped data)
+- [ ] Allow admin to add manual pricing overrides for specific parts
+- [ ] Show pricing audit log for transparency
+- [ ] Add "Refresh Baseline Data" button to trigger scraper manually
+
+### Integration (Future - After Database Maturity)
+- [ ] Add feature flag: "Enable Market Pricing for Insurers" in admin settings
+- [ ] Integrate pricing engine into cost analysis (AssessmentResults page) - feature-flagged
+- [ ] Show quoted price vs market range comparison for each part - feature-flagged
+- [ ] Flag overpriced parts in the comparison view - feature-flagged
+- [ ] Integrate into InsurerComparisonView (quote A vs quote B vs market baseline) - feature-flagged
+- [ ] Add pricing insights to fraud detection engine (overpriced parts = fraud signal)
+- [ ] Feed approved claims back into partsPricingBaseline for continuous improvement
+- [ ] Admin can enable feature once database has 1000+ parts with good confidence
+
+### Testing & Deployment
+- [ ] Test with sample SA parts (bumper, headlight, door for Toyota Hilux, VW Polo)
+- [ ] Test Zim regional multiplier (SA base × 1.4 for transport/duty)
+- [ ] Test currency conversion (ZAR → USD → ZWL)
+- [ ] Test stratification (OEM vs Aftermarket price difference)
+- [ ] Save checkpoint with regional pricing system
+
+### Unlimited Multi-Currency Support (User Feedback)
+- [ ] Remove hardcoded currency list - accept any 3-letter ISO currency code
+- [ ] Create currencyExchangeRates table (currencyCode, rateToUSD, lastUpdated, source)
+- [ ] Build dynamic exchange rate API integration (e.g., exchangerate-api.com, fixer.io)
+- [ ] Add fallback to manual exchange rates if API unavailable
+- [ ] Store currency metadata (name, symbol, decimal places) dynamically
+- [ ] Allow admin to add/update exchange rates for any currency
+- [ ] Build currency management UI in admin panel
+- [ ] Update pricing engine to use dynamic exchange rates
+- [ ] Update market quote extractor to detect any currency code
+- [ ] Test with uncommon currencies (MUR, NAD, SZL, LSL, MWK, etc.)
+
+
+## CHECKPOINT: Regional Parts Pricing Backend Infrastructure
+- [x] Database schema with supplier quotes, line items, performance metrics
+- [x] Vehicle origin tracking (ex-Japanese, ex-European, etc.)
+- [x] Market quote extraction engine (PDF/Excel/Image → structured data)
+- [x] Parts pricing engine with unlimited currency support
+- [x] Regional multipliers for SADC markets
+- [x] Part stratification (OEM, Aftermarket, Used)
+- [x] Dynamic exchange rate system (supports any ISO currency)
+- [x] tRPC router for market quotes (upload, review, approve/reject)
+- [ ] Admin UI for market quotes ingestion (next session)
+- [ ] Integration into Assessment/Comparison views (future - feature-flagged)
