@@ -24,6 +24,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { toast } from "sonner";
 import { useState, useMemo } from "react";
+import AdminRoleImpersonation from "@/components/AdminRoleImpersonation";
 
 /**
  * Admin Dashboard
@@ -38,7 +39,7 @@ import { useState, useMemo } from "react";
 export default function AdminDashboard() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
-  const [selectedTab, setSelectedTab] = useState<"panel-beaters" | "analytics" | "intelligence" | "settings">("panel-beaters");
+  const [selectedTab, setSelectedTab] = useState<"panel-beaters" | "analytics" | "intelligence" | "settings" | "role-test">("panel-beaters");
 
   // Ground truth form state
   const [gtClaimId, setGtClaimId] = useState("");
@@ -257,6 +258,14 @@ export default function AdminDashboard() {
           >
             <Settings className="mr-2 h-4 w-4" />
             Settings
+          </Button>
+          <Button
+            variant={selectedTab === "role-test" ? "default" : "outline"}
+            onClick={() => setSelectedTab("role-test")}
+            className={selectedTab === "role-test" ? "bg-purple-600 hover:bg-purple-700" : ""}
+          >
+            <Shield className="mr-2 h-4 w-4" />
+            Role Test
           </Button>
           <Button
             variant="outline"
@@ -839,6 +848,54 @@ export default function AdminDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Role Test Tab */}
+        {selectedTab === "role-test" && (
+          <div className="space-y-6">
+            <AdminRoleImpersonation />
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Testing Guide</CardTitle>
+                <CardDescription>
+                  How to test all portal variations
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <h4 className="font-semibold text-sm">Available Portals (13 total):</h4>
+                  <ul className="text-sm space-y-1 text-muted-foreground ml-4">
+                    <li>• <strong>Executive Dashboard</strong> - Insurer sub-role: executive</li>
+                    <li>• <strong>Claims Manager Dashboard</strong> - Insurer sub-role: claims_manager</li>
+                    <li>• <strong>Claims Processor Dashboard</strong> - Insurer sub-role: claims_processor</li>
+                    <li>• <strong>Internal Assessor Dashboard</strong> - Insurer sub-role: internal_assessor</li>
+                    <li>• <strong>Risk Manager Dashboard</strong> - Insurer sub-role: risk_manager</li>
+                    <li>• <strong>Insurer Portal</strong> - General insurer (no sub-role)</li>
+                    <li>• <strong>Assessor Portal</strong> - Independent assessors</li>
+                    <li>• <strong>Panel Beater Portal</strong> - Repair shops</li>
+                    <li>• <strong>Claimant Portal</strong> - Policyholders</li>
+                    <li>• <strong>Fleet Management</strong> - Fleet managers (freemium)</li>
+                    <li>• <strong>KINGA Agency</strong> - Insurance sales team</li>
+                    <li>• <strong>Historical Claims Intelligence</strong> - Data ingestion</li>
+                    <li>• <strong>Admin Panel</strong> - System administrators</li>
+                  </ul>
+                </div>
+                
+                <div className="border-t pt-4 space-y-2">
+                  <h4 className="font-semibold text-sm">Testing Steps:</h4>
+                  <ol className="text-sm space-y-1 text-muted-foreground ml-4">
+                    <li>1. Select a role from the dropdown above</li>
+                    <li>2. For insurer role, optionally select a sub-role</li>
+                    <li>3. Click "Impersonate Role" to switch</li>
+                    <li>4. You'll be redirected to Portal Hub showing filtered portals</li>
+                    <li>5. Test the portal functionality as that role</li>
+                    <li>6. Click "Reset to Admin" to return to admin view</li>
+                  </ol>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </main>
     </div>

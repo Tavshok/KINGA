@@ -46,8 +46,24 @@ export function useAuth(options?: UseAuthOptions) {
       "manus-runtime-user-info",
       JSON.stringify(meQuery.data)
     );
+    
+    // Apply admin role impersonation if active
+    let user = meQuery.data ?? null;
+    if (user && user.role === "admin") {
+      const impersonatedRole = sessionStorage.getItem("impersonatedRole");
+      const impersonatedInsurerRole = sessionStorage.getItem("impersonatedInsurerRole");
+      
+      if (impersonatedRole) {
+        user = {
+          ...user,
+          role: impersonatedRole as any,
+          insurerRole: impersonatedRole === "insurer" && impersonatedInsurerRole ? impersonatedInsurerRole as any : user.insurerRole,
+        };
+      }
+    }
+    
     return {
-      user: meQuery.data ?? null,
+      user,
       loading: meQuery.isLoading || logoutMutation.isPending,
       error: meQuery.error ?? logoutMutation.error ?? null,
       isAuthenticated: Boolean(meQuery.data),

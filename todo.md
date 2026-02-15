@@ -5536,3 +5536,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [ ] Test Admin can access all 12 portals
   - [ ] Test role switching between all insurer sub-roles
   - [ ] Verify each insurer sub-role sees correct dashboard
+
+
+## Role Switcher Extension (Current Work)
+- [x] Find existing role switcher implementation in the codebase
+- [x] Create AdminRoleImpersonation component with role and insurerRole dropdowns
+- [x] Add all insurer sub-roles to switcher: executive, claims_manager, claims_processor, internal_assessor, risk_manager
+- [x] Add new standalone roles: fleet_manager, insurance_agent
+- [x] Update useAuth hook to apply role impersonation from sessionStorage
+- [x] Add Role Test tab to AdminDashboard with testing guide
+- [ ] Test switching between all 13 portal variations (ready for user testing)
