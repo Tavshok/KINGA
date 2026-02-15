@@ -1,0 +1,1 @@
+ALTER TABLE `parts_pricing_baseline` MODIFY COLUMN `currency` varchar(3) NOT NULL DEFAULT 'USD';

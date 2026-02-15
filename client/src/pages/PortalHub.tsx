@@ -56,15 +56,6 @@ export default function PortalHub() {
       roles: ["claimant", "admin"]
     },
     {
-      id: "historical-claims",
-      title: "Historical Claims Intelligence",
-      description: "Ingest historical PDFs, extract data, and build ML training datasets",
-      icon: Database,
-      path: "/historical-claims",
-      color: "from-teal-500 to-cyan-500",
-      roles: ["insurer", "admin"]
-    },
-    {
       id: "admin",
       title: "Admin Panel",
       description: "System management and user administration",

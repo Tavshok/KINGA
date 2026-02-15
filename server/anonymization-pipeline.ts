@@ -10,7 +10,7 @@
  * - K-anonymity validation (k≥5)
  * - Global dataset insertion with audit logging
  * 
- * Compliance: POPIA (South Africa), GDPR (EU)
+ * Compliance: Data Protection Act (Zimbabwe), GDPR (EU)
  */
 
 import { createHash } from "crypto";
@@ -27,80 +27,67 @@ import {
 import { eq, and, isNull, lt, sql } from "drizzle-orm";
 
 /**
- * City → Province mapping for South African geographic aggregation
+ * City → Province/Region mapping for geographic aggregation
  */
 const CITY_TO_PROVINCE: Record<string, string> = {
-  // Gauteng
-  "Johannesburg": "Gauteng",
-  "Pretoria": "Gauteng",
-  "Sandton": "Gauteng",
-  "Midrand": "Gauteng",
-  "Centurion": "Gauteng",
-  "Roodepoort": "Gauteng",
-  "Soweto": "Gauteng",
-  "Benoni": "Gauteng",
-  "Germiston": "Gauteng",
-  "Boksburg": "Gauteng",
+  // Harare Province
+  "Harare": "Harare",
+  "Chitungwiza": "Harare",
+  "Epworth": "Harare",
+  "Ruwa": "Harare",
+  "Norton": "Harare",
   
-  // Western Cape
-  "Cape Town": "Western Cape",
-  "Stellenbosch": "Western Cape",
-  "Paarl": "Western Cape",
-  "George": "Western Cape",
-  "Worcester": "Western Cape",
-  "Hermanus": "Western Cape",
-  "Mossel Bay": "Western Cape",
-  "Knysna": "Western Cape",
+  // Bulawayo Province
+  "Bulawayo": "Bulawayo",
   
-  // KwaZulu-Natal
-  "Durban": "KwaZulu-Natal",
-  "Pietermaritzburg": "KwaZulu-Natal",
-  "Richards Bay": "KwaZulu-Natal",
-  "Newcastle": "KwaZulu-Natal",
-  "Empangeni": "KwaZulu-Natal",
-  "Ladysmith": "KwaZulu-Natal",
+  // Manicaland
+  "Mutare": "Manicaland",
+  "Chipinge": "Manicaland",
+  "Rusape": "Manicaland",
+  "Nyanga": "Manicaland",
+  "Chimanimani": "Manicaland",
   
-  // Eastern Cape
-  "Port Elizabeth": "Eastern Cape",
-  "East London": "Eastern Cape",
-  "Mthatha": "Eastern Cape",
-  "Grahamstown": "Eastern Cape",
-  "Queenstown": "Eastern Cape",
-  "Uitenhage": "Eastern Cape",
+  // Mashonaland Central
+  "Bindura": "Mashonaland Central",
+  "Mount Darwin": "Mashonaland Central",
+  "Shamva": "Mashonaland Central",
+  "Mazowe": "Mashonaland Central",
   
-  // Free State
-  "Bloemfontein": "Free State",
-  "Welkom": "Free State",
-  "Kroonstad": "Free State",
-  "Bethlehem": "Free State",
-  "Sasolburg": "Free State",
+  // Mashonaland East
+  "Marondera": "Mashonaland East",
+  "Mutoko": "Mashonaland East",
+  "Mudzi": "Mashonaland East",
   
-  // Limpopo
-  "Polokwane": "Limpopo",
-  "Tzaneen": "Limpopo",
-  "Thohoyandou": "Limpopo",
-  "Mokopane": "Limpopo",
-  "Phalaborwa": "Limpopo",
+  // Mashonaland West
+  "Chinhoyi": "Mashonaland West",
+  "Kadoma": "Mashonaland West",
+  "Karoi": "Mashonaland West",
+  "Chegutu": "Mashonaland West",
+  "Kariba": "Mashonaland West",
   
-  // Mpumalanga
-  "Nelspruit": "Mpumalanga",
-  "Witbank": "Mpumalanga",
-  "Middelburg": "Mpumalanga",
-  "Secunda": "Mpumalanga",
-  "Ermelo": "Mpumalanga",
+  // Masvingo
+  "Masvingo": "Masvingo",
+  "Chiredzi": "Masvingo",
+  "Triangle": "Masvingo",
+  "Gutu": "Masvingo",
   
-  // North West
-  "Rustenburg": "North West",
-  "Mahikeng": "North West",
-  "Klerksdorp": "North West",
-  "Potchefstroom": "North West",
-  "Brits": "North West",
+  // Matabeleland North
+  "Hwange": "Matabeleland North",
+  "Victoria Falls": "Matabeleland North",
+  "Lupane": "Matabeleland North",
+  "Binga": "Matabeleland North",
   
-  // Northern Cape
-  "Kimberley": "Northern Cape",
-  "Upington": "Northern Cape",
-  "Springbok": "Northern Cape",
-  "De Aar": "Northern Cape",
+  // Matabeleland South
+  "Gwanda": "Matabeleland South",
+  "Beitbridge": "Matabeleland South",
+  "Plumtree": "Matabeleland South",
+  
+  // Midlands
+  "Gweru": "Midlands",
+  "Kwekwe": "Midlands",
+  "Zvishavane": "Midlands",
+  "Shurugwi": "Midlands",
+  "Redcliff": "Midlands",
 };
 
 /**

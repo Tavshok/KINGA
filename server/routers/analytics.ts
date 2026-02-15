@@ -153,9 +153,9 @@ export const analyticsRouter = router({
 
       // Calculate cost savings (simplified - in production, use actual cost data)
       // Savings = (AI assessment cost reduction) + (fraud prevention) + (process optimization)
-      const aiSavings = claimsThisMonth * 500; // R500 saved per claim via AI assessment
-      const fraudSavings = fraudCount * 25000; // R25,000 average fraud claim value
-      const processSavings = claimsThisMonth * 100; // R100 saved per claim via process optimization
+      const aiSavings = claimsThisMonth * 500; // $500 saved per claim via AI assessment
+      const fraudSavings = fraudCount * 25000; // $25,000 average fraud claim value
+      const processSavings = claimsThisMonth * 100; // $100 saved per claim via process optimization
       const totalSavings = aiSavings + fraudSavings + processSavings;
 
       const lastMonthSavings = claimsLastMonth * 500 + lastMonthFraudCount * 25000 + claimsLastMonth * 100;
@@ -189,7 +189,7 @@ export const analyticsRouter = router({
             fraudPrevention: fraudSavings,
             processOptimization: processSavings
           },
-          unit: 'ZAR'
+          unit: 'USD'
         }
       };
     }),
@@ -358,7 +358,7 @@ export const analyticsRouter = router({
       const falsePositives = flagged - confirmed;
 
       // Calculate saved amount (average fraud claim value * confirmed fraud cases)
-      const avgFraudValue = 25000; // R25,000 average
+      const avgFraudValue = 25000; // $25,000 average
       const savedAmount = confirmed * avgFraudValue;
 
       // Extract top fraud indicators
@@ -426,12 +426,12 @@ export const analyticsRouter = router({
         .where(gte(aiAssessments.createdAt, startOfMonth));
 
       const confirmedFraud = fraudAssessments.filter(a => a.fraudRiskLevel === 'high').length;
-      const fraudSavings = confirmedFraud * 25000; // R25,000 per fraud case
+      const fraudSavings = confirmedFraud * 25000; // $25,000 per fraud case
 
-      // AI assessment savings (R500 per claim vs traditional assessment)
+      // AI assessment savings ($500 per claim vs traditional assessment)
       const aiSavings = totalClaims * 500;
 
-      // Process optimization savings (R100 per claim via automation)
+      // Process optimization savings ($100 per claim via automation)
       const processSavings = totalClaims * 100;
 
       const totalSavings = aiSavings + fraudSavings + processSavings;

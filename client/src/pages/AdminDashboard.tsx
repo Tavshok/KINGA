@@ -400,6 +400,23 @@ export default function AdminDashboard() {
         {/* AI Intelligence Training Tab */}
         {selectedTab === "intelligence" && (
           <div className="space-y-6">
+            {/* Quick Actions */}
+            <div className="flex gap-3">
+              <Button
+                onClick={() => setLocation("/historical-claims")}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Database className="mr-2 h-4 w-4" />
+                Historical Claims Pipeline
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/ml/review/queue")}
+              >
+                <Brain className="mr-2 h-4 w-4" />
+                ML Review Queue
+              </Button>
+            </div>
             {/* Training Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Card className="border-emerald-200">

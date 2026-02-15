@@ -385,12 +385,12 @@ function ClaimsListSection() {
                       <TableCell>{claim.claimantName || "—"}</TableCell>
                       <TableCell>
                         {claim.totalPanelBeaterQuote
-                          ? `R ${parseFloat(claim.totalPanelBeaterQuote).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                          ? `$ ${parseFloat(claim.totalPanelBeaterQuote).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                           : "—"}
                       </TableCell>
                       <TableCell>
                         {claim.totalAssessorEstimate
-                          ? `R ${parseFloat(claim.totalAssessorEstimate).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                          ? `$ ${parseFloat(claim.totalAssessorEstimate).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                           : "—"}
                       </TableCell>
                       <TableCell>
@@ -405,7 +405,7 @@ function ClaimsListSection() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
-                        {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString("en-ZA") : "—"}
+                        {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString("en-US") : "—"}
                       </TableCell>
                     </TableRow>
                   ))}

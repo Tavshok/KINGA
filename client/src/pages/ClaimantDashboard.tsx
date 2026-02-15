@@ -99,7 +99,7 @@ export default function ClaimantDashboard() {
                 title="No claims yet"
                 description="You haven't submitted any insurance claims. Get started by submitting your first claim."
                 actionLabel="Submit New Claim"
-                onAction={() => setLocation('/claim/submit')}
+                onAction={() => setLocation('/claimant/submit-claim')}
               />
             </CardContent>
           </Card>

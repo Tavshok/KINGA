@@ -167,6 +167,38 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          // Split heavy 3D libraries into their own chunk
+          if (id.includes('three') || id.includes('@react-three')) {
+            return 'vendor-three';
+          }
+          // Split chart libraries
+          if (id.includes('recharts') || id.includes('d3-')) {
+            return 'vendor-charts';
+          }
+          if (id.includes('chart.js') || id.includes('react-chartjs')) {
+            return 'vendor-chartjs';
+          }
+          // Split PDF/export libraries
+          if (id.includes('jspdf') || id.includes('xlsx')) {
+            return 'vendor-export';
+          }
+          // Split React core
+          if (id.includes('react-dom')) {
+            return 'vendor-react-dom';
+          }
+          // Split UI libraries
+          if (id.includes('@radix-ui')) {
+            return 'vendor-radix';
+          }
+          if (id.includes('@tanstack')) {
+            return 'vendor-tanstack';
+          }
+        },
+      },
+    },
   },
   server: {
     host: true,

@@ -84,7 +84,7 @@ export default function AssignAssessor() {
         {isMarketplace && assessor.marketplaceHourlyRate && (
           <div className="flex items-center text-sm text-muted-foreground">
             <DollarSign className="h-4 w-4 mr-2" />
-            R{assessor.marketplaceHourlyRate}/hour
+            ${assessor.marketplaceHourlyRate}/hour
           </div>
         )}
 
@@ -222,7 +222,7 @@ export default function AssignAssessor() {
                   />
                 </div>
                 <Input
-                  placeholder="Region (e.g., Gauteng)"
+                  placeholder="Region (e.g., Harare)"
                   value={selectedRegion}
                   onChange={(e) => setSelectedRegion(e.target.value)}
                 />

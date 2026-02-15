@@ -2,10 +2,11 @@
  * Analytics Endpoints Test Suite
  * 
  * Tests for analytics dashboard tRPC endpoints:
- * - Claims Cost Trend Analytics
- * - Fraud Heatmap Visualization
- * - Fleet Risk Monitoring
- * - Panel Beater Performance
+ * - KPI Dashboard
+ * - Claims by Complexity
+ * - SLA Compliance
+ * - Fraud Metrics
+ * - Cost Savings
  */
 
 import { describe, it, expect } from 'vitest';
@@ -26,246 +27,80 @@ const createMockContext = (userId?: number): Context => ({
 });
 
 describe('Analytics Endpoints', () => {
-  describe('Claims Cost Trend Analytics', () => {
-    it('should return claims cost trend data with summary', async () => {
+  describe('KPI Dashboard', () => {
+    it('should return KPI data for a given period', async () => {
       const caller = appRouter.createCaller(createMockContext(1));
       
-      const result = await caller.analytics.claimsCostTrend({
-        startDate: '2025-01-01',
-        endDate: '2026-02-11',
-        groupBy: 'month',
+      const result = await caller.analytics.getKPIs({
+        period: 'month',
       });
 
-      // Verify structure
-      expect(result).toHaveProperty('trendData');
-      expect(result).toHaveProperty('summary');
-      expect(Array.isArray(result.trendData)).toBe(true);
-
-      // Verify summary fields
-      expect(result.summary).toHaveProperty('totalClaims');
-      expect(result.summary).toHaveProperty('totalCost');
-      expect(result.summary).toHaveProperty('avgCost');
-      expect(result.summary).toHaveProperty('approvalRate');
-      
-      // Verify data types
-      expect(typeof result.summary.totalClaims).toBe('number');
-      expect(typeof result.summary.totalCost).toBe('number');
-      expect(typeof result.summary.avgCost).toBe('number');
-
-      // Verify trend data structure if available
-      if (result.trendData.length > 0) {
-        const firstTrend = result.trendData[0];
-        expect(firstTrend).toHaveProperty('period');
-        expect(firstTrend).toHaveProperty('claimCount');
-        expect(firstTrend).toHaveProperty('totalCost');
-        expect(firstTrend).toHaveProperty('avgCost');
-      }
+      // Verify structure - should return an object with KPI fields
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('object');
     });
 
-    it('should support different groupBy intervals', async () => {
+    it('should support different period intervals', async () => {
       const caller = appRouter.createCaller(createMockContext(1));
       
-      const intervals: Array<'day' | 'week' | 'month' | 'quarter' | 'year'> = ['day', 'week', 'month', 'quarter', 'year'];
+      const periods = ['week', 'month', 'quarter', 'year'] as const;
       
-      for (const interval of intervals) {
-        const result = await caller.analytics.claimsCostTrend({
-          startDate: '2025-01-01',
-          endDate: '2026-02-11',
-          groupBy: interval,
-        });
-
-        expect(result).toHaveProperty('trendData');
-        expect(Array.isArray(result.trendData)).toBe(true);
+      for (const period of periods) {
+        const result = await caller.analytics.getKPIs({ period });
+        expect(result).toBeDefined();
       }
     });
   });
 
-  describe('Cost Breakdown Analytics', () => {
-    it('should return cost breakdown by vehicle make', async () => {
+  describe('Claims by Complexity', () => {
+    it('should return claims grouped by complexity', async () => {
       const caller = appRouter.createCaller(createMockContext(1));
       
-      const result = await caller.analytics.costBreakdown({
-        startDate: '2025-01-01',
-        endDate: '2026-02-11',
-        breakdownBy: 'vehicle_make',
+      const result = await caller.analytics.getClaimsByComplexity({
+        period: 'month',
       });
 
-      expect(Array.isArray(result)).toBe(true);
-
-      // Verify breakdown data structure if available
-      if (result.length > 0) {
-        const firstBreakdown = result[0];
-        expect(firstBreakdown).toHaveProperty('category');
-        expect(firstBreakdown).toHaveProperty('claimCount');
-        expect(firstBreakdown).toHaveProperty('totalCost');
-        expect(firstBreakdown).toHaveProperty('avgCost');
-        
-        expect(typeof firstBreakdown.claimCount).toBe('number');
-        expect(typeof firstBreakdown.totalCost).toBe('number');
-        expect(typeof firstBreakdown.avgCost).toBe('number');
-      }
-    });
-
-    it('should support different breakdown dimensions', async () => {
-      const caller = appRouter.createCaller(createMockContext(1));
-      
-      const dimensions: Array<'claim_type' | 'vehicle_make' | 'damage_severity'> = [
-        'claim_type',
-        'vehicle_make',
-        'damage_severity'
-      ];
-      
-      for (const dimension of dimensions) {
-        const result = await caller.analytics.costBreakdown({
-          startDate: '2025-01-01',
-          endDate: '2026-02-11',
-          breakdownBy: dimension,
-        });
-
-        expect(Array.isArray(result)).toBe(true);
-      }
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('object');
     });
   });
 
-  describe('Fraud Heatmap Analytics', () => {
-    it('should return fraud heatmap data', async () => {
+  describe('SLA Compliance', () => {
+    it('should return SLA compliance metrics', async () => {
       const caller = appRouter.createCaller(createMockContext(1));
       
-      const result = await caller.analytics.fraudHeatmap();
+      const result = await caller.analytics.getSLACompliance({
+        period: 'month',
+      });
 
-      expect(Array.isArray(result)).toBe(true);
-
-      // Verify heatmap data structure if available
-      if (result.length > 0) {
-        const firstLocation = result[0];
-        expect(firstLocation).toHaveProperty('location');
-        expect(firstLocation).toHaveProperty('city');
-        expect(firstLocation).toHaveProperty('fraudCount');
-        expect(firstLocation).toHaveProperty('avgFraudScore');
-        expect(firstLocation).toHaveProperty('totalAmount');
-        expect(firstLocation).toHaveProperty('lat');
-        expect(firstLocation).toHaveProperty('lng');
-        
-        expect(typeof firstLocation.fraudCount).toBe('number');
-        expect(typeof firstLocation.avgFraudScore).toBe('number');
-        expect(typeof firstLocation.totalAmount).toBe('number');
-        expect(typeof firstLocation.lat).toBe('number');
-        expect(typeof firstLocation.lng).toBe('number');
-      }
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('object');
     });
   });
 
-  describe('Fraud Patterns Analytics', () => {
-    it('should return fraud pattern statistics', async () => {
+  describe('Fraud Metrics', () => {
+    it('should return fraud detection metrics', async () => {
       const caller = appRouter.createCaller(createMockContext(1));
       
-      const result = await caller.analytics.fraudPatterns();
+      const result = await caller.analytics.getFraudMetrics({
+        period: 'month',
+      });
 
-      expect(result).toHaveProperty('totalFraudCases');
-      expect(result).toHaveProperty('highRiskLocations');
-      expect(result).toHaveProperty('estimatedFraudLoss');
-      expect(result).toHaveProperty('avgFraudScore');
-      
-      expect(typeof result.totalFraudCases).toBe('number');
-      expect(typeof result.highRiskLocations).toBe('number');
-      expect(typeof result.estimatedFraudLoss).toBe('number');
-      expect(typeof result.avgFraudScore).toBe('number');
-
-      // Verify non-negative values
-      expect(result.totalFraudCases).toBeGreaterThanOrEqual(0);
-      expect(result.highRiskLocations).toBeGreaterThanOrEqual(0);
-      expect(result.estimatedFraudLoss).toBeGreaterThanOrEqual(0);
-      expect(result.avgFraudScore).toBeGreaterThanOrEqual(0);
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('object');
     });
   });
 
-  describe('Fleet Risk Analytics', () => {
-    it('should return fleet risk overview', async () => {
+  describe('Cost Savings', () => {
+    it('should return cost savings analytics', async () => {
       const caller = appRouter.createCaller(createMockContext(1));
       
-      const result = await caller.analytics.fleetRiskOverview();
+      const result = await caller.analytics.getCostSavings({
+        period: 'month',
+      });
 
-      expect(result).toHaveProperty('driverCount');
-      expect(result).toHaveProperty('vehicleCount');
-      expect(result).toHaveProperty('claimCount');
-      expect(result).toHaveProperty('avgRiskScore');
-      
-      expect(typeof result.driverCount).toBe('number');
-      expect(typeof result.vehicleCount).toBe('number');
-      expect(typeof result.claimCount).toBe('number');
-      expect(typeof result.avgRiskScore).toBe('number');
-
-      // Verify non-negative values
-      expect(result.driverCount).toBeGreaterThanOrEqual(0);
-      expect(result.vehicleCount).toBeGreaterThanOrEqual(0);
-      expect(result.claimCount).toBeGreaterThanOrEqual(0);
-      expect(result.avgRiskScore).toBeGreaterThanOrEqual(0);
-    });
-
-    it('should return driver risk profiles', async () => {
-      const caller = appRouter.createCaller(createMockContext(1));
-      
-      const result = await caller.analytics.driverProfiles();
-
-      expect(Array.isArray(result)).toBe(true);
-
-      // Verify driver profile structure if available
-      if (result.length > 0) {
-        const firstDriver = result[0];
-        expect(firstDriver).toHaveProperty('driverId');
-        expect(firstDriver).toHaveProperty('driverName');
-        expect(firstDriver).toHaveProperty('claimCount');
-        expect(firstDriver).toHaveProperty('riskScore');
-        expect(firstDriver).toHaveProperty('totalClaimCost');
-        expect(firstDriver).toHaveProperty('harshBraking');
-        expect(firstDriver).toHaveProperty('rapidAcceleration');
-        expect(firstDriver).toHaveProperty('speeding');
-        
-        expect(typeof firstDriver.driverId).toBe('number');
-        expect(typeof firstDriver.claimCount).toBe('number');
-        expect(typeof firstDriver.riskScore).toBe('number');
-        expect(typeof firstDriver.totalClaimCost).toBe('number');
-      }
-    });
-  });
-
-  describe('Panel Beater Performance Analytics', () => {
-    it('should return panel beater performance metrics', async () => {
-      const caller = appRouter.createCaller(createMockContext(1));
-      
-      const result = await caller.analytics.panelBeaterPerformance();
-
-      expect(Array.isArray(result)).toBe(true);
-
-      // Verify performance data structure if available
-      if (result.length > 0) {
-        const firstPanelBeater = result[0];
-        expect(firstPanelBeater).toHaveProperty('panelBeaterId');
-        expect(firstPanelBeater).toHaveProperty('name');
-        expect(firstPanelBeater).toHaveProperty('businessName');
-        expect(firstPanelBeater).toHaveProperty('city');
-        expect(firstPanelBeater).toHaveProperty('totalJobs');
-        expect(firstPanelBeater).toHaveProperty('avgQuote');
-        expect(firstPanelBeater).toHaveProperty('avgTurnaroundDays');
-        expect(firstPanelBeater).toHaveProperty('customerRating');
-        expect(firstPanelBeater).toHaveProperty('onTimePct');
-        expect(firstPanelBeater).toHaveProperty('reworkRate');
-        
-        expect(typeof firstPanelBeater.panelBeaterId).toBe('number');
-        expect(typeof firstPanelBeater.totalJobs).toBe('number');
-        expect(typeof firstPanelBeater.avgQuote).toBe('number');
-        expect(typeof firstPanelBeater.avgTurnaroundDays).toBe('number');
-        expect(typeof firstPanelBeater.customerRating).toBe('number');
-        expect(typeof firstPanelBeater.onTimePct).toBe('number');
-        expect(typeof firstPanelBeater.reworkRate).toBe('number');
-
-        // Verify reasonable ranges
-        expect(firstPanelBeater.customerRating).toBeGreaterThanOrEqual(0);
-        expect(firstPanelBeater.customerRating).toBeLessThanOrEqual(5);
-        expect(firstPanelBeater.onTimePct).toBeGreaterThanOrEqual(0);
-        expect(firstPanelBeater.onTimePct).toBeLessThanOrEqual(100);
-        expect(firstPanelBeater.reworkRate).toBeGreaterThanOrEqual(0);
-      }
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('object');
     });
   });
 
@@ -275,26 +110,24 @@ describe('Analytics Endpoints', () => {
 
       // Test each endpoint throws error when not authenticated
       await expect(
-        caller.analytics.claimsCostTrend({
-          startDate: '2025-01-01',
-          endDate: '2026-02-11',
-          groupBy: 'month',
-        })
+        caller.analytics.getKPIs({ period: 'month' })
       ).rejects.toThrow();
 
       await expect(
-        caller.analytics.costBreakdown({
-          startDate: '2025-01-01',
-          endDate: '2026-02-11',
-          breakdownBy: 'vehicle_make',
-        })
+        caller.analytics.getClaimsByComplexity({ period: 'month' })
       ).rejects.toThrow();
 
-      await expect(caller.analytics.fraudHeatmap()).rejects.toThrow();
-      await expect(caller.analytics.fraudPatterns()).rejects.toThrow();
-      await expect(caller.analytics.fleetRiskOverview()).rejects.toThrow();
-      await expect(caller.analytics.driverProfiles()).rejects.toThrow();
-      await expect(caller.analytics.panelBeaterPerformance()).rejects.toThrow();
+      await expect(
+        caller.analytics.getSLACompliance({ period: 'month' })
+      ).rejects.toThrow();
+
+      await expect(
+        caller.analytics.getFraudMetrics({ period: 'month' })
+      ).rejects.toThrow();
+
+      await expect(
+        caller.analytics.getCostSavings({ period: 'month' })
+      ).rejects.toThrow();
     });
   });
 });

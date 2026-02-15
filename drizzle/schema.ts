@@ -3981,8 +3981,8 @@ export const partsPricingBaseline = mysqlTable("parts_pricing_baseline", {
   vehicleYearTo: int("vehicle_year_to"),
   
   // Pricing
-  saBasePrice: decimal("sa_base_price", { precision: 10, scale: 2 }).notNull(), // ZAR
-  currency: varchar("currency", { length: 3 }).default("ZAR").notNull(),
+  saBasePrice: decimal("sa_base_price", { precision: 10, scale: 2 }).notNull(), // Base price
+  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
   partType: mysqlEnum("part_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).default("Unknown"),
   
   // Source attribution
@@ -4177,7 +4177,7 @@ export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
   
   // Pricing
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).notNull(), // e.g., "ZAR", "USD", "ZWL", "JPY", "AED", "THB"
+  currency: varchar("currency", { length: 3 }).notNull(), // e.g., "USD", "ZWL", "ZIG", "GBP", "EUR", "JPY"
   
   // Import costs (for international suppliers)
   shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),

@@ -1076,8 +1076,8 @@ Total repair cost: $${totalCost}`
       const avgQuote = benchmarks.avgQuoteCost;
       const avgFinal = benchmarks.avgFinalCost;
       const quoteDeviation = avgQuote ? ((totalCost - avgQuote) / avgQuote * 100).toFixed(1) : 'N/A';
-      historicalContext = `\nHistorical intelligence (${benchmarks.matchQuality} match, ${benchmarks.claimCount} prior claims):\nMatch criteria: ${benchmarks.matchCriteria}\n- Average historical quote: R${avgQuote?.toFixed(2) || 'N/A'}\n- Average final approved: R${avgFinal?.toFixed(2) || 'N/A'}\n- Current quote deviation from historical avg: ${quoteDeviation}%\n- Historical fraud rate for similar claims: ${benchmarks.fraudRate?.toFixed(1) || 'N/A'}%\n- Common repair actions: ${benchmarks.commonRepairActions.join(', ') || 'N/A'}`;
-      console.log(`📊 Historical context loaded: ${benchmarks.matchQuality} match, ${benchmarks.claimCount} prior claims, avg quote R${avgQuote?.toFixed(2)}`);
+      historicalContext = `\nHistorical intelligence (${benchmarks.matchQuality} match, ${benchmarks.claimCount} prior claims):\nMatch criteria: ${benchmarks.matchCriteria}\n- Average historical quote: $${avgQuote?.toFixed(2) || 'N/A'}\n- Average final approved: $${avgFinal?.toFixed(2) || 'N/A'}\n- Current quote deviation from historical avg: ${quoteDeviation}%\n- Historical fraud rate for similar claims: ${benchmarks.fraudRate?.toFixed(1) || 'N/A'}%\n- Common repair actions: ${benchmarks.commonRepairActions.join(', ') || 'N/A'}`;
+      console.log(`📊 Historical context loaded: ${benchmarks.matchQuality} match, ${benchmarks.claimCount} prior claims, avg quote $${avgQuote?.toFixed(2)}`);
     }
   } catch (err) {
     console.warn('⚠️ Could not fetch historical benchmarks:', err);

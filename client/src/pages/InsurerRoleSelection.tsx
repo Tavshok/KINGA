@@ -26,7 +26,7 @@ export default function InsurerRoleSelection() {
       path: "/insurer-portal/executive",
       color: "from-indigo-600 to-purple-600",
       responsibilities: [
-        "Approve claims above R50,000",
+        "Approve high-value claims",
         "View company-wide analytics",
         "Configure workflows and policies",
         "Manage users and permissions"
@@ -40,7 +40,7 @@ export default function InsurerRoleSelection() {
       path: "/insurer-portal/claims-manager",
       color: "from-blue-500 to-cyan-500",
       responsibilities: [
-        "Approve claims R10,000 - R50,000",
+        "Approve moderate-value claims",
         "Assign claims to processors",
         "Monitor team performance",
         "Review escalated cases"

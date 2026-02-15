@@ -130,7 +130,7 @@ export async function routeClaim(context: RoutingContext): Promise<RoutingResult
   if (estimatedRepairCost > Number(automationPolicy.requireManagerApprovalAbove)) {
     return {
       workflow: "manual",
-      reason: `Repair cost R${estimatedRepairCost} requires manager approval (threshold: R${automationPolicy.requireManagerApprovalAbove})`,
+      reason: `Repair cost $${estimatedRepairCost} requires manager approval (threshold: $${automationPolicy.requireManagerApprovalAbove})`,
       confidenceScoreId: confidenceScore.id,
       policyId: automationPolicy.id,
     };
@@ -142,7 +142,7 @@ export async function routeClaim(context: RoutingContext): Promise<RoutingResult
     estimatedRepairCost <= Number(automationPolicy.maxAiOnlyApprovalAmount)
   ) {
     reasons.push(`Confidence ${compositeScore.toFixed(1)}% ≥ threshold ${automationPolicy.minAutomationConfidence}%`);
-    reasons.push(`Cost R${estimatedRepairCost} ≤ AI-only limit R${automationPolicy.maxAiOnlyApprovalAmount}`);
+    reasons.push(`Cost $${estimatedRepairCost} ≤ AI-only limit $${automationPolicy.maxAiOnlyApprovalAmount}`);
     
     return {
       workflow: "ai_only",
@@ -158,7 +158,7 @@ export async function routeClaim(context: RoutingContext): Promise<RoutingResult
     estimatedRepairCost <= Number(automationPolicy.maxHybridApprovalAmount)
   ) {
     reasons.push(`Confidence ${compositeScore.toFixed(1)}% ≥ hybrid threshold ${automationPolicy.minHybridConfidence}%`);
-    reasons.push(`Cost R${estimatedRepairCost} ≤ hybrid limit R${automationPolicy.maxHybridApprovalAmount}`);
+    reasons.push(`Cost $${estimatedRepairCost} ≤ hybrid limit $${automationPolicy.maxHybridApprovalAmount}`);
     
     return {
       workflow: "hybrid",
@@ -174,7 +174,7 @@ export async function routeClaim(context: RoutingContext): Promise<RoutingResult
   }
   
   if (estimatedRepairCost > Number(automationPolicy.maxHybridApprovalAmount)) {
-    reasons.push(`Cost R${estimatedRepairCost} exceeds hybrid limit R${automationPolicy.maxHybridApprovalAmount}`);
+    reasons.push(`Cost $${estimatedRepairCost} exceeds hybrid limit $${automationPolicy.maxHybridApprovalAmount}`);
   }
   
   return {

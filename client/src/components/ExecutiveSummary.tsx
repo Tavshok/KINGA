@@ -198,12 +198,12 @@ export function ExecutiveSummary({
             <span className="text-sm font-semibold text-gray-700">Cost Analysis</span>
           </div>
           <p className="text-lg font-bold text-green-600">
-            R{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </p>
           <p className="text-xs text-gray-500 mt-1">
             {componentCount} component(s) · {damagePhotoCount} photo(s)
             {savings && savings > 0 && (
-              <span className="text-green-600 font-medium"> · R{savings.toLocaleString()} saved</span>
+              <span className="text-green-600 font-medium"> · ${savings.toLocaleString()} saved</span>
             )}
           </p>
         </div>
@@ -251,9 +251,9 @@ export function ExecutiveSummary({
 
           <p>
             <strong>Cost:</strong>{' '}
-            Total repair cost of R{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })} across {componentCount} component(s).
+            Total repair cost of ${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })} across {componentCount} component(s).
             {originalQuote && agreedCost && originalQuote > agreedCost
-              ? ` Negotiated down from R${originalQuote.toLocaleString()} (${Math.round(((originalQuote - agreedCost) / originalQuote) * 100)}% reduction).`
+              ? ` Negotiated down from $${originalQuote.toLocaleString()} (${Math.round(((originalQuote - agreedCost) / originalQuote) * 100)}% reduction).`
               : ''
             }
             {' '}Data completeness: {dataCompleteness}%.

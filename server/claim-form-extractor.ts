@@ -92,7 +92,7 @@ export async function extractClaimFormData(
   // Build the LLM vision request
   const isPdf = mimeType === "application/pdf";
   
-  const extractionPrompt = `You are an expert insurance claim form data extractor for the South African market.
+  const extractionPrompt = `You are an expert insurance claim form data extractor for the insurance market.
 
 Analyze this document carefully and extract ALL available information. This could be:
 - A pre-filled insurance claim form (printed or handwritten)
@@ -102,13 +102,13 @@ Analyze this document carefully and extract ALL available information. This coul
 - Any document containing claim-related information
 
 Extract every field you can find. For handwritten text, do your best to read it accurately.
-South African context: registration plates follow formats like "ABC 123 GP", ID numbers are 13 digits, phone numbers start with 0 or +27.
+Extract registration plates, ID numbers, and phone numbers in their local format as found in the document.
 
 This document could be any of the following:
 - Insurance claim form (printed or handwritten)
 - Vehicle registration book / registration certificate (NaTIS document)
 - Licence disc
-- SA ID document or driver's licence
+- National ID document or driver's licence
 - Accident report form
 - Police report / case number document
 - Damage assessment form
@@ -148,7 +148,7 @@ Return a JSON object with these fields (use null for fields not found in the doc
   "insurerName": "string or null - Insurance company name",
   "brokerName": "string or null - Insurance broker name",
   "claimantName": "string or null - Full name of person making the claim",
-  "claimantIdNumber": "string or null - SA ID number or passport",
+  "claimantIdNumber": "string or null - National ID number or passport",
   "claimantPhone": "string or null - Contact phone number",
   "claimantEmail": "string or null - Email address",
   "claimantAddress": "string or null - Physical or postal address",
@@ -174,7 +174,7 @@ Return a JSON object with these fields (use null for fields not found in the doc
 
 Be thorough. If you can partially read a field, include what you can with a note in extractionNotes.
 For dates, convert to YYYY-MM-DD format regardless of the original format.
-For phone numbers, normalize to South African format (e.g., 082 123 4567 or +27 82 123 4567).`;
+For phone numbers, normalize to international format with country code if available.`;
 
   const content: any[] = [
     { type: "text", text: extractionPrompt }

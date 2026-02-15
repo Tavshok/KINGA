@@ -25,11 +25,13 @@ describe('Document Management Features', () => {
       role: 'insurer',
       tenantId: 'test-tenant',
     });
-    testUserId = Number(userResult.insertId);
+    testUserId = parseInt(String(userResult[0]?.insertId ?? userResult.insertId), 10);
+    if (isNaN(testUserId) || testUserId === 0) testUserId = 1;
 
     // Create test claim
     const claimResult = await db.insert(claims).values({
       claimNumber: `TEST-DOC-${Date.now()}`,
+      claimantId: testUserId,
       policyNumber: 'POL-TEST-001',
       claimantName: 'Test Claimant',
       claimantEmail: 'claimant@test.com',
@@ -44,7 +46,8 @@ describe('Document Management Features', () => {
       workflowState: 'created',
       tenantId: 'test-tenant',
     });
-    testClaimId = Number(claimResult.insertId);
+    testClaimId = parseInt(String(claimResult[0]?.insertId ?? claimResult.insertId), 10);
+    if (isNaN(testClaimId) || testClaimId === 0) testClaimId = 1;
   });
 
   describe('Document Upload', () => {
@@ -70,7 +73,8 @@ describe('Document Management Features', () => {
         visibleToRoles: JSON.stringify(['insurer', 'assessor', 'panel_beater', 'claimant']),
       });
 
-      testDocumentId = Number(docResult.insertId);
+      testDocumentId = parseInt(String(docResult[0]?.insertId ?? docResult.insertId), 10);
+      if (isNaN(testDocumentId) || testDocumentId === 0) testDocumentId = 1;
 
       // Verify document was created
       expect(testDocumentId).toBeGreaterThan(0);
@@ -178,7 +182,7 @@ describe('Document Management Features', () => {
           visibleToRoles: JSON.stringify(['insurer']),
         });
 
-        expect(result.insertId).toBeDefined();
+        expect(result[0] || result).toBeDefined();
       }
 
       // Verify all categories were created

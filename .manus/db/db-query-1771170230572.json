@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE insurer_tenants ADD COLUMN primary_currency VARCHAR(3) DEFAULT 'USD'; ALTER TABLE insurer_tenants ADD COLUMN primary_currency_symbol VARCHAR(10) DEFAULT '$'; ALTER TABLE insurer_tenants ADD COLUMN secondary_currency VARCHAR(3); ALTER TABLE insurer_tenants ADD COLUMN secondary_currency_symbol VARCHAR(10); ALTER TABLE insurer_tenants ADD COLUMN exchange_rate DECIMAL(10,4);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE insurer_tenants ADD COLUMN primary_currency VARCHAR(3) DEFAULT 'USD'; ALTER TABLE insurer_tenants ADD COLUMN primary_currency_symbol VARCHAR(10) DEFAULT '$'; ALTER TABLE insurer_tenants ADD COLUMN secondary_currency VARCHAR(3); ALTER TABLE insurer_tenants ADD COLUMN secondary_currency_symbol VARCHAR(10); ALTER TABLE insurer_tenants ADD COLUMN exchange_rate DECIMAL(10,4);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2235
+}

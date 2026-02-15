@@ -160,15 +160,15 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
 
     // Log AI prediction for accuracy tracking
     if (aiPredictedCost && approvedCost) {
-      const approvedRands = approvedCost / 100;
+      const approvedAmount = approvedCost / 100;
       try {
         await db.insert(aiPredictionLogs).values({
           tenantId: claim.tenantId,
           historicalClaimId: hcId,
           predictionType: "cost_estimate",
           predictedValue: String(aiPredictedCost),
-          actualValue: String(approvedRands),
-          isAccurate: Math.abs(aiPredictedCost - approvedRands) / approvedRands < 0.15 ? 1 : 0,
+          actualValue: String(approvedAmount),
+          isAccurate: Math.abs(aiPredictedCost - approvedAmount) / approvedAmount < 0.15 ? 1 : 0,
           confidenceScore: extendedData?.confidence ? String(extendedData.confidence) : null,
           modelName: "kinga-assessment-v1",
           modelVersion: "kinga-v1",
@@ -180,9 +180,9 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
 
     // Generate variance datasets for benchmarking
     if (quotedCost && approvedCost) {
-      const quotedRands = quotedCost / 100;
-      const approvedRands = approvedCost / 100;
-      const variancePercent = ((quotedRands - approvedRands) / approvedRands) * 100;
+      const quotedAmount = quotedCost / 100;
+      const approvedAmountFinal = approvedCost / 100;
+      const variancePercent = ((quotedAmount - approvedAmountFinal) / approvedAmountFinal) * 100;
       const absVariance = Math.abs(variancePercent);
       const category = categorizeVariance(absVariance);
 
@@ -193,9 +193,9 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
           comparisonType: "quote_vs_final",
           sourceALabel: "Panel Beater Quote",
           sourceBLabel: "Final Approved",
-          sourceAAmount: quotedRands.toFixed(2),
-          sourceBAmount: approvedRands.toFixed(2),
-          varianceAmount: (quotedRands - approvedRands).toFixed(2),
+          sourceAAmount: quotedAmount.toFixed(2),
+          sourceBAmount: approvedAmountFinal.toFixed(2),
+          varianceAmount: (quotedAmount - approvedAmountFinal).toFixed(2),
           variancePercent: variancePercent.toFixed(2),
           absoluteVariancePercent: absVariance.toFixed(2),
           varianceCategory: category,
@@ -210,7 +210,7 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
 
       // Also create AI vs final variance if AI prediction exists
       if (aiPredictedCost) {
-        const aiVariancePercent = ((aiPredictedCost - approvedRands) / approvedRands) * 100;
+        const aiVariancePercent = ((aiPredictedCost - approvedAmountFinal) / approvedAmountFinal) * 100;
         const aiAbsVariance = Math.abs(aiVariancePercent);
 
         try {
@@ -221,8 +221,8 @@ export async function feedClaimToHistorical(claimId: number): Promise<{
             sourceALabel: "AI Prediction",
             sourceBLabel: "Final Approved",
             sourceAAmount: String(aiPredictedCost),
-            sourceBAmount: approvedRands.toFixed(2),
-            varianceAmount: (aiPredictedCost - approvedRands).toFixed(2),
+            sourceBAmount: approvedAmountFinal.toFixed(2),
+            varianceAmount: (aiPredictedCost - approvedAmountFinal).toFixed(2),
             variancePercent: aiVariancePercent.toFixed(2),
             absoluteVariancePercent: aiAbsVariance.toFixed(2),
             varianceCategory: categorizeVariance(aiAbsVariance),

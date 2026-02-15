@@ -391,7 +391,7 @@ EXTRACTED TEXT:
 ${rawText.substring(0, 8000)}
 
 Extract the following data. Use null for fields that cannot be determined.
-All monetary values should be in South African Rand (ZAR) as numbers without currency symbols.
+All monetary values should be extracted as numbers without currency symbols. Detect the currency from the document context (e.g., USD, ZIG, ZAR, BWP).
 
 Return a JSON object with these sections:
 1. vehicle: { make, model, year, registration, vin, color, mileage }

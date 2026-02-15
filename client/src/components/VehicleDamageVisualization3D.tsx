@@ -281,7 +281,7 @@ function ZoneMesh({ geometry, damageData, isSelected, onSelect, isHovered, onHov
                   Severity: {severity.toFixed(1)}/10 — {damageData?.level}
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.8 }}>
-                  {damageData?.components.length} component(s) • R{(damageData?.repairCost || 0).toLocaleString()}
+                  {damageData?.components.length} component(s) • ${(damageData?.repairCost || 0).toLocaleString()}
                 </div>
                 {damageData?.validationStatus && (
                   <div style={{ fontSize: 11, color: getValidationColor(damageData.validationStatus), marginTop: 2 }}>
@@ -541,7 +541,7 @@ export default function VehicleDamageVisualization3D({
             {damageZones.filter((dz) => dz.severity > 0).length} zone(s) affected
           </span>
           <span className="text-slate-600">|</span>
-          <span>Total: R{totalDamage.toLocaleString()}</span>
+          <span>Total: ${totalDamage.toLocaleString()}</span>
           <span className="text-slate-600">|</span>
           <span>
             Peak severity:{" "}
@@ -658,7 +658,7 @@ export default function VehicleDamageVisualization3D({
             </div>
             <div className="flex justify-between">
               <span className="text-slate-500">Repair Cost</span>
-              <span className="font-mono">R{selectedData.repairCost.toLocaleString()}</span>
+              <span className="font-mono">${selectedData.repairCost.toLocaleString()}</span>
             </div>
 
             {/* Severity bar */}

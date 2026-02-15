@@ -48,7 +48,7 @@ export const claimCompletionRouter = router({
       }
       
       // For high-value claims, verify financial approval
-      if (claim.approvedAmount && claim.approvedAmount > 2500000) { // 25,000 ZAR threshold
+      if (claim.approvedAmount && claim.approvedAmount > 2500000) { // High-value threshold (configurable per tenant)
         if (!claim.financiallyApprovedBy || !claim.financiallyApprovedAt) {
           throw new TRPCError({ 
             code: "PRECONDITION_FAILED", 

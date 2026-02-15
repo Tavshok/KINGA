@@ -285,7 +285,7 @@ function generateReportHTML(data: any): string {
   <div class="header">
     <h1>KINGA AutoVerify AI</h1>
     <p>Vehicle Damage Assessment Report</p>
-    <p style="margin-top: 10px; font-size: 9pt;">Generated: ${new Date().toLocaleString('en-ZA', { timeZone: 'Africa/Johannesburg' })}</p>
+    <p style="margin-top: 10px; font-size: 9pt;">Generated: ${new Date().toLocaleString('en-US', { timeZone: 'Africa/Harare' })}</p>
   </div>
 
   <!-- Vehicle Information -->
@@ -306,7 +306,7 @@ function generateReportHTML(data: any): string {
       </div>
       <div class="info-item">
         <div class="info-label">Assessment Date</div>
-        <div class="info-value">${new Date().toLocaleDateString('en-ZA')}</div>
+        <div class="info-value">${new Date().toLocaleDateString('en-US')}</div>
       </div>
     </div>
   </div>
@@ -314,7 +314,7 @@ function generateReportHTML(data: any): string {
   <!-- Cost Estimate -->
   <div class="cost-highlight">
     <div class="label">Estimated Repair Cost</div>
-    <div class="amount">R ${estimatedCost?.toLocaleString() || '0'}</div>
+    <div class="amount">$ ${estimatedCost?.toLocaleString() || '0'}</div>
   </div>
 
   <!-- Damage Description -->
@@ -575,13 +575,13 @@ function generateReportHTML(data: any): string {
         <td>${rec.component}</td>
         <td><span class="badge ${rec.action === 'replace' ? 'badge-danger' : 'badge-warning'}">${rec.action.toUpperCase()}</span></td>
         <td><span class="badge ${rec.severity === 'severe' ? 'badge-danger' : rec.severity === 'moderate' ? 'badge-warning' : 'badge-success'}">${rec.severity}</span></td>
-        <td>R${rec.estimatedCost?.toLocaleString() || '0'}</td>
+        <td>$${rec.estimatedCost?.toLocaleString() || '0'}</td>
         <td>${rec.laborHours || '—'}</td>
       </tr>
       `).join('')}
       <tr style="font-weight: bold; border-top: 2px solid #2563eb;">
         <td colspan="3">Total</td>
-        <td>R${componentRecommendations.reduce((s: number, r: any) => s + (r.estimatedCost || 0), 0).toLocaleString()}</td>
+        <td>$${componentRecommendations.reduce((s: number, r: any) => s + (r.estimatedCost || 0), 0).toLocaleString()}</td>
         <td>${componentRecommendations.reduce((s: number, r: any) => s + (r.laborHours || 0), 0)}</td>
       </tr>
     </table>
@@ -611,12 +611,12 @@ function generateReportHTML(data: any): string {
       <tr>
         <td>${item.description}</td>
         <td>${item.category || 'other'}</td>
-        <td style="text-align: right;">R${item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</td>
+        <td style="text-align: right;">$${item.amount?.toLocaleString(undefined, { minimumFractionDigits: 2 }) || '0.00'}</td>
       </tr>
       `).join('')}
       <tr style="font-weight: bold; border-top: 2px solid #2563eb;">
         <td colspan="2">Total</td>
-        <td style="text-align: right;">R${itemizedCosts.reduce((s: number, i: any) => s + (i.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+        <td style="text-align: right;">$${itemizedCosts.reduce((s: number, i: any) => s + (i.amount || 0), 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
       </tr>
     </table>
   </div>

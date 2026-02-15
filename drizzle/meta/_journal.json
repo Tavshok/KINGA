@@ -141,6 +141,13 @@
       "when": 1771166806399,
       "tag": "0019_loud_manta",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "5",
+      "when": 1771170199926,
+      "tag": "0020_natural_santa_claus",
+      "breakpoints": true
     }
   ]
 }

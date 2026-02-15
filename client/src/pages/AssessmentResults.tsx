@@ -673,7 +673,7 @@ export default function AssessmentResults() {
   };
 
   const createClaim = trpc.claims.submit.useMutation({
-    onSuccess: () => { toast.success("Claim Created Successfully"); setIsCreatingClaim(false); setLocation("/claims-processor"); },
+    onSuccess: () => { toast.success("Claim Created Successfully"); setIsCreatingClaim(false); setLocation("/insurer-portal/claims-processor"); },
     onError: (error: any) => { toast.error("Error Creating Claim", { description: error.message }); setIsCreatingClaim(false); },
   });
 

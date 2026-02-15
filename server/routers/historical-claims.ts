@@ -71,7 +71,7 @@ export const historicalClaimsRouter = router({
       const [batch] = await db.insert(ingestionBatches).values({
         tenantId,
         batchId: batchUuid,
-        batchName: input.batchName || `Historical Claims ${new Date().toLocaleDateString("en-ZA")}`,
+        batchName: input.batchName || `Historical Claims ${new Date().toLocaleDateString("en-US")}`,
         ingestionSource: "legacy_import",
         ingestionChannel: "web_ui",
         uploadedByUserId: ctx.user.id,

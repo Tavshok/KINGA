@@ -366,7 +366,7 @@ function BulkUploadTab() {
                           </span>
                         </TableCell>
                         <TableCell>{s.repairItems}</TableCell>
-                        <TableCell>R {s.totalCost?.toLocaleString("en-ZA", { minimumFractionDigits: 2 })}</TableCell>
+                        <TableCell>$ {s.totalCost?.toLocaleString("en-US", { minimumFractionDigits: 2 })}</TableCell>
                         <TableCell>
                           <Progress value={s.qualityScore} className="w-16 h-2" />
                           <span className="text-xs ml-1">{s.qualityScore}%</span>
@@ -542,12 +542,12 @@ function ClaimsListTab() {
                   </TableCell>
                   <TableCell>
                     {claim.totalPanelBeaterQuote
-                      ? `R ${parseFloat(claim.totalPanelBeaterQuote).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                      ? `$ ${parseFloat(claim.totalPanelBeaterQuote).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                       : "—"}
                   </TableCell>
                   <TableCell>
                     {claim.finalApprovedCost
-                      ? `R ${parseFloat(claim.finalApprovedCost).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                      ? `$ ${parseFloat(claim.finalApprovedCost).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                       : <Badge variant="outline" className="text-xs">Pending</Badge>}
                   </TableCell>
                   <TableCell>
@@ -562,7 +562,7 @@ function ClaimsListTab() {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-xs text-muted-foreground">
-                    {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString("en-ZA") : "—"}
+                    {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString("en-US") : "—"}
                   </TableCell>
                 </TableRow>
               ))}
@@ -708,7 +708,7 @@ function GroundTruthTab() {
                 {claims?.claims?.map((c: any) => (
                   <SelectItem key={c.id} value={c.id.toString()}>
                     #{c.id} — {c.claimReference || "No ref"} — {c.vehicleMake} {c.vehicleModel}
-                    {c.totalPanelBeaterQuote ? ` — Quote: R ${parseFloat(c.totalPanelBeaterQuote).toLocaleString("en-ZA")}` : ""}
+                    {c.totalPanelBeaterQuote ? ` — Quote: $ ${parseFloat(c.totalPanelBeaterQuote).toLocaleString("en-US")}` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -740,7 +740,7 @@ function GroundTruthTab() {
                   </Select>
                 </div>
                 <div className="space-y-2">
-                  <Label>Final Approved Amount (ZAR) *</Label>
+                  <Label>Final Approved Amount (USD) *</Label>
                   <Input
                     type="number"
                     placeholder="e.g., 45000.00"
@@ -790,7 +790,7 @@ function GroundTruthTab() {
                     <Input placeholder="License number" value={form.assessorLicenseNumber} onChange={(e) => updateField("assessorLicenseNumber", e.target.value)} />
                   </div>
                   <div className="space-y-1">
-                    <Label className="text-xs">Assessor Estimate (ZAR)</Label>
+                    <Label className="text-xs">Assessor Estimate (USD)</Label>
                     <Input type="number" placeholder="0.00" value={form.assessorEstimate} onChange={(e) => updateField("assessorEstimate", e.target.value)} />
                   </div>
                   <div className="space-y-1">
@@ -1061,12 +1061,12 @@ function AnalyticsTab() {
                     <TableCell>{v.claimCount}</TableCell>
                     <TableCell>
                       {v.avgQuoteCost
-                        ? `R ${parseFloat(v.avgQuoteCost).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                        ? `$ ${parseFloat(v.avgQuoteCost).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                         : "—"}
                     </TableCell>
                     <TableCell>
                       {v.avgFinalCost
-                        ? `R ${parseFloat(v.avgFinalCost).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                        ? `$ ${parseFloat(v.avgFinalCost).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                         : "—"}
                     </TableCell>
                   </TableRow>

@@ -827,7 +827,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Get active automation policy to determine approval threshold
         const { getActiveAutomationPolicy } = await import("./automation-policy-manager");
         const policy = await getActiveAutomationPolicy(tenantId);
-        const requireManagerApprovalAbove = policy?.requireManagerApprovalAbove || 2500000; // Default 25,000 ZAR in cents
+        const requireManagerApprovalAbove = policy?.requireManagerApprovalAbove || 2500000; // Default 25,000 USD in cents
         
         // Determine if financial approval is required
         const requiresFinancialApproval = approvedAmount > requireManagerApprovalAbove;
@@ -855,7 +855,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           action: "claim_approved",
           entityType: "claim",
           entityId: input.claimId,
-          changeDescription: `Claim technically approved. Selected panel beater quote #${input.selectedQuoteId} for R${(approvedAmount / 100).toFixed(2)}. ${requiresFinancialApproval ? 'Requires financial approval (amount exceeds threshold).' : 'No financial approval required.'}`,
+          changeDescription: `Claim technically approved. Selected panel beater quote #${input.selectedQuoteId} for $${(approvedAmount / 100).toFixed(2)}. ${requiresFinancialApproval ? 'Requires financial approval (amount exceeds threshold).' : 'No financial approval required.'}`,
         });
         
         // Emit event for analytics
@@ -873,7 +873,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           },
         });
         
-        console.log(`[Approval] Claim ${claim.claimNumber} technically approved by user ${ctx.user.id} for R${(approvedAmount / 100).toFixed(2)}`);
+        console.log(`[Approval] Claim ${claim.claimNumber} technically approved by user ${ctx.user.id} for $${(approvedAmount / 100).toFixed(2)}`);
 
         // Feed into continuous learning loop (non-blocking)
         import("./continuous-learning").then(({ feedClaimToHistorical }) => {
@@ -967,7 +967,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           action: "financial_approval",
           entityType: "claim",
           entityId: input.claimId,
-          changeDescription: `Claim financially approved for R${((claim.approvedAmount || 0) / 100).toFixed(2)}`,
+          changeDescription: `Claim financially approved for $${((claim.approvedAmount || 0) / 100).toFixed(2)}`,
         });
         
         console.log(`[Approval] Claim ${claim.claimNumber} financially approved by user ${ctx.user.id}`);

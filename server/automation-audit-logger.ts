@@ -76,7 +76,7 @@ export async function logAssessorAdjustment(
     })
     .where(eq(automationAuditLog.claimId, claimId));
   
-  console.log(`[Automation Audit] Logged assessor adjustment for claim ${claimId}: R${assessorAdjustedCost}`);
+  console.log(`[Automation Audit] Logged assessor adjustment for claim ${claimId}: $${assessorAdjustedCost}`);
 }
 
 /**
@@ -114,7 +114,7 @@ export async function logFinalApproval(
     })
     .where(eq(automationAuditLog.claimId, claimId));
   
-  console.log(`[Automation Audit] Logged final approval for claim ${claimId}: R${finalApprovedCost} (variance: ${variance.toFixed(1)}%)`);
+  console.log(`[Automation Audit] Logged final approval for claim ${claimId}: $${finalApprovedCost} (variance: ${variance.toFixed(1)}%)`);
 }
 
 /**

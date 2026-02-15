@@ -77,9 +77,9 @@ describe("Approval Tracking", () => {
       excludedClaimTypes: [],
       eligibleVehicleCategories: ["sedan", "suv", "truck"],
       excludedVehicleMakes: [],
-      maxAiOnlyApprovalAmount: 1000000, // 10,000 ZAR
-      maxHybridApprovalAmount: 2500000, // 25,000 ZAR
-      requireManagerApprovalAbove: 2500000, // 25,000 ZAR threshold
+      maxAiOnlyApprovalAmount: 1000000, // 10,000 USD
+      maxHybridApprovalAmount: 2500000, // 25,000 USD
+      requireManagerApprovalAbove: 2500000, // 25,000 USD threshold
       fraudRiskCutoff: 30,
       isActive: 1,
     });
@@ -93,7 +93,7 @@ describe("Approval Tracking", () => {
       vehicleModel: "Corolla",
       vehicleYear: 2020,
       status: "comparison",
-      approvedAmount: 1500000, // 15,000 ZAR (below threshold)
+      approvedAmount: 1500000, // 15,000 USD (below threshold)
     });
     lowValueClaimId = lowClaim.insertId;
 
@@ -118,7 +118,7 @@ describe("Approval Tracking", () => {
       vehicleModel: "X5",
       vehicleYear: 2022,
       status: "comparison",
-      approvedAmount: 5000000, // 50,000 ZAR (above threshold)
+      approvedAmount: 5000000, // 50,000 USD (above threshold)
     });
     highValueClaimId = highClaim.insertId;
 
@@ -311,8 +311,8 @@ describe("Approval Tracking", () => {
 
   describe("Approval Threshold Logic", () => {
     it("should correctly identify claims below threshold", async () => {
-      const threshold = 2500000; // 25,000 ZAR
-      const claimAmount = 1500000; // 15,000 ZAR
+      const threshold = 2500000; // 25,000 USD
+      const claimAmount = 1500000; // 15,000 USD
       
       const requiresFinancialApproval = claimAmount > threshold;
       
@@ -320,8 +320,8 @@ describe("Approval Tracking", () => {
     });
 
     it("should correctly identify claims above threshold", async () => {
-      const threshold = 2500000; // 25,000 ZAR
-      const claimAmount = 5000000; // 50,000 ZAR
+      const threshold = 2500000; // 25,000 USD
+      const claimAmount = 5000000; // 50,000 USD
       
       const requiresFinancialApproval = claimAmount > threshold;
       
@@ -329,8 +329,8 @@ describe("Approval Tracking", () => {
     });
 
     it("should correctly identify claims exactly at threshold", async () => {
-      const threshold = 2500000; // 25,000 ZAR
-      const claimAmount = 2500000; // 25,000 ZAR
+      const threshold = 2500000; // 25,000 USD
+      const claimAmount = 2500000; // 25,000 USD
       
       const requiresFinancialApproval = claimAmount > threshold;
       

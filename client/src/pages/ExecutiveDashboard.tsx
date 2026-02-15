@@ -24,7 +24,7 @@ import {
   MessageSquare, Eye, AlertCircle
 } from "lucide-react";
 import { Link } from "wouter";
-import Plot from "react-plotly.js";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import ExecutiveKPICards from "@/components/ExecutiveKPICards";
 import {
@@ -35,7 +35,6 @@ import {
   exportCostSavingsTrendsToExcel,
   exportFinancialOverviewToPDF,
 } from "@/lib/exportUtils";
-import { getBrandedLayout, getBrandedConfig, KINGA_COLORS } from "@/lib/plotlyConfig";
 
 export default function ExecutiveDashboard() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -366,35 +365,15 @@ export default function ExecutiveDashboard() {
                   {savingsLoading ? (
                     <p className="text-center text-slate-500">Loading...</p>
                   ) : savingsTrends && savingsTrends.length > 0 ? (
-                    <Plot
-                      data={[
-                        {
-                          x: savingsTrends.map((t: any) => t.month),
-                          y: savingsTrends.map((t: any) => t.savings),
-                          type: "scatter",
-                          mode: "lines+markers",
-                          marker: { 
-                            color: KINGA_COLORS.primary, 
-                            size: 10,
-                            line: { color: "white", width: 2 }
-                          },
-                          line: { 
-                            color: KINGA_COLORS.primary, 
-                            width: 3,
-                            shape: "spline" // Smooth curves
-                          },
-                          fill: "tozeroy",
-                          fillcolor: "rgba(37, 99, 235, 0.1)", // blue-600 with transparency
-                        } as any,
-                      ]}
-                      layout={getBrandedLayout({
-                        autosize: true,
-                        xaxis: { title: "Month" } as any,
-                        yaxis: { title: "Savings ($)" } as any,
-                      })}
-                      config={getBrandedConfig()}
-                      style={{ width: "100%", height: "300px" }}
-                    />
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={savingsTrends.map((t: any) => ({ month: t.month, savings: t.savings }))}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Savings']} />
+                        <Line type="monotone" dataKey="savings" stroke="#2563eb" strokeWidth={3} dot={{ r: 5, fill: "#2563eb" }} fill="rgba(37, 99, 235, 0.1)" />
+                      </LineChart>
+                    </ResponsiveContainer>
                   ) : (
                     <p className="text-center text-slate-500">No data available</p>
                   )}
@@ -414,32 +393,19 @@ export default function ExecutiveDashboard() {
                   {bottlenecksLoading ? (
                     <p className="text-center text-slate-500">Loading...</p>
                   ) : bottlenecks && bottlenecks.length > 0 ? (
-                    <Plot
-                      data={[
-                        {
-                          x: bottlenecks.map((b: any) => b.avgDaysInState),
-                          y: bottlenecks.map((b: any) => b.state?.replace(/_/g, " ") || ""),
-                          type: "bar",
-                          orientation: "h",
-                          marker: { 
-                            color: bottlenecks.map((b: any) => {
-                              // Color code by severity: red for >7 days, orange for >3 days, blue otherwise
-                              if (b.avgDaysInState > 7) return KINGA_COLORS.danger;
-                              if (b.avgDaysInState > 3) return KINGA_COLORS.warning;
-                              return KINGA_COLORS.primary;
-                            }),
-                          },
-                        } as any,
-                      ]}
-                      layout={getBrandedLayout({
-                        autosize: true,
-                        margin: { l: 150, r: 20, t: 20, b: 40 },
-                        xaxis: { title: "Average Days" } as any,
-                        yaxis: { automargin: true } as any,
-                      })}
-                      config={getBrandedConfig()}
-                      style={{ width: "100%", height: "300px" }}
-                    />
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={bottlenecks.map((b: any) => ({ state: b.state?.replace(/_/g, " ") || "", days: b.avgDaysInState }))} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="state" type="category" width={150} />
+                        <Tooltip formatter={(value: number) => [`${value.toFixed(1)} days`, 'Avg Duration']} />
+                        <Bar dataKey="days">
+                          {bottlenecks.map((b: any, i: number) => (
+                            <Cell key={i} fill={b.avgDaysInState > 7 ? '#ef4444' : b.avgDaysInState > 3 ? '#f97316' : '#2563eb'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   ) : (
                     <p className="text-center text-slate-500">No bottlenecks detected</p>
                   )}

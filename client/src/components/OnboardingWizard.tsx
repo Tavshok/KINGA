@@ -83,7 +83,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
         navigate("/panel-beater/dashboard");
         break;
       case "fleet_manager":
-        navigate("/fleet/dashboard");
+        navigate("/fleet-management");
         break;
       default:
         navigate("/");

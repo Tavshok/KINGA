@@ -8,7 +8,7 @@
  * - Role-based query filters
  * - Access denial audit logging
  * 
- * Compliance: POPIA (South Africa), GDPR (EU)
+ * Compliance: Data Protection Act (Zimbabwe), GDPR (EU)
  */
 
 import { getDb } from "./db";

@@ -5785,3 +5785,47 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add average cost trends over time to Admin Dashboard
 - [ ] Ensure historical intelligence is only visible in Admin UI, not standalone
 - [ ] Test that historical intelligence displays correctly in Admin Dashboard
+
+## Critical Bug Fixes - Out of Memory & Errors (2026-02-15)
+
+- [ ] Diagnose out-of-memory crash on published site
+- [ ] Check bundle size and identify large dependencies
+- [ ] Implement lazy loading for route components
+- [ ] Fix any infinite re-render loops causing memory issues
+- [ ] Check for unstable query references causing infinite refetching
+- [ ] Fix all TypeScript compilation errors
+- [ ] Fix broken imports across all pages
+- [ ] Test triage workflow end-to-end
+- [ ] Test report generation
+- [ ] Test AI assessment trigger and viewing
+- [ ] Test document upload and download
+- [ ] Verify Claims Processor dashboard works correctly
+- [ ] Verify Assessor dashboard with AI co-pilot works
+- [ ] Verify Claims Manager comparison view works
+- [ ] Verify Risk Manager dashboard works
+
+## Final Cleanup & Testing (2026-02-15)
+
+- [ ] Remove ALL remaining ZAR/Rands/"R" currency references across entire codebase
+- [ ] Move Historical Claims Intelligence from Portal Hub to admin-only access
+- [ ] Test workflow transitions (click-through each step)
+- [ ] Test PDF upload/download functionality
+- [ ] Test document viewing features
+- [ ] Fix any issues found during testing
+- [ ] Run vitest tests
+
+## Remove Hardcoded Approval Limits (2026-02-15)
+
+- [ ] Find and remove all hardcoded approval limit amounts from role descriptions
+- [ ] Remove hardcoded dollar amounts from InsurerRoleSelection cards
+- [ ] Remove hardcoded approval thresholds from workflow logic
+- [ ] Ensure approval limits are tenant-configurable in Admin Panel
+- [ ] Make role descriptions generic (no specific dollar amounts)
+
+## Remove Hardcoded Approval Limits (2026-02-15)
+
+- [ ] Find and remove all hardcoded approval limit amounts from role descriptions
+- [ ] Remove hardcoded dollar amounts from InsurerRoleSelection cards
+- [ ] Remove hardcoded approval thresholds from workflow logic
+- [ ] Ensure approval limits are tenant-configurable in Admin Panel
+- [ ] Make role descriptions generic (no specific dollar amounts)

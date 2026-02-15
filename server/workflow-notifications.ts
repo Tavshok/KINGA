@@ -102,7 +102,7 @@ Congratulations! Your quote has been selected for a repair assignment.
 **Claim Details:**
 - Claim Number: ${params.claimNumber}
 - Claimant: ${params.claimantName}
-- Approved Amount: R${(params.approvedAmount / 100).toFixed(2)}
+- Approved Amount: $${(params.approvedAmount / 100).toFixed(2)}
 - Assignment Date: ${new Date().toLocaleString()}
 
 **Next Steps:**
@@ -163,7 +163,7 @@ A new repair quote has been submitted for claim ${params.claimNumber}.
 
 **Quote Details:**
 - Panel Beater: ${panelBeater?.businessName || 'Unknown'}
-- Quoted Amount: R${(params.quotedAmount / 100).toFixed(2)}
+- Quoted Amount: $${(params.quotedAmount / 100).toFixed(2)}
 - Estimated Repair Time: ${params.estimatedDays} days
 - Submission Date: ${new Date().toLocaleString()}
 
@@ -214,7 +214,7 @@ Great news! Your insurance claim has been approved.
 
 **Claim Details:**
 - Claim Number: ${params.claimNumber}
-- Approved Amount: R${(params.approvedAmount / 100).toFixed(2)}
+- Approved Amount: $${(params.approvedAmount / 100).toFixed(2)}
 - Selected Panel Beater: ${params.selectedPanelBeater}
 - Approval Date: ${new Date().toLocaleString()}
 

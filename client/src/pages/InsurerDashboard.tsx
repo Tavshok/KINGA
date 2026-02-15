@@ -1,9 +1,8 @@
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { FileText, AlertTriangle, TrendingUp, Settings, BarChart3, Upload, Database, History } from "lucide-react";
+import { FileText, AlertTriangle, TrendingUp, Settings, BarChart3, Upload } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
-import InsurerHistoricalClaims from "@/components/InsurerHistoricalClaims";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
@@ -240,35 +239,7 @@ export default function InsurerDashboard() {
             )}
           </CardContent>
         </Card>
-        {/* Historical Intelligence Section */}
-        <Card className="mt-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Database className="h-5 w-5 text-emerald-600" />
-                  Historical Claims Intelligence
-                </CardTitle>
-                <CardDescription>
-                  Upload historical assessment PDFs to get full AI analysis — fraud detection, physics validation, cost analysis, and comprehensive reports
-                </CardDescription>
-              </div>
-              <Button
-                variant={showHistorical ? "default" : "outline"}
-                onClick={() => setShowHistorical(!showHistorical)}
-                className={showHistorical ? "bg-emerald-600 hover:bg-emerald-700" : ""}
-              >
-                <History className="h-4 w-4 mr-2" />
-                {showHistorical ? "Hide" : "Show"} Historical Claims
-              </Button>
-            </div>
-          </CardHeader>
-          {showHistorical && (
-            <CardContent>
-              <InsurerHistoricalClaims />
-            </CardContent>
-          )}
-        </Card>
+        {/* Historical Intelligence moved to Admin Panel only */}
       </main>
     </div>
   );

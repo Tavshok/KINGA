@@ -54,7 +54,7 @@ export interface CrossValidationItem {
   explanation: string;
   /** Confidence score 0-1 */
   confidence: number;
-  /** Quoted cost (ZAR) if available */
+  /** Quoted cost if available */
   quotedCost?: number;
   /** Quoted repair action (repair/replace/refinish) */
   quotedAction?: string;
@@ -409,7 +409,7 @@ export async function crossValidateQuotesVsPhotos(
         explanation = `This externally visible part was NOT detected as damaged in any photo, yet the ${partZone} zone was photographed. This is a potential fraud indicator — the part may not actually be damaged.`;
         suspiciousCount++;
         fraudIndicators.push(
-          `QUOTED_NOT_VISIBLE: "${qp.normalized}" (${qp.action || "replace"}, R${(qp.cost || 0).toLocaleString()}) is quoted but no damage was detected in photos covering the ${partZone} zone.`
+          `QUOTED_NOT_VISIBLE: "${qp.normalized}" (${qp.action || "replace"}, $${(qp.cost || 0).toLocaleString()}) is quoted but no damage was detected in photos covering the ${partZone} zone.`
         );
       } else {
         // Partially visible or unknown — moderate concern

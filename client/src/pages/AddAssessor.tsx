@@ -254,7 +254,7 @@ export default function AddAssessor() {
               <Label>Service Regions</Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g., Gauteng, Western Cape"
+                  placeholder="e.g., Harare, Bulawayo, Manicaland"
                   value={newServiceRegion}
                   onChange={(e) => setNewServiceRegion(e.target.value)}
                   onKeyPress={(e) => {

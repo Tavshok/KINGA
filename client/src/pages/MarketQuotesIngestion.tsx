@@ -215,7 +215,7 @@ export default function MarketQuotesIngestion() {
                     </div>
                   </div>
                   <Button
-                    onClick={() => setLocation(`/admin/market-quotes/${quote.id}`)}
+                    onClick={() => toast.info('Quote detail view coming soon', { description: `Quote #${quote.id} from ${quote.supplierName || 'Unknown'}` })}
                     variant="outline"
                   >
                     Review

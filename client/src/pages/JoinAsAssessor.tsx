@@ -204,7 +204,7 @@ export default function JoinAsAssessor() {
               <Label>Service Regions *</Label>
               <div className="flex gap-2">
                 <Input
-                  placeholder="e.g., Gauteng, Western Cape, KwaZulu-Natal"
+                  placeholder="e.g., Harare, Bulawayo, Manicaland"
                   value={newServiceRegion}
                   onChange={(e) => setNewServiceRegion(e.target.value)}
                   onKeyPress={(e) => {
@@ -273,7 +273,7 @@ export default function JoinAsAssessor() {
             {/* Pricing & Availability */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="hourlyRate">Hourly Rate (ZAR) *</Label>
+                <Label htmlFor="hourlyRate">Hourly Rate (USD) *</Label>
                 <Input
                   id="hourlyRate"
                   type="number"
