@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,45 @@ export default function ClaimsManagerDashboard() {
   const [showSendBackDialog, setShowSendBackDialog] = useState(false);
   const [approvalNotes, setApprovalNotes] = useState("");
   const [sendBackComments, setSendBackComments] = useState("");
+  const [comparisonData, setComparisonData] = useState<any>(null);
+
+  // Fetch comparison data when a claim is selected for approval
+  const { data: aiAssessment } = trpc.aiAssessments.byClaim.useQuery(
+    { claimId: selectedClaim?.id || 0 },
+    { enabled: !!selectedClaim }
+  );
+  const { data: assessorEval } = trpc.assessorEvaluations.byClaim.useQuery(
+    { claimId: selectedClaim?.id || 0 },
+    { enabled: !!selectedClaim }
+  );
+  const { data: quotes } = trpc.quotes.byClaim.useQuery(
+    { claimId: selectedClaim?.id || 0 },
+    { enabled: !!selectedClaim }
+  );
+
+  useEffect(() => {
+    if (selectedClaim && aiAssessment) {
+      const aiCost = aiAssessment.estimatedCost ? aiAssessment.estimatedCost / 100 : null;
+      const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost / 100 : null;
+      const avgQuoteCost = quotes && quotes.length > 0
+        ? quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length / 100
+        : null;
+
+      const calculateVariance = (v1: number | null, v2: number | null) => {
+        if (!v1 || !v2) return null;
+        return ((v1 - v2) / v2) * 100;
+      };
+
+      setComparisonData({
+        aiCost,
+        assessorCost,
+        avgQuoteCost,
+        aiVsAssessor: calculateVariance(assessorCost, aiCost),
+        quotesVsAi: calculateVariance(avgQuoteCost, aiCost),
+        fraudRisk: aiAssessment.fraudRiskLevel,
+      });
+    }
+  }, [selectedClaim, aiAssessment, assessorEval, quotes]);
 
   // Fetch claims pending payment authorization (technical approval complete)
   const { data: paymentQueue, isLoading: queueLoading, refetch: refetchQueue } = 
@@ -222,7 +261,7 @@ export default function ClaimsManagerDashboard() {
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Send Back
                         </Button>
-                        <Link href={`/insurer/claims/${claim.id}/comparison`}>
+                        <Link href={`/claims-manager/comparison/${claim.id}`}>
                           <Button variant="outline" size="sm" className="w-full">
                             <Eye className="h-4 w-4 mr-2" />
                             Review
@@ -260,6 +299,74 @@ export default function ClaimsManagerDashboard() {
             </DialogHeader>
 
             <div className="space-y-4 py-4">
+              {/* AI Comparison Summary */}
+              {comparisonData && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-blue-900 text-sm">Cost Comparison Summary</h3>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="bg-white rounded p-2">
+                      <p className="text-xs text-slate-600">AI Estimate</p>
+                      <p className="text-lg font-bold text-blue-900">
+                        {comparisonData.aiCost ? `$${comparisonData.aiCost.toLocaleString()}` : "N/A"}
+                      </p>
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-xs text-slate-600">Assessor</p>
+                      <p className="text-lg font-bold text-green-900">
+                        {comparisonData.assessorCost ? `$${comparisonData.assessorCost.toLocaleString()}` : "N/A"}
+                      </p>
+                      {comparisonData.aiVsAssessor !== null && (
+                        <p className={`text-xs ${
+                          Math.abs(comparisonData.aiVsAssessor) > 15 ? "text-red-600 font-semibold" : "text-green-700"
+                        }`}>
+                          {Math.abs(comparisonData.aiVsAssessor).toFixed(1)}% vs AI
+                        </p>
+                      )}
+                    </div>
+                    <div className="bg-white rounded p-2">
+                      <p className="text-xs text-slate-600">Avg Quote</p>
+                      <p className="text-lg font-bold text-purple-900">
+                        {comparisonData.avgQuoteCost ? `$${comparisonData.avgQuoteCost.toLocaleString()}` : "N/A"}
+                      </p>
+                      {comparisonData.quotesVsAi !== null && (
+                        <p className={`text-xs ${
+                          Math.abs(comparisonData.quotesVsAi) > 15 ? "text-red-600 font-semibold" : "text-purple-700"
+                        }`}>
+                          {Math.abs(comparisonData.quotesVsAi).toFixed(1)}% vs AI
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Variance Warnings */}
+                  {(Math.abs(comparisonData.aiVsAssessor || 0) > 15 || Math.abs(comparisonData.quotesVsAi || 0) > 15) && (
+                    <div className="bg-orange-50 border border-orange-300 rounded p-2 flex items-start gap-2">
+                      <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-orange-800">
+                        <strong>High Variance Detected:</strong> Significant differences between estimates. Review carefully.
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Fraud Risk Warning */}
+                  {comparisonData.fraudRisk === "high" && (
+                    <div className="bg-red-50 border border-red-300 rounded p-2 flex items-start gap-2">
+                      <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-red-800">
+                        <strong>High Fraud Risk:</strong> AI detected suspicious patterns. Consider escalating to Risk Manager.
+                      </p>
+                    </div>
+                  )}
+
+                  <Link href={`/claims-manager/comparison/${selectedClaim?.id}`} target="_blank">
+                    <Button variant="outline" size="sm" className="w-full text-xs">
+                      <Eye className="h-3 w-3 mr-2" />
+                      View Full Comparison Report
+                    </Button>
+                  </Link>
+                </div>
+              )}
+
               <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded">
                 <CheckCircle className="h-5 w-5 text-green-600" />
                 <p className="text-sm text-green-700">

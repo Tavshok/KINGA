@@ -5666,3 +5666,43 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Require manager override to skip AI assessment
 - [ ] Log all AI assessment skip requests with justification
 - [ ] Escalate claims with suppressed AI assessments to Risk Manager
+
+## Claims Manager Comparison Dashboard (2026-02-15)
+
+- [x] Create Claims Manager dashboard page with claims list
+- [x] Add claim comparison view showing AI vs Human assessments
+- [x] Display cost comparison (AI estimate vs Assessor vs Panel Beater quotes)
+- [x] Show fraud risk comparison (AI detection vs Assessor judgment)
+- [x] Add damage analysis comparison (AI vision vs Assessor observations)
+- [x] Calculate and display variance percentages
+- [x] Highlight significant differences (>15% variance)
+- [x] Add approval workflow with AI recommendation context
+- [x] Show recommendation badges (AI Recommends: Approve/Review/Reject)
+- [ ] Add override reason field for manager decisions
+- [ ] Create audit trail for manager approval decisions
+- [ ] Test comparison dashboard with real claim data
+
+## Workflow Integration - AI Comparison at Decision Points (2026-02-15)
+
+### Correct Workflow Hierarchy:
+1. Claimant → Submits claim
+2. Claims Processor → Triages claim
+3. Assessor (Internal/External) → Evaluates damage
+4. Risk Manager → Reviews for fraud, validates assessment
+5. Claims Manager → Authorizes payment
+6. GM (Executive) → Final approval (high-value/high-risk)
+
+### Bidirectional Flow:
+- Each stage can send back to previous stage with reasons
+- GM → Claims Manager → Risk Manager → Assessor → Claims Processor
+
+### AI Comparison Integration:
+
+- [x] Embed AI comparison summary in Claims Manager payment authorization dialog
+- [x] Show AI vs Assessor cost comparison before "Approve Payment" button
+- [x] Add "View Full Comparison" link from authorization dialog
+- [x] Embed AI comparison in Assessor claim details page (already has AIAssessmentPanel)
+- [ ] Add AI comparison summary to Panel Beater quote submission page
+- [ ] Add AI comparison to Claims Processor claim details view
+- [ ] Show AI recommendation badges in all workflow stages
+- [ ] Test workflow integration with real claim data

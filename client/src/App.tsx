@@ -35,6 +35,7 @@ import ClaimsProcessorDashboard from "./pages/ClaimsProcessorDashboard";
 import InternalAssessorDashboard from "./pages/InternalAssessorDashboard";
 import RiskManagerDashboard from "./pages/RiskManagerDashboard";
 import ClaimsManagerDashboard from "./pages/ClaimsManagerDashboard";
+import ClaimsManagerComparisonView from "./pages/ClaimsManagerComparisonView";
 import AssessmentResults from "./pages/AssessmentResults";
 import NewAssessmentUpload from "./pages/NewAssessmentUpload";
 import SimpleUpload from "./pages/SimpleUpload";
@@ -136,6 +137,12 @@ function Router() {
       <Route path="/insurer-portal/claims-manager">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
           <ClaimsManagerDashboard />
+        </ProtectedRoute>
+      </Route>
+      
+      <Route path="/claims-manager/comparison/:id">
+        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ClaimsManagerComparisonView />
         </ProtectedRoute>
       </Route>
       
