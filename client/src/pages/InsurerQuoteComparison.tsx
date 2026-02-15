@@ -372,17 +372,17 @@ export default function InsurerQuoteComparison() {
               ) : (
                 <div className="space-y-6">
                   {negotiationTargets.map((target: any, idx: number) => (
-                    <div key={idx} className="p-4 rounded-lg border border-blue-200 bg-blue-50">
+                    <div key={idx} className="p-4 rounded-lg border border-primary/20 bg-primary/5">
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-semibold text-lg">{target.panelBeaterName}</h3>
-                        <Badge className="bg-blue-600">
+                        <Badge className="bg-primary">
                           Save {formatCurrency(target.potentialSavings)}
                         </Badge>
                       </div>
 
                       <div className="mb-3">
                         <p className="text-sm text-muted-foreground">Target Price</p>
-                        <p className="text-2xl font-bold text-blue-600">
+                        <p className="text-2xl font-bold text-primary">
                           {formatCurrency(target.targetPrice)}
                         </p>
                         <p className="text-xs text-muted-foreground">

@@ -133,7 +133,7 @@ export default function InteractiveReport() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Card className="p-6">
                 <div className="flex items-center gap-3 mb-2">
-                  <Shield className="h-5 w-5 text-blue-500" />
+                  <Shield className="h-5 w-5 text-primary/80" />
                   <h3 className="font-semibold">Fraud Risk</h3>
                 </div>
                 <div className="text-3xl font-bold">
@@ -181,7 +181,7 @@ export default function InteractiveReport() {
             {intelligence.damageAssessment?.components && intelligence.damageAssessment.components.length > 0 ? (
               <div className="space-y-4">
                 {intelligence.damageAssessment.components.map((component: any, index: number) => (
-                  <div key={index} className="border-l-4 border-blue-500 pl-4 py-2">
+                  <div key={index} className="border-l-4 border-primary/80 pl-4 py-2">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="font-semibold">{component.name}</h3>
                       <Badge variant={component.severity === "severe" ? "destructive" : "secondary"}>
@@ -317,7 +317,7 @@ export default function InteractiveReport() {
                 {intelligence.workflowAuditTrail.map((event: any, index: number) => (
                   <div key={index} className="flex gap-4">
                     <div className="flex flex-col items-center">
-                      <div className="w-3 h-3 rounded-full bg-blue-500" />
+                      <div className="w-3 h-3 rounded-full bg-primary/80" />
                       {index < intelligence.workflowAuditTrail.length - 1 && (
                         <div className="w-0.5 h-full bg-border mt-2" />
                       )}

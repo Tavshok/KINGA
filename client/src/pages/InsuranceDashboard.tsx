@@ -83,7 +83,7 @@ export default function InsuranceDashboard() {
       case 'pending':
         return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Awaiting Payment</Badge>;
       case 'payment_submitted':
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Verifying Payment</Badge>;
+        return <Badge variant="outline" className="bg-primary/5 text-primary/90 border-primary/20">Verifying Payment</Badge>;
       case 'payment_verified':
         return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Payment Verified</Badge>;
       case 'rejected':
@@ -147,7 +147,7 @@ export default function InsuranceDashboard() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
+            <div className="text-3xl font-bold text-primary">
               ${((activePolicies.reduce((sum: number, p: any) => sum + (p.premiumAmount || 0), 0)) / 100 * 12).toFixed(0)}
             </div>
             <p className="text-xs text-gray-500 mt-1">Annual value</p>
@@ -309,7 +309,7 @@ export default function InsuranceDashboard() {
                       </div>
                       
                       {quote.status === 'payment_submitted' && (
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-700">
+                        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-primary/90">
                           <p className="font-medium">Payment verification in progress</p>
                           <p className="text-xs mt-1">We're reviewing your payment proof. This usually takes 1-2 business days.</p>
                         </div>

@@ -335,11 +335,11 @@ export function EnhancedDocumentUpload({
 
         {/* Selected File Info */}
         {selectedFile && !uploadSuccess && (
-          <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <File className="w-8 h-8 text-blue-600" />
+          <div className="flex items-center gap-3 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+            <File className="w-8 h-8 text-primary" />
             <div className="flex-1">
-              <p className="font-medium text-blue-900">{selectedFile.name}</p>
-              <p className="text-sm text-blue-700">
+              <p className="font-medium text-secondary">{selectedFile.name}</p>
+              <p className="text-sm text-primary/90">
                 {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
               </p>
             </div>

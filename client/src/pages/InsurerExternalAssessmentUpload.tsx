@@ -29,7 +29,7 @@ export default function InsurerExternalAssessmentUpload() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
@@ -83,9 +83,9 @@ export default function InsurerExternalAssessmentUpload() {
 
               {/* Instructions */}
               {!extractedResult && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
-                  <p className="text-sm font-medium text-blue-900">What happens after upload:</p>
-                  <ul className="text-sm text-blue-800 space-y-1 ml-4 list-disc">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 space-y-2">
+                  <p className="text-sm font-medium text-secondary">What happens after upload:</p>
+                  <ul className="text-sm text-secondary space-y-1 ml-4 list-disc">
                     <li>AI extracts vehicle information, damage details, and photos from the PDF</li>
                     <li>Automatic damage assessment with component-level analysis</li>
                     <li>Physics-based validation of accident dynamics and forces</li>

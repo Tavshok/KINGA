@@ -70,12 +70,12 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
       {/* Impact Metrics */}
       <div className="grid grid-cols-2 gap-4 mb-6">
         {data.impactSpeed && (
-          <div className="p-4 bg-blue-50 rounded-lg">
+          <div className="p-4 bg-primary/5 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
-              <Zap className="w-4 h-4 text-blue-600" />
+              <Zap className="w-4 h-4 text-primary" />
               <span className="text-xs font-medium text-gray-600">Impact Speed</span>
             </div>
-            <p className="text-2xl font-bold text-blue-600">{data.impactSpeed}</p>
+            <p className="text-2xl font-bold text-primary">{data.impactSpeed}</p>
             <p className="text-xs text-gray-500">km/h</p>
           </div>
         )}
@@ -160,7 +160,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
       </div>
 
       {/* Analysis Summary */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+      <div className="mt-4 p-3 bg-primary/5 rounded-lg">
         <p className="text-sm text-gray-700">
           {data.damageConsistency === 'consistent' && (
             <span>✅ Damage pattern is <strong>consistent</strong> with reported collision physics. All measurements fall within expected ranges for this type of impact.</span>

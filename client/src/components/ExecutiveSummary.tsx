@@ -393,8 +393,8 @@ export function ExecutiveSummary({
           <ul className="space-y-1.5">
             {physicsData.flags.map((flag, i) => (
               <li key={`p-${i}`} className="flex items-start gap-2 text-sm text-gray-700">
-                <Activity className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-blue-500" />
-                <span><strong className="text-blue-700">{isCollision ? 'Physics' : 'Damage'}:</strong> {flag}</span>
+                <Activity className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-primary/80" />
+                <span><strong className="text-primary/90">{isCollision ? 'Physics' : 'Damage'}:</strong> {flag}</span>
               </li>
             ))}
             {fraudData.flaggedIssues.slice(0, 5).map((issue, i) => (

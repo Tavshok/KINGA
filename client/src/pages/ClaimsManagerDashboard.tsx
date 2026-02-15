@@ -6,19 +6,27 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { DollarSign, CheckCircle, XCircle, Eye, MessageSquare, AlertCircle } from "lucide-react";
+import { 
+  FileCheck, CheckCircle, XCircle, Eye, MessageSquare, AlertCircle, 
+  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield 
+} from "lucide-react";
+import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link } from "wouter";
 
 export default function ClaimsManagerDashboard() {
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
-  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showSendBackDialog, setShowSendBackDialog] = useState(false);
-  const [approvalNotes, setApprovalNotes] = useState("");
+  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [closureNotes, setClosureNotes] = useState("");
+  const [closureAction, setClosureAction] = useState("approve_for_payment");
   const [sendBackComments, setSendBackComments] = useState("");
+  const [sendBackTarget, setSendBackTarget] = useState("risk_manager");
   const [comparisonData, setComparisonData] = useState<any>(null);
 
-  // Fetch comparison data when a claim is selected for approval
+  // Fetch comparison data when a claim is selected
   const { data: aiAssessment } = trpc.aiAssessments.byClaim.useQuery(
     { claimId: selectedClaim?.id || 0 },
     { enabled: !!selectedClaim }
@@ -52,57 +60,74 @@ export default function ClaimsManagerDashboard() {
         aiVsAssessor: calculateVariance(assessorCost, aiCost),
         quotesVsAi: calculateVariance(avgQuoteCost, aiCost),
         fraudRisk: aiAssessment.fraudRiskLevel,
+        quoteCount: quotes?.length || 0,
       });
     }
   }, [selectedClaim, aiAssessment, assessorEval, quotes]);
 
-  // Fetch claims pending payment authorization (technical approval complete)
-  const { data: paymentQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "financial_decision", limit: 20 });
-  const paymentQueue = paymentQueueData?.items;
+  // Fetch claims ready for manager review (after Risk Manager approval)
+  // These are claims in financial_decision state OR completed assessments
+  const { data: reviewQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
+    trpc.workflow.getClaimsByState.useQuery({ state: "financial_decision", limit: 50 });
+  const reviewQueue = reviewQueueData?.items || [];
 
-  // Authorize payment mutation
-  const authorizePayment = trpc.workflow.authorizePayment.useMutation({
+  // Also fetch claims with completed status (comparison stage - assessed and ready for review)
+  const { data: assessedClaims, isLoading: assessedLoading, refetch: refetchAssessed } = 
+    trpc.claims.byStatus.useQuery({ status: "comparison" });
+
+  // Also fetch completed/closed claims for the recent activity section
+  const { data: completedClaims, isLoading: completedLoading } = 
+    trpc.claims.byStatus.useQuery({ status: "completed" });
+
+  const allReviewableClaims = [
+    ...(reviewQueue || []),
+    ...(assessedClaims || []),
+  ];
+
+  // Deduplicate by claim ID
+  const uniqueReviewable = allReviewableClaims.filter(
+    (claim, index, self) => index === self.findIndex(c => c.id === claim.id)
+  );
+
+  // Close for processing mutation
+  const closeForProcessing = trpc.workflow.authorizePayment.useMutation({
     onSuccess: () => {
-      toast.success("Payment Authorized", {
-        description: "Payment has been authorized and claim is ready for closure.",
+      toast.success("Claim Closed for Processing", {
+        description: "Claim has been reviewed and closed for onward processing.",
       });
-      setShowApproveDialog(false);
+      setShowCloseDialog(false);
       setSelectedClaim(null);
-      setApprovalNotes("");
+      setClosureNotes("");
       refetchQueue();
+      refetchAssessed();
     },
     onError: (error: any) => {
-      toast.error("Error", {
-        description: error.message,
-      });
+      toast.error("Error", { description: error.message });
     },
   });
 
-  // Send back to Claims Processor mutation
+  // Send back mutation
   const sendBackClaim = trpc.workflow.transitionState.useMutation({
     onSuccess: () => {
       toast.success("Claim Sent Back", {
-        description: "Claim has been returned to Claims Processor for review.",
+        description: `Claim has been returned to ${sendBackTarget === "risk_manager" ? "Risk Manager" : "Claims Processor"} for review.`,
       });
       setShowSendBackDialog(false);
       setSelectedClaim(null);
       setSendBackComments("");
       refetchQueue();
+      refetchAssessed();
     },
     onError: (error: any) => {
-      toast.error("Error", {
-        description: error.message,
-      });
+      toast.error("Error", { description: error.message });
     },
   });
 
-  // Add comment mutation
   const addComment = trpc.workflow.addComment.useMutation();
 
-  const handleApprove = (claim: any) => {
+  const handleClose = (claim: any) => {
     setSelectedClaim(claim);
-    setShowApproveDialog(true);
+    setShowCloseDialog(true);
   };
 
   const handleSendBack = (claim: any) => {
@@ -110,162 +135,177 @@ export default function ClaimsManagerDashboard() {
     setShowSendBackDialog(true);
   };
 
-  const handleSubmitApproval = async () => {
+  const handleViewDetails = (claim: any) => {
+    setSelectedClaim(claim);
+    setShowDetailsDialog(true);
+  };
+
+  const handleSubmitClosure = async () => {
     if (!selectedClaim) return;
 
-    // Add approval notes as comment if provided
-    if (approvalNotes) {
+    if (closureNotes) {
       await addComment.mutateAsync({
         claimId: selectedClaim.id,
         commentType: "general",
-        content: `Payment Approval: ${approvalNotes}`,
+        content: `Claims Manager Review: ${closureAction === "approve_for_payment" ? "Approved for Payment Processing" : closureAction === "approve_for_repair" ? "Approved for Repair Assignment" : "Closed - No Further Action"} | Notes: ${closureNotes}`,
       });
     }
 
-    // Authorize payment
-    authorizePayment.mutate({
+    closeForProcessing.mutate({
       claimId: selectedClaim.id,
-      approvedAmount: selectedClaim.estimatedCost || 0,
-      approvalNotes: approvalNotes || undefined,
+      approvedAmount: selectedClaim.estimatedCost || selectedClaim.approvedAmount || 0,
+      approvalNotes: `[${closureAction}] ${closureNotes}`,
     });
   };
 
   const handleSubmitSendBack = async () => {
     if (!selectedClaim || !sendBackComments) {
-      toast.error("Validation Error", {
-        description: "Please provide comments explaining why the claim is being sent back.",
-      });
+      toast.error("Please provide comments explaining why the claim is being sent back.");
       return;
     }
 
-    // Add send-back comment
     await addComment.mutateAsync({
       claimId: selectedClaim.id,
       commentType: "clarification_request",
-      content: `SENT BACK FOR REVIEW: ${sendBackComments}`,
+      content: `SENT BACK BY CLAIMS MANAGER: ${sendBackComments}`,
     });
 
-    // Transition back to created state (Claims Processor will see it)
     sendBackClaim.mutate({
       claimId: selectedClaim.id,
-      newState: "created",
+      newState: sendBackTarget === "risk_manager" ? "technical_approval" : "created",
     });
   };
 
+  const totalReviewable = uniqueReviewable.length;
+  const highRiskCount = uniqueReviewable.filter((c: any) => c.fraudRiskScore && c.fraudRiskScore >= 70).length;
+  const recentlyClosed = completedClaims?.length || 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-indigo-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-slate-800">Claims Manager Dashboard</h1>
-            <p className="text-slate-600 mt-1">Authorize payments and manage claim closure</p>
+        <header className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600 rounded-xl p-6 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">Claims Manager Dashboard</h1>
+              <p className="text-teal-100 mt-1">Review assessed claims and close for onward processing</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="bg-white/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+                <p className="text-2xl font-bold">{totalReviewable}</p>
+                <p className="text-xs text-teal-100">Pending Review</p>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+                <p className="text-2xl font-bold text-red-300">{highRiskCount}</p>
+                <p className="text-xs text-teal-100">High Risk</p>
+              </div>
+              <div className="bg-white/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+                <p className="text-2xl font-bold text-green-300">{recentlyClosed}</p>
+                <p className="text-xs text-teal-100">Closed</p>
+              </div>
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="text-lg px-4 py-2">
-              <DollarSign className="h-5 w-5 mr-2" />
-              {paymentQueue?.length || 0} Pending Authorization
-            </Badge>
+        </header>
+
+        {/* Workflow Info */}
+        <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 flex items-start gap-3">
+          <Shield className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-teal-800">Claims Manager Workflow</p>
+            <p className="text-xs text-teal-600 mt-1">
+              Claims arrive here after Risk Manager review and technical approval. Your role is to conduct a final review 
+              of all assessments (AI, assessor, panel beater quotes) and close claims for onward processing — either for 
+              payment settlement, repair assignment, or further investigation.
+            </p>
           </div>
         </div>
 
-        {/* Payment Authorization Queue */}
-        <Card className="shadow-lg">
-          <CardHeader>
+        {/* Claims Review Queue */}
+        <Card className="shadow-lg border-0">
+          <CardHeader className="bg-gradient-to-r from-slate-50 to-teal-50/50">
             <CardTitle className="flex items-center gap-2">
-              <DollarSign className="h-5 w-5 text-purple-600" />
-              Payment Authorization Queue
+              <ClipboardList className="h-5 w-5 text-teal-600" />
+              Claims Review Queue
             </CardTitle>
             <CardDescription>
-              Claims with completed assessments and technical approval - ready for payment authorization
+              Assessed claims awaiting your final review before onward processing
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            {queueLoading ? (
-              <p className="text-center text-slate-500 py-8">Loading payment queue...</p>
-            ) : paymentQueue && paymentQueue.length > 0 ? (
+          <CardContent className="pt-4">
+            {(queueLoading || assessedLoading) ? (
+              <p className="text-center text-slate-500 py-8">Loading claims for review...</p>
+            ) : uniqueReviewable.length > 0 ? (
               <div className="space-y-3">
-                {paymentQueue.map((claim: any) => (
+                {uniqueReviewable.slice(0, 30).map((claim: any) => (
                   <div
                     key={claim.id}
-                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-purple-300 transition-colors"
+                    className="p-4 bg-white rounded-lg border border-slate-200 hover:border-teal-300 hover:shadow-md transition-all"
                   >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
-                          <Badge variant="outline">Ready for Payment</Badge>
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                          <h3 className="font-semibold text-base">{claim.claimNumber}</h3>
+                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
+                          <Badge variant="outline" className="text-xs capitalize">
+                            {(claim.status || 'pending').replace(/_/g, " ")}
+                          </Badge>
                           {claim.technicalApprovalStatus === "approved" && (
-                            <Badge variant="default" className="bg-green-600">
+                            <Badge className="bg-green-600 text-white text-xs">
                               <CheckCircle className="h-3 w-3 mr-1" />
-                              Technical Approved
+                              Risk Approved
                             </Badge>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
                           <div>
-                            <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
+                            <span className="font-medium">Vehicle:</span>{" "}
+                            {claim.vehicleRegistration || "N/A"}
                           </div>
                           <div>
-                            <span className="font-medium">Make/Model:</span> {claim.vehicleMake} {claim.vehicleModel}
+                            <span className="font-medium">Make/Model:</span>{" "}
+                            {[claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" ") || "N/A"}
                           </div>
                           <div>
-                            <span className="font-medium">Payment Amount:</span> $
-                            {claim.estimatedCost ? (claim.estimatedCost / 100).toLocaleString() : "N/A"}
+                            <span className="font-medium">Est. Cost:</span>{" "}
+                            {claim.estimatedCost ? `$${(claim.estimatedCost / 100).toLocaleString()}` : 
+                             claim.approvedAmount ? `$${(claim.approvedAmount / 100).toLocaleString()}` : "Pending"}
                           </div>
                           <div>
                             <span className="font-medium">Submitted:</span>{" "}
-                            {new Date(claim.createdAt).toLocaleDateString()}
+                            {claim.createdAt ? new Date(claim.createdAt).toLocaleDateString() : "N/A"}
                           </div>
                         </div>
 
-                        {/* Assessment Summary */}
-                        <div className="p-3 bg-blue-50 border border-blue-200 rounded mb-2">
-                          <div className="flex items-center gap-2 mb-1">
-                            <CheckCircle className="h-4 w-4 text-blue-600" />
-                            <span className="text-sm font-medium text-blue-700">Assessment Complete</span>
-                          </div>
-                          <div className="text-xs text-slate-600 grid grid-cols-2 gap-2">
-                            {claim.fraudRiskLevel && (
-                              <div>
-                                <span className="font-medium">Fraud Risk:</span>{" "}
-                                <span className={claim.fraudRiskLevel === "high" ? "text-red-600 font-semibold" : ""}>
-                                  {claim.fraudRiskLevel.toUpperCase()}
-                                </span>
-                              </div>
-                            )}
-                            {claim.technicalApprovalDate && (
-                              <div>
-                                <span className="font-medium">Approved:</span>{" "}
-                                {new Date(claim.technicalApprovalDate).toLocaleDateString()}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {claim.fraudRiskLevel === "high" && (
-                          <div className="flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded">
-                            <AlertCircle className="h-4 w-4 text-red-600" />
-                            <span className="text-sm text-red-700">
-                              <strong>High Fraud Risk</strong> - Review carefully before authorization
+                        {/* Fraud Warning */}
+                        {claim.fraudRiskScore && claim.fraudRiskScore >= 70 && (
+                          <div className="mt-2 flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                            <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                            <span className="text-red-700 font-medium">
+                              High fraud risk detected (score: {claim.fraudRiskScore}/100). Review carefully before closing.
                             </span>
                           </div>
                         )}
                       </div>
 
-                      <div className="ml-4 flex flex-col gap-2">
-                        <Button onClick={() => handleApprove(claim)} size="sm" className="bg-green-600 hover:bg-green-700">
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve Payment
+                      <div className="flex flex-col gap-2 flex-shrink-0">
+                        <Button onClick={() => handleClose(claim)} size="sm" className="bg-teal-600 hover:bg-teal-700 text-white">
+                          <FileCheck className="h-4 w-4 mr-2" />
+                          Close for Processing
                         </Button>
-                        <Button onClick={() => handleSendBack(claim)} size="sm" variant="outline" className="border-orange-500 text-orange-700 hover:bg-orange-50">
+                        <Button onClick={() => handleSendBack(claim)} size="sm" variant="outline" className="border-orange-400 text-orange-700 hover:bg-orange-50">
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Send Back
                         </Button>
-                        <Link href={`/claims-manager/comparison/${claim.id}`}>
+                        <AiAssessButton 
+                          claimId={claim.id} 
+                          claimNumber={claim.claimNumber}
+                          size="sm"
+                          onSuccess={() => { refetchQueue(); refetchAssessed(); }}
+                        />
+                        <Link href={`/insurer/claims/${claim.id}/comparison`}>
                           <Button variant="outline" size="sm" className="w-full">
                             <Eye className="h-4 w-4 mr-2" />
-                            Review
+                            Full Review
                           </Button>
                         </Link>
                       </div>
@@ -275,91 +315,125 @@ export default function ClaimsManagerDashboard() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <DollarSign className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">No claims pending payment authorization</p>
-                <p className="text-sm text-slate-400">Claims with technical approval will appear here</p>
+                <FileCheck className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium">No claims pending review</p>
+                <p className="text-sm text-slate-400 mt-1">
+                  Claims will appear here after Risk Manager approval or when assessments are complete
+                </p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Approve Payment Dialog */}
-        <Dialog open={showApproveDialog} onOpenChange={setShowApproveDialog}>
-          <DialogContent>
+        {/* Recently Closed Claims */}
+        <Card className="shadow-lg border-0">
+          <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50/50">
+            <CardTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              Recently Closed Claims
+            </CardTitle>
+            <CardDescription>Claims you have reviewed and closed for processing</CardDescription>
+          </CardHeader>
+          <CardContent className="pt-4">
+            {completedLoading ? (
+              <p className="text-center text-slate-500 py-4">Loading...</p>
+            ) : completedClaims && completedClaims.length > 0 ? (
+              <div className="space-y-2">
+                {completedClaims.slice(0, 10).map((claim: any) => (
+                  <div key={claim.id} className="p-3 bg-green-50/50 rounded-lg border border-green-100 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <span className="font-medium text-sm">{claim.claimNumber}</span>
+                      <span className="text-xs text-slate-500">
+                        {[claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" ")}
+                      </span>
+                      {claim.approvedAmount && (
+                        <Badge variant="outline" className="text-xs text-green-700">
+                          ${(claim.approvedAmount / 100).toLocaleString()}
+                        </Badge>
+                      )}
+                    </div>
+                    <Link href={`/insurer/claims/${claim.id}/comparison`}>
+                      <Button variant="ghost" size="sm" className="text-xs">
+                        <Eye className="h-3 w-3 mr-1" /> View
+                      </Button>
+                    </Link>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8">
+                <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-slate-500 text-sm">No closed claims yet</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Close for Processing Dialog */}
+        <Dialog open={showCloseDialog} onOpenChange={setShowCloseDialog}>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
-              <DialogTitle>Authorize Payment</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <FileCheck className="h-5 w-5 text-teal-600" />
+                Close Claim for Processing
+              </DialogTitle>
               <DialogDescription>
                 {selectedClaim && (
                   <>
-                    Claim: {selectedClaim.claimNumber} - {selectedClaim.vehicleRegistration}
-                    <br />
-                    Payment Amount: ${selectedClaim.estimatedCost ? (selectedClaim.estimatedCost / 100).toLocaleString() : "N/A"}
+                    Claim: <strong>{selectedClaim.claimNumber}</strong> — {selectedClaim.vehicleRegistration}
+                    {selectedClaim.estimatedCost && (
+                      <> | Est. Cost: <strong>${(selectedClaim.estimatedCost / 100).toLocaleString()}</strong></>
+                    )}
                   </>
                 )}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
-              {/* AI Comparison Summary */}
+              {/* Cost Comparison Summary */}
               {comparisonData && (
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
-                  <h3 className="font-semibold text-blue-900 text-sm">Cost Comparison Summary</h3>
+                <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-teal-800 text-sm flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Assessment Summary
+                  </h3>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-white rounded p-2">
-                      <p className="text-xs text-slate-600">AI Estimate</p>
-                      <p className="text-lg font-bold text-blue-900">
+                      <p className="text-xs text-slate-500">AI Estimate</p>
+                      <p className="text-lg font-bold text-teal-700">
                         {comparisonData.aiCost ? `$${comparisonData.aiCost.toLocaleString()}` : "N/A"}
                       </p>
                     </div>
                     <div className="bg-white rounded p-2">
-                      <p className="text-xs text-slate-600">Assessor</p>
-                      <p className="text-lg font-bold text-green-900">
+                      <p className="text-xs text-slate-500">Assessor</p>
+                      <p className="text-lg font-bold text-green-700">
                         {comparisonData.assessorCost ? `$${comparisonData.assessorCost.toLocaleString()}` : "N/A"}
                       </p>
                       {comparisonData.aiVsAssessor !== null && (
-                        <p className={`text-xs ${
-                          Math.abs(comparisonData.aiVsAssessor) > 15 ? "text-red-600 font-semibold" : "text-green-700"
-                        }`}>
-                          {Math.abs(comparisonData.aiVsAssessor).toFixed(1)}% vs AI
+                        <p className={`text-xs ${Math.abs(comparisonData.aiVsAssessor) > 15 ? "text-red-600 font-semibold" : "text-green-600"}`}>
+                          {comparisonData.aiVsAssessor > 0 ? "+" : ""}{comparisonData.aiVsAssessor.toFixed(1)}% vs AI
                         </p>
                       )}
                     </div>
                     <div className="bg-white rounded p-2">
-                      <p className="text-xs text-slate-600">Avg Quote</p>
-                      <p className="text-lg font-bold text-purple-900">
+                      <p className="text-xs text-slate-500">Avg Quote ({comparisonData.quoteCount})</p>
+                      <p className="text-lg font-bold text-purple-700">
                         {comparisonData.avgQuoteCost ? `$${comparisonData.avgQuoteCost.toLocaleString()}` : "N/A"}
                       </p>
-                      {comparisonData.quotesVsAi !== null && (
-                        <p className={`text-xs ${
-                          Math.abs(comparisonData.quotesVsAi) > 15 ? "text-red-600 font-semibold" : "text-purple-700"
-                        }`}>
-                          {Math.abs(comparisonData.quotesVsAi).toFixed(1)}% vs AI
-                        </p>
-                      )}
                     </div>
                   </div>
 
-                  {/* Variance Warnings */}
                   {(Math.abs(comparisonData.aiVsAssessor || 0) > 15 || Math.abs(comparisonData.quotesVsAi || 0) > 15) && (
                     <div className="bg-orange-50 border border-orange-300 rounded p-2 flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
                       <p className="text-xs text-orange-800">
-                        <strong>High Variance Detected:</strong> Significant differences between estimates. Review carefully.
+                        <strong>High Variance:</strong> Significant cost differences detected between estimates.
                       </p>
                     </div>
                   )}
 
-                  {/* Fraud Risk Warning */}
-                  {comparisonData.fraudRisk === "high" && (
-                    <div className="bg-red-50 border border-red-300 rounded p-2 flex items-start gap-2">
-                      <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-red-800">
-                        <strong>High Fraud Risk:</strong> AI detected suspicious patterns. Consider escalating to Risk Manager.
-                      </p>
-                    </div>
-                  )}
-
-                  <Link href={`/claims-manager/comparison/${selectedClaim?.id}`} target="_blank">
+                  <Link href={`/insurer/claims/${selectedClaim?.id}/comparison`}>
                     <Button variant="outline" size="sm" className="w-full text-xs">
                       <Eye className="h-3 w-3 mr-2" />
                       View Full Comparison Report
@@ -368,35 +442,60 @@ export default function ClaimsManagerDashboard() {
                 </div>
               )}
 
-              <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded">
-                <CheckCircle className="h-5 w-5 text-green-600" />
-                <p className="text-sm text-green-700">
-                  Authorizing this payment will close the claim and initiate payment processing
+              {/* Closure Action */}
+              <div className="space-y-2">
+                <Label>Processing Action</Label>
+                <Select value={closureAction} onValueChange={setClosureAction}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="approve_for_payment">
+                      Approve for Payment Settlement
+                    </SelectItem>
+                    <SelectItem value="approve_for_repair">
+                      Approve for Repair Assignment
+                    </SelectItem>
+                    <SelectItem value="close_no_action">
+                      Close — No Further Action Required
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 bg-teal-50 border border-teal-200 rounded">
+                <ArrowRight className="h-5 w-5 text-teal-600" />
+                <p className="text-sm text-teal-700">
+                  {closureAction === "approve_for_payment" 
+                    ? "This claim will be closed and forwarded for payment processing."
+                    : closureAction === "approve_for_repair"
+                    ? "This claim will be closed and forwarded for repair assignment."
+                    : "This claim will be closed with no further action required."}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="approvalNotes">Authorization Notes (Optional)</Label>
+                <Label htmlFor="closureNotes">Review Notes (Optional)</Label>
                 <Textarea
-                  id="approvalNotes"
-                  value={approvalNotes}
-                  onChange={(e) => setApprovalNotes(e.target.value)}
-                  placeholder="Add any notes about this payment authorization..."
+                  id="closureNotes"
+                  value={closureNotes}
+                  onChange={(e) => setClosureNotes(e.target.value)}
+                  placeholder="Add any notes about your review and decision..."
                   rows={4}
                 />
               </div>
             </div>
 
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowApproveDialog(false)}>
+              <Button variant="outline" onClick={() => setShowCloseDialog(false)}>
                 Cancel
               </Button>
               <Button 
-                onClick={handleSubmitApproval} 
-                disabled={authorizePayment.isPending}
-                className="bg-green-600 hover:bg-green-700"
+                onClick={handleSubmitClosure} 
+                disabled={closeForProcessing.isPending}
+                className="bg-teal-600 hover:bg-teal-700"
               >
-                {authorizePayment.isPending ? "Processing..." : "Authorize Payment"}
+                {closeForProcessing.isPending ? "Processing..." : "Close for Processing"}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -406,17 +505,33 @@ export default function ClaimsManagerDashboard() {
         <Dialog open={showSendBackDialog} onOpenChange={setShowSendBackDialog}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Send Claim Back for Review</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5 text-orange-600" />
+                Send Claim Back for Review
+              </DialogTitle>
               <DialogDescription>
-                {selectedClaim && `Claim: ${selectedClaim.claimNumber} - ${selectedClaim.vehicleRegistration}`}
+                {selectedClaim && `Claim: ${selectedClaim.claimNumber} — ${selectedClaim.vehicleRegistration}`}
               </DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Send Back To</Label>
+                <Select value={sendBackTarget} onValueChange={setSendBackTarget}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="risk_manager">Risk Manager — For re-assessment</SelectItem>
+                    <SelectItem value="claims_processor">Claims Processor — For additional information</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded">
                 <MessageSquare className="h-5 w-5 text-orange-600" />
                 <p className="text-sm text-orange-700">
-                  This claim will be returned to the Claims Processor for further review
+                  This claim will be returned to the {sendBackTarget === "risk_manager" ? "Risk Manager" : "Claims Processor"} for further review
                 </p>
               </div>
 
@@ -426,12 +541,9 @@ export default function ClaimsManagerDashboard() {
                   id="sendBackComments"
                   value={sendBackComments}
                   onChange={(e) => setSendBackComments(e.target.value)}
-                  placeholder="Explain what needs to be reviewed or validated (e.g., 'Please verify damage assessment with external assessor - estimated cost seems high for reported damage')"
+                  placeholder="Explain what needs to be reviewed or corrected (e.g., 'Cost estimates have high variance — please verify assessor evaluation against AI analysis')"
                   rows={6}
                 />
-                <p className="text-xs text-slate-500">
-                  These comments will be visible to the Claims Processor who can reassign the claim for re-assessment
-                </p>
               </div>
             </div>
 

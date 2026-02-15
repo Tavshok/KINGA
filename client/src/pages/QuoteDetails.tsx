@@ -153,7 +153,7 @@ export default function QuoteDetails() {
           </div>
         )}
         {quote.status === "payment_submitted" && (
-          <div className="flex items-center gap-2 text-blue-700 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-primary/90 bg-primary/5 border border-primary/20 rounded-lg px-4 py-3">
             <Clock className="h-5 w-5" />
             <span className="font-medium">Payment Verification in Progress</span>
           </div>

@@ -41,13 +41,13 @@ export default function AssessorLeaderboard() {
 
   const getTierBadge = (tier: string) => {
     if (tier === "enterprise") return <Badge className="bg-purple-600">Enterprise</Badge>;
-    if (tier === "premium") return <Badge className="bg-blue-600">Premium</Badge>;
+    if (tier === "premium") return <Badge className="bg-primary">Premium</Badge>;
     return <Badge variant="outline">Free</Badge>;
   };
 
   const getPerformanceBadge = (score: number) => {
     if (score >= 90) return <Badge className="bg-green-600">Excellent</Badge>;
-    if (score >= 75) return <Badge className="bg-blue-600">Good</Badge>;
+    if (score >= 75) return <Badge className="bg-primary">Good</Badge>;
     if (score >= 60) return <Badge className="bg-yellow-600">Average</Badge>;
     return <Badge className="bg-red-600">Needs Improvement</Badge>;
   };
@@ -165,7 +165,7 @@ export default function AssessorLeaderboard() {
                   <TableRow
                     key={assessor.id}
                     className={`${
-                      isCurrentUser ? "bg-blue-50 border-blue-200" : ""
+                      isCurrentUser ? "bg-primary/5 border-primary/20" : ""
                     } ${rank <= 3 ? "font-semibold" : ""}`}
                   >
                     <TableCell>
@@ -228,10 +228,10 @@ export default function AssessorLeaderboard() {
 
       {/* Upgrade CTA for Free Tier Users */}
       {user?.role === "assessor" && user?.assessorTier === "free" && (
-        <Card className="border-blue-500 bg-blue-50">
+        <Card className="border-primary/80 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-blue-600" />
+              <Target className="h-5 w-5 text-primary" />
               Climb the Leaderboard with Premium
             </CardTitle>
             <CardDescription>

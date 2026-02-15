@@ -54,7 +54,7 @@ export default function DocumentList({ claimId }: DocumentListProps) {
 
   const getFileIcon = (mimeType: string) => {
     if (mimeType.startsWith('image/')) {
-      return <ImageIcon className="h-8 w-8 text-blue-500" />;
+      return <ImageIcon className="h-8 w-8 text-primary/80" />;
     }
     if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
       return <FileSpreadsheet className="h-8 w-8 text-green-500" />;

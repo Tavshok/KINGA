@@ -27,7 +27,7 @@ interface UploadFile {
 }
 
 const statusColors: Record<string, string> = {
-  documents_uploaded: "bg-blue-100 text-blue-700",
+  documents_uploaded: "bg-primary/10 text-primary/90",
   extraction_complete: "bg-green-100 text-green-700",
   ground_truth_captured: "bg-emerald-100 text-emerald-700",
   variance_generated: "bg-purple-100 text-purple-700",

@@ -69,7 +69,7 @@ export default function AssessorPerformanceDashboard() {
 
   const getTierBadge = () => {
     if (tier === "free") return <Badge variant="outline">Free Tier</Badge>;
-    if (tier === "premium") return <Badge className="bg-blue-600"><Crown className="h-3 w-3 mr-1" />Premium</Badge>;
+    if (tier === "premium") return <Badge className="bg-primary"><Crown className="h-3 w-3 mr-1" />Premium</Badge>;
     return <Badge className="bg-purple-600"><Crown className="h-3 w-3 mr-1" />Enterprise</Badge>;
   };
 
@@ -99,7 +99,7 @@ export default function AssessorPerformanceDashboard() {
         <div className="flex items-center gap-3">
           {getTierBadge()}
           {isFree && (
-            <Button className="bg-blue-600 hover:bg-blue-700">
+            <Button className="bg-primary hover:bg-primary/90">
               <Crown className="h-4 w-4 mr-2" />
               Upgrade to Premium
             </Button>
@@ -109,15 +109,15 @@ export default function AssessorPerformanceDashboard() {
 
       {/* Upgrade Prompt for Free Tier */}
       {isFree && (
-        <Alert className="border-blue-600 bg-blue-50">
-          <Crown className="h-4 w-4 text-blue-600" />
+        <Alert className="border-primary bg-primary/5">
+          <Crown className="h-4 w-4 text-primary" />
           <AlertDescription>
-            <strong className="text-blue-900">Unlock Full Performance Insights</strong>
-            <p className="text-blue-800 mt-1">
+            <strong className="text-secondary">Unlock Full Performance Insights</strong>
+            <p className="text-secondary mt-1">
               Upgrade to Premium ($50/month) to see component-level breakdowns, improvement suggestions, 
               and priority claim assignments. Limited-time offer: First month 50% off!
             </p>
-            <Button className="mt-3 bg-blue-600 hover:bg-blue-700" size="sm">
+            <Button className="mt-3 bg-primary hover:bg-primary/90" size="sm">
               Upgrade Now
             </Button>
           </AlertDescription>
@@ -290,7 +290,7 @@ export default function AssessorPerformanceDashboard() {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             Assigned Claims
-            {isPremium && <Badge className="bg-blue-600">Priority Access</Badge>}
+            {isPremium && <Badge className="bg-primary">Priority Access</Badge>}
           </CardTitle>
           <CardDescription>
             {isPremium
@@ -307,7 +307,7 @@ export default function AssessorPerformanceDashboard() {
                 <p className="text-muted-foreground mb-4">
                   Get priority access to high-value claims and earn more with Premium tier
                 </p>
-                <Button className="bg-blue-600 hover:bg-blue-700">
+                <Button className="bg-primary hover:bg-primary/90">
                   <Crown className="h-4 w-4 mr-2" />
                   Upgrade to Premium
                 </Button>
@@ -356,7 +356,7 @@ export default function AssessorPerformanceDashboard() {
 
       {/* Tier Comparison (for Free users) */}
       {isFree && (
-        <Card className="border-2 border-blue-600">
+        <Card className="border-2 border-primary">
           <CardHeader>
             <CardTitle>Unlock Your Full Potential</CardTitle>
             <CardDescription>
@@ -390,38 +390,38 @@ export default function AssessorPerformanceDashboard() {
                 </ul>
               </div>
 
-              <div className="bg-blue-50 p-4 rounded-lg">
+              <div className="bg-primary/5 p-4 rounded-lg">
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <Crown className="h-4 w-4 text-blue-600" />
+                  <Crown className="h-4 w-4 text-primary" />
                   Premium Tier
                 </h3>
                 <ul className="space-y-2 text-sm">
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
                     <span className="font-medium">Component-level variance breakdown</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
                     <span className="font-medium">Detailed improvement suggestions</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
                     <span className="font-medium">Priority claim assignments</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
                     <span className="font-medium">Performance analytics & trends</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5" />
+                    <CheckCircle2 className="h-4 w-4 text-primary mt-0.5" />
                     <span className="font-medium">Earn 20-30% more per month</span>
                   </li>
                 </ul>
 
-                <div className="mt-4 pt-4 border-t border-blue-200">
-                  <p className="text-2xl font-bold text-blue-900 mb-1">$50/month</p>
-                  <p className="text-xs text-blue-700 mb-3">First month 50% off - Only $25!</p>
-                  <Button className="w-full bg-blue-600 hover:bg-blue-700">
+                <div className="mt-4 pt-4 border-t border-primary/20">
+                  <p className="text-2xl font-bold text-secondary mb-1">$50/month</p>
+                  <p className="text-xs text-primary/90 mb-3">First month 50% off - Only $25!</p>
+                  <Button className="w-full bg-primary hover:bg-primary/90">
                     <Crown className="h-4 w-4 mr-2" />
                     Upgrade Now
                   </Button>

@@ -578,8 +578,8 @@ export default function SubmitClaim() {
               </div>
 
               {formData.lodgedBy !== "self" && (
-                <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-sm font-medium text-blue-800">
+                <div className="space-y-4 p-4 bg-primary/5 rounded-lg border border-primary/20">
+                  <p className="text-sm font-medium text-secondary">
                     Representative Details ({LODGER_LABELS[formData.lodgedBy]})
                   </p>
                   <div className="grid gap-4 md:grid-cols-2">
@@ -1139,7 +1139,7 @@ export default function SubmitClaim() {
                           <span className="truncate flex-1">{doc.fileName}</span>
                           <div className="flex items-center gap-1 ml-2">
                             <a href={doc.url} target="_blank" rel="noopener noreferrer">
-                              <Eye className="h-3 w-3 text-blue-500" />
+                              <Eye className="h-3 w-3 text-primary/80" />
                             </a>
                             <button type="button" onClick={() => removeDoc(formData.supportingDocuments.indexOf(doc))}>
                               <X className="h-3 w-3 text-red-500" />

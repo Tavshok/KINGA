@@ -79,7 +79,7 @@ export default function AssessorClaimDetails() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -87,7 +87,7 @@ export default function AssessorClaimDetails() {
 
   if (!claim) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Claim Not Found</CardTitle>
@@ -106,7 +106,7 @@ export default function AssessorClaimDetails() {
   const damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
@@ -191,21 +191,21 @@ export default function AssessorClaimDetails() {
 
             {/* AI Co-Pilot Assessment */}
             {aiAssessment && (
-              <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+              <Card className="border-l-4 border-l-primary bg-primary/5/50">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
                       <CardTitle className="flex items-center gap-2">
-                        <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                         </svg>
                         AI Co-Pilot Assessment
                       </CardTitle>
-                      <CardDescription className="text-blue-700">
+                      <CardDescription className="text-primary/90">
                         AI-powered pre-assessment to assist your evaluation
                       </CardDescription>
                     </div>
-                    <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                    <Badge variant="secondary" className="bg-primary/10 text-primary/90">
                       Confidence: {aiAssessment.confidenceScore || 0}%
                     </Badge>
                   </div>
@@ -297,7 +297,7 @@ export default function AssessorClaimDetails() {
                     </div>
                   )}
 
-                  <div className="bg-blue-100 rounded-lg p-3 text-sm text-blue-800">
+                  <div className="bg-primary/10 rounded-lg p-3 text-sm text-secondary">
                     <strong>Note:</strong> This AI assessment is provided as guidance. You should use your professional judgment and expertise to make the final evaluation.
                   </div>
                 </CardContent>
@@ -521,7 +521,7 @@ export default function AssessorClaimDetails() {
                 <div>
                   <Label className="text-muted-foreground">Status</Label>
                   <div className="mt-1">
-                    <Badge>{claim.status.replace(/_/g, " ").toUpperCase()}</Badge>
+                    <Badge>{claim.status?.replace(/_/g, " ") || "unknown".toUpperCase()}</Badge>
                   </div>
                 </div>
 

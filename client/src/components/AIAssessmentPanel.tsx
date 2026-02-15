@@ -42,9 +42,9 @@ export default function AIAssessmentPanel({
   
   if (isLoading) {
     return (
-      <Card className="border-l-4 border-l-blue-500">
+      <Card className="border-l-4 border-l-primary">
         <CardContent className="flex items-center justify-center py-8">
-          <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="ml-3 text-sm text-slate-600">Loading AI assessment...</span>
         </CardContent>
       </Card>
@@ -77,21 +77,21 @@ export default function AIAssessmentPanel({
   }
 
   return (
-    <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+    <Card className="border-l-4 border-l-primary bg-primary/5/50">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <svg className="h-5 w-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="h-5 w-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
               </svg>
               AI Assessment Results
             </CardTitle>
-            <CardDescription className="text-blue-700">
+            <CardDescription className="text-primary/90">
               AI-powered analysis • Generated {new Date(aiAssessment.createdAt).toLocaleDateString()}
             </CardDescription>
           </div>
-          <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+          <Badge variant="secondary" className="bg-primary/10 text-primary/90">
             Confidence: {aiAssessment.confidenceScore || 0}%
           </Badge>
         </div>
@@ -195,7 +195,7 @@ export default function AIAssessmentPanel({
         )}
 
         {/* Disclaimer */}
-        <div className="bg-blue-100 rounded-lg p-3 text-sm text-blue-800">
+        <div className="bg-primary/10 rounded-lg p-3 text-sm text-secondary">
           <strong>Note:</strong> This AI assessment is provided as guidance. Professional judgment should be used for final decisions.
         </div>
 

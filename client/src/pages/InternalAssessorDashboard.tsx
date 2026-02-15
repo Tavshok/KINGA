@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { ClipboardList, AlertTriangle, CheckCircle2, FileSearch, Flag } from "lucide-react";
+import { ClipboardList, AlertTriangle, CheckCircle2, FileSearch, Flag, Brain } from "lucide-react";
+import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link } from "wouter";
 
 export default function InternalAssessorDashboard() {
@@ -141,6 +142,7 @@ export default function InternalAssessorDashboard() {
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
                           <Badge variant="outline">Pending Internal Assessment</Badge>
+                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
                           <div>
@@ -169,6 +171,11 @@ export default function InternalAssessorDashboard() {
                           <CheckCircle2 className="h-4 w-4 mr-2" />
                           Conduct Assessment
                         </Button>
+                        <AiAssessButton 
+                          claimId={claim.id}
+                          claimNumber={claim.claimNumber}
+                          size="sm"
+                        />
                         <Link href={`/insurer/comparison/${claim.id}`}>
                           <Button variant="outline" size="sm" className="w-full">
                             <FileSearch className="h-4 w-4 mr-2" />

@@ -50,7 +50,7 @@ export default function PhysicsConfidenceDashboard({ validation }: PhysicsConfid
   const getAnomalyIcon = (type: string) => {
     switch (type) {
       case "info":
-        return <Info className="h-5 w-5 text-blue-500" />;
+        return <Info className="h-5 w-5 text-primary/80" />;
       case "warning":
         return <AlertTriangle className="h-5 w-5 text-yellow-500" />;
       case "error":
@@ -61,7 +61,7 @@ export default function PhysicsConfidenceDashboard({ validation }: PhysicsConfid
   const getAnomalyBg = (type: string) => {
     switch (type) {
       case "info":
-        return "bg-blue-50 border-blue-200";
+        return "bg-primary/5 border-primary/20";
       case "warning":
         return "bg-yellow-50 border-yellow-200";
       case "error":
@@ -86,7 +86,7 @@ export default function PhysicsConfidenceDashboard({ validation }: PhysicsConfid
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Overall Assessment */}
-        <div className="p-4 bg-gradient-to-r from-blue-50 to-green-50 rounded-lg border">
+        <div className="p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg border">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-semibold text-lg">Overall Assessment</h3>
             <div className="flex items-center gap-2">

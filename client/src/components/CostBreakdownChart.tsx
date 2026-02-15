@@ -82,7 +82,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
       </div>
 
       {/* Total Cost */}
-      <div className="mb-6 p-4 bg-gradient-to-r from-green-50 to-blue-50 rounded-lg">
+      <div className="mb-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg">
         <p className="text-sm text-gray-600 mb-1">Total Estimated Cost</p>
         <p className="text-4xl font-bold text-green-600">
           {currency}{breakdown.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -260,7 +260,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
       </div>
 
       {/* Cost Analysis Notes */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
+      <div className="mt-4 p-3 bg-primary/5 rounded-lg">
         <p className="text-sm text-gray-700">
           <strong>Cost Analysis:</strong> Labor represents {((breakdown.labor / breakdown.total) * 100).toFixed(0)}% of total cost. 
           {breakdown.labor > breakdown.parts && " Labor-intensive repair expected."}

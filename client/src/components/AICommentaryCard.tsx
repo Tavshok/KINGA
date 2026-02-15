@@ -49,10 +49,10 @@ export function AICommentaryCard({
       default:
         return {
           icon: Brain,
-          color: 'text-blue-600',
-          bgColor: 'bg-blue-50',
-          borderColor: 'border-blue-200',
-          badge: 'bg-blue-100 text-blue-800'
+          color: 'text-primary',
+          bgColor: 'bg-primary/5',
+          borderColor: 'border-primary/20',
+          badge: 'bg-primary/10 text-secondary'
         };
     }
   };
@@ -86,7 +86,7 @@ export function AICommentaryCard({
             <ul className="space-y-1.5">
               {keyFindings.map((finding, index) => (
                 <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                  <span className="text-blue-600 mt-0.5">•</span>
+                  <span className="text-primary mt-0.5">•</span>
                   <span>{finding}</span>
                 </li>
               ))}

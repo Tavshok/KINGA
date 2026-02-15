@@ -21,14 +21,14 @@ export default function AssessorDashboard() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <KingaLogo />
             <div>
-              <p className="text-sm text-muted-foreground">Assessor Portal - Claim Assessment & Inspections</p>
+              <p className="text-sm text-teal-100">Assessor Portal - Claim Assessment & Inspections</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -44,7 +44,7 @@ export default function AssessorDashboard() {
             <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+              <p className="text-xs text-teal-100 capitalize">{user?.role}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
@@ -56,14 +56,14 @@ export default function AssessorDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transition-shadow">
+          <Card className="bg-gradient-to-br from-primary to-secondary text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-white">Assigned Claims</CardTitle>
               <FileText className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{claims.length}</div>
-              <p className="text-xs text-blue-100">Active assignments</p>
+              <p className="text-xs text-primary-foreground/80">Active assignments</p>
             </CardContent>
           </Card>
 
@@ -127,7 +127,7 @@ export default function AssessorDashboard() {
                         {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
                       </p>
                       <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{claim.status.replace(/_/g, " ")}</Badge>
+                        <Badge variant="outline">{claim.status?.replace(/_/g, " ") || "unknown"}</Badge>
                         {claim.policyVerified && (
                           <Badge variant="default" className="bg-green-600">Verified</Badge>
                         )}

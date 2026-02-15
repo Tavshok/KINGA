@@ -115,7 +115,7 @@ export default function ExecutiveAnalyticsCharts() {
         <Card>
           <CardHeader>
             <div className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-blue-600" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               <CardTitle>Claims Volume Trend</CardTitle>
             </div>
             <CardDescription>Daily claim submissions and fraud detection</CardDescription>

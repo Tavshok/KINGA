@@ -50,7 +50,7 @@ export default function AdminTierManagement() {
   const getTierBadge = (tier: string | null) => {
     switch (tier) {
       case "premium":
-        return <Badge className="bg-blue-500">Premium</Badge>;
+        return <Badge className="bg-primary/80">Premium</Badge>;
       case "enterprise":
         return <Badge className="bg-purple-500">Enterprise</Badge>;
       default:
@@ -126,7 +126,7 @@ export default function AdminTierManagement() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Premium Tier</CardTitle>
-            <Shield className="h-4 w-4 text-blue-500" />
+            <Shield className="h-4 w-4 text-primary/80" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{revenue.premium}</div>

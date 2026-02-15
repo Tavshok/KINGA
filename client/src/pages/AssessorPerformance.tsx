@@ -19,7 +19,7 @@ export default function AssessorPerformance() {
 
   if (isLoading || !metrics) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
         <div className="text-center">
           <Clock className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
           <p className="text-muted-foreground">Loading performance metrics...</p>
@@ -29,7 +29,7 @@ export default function AssessorPerformance() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
@@ -328,7 +328,7 @@ export default function AssessorPerformance() {
                   </Badge>
                 )}
                 {metrics.totalSavings >= 100000 && (
-                  <Badge className="bg-blue-600 text-white px-4 py-2">
+                  <Badge className="bg-primary text-white px-4 py-2">
                     💰 Cost Saver - $1000+ saved
                   </Badge>
                 )}

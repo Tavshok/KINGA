@@ -82,7 +82,7 @@ export function HistoricalBenchmarkCard({
     if (variance === null) return null;
     if (Math.abs(variance) < 10) return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Within Range</Badge>;
     if (variance > 25) return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Above Average</Badge>;
-    if (variance < -25) return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">Below Average</Badge>;
+    if (variance < -25) return <Badge variant="outline" className="bg-primary/5 text-primary/90 border-primary/20">Below Average</Badge>;
     return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Moderate Variance</Badge>;
   };
 
@@ -175,7 +175,7 @@ export function HistoricalBenchmarkCard({
                 Current quote ({formatCurrency(currentQuotedCost)}) is significantly higher than the historical average final approved cost. Consider negotiation or additional assessment.
               </p>
             ) : currentQuotedCost < avgFinal * 0.7 ? (
-              <p className="text-xs text-blue-600 font-medium">
+              <p className="text-xs text-primary font-medium">
                 Current quote ({formatCurrency(currentQuotedCost)}) is significantly lower than the historical average. Verify scope of work is complete.
               </p>
             ) : (

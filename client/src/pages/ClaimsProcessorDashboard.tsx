@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Upload, Eye, RefreshCw, MessageSquare, Plus, Search, ChevronsUpDown, Check } from "lucide-react";
+import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Upload, Eye, RefreshCw, MessageSquare, Search, ChevronsUpDown, Check, Brain } from "lucide-react";
+import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { cn } from "@/lib/utils";
 
 /**
@@ -154,25 +155,36 @@ export default function ClaimsProcessorDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-secondary/5">
+      {/* KINGA Branded Header */}
+      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white py-6 px-6 shadow-lg">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Claims Processor Dashboard</h1>
-            <p className="text-slate-600 mt-1">Process claims, upload documents, and assign assessors</p>
+            <h1 className="text-2xl font-bold">Claims Processor Dashboard</h1>
+            <p className="text-teal-100 text-sm">Process claims, upload documents, and assign assessors</p>
           </div>
-          <NewClaimButton onSuccess={() => refetchPending()} />
+          <div className="flex gap-2">
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => refetchPending()}>
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Refresh
+            </Button>
+            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = '/portal-hub'}>
+              Portal Hub
+            </Button>
+          </div>
         </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto space-y-6 p-6">
 
         {/* Info Banner */}
-        <Card className="bg-blue-50 border-blue-200">
+        <Card className="bg-primary/5 border-primary/20">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+              <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
               <div>
-                <h3 className="font-semibold text-blue-900">Claims Processing Workflow</h3>
-                <p className="text-sm text-blue-700 mt-1">
+                <h3 className="font-semibold text-secondary">Claims Processing Workflow</h3>
+                <p className="text-sm text-primary/90 mt-1">
                   Claims are submitted by claimants through their portal. Your role is to review submitted claims,
                   upload additional documents (e.g., historical PDFs received via email), assign assessors, and
                   view AI assessment results.
@@ -209,6 +221,7 @@ export default function ClaimsProcessorDashboard() {
                             <AlertCircle className="h-3 w-3 mr-1" />
                             Returned for Review
                           </Badge>
+                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
                           <div>
@@ -263,7 +276,7 @@ export default function ClaimsProcessorDashboard() {
         <Card className="shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-blue-600" />
+              <FileText className="h-5 w-5 text-primary" />
               Pending Claims
             </CardTitle>
             <CardDescription>Claims submitted by claimants awaiting your action</CardDescription>
@@ -285,13 +298,14 @@ export default function ClaimsProcessorDashboard() {
                 {pendingClaims.map((claim: any) => (
                   <div
                     key={claim.id}
-                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-blue-300 transition-colors"
+                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-primary/40 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
                           {getStatusBadge(claim.workflowState)}
+                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
                           <div>
@@ -337,7 +351,7 @@ export default function ClaimsProcessorDashboard() {
                                 <Upload className="h-12 w-12 text-slate-400 mx-auto mb-3" />
                                 <Label
                                   htmlFor={`file-upload-${claim.id}`}
-                                  className="cursor-pointer text-blue-600 hover:text-blue-700 font-medium"
+                                  className="cursor-pointer text-primary hover:text-primary/90 font-medium"
                                 >
                                   Click to select PDF file
                                 </Label>
@@ -359,7 +373,7 @@ export default function ClaimsProcessorDashboard() {
                                 </p>
                               </div>
                               {uploadingFile && (
-                                <p className="text-center text-sm text-blue-600">
+                                <p className="text-center text-sm text-primary">
                                   Uploading document...
                                 </p>
                               )}
@@ -510,273 +524,6 @@ export default function ClaimsProcessorDashboard() {
 }
 
 
-// ========== SUBMIT NEW CLAIM BUTTON + DIALOG ==========
-function NewClaimButton({ onSuccess }: { onSuccess: () => void }) {
-  const [open, setOpen] = useState(false);
-  const [step, setStep] = useState(1);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const utils = trpc.useUtils();
-
-  // Form state
-  const [vehicleMake, setVehicleMake] = useState("");
-  const [vehicleModel, setVehicleModel] = useState("");
-  const [vehicleYear, setVehicleYear] = useState("");
-  const [vehicleRegistration, setVehicleRegistration] = useState("");
-  const [incidentDate, setIncidentDate] = useState("");
-  const [incidentDescription, setIncidentDescription] = useState("");
-  const [incidentLocation, setIncidentLocation] = useState("");
-  const [policyNumber, setPolicyNumber] = useState("");
-  const [damagePhotos, setDamagePhotos] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-
-  const submitMutation = trpc.claims.submit.useMutation({
-    onSuccess: (data) => {
-      toast.success(`Claim ${data.claimNumber} submitted successfully!`);
-      setOpen(false);
-      resetForm();
-      onSuccess();
-    },
-    onError: (error) => {
-      toast.error(error.message || "Failed to submit claim");
-    },
-  });
-
-  const resetForm = () => {
-    setStep(1);
-    setVehicleMake("");
-    setVehicleModel("");
-    setVehicleYear("");
-    setVehicleRegistration("");
-    setIncidentDate("");
-    setIncidentDescription("");
-    setIncidentLocation("");
-    setPolicyNumber("");
-    setDamagePhotos([]);
-  };
-
-  const handlePhotoUpload = async (files: FileList) => {
-    setUploading(true);
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const reader = new FileReader();
-        return new Promise<string>((resolve, reject) => {
-          reader.onload = async () => {
-            try {
-              const base64 = reader.result as string;
-              // Use the document upload mutation to get S3 URL
-              const response = await fetch("/api/trpc/documents.uploadPhoto", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ json: { fileData: base64, fileName: file.name, mimeType: file.type } }),
-              });
-              if (response.ok) {
-                const result = await response.json();
-                resolve(result?.result?.data?.json?.url || base64);
-              } else {
-                // Fallback: use base64 directly
-                resolve(base64);
-              }
-            } catch {
-              resolve(reader.result as string);
-            }
-          };
-          reader.onerror = reject;
-          reader.readAsDataURL(file);
-        });
-      });
-      const urls = await Promise.all(uploadPromises);
-      setDamagePhotos(prev => [...prev, ...urls]);
-      toast.success(`${files.length} photo(s) added`);
-    } catch (error) {
-      toast.error("Failed to upload photos");
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const handleSubmit = () => {
-    if (!vehicleMake || !vehicleModel || !vehicleYear || !vehicleRegistration || !incidentDate || !incidentDescription || !incidentLocation || !policyNumber) {
-      toast.error("Please fill in all required fields");
-      return;
-    }
-    submitMutation.mutate({
-      vehicleMake,
-      vehicleModel,
-      vehicleYear: parseInt(vehicleYear),
-      vehicleRegistration,
-      incidentDate,
-      incidentDescription,
-      incidentLocation,
-      damagePhotos,
-      policyNumber,
-      selectedPanelBeaterIds: [],
-    });
-  };
-
-  const commonMakes = [
-    "Toyota", "Honda", "Nissan", "Mazda", "BMW", "Mercedes-Benz",
-    "Volkswagen", "Ford", "Chevrolet", "Hyundai", "Kia", "Isuzu",
-    "Mitsubishi", "Subaru", "Audi", "Land Rover", "Jeep", "Peugeot"
-  ];
-
-  return (
-    <>
-      <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700">
-        <Plus className="h-4 w-4 mr-2" />
-        Submit New Claim
-      </Button>
-
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Submit New Claim</DialogTitle>
-            <DialogDescription>
-              Step {step} of 3 — {step === 1 ? "Vehicle & Policy" : step === 2 ? "Incident Details" : "Review & Submit"}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Step indicators */}
-          <div className="flex items-center gap-2 mb-4">
-            {[1, 2, 3].map((s) => (
-              <div key={s} className="flex items-center gap-2 flex-1">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                  s <= step ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
-                }`}>
-                  {s}
-                </div>
-                {s < 3 && <div className={`flex-1 h-1 rounded ${s < step ? "bg-blue-600" : "bg-gray-200"}`} />}
-              </div>
-            ))}
-          </div>
-
-          {step === 1 && (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Vehicle Make *</Label>
-                  <Input value={vehicleMake} onChange={(e) => setVehicleMake(e.target.value)} placeholder="Toyota" list="proc-makes" />
-                  <datalist id="proc-makes">
-                    {commonMakes.map(m => <option key={m} value={m} />)}
-                  </datalist>
-                </div>
-                <div>
-                  <Label>Vehicle Model *</Label>
-                  <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="Hilux" />
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Year *</Label>
-                  <Input type="number" value={vehicleYear} onChange={(e) => setVehicleYear(e.target.value)} placeholder="2022" min="1990" max="2030" />
-                </div>
-                <div>
-                  <Label>Registration Number *</Label>
-                  <Input value={vehicleRegistration} onChange={(e) => setVehicleRegistration(e.target.value)} placeholder="ABC 1234" />
-                </div>
-              </div>
-              <div>
-                <Label>Policy Number *</Label>
-                <Input value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} placeholder="POL-12345" />
-              </div>
-              <div className="flex justify-end">
-                <Button onClick={() => {
-                  if (!vehicleMake || !vehicleModel || !vehicleYear || !vehicleRegistration || !policyNumber) {
-                    toast.error("Please fill in all required fields"); return;
-                  }
-                  setStep(2);
-                }}>Next: Incident Details</Button>
-              </div>
-            </div>
-          )}
-
-          {step === 2 && (
-            <div className="space-y-4">
-              <div>
-                <Label>Incident Date *</Label>
-                <Input type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} />
-              </div>
-              <div>
-                <Label>Incident Location *</Label>
-                <Input value={incidentLocation} onChange={(e) => setIncidentLocation(e.target.value)} placeholder="Corner of Main St and 2nd Ave, Harare" />
-              </div>
-              <div>
-                <Label>Incident Description *</Label>
-                <Textarea
-                  value={incidentDescription}
-                  onChange={(e) => setIncidentDescription(e.target.value)}
-                  placeholder="Describe the incident in detail..."
-                  rows={4}
-                />
-              </div>
-              <div>
-                <Label>Damage Photos</Label>
-                <div
-                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
-                  <p className="text-sm text-muted-foreground">Click to add damage photos</p>
-                  {damagePhotos.length > 0 && (
-                    <p className="text-xs text-blue-600 mt-1">{damagePhotos.length} photo(s) added</p>
-                  )}
-                </div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  multiple
-                  onChange={(e) => e.target.files && handlePhotoUpload(e.target.files)}
-                />
-              </div>
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
-                <Button onClick={() => {
-                  if (!incidentDate || !incidentLocation || !incidentDescription) {
-                    toast.error("Please fill in all required fields"); return;
-                  }
-                  setStep(3);
-                }}>Next: Review</Button>
-              </div>
-            </div>
-          )}
-
-          {step === 3 && (
-            <div className="space-y-4">
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base">Review Claim Details</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                    <div><span className="text-muted-foreground">Vehicle:</span> {vehicleYear} {vehicleMake} {vehicleModel}</div>
-                    <div><span className="text-muted-foreground">Registration:</span> {vehicleRegistration}</div>
-                    <div><span className="text-muted-foreground">Policy:</span> {policyNumber}</div>
-                    <div><span className="text-muted-foreground">Incident Date:</span> {incidentDate}</div>
-                    <div className="col-span-2"><span className="text-muted-foreground">Location:</span> {incidentLocation}</div>
-                    <div className="col-span-2"><span className="text-muted-foreground">Description:</span> {incidentDescription}</div>
-                    <div><span className="text-muted-foreground">Photos:</span> {damagePhotos.length} attached</div>
-                  </div>
-                </CardContent>
-              </Card>
-              <div className="flex justify-between">
-                <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
-                <Button
-                  onClick={handleSubmit}
-                  disabled={submitMutation.isPending}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {submitMutation.isPending ? "Submitting..." : "Submit Claim"}
-                </Button>
-              </div>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
 // ========== SEARCHABLE ASSESSOR SELECT ==========
 function AssessorSearchSelect({
   assessors,
@@ -848,7 +595,7 @@ function AssessorSearchSelect({
                         <span className="text-xs text-muted-foreground">{assessor.email}</span>
                       )}
                       {assessor.specialization && (
-                        <span className="text-xs text-blue-600">{assessor.specialization}</span>
+                        <span className="text-xs text-primary">{assessor.specialization}</span>
                       )}
                     </div>
                   </CommandItem>

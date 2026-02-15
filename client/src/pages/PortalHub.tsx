@@ -27,7 +27,7 @@ export default function PortalHub() {
       description: "Claims management, executive insights, fraud analytics, and role-based workflows",
       icon: Building2,
       path: "/insurer-portal",
-      color: "from-blue-500 to-cyan-500",
+      color: "from-primary to-accent",
       roles: ["insurer", "admin"]
     },
     {

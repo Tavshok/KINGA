@@ -267,7 +267,7 @@ export default function PanelBeaterPerformance() {
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <DollarSign className="w-4 h-4 text-blue-500" />
+                      <DollarSign className="w-4 h-4 text-primary/80" />
                       <span className="text-sm text-muted-foreground">Cost Index</span>
                     </div>
                     <Badge variant={pb.costCompetitivenessIndex >= 100 ? "default" : "secondary"}>

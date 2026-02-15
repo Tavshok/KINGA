@@ -12,15 +12,15 @@ export default function ClaimantDashboard() {
   const [, setLocation] = useLocation();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <FileText className="h-8 w-8 text-primary" />
+            <FileText className="h-8 w-8 text-white" />
             <div>
-              <h1 className="text-2xl font-bold">KINGA - Claimant Portal</h1>
-              <p className="text-sm text-muted-foreground">Submit & Track Your Claims</p>
+              <h1 className="text-2xl font-bold text-white">KINGA - Claimant Portal</h1>
+              <p className="text-sm text-teal-100">Submit & Track Your Claims</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -28,7 +28,7 @@ export default function ClaimantDashboard() {
             <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+              <p className="text-xs text-teal-100 capitalize">{user?.role}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
@@ -40,47 +40,47 @@ export default function ClaimantDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-br from-teal-500 to-teal-700 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Claims</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-white/90">Total Claims</CardTitle>
+              <FileText className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">All time</p>
+              <p className="text-xs text-white/70">All time</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-orange-400 to-orange-600 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">In Progress</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
+              <CardTitle className="text-sm font-medium text-white/90">In Progress</CardTitle>
+              <Clock className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Being processed</p>
+              <p className="text-xs text-white/70">Being processed</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Completed</CardTitle>
-              <CheckCircle className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-sm font-medium text-white/90">Completed</CardTitle>
+              <CheckCircle className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Successfully resolved</p>
+              <p className="text-xs text-white/70">Successfully resolved</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-700 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Avg. Resolution Time</CardTitle>
-              <Clock className="h-4 w-4 text-blue-500" />
+              <CardTitle className="text-sm font-medium text-white/90">Avg. Resolution Time</CardTitle>
+              <Clock className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0d</div>
-              <p className="text-xs text-muted-foreground">Days to completion</p>
+              <p className="text-xs text-white/70">Days to completion</p>
             </CardContent>
           </Card>
         </div>

@@ -135,12 +135,12 @@ export default function ExecutiveDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-secondary/5 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
               Executive Command Center
             </h1>
             <p className="text-slate-600 mt-2">Real-time insights and decision-making tools</p>
@@ -151,10 +151,10 @@ export default function ExecutiveDashboard() {
         </div>
 
         {/* Global Search */}
-        <Card className="border-2 border-blue-200 shadow-lg">
+        <Card className="border-2 border-primary/20 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Search className="h-5 w-5 text-blue-600" />
+              <Search className="h-5 w-5 text-primary" />
               Global Search
             </CardTitle>
             <CardDescription>
@@ -179,7 +179,7 @@ export default function ExecutiveDashboard() {
             {searchResults && searchResults.length > 0 && (
               <div className="mt-4 space-y-2 max-h-96 overflow-y-auto">
                 {searchResults.map((claim: any) => (
-                  <div key={claim.id} className="p-4 bg-white rounded-lg border hover:border-blue-500 hover:shadow-md transition-all">
+                  <div key={claim.id} className="p-4 bg-white rounded-lg border hover:border-primary/80 hover:shadow-md transition-all">
                     <div className="flex items-center justify-between">
                       <div className="flex-1">
                         <p className="font-semibold">{claim.claimNumber}</p>
@@ -240,7 +240,7 @@ export default function ExecutiveDashboard() {
             Export KPIs
           </Button>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">      <Card className="border-l-4 border-l-blue-500 shadow-md hover:shadow-lg transition-shadow">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">      <Card className="border-l-4 border-l-primary shadow-md hover:shadow-lg transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium text-slate-600 flex items-center gap-2">
                 <FileText className="h-4 w-4" />
@@ -248,7 +248,7 @@ export default function ExecutiveDashboard() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold text-blue-600">
+              <div className="text-3xl font-bold text-primary">
                 {kpisLoading ? "..." : kpis?.totalClaims || 0}
               </div>
               <p className="text-xs text-slate-500 mt-1">
@@ -570,7 +570,7 @@ export default function ExecutiveDashboard() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5 text-blue-600" />
+                      <Users className="h-5 w-5 text-primary" />
                       Assessor Performance Leaderboard
                     </CardTitle>
                     <CardDescription>Ranked by performance score</CardDescription>
@@ -608,7 +608,7 @@ export default function ExecutiveDashboard() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="text-lg font-bold text-blue-600">{assessor.performanceScore || 0}</p>
+                          <p className="text-lg font-bold text-primary">{assessor.performanceScore || 0}</p>
                           <p className="text-xs text-slate-500">{assessor.totalAssessments || 0} assessments</p>
                           <Badge variant={assessor.tier === "premium" ? "default" : "secondary"} className="mt-1 text-xs">
                             {assessor.tier || "free"}
@@ -690,12 +690,12 @@ export default function ExecutiveDashboard() {
               </Button>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="shadow-md border-l-4 border-l-blue-500">
+              <Card className="shadow-md border-l-4 border-l-primary">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-medium text-slate-600">Total Payouts</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">
+                  <div className="text-2xl font-bold text-primary">
                     ${financialsLoading ? "..." : (financials?.totalPayouts || 0).toLocaleString()}
                   </div>
                   <p className="text-xs text-slate-500 mt-1">Completed claims</p>
@@ -777,8 +777,8 @@ export default function ExecutiveDashboard() {
                 />
               </div>
 
-              <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-                <p className="text-sm text-blue-700">
+              <div className="p-3 bg-primary/5 border border-primary/20 rounded">
+                <p className="text-sm text-primary/90">
                   <strong>Note:</strong> Your comment will be visible to all roles involved in this claim for transparency.
                 </p>
               </div>

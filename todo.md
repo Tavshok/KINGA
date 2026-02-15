@@ -5933,3 +5933,30 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Replace external logo image with inline SVG for better performance
 - [ ] Test redesigned UI across all user roles
 - [ ] Create checkpoint with new UI design
+
+
+## Bug Fixes & Final Testing (2026-02-15)
+- [ ] Revert KingaLogo from distorted SVG back to original image
+- [ ] Fix Claims Processor page - remove Submit Claim, add Upload Claim Documents
+- [ ] Audit and fix all routing errors across the platform
+- [ ] Fix branding consistency across all dashboards
+- [ ] Comprehensive browser testing of all portals
+
+## Risk Flagging & AI Assessment Access (2026-02-15)
+- [ ] Add AI Assess trigger to ClaimsManagerDashboard
+- [ ] Add AI Assess trigger to ClaimsProcessorDashboard  
+- [ ] Add AI Assess trigger to InternalAssessorDashboard
+- [ ] Add visual risk flag indicators on all claim cards (red/orange/yellow badges)
+- [ ] Flag claims based on fraud risk score from AI assessment
+- [ ] Show risk indicators on InsurerClaimsTriage
+- [ ] Show risk indicators on ClaimsProcessorDashboard
+- [ ] Show risk indicators on ClaimsManagerDashboard
+- [ ] Show risk indicators on InternalAssessorDashboard
+
+## Claims Manager Redesign (2026-02-15)
+- [x] Redesign Claims Manager to show reviewable claims (not just payment authorization)
+- [x] Add "Close for Processing" action with 3 options (payment, repair, no action)
+- [x] Show claims with completed assessments ready for manager review (255 claims)
+- [x] Add ability to send claims back (to Risk Manager or Claims Processor)
+- [x] Integrate RiskBadge and AiAssessButton into Claims Manager
+- [x] Add claim review details (AI assessment summary, assessor evaluation, quotes in dialog)

@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign, ClipboardList, ChevronsUpDown } from "lucide-react";
+import { RiskBadge } from "@/components/ClaimRiskIndicators";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -137,7 +138,7 @@ export default function InsurerClaimsTriage() {
   const getStatusBadge = (status: string) => {
     const statusConfig: Record<string, { className: string; label: string }> = {
       submitted: { 
-        className: "bg-gradient-to-r from-blue-400 to-blue-500 text-white border-none", 
+        className: "bg-gradient-to-r from-primary to-primary/80 text-white border-none", 
         label: "Pending Triage" 
       },
       triage: { 
@@ -185,16 +186,16 @@ export default function InsurerClaimsTriage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <KingaLogo />
               <div>
-                <p className="text-sm text-muted-foreground">Claims Triage</p>
-                <p className="text-sm text-muted-foreground">Review and process submitted claims</p>
+                <p className="text-sm text-teal-100">Claims Triage</p>
+                <p className="text-sm text-teal-100">Review and process submitted claims</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -208,7 +209,7 @@ export default function InsurerClaimsTriage() {
               </Button>
               <div className="text-right">
                 <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                <p className="text-xs text-teal-100 capitalize">{user?.role}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => logout()}>
                 Sign Out
@@ -260,6 +261,7 @@ export default function InsurerClaimsTriage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Policy</TableHead>
+                    <TableHead>Risk</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -312,6 +314,9 @@ export default function InsurerClaimsTriage() {
                             Rejected
                           </Badge>
                         )}
+                      </TableCell>
+                      <TableCell>
+                        <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-2 min-w-[200px]">

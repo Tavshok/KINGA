@@ -160,7 +160,7 @@ export default function InsurerComparisonView() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
@@ -168,7 +168,7 @@ export default function InsurerComparisonView() {
 
   if (!claim) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-green-50">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Claim Not Found</CardTitle>
@@ -224,7 +224,7 @@ export default function InsurerComparisonView() {
   const fraudDetected = hasFraudIndicators();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
         <header className="bg-white border-b">
         <div className="container mx-auto px-4 py-4">
@@ -415,7 +415,7 @@ export default function InsurerComparisonView() {
           <Card className={aiAssessment ? "" : "opacity-60"}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-blue-100">AI</Badge>
+                <Badge variant="outline" className="bg-primary/10">AI</Badge>
                 AI Assessment
               </CardTitle>
               <CardDescription>
@@ -676,10 +676,10 @@ export default function InsurerComparisonView() {
         
            {/* Physics-Based Quote Validation */}
         {aiAssessment && quotes.length > 0 && (
-          <Card className="border-2 border-blue-200 bg-blue-50/30">
+          <Card className="border-2 border-primary/20 bg-primary/5/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-blue-600">Physics Analysis</Badge>
+                <Badge className="bg-primary">Physics Analysis</Badge>
                 Quote Validation & Fraud Detection
               </CardTitle>
               <CardDescription>
@@ -909,7 +909,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-blue-600">${(partsCost / 100).toFixed(2)}</p>
+          <p className="text-2xl font-bold text-primary">${(partsCost / 100).toFixed(2)}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
@@ -1026,9 +1026,9 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
       )}
 
       {/* AI Damage Description */}
-      <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
-        <h4 className="font-semibold mb-2 text-blue-900">AI Damage Analysis Summary</h4>
-        <p className="text-sm text-blue-800 whitespace-pre-wrap">{damageDescription}</p>
+      <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+        <h4 className="font-semibold mb-2 text-secondary">AI Damage Analysis Summary</h4>
+        <p className="text-sm text-secondary whitespace-pre-wrap">{damageDescription}</p>
       </div>
     </div>
   );
@@ -1149,7 +1149,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
       <div className="grid gap-4 md:grid-cols-3">
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-xs text-muted-foreground mb-1">Estimated Speed</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-2xl font-bold text-primary">
             {physicsAnalysis.estimatedSpeed?.value || 0} km/h
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -1159,7 +1159,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-xs text-muted-foreground mb-1">Impact Force</p>
-          <p className="text-2xl font-bold text-blue-600">
+          <p className="text-2xl font-bold text-primary">
             {((physicsAnalysis.impactForce?.magnitude || 0) / 1000).toFixed(1)} kN
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -1280,8 +1280,8 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
       )}
       
       {/* Quote Validation Summary */}
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-semibold text-blue-900 mb-3">Quote Validation Summary</h4>
+      <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+        <h4 className="font-semibold text-secondary mb-3">Quote Validation Summary</h4>
         <div className="space-y-2">
           {quotes.map((quote, idx) => {
             const hasIssues = physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0 || 

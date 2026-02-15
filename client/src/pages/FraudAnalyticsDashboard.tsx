@@ -19,7 +19,7 @@ export default function FraudAnalyticsDashboard() {
   const fraudStats = calculateFraudStatistics(claims);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-sm">
         <div className="container flex h-16 items-center justify-between">
@@ -366,12 +366,12 @@ export default function FraudAnalyticsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex items-center justify-between p-3 bg-primary/5 rounded-lg border border-primary/20">
                   <div>
                     <p className="font-medium text-sm">Physics-Based Analysis</p>
                     <p className="text-xs text-muted-foreground">Speed, impact force, damage consistency</p>
                   </div>
-                  <Badge className="bg-blue-600">{fraudStats.physicsDetections}</Badge>
+                  <Badge className="bg-primary">{fraudStats.physicsDetections}</Badge>
                 </div>
 
                 <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">

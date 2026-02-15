@@ -85,7 +85,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
       case "assessment_completed":
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
       case "quote_submitted":
-        return <FileText className="h-5 w-5 text-blue-500" />;
+        return <FileText className="h-5 w-5 text-primary/80" />;
       case "status_changed":
         return <Clock className="h-5 w-5 text-orange-500" />;
       default:
@@ -153,7 +153,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
               <div
                 key={notification.id}
                 className={`p-4 hover:bg-accent/50 cursor-pointer transition-colors ${
-                  !notification.isRead ? "bg-blue-50/50" : ""
+                  !notification.isRead ? "bg-primary/5/50" : ""
                 }`}
                 onClick={() => handleNotificationClick(notification)}
               >

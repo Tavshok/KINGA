@@ -63,7 +63,7 @@ export default function NewAssessmentUpload() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-8">New Assessment Upload (Debug Version)</h1>
 
@@ -78,8 +78,8 @@ export default function NewAssessmentUpload() {
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-md file:border-0
                 file:text-sm file:font-semibold
-                file:bg-blue-50 file:text-blue-700
-                hover:file:bg-blue-100"
+                file:bg-primary/5 file:text-primary/90
+                hover:file:bg-primary/10"
             />
             {file && (
               <p className="text-sm text-gray-600">

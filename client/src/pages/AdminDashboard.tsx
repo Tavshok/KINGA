@@ -263,7 +263,7 @@ export default function AdminDashboard() {
             onClick={() => setLocation("/admin/market-quotes")}
           >
             <Database className="mr-2 h-4 w-4" />
-            Market Quotes
+            KINGA Agency
           </Button>
         </div>
 
@@ -352,7 +352,7 @@ export default function AdminDashboard() {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   {[
-                    { status: "submitted", label: "Submitted", color: "text-blue-600" },
+                    { status: "submitted", label: "Submitted", color: "text-primary" },
                     { status: "triage", label: "In Triage", color: "text-yellow-600" },
                     { status: "assessment_pending", label: "Assessment Pending", color: "text-orange-600" },
                     { status: "completed", label: "Completed", color: "text-green-600" },

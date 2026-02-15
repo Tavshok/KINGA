@@ -42,7 +42,7 @@ function KPICard({ title, value, change, changeLabel, icon: Icon, color, onClick
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-          color === 'blue' ? 'bg-blue-100 text-blue-600' :
+          color === 'blue' ? 'bg-primary/10 text-primary' :
           color === 'purple' ? 'bg-purple-100 text-purple-600' :
           color === 'red' ? 'bg-red-100 text-red-600' :
           color === 'green' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
@@ -185,8 +185,8 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
           </div>
         </div>
 
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-900">
+        <div className="p-4 bg-primary/5 rounded-lg">
+          <p className="text-sm text-secondary">
             <strong>Average Processing Time:</strong> {kpis.claimsProcessed.details.avgProcessingTime}
           </p>
         </div>
@@ -283,8 +283,8 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
           </div>
         </div>
 
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-900">
+        <div className="p-4 bg-primary/5 rounded-lg">
+          <p className="text-sm text-secondary">
             <strong>Detection Accuracy:</strong> {((kpis.fraudDetectionRate.details.confirmed / kpis.fraudDetectionRate.details.flagged) * 100).toFixed(1)}%
             <span className="ml-2 text-muted-foreground">
               ({kpis.fraudDetectionRate.details.falsePositives} false positives)
@@ -334,8 +334,8 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
           })}
         </div>
 
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-900">
+        <div className="p-4 bg-primary/5 rounded-lg">
+          <p className="text-sm text-secondary">
             <strong>Average Saving Per Claim:</strong> {kpis.costSavings.details.avgSavingPerClaim}
           </p>
         </div>

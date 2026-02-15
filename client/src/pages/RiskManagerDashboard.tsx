@@ -7,7 +7,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Shield, DollarSign, CheckCircle, XCircle, AlertCircle, Eye } from "lucide-react";
+import { Shield, DollarSign, CheckCircle, XCircle, AlertCircle, Eye, Brain } from "lucide-react";
+import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { Link } from "wouter";
 
 export default function RiskManagerDashboard() {
@@ -120,6 +121,7 @@ export default function RiskManagerDashboard() {
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
                           <Badge variant="outline">Pending Technical Approval</Badge>
+                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                           {claim.estimatedCost && getHighValueBadge(claim.estimatedCost)}
                         </div>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
@@ -157,6 +159,11 @@ export default function RiskManagerDashboard() {
                           <XCircle className="h-4 w-4 mr-2" />
                           Reject
                         </Button>
+                        <AiAssessButton 
+                          claimId={claim.id}
+                          claimNumber={claim.claimNumber}
+                          size="sm"
+                        />
                         <Link href={`/insurer/comparison/${claim.id}`}>
                           <Button variant="outline" size="sm" className="w-full">
                             <Eye className="h-4 w-4 mr-2" />
@@ -192,35 +199,46 @@ export default function RiskManagerDashboard() {
               <p className="text-center text-slate-500 py-8">Loading high-value claims...</p>
             ) : highValueClaims && highValueClaims.length > 0 ? (
               <div className="space-y-2">
-                {highValueClaims.map((claim: any) => (
-                  <div
-                    key={claim.id}
-                    className="p-3 bg-red-50 rounded border border-red-200 hover:border-red-400 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold">{claim.claimNumber}</span>
-                          <Badge variant="destructive" className="text-xs">
-                            ${(claim.estimatedCost / 100).toLocaleString()}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs capitalize">
-                            {claim.workflowState.replace(/_/g, " ")}
-                          </Badge>
+                {highValueClaims.slice(0, 20).map((item: any) => {
+                  const c = item.claim || item;
+                  const assessment = item.aiAssessment;
+                  const cost = c.approvedAmount || assessment?.estimatedCost;
+                  return (
+                    <div
+                      key={c.id}
+                      className="p-3 bg-red-50 rounded border border-red-200 hover:border-red-400 transition-colors"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-semibold">{c.claimNumber}</span>
+                            {cost ? (
+                              <Badge variant="destructive" className="text-xs">
+                                ${(cost / 100).toLocaleString()}
+                              </Badge>
+                            ) : null}
+                            <RiskBadge fraudRiskScore={c.fraudRiskScore} fraudFlags={c.fraudFlags} />
+                            <Badge variant="outline" className="text-xs capitalize">
+                              {(c.workflowState || c.status || 'pending').replace(/_/g, " ")}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-slate-600">
+                            {[c.vehicleRegistration, c.vehicleMake, c.vehicleModel].filter(Boolean).join(' • ') || 'Vehicle details pending'}
+                          </div>
                         </div>
-                        <div className="text-sm text-slate-600">
-                          {claim.vehicleRegistration} • {claim.vehicleMake} {claim.vehicleModel}
+                        <div className="flex items-center gap-2">
+                          <AiAssessButton claimId={c.id} currentStatus={c.status} onSuccess={() => {}} />
+                          <Link href={`/insurer/comparison/${c.id}`}>
+                            <Button size="sm" variant="outline">
+                              <Eye className="h-4 w-4 mr-2" />
+                              Monitor
+                            </Button>
+                          </Link>
                         </div>
                       </div>
-                      <Link href={`/insurer/comparison/${claim.id}`}>
-                        <Button size="sm" variant="outline">
-                          <Eye className="h-4 w-4 mr-2" />
-                          Monitor
-                        </Button>
-                      </Link>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">

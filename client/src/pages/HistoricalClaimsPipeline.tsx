@@ -331,8 +331,8 @@ function BulkUploadTab() {
                 <div className="text-2xl font-bold text-red-600">{processingResult.documentsFailed}</div>
                 <div className="text-xs text-muted-foreground">Failed</div>
               </div>
-              <div className="p-3 rounded bg-blue-50 dark:bg-blue-950/20">
-                <div className="text-2xl font-bold text-blue-600">
+              <div className="p-3 rounded bg-primary/5 dark:bg-primary/10">
+                <div className="text-2xl font-bold text-primary">
                   {processingResult.historicalClaimId || "—"}
                 </div>
                 <div className="text-xs text-muted-foreground">Claim ID</div>
@@ -406,8 +406,8 @@ function BulkUploadTab() {
         <Card>
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-950/30">
-                <Brain className="h-5 w-5 text-blue-600" />
+              <div className="p-2 rounded-lg bg-primary/10 dark:bg-primary/15">
+                <Brain className="h-5 w-5 text-primary" />
               </div>
               <div>
                 <h3 className="font-semibold text-sm">AI-Powered OCR</h3>
@@ -468,7 +468,7 @@ function ClaimsListTab() {
   });
 
   const statusColors: Record<string, string> = {
-    documents_uploaded: "bg-blue-100 text-blue-700",
+    documents_uploaded: "bg-primary/10 text-primary/90",
     extraction_complete: "bg-yellow-100 text-yellow-700",
     ground_truth_captured: "bg-green-100 text-green-700",
     variance_calculated: "bg-purple-100 text-purple-700",

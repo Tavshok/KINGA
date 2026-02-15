@@ -307,7 +307,7 @@ function ImageGallery({
             {/* Filmstrip */}
             <div className="mt-3 flex gap-2 overflow-x-auto pb-2">
               {filteredPhotos.map((photo, index) => (
-                <button key={index} onClick={() => goToPhoto(index)} className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === currentIndex ? 'border-blue-500 ring-2 ring-blue-200' : 'border-gray-200 hover:border-gray-400'}`}>
+                <button key={index} onClick={() => goToPhoto(index)} className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden border-2 transition-all ${index === currentIndex ? 'border-primary/80 ring-2 ring-primary/20' : 'border-gray-200 hover:border-gray-400'}`}>
                   <img src={photo} alt={`Thumb ${index + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="64" height="64"%3E%3Crect fill="%23ddd" width="64" height="64"/%3E%3Ctext x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle" fill="%23999" font-size="10"%3E?%3C/text%3E%3C/svg%3E'; }} />
                 </button>
               ))}
@@ -370,7 +370,7 @@ function PhysicsFraudCrossReference({ physicsAnalysis, fraudAnalysis }: { physic
           <p className="text-xs text-gray-500 mt-1">{physicsFlags.length > 0 ? `${physicsFlags.length} flag(s) raised` : 'No flags raised'}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
-          <div className="flex items-center gap-2 mb-2"><Shield className="w-4 h-4 text-blue-600" /><span className="text-sm font-semibold text-gray-700">Fraud Risk Impact</span></div>
+          <div className="flex items-center gap-2 mb-2"><Shield className="w-4 h-4 text-primary" /><span className="text-sm font-semibold text-gray-700">Fraud Risk Impact</span></div>
           <div className={`text-2xl font-bold ${contributes ? 'text-amber-600' : 'text-green-600'}`}>{contributes ? 'Score Elevated' : 'No Impact'}</div>
           <p className="text-xs text-gray-500 mt-1">{contributes ? 'Physics inconsistencies increased fraud score' : 'Physics supports claim legitimacy'}</p>
         </div>
@@ -402,7 +402,7 @@ function QuoteComparisonChart({ quotes }: { quotes: QuoteFigure[] }) {
   return (
     <Card className="p-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-blue-100 rounded-lg"><BarChart3 className="w-5 h-5 text-blue-600" /></div>
+        <div className="p-2 bg-primary/10 rounded-lg"><BarChart3 className="w-5 h-5 text-primary" /></div>
         <h2 className="text-xl font-semibold">Quote Comparison</h2>
         <Badge variant="secondary">{quotes.length} quotes</Badge>
       </div>
@@ -480,8 +480,8 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
 
       {/* Summary Row */}
       <div className="grid grid-cols-4 gap-3 mb-6">
-        <div className="p-3 bg-blue-50 rounded-lg text-center">
-          <p className="text-2xl font-bold text-blue-600">{recommendations.length}</p>
+        <div className="p-3 bg-primary/5 rounded-lg text-center">
+          <p className="text-2xl font-bold text-primary">{recommendations.length}</p>
           <p className="text-xs text-gray-600">Components</p>
         </div>
         <div className="p-3 bg-green-50 rounded-lg text-center">
@@ -714,9 +714,9 @@ export default function AssessmentResults() {
 
   if (!extractedData) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5 flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-blue-600" />
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <p className="text-gray-600">Loading assessment results...</p>
         </div>
       </div>
@@ -727,7 +727,7 @@ export default function AssessmentResults() {
   const hasRecommendations = extractedData.componentRecommendations && extractedData.componentRecommendations.length > 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 p-8">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5 p-8">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="text-center mb-8">
@@ -811,7 +811,7 @@ export default function AssessmentResults() {
               <Card className="p-6 lg:col-span-2">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 rounded-lg"><Car className="w-5 h-5 text-blue-600" /></div>
+                    <div className="p-2 bg-primary/10 rounded-lg"><Car className="w-5 h-5 text-primary" /></div>
                     <h2 className="text-xl font-semibold">Vehicle Information</h2>
                   </div>
                   <Badge variant="outline" className="gap-1"><Target className="w-3 h-3" />{dataCompleteness}% Complete</Badge>
@@ -841,9 +841,9 @@ export default function AssessmentResults() {
               </Card>
 
               {/* AI Confidence Score */}
-              <Card className="p-6 bg-gradient-to-br from-blue-50 to-indigo-50">
+              <Card className="p-6 bg-gradient-to-br from-primary/5 to-secondary/5">
                 <div className="flex items-center gap-3 mb-4">
-                  <div className="p-2 bg-blue-100 rounded-lg"><Brain className="w-5 h-5 text-blue-600" /></div>
+                  <div className="p-2 bg-primary/10 rounded-lg"><Brain className="w-5 h-5 text-primary" /></div>
                   <h3 className="text-lg font-semibold">AI Analysis</h3>
                 </div>
                 <div className="space-y-4">
@@ -1222,7 +1222,7 @@ export default function AssessmentResults() {
             onClick={handleCreateClaim}
             size="lg"
             disabled={isCreatingClaim}
-            className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+            className="bg-gradient-to-r from-accent to-primary hover:from-accent/90 hover:to-primary/90"
           >
             {isCreatingClaim ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating Claim...</> : "Create Claim with This Data"}
           </Button>

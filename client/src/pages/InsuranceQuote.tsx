@@ -338,8 +338,8 @@ export default function InsuranceQuote() {
           <div className="text-3xl font-bold text-emerald-600">2 min</div>
           <div className="text-sm text-muted-foreground">Average completion time</div>
         </div>
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <div className="text-3xl font-bold text-blue-600">7 fields</div>
+        <div className="p-4 bg-primary/5 rounded-lg">
+          <div className="text-3xl font-bold text-primary">7 fields</div>
           <div className="text-sm text-muted-foreground">Simple, streamlined form</div>
         </div>
         <div className="p-4 bg-purple-50 rounded-lg">

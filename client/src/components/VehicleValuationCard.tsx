@@ -76,9 +76,9 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
         <CardContent className="space-y-6">
           {/* Market Value Summary */}
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-blue-50 rounded-lg p-4">
+            <div className="bg-primary/5 rounded-lg p-4">
               <Label className="text-muted-foreground text-sm">Estimated Market Value</Label>
-              <p className="text-2xl font-bold text-blue-700">
+              <p className="text-2xl font-bold text-primary/90">
                 ${(valuation.estimatedMarketValue / 100).toFixed(2)}
               </p>
             </div>
@@ -282,7 +282,7 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
           )}
         </Button>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+        <div className="bg-primary/5 border border-primary/20 rounded-lg p-3 text-sm text-secondary">
           <p className="font-medium mb-1">How it works:</p>
           <ul className="space-y-1 text-xs">
             <li>• AI analyzes Zimbabwe, Zambia, and SA markets</li>

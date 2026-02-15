@@ -99,7 +99,7 @@ export default function ClaimsManagerComparisonView() {
         </div>
         <div className="flex gap-2">
           {claim.status && (
-            <Badge variant="outline">{claim.status.replace(/_/g, " ").toUpperCase()}</Badge>
+            <Badge variant="outline">{claim.status?.replace(/_/g, " ")?.toUpperCase() || "UNKNOWN"}</Badge>
           )}
           {aiAssessment?.fraudRiskLevel === "high" && (
             <Badge variant="destructive" className="flex items-center gap-1">
@@ -122,16 +122,16 @@ export default function ClaimsManagerComparisonView() {
         <CardContent>
           <div className="grid grid-cols-3 gap-6 mb-6">
             {/* AI Estimate */}
-            <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-200">
+            <div className="bg-primary/5 rounded-lg p-4 border-2 border-primary/20">
               <div className="flex items-center gap-2 mb-2">
-                <Bot className="h-5 w-5 text-blue-600" />
-                <h3 className="font-semibold text-blue-900">AI Estimate</h3>
+                <Bot className="h-5 w-5 text-primary" />
+                <h3 className="font-semibold text-secondary">AI Estimate</h3>
               </div>
-              <p className="text-3xl font-bold text-blue-900 mb-1">
+              <p className="text-3xl font-bold text-secondary mb-1">
                 {aiCost ? `$${aiCost.toLocaleString()}` : "N/A"}
               </p>
               {aiAssessment?.confidenceScore && (
-                <p className="text-sm text-blue-700">
+                <p className="text-sm text-primary/90">
                   Confidence: {aiAssessment.confidenceScore}%
                 </p>
               )}
@@ -427,10 +427,10 @@ export default function ClaimsManagerComparisonView() {
       </Tabs>
 
       {/* AI Recommendation Summary */}
-      <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+      <Card className="border-l-4 border-l-primary bg-primary/5/50">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-blue-600" />
+            <Bot className="h-5 w-5 text-primary" />
             AI Recommendation for Claims Manager
           </CardTitle>
         </CardHeader>
@@ -468,7 +468,7 @@ export default function ClaimsManagerComparisonView() {
               </div>
             )}
 
-            <div className="bg-blue-100 rounded-lg p-3 text-sm text-blue-800">
+            <div className="bg-primary/10 rounded-lg p-3 text-sm text-secondary">
               <strong>Note:</strong> This AI recommendation is provided as guidance. Final approval decision rests with the Claims Manager's professional judgment.
             </div>
           </div>

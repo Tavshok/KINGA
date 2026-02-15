@@ -212,12 +212,26 @@ export default function FleetManagement() {
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-8">
-        <div>
-          <h1 className="text-3xl font-bold">Fleet Management</h1>
-          <p className="text-muted-foreground">Manage your vehicle fleet and maintenance schedules</p>
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
+      {/* KINGA Branded Header */}
+      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white py-6 px-6 shadow-lg">
+        <div className="container mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <Car className="h-8 w-8" />
+            <div>
+              <h1 className="text-2xl font-bold">Fleet Management</h1>
+              <p className="text-teal-100 text-sm">Manage your vehicle fleet and maintenance schedules</p>
+            </div>
+          </div>
+          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = '/portal-hub'}>
+            Portal Hub
+          </Button>
         </div>
+      </header>
+
+      <div className="container mx-auto py-8 px-4">
+      <div className="flex justify-between items-center mb-8">
+        <div></div>
         <div className="flex gap-2">
           <Dialog open={isCreateFleetDialogOpen} onOpenChange={setIsCreateFleetDialogOpen}>
             <DialogTrigger asChild>
@@ -610,6 +624,7 @@ export default function FleetManagement() {
           )}
         </CardContent>
       </Card>
+    </div>
     </div>
   );
 }

@@ -48,14 +48,14 @@ export default function InsurerDashboard() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <KingaLogo />
             <div>
-              <p className="text-sm text-muted-foreground">Insurer Portal - Claims Management & Triage</p>
+              <p className="text-sm text-teal-100">Insurer Portal - Claims Management & Triage</p>
             </div>
           </div>
           <div className="flex items-center gap-4">
@@ -63,7 +63,7 @@ export default function InsurerDashboard() {
             <NotificationBell />
             <div className="text-right">
               <p className="text-sm font-medium">{user?.name}</p>
-              <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+              <p className="text-xs text-teal-100 capitalize">{user?.role}</p>
             </div>
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
@@ -76,14 +76,14 @@ export default function InsurerDashboard() {
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           {/* Total Claims Card */}
-          <Card className="bg-gradient-to-br from-blue-400 to-blue-500 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <Card className="bg-gradient-to-br from-primary to-primary/80 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-blue-50">Total Claims</CardTitle>
-              <FileText className="h-6 w-6 text-blue-100" />
+              <CardTitle className="text-sm font-medium text-primary-foreground/80">Total Claims</CardTitle>
+              <FileText className="h-6 w-6 text-primary-foreground/80" />
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">{totalClaims}</div>
-              <p className="text-xs text-blue-100 mt-1">Across all statuses</p>
+              <p className="text-xs text-primary-foreground/80 mt-1">Across all statuses</p>
             </CardContent>
           </Card>
 
@@ -152,7 +152,7 @@ export default function InsurerDashboard() {
                           <td className="py-2 px-3">{claim.vehicleMake} {claim.vehicleModel}</td>
                           <td className="py-2 px-3">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              claim.status === 'submitted' ? 'bg-blue-100 text-blue-800' :
+                              claim.status === 'submitted' ? 'bg-primary/10 text-secondary' :
                               claim.status === 'triage' ? 'bg-yellow-100 text-yellow-800' :
                               claim.status === 'comparison' ? 'bg-purple-100 text-purple-800' :
                               claim.status === 'completed' ? 'bg-green-100 text-green-800' :

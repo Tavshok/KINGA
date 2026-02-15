@@ -34,7 +34,7 @@ export default function PanelBeaterDashboard() {
   });
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
       <header className="bg-white border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
@@ -61,47 +61,47 @@ export default function PanelBeaterDashboard() {
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
+          <Card className="bg-gradient-to-br from-teal-500 to-teal-700 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Quote Requests</CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
+              <CardTitle className="text-sm font-medium text-white/90">Quote Requests</CardTitle>
+              <FileText className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Awaiting quotes</p>
+              <p className="text-xs text-white/70">Awaiting quotes</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-orange-400 to-orange-600 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Approval</CardTitle>
-              <Clock className="h-4 w-4 text-yellow-500" />
+              <CardTitle className="text-sm font-medium text-white/90">Pending Approval</CardTitle>
+              <Clock className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">Quotes submitted</p>
+              <p className="text-xs text-white/70">Quotes submitted</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-emerald-500 to-emerald-700 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Repairs</CardTitle>
-              <FileEdit className="h-4 w-4 text-blue-500" />
+              <CardTitle className="text-sm font-medium text-white/90">Active Repairs</CardTitle>
+              <FileEdit className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">0</div>
-              <p className="text-xs text-muted-foreground">In progress</p>
+              <p className="text-xs text-white/70">In progress</p>
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="bg-gradient-to-br from-purple-500 to-purple-700 text-white border-0">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Revenue This Month</CardTitle>
-              <DollarSign className="h-4 w-4 text-green-500" />
+              <CardTitle className="text-sm font-medium text-white/90">Revenue This Month</CardTitle>
+              <DollarSign className="h-4 w-4 text-white/70" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">$0</div>
-              <p className="text-xs text-muted-foreground">From completed repairs</p>
+              <p className="text-xs text-white/70">From completed repairs</p>
             </CardContent>
           </Card>
         </div>
@@ -135,7 +135,7 @@ export default function PanelBeaterDashboard() {
                         {claim.incidentLocation}
                       </p>
                       <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{claim.status.replace(/_/g, " ")}</Badge>
+                        <Badge variant="outline">{claim.status?.replace(/_/g, " ") || "unknown"}</Badge>
                         {claim.policyVerified && (
                           <Badge variant="default" className="bg-green-600">Verified</Badge>
                         )}

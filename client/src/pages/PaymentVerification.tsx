@@ -123,7 +123,7 @@ export default function PaymentVerification() {
             <CardTitle className="text-sm font-medium text-gray-600">Avg. Processing Time</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-blue-600">
+            <div className="text-3xl font-bold text-primary">
               1.5 days
             </div>
           </CardContent>

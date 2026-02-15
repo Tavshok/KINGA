@@ -10,8 +10,8 @@ const dashboards = [
     description: 'Analyze claim costs over time with trend forecasting and breakdown by type',
     icon: TrendingUp,
     path: '/analytics/claims-cost',
-    color: 'text-blue-500',
-    bgColor: 'bg-blue-50',
+    color: 'text-primary/80',
+    bgColor: 'bg-primary/5',
   },
   {
     id: 'fraud-heatmap',

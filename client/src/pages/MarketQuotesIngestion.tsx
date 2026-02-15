@@ -110,7 +110,7 @@ export default function MarketQuotesIngestion() {
   return (
     <div className="container py-8">
       <div className="mb-8">
-        <h1 className="text-3xl font-bold">Market Quotes Ingestion</h1>
+        <h1 className="text-3xl font-bold">KINGA Agency - Market Data</h1>
         <p className="text-muted-foreground mt-2">
           Upload supplier quotes (PDF/Excel/Image) for AI extraction and pricing baseline building
         </p>

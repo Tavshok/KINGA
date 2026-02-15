@@ -11,8 +11,8 @@ export default function PortalSelection() {
       title: "Insurer Portal",
       description: "Claims management & triage",
       icon: Building2,
-      color: "from-blue-500 to-blue-600",
-      hoverColor: "hover:from-blue-600 hover:to-blue-700",
+      color: "from-primary to-secondary",
+      hoverColor: "hover:from-primary/90 hover:to-primary",
     },
     {
       role: "assessor",
@@ -46,7 +46,7 @@ export default function PortalSelection() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
       <div className="container mx-auto px-4 py-8">
         <div className="flex items-center justify-center mb-12">

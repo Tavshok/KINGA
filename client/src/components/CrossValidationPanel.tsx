@@ -63,11 +63,11 @@ const categoryConfig = {
     icon: Eye,
     label: 'Visible — Not Quoted',
     description: 'Visible damage not included in quote',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-300',
-    textColor: 'text-blue-800',
-    iconColor: 'text-blue-600',
-    badgeClass: 'bg-blue-100 text-blue-800',
+    bgColor: 'bg-primary/5',
+    borderColor: 'border-primary/40',
+    textColor: 'text-secondary',
+    iconColor: 'text-primary',
+    badgeClass: 'bg-primary/10 text-secondary',
   },
   unaffected: {
     icon: HelpCircle,
@@ -133,9 +133,9 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
             <p className="text-2xl font-bold text-amber-600">{summary.quotedNotVisibleCount}</p>
             <p className="text-xs text-amber-700 font-medium">Quoted Not Visible</p>
           </div>
-          <div className="p-3 bg-blue-50 rounded-lg text-center border border-blue-200">
-            <p className="text-2xl font-bold text-blue-600">{summary.visibleNotQuotedCount}</p>
-            <p className="text-xs text-blue-700 font-medium">Visible Not Quoted</p>
+          <div className="p-3 bg-primary/5 rounded-lg text-center border border-primary/20">
+            <p className="text-2xl font-bold text-primary">{summary.visibleNotQuotedCount}</p>
+            <p className="text-xs text-primary/90 font-medium">Visible Not Quoted</p>
           </div>
           <div className="p-3 bg-red-50 rounded-lg text-center border border-red-200">
             <p className="text-2xl font-bold text-red-600">{summary.suspiciousCount}</p>
@@ -237,27 +237,27 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
 
       {/* Visible Not Quoted */}
       {visibleNotQuoted.length > 0 && (
-        <Card className="p-5 border-blue-200 bg-blue-50/30">
+        <Card className="p-5 border-primary/20 bg-primary/5/30">
           <div className="flex items-center gap-2 mb-4">
-            <Eye className="w-5 h-5 text-blue-600" />
+            <Eye className="w-5 h-5 text-primary" />
             <h3 className="font-semibold text-gray-900">Visible Damage Not Quoted ({visibleNotQuoted.length})</h3>
             <span className="text-sm text-gray-500">— Damage seen in photos but not included in repair quote</span>
           </div>
-          <p className="text-sm text-blue-700 mb-3">
+          <p className="text-sm text-primary/90 mb-3">
             These items show visible damage in the photos but were not included in the repair quote. This may indicate underquoting or pre-existing damage.
           </p>
           <div className="space-y-2">
             {visibleNotQuoted.map((item, i) => (
-              <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-blue-100">
+              <div key={i} className="flex items-center justify-between p-3 bg-white rounded-lg border border-primary/10">
                 <div className="flex items-center gap-2">
-                  <Eye className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                  <Eye className="w-3.5 h-3.5 text-primary/80 flex-shrink-0" />
                   <div>
                     <span className="text-sm font-medium text-gray-900">{item.partName}</span>
                     {item.zone && <Badge variant="outline" className="ml-2 text-xs">{item.zone}</Badge>}
                     <p className="text-xs text-gray-500 mt-0.5">{item.explanation}</p>
                   </div>
                 </div>
-                <Badge className="bg-blue-100 text-blue-700 text-xs">{Math.round(item.confidence * 100)}%</Badge>
+                <Badge className="bg-primary/10 text-primary/90 text-xs">{Math.round(item.confidence * 100)}%</Badge>
               </div>
             ))}
           </div>

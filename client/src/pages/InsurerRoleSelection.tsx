@@ -38,7 +38,7 @@ export default function InsurerRoleSelection() {
       description: "Team oversight, claim assignment, moderate-value approvals, and performance tracking",
       icon: Users,
       path: "/insurer-portal/claims-manager",
-      color: "from-blue-500 to-cyan-500",
+      color: "from-primary to-accent",
       responsibilities: [
         "Approve moderate-value claims",
         "Assign claims to processors",
@@ -91,7 +91,7 @@ export default function InsurerRoleSelection() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
@@ -169,9 +169,9 @@ export default function InsurerRoleSelection() {
           </div>
 
           {/* Info Banner */}
-          <div className="mt-12 p-6 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="mt-12 p-6 bg-primary/5 border border-primary/20 rounded-lg">
             <div className="flex items-start gap-3">
-              <div className="w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <div className="w-6 h-6 rounded-full bg-primary/80 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <span className="text-white text-sm font-bold">i</span>
               </div>
               <div>

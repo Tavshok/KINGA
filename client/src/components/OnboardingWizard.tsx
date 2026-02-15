@@ -91,7 +91,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5 flex items-center justify-center p-4">
       <Card className="w-full max-w-2xl p-8">
         {/* Progress Indicator */}
         <div className="mb-8">
@@ -103,7 +103,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                     index + 1 < step
                       ? "bg-emerald-600 text-white"
                       : index + 1 === step
-                      ? "bg-blue-600 text-white"
+                      ? "bg-primary text-white"
                       : "bg-gray-200 text-gray-500"
                   }`}
                 >
@@ -190,7 +190,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
           {step === 2 && (
             <div className="space-y-6">
               <div className="text-center mb-6">
-                <Building2 className="w-16 h-16 mx-auto mb-4 text-blue-600" />
+                <Building2 className="w-16 h-16 mx-auto mb-4 text-primary" />
                 <h2 className="text-2xl font-bold text-gray-900">Organization Details</h2>
                 <p className="text-gray-600 mt-2">
                   Tell us about your organization
@@ -296,9 +296,9 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                   </div>
                 )}
 
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
-                  <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
-                  <ul className="text-sm text-blue-800 space-y-1">
+                <div className="bg-primary/5 border border-primary/20 rounded-lg p-4 mt-6">
+                  <h3 className="font-semibold text-secondary mb-2">What's Next?</h3>
+                  <ul className="text-sm text-secondary space-y-1">
                     {userRole === "assessor" && (
                       <>
                         <li>• Access your assigned claims dashboard</li>
@@ -357,7 +357,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
           ) : (
             <Button
               onClick={completeOnboarding}
-              className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+              className="bg-primary hover:bg-primary/90 flex items-center gap-2"
             >
               Complete Setup
               <CheckCircle2 className="w-4 h-4" />
