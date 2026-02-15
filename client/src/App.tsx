@@ -42,10 +42,7 @@ import AddAssessor from "./pages/AddAssessor";
 import JoinAsAssessor from "./pages/JoinAsAssessor";
 import AssessorList from "./pages/AssessorList";
 import AssignAssessor from "./pages/AssignAssessor";
-import ClaimsCostTrend from "./pages/analytics/ClaimsCostTrend";
-import FraudHeatmap from "./pages/analytics/FraudHeatmap";
-import FleetRisk from "./pages/analytics/FleetRisk";
-import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance";
+// import PanelBeaterPerformance from "./pages/analytics/PanelBeaterPerformance"; // Removed - analytics page
 import PanelBeaterPerformanceDashboard from "./pages/PanelBeaterPerformance";
 import AnalyticsHub from "./pages/analytics/AnalyticsHub";
 import UploadDocuments from "./pages/processor/UploadDocuments";
@@ -76,27 +73,6 @@ function Router() {
           <AnalyticsHub />
         </ProtectedRoute>
       </Route>
-      <Route path="/analytics/claims-cost">
-        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-          <ClaimsCostTrend />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/analytics/fraud-heatmap">
-        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-          <FraudHeatmap />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/analytics/fleet-risk">
-        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-          <FleetRisk />
-        </ProtectedRoute>
-      </Route>
-      <Route path="/analytics/panel-beater">
-        <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-          <PanelBeaterPerformance />
-        </ProtectedRoute>
-      </Route>
-
       {/* Assessment Results */}
       <Route path="/assessment-results">
         <ProtectedRoute allowedRoles={["insurer", "admin"]}>
@@ -357,11 +333,11 @@ function Router() {
       </Route>
       
       {/* Claimant Routes */}
-      <Route path="/claimant/dashboard" component={() => (
+      <Route path="/claimant/dashboard">
         <ProtectedRoute allowedRoles={["claimant", "admin"]}>
           <ClaimantDashboard />
         </ProtectedRoute>
-      )} />
+      </Route>
       <Route path="/claimant/submit-claim">
         <ProtectedRoute allowedRoles={["claimant", "admin"]}>
           <SubmitClaim />
@@ -397,14 +373,18 @@ function Router() {
         </ProtectedRoute>
       </Route>
       
-      <Route path="/admin/dashboard" component={() => (
+      <Route path="/admin/dashboard">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminDashboard />
         </ProtectedRoute>
-      )} />
+      </Route>
       
-      <Route path="/404" component={NotFound} />
-      <Route component={NotFound} />
+      <Route path="/404">
+        <NotFound />
+      </Route>
+      <Route>
+        <NotFound />
+      </Route>
     </Switch>
   );
 }

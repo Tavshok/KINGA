@@ -5516,3 +5516,54 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] tRPC router for market quotes (upload, review, approve/reject)
 - [ ] Admin UI for market quotes ingestion (next session)
 - [ ] Integration into Assessment/Comparison views (future - feature-flagged)
+
+
+## Backend Integration - Tenant Management & Analytics (Current Sprint)
+
+### Phase 1: Tenant Management tRPC Procedures
+- [ ] Create tenant.list procedure to fetch all tenants
+- [ ] Create tenant.getById procedure to fetch single tenant
+- [ ] Create tenant.create procedure to create new tenant
+- [ ] Create tenant.update procedure to update tenant
+- [ ] Create tenant.delete procedure to delete tenant
+- [ ] Create tenant.getRoleConfig procedure to fetch role configuration
+- [ ] Create tenant.updateRoleConfig procedure to update role configuration
+
+### Phase 2: Executive Analytics tRPC Procedures
+- [ ] Create analytics.getKPIs procedure to fetch all KPI metrics
+- [ ] Create analytics.getClaimsByComplexity procedure for complexity breakdown
+- [ ] Create analytics.getSLACompliance procedure for SLA tracking
+- [ ] Create analytics.getFraudMetrics procedure for fraud detection stats
+- [ ] Create analytics.getCostSavings procedure for savings breakdown
+
+### Phase 3: Connect Admin UI
+- [ ] Replace mock data in TenantManagement.tsx with tRPC queries
+- [ ] Replace mock data in TenantRoleConfig.tsx with tRPC queries
+- [ ] Implement optimistic updates for instant feedback
+- [ ] Add error handling and validation
+
+### Phase 4: Connect Executive Dashboard
+- [ ] Replace mock data in ExecutiveKPICards.tsx with tRPC queries
+- [ ] Add loading states for KPI cards
+- [ ] Add error handling for failed queries
+- [ ] Implement data refresh mechanism
+
+### Phase 5: Testing
+- [ ] Write vitest tests for tenant management procedures
+- [ ] Write vitest tests for analytics procedures
+- [ ] Run all existing tests to ensure no regressions
+- [ ] Manual testing of admin UI flows
+- [ ] Manual testing of executive dashboard
+- [ ] Create final checkpoint
+
+
+## Backend Integration - Tenant Management & Analytics
+
+- [x] Create tRPC tenant router with CRUD procedures
+- [x] Create tRPC analytics router for executive dashboard KPIs
+- [ ] Connect TenantManagement admin page to tenant.list procedure
+- [ ] Connect TenantRoleConfig admin page to tenant.getRoleConfig procedure
+- [ ] Connect ExecutiveKPICards to analytics.getKPIs procedure
+- [ ] Replace all mock data with real database queries
+- [ ] Write comprehensive tests for tenant and analytics procedures
+- [ ] Run all tests and verify functionality

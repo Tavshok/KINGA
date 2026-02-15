@@ -1,0 +1,1 @@
+ALTER TABLE `claims` ADD `complexity_score` enum('simple','moderate','complex','exceptional');

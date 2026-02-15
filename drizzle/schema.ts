@@ -165,6 +165,9 @@ export const claims = mysqlTable("claims", {
   fraudRiskScore: int("fraud_risk_score"), // 0-100 scale
   fraudFlags: text("fraud_flags"), // JSON array of detected fraud indicators
   
+  // Claim complexity for SLA adjustments
+  complexity_score: mysqlEnum("complexity_score", ["simple", "moderate", "complex", "exceptional"]),
+  
   // Workflow state machine
   workflowState: mysqlEnum("workflow_state", [
     "created",

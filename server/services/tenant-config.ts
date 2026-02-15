@@ -262,3 +262,242 @@ export async function seedDefaultKingaTenant() {
   console.log("✓ Created default KINGA tenant");
   return kingaTenantId;
 }
+
+// ============================================================================
+// ADDITIONAL CRUD OPERATIONS FOR TENANT ROUTER
+// ============================================================================
+
+/**
+ * Create tenant configuration
+ */
+export async function createTenantConfig(data: {
+  name: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  isActive?: boolean;
+}) {
+  const tenantId = `tenant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  return await createTenant({
+    id: tenantId,
+    name: data.name,
+    displayName: data.name,
+    logoUrl: data.logoUrl,
+    primaryColor: data.primaryColor || DEFAULT_TENANT_CONFIG.primaryColor,
+    secondaryColor: data.secondaryColor || DEFAULT_TENANT_CONFIG.secondaryColor
+  });
+}
+
+/**
+ * Update tenant configuration
+ */
+export async function updateTenantConfig(tenantId: string, updates: {
+  name?: string;
+  logoUrl?: string;
+  primaryColor?: string;
+  secondaryColor?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  isActive?: boolean;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .update(insurerTenants)
+    .set({
+      ...updates,
+      displayName: updates.name,
+      updatedAt: new Date()
+    })
+    .where(eq(insurerTenants.id, tenantId));
+
+  return await getTenantConfig(tenantId);
+}
+
+/**
+ * Delete tenant configuration
+ */
+export async function deleteTenantConfig(tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  await db
+    .delete(insurerTenants)
+    .where(eq(insurerTenants.id, tenantId));
+
+  return true;
+}
+
+/**
+ * Get role configuration for a tenant
+ */
+export async function getTenantRoleConfig(tenantId: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const roleConfigs = await db
+    .select()
+    .from(tenantRoleConfigs)
+    .where(eq(tenantRoleConfigs.tenantId, tenantId));
+
+  return roleConfigs;
+}
+
+/**
+ * Update role configuration for a tenant
+ */
+export async function updateTenantRoleConfig(
+  tenantId: string,
+  role: string,
+  permissions: {
+    isEnabled?: boolean;
+    canApprove?: boolean;
+    canReject?: boolean;
+    canReassign?: boolean;
+    canViewReports?: boolean;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Check if role config exists
+  const existing = await db
+    .select()
+    .from(tenantRoleConfigs)
+    .where(eq(tenantRoleConfigs.tenantId, tenantId))
+    .limit(1);
+
+  if (existing.length === 0) {
+    // Create new role config
+    const result = await db
+      .insert(tenantRoleConfigs)
+      .values({
+        id: `rc-${tenantId}-${role}`,
+        tenantId,
+        roleKey: role as 'executive' | 'claims_manager' | 'claims_processor' | 'internal_assessor' | 'risk_manager',
+        enabled: permissions.isEnabled ? 1 : 0,
+        permissions: JSON.stringify(permissions),
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+    return result;
+  }
+
+  // Update existing role config
+  const result = await db
+    .update(tenantRoleConfigs)
+    .set({
+      enabled: permissions.isEnabled !== undefined ? (permissions.isEnabled ? 1 : 0) : undefined,
+      permissions: JSON.stringify(permissions),
+      updatedAt: new Date()
+    })
+    .where(eq(tenantRoleConfigs.tenantId, tenantId));
+
+  return result;
+}
+
+/**
+ * Get workflow thresholds for a tenant
+ */
+export async function getTenantWorkflowThresholds(tenantId: string) {
+  const config = await getWorkflowConfig(tenantId);
+  return config;
+}
+
+/**
+ * Update workflow thresholds for a tenant
+ */
+export async function updateTenantWorkflowThresholds(
+  tenantId: string,
+  thresholds: {
+    autoApprovalLimit?: number;
+    managerApprovalLimit?: number;
+    executiveApprovalLimit?: number;
+    complexityThresholdSimple?: number;
+    complexityThresholdModerate?: number;
+    complexityThresholdComplex?: number;
+  }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  // Check if workflow config exists
+  const existing = await db
+    .select()
+    .from(tenantWorkflowConfigs)
+    .where(eq(tenantWorkflowConfigs.tenantId, tenantId))
+    .limit(1);
+
+  if (existing.length === 0) {
+    // Create new workflow config
+    const result = await db
+      .insert(tenantWorkflowConfigs)
+      .values({
+        id: `wf-${tenantId}`,
+        tenantId,
+        autoApproveBelow: (thresholds.autoApprovalLimit ?? DEFAULT_WORKFLOW_CONFIG.autoApproveBelow).toString(),
+        requireManagerApprovalAbove: (thresholds.managerApprovalLimit ?? DEFAULT_WORKFLOW_CONFIG.requireManagerApprovalAbove).toString(),
+        requireExecutiveApprovalAbove: (thresholds.executiveApprovalLimit ?? DEFAULT_WORKFLOW_CONFIG.requireExecutiveApprovalAbove).toString(),
+        fraudFlagThreshold: DEFAULT_WORKFLOW_CONFIG.fraudFlagThreshold.toString(),
+        requireInternalAssessment: DEFAULT_WORKFLOW_CONFIG.requireInternalAssessment,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      });
+
+    return result;
+  }
+
+  // Update existing workflow config
+  const result = await db
+    .update(tenantWorkflowConfigs)
+    .set({
+      autoApproveBelow: thresholds.autoApprovalLimit?.toString(),
+      requireManagerApprovalAbove: thresholds.managerApprovalLimit?.toString(),
+      requireExecutiveApprovalAbove: thresholds.executiveApprovalLimit?.toString(),
+      updatedAt: new Date()
+    })
+    .where(eq(tenantWorkflowConfigs.tenantId, tenantId));
+
+  return result;
+}
+
+/**
+ * Get SLA configuration for a tenant
+ */
+export async function getTenantSlaConfig(tenantId: string) {
+  // For now, return default SLA targets
+  // In production, this would query a tenant_sla_config table
+  return {
+    targetDaysSimple: 2,
+    targetDaysModerate: 5,
+    targetDaysComplex: 10,
+    targetDaysExceptional: 20,
+    warningThresholdPercent: 80
+  };
+}
+
+/**
+ * Update SLA configuration for a tenant
+ */
+export async function updateTenantSlaConfig(
+  tenantId: string,
+  slaConfig: {
+    targetDaysSimple?: number;
+    targetDaysModerate?: number;
+    targetDaysComplex?: number;
+    targetDaysExceptional?: number;
+    warningThresholdPercent?: number;
+  }
+) {
+  // For now, return the input as confirmation
+  // In production, this would update a tenant_sla_config table
+  return {
+    tenantId,
+    ...slaConfig,
+    updatedAt: new Date()
+  };
+}
