@@ -4482,3 +4482,121 @@ export const trainingRecords = mysqlTable("training_records", {
 
 export type TrainingRecord = typeof trainingRecords.$inferSelect;
 export type InsertTrainingRecord = typeof trainingRecords.$inferInsert;
+
+
+/**
+ * ============================================================
+ * KINGA Agency Portal - Insurance Quotation & Renewal Management
+ * ============================================================
+ */
+
+/**
+ * Insurance Quotation Requests - Clients requesting insurance quotes
+ */
+export const quotationRequests = mysqlTable("quotation_requests", {
+  id: int("id").autoincrement().primaryKey(),
+  requestNumber: varchar("request_number", { length: 50 }).notNull().unique(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  
+  // Requestor info
+  userId: int("user_id"), // Linked user (if logged in)
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  phone: varchar("phone", { length: 50 }),
+  idNumber: varchar("id_number", { length: 20 }),
+  
+  // Insurance type
+  insuranceType: mysqlEnum("insurance_type", [
+    "comprehensive",
+    "third_party",
+    "third_party_fire_theft",
+    "fleet",
+    "commercial"
+  ]).notNull(),
+  
+  // Vehicle details
+  vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+  vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+  vehicleYear: int("vehicle_year").notNull(),
+  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+  vehicleVin: varchar("vehicle_vin", { length: 50 }),
+  vehicleValue: int("vehicle_value"), // Estimated value in cents
+  vehicleUsage: mysqlEnum("vehicle_usage", ["private", "business", "both"]).default("private"),
+  
+  // Driver details
+  driverAge: int("driver_age"),
+  driverLicenseYears: int("driver_license_years"), // Years holding license
+  claimsHistory: int("claims_history").default(0), // Number of previous claims
+  
+  // Coverage preferences
+  excessAmount: int("excess_amount"), // Preferred excess in cents
+  additionalCover: text("additional_cover"), // JSON array of extras: roadside, car hire, etc.
+  
+  // Supporting documents (JSON array of {type, url, fileName})
+  documents: text("documents"),
+  
+  // Quote response
+  quotedPremium: int("quoted_premium"), // Monthly premium in cents
+  quotedAnnualPremium: int("quoted_annual_premium"), // Annual premium in cents
+  quotedExcess: int("quoted_excess"), // Excess amount in cents
+  quoteValidUntil: timestamp("quote_valid_until"),
+  quoteNotes: text("quote_notes"), // Agent notes on the quote
+  
+  // Status tracking
+  status: mysqlEnum("status", [
+    "pending",
+    "under_review",
+    "quoted",
+    "accepted",
+    "rejected",
+    "expired"
+  ]).default("pending").notNull(),
+  
+  assignedAgentId: int("assigned_agent_id"), // KINGA agent handling the request
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type QuotationRequest = typeof quotationRequests.$inferSelect;
+export type InsertQuotationRequest = typeof quotationRequests.$inferInsert;
+
+// insurancePolicies table already defined above at line ~2820 - reuse existing table
+
+/**
+ * Agency Documents - Documents uploaded for quotation requests and policies
+ */
+export const agencyDocuments = mysqlTable("agency_documents", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  
+  // Link to either a quotation request or policy
+  quotationRequestId: int("quotation_request_id"),
+  policyId: int("policy_id"),
+  
+  // Document details
+  documentType: mysqlEnum("document_type", [
+    "id_document",
+    "drivers_license",
+    "vehicle_registration",
+    "proof_of_address",
+    "bank_statement",
+    "vehicle_photos",
+    "previous_policy",
+    "claims_history",
+    "other"
+  ]).notNull(),
+  
+  title: varchar("title", { length: 255 }).notNull(),
+  fileName: varchar("file_name", { length: 255 }).notNull(),
+  fileUrl: text("file_url").notNull(), // S3 URL
+  fileSize: int("file_size"), // In bytes
+  mimeType: varchar("mime_type", { length: 100 }),
+  
+  uploadedBy: int("uploaded_by").notNull(), // User ID
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AgencyDocument = typeof agencyDocuments.$inferSelect;
+export type InsertAgencyDocument = typeof agencyDocuments.$inferInsert;

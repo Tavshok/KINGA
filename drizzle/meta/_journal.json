@@ -155,6 +155,13 @@
       "when": 1771177794671,
       "tag": "0021_unknown_viper",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "5",
+      "when": 1771179164098,
+      "tag": "0022_condemned_mentallo",
+      "breakpoints": true
     }
   ]
 }

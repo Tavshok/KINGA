@@ -1,13 +1,18 @@
-import { useState } from "react";
+import { useState, useRef, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { toast } from "sonner";
-import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Upload, Eye, RefreshCw, MessageSquare } from "lucide-react";
+import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Upload, Eye, RefreshCw, MessageSquare, Plus, Search, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * Claims Processor Dashboard
@@ -157,6 +162,7 @@ export default function ClaimsProcessorDashboard() {
             <h1 className="text-3xl font-bold text-slate-800">Claims Processor Dashboard</h1>
             <p className="text-slate-600 mt-1">Process claims, upload documents, and assign assessors</p>
           </div>
+          <NewClaimButton onSuccess={() => refetchPending()} />
         </div>
 
         {/* Info Banner */}
@@ -361,32 +367,14 @@ export default function ClaimsProcessorDashboard() {
                           </DialogContent>
                         </Dialog>
 
-                        {/* Assign Assessor */}
+                        {/* Assign Assessor - Searchable */}
                         {(claim.workflowState === "created" || claim.workflowState === "assigned") && (
-                          <div>
-                            <Label className="text-xs mb-1">Assign Assessor</Label>
-                            <Select
-                              onValueChange={(value) => handleAssignAssessor(claim.id, parseInt(value))}
-                              disabled={assignAssessor.isPending || assessorsLoading}
-                            >
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select assessor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {assessorsLoading ? (
-                                  <SelectItem value="loading">Loading...</SelectItem>
-                                ) : assessors && assessors.length > 0 ? (
-                                  assessors.map((assessor: any) => (
-                                    <SelectItem key={assessor.id} value={assessor.id.toString()}>
-                                      {assessor.name}
-                                    </SelectItem>
-                                  ))
-                                ) : (
-                                  <SelectItem value="none">No assessors available</SelectItem>
-                                )}
-                              </SelectContent>
-                            </Select>
-                          </div>
+                          <AssessorSearchSelect
+                            assessors={assessors || []}
+                            isLoading={assessorsLoading}
+                            disabled={assignAssessor.isPending}
+                            onSelect={(assessorId) => handleAssignAssessor(claim.id, assessorId)}
+                          />
                         )}
 
                         {/* View AI Assessment */}
@@ -517,6 +505,359 @@ export default function ClaimsProcessorDashboard() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+
+// ========== SUBMIT NEW CLAIM BUTTON + DIALOG ==========
+function NewClaimButton({ onSuccess }: { onSuccess: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [step, setStep] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const utils = trpc.useUtils();
+
+  // Form state
+  const [vehicleMake, setVehicleMake] = useState("");
+  const [vehicleModel, setVehicleModel] = useState("");
+  const [vehicleYear, setVehicleYear] = useState("");
+  const [vehicleRegistration, setVehicleRegistration] = useState("");
+  const [incidentDate, setIncidentDate] = useState("");
+  const [incidentDescription, setIncidentDescription] = useState("");
+  const [incidentLocation, setIncidentLocation] = useState("");
+  const [policyNumber, setPolicyNumber] = useState("");
+  const [damagePhotos, setDamagePhotos] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+
+  const submitMutation = trpc.claims.submit.useMutation({
+    onSuccess: (data) => {
+      toast.success(`Claim ${data.claimNumber} submitted successfully!`);
+      setOpen(false);
+      resetForm();
+      onSuccess();
+    },
+    onError: (error) => {
+      toast.error(error.message || "Failed to submit claim");
+    },
+  });
+
+  const resetForm = () => {
+    setStep(1);
+    setVehicleMake("");
+    setVehicleModel("");
+    setVehicleYear("");
+    setVehicleRegistration("");
+    setIncidentDate("");
+    setIncidentDescription("");
+    setIncidentLocation("");
+    setPolicyNumber("");
+    setDamagePhotos([]);
+  };
+
+  const handlePhotoUpload = async (files: FileList) => {
+    setUploading(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const reader = new FileReader();
+        return new Promise<string>((resolve, reject) => {
+          reader.onload = async () => {
+            try {
+              const base64 = reader.result as string;
+              // Use the document upload mutation to get S3 URL
+              const response = await fetch("/api/trpc/documents.uploadPhoto", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ json: { fileData: base64, fileName: file.name, mimeType: file.type } }),
+              });
+              if (response.ok) {
+                const result = await response.json();
+                resolve(result?.result?.data?.json?.url || base64);
+              } else {
+                // Fallback: use base64 directly
+                resolve(base64);
+              }
+            } catch {
+              resolve(reader.result as string);
+            }
+          };
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      });
+      const urls = await Promise.all(uploadPromises);
+      setDamagePhotos(prev => [...prev, ...urls]);
+      toast.success(`${files.length} photo(s) added`);
+    } catch (error) {
+      toast.error("Failed to upload photos");
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (!vehicleMake || !vehicleModel || !vehicleYear || !vehicleRegistration || !incidentDate || !incidentDescription || !incidentLocation || !policyNumber) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    submitMutation.mutate({
+      vehicleMake,
+      vehicleModel,
+      vehicleYear: parseInt(vehicleYear),
+      vehicleRegistration,
+      incidentDate,
+      incidentDescription,
+      incidentLocation,
+      damagePhotos,
+      policyNumber,
+      selectedPanelBeaterIds: [],
+    });
+  };
+
+  const commonMakes = [
+    "Toyota", "Honda", "Nissan", "Mazda", "BMW", "Mercedes-Benz",
+    "Volkswagen", "Ford", "Chevrolet", "Hyundai", "Kia", "Isuzu",
+    "Mitsubishi", "Subaru", "Audi", "Land Rover", "Jeep", "Peugeot"
+  ];
+
+  return (
+    <>
+      <Button onClick={() => setOpen(true)} className="bg-blue-600 hover:bg-blue-700">
+        <Plus className="h-4 w-4 mr-2" />
+        Submit New Claim
+      </Button>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Submit New Claim</DialogTitle>
+            <DialogDescription>
+              Step {step} of 3 — {step === 1 ? "Vehicle & Policy" : step === 2 ? "Incident Details" : "Review & Submit"}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Step indicators */}
+          <div className="flex items-center gap-2 mb-4">
+            {[1, 2, 3].map((s) => (
+              <div key={s} className="flex items-center gap-2 flex-1">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  s <= step ? "bg-blue-600 text-white" : "bg-gray-200 text-gray-500"
+                }`}>
+                  {s}
+                </div>
+                {s < 3 && <div className={`flex-1 h-1 rounded ${s < step ? "bg-blue-600" : "bg-gray-200"}`} />}
+              </div>
+            ))}
+          </div>
+
+          {step === 1 && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Vehicle Make *</Label>
+                  <Input value={vehicleMake} onChange={(e) => setVehicleMake(e.target.value)} placeholder="Toyota" list="proc-makes" />
+                  <datalist id="proc-makes">
+                    {commonMakes.map(m => <option key={m} value={m} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <Label>Vehicle Model *</Label>
+                  <Input value={vehicleModel} onChange={(e) => setVehicleModel(e.target.value)} placeholder="Hilux" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Year *</Label>
+                  <Input type="number" value={vehicleYear} onChange={(e) => setVehicleYear(e.target.value)} placeholder="2022" min="1990" max="2030" />
+                </div>
+                <div>
+                  <Label>Registration Number *</Label>
+                  <Input value={vehicleRegistration} onChange={(e) => setVehicleRegistration(e.target.value)} placeholder="ABC 1234" />
+                </div>
+              </div>
+              <div>
+                <Label>Policy Number *</Label>
+                <Input value={policyNumber} onChange={(e) => setPolicyNumber(e.target.value)} placeholder="POL-12345" />
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => {
+                  if (!vehicleMake || !vehicleModel || !vehicleYear || !vehicleRegistration || !policyNumber) {
+                    toast.error("Please fill in all required fields"); return;
+                  }
+                  setStep(2);
+                }}>Next: Incident Details</Button>
+              </div>
+            </div>
+          )}
+
+          {step === 2 && (
+            <div className="space-y-4">
+              <div>
+                <Label>Incident Date *</Label>
+                <Input type="date" value={incidentDate} onChange={(e) => setIncidentDate(e.target.value)} />
+              </div>
+              <div>
+                <Label>Incident Location *</Label>
+                <Input value={incidentLocation} onChange={(e) => setIncidentLocation(e.target.value)} placeholder="Corner of Main St and 2nd Ave, Harare" />
+              </div>
+              <div>
+                <Label>Incident Description *</Label>
+                <Textarea
+                  value={incidentDescription}
+                  onChange={(e) => setIncidentDescription(e.target.value)}
+                  placeholder="Describe the incident in detail..."
+                  rows={4}
+                />
+              </div>
+              <div>
+                <Label>Damage Photos</Label>
+                <div
+                  className="border-2 border-dashed rounded-lg p-6 text-center cursor-pointer hover:border-blue-400 transition-colors"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <Upload className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                  <p className="text-sm text-muted-foreground">Click to add damage photos</p>
+                  {damagePhotos.length > 0 && (
+                    <p className="text-xs text-blue-600 mt-1">{damagePhotos.length} photo(s) added</p>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => e.target.files && handlePhotoUpload(e.target.files)}
+                />
+              </div>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
+                <Button onClick={() => {
+                  if (!incidentDate || !incidentLocation || !incidentDescription) {
+                    toast.error("Please fill in all required fields"); return;
+                  }
+                  setStep(3);
+                }}>Next: Review</Button>
+              </div>
+            </div>
+          )}
+
+          {step === 3 && (
+            <div className="space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Review Claim Details</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="grid grid-cols-2 gap-x-8 gap-y-2">
+                    <div><span className="text-muted-foreground">Vehicle:</span> {vehicleYear} {vehicleMake} {vehicleModel}</div>
+                    <div><span className="text-muted-foreground">Registration:</span> {vehicleRegistration}</div>
+                    <div><span className="text-muted-foreground">Policy:</span> {policyNumber}</div>
+                    <div><span className="text-muted-foreground">Incident Date:</span> {incidentDate}</div>
+                    <div className="col-span-2"><span className="text-muted-foreground">Location:</span> {incidentLocation}</div>
+                    <div className="col-span-2"><span className="text-muted-foreground">Description:</span> {incidentDescription}</div>
+                    <div><span className="text-muted-foreground">Photos:</span> {damagePhotos.length} attached</div>
+                  </div>
+                </CardContent>
+              </Card>
+              <div className="flex justify-between">
+                <Button variant="outline" onClick={() => setStep(2)}>Back</Button>
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {submitMutation.isPending ? "Submitting..." : "Submit Claim"}
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
+  );
+}
+
+// ========== SEARCHABLE ASSESSOR SELECT ==========
+function AssessorSearchSelect({
+  assessors,
+  isLoading,
+  disabled,
+  onSelect,
+}: {
+  assessors: any[];
+  isLoading: boolean;
+  disabled: boolean;
+  onSelect: (assessorId: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [searchValue, setSearchValue] = useState("");
+
+  const filteredAssessors = useMemo(() => {
+    if (!assessors) return [];
+    if (!searchValue) return assessors;
+    const lower = searchValue.toLowerCase();
+    return assessors.filter((a: any) =>
+      a.name?.toLowerCase().includes(lower) ||
+      a.email?.toLowerCase().includes(lower) ||
+      a.specialization?.toLowerCase().includes(lower)
+    );
+  }, [assessors, searchValue]);
+
+  return (
+    <div>
+      <Label className="text-xs mb-1">Assign Assessor</Label>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className="w-full justify-between text-sm"
+            disabled={disabled || isLoading}
+          >
+            <span className="flex items-center gap-2">
+              <Search className="h-3.5 w-3.5 text-muted-foreground" />
+              {isLoading ? "Loading..." : "Search assessor..."}
+            </span>
+            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[280px] p-0" align="start">
+          <Command shouldFilter={false}>
+            <CommandInput
+              placeholder="Type name or email..."
+              value={searchValue}
+              onValueChange={setSearchValue}
+            />
+            <CommandList>
+              <CommandEmpty>No assessors found.</CommandEmpty>
+              <CommandGroup>
+                {filteredAssessors.map((assessor: any) => (
+                  <CommandItem
+                    key={assessor.id}
+                    value={assessor.id.toString()}
+                    onSelect={() => {
+                      onSelect(assessor.id);
+                      setOpen(false);
+                      setSearchValue("");
+                    }}
+                  >
+                    <div className="flex flex-col">
+                      <span className="font-medium">{assessor.name}</span>
+                      {assessor.email && (
+                        <span className="text-xs text-muted-foreground">{assessor.email}</span>
+                      )}
+                      {assessor.specialization && (
+                        <span className="text-xs text-blue-600">{assessor.specialization}</span>
+                      )}
+                    </div>
+                  </CommandItem>
+                ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

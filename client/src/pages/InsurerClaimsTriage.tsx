@@ -18,7 +18,9 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign, ClipboardList } from "lucide-react";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import {  ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign, ClipboardList, ChevronsUpDown } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
@@ -314,26 +316,16 @@ export default function InsurerClaimsTriage() {
                       <TableCell>
                         <div className="flex flex-col gap-2 min-w-[200px]">
                           <div className="flex gap-1">
-                            <Select
-                              value={selectedAssessors[claim.id]?.toString() || ""}
-                              onValueChange={(value) =>
+                            <AssessorCombobox
+                              assessors={assessors}
+                              selectedId={selectedAssessors[claim.id]}
+                              onSelect={(id) =>
                                 setSelectedAssessors((prev) => ({
                                   ...prev,
-                                  [claim.id]: parseInt(value),
+                                  [claim.id]: id,
                                 }))
                               }
-                            >
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue placeholder="Select assessor" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {assessors.map((assessor) => (
-                                  <SelectItem key={assessor.id} value={assessor.id.toString()}>
-                                    {assessor.name}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            />
                             <Button
                               size="sm"
                               variant="default"
@@ -433,5 +425,85 @@ export default function InsurerClaimsTriage() {
         </Card>
       </main>
     </div>
+  );
+}
+
+
+// ========== SEARCHABLE ASSESSOR COMBOBOX ==========
+function AssessorCombobox({
+  assessors,
+  selectedId,
+  onSelect,
+}: {
+  assessors: any[];
+  selectedId?: number;
+  onSelect: (id: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+
+  const filtered = useMemo(() => {
+    if (!assessors) return [];
+    if (!search) return assessors;
+    const lower = search.toLowerCase();
+    return assessors.filter((a: any) =>
+      a.name?.toLowerCase().includes(lower) ||
+      a.email?.toLowerCase().includes(lower)
+    );
+  }, [assessors, search]);
+
+  const selectedName = selectedId
+    ? assessors.find((a: any) => a.id === selectedId)?.name || "Selected"
+    : null;
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          variant="outline"
+          role="combobox"
+          aria-expanded={open}
+          className="h-7 text-xs justify-between flex-1 min-w-0"
+        >
+          <span className="truncate">
+            {selectedName || "Search assessor..."}
+          </span>
+          <ChevronsUpDown className="ml-1 h-3 w-3 shrink-0 opacity-50" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-[250px] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Type name or email..."
+            value={search}
+            onValueChange={setSearch}
+            className="text-xs"
+          />
+          <CommandList>
+            <CommandEmpty>No assessors found.</CommandEmpty>
+            <CommandGroup>
+              {filtered.map((assessor: any) => (
+                <CommandItem
+                  key={assessor.id}
+                  value={assessor.id.toString()}
+                  onSelect={() => {
+                    onSelect(assessor.id);
+                    setOpen(false);
+                    setSearch("");
+                  }}
+                >
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium">{assessor.name}</span>
+                    {assessor.email && (
+                      <span className="text-xs text-muted-foreground">{assessor.email}</span>
+                    )}
+                  </div>
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }

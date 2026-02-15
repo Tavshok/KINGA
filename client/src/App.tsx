@@ -64,6 +64,7 @@ const AdminTierManagement = lazy(() => import("@/pages/AdminTierManagement"));
 const TenantManagement = lazy(() => import("./pages/admin/TenantManagement"));
 const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
 const MarketQuotesIngestion = lazy(() => import("./pages/MarketQuotesIngestion"));
+const KingaAgency = lazy(() => import("./pages/KingaAgency"));
 
 // Feature pages
 const AssessmentResults = lazy(() => import("./pages/AssessmentResults"));
@@ -262,6 +263,12 @@ function Router() {
         
         <Route path="/insurance/quote">
           <InsuranceQuote />
+        </Route>
+
+        <Route path="/agency">
+          <ProtectedRoute>
+            <KingaAgency />
+          </ProtectedRoute>
         </Route>
         
         <Route path="/insurance/quote/:quoteId">

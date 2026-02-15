@@ -67,13 +67,13 @@ export default function PortalHub() {
       roles: ["insurer", "admin"]
     },
     {
-      id: "market-quotes",
-      title: "Market Quotes",
-      description: "Ingest and analyze market pricing data for accurate valuations",
-      icon: TrendingUp,
-      path: "/market-quotes",
-      color: "from-indigo-500 to-violet-500",
-      roles: ["insurer", "admin"]
+      id: "kinga-agency",
+      title: "KINGA Agency",
+      description: "Request insurance quotations, manage policy renewals, and upload documents",
+      icon: Building2,
+      path: "/agency",
+      color: "from-emerald-500 to-teal-500",
+      roles: ["insurer", "admin", "claimant", "assessor"]
     },
     {
       id: "admin",

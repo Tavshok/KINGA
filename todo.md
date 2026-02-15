@@ -5898,3 +5898,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix AI Assess state transition error: "Cannot transition from 'submitted' to 'assessment_in_progress'" (already fixed - multi-step transition through triage → assessment_pending → assessment_in_progress)
 - [x] Fix Compare button 404: /insurer/comparison/:id route not found (already fixed - both /insurer/claims/:id/comparison and /insurer/comparison/:id routes exist)
 - [x] Fix all claims showing "Rejected" policy status (root cause: policyVerified defaulted to 0 instead of null; fixed schema default and updated 612 existing records to null)
+
+
+## Claims Processor Enhancements (2026-02-15)
+- [x] Add "Submit New Claim" button to Claims Processor Dashboard for processors to create claims
+- [x] Replace assessor assignment dropdown with searchable input (type-ahead search by name)
+- [x] Apply searchable assessor input to InsurerClaimsTriage as well
+
+## Additional Enhancements (2026-02-15)
+- [x] Add assessor notification (dashboard + email) when assigned to a claim (already implemented)
+- [x] Rename "Market Quotes" to "KINGA Agency" on Portal Hub
+
+## KINGA Agency Portal (2026-02-15)
+- [x] Create database schema for insurance quotation requests and renewals
+- [x] Create tRPC procedures for KINGA Agency (submit quote request, list quotes, manage renewals)
+- [x] Build KINGA Agency portal UI with quotation request form
+- [x] Add insurance renewals management section
+- [x] Add document upload capability for agency portal (ID, vehicle reg, etc.)
+- [x] Replace "Market Quotes" with "KINGA Agency" on Portal Hub with correct routing
+- [x] Add Submit New Claim button to Claims Processor Dashboard
+- [x] Replace assessor dropdown with searchable type-ahead input on both dashboards
