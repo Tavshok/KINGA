@@ -10,10 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { 
   FileCheck, CheckCircle, XCircle, Eye, MessageSquare, AlertCircle, 
-  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield, ChevronLeft, ChevronRight, Filter 
+  Brain, ClipboardList, ArrowRight, BarChart3, Clock, Shield, ChevronLeft, ChevronRight, Filter, Download, FileSpreadsheet 
 } from "lucide-react";
 import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { ClaimReviewDialog } from "@/components/ClaimReviewDialog";
+import { exportClaimsToExcel, type ClaimExportData } from "@/lib/export-excel";
 import { Link } from "wouter";
 
 export default function ClaimsManagerDashboard() {
@@ -245,6 +246,34 @@ export default function ClaimsManagerDashboard() {
   const highRiskCount = filteredClaims.filter((c: any) => c.fraudRiskScore && c.fraudRiskScore >= 70).length;
   const recentlyClosed = completedClaims?.length || 0;
 
+  // Export handler
+  const handleExportToExcel = () => {
+    if (filteredClaims.length === 0) {
+      toast.error("No claims to export");
+      return;
+    }
+
+    const exportData: ClaimExportData[] = filteredClaims.map((claim: any) => ({
+      claimNumber: claim.claimNumber,
+      vehicleRegistration: claim.vehicleRegistration,
+      vehicleMake: claim.vehicleMake,
+      vehicleModel: claim.vehicleModel,
+      policyNumber: claim.policyNumber,
+      status: claim.status,
+      workflowState: claim.workflowState,
+      fraudRiskScore: claim.fraudRiskScore,
+      estimatedCost: claim.estimatedCost,
+      approvedAmount: claim.approvedAmount,
+      createdAt: claim.createdAt,
+      incidentDate: claim.incidentDate,
+      incidentType: claim.incidentType,
+      technicalApprovalStatus: claim.technicalApprovalStatus,
+    }));
+
+    exportClaimsToExcel(exportData, 'claims-manager-review-queue');
+    toast.success(`Exported ${exportData.length} claims to Excel`);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -341,20 +370,32 @@ export default function ClaimsManagerDashboard() {
             </div>
             <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
               <span>Showing {paginatedClaims.length} of {filteredClaims.length} claims</span>
-              {(riskFilter !== "all" || dateFilter !== "all" || costFilter !== "all") && (
+              <div className="flex items-center gap-2">
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  onClick={() => {
-                    setRiskFilter("all");
-                    setDateFilter("all");
-                    setCostFilter("all");
-                  }}
+                  onClick={handleExportToExcel}
                   className="text-xs h-7"
+                  disabled={filteredClaims.length === 0}
                 >
-                  Clear Filters
+                  <FileSpreadsheet className="h-3 w-3 mr-1" />
+                  Export to Excel
                 </Button>
-              )}
+                {(riskFilter !== "all" || dateFilter !== "all" || costFilter !== "all") && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setRiskFilter("all");
+                      setDateFilter("all");
+                      setCostFilter("all");
+                    }}
+                    className="text-xs h-7"
+                  >
+                    Clear Filters
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

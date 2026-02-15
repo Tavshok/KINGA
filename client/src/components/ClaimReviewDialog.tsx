@@ -1,9 +1,12 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card } from "@/components/ui/card";
-import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, User } from "lucide-react";
+import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, User, Download } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
+import { toast } from "sonner";
 
 interface ClaimReviewDialogProps {
   claimId: number | null;
@@ -32,18 +35,73 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
     { enabled: !!claimId }
   );
 
+  const handleExportPDF = () => {
+    if (!claim) {
+      toast.error("Claim data not loaded");
+      return;
+    }
+
+    const reportData: ClaimReportData = {
+      claim: {
+        claimNumber: claim.claimNumber,
+        vehicleRegistration: claim.vehicleRegistration,
+        vehicleMake: claim.vehicleMake,
+        vehicleModel: claim.vehicleModel,
+        policyNumber: claim.policyNumber,
+        createdAt: claim.createdAt,
+        incidentDate: claim.incidentDate,
+        incidentType: claim.incidentType,
+      },
+      aiAssessment: aiAssessment ? {
+        fraudRiskScore: aiAssessment.fraudRiskScore,
+        fraudFlags: aiAssessment.fraudFlags,
+        estimatedCost: aiAssessment.estimatedCost,
+        damageAnalysis: aiAssessment.damageAnalysis,
+        detectedComponents: aiAssessment.detectedComponents,
+      } : undefined,
+      assessorEval: assessorEval ? {
+        damageAssessment: assessorEval.damageAssessment,
+        estimatedRepairCost: assessorEval.estimatedRepairCost,
+        laborCost: assessorEval.laborCost,
+        partsCost: assessorEval.partsCost,
+        estimatedDuration: assessorEval.estimatedDuration,
+        fraudRiskLevel: assessorEval.fraudRiskLevel,
+        recommendations: assessorEval.recommendations,
+        disagreesWithAi: assessorEval.disagreesWithAi,
+        aiDisagreementReason: assessorEval.aiDisagreementReason,
+      } : undefined,
+      quotes: quotes || [],
+    };
+
+    exportClaimReportToPDF(reportData);
+    toast.success("PDF report generated successfully");
+  };
+
   if (!claimId) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-primary">
-            Claim Review: {claim?.claimNumber}
-          </DialogTitle>
-          <p className="text-sm text-muted-foreground">
-            Comprehensive assessment summary for final review
-          </p>
+          <div className="flex items-start justify-between">
+            <div>
+              <DialogTitle className="text-2xl font-bold text-primary">
+                Claim Review: {claim?.claimNumber}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground">
+                Comprehensive assessment summary for final review
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Export PDF Report
+            </Button>
+          </div>
         </DialogHeader>
 
         {claimLoading ? (
