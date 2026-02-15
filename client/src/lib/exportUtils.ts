@@ -1,59 +1,55 @@
 /**
  * Export Utilities for Executive Dashboard
  * 
- * Provides functions to export data as PDF and Excel files.
+ * Uses dynamic imports so jspdf (707KB) and xlsx are only loaded when user clicks export.
  */
-
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
-import * as XLSX from "xlsx";
 
 /**
  * Export data as PDF
  */
-export function exportToPDF(
+export async function exportToPDF(
   title: string,
   data: any[],
   columns: { header: string; dataKey: string }[],
   filename: string
 ) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  
   const doc = new jsPDF();
   
-  // Add title
   doc.setFontSize(18);
   doc.text(title, 14, 20);
   
-  // Add timestamp
   doc.setFontSize(10);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
   
-  // Add table
   autoTable(doc, {
     startY: 35,
     head: [columns.map(col => col.header)],
     body: data.map(row => columns.map(col => row[col.dataKey] ?? "")),
     theme: "grid",
-    headStyles: { fillColor: [59, 130, 246] }, // Blue header
+    headStyles: { fillColor: [59, 130, 246] },
     styles: { fontSize: 9 },
   });
   
-  // Save PDF
   doc.save(filename);
 }
 
 /**
  * Export data as Excel
  */
-export function exportToExcel(
+export async function exportToExcel(
   data: any[],
   sheetName: string,
   filename: string
 ) {
+  const XLSX = await import("xlsx");
+  
   const worksheet = XLSX.utils.json_to_sheet(data);
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
   
-  // Auto-size columns
   const maxWidth = 50;
   const colWidths: number[] = [];
   
@@ -75,18 +71,18 @@ export function exportToExcel(
 /**
  * Export KPIs as PDF
  */
-export function exportKPIsToPDF(kpis: any) {
+export async function exportKPIsToPDF(kpis: any) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  
   const doc = new jsPDF();
   
-  // Title
   doc.setFontSize(20);
   doc.text("KINGA Executive Dashboard - KPI Report", 14, 20);
   
-  // Timestamp
   doc.setFontSize(10);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
   
-  // KPI Cards
   doc.setFontSize(14);
   doc.text("Key Performance Indicators", 14, 45);
   
@@ -115,20 +111,20 @@ export function exportKPIsToPDF(kpis: any) {
 /**
  * Export Critical Alerts as PDF
  */
-export function exportAlertsToPDF(alerts: any) {
+export async function exportAlertsToPDF(alerts: any) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  
   const doc = new jsPDF();
   
-  // Title
   doc.setFontSize(20);
   doc.text("KINGA Executive Dashboard - Critical Alerts", 14, 20);
   
-  // Timestamp
   doc.setFontSize(10);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
   
   let yPosition = 40;
   
-  // High-Value Claims
   if (alerts.highValuePending && alerts.highValuePending.length > 0) {
     doc.setFontSize(14);
     doc.text("High-Value Claims Pending Approval", 14, yPosition);
@@ -143,13 +139,12 @@ export function exportAlertsToPDF(alerts: any) {
         `$${((claim.estimatedCost || 0) / 100).toLocaleString()}`,
       ]),
       theme: "grid",
-      headStyles: { fillColor: [234, 179, 8] }, // Yellow
+      headStyles: { fillColor: [234, 179, 8] },
     });
     
     yPosition = (doc as any).lastAutoTable.finalY + 10;
   }
   
-  // High Fraud Risk
   if (alerts.highFraudRisk && alerts.highFraudRisk.length > 0) {
     doc.setFontSize(14);
     doc.text("High Fraud Risk Claims", 14, yPosition);
@@ -164,7 +159,7 @@ export function exportAlertsToPDF(alerts: any) {
         claim.fraudRiskLevel || "High",
       ]),
       theme: "grid",
-      headStyles: { fillColor: [239, 68, 68] }, // Red
+      headStyles: { fillColor: [239, 68, 68] },
     });
     
     yPosition = (doc as any).lastAutoTable.finalY + 10;
@@ -176,7 +171,7 @@ export function exportAlertsToPDF(alerts: any) {
 /**
  * Export Assessor Performance as Excel
  */
-export function exportAssessorPerformanceToExcel(assessors: any[]) {
+export async function exportAssessorPerformanceToExcel(assessors: any[]) {
   const data = assessors.map((a, index) => ({
     Rank: index + 1,
     Name: a.name,
@@ -188,13 +183,13 @@ export function exportAssessorPerformanceToExcel(assessors: any[]) {
     Tier: a.tier || "free",
   }));
   
-  exportToExcel(data, "Assessor Performance", "KINGA_Assessor_Performance.xlsx");
+  await exportToExcel(data, "Assessor Performance", "KINGA_Assessor_Performance.xlsx");
 }
 
 /**
  * Export Panel Beater Analytics as Excel
  */
-export function exportPanelBeaterAnalyticsToExcel(beaters: any[]) {
+export async function exportPanelBeaterAnalyticsToExcel(beaters: any[]) {
   const data = beaters.map(b => ({
     "Business Name": b.name,
     "Total Quotes": b.totalQuotes,
@@ -203,13 +198,13 @@ export function exportPanelBeaterAnalyticsToExcel(beaters: any[]) {
     "Acceptance Rate": `${b.acceptanceRate}%`,
   }));
   
-  exportToExcel(data, "Panel Beater Analytics", "KINGA_Panel_Beater_Analytics.xlsx");
+  await exportToExcel(data, "Panel Beater Analytics", "KINGA_Panel_Beater_Analytics.xlsx");
 }
 
 /**
  * Export Cost Savings Trends as Excel
  */
-export function exportCostSavingsTrendsToExcel(trends: any[]) {
+export async function exportCostSavingsTrendsToExcel(trends: any[]) {
   const data = trends.map(t => ({
     Month: t.month,
     "Total Savings": `$${t.savings.toLocaleString()}`,
@@ -217,24 +212,24 @@ export function exportCostSavingsTrendsToExcel(trends: any[]) {
     "Avg Savings Per Claim": `$${t.avgSavingsPerClaim.toLocaleString()}`,
   }));
   
-  exportToExcel(data, "Cost Savings Trends", "KINGA_Cost_Savings_Trends.xlsx");
+  await exportToExcel(data, "Cost Savings Trends", "KINGA_Cost_Savings_Trends.xlsx");
 }
 
 /**
  * Export Financial Overview as PDF
  */
-export function exportFinancialOverviewToPDF(financials: any) {
+export async function exportFinancialOverviewToPDF(financials: any) {
+  const { default: jsPDF } = await import("jspdf");
+  const { default: autoTable } = await import("jspdf-autotable");
+  
   const doc = new jsPDF();
   
-  // Title
   doc.setFontSize(20);
   doc.text("KINGA Executive Dashboard - Financial Overview", 14, 20);
   
-  // Timestamp
   doc.setFontSize(10);
   doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 28);
   
-  // Financial Metrics
   doc.setFontSize(14);
   doc.text("Financial Metrics", 14, 45);
   

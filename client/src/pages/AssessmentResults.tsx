@@ -26,9 +26,7 @@ import { ExecutiveSummary } from "@/components/ExecutiveSummary";
 // import { HistoricalBenchmarkCard } from "@/components/HistoricalBenchmarkCard";
 import { CrossValidationPanel } from "@/components/CrossValidationPanel";
 
-// Lazy-load 3D visualization to avoid bundle bloat
-import { lazy, Suspense } from "react";
-const VehicleDamageVisualization3D = lazy(() => import("@/components/VehicleDamageVisualization3D"));
+
 
 interface ItemizedCost {
   description: string;
@@ -521,99 +519,7 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
   );
 }
 
-// ─── 3D Visualization Data Transformers ─────────────────────────────────
 
-type VehicleZone3D = "front" | "rear" | "left_side" | "right_side" | "roof" | "windshield" | "rear_glass" | "undercarriage";
-
-const COMPONENT_ZONE_MAP: Record<string, VehicleZone3D> = {
-  bumper: 'front', 'front bumper': 'front', 'rear bumper': 'rear', grille: 'front', grill: 'front',
-  headlight: 'front', headlamp: 'front', 'fog light': 'front', bonnet: 'front', hood: 'front',
-  radiator: 'front', condenser: 'front', 'intercooler': 'front', fender: 'front',
-  taillight: 'rear', 'tail light': 'rear', 'tail lamp': 'rear', 'boot lid': 'rear', trunk: 'rear',
-  'rear panel': 'rear', 'back panel': 'rear', 'tow bar': 'rear', 'number plate': 'rear',
-  door: 'left_side', 'front door': 'left_side', 'rear door': 'right_side',
-  'quarter panel': 'right_side', sill: 'left_side', 'rocker panel': 'left_side',
-  mirror: 'left_side', 'side mirror': 'left_side', 'wing mirror': 'right_side',
-  'running board': 'left_side', 'step rail': 'left_side',
-  windscreen: 'windshield', windshield: 'windshield', 'front glass': 'windshield',
-  'rear window': 'rear_glass', 'rear glass': 'rear_glass', 'back glass': 'rear_glass',
-  roof: 'roof', 'roof panel': 'roof', 'roof rack': 'roof', canopy: 'roof', 'roll bar': 'roof',
-  subframe: 'undercarriage', chassis: 'undercarriage', suspension: 'undercarriage',
-  axle: 'undercarriage', 'drive shaft': 'undercarriage', exhaust: 'undercarriage',
-  'bull bar': 'front', 'nudge bar': 'front', 'a-bar': 'front',
-};
-
-function guessZone(componentName: string): VehicleZone3D {
-  const lower = componentName.toLowerCase();
-  for (const [key, zone] of Object.entries(COMPONENT_ZONE_MAP)) {
-    if (lower.includes(key)) return zone;
-  }
-  if (lower.includes('front')) return 'front';
-  if (lower.includes('rear') || lower.includes('back')) return 'rear';
-  if (lower.includes('left') || lower.includes('lh')) return 'left_side';
-  if (lower.includes('right') || lower.includes('rh')) return 'right_side';
-  return 'front';
-}
-
-function buildDamageZones(data: ExtractedData) {
-  const zoneMap = new Map<VehicleZone3D, { components: string[]; totalCost: number; maxSeverity: number }>();
-
-  // From componentRecommendations (best source)
-  if (data.componentRecommendations && data.componentRecommendations.length > 0) {
-    for (const rec of data.componentRecommendations) {
-      const zone = guessZone(rec.component);
-      const existing = zoneMap.get(zone) || { components: [], totalCost: 0, maxSeverity: 0 };
-      existing.components.push(rec.component);
-      existing.totalCost += rec.estimatedCost || 0;
-      const sev = rec.severity === 'severe' ? 8 : rec.severity === 'moderate' ? 5 : 2;
-      existing.maxSeverity = Math.max(existing.maxSeverity, sev);
-      zoneMap.set(zone, existing);
-    }
-  } else if (data.damagedComponents && data.damagedComponents.length > 0) {
-    // Fallback: from damagedComponents list
-    for (const comp of data.damagedComponents) {
-      const zone = guessZone(comp);
-      const existing = zoneMap.get(zone) || { components: [], totalCost: 0, maxSeverity: 0 };
-      existing.components.push(comp);
-      existing.maxSeverity = Math.max(existing.maxSeverity, 5);
-      zoneMap.set(zone, existing);
-    }
-  }
-
-  // Distribute cost if not per-component
-  if (data.estimatedCost && zoneMap.size > 0) {
-    const totalFromZones = Array.from(zoneMap.values()).reduce((s, z) => s + z.totalCost, 0);
-    if (totalFromZones === 0) {
-      const perZone = data.estimatedCost / zoneMap.size;
-      Array.from(zoneMap.values()).forEach(z => { z.totalCost = perZone; });
-    }
-  }
-
-  return Array.from(zoneMap.entries()).map(([zone, info]) => ({
-    zone,
-    severity: info.maxSeverity,
-    level: (info.maxSeverity >= 8 ? 'Critical' : info.maxSeverity >= 6 ? 'Severe' : info.maxSeverity >= 3 ? 'Moderate' : 'Minor') as 'Minor' | 'Moderate' | 'Severe' | 'Critical',
-    components: info.components,
-    repairCost: info.totalCost,
-  }));
-}
-
-function buildImpactData(data: ExtractedData) {
-  const type = (data.accidentType || '').toLowerCase();
-  let direction: 'front' | 'rear' | 'left' | 'right' | 'top' | 'multi' = 'front';
-  if (type.includes('rear')) direction = 'rear';
-  else if (type.includes('side') && type.includes('left')) direction = 'left';
-  else if (type.includes('side') && type.includes('right')) direction = 'right';
-  else if (type.includes('side')) direction = 'left';
-  else if (type.includes('rollover') || type.includes('roll')) direction = 'top';
-  else if (type.includes('multi') || type.includes('pile')) direction = 'multi';
-
-  return {
-    direction,
-    speed: data.physicsAnalysis?.impactSpeed,
-    force: data.physicsAnalysis?.impactForce,
-  };
-}
 
 // ─── Main Component ────────────────────────────────────────────────────
 export default function AssessmentResults() {
@@ -1012,24 +918,15 @@ export default function AssessmentResults() {
               <div className="flex items-center gap-3 mb-4">
                 <div className="p-2 bg-indigo-100 rounded-lg"><Car className="w-5 h-5 text-indigo-600" /></div>
                 <div>
-                  <h2 className="text-xl font-semibold">3D Damage Visualization</h2>
-                  <p className="text-sm text-gray-500">Rotate and zoom to inspect damage zones on the vehicle</p>
+                  <h2 className="text-xl font-semibold">Damage Visualization</h2>
+                  <p className="text-sm text-gray-500">Visual representation of damage zones on the vehicle</p>
                 </div>
               </div>
-              <Suspense fallback={
-                <div className="h-[400px] flex items-center justify-center bg-gray-50 rounded-lg">
-                  <div className="text-center">
-                    <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-indigo-500" />
-                    <p className="text-sm text-gray-500">Loading 3D visualization...</p>
-                  </div>
-                </div>
-              }>
-                <VehicleDamageVisualization3D
-                  damageZones={buildDamageZones(extractedData)}
-                  impactData={buildImpactData(extractedData)}
-                  height={420}
-                />
-              </Suspense>
+              <VehicleDamageVisualization
+                damagedComponents={extractedData.damagedComponents || []}
+                accidentType={extractedData.accidentType}
+                estimatedCost={extractedData.estimatedCost}
+              />
             </Card>
 
             {/* Cross-Validation Panel */}

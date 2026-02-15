@@ -10,7 +10,9 @@ import {
   Shield,
   ArrowRight,
   LogOut,
-  Database
+  Database,
+  Truck,
+  TrendingUp
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -54,6 +56,24 @@ export default function PortalHub() {
       path: "/claimant/dashboard",
       color: "from-purple-500 to-pink-500",
       roles: ["claimant", "admin"]
+    },
+    {
+      id: "fleet",
+      title: "Fleet Management",
+      description: "Manage vehicle fleets, bulk imports, and fleet-wide analytics",
+      icon: Truck,
+      path: "/fleet-management",
+      color: "from-teal-500 to-cyan-500",
+      roles: ["insurer", "admin"]
+    },
+    {
+      id: "market-quotes",
+      title: "Market Quotes",
+      description: "Ingest and analyze market pricing data for accurate valuations",
+      icon: TrendingUp,
+      path: "/market-quotes",
+      color: "from-indigo-500 to-violet-500",
+      roles: ["insurer", "admin"]
     },
     {
       id: "admin",

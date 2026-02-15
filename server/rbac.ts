@@ -48,7 +48,7 @@ export const PERMISSIONS = {
     approveFinancial: false,
     closeClaim: false,
     viewFraudAnalytics: false,
-    viewAllClaims: false, // Only assigned claims
+    viewAllClaims: true, // Claims processors need to see all incoming claims to triage and assign them
   },
   internal_assessor: {
     createClaim: false,

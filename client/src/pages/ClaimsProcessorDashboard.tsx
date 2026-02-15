@@ -25,12 +25,12 @@ export default function ClaimsProcessorDashboard() {
   const [uploadingFile, setUploadingFile] = useState(false);
 
   // Fetch pending claims (submitted by claimants, awaiting processor action)
-  const { data: pendingClaims, isLoading: pendingLoading, refetch: refetchPending } = 
+  const { data: pendingClaims, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = 
     trpc.workflow.getClaimsByState.useQuery({ state: "created" });
 
-  // Fetch returned claims (sent back by Claims Manager)
+  // Fetch returned claims (sent back by Claims Manager for review - disputed state)
   const { data: returnedClaims, isLoading: returnedLoading } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "created" });
+    trpc.workflow.getClaimsByState.useQuery({ state: "disputed" });
 
   // Fetch available external assessors
   const { data: assessors, isLoading: assessorsLoading } = trpc.assessors.list.useQuery();
@@ -257,6 +257,15 @@ export default function ClaimsProcessorDashboard() {
           <CardContent>
             {pendingLoading ? (
               <p className="text-center text-slate-500 py-8">Loading claims...</p>
+            ) : pendingError ? (
+              <div className="text-center py-8">
+                <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
+                <p className="text-red-600 font-medium">Failed to load claims</p>
+                <p className="text-sm text-slate-500 mt-1">{pendingError.message}</p>
+                <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchPending()}>
+                  <RefreshCw className="h-4 w-4 mr-2" /> Retry
+                </Button>
+              </div>
             ) : pendingClaims && pendingClaims.length > 0 ? (
               <div className="space-y-3">
                 {pendingClaims.map((claim: any) => (

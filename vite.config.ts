@@ -170,18 +170,11 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks(id) {
-          // Split heavy 3D libraries into their own chunk
-          if (id.includes('three') || id.includes('@react-three')) {
-            return 'vendor-three';
-          }
-          // Split chart libraries
+          // Split chart libraries (recharts + d3)
           if (id.includes('recharts') || id.includes('d3-')) {
             return 'vendor-charts';
           }
-          if (id.includes('chart.js') || id.includes('react-chartjs')) {
-            return 'vendor-chartjs';
-          }
-          // Split PDF/export libraries
+          // Split PDF/export libraries (lazy-loaded on demand)
           if (id.includes('jspdf') || id.includes('xlsx')) {
             return 'vendor-export';
           }

@@ -1,5 +1,11 @@
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+// Dynamic imports - jspdf (707KB) only loaded when user clicks export
+type JsPDFType = import('jspdf').jsPDF;
+
+async function loadPdfLibs() {
+  const { jsPDF } = await import('jspdf');
+  const { default: autoTable } = await import('jspdf-autotable');
+  return { jsPDF, autoTable };
+}
 
 interface ClaimData {
   claimNumber: string;
@@ -64,7 +70,8 @@ interface ClaimData {
 /**
  * Generate PDF report for claim comparison
  */
-export function generateComparisonPDF(data: ClaimData): void {
+export async function generateComparisonPDF(data: ClaimData): Promise<void> {
+  const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF();
   let yPos = 20;
 
@@ -303,7 +310,7 @@ export function generateComparisonPDF(data: ClaimData): void {
 /**
  * Generate PDF report for fraud analytics dashboard
  */
-export function generateFraudAnalyticsPDF(data: {
+export async function generateFraudAnalyticsPDF(data: {
   totalClaims: number;
   fraudDetected: number;
   fraudRate: number;
@@ -311,7 +318,8 @@ export function generateFraudAnalyticsPDF(data: {
   totalSavings: number;
   topFraudIndicators: Array<{ name: string; count: number; percentage: number }>;
   monthlyTrends: Array<{ month: string; claims: number; frauds: number }>;
-}): void {
+}): Promise<void> {
+  const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF();
   let yPos = 20;
 
@@ -432,7 +440,7 @@ export function generateFraudAnalyticsPDF(data: {
 /**
  * Generate PDF report for damage component breakdown
  */
-export function generateDamageReportPDF(data: {
+export async function generateDamageReportPDF(data: {
   claimNumber: string;
   vehicle: string;
   registration: string;
@@ -447,7 +455,8 @@ export function generateDamageReportPDF(data: {
   partsCost: number;
   laborCost: number;
   damageDescription: string;
-}): void {
+}): Promise<void> {
+  const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF();
   let yPos = 20;
 

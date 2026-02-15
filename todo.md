@@ -5829,3 +5829,24 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Remove hardcoded approval thresholds from workflow logic
 - [ ] Ensure approval limits are tenant-configurable in Admin Panel
 - [ ] Make role descriptions generic (no specific dollar amounts)
+
+
+## Critical Bugs - User Reported (2026-02-15 Session 2)
+
+- [x] Fix Claims Processor "Loading claims..." stuck forever
+- [x] Restore Fleet Management card on Portal Hub
+- [x] Restore Market Quotes card on Portal Hub
+- [x] Fix unresponsive pages across the application
+
+
+## Out-of-Memory Fix (Feb 2026)
+- [x] Fix out-of-memory crash on published site
+- [x] Remove three.js dependency (1,066 KB eliminated)
+- [x] Remove chart.js dependency, migrated to recharts (212 KB eliminated)
+- [x] Remove framer-motion dependency (unused, 3.3 MB node_modules)
+- [x] Convert jspdf/xlsx to dynamic imports (854 KB now lazy-loaded)
+- [x] Convert pdfExport.ts to dynamic imports
+- [x] Fix Claims Processor "Loading claims..." hang (RBAC permission fix)
+- [x] Add error handling to Claims Processor dashboard
+- [x] Restore Fleet Management and Market Quotes cards to Portal Hub
+- [x] Verify all pages load without OOM crash
