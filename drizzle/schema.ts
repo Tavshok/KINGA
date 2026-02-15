@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext, index, bigint, boolean } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext, index, bigint, boolean, unique } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -4227,3 +4227,244 @@ export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metri
 
 export type SupplierPerformanceMetric = typeof supplierPerformanceMetrics.$inferSelect;
 export type InsertSupplierPerformanceMetric = typeof supplierPerformanceMetrics.$inferInsert;
+
+// ============================================================================
+// TENANT CONFIGURATION TABLES
+// ============================================================================
+// Multi-tenant insurer platform configuration
+// Note: TEXT field defaults handled in application code (TiDB limitation)
+
+/**
+ * Insurer Tenants - Insurance companies leasing the platform
+ */
+export const insurerTenants = mysqlTable("insurer_tenants", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  name: varchar("name", { length: 255 }).notNull(),
+  displayName: varchar("display_name", { length: 255 }).notNull(),
+  logoUrl: text("logo_url"), // S3 URL for custom logo
+  primaryColor: varchar("primary_color", { length: 7 }).default("#10b981"), // Default: KINGA emerald
+  secondaryColor: varchar("secondary_color", { length: 7 }).default("#64748b"), // Default: slate
+  
+  // Document naming (default handled in app: KINGA-{DocType}-{ClaimNumber}-v{Version}-{Date}.pdf)
+  documentNamingTemplate: text("document_naming_template"),
+  
+  // Retention policies
+  documentRetentionYears: int("document_retention_years").default(7),
+  fraudRetentionYears: int("fraud_retention_years").default(10),
+  
+  // Approval thresholds (in cents)
+  requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default("10000.00"),
+  highValueThreshold: decimal("high_value_threshold", { precision: 10, scale: 2 }).default("10000.00"),
+  autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default("5000.00"),
+  
+  // Fraud detection
+  fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default("0.70"), // 0-1 scale
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InsurerTenant = typeof insurerTenants.$inferSelect;
+export type InsertInsurerTenant = typeof insurerTenants.$inferInsert;
+
+/**
+ * Tenant Role Configs - Which roles are enabled for each tenant
+ */
+export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  roleKey: mysqlEnum("role_key", ["executive", "claims_manager", "claims_processor", "internal_assessor", "risk_manager"]).notNull(),
+  enabled: tinyint("enabled").default(1).notNull(),
+  displayName: varchar("display_name", { length: 100 }), // Custom role name (e.g., "Senior Adjuster" instead of "Claims Manager")
+  
+  // Permissions (JSON array of permission keys, default handled in app)
+  permissions: text("permissions"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueTenantRole: unique().on(table.tenantId, table.roleKey),
+}));
+
+export type TenantRoleConfig = typeof tenantRoleConfigs.$inferSelect;
+export type InsertTenantRoleConfig = typeof tenantRoleConfigs.$inferInsert;
+
+/**
+ * Tenant Workflow Configs - Approval thresholds and routing rules per tenant
+ */
+export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull().unique(),
+  
+  // Approval thresholds (in cents)
+  requireExecutiveApprovalAbove: decimal("require_executive_approval_above", { precision: 10, scale: 2 }).default("50000.00"),
+  requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default("10000.00"),
+  autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default("5000.00"),
+  
+  // Fraud detection
+  fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default("0.70"),
+  
+  // Assessment routing
+  requireInternalAssessment: tinyint("require_internal_assessment").default(0).notNull(), // 0 = external only, 1 = all claims
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type TenantWorkflowConfig = typeof tenantWorkflowConfigs.$inferSelect;
+export type InsertTenantWorkflowConfig = typeof tenantWorkflowConfigs.$inferInsert;
+
+/**
+ * Document Naming Templates - Tenant-customizable document naming conventions
+ */
+export const documentNamingTemplates = mysqlTable("document_naming_templates", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  docType: mysqlEnum("doc_type", ["claim", "assessment", "report", "approval"]).notNull(),
+  
+  // Template string (e.g., "{TenantCode}-{DocType}-{ClaimNumber}-v{Version}-{Date}.pdf")
+  template: varchar("template", { length: 500 }).notNull(),
+  
+  // Description (default handled in app)
+  description: text("description"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  uniqueTenantDocType: unique().on(table.tenantId, table.docType),
+}));
+
+export type DocumentNamingTemplate = typeof documentNamingTemplates.$inferSelect;
+export type InsertDocumentNamingTemplate = typeof documentNamingTemplates.$inferInsert;
+
+/**
+ * Document Versions - Immutable version history for all generated documents
+ */
+export const documentVersions = mysqlTable("document_versions", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  claimId: int("claim_id").notNull(),
+  
+  documentName: varchar("document_name", { length: 500 }).notNull(),
+  documentUrl: text("document_url").notNull(), // S3 URL
+  docType: mysqlEnum("doc_type", ["claim", "assessment", "report", "approval"]).notNull(),
+  version: int("version").notNull(),
+  
+  // Approval tracking
+  createdBy: int("created_by").notNull(),
+  approvedBy: int("approved_by"),
+  approvedAt: timestamp("approved_at"),
+  
+  // Retention (Unix timestamp for deletion)
+  retentionUntil: timestamp("retention_until").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  uniqueClaimDocVersion: unique().on(table.claimId, table.docType, table.version),
+}));
+
+export type DocumentVersion = typeof documentVersions.$inferSelect;
+export type InsertDocumentVersion = typeof documentVersions.$inferInsert;
+
+/**
+ * ISO Audit Logs - Immutable audit trail for all user actions (ISO 9001:2015 compliance)
+ */
+export const isoAuditLogs = mysqlTable("iso_audit_logs", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  userId: int("user_id").notNull(),
+  userRole: varchar("user_role", { length: 50 }).notNull(),
+  
+  actionType: mysqlEnum("action_type", ["create", "update", "approve", "reject", "view", "delete"]).notNull(),
+  resourceType: varchar("resource_type", { length: 50 }).notNull(), // 'claim', 'assessment', 'document', 'user'
+  resourceId: varchar("resource_id", { length: 64 }).notNull(),
+  
+  // State snapshots (JSON, default handled in app)
+  beforeState: text("before_state"),
+  afterState: text("after_state"),
+  
+  // Session tracking
+  ipAddress: varchar("ip_address", { length: 45 }),
+  sessionId: varchar("session_id", { length: 64 }),
+  
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+  
+  // Tamper detection (SHA-256 hash)
+  integrityHash: varchar("integrity_hash", { length: 64 }).notNull(),
+});
+
+export type IsoAuditLog = typeof isoAuditLogs.$inferSelect;
+export type InsertIsoAuditLog = typeof isoAuditLogs.$inferInsert;
+
+/**
+ * Quality Metrics - Process performance metrics for ISO compliance reporting
+ */
+export const qualityMetrics = mysqlTable("quality_metrics", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  metricType: mysqlEnum("metric_type", ["processing_time", "approval_rate", "fraud_detection", "cost_savings"]).notNull(),
+  metricValue: decimal("metric_value", { precision: 10, scale: 2 }).notNull(),
+  
+  periodStart: timestamp("period_start").notNull(),
+  periodEnd: timestamp("period_end").notNull(),
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+
+export type QualityMetric = typeof qualityMetrics.$inferSelect;
+export type InsertQualityMetric = typeof qualityMetrics.$inferInsert;
+
+/**
+ * Risk Register - ISO 31000 risk management tracking per claim
+ */
+export const riskRegister = mysqlTable("risk_register", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  claimId: int("claim_id").notNull(),
+  
+  riskType: mysqlEnum("risk_type", ["fraud", "cost_overrun", "compliance", "operational"]).notNull(),
+  
+  // Risk scoring (1-5 scale)
+  likelihood: int("likelihood").notNull(),
+  impact: int("impact").notNull(),
+  riskScore: int("risk_score").notNull(), // likelihood * impact
+  
+  // Risk details (default handled in app)
+  description: text("description").notNull(),
+  treatmentPlan: mysqlEnum("treatment_plan", ["accept", "mitigate", "transfer", "avoid"]),
+  treatmentNotes: text("treatment_notes"),
+  
+  // Tracking
+  identifiedBy: int("identified_by").notNull(),
+  identifiedAt: timestamp("identified_at").defaultNow().notNull(),
+  reviewedBy: int("reviewed_by"),
+  reviewedAt: timestamp("reviewed_at"),
+  
+  status: mysqlEnum("status", ["open", "mitigated", "closed"]).default("open").notNull(),
+});
+
+export type RiskRegisterEntry = typeof riskRegister.$inferSelect;
+export type InsertRiskRegisterEntry = typeof riskRegister.$inferInsert;
+
+/**
+ * Training Records - User competency and training tracking
+ */
+export const trainingRecords = mysqlTable("training_records", {
+  id: varchar("id", { length: 64 }).primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  userId: int("user_id").notNull(),
+  
+  trainingType: mysqlEnum("training_type", ["fraud_detection", "iso_compliance", "role_onboarding"]).notNull(),
+  
+  completionDate: timestamp("completion_date").notNull(),
+  expiryDate: timestamp("expiry_date"), // For certifications that require renewal
+  
+  trainer: varchar("trainer", { length: 255 }),
+  assessmentScore: decimal("assessment_score", { precision: 5, scale: 2 }),
+  certificateUrl: text("certificate_url"), // S3 URL
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type TrainingRecord = typeof trainingRecords.$inferSelect;
+export type InsertTrainingRecord = typeof trainingRecords.$inferInsert;
