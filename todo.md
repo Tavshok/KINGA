@@ -5546,3 +5546,68 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update useAuth hook to apply role impersonation from sessionStorage
 - [x] Add Role Test tab to AdminDashboard with testing guide
 - [ ] Test switching between all 13 portal variations (ready for user testing)
+
+
+## Portal Hub Refactor - Consolidate Insurer Sub-Roles (Current Work)
+- [ ] Update PortalHub.tsx to remove 5 separate insurer sub-role portal cards
+- [ ] Keep single "Insurer Portal" card that links to role selection page
+- [ ] Reduce total portal cards from 13 to 8 (Insurer, Assessor, Panel Beater, Claimant, Fleet, KINGA Agency, Historical Claims, Admin)
+- [ ] Create InsurerRoleSelection.tsx page with 5 sub-role cards:
+  - [ ] Executive card (Strategic oversight, KPIs, fraud trends, view-only)
+  - [ ] Claims Manager card (Payment authorization, close claims, send-back workflow)
+  - [ ] Claims Processor card (Claim creation, assessor assignment, handle returns)
+  - [ ] Internal Assessor card (Assessment queue, fraud analytics, technical findings)
+  - [ ] Risk Manager card (Technical approval, high-value oversight, fraud analytics)
+- [ ] Add role-based access control to InsurerRoleSelection (show only user's assigned sub-role, or all for admin)
+- [ ] Update App.tsx routing: /insurer → InsurerRoleSelection → /insurer/:subrole
+- [ ] Update AdminRoleImpersonation to work with new insurer role selection flow
+- [ ] Test complete workflow: Portal Hub → Insurer Portal → Role Selection → Role Dashboard
+
+
+## Multi-Tenant Insurer Architecture & ISO Compliance (Current Work)
+
+### Architecture Documentation
+- [x] Write comprehensive architecture document (KINGA-Insurer-Architecture.md)
+  - [x] Multi-tenant insurer configuration system
+  - [x] ISO 9001:2015 quality management compliance framework
+  - [x] ISO 31000 risk management integration
+  - [x] Role-based access control (RBAC) architecture
+  - [x] Customizable workflow engine design
+  - [x] Document naming convention system (tenant-customizable)
+  - [x] Audit trail and quality metrics framework
+  - [x] Tenant onboarding and configuration process
+  - [x] Author: Tavonga Shoko
+
+### Database Schema Updates
+- [ ] Create insurer_tenants table (tenant metadata, branding, settings)
+- [ ] Create tenant_role_configs table (enabled roles, custom names, permissions)
+- [ ] Create tenant_workflow_configs table (approval thresholds, routing rules)
+- [ ] Create document_naming_templates table (tenant-specific naming conventions)
+- [ ] Create audit_logs table (ISO-compliant audit trail)
+- [ ] Create quality_metrics table (process performance tracking)
+- [ ] Create training_records table (user competency tracking)
+- [ ] Create risk_register table (ISO 31000 risk management)
+
+### Portal Hub Refactor
+- [ ] Update PortalHub.tsx to show single "Insurer Portal" card
+- [ ] Create InsurerRoleSelection.tsx page with 5 sub-role cards
+- [ ] Add tenant-aware role filtering (show only enabled roles for tenant)
+- [ ] Update routing: /insurer → InsurerRoleSelection → /insurer/:subrole
+
+### Tenant Configuration Admin UI
+- [ ] Create TenantManagement.tsx admin page
+- [ ] Build tenant creation wizard
+- [ ] Add role configuration interface (enable/disable, rename roles)
+- [ ] Add workflow configuration interface (thresholds, routing, automation)
+- [ ] Add document naming template editor
+- [ ] Add optional branding upload (logo, colors)
+- [ ] Build tenant user management (assign users to roles)
+
+### ISO-Compliant Document Management
+- [ ] Implement document naming service with tenant templates
+- [ ] Add version control system with approval tracking
+- [ ] Build document retention policy engine
+- [ ] Create audit log service (who, what, when for all actions)
+- [ ] Add quality metrics tracking (claim processing time, error rates)
+- [ ] Build risk register integration for claims
+- [ ] Create compliance reporting dashboard
