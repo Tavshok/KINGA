@@ -258,6 +258,13 @@ export default function AdminDashboard() {
             <Settings className="mr-2 h-4 w-4" />
             Settings
           </Button>
+          <Button
+            variant="outline"
+            onClick={() => setLocation("/admin/market-quotes")}
+          >
+            <Database className="mr-2 h-4 w-4" />
+            Market Quotes
+          </Button>
         </div>
 
         {/* Panel Beater Approvals Tab */}

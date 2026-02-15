@@ -57,6 +57,7 @@ import PaymentVerification from "./pages/PaymentVerification";
 import InsuranceDashboard from "./pages/InsuranceDashboard";
 import ReviewQueue from "./pages/ReviewQueue";
 import Onboarding from "./pages/Onboarding";
+import MarketQuotesIngestion from "./pages/MarketQuotesIngestion";
 
 function Router() {
   return (
@@ -370,6 +371,11 @@ function Router() {
       <Route path="/admin/tier-management">
         <ProtectedRoute allowedRoles={["admin"]}>
           <AdminTierManagement />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/admin/market-quotes">
+        <ProtectedRoute allowedRoles={["admin"]}>
+          <MarketQuotesIngestion />
         </ProtectedRoute>
       </Route>
       
