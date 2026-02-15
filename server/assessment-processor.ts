@@ -150,6 +150,20 @@ interface AssessmentResult {
   damagedComponents: string[];
   physicsAnalysis: PhysicsAnalysis;
   fraudAnalysis: FraudAnalysis;
+  incidentClassification?: {
+    incidentType: string;
+    isCollision: boolean;
+    vehicleWasStationary: boolean;
+    confidence: number;
+    reasoning: string;
+  };
+  narrativeValidation?: {
+    narrativeScore: number;
+    isPlausible: boolean;
+    supports: string[];
+    concerns: string[];
+    deductions: string[];
+  };
   missingData: string[];
   dataQuality: Record<string, boolean>;
   dataCompleteness: number;
@@ -221,6 +235,240 @@ const EXPECTED_DAMAGE_LOCATIONS: Record<string, string[]> = {
 
 const GRAVITY = 9.81;
 const CRUMPLE_DISTANCE = 0.5; // meters
+
+// ============================================================
+// INCIDENT TYPE CLASSIFICATION
+// ============================================================
+
+/** Non-collision incident types that should NOT use collision dynamics */
+const NON_COLLISION_TYPES = new Set([
+  'theft', 'break_in', 'vandalism', 'hijacking', 'forced_entry',
+  'attempted_theft', 'fire', 'hail', 'flood', 'storm', 'falling_object',
+  'animal_damage', 'malicious_damage', 'burglary',
+]);
+
+/** Keywords in accident descriptions that indicate non-collision incidents */
+const NON_COLLISION_KEYWORDS: Record<string, string[]> = {
+  break_in: ['broke into', 'break-in', 'break in', 'broken into', 'forced entry', 'forced open', 'pried open', 'smashed window', 'broke the window', 'broke window', 'jimmied', 'lock tampered', 'lock damaged', 'lock broken', 'key lock', 'locking system', 'burglary', 'burglar'],
+  theft: ['stolen', 'theft', 'stole', 'missing', 'removed', 'took', 'stripped', 'looted', 'robbed'],
+  vandalism: ['vandal', 'keyed', 'scratched deliberately', 'graffiti', 'malicious damage', 'intentional damage', 'slashed tire', 'smashed'],
+  hijacking: ['hijack', 'carjack', 'gunpoint', 'held up', 'armed robbery', 'ambush'],
+  fire: ['fire', 'arson', 'burnt', 'burned', 'engulfed', 'flames', 'combustion'],
+  hail: ['hail', 'hailstorm', 'hail damage', 'dents from hail'],
+  flood: ['flood', 'submerged', 'water damage', 'waterlogged', 'inundated'],
+  storm: ['storm', 'wind damage', 'tree fell', 'branch fell', 'lightning'],
+  animal_damage: ['animal', 'hit a deer', 'hit an animal', 'bird strike'],
+  stationary: ['stationary', 'parked', 'was parked', 'standing still', 'not moving', 'vehicle was with'],
+};
+
+/** Expected damage patterns for non-collision incident types */
+const NON_COLLISION_EXPECTED_DAMAGE: Record<string, { components: string[]; description: string }> = {
+  break_in: { components: ['door lock', 'window', 'locking system', 'key lock', 'ignition', 'steering column', 'door handle'], description: 'Lock/window damage from forced entry' },
+  theft: { components: ['door lock', 'window', 'ignition', 'steering column', 'wheels', 'battery', 'radio', 'catalytic converter'], description: 'Component removal or entry damage' },
+  vandalism: { components: ['paint', 'body panel', 'window', 'mirror', 'tire', 'headlight', 'taillight'], description: 'Surface/cosmetic damage from deliberate acts' },
+  hijacking: { components: ['door', 'window', 'mirror', 'body panel', 'ignition'], description: 'Forced entry and possible collision damage during escape' },
+  fire: { components: ['engine', 'wiring', 'interior', 'paint', 'body panel', 'dashboard'], description: 'Heat/fire damage to vehicle systems' },
+  hail: { components: ['roof', 'hood', 'trunk', 'body panel', 'windshield', 'window'], description: 'Dent patterns on horizontal surfaces' },
+  flood: { components: ['engine', 'electrical', 'interior', 'carpet', 'seats', 'ECU'], description: 'Water ingress damage to electronics and interior' },
+};
+
+interface IncidentClassification {
+  isCollision: boolean;
+  incidentType: string;
+  confidence: number;
+  reasoning: string;
+  vehicleWasStationary: boolean;
+}
+
+interface NarrativeValidation {
+  isPlausible: boolean;
+  narrativeScore: number; // 0-100
+  deductions: string[];   // Logical deductions made
+  concerns: string[];     // Issues found
+  supports: string[];     // Evidence supporting the narrative
+}
+
+/**
+ * Classify the incident type from the accident description.
+ * Determines whether collision dynamics should be applied.
+ */
+function classifyIncidentType(
+  accidentDescription: string,
+  accidentType: string,
+  damageDescription: string,
+  damagedComponents: string[],
+): IncidentClassification {
+  const text = `${accidentDescription} ${damageDescription} ${damagedComponents.join(' ')}`.toLowerCase();
+  
+  // Check if the LLM already classified it as non-collision
+  if (NON_COLLISION_TYPES.has(accidentType)) {
+    return {
+      isCollision: false,
+      incidentType: accidentType,
+      confidence: 0.95,
+      reasoning: `Classified as non-collision incident type: ${accidentType}`,
+      vehicleWasStationary: true,
+    };
+  }
+  
+  // Scan description for non-collision keywords
+  let bestMatch = '';
+  let bestScore = 0;
+  let wasStationary = false;
+  
+  // Check for stationary vehicle indicators
+  for (const keyword of NON_COLLISION_KEYWORDS.stationary) {
+    if (text.includes(keyword)) {
+      wasStationary = true;
+      break;
+    }
+  }
+  
+  for (const [type, keywords] of Object.entries(NON_COLLISION_KEYWORDS)) {
+    if (type === 'stationary') continue;
+    let matchCount = 0;
+    for (const keyword of keywords) {
+      if (text.includes(keyword)) matchCount++;
+    }
+    if (matchCount > bestScore) {
+      bestScore = matchCount;
+      bestMatch = type;
+    }
+  }
+  
+  if (bestScore >= 2 || (bestScore >= 1 && wasStationary)) {
+    return {
+      isCollision: false,
+      incidentType: bestMatch,
+      confidence: Math.min(0.95, 0.6 + bestScore * 0.15),
+      reasoning: `Description contains ${bestScore} keyword(s) indicating ${bestMatch.replace(/_/g, ' ')} incident${wasStationary ? '; vehicle was stationary' : ''}`,
+      vehicleWasStationary: wasStationary,
+    };
+  }
+  
+  // Default: treat as collision
+  return {
+    isCollision: true,
+    incidentType: accidentType || 'other',
+    confidence: bestScore === 0 ? 0.8 : 0.5,
+    reasoning: bestScore === 0 
+      ? 'No non-collision indicators found; treating as collision'
+      : `Weak non-collision signal (${bestScore} keyword); defaulting to collision analysis`,
+    vehicleWasStationary: wasStationary,
+  };
+}
+
+/**
+ * Validate the claimant's narrative against physical evidence.
+ * Cross-references the accident description with damage type, location, components, and cost.
+ */
+function validateNarrative(
+  accidentDescription: string,
+  damageDescription: string,
+  damagedComponents: string[],
+  incidentClassification: IncidentClassification,
+  totalCost: number,
+  marketValue: number,
+  hasPoliceReport: boolean,
+  hasPhotos: boolean,
+): NarrativeValidation {
+  const deductions: string[] = [];
+  const concerns: string[] = [];
+  const supports: string[] = [];
+  let score = 70; // Start with a neutral-positive score
+  
+  const desc = `${accidentDescription} ${damageDescription}`.toLowerCase();
+  const components = damagedComponents.map(c => c.toLowerCase());
+  
+  if (!incidentClassification.isCollision) {
+    const expectedDamage = NON_COLLISION_EXPECTED_DAMAGE[incidentClassification.incidentType];
+    
+    if (expectedDamage) {
+      // Check if damaged components match expected patterns for this incident type
+      const matchingComponents = components.filter(c => 
+        expectedDamage.components.some(exp => c.includes(exp) || exp.includes(c))
+      );
+      
+      if (matchingComponents.length > 0) {
+        supports.push(`Damaged components (${matchingComponents.join(', ')}) are consistent with ${incidentClassification.incidentType.replace(/_/g, ' ')} incident`);
+        score += 10;
+      } else if (components.length > 0) {
+        concerns.push(`Damaged components (${components.join(', ')}) are not typical for ${incidentClassification.incidentType.replace(/_/g, ' ')} incidents. Expected: ${expectedDamage.components.join(', ')}`);
+        score -= 15;
+      }
+      
+      deductions.push(`${incidentClassification.incidentType.replace(/_/g, ' ')} incident typically causes: ${expectedDamage.description}`);
+    }
+    
+    // For break-in/theft: check if narrative mentions stolen items
+    if (['break_in', 'theft', 'attempted_theft'].includes(incidentClassification.incidentType)) {
+      if (desc.includes('stole') || desc.includes('stolen') || desc.includes('missing') || desc.includes('took')) {
+        supports.push('Narrative mentions stolen items, consistent with theft/break-in claim');
+        score += 5;
+      }
+      if (desc.includes('police') || desc.includes('reported') || desc.includes('reference')) {
+        supports.push('Incident was reported to police, adding credibility');
+        score += 5;
+      }
+      // Break-in with only lock damage and low cost is very plausible
+      if (totalCost < 1000 && components.some(c => c.includes('lock') || c.includes('door'))) {
+        supports.push(`Low repair cost ($${totalCost}) is consistent with forced entry damage to locks/doors`);
+        score += 10;
+      }
+    }
+    
+    // Stationary vehicle should NOT have collision-type damage
+    if (incidentClassification.vehicleWasStationary) {
+      deductions.push('Vehicle was stationary at time of incident — collision dynamics are not applicable');
+      const collisionDamage = components.filter(c => 
+        ['bumper', 'fender', 'radiator', 'grille', 'hood'].some(cd => c.includes(cd))
+      );
+      if (collisionDamage.length > 0 && !['vandalism', 'hail', 'storm'].includes(incidentClassification.incidentType)) {
+        concerns.push(`Collision-type damage (${collisionDamage.join(', ')}) reported on a stationary vehicle during a ${incidentClassification.incidentType.replace(/_/g, ' ')} incident`);
+        score -= 10;
+      }
+    }
+  } else {
+    // Collision-type validation
+    if (incidentClassification.vehicleWasStationary) {
+      concerns.push('Narrative indicates vehicle was stationary, but damage pattern suggests a collision');
+      score -= 15;
+    }
+  }
+  
+  // General checks applicable to all incident types
+  if (hasPoliceReport) {
+    supports.push('Police report reference provided');
+    score += 5;
+  } else if (totalCost > 5000) {
+    concerns.push('No police report for a high-value claim');
+    score -= 5;
+  }
+  
+  if (hasPhotos) {
+    supports.push('Photographic evidence available');
+    score += 5;
+  } else {
+    concerns.push('No photographic evidence provided');
+    score -= 10;
+  }
+  
+  // Cost vs market value check
+  if (marketValue > 0 && totalCost > marketValue * 0.7) {
+    concerns.push(`Repair cost ($${totalCost}) exceeds 70% of market value ($${marketValue}) — consider write-off`);
+    score -= 5;
+  }
+  
+  score = Math.max(0, Math.min(100, score));
+  
+  return {
+    isPlausible: score >= 50,
+    narrativeScore: score,
+    deductions,
+    concerns,
+    supports,
+  };
+}
 
 // ============================================================
 // HELPER FUNCTIONS
@@ -611,8 +859,8 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
             betterment: { type: "number", description: "Betterment/depreciation amount" },
             assessorName: { type: "string", description: "Name of the assessor or assessment company" },
             repairerName: { type: "string", description: "Name of the repair shop or panel beater" },
-            estimatedSpeed: { type: "number", description: "Estimated impact speed km/h, infer from accident type if not stated" },
-            accidentType: { type: "string", description: "rear_end, side_impact, head_on, parking_lot, highway, rollover, or other" },
+            estimatedSpeed: { type: "number", description: "Estimated impact speed km/h. For non-collision incidents (theft, break-in, vandalism, fire, hail, flood), set to 0. Only infer speed for actual vehicle collisions." },
+            accidentType: { type: "string", description: "Classify the incident type. Collision types: rear_end, side_impact, head_on, parking_lot, highway, rollover. Non-collision types: theft, break_in, vandalism, hijacking, forced_entry, attempted_theft, fire, hail, flood, storm, falling_object, animal_damage. Use 'other' only if none of these fit. IMPORTANT: Read the accident description carefully - if it describes a break-in, theft, vandalism, or any non-collision event, classify accordingly even if the LLM extraction schema defaults to collision types." },
             damagedComponents: { 
               type: "array",
               items: { type: "string" },
@@ -733,7 +981,7 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
       
       imageContents.push({
         type: "text" as const,
-        text: `I've shown you ${imageContents.length} images extracted from a vehicle damage assessment PDF. For each image (numbered 1 to ${imageContents.length}), classify it as either 'damage_photo' (actual vehicle damage photograph) or 'document' (logo, stamp, signature, diagram, letterhead, form). Return JSON.`
+        text: `I've shown you ${imageContents.length} images extracted from a vehicle damage assessment PDF report.\n\nFor each image (numbered 1 to ${imageContents.length}), classify it into one of these categories:\n- 'damage_photo': An actual photograph of the vehicle showing damage, vehicle exterior/interior, accident scene, or the vehicle itself. These are real photographs taken with a camera.\n- 'document': A scanned document page, form, letterhead, logo, stamp, signature, diagram, table, chart, or any non-photographic content.\n\nIMPORTANT: If an image shows a real photograph of a vehicle (even if damage is not clearly visible), classify it as 'damage_photo'. Only classify as 'document' if it is clearly a non-photographic element like a form, logo, or text document.\n\nAlso provide a brief description of what each image shows and an overall summary of all visible damage across all photos.`
       });
       
       try {
@@ -741,7 +989,7 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
           messages: [
             {
               role: "system",
-              content: "You classify images from vehicle damage assessment PDFs. Respond with JSON only."
+              content: "You are an expert vehicle damage image classifier. You analyze images extracted from insurance assessment PDFs and classify them as either actual vehicle photographs or document elements. Be generous in classifying photos - if it looks like a real photograph of a vehicle or vehicle part, classify it as damage_photo. Respond with JSON only."
             },
             {
               role: "user",
@@ -926,65 +1174,229 @@ For EACH component, provide repair vs replace recommendation. The sum of all com
   }
 
   // ============================================================
-  // STEP 5: Physics Validation (Plugin → LLM → TypeScript)
+  // STEP 5: Incident Classification + Physics Validation
   // ============================================================
-  console.log('\n⚛️ Step 5: Running physics validation...');
+  console.log('\n⚛️ Step 5: Classifying incident type and running physics validation...');
   let physicsAnalysis: PhysicsAnalysis;
   
   const vehicleType = inferVehicleType(extractedData.vehicleModel || '');
-  let estimatedSpeed = extractedData.estimatedSpeed || 0;
-  if (!estimatedSpeed) {
-    const speedByType: Record<string, number> = {
-      parking_lot: 15, rear_end: 40, side_impact: 55, head_on: 70, highway: 100
-    };
-    estimatedSpeed = speedByType[extractedData.accidentType || ''] || 50;
-  }
-  
   const damageSeverity = totalCost > 8000 ? 'severe' : totalCost > 3000 ? 'moderate' : 'minor';
   const damageLocations = components.length > 0 ? components : [extractedData.damageLocation || 'unknown'];
   
-  // Try ML plugin first (future trained models)
-  const physicsPlugin = getPlugin('physics');
-  if (physicsPlugin) {
-    console.log(`🔌 Using ML plugin: ${physicsPlugin.id} v${physicsPlugin.version}`);
-    try {
-      const pluginResult = await physicsPlugin.predict({
-        vehicle_type: vehicleType,
-        accident_type: extractedData.accidentType || 'other',
-        estimated_speed: estimatedSpeed,
-        damage_severity: damageSeverity,
-        damage_locations: damageLocations,
-      });
-      if (pluginResult) {
-        physicsAnalysis = pluginResult as unknown as PhysicsAnalysis;
-        console.log(`✅ ML plugin physics: Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
-      } else {
-        throw new Error('Plugin returned null');
-      }
-    } catch (error: any) {
-      console.warn(`⚠️ ML plugin failed: ${error.message}, falling back to LLM...`);
-      physicsPlugin === null; // Clear so we fall through
+  // Classify incident type from description BEFORE applying physics
+  const incidentClassification = classifyIncidentType(
+    extractedData.accidentDescription || '',
+    extractedData.accidentType || 'other',
+    extractedData.damageDescription || '',
+    extractedData.damagedComponents || [],
+  );
+  
+  console.log(`🏷️ Incident classification: ${incidentClassification.incidentType} (collision=${incidentClassification.isCollision}, confidence=${incidentClassification.confidence.toFixed(2)})`);
+  console.log(`   Reasoning: ${incidentClassification.reasoning}`);
+  console.log(`   Vehicle stationary: ${incidentClassification.vehicleWasStationary}`);
+  
+  // Run narrative validation
+  const narrativeValidation = validateNarrative(
+    extractedData.accidentDescription || '',
+    extractedData.damageDescription || '',
+    extractedData.damagedComponents || [],
+    incidentClassification,
+    totalCost,
+    extractedData.marketValue || 0,
+    !!extractedData.policeReportReference,
+    damagePhotoUrls.length > 0,
+  );
+  
+  console.log(`📝 Narrative validation: score=${narrativeValidation.narrativeScore}/100, plausible=${narrativeValidation.isPlausible}`);
+  for (const d of narrativeValidation.deductions) console.log(`   Deduction: ${d}`);
+  for (const s of narrativeValidation.supports) console.log(`   ✅ Support: ${s}`);
+  for (const c of narrativeValidation.concerns) console.log(`   ⚠️ Concern: ${c}`);
+  
+  // Determine speed based on incident type
+  let estimatedSpeed = extractedData.estimatedSpeed || 0;
+  if (incidentClassification.isCollision) {
+    // Only infer speed for actual collisions
+    if (!estimatedSpeed) {
+      const speedByType: Record<string, number> = {
+        parking_lot: 15, rear_end: 40, side_impact: 55, head_on: 70, highway: 100
+      };
+      estimatedSpeed = speedByType[extractedData.accidentType || ''] || 50;
     }
+  } else {
+    // Non-collision: speed is 0 (vehicle was stationary or not in motion)
+    estimatedSpeed = 0;
+    console.log(`   ⏸️ Speed set to 0 km/h (non-collision incident: ${incidentClassification.incidentType})`);
   }
   
-  // If no plugin result, try LLM-first approach
-  if (!physicsPlugin || !physicsAnalysis!) {
+  if (!incidentClassification.isCollision) {
+    // ============================================================
+    // NON-COLLISION PHYSICS: Skip collision dynamics entirely
+    // ============================================================
+    console.log(`🔧 Using non-collision validation for ${incidentClassification.incidentType} incident...`);
+    
     try {
-      const physicsResponse = await invokeLLM({
+      const nonCollisionResponse = await invokeLLM({
         messages: [
           {
             role: "system",
-            content: `You are a vehicle accident physics expert and forensic engineer. Analyze the collision scenario using physics principles:
+            content: `You are a vehicle damage assessment expert specializing in non-collision incidents. You analyze whether the reported damage is consistent with the described incident type.
+
+IMPORTANT: This is NOT a vehicle collision. Do NOT apply collision dynamics (kinetic energy, impact force, g-force). Instead, evaluate:
+- Whether the damaged components are consistent with the incident type
+- Whether the damage description matches what would be expected
+- Whether the repair cost is reasonable for this type of damage
+- Whether the narrative is internally consistent
+
+Incident types and expected damage patterns:
+- break_in/forced_entry: Lock damage, window damage, door handle damage, ignition damage
+- theft: Missing components, entry damage, ignition/steering column damage
+- vandalism: Surface damage, paint scratches, broken windows/mirrors
+- fire: Heat damage, melted components, smoke damage
+- hail: Dent patterns on horizontal surfaces (roof, hood, trunk)
+- flood: Water damage to electronics, interior, engine
+
+Be fair and objective. Most claims are legitimate.`
+          },
+          {
+            role: "user",
+            content: `Analyze this non-collision incident:
+Incident type: ${incidentClassification.incidentType.replace(/_/g, ' ')}
+Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}
+Accident description: ${extractedData.accidentDescription || 'Not provided'}
+Damage description: ${extractedData.damageDescription || 'Not provided'}
+Damaged components: ${damageLocations.join(', ')}
+Total repair cost: $${totalCost}
+Police report: ${extractedData.policeReportReference ? 'Yes (' + extractedData.policeReportReference + ')' : 'No'}
+Photos available: ${damagePhotoUrls.length > 0 ? 'Yes' : 'No'}
+Vehicle was stationary: ${incidentClassification.vehicleWasStationary ? 'Yes' : 'Unknown'}`
+          }
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "non_collision_analysis",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                damageConsistency: { type: "string", description: "consistent, inconsistent, questionable, or impossible" },
+                physicsScore: { type: "integer", description: "Plausibility score 0-100. Score should reflect whether damage matches the incident type, NOT collision dynamics." },
+                confidence: { type: "number", description: "Confidence in analysis 0-1" },
+                is_valid: { type: "boolean", description: "Whether the damage is consistent with the described incident" },
+                flags: { type: "array", items: { type: "string" }, description: "Any concerns or inconsistencies. Do NOT flag collision-related issues for non-collision incidents." },
+                analysis_notes: { type: "string", description: "Detailed analysis of damage vs incident type consistency" }
+              },
+              required: ["damageConsistency", "physicsScore", "confidence", "is_valid", "flags", "analysis_notes"],
+              additionalProperties: false
+            }
+          }
+        }
+      });
+      
+      const llmResult = JSON.parse(nonCollisionResponse.choices[0].message.content as string);
+      
+      physicsAnalysis = {
+        is_valid: llmResult.is_valid,
+        confidence: llmResult.confidence,
+        damageConsistency: llmResult.damageConsistency,
+        flags: llmResult.flags || [],
+        physics_analysis: {
+          kinetic_energy_joules: 0,
+          vehicle_mass_kg: VEHICLE_MASSES[vehicleType] || 1500,
+          impact_speed_ms: 0,
+          deceleration_ms2: 0,
+          g_force: 0,
+        },
+        recommendations: [],
+        impactSpeed: 0,
+        impactForce: 0,
+        energyDissipated: 0,
+        deceleration: 0,
+        physicsScore: llmResult.physicsScore,
+      };
+      
+      // Add narrative validation concerns as physics flags if relevant
+      for (const concern of narrativeValidation.concerns) {
+        if (!physicsAnalysis.flags.some(f => f.includes(concern.substring(0, 30)))) {
+          physicsAnalysis.flags.push(concern);
+        }
+      }
+      
+      console.log(`✅ Non-collision validation: Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+      
+    } catch (error: any) {
+      console.warn(`⚠️ Non-collision LLM analysis failed: ${error.message}, using narrative validation...`);
+      
+      // Fallback: use narrative validation score directly
+      physicsAnalysis = {
+        is_valid: narrativeValidation.isPlausible,
+        confidence: 0.6,
+        damageConsistency: narrativeValidation.isPlausible ? 'consistent' : 'questionable',
+        flags: [...narrativeValidation.concerns],
+        physics_analysis: {
+          kinetic_energy_joules: 0,
+          vehicle_mass_kg: VEHICLE_MASSES[vehicleType] || 1500,
+          impact_speed_ms: 0,
+          deceleration_ms2: 0,
+          g_force: 0,
+        },
+        recommendations: [],
+        impactSpeed: 0,
+        impactForce: 0,
+        energyDissipated: 0,
+        deceleration: 0,
+        physicsScore: narrativeValidation.narrativeScore,
+      };
+      
+      console.log(`✅ Non-collision validation (fallback): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+    }
+    
+  } else {
+    // ============================================================
+    // COLLISION PHYSICS: Full collision dynamics analysis
+    // ============================================================
+    
+    // Try ML plugin first (future trained models)
+    const physicsPlugin = getPlugin('physics');
+    if (physicsPlugin) {
+      console.log(`🔌 Using ML plugin: ${physicsPlugin.id} v${physicsPlugin.version}`);
+      try {
+        const pluginResult = await physicsPlugin.predict({
+          vehicle_type: vehicleType,
+          accident_type: extractedData.accidentType || 'other',
+          estimated_speed: estimatedSpeed,
+          damage_severity: damageSeverity,
+          damage_locations: damageLocations,
+        });
+        if (pluginResult) {
+          physicsAnalysis = pluginResult as unknown as PhysicsAnalysis;
+          console.log(`✅ ML plugin physics: Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+        } else {
+          throw new Error('Plugin returned null');
+        }
+      } catch (error: any) {
+        console.warn(`⚠️ ML plugin failed: ${error.message}, falling back to LLM...`);
+        physicsPlugin === null;
+      }
+    }
+    
+    if (!physicsPlugin || !physicsAnalysis!) {
+      try {
+        const physicsResponse = await invokeLLM({
+          messages: [
+            {
+              role: "system",
+              content: `You are a vehicle accident physics expert and forensic engineer. Analyze the collision scenario using physics principles:
 - Kinetic energy: KE = 0.5 × mass × velocity²
 - Impact force: F = mass × Δv / contact_time
 - G-force: deceleration / 9.81
 - Validate damage patterns against accident type
 - Check if reported damage is physically consistent with the scenario
 Be precise with calculations. Flag any physical impossibilities or inconsistencies.`
-          },
-          {
-            role: "user",
-            content: `Analyze this collision scenario:
+            },
+            {
+              role: "user",
+              content: `Analyze this collision scenario:
 Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} (${vehicleType}, ~${VEHICLE_MASSES[vehicleType] || 1500}kg)
 Accident type: ${extractedData.accidentType || 'unknown'}
 Estimated speed: ~${estimatedSpeed} km/h
@@ -992,62 +1404,58 @@ Damage severity: ${damageSeverity}
 Damage locations: ${damageLocations.join(', ')}
 Damage description: ${extractedData.damageDescription || extractedData.accidentDescription || 'unknown'}
 Total repair cost: $${totalCost}`
-          }
-        ],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "physics_analysis",
-            strict: true,
-            schema: {
-              type: "object",
-              properties: {
-                impactSpeed: { type: "number", description: "Impact speed in km/h" },
-                impactForce: { type: "number", description: "Impact force in kN" },
-                energyDissipated: { type: "number", description: "Energy dissipation percentage 0-100" },
-                deceleration: { type: "number", description: "G-force experienced" },
-                damageConsistency: { type: "string", description: "consistent, inconsistent, questionable, or impossible" },
-                physicsScore: { type: "integer", description: "Physics plausibility score 0-100" },
-                confidence: { type: "number", description: "Confidence in analysis 0-1" },
-                is_valid: { type: "boolean", description: "Whether the scenario is physically plausible" },
-                flags: { type: "array", items: { type: "string" }, description: "Any physics flags or warnings" },
-                analysis_notes: { type: "string", description: "Detailed analysis explanation" }
-              },
-              required: ["impactSpeed", "impactForce", "energyDissipated", "deceleration", "damageConsistency", "physicsScore", "confidence", "is_valid", "flags", "analysis_notes"],
-              additionalProperties: false
+            }
+          ],
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "physics_analysis",
+              strict: true,
+              schema: {
+                type: "object",
+                properties: {
+                  impactSpeed: { type: "number", description: "Impact speed in km/h" },
+                  impactForce: { type: "number", description: "Impact force in kN" },
+                  energyDissipated: { type: "number", description: "Energy dissipation percentage 0-100" },
+                  deceleration: { type: "number", description: "G-force experienced" },
+                  damageConsistency: { type: "string", description: "consistent, inconsistent, questionable, or impossible" },
+                  physicsScore: { type: "integer", description: "Physics plausibility score 0-100" },
+                  confidence: { type: "number", description: "Confidence in analysis 0-1" },
+                  is_valid: { type: "boolean", description: "Whether the scenario is physically plausible" },
+                  flags: { type: "array", items: { type: "string" }, description: "Any physics flags or warnings" },
+                  analysis_notes: { type: "string", description: "Detailed analysis explanation" }
+                },
+                required: ["impactSpeed", "impactForce", "energyDissipated", "deceleration", "damageConsistency", "physicsScore", "confidence", "is_valid", "flags", "analysis_notes"],
+                additionalProperties: false
+              }
             }
           }
-        }
-      });
-      
-      const llmPhysics = JSON.parse(physicsResponse.choices[0].message.content as string);
-      
-      // Also run inline TypeScript validation for cross-reference
-      const inlinePhysics = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
-      
-      // Merge: use LLM's qualitative analysis with inline's precise calculations
-      physicsAnalysis = {
-        is_valid: llmPhysics.is_valid,
-        confidence: llmPhysics.confidence,
-        damageConsistency: llmPhysics.damageConsistency,
-        flags: [...(llmPhysics.flags || []), ...inlinePhysics.flags.filter(f => !llmPhysics.flags?.some((lf: string) => lf.includes(f.substring(0, 20))))],
-        physics_analysis: inlinePhysics.physics_analysis, // Use precise calculations
-        recommendations: inlinePhysics.recommendations,
-        impactSpeed: llmPhysics.impactSpeed || inlinePhysics.impactSpeed,
-        impactForce: llmPhysics.impactForce || inlinePhysics.impactForce,
-        energyDissipated: llmPhysics.energyDissipated || inlinePhysics.energyDissipated,
-        deceleration: llmPhysics.deceleration || inlinePhysics.deceleration,
-        physicsScore: llmPhysics.physicsScore,
-      };
-      
-      console.log(`✅ Physics validation (LLM + TypeScript): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
-      
-    } catch (error: any) {
-      console.warn(`⚠️ LLM physics failed: ${error.message}, using TypeScript fallback...`);
-      
-      // Pure TypeScript fallback (deterministic, always works)
-      physicsAnalysis = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
-      console.log(`✅ Physics validation (TypeScript): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+        });
+        
+        const llmPhysics = JSON.parse(physicsResponse.choices[0].message.content as string);
+        const inlinePhysics = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
+        
+        physicsAnalysis = {
+          is_valid: llmPhysics.is_valid,
+          confidence: llmPhysics.confidence,
+          damageConsistency: llmPhysics.damageConsistency,
+          flags: [...(llmPhysics.flags || []), ...inlinePhysics.flags.filter(f => !llmPhysics.flags?.some((lf: string) => lf.includes(f.substring(0, 20))))],
+          physics_analysis: inlinePhysics.physics_analysis,
+          recommendations: inlinePhysics.recommendations,
+          impactSpeed: llmPhysics.impactSpeed || inlinePhysics.impactSpeed,
+          impactForce: llmPhysics.impactForce || inlinePhysics.impactForce,
+          energyDissipated: llmPhysics.energyDissipated || inlinePhysics.energyDissipated,
+          deceleration: llmPhysics.deceleration || inlinePhysics.deceleration,
+          physicsScore: llmPhysics.physicsScore,
+        };
+        
+        console.log(`✅ Collision physics (LLM + TypeScript): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+        
+      } catch (error: any) {
+        console.warn(`⚠️ LLM physics failed: ${error.message}, using TypeScript fallback...`);
+        physicsAnalysis = validatePhysicsInline(vehicleType, extractedData.accidentType || 'other', estimatedSpeed, damageSeverity, damageLocations);
+        console.log(`✅ Collision physics (TypeScript): Valid=${physicsAnalysis.is_valid}, Score=${physicsAnalysis.physicsScore}/100`);
+      }
     }
   }
 
@@ -1124,31 +1532,54 @@ Total repair cost: $${totalCost}`
       extractedData.accidentType || 'other',
     );
     
+    // Build incident-type-aware context for fraud analysis
+    const incidentContext = !incidentClassification.isCollision
+      ? `\nINCIDENT TYPE CONTEXT:\nThis is a ${incidentClassification.incidentType.replace(/_/g, ' ')} incident, NOT a vehicle collision.\nThe vehicle was ${incidentClassification.vehicleWasStationary ? 'stationary' : 'possibly in motion'} during the incident.\nClassification reasoning: ${incidentClassification.reasoning}\nCollision dynamics (kinetic energy, impact force, g-force) are NOT applicable.\nEvaluate fraud based on: narrative consistency, damage pattern vs incident type, cost reasonableness, and documentation.`
+      : '';
+    
+    const narrativeContext = `\nNARRATIVE VALIDATION:\nNarrative plausibility score: ${narrativeValidation.narrativeScore}/100\nNarrative is plausible: ${narrativeValidation.isPlausible}\nSupporting factors: ${narrativeValidation.supports.length > 0 ? narrativeValidation.supports.join('; ') : 'None'}\nConcerns: ${narrativeValidation.concerns.length > 0 ? narrativeValidation.concerns.join('; ') : 'None'}\nDeductions: ${narrativeValidation.deductions.length > 0 ? narrativeValidation.deductions.join('; ') : 'None'}`;
+    
     try {
       // LLM fraud analysis for richer context
       const fraudResponse = await invokeLLM({
         messages: [
           {
             role: "system",
-            content: `You are an insurance fraud detection expert with deep knowledge of common fraud patterns in African insurance markets. Analyze the claim for fraud indicators. Be fair and objective — most claims are legitimate. Consider:
-- Damage consistency with reported accident
-- Cost reasonableness for the vehicle and damage
+            content: `You are an insurance fraud detection expert with deep knowledge of common fraud patterns in African insurance markets. Analyze the claim for fraud indicators. Be fair and objective — most claims are legitimate.
+
+CRITICAL RULES:
+1. ALWAYS read the full accident description carefully before making any assessment.
+2. For non-collision incidents (theft, break-in, vandalism, fire, hail, flood), do NOT use collision-based reasoning (impact speed, kinetic energy, g-force). These are irrelevant.
+3. Evaluate whether the DAMAGE PATTERN matches the DESCRIBED INCIDENT TYPE. For example:
+   - Break-in: expect lock/window/door handle damage, NOT bodywork/paintwork collision damage
+   - Theft: expect entry damage and missing items, NOT impact damage
+   - Vandalism: expect surface damage, scratches, broken glass
+4. Consider whether the claimant's narrative is internally consistent and plausible.
+5. A police report reference SUPPORTS legitimacy for theft/break-in claims.
+6. Low claim amounts for minor damage are NORMAL, not suspicious.
+7. Do NOT hallucinate collision scenarios for non-collision claims.
+
+Consider:
+- Damage consistency with the SPECIFIC incident type described
+- Cost reasonableness for the vehicle, damage type, and incident
 - Documentation completeness
-- Physics validation results
-- Common fraud patterns (staged accidents, inflated costs, phantom damage)`
+- Narrative coherence and internal consistency
+- Common fraud patterns relevant to the incident type`
           },
           {
             role: "user",
             content: `Analyze fraud risk for this claim:
 Vehicle: ${extractedData.vehicleMake} ${extractedData.vehicleModel} ${extractedData.vehicleYear}
 Claim amount: $${totalCost}
-Accident type: ${extractedData.accidentType || 'unknown'}
-Physics validation: ${physicsAnalysis.is_valid ? 'PASSED' : 'FAILED'} (score: ${physicsAnalysis.physicsScore}/100, ${physicsAnalysis.damageConsistency})
-Physics flags: ${physicsAnalysis.flags.length > 0 ? physicsAnalysis.flags.join('; ') : 'None'}
+Incident type: ${incidentClassification.incidentType.replace(/_/g, ' ')} (${incidentClassification.isCollision ? 'collision' : 'non-collision'})
+Accident description: ${extractedData.accidentDescription || 'Not provided'}
+Damage description: ${extractedData.damageDescription || 'Not provided'}
+Damaged components: ${damageLocations.join(', ')}
+Physics/damage validation: ${physicsAnalysis.is_valid ? 'PASSED' : 'FAILED'} (score: ${physicsAnalysis.physicsScore}/100, ${physicsAnalysis.damageConsistency})
+Validation flags: ${physicsAnalysis.flags.length > 0 ? physicsAnalysis.flags.join('; ') : 'None'}
 Photos available: ${damagePhotoUrls.length > 0 ? 'Yes' : 'No'}
-Police report: ${extractedData.policeReportReference ? 'Yes' : 'No'}
-Damage description: ${extractedData.damageDescription || 'unknown'}
-Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inlineFraud.riskLevel})${historicalContext}`
+Police report: ${extractedData.policeReportReference ? 'Yes (' + extractedData.policeReportReference + ')' : 'No'}
+Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inlineFraud.riskLevel})${incidentContext}${narrativeContext}${historicalContext}`
           }
         ],
         response_format: {
@@ -1187,14 +1618,30 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       
       const llmFraud = JSON.parse(fraudResponse.choices[0].message.content as string);
       
-      // Cross-reference physics results
+      // Cross-reference physics results with incident-type awareness
       const physicsFlagsCount = physicsAnalysis.flags?.length || 0;
       const physicsContributes = physicsFlagsCount > 0 || !physicsAnalysis.is_valid;
       
       // Blend LLM analysis with inline scoring
-      let adjustedFraudProb = (llmFraud.fraud_probability + inlineFraud.fraudProbability) / 2;
-      if (physicsContributes) {
-        adjustedFraudProb = Math.min(1.0, adjustedFraudProb + (physicsFlagsCount * 0.1));
+      // For non-collision incidents, give MORE weight to LLM (which has incident context) and LESS to inline physics
+      let adjustedFraudProb: number;
+      if (!incidentClassification.isCollision) {
+        // Non-collision: LLM gets 70% weight (it understands incident type), inline gets 30%
+        adjustedFraudProb = (llmFraud.fraud_probability * 0.7) + (inlineFraud.fraudProbability * 0.3);
+        // Physics flags have REDUCED impact for non-collision (they may be irrelevant)
+        if (physicsContributes) {
+          adjustedFraudProb = Math.min(1.0, adjustedFraudProb + (physicsFlagsCount * 0.03));
+        }
+        // Narrative validation has MORE impact for non-collision
+        if (narrativeValidation.isPlausible) {
+          adjustedFraudProb = Math.max(0, adjustedFraudProb - 0.1); // Plausible narrative reduces fraud risk
+        }
+      } else {
+        // Collision: standard 50/50 blend
+        adjustedFraudProb = (llmFraud.fraud_probability + inlineFraud.fraudProbability) / 2;
+        if (physicsContributes) {
+          adjustedFraudProb = Math.min(1.0, adjustedFraudProb + (physicsFlagsCount * 0.1));
+        }
       }
       
       const riskScore = Math.round(adjustedFraudProb * 100);
@@ -1202,10 +1649,20 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       
       const topRiskFactors = [...(llmFraud.top_risk_factors || [])];
       if (physicsContributes) {
+        // For non-collision, label flags as "Damage validation" not "Physics"
+        const flagPrefix = incidentClassification.isCollision ? 'Physics' : 'Damage validation';
         for (const flag of physicsAnalysis.flags) {
-          topRiskFactors.push(`Physics: ${flag}`);
+          topRiskFactors.push(`${flagPrefix}: ${flag}`);
         }
       }
+      // Add narrative concerns as risk factors
+      for (const concern of narrativeValidation.concerns) {
+        if (!topRiskFactors.some(f => f.includes(concern.substring(0, 30)))) {
+          topRiskFactors.push(`Narrative: ${concern}`);
+        }
+      }
+      
+      const validationLabel = incidentClassification.isCollision ? 'Physics validation' : 'Damage validation';
       
       fraudAnalysis = {
         fraud_probability: adjustedFraudProb,
@@ -1220,10 +1677,10 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
           physics_score: physicsAnalysis.physicsScore,
           physics_contributes_to_fraud: physicsContributes,
           physics_notes: physicsContributes 
-            ? `Physics validation raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}. This increased the fraud risk score.`
-            : `Physics validation passed with no flags. Damage is ${physicsAnalysis.damageConsistency} with the reported accident.`
+            ? `${validationLabel} raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}.${!incidentClassification.isCollision ? ' Note: This is a non-collision incident; collision dynamics were not applied.' : ' This increased the fraud risk score.'}`
+            : `${validationLabel} passed with no flags. Damage is ${physicsAnalysis.damageConsistency} with the reported ${incidentClassification.isCollision ? 'accident' : 'incident'}.`
         },
-        analysis_notes: llmFraud.analysis_notes || `Fraud probability: ${(adjustedFraudProb * 100).toFixed(1)}%. ${physicsContributes ? 'Physics inconsistencies detected.' : 'Physics validation supports the claim.'}`
+        analysis_notes: llmFraud.analysis_notes || `Fraud probability: ${(adjustedFraudProb * 100).toFixed(1)}%. ${physicsContributes ? `${validationLabel} raised concerns.` : `${validationLabel} supports the claim.`}`
       };
       
       console.log(`✅ Fraud detection (LLM + TypeScript): ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
@@ -1231,28 +1688,39 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     } catch (error: any) {
       console.warn(`⚠️ LLM fraud failed: ${error.message}, using TypeScript fallback...`);
       
-      // Pure TypeScript fallback
+      // Pure TypeScript fallback (incident-type-aware)
       const physicsFlagsCount = physicsAnalysis.flags?.length || 0;
       const physicsContributes = physicsFlagsCount > 0 || !physicsAnalysis.is_valid;
       
       let adjustedProb = inlineFraud.fraudProbability;
-      if (physicsContributes) {
-        adjustedProb = Math.min(1.0, adjustedProb + (physicsFlagsCount * 0.1));
+      if (!incidentClassification.isCollision) {
+        // Non-collision: reduce physics flag impact, increase narrative weight
+        if (physicsContributes) {
+          adjustedProb = Math.min(1.0, adjustedProb + (physicsFlagsCount * 0.03));
+        }
+        if (narrativeValidation.isPlausible) {
+          adjustedProb = Math.max(0, adjustedProb - 0.1);
+        }
+      } else {
+        if (physicsContributes) {
+          adjustedProb = Math.min(1.0, adjustedProb + (physicsFlagsCount * 0.1));
+        }
       }
       
       const riskScore = Math.round(adjustedProb * 100);
       const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'critical';
+      const validationLabel = incidentClassification.isCollision ? 'Physics validation' : 'Damage validation';
       
       fraudAnalysis = {
         fraud_probability: adjustedProb,
         risk_level: riskLevel,
         risk_score: riskScore,
         confidence: 0.7,
-        top_risk_factors: inlineFraud.topRiskFactors,
+        top_risk_factors: [...inlineFraud.topRiskFactors, ...narrativeValidation.concerns.map(c => `Narrative: ${c}`)],
         recommendations: inlineFraud.recommendations,
         indicators: {
           claimHistory: 2,
-          damageConsistency: physicsAnalysis.is_valid ? 2 : 4,
+          damageConsistency: physicsAnalysis.is_valid ? 2 : (incidentClassification.isCollision ? 4 : 3),
           documentAuthenticity: damagePhotoUrls.length > 0 ? 2 : 4,
           behavioralPatterns: 2,
           ownershipVerification: extractedData.claimantName ? 2 : 4,
@@ -1263,10 +1731,10 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
           physics_score: physicsAnalysis.physicsScore,
           physics_contributes_to_fraud: physicsContributes,
           physics_notes: physicsContributes 
-            ? `Physics validation raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}.`
-            : `Physics validation passed. Damage is ${physicsAnalysis.damageConsistency}.`
+            ? `${validationLabel} raised ${physicsFlagsCount} flag(s). Damage consistency: ${physicsAnalysis.damageConsistency}.${!incidentClassification.isCollision ? ' Non-collision incident; collision dynamics not applied.' : ''}`
+            : `${validationLabel} passed. Damage is ${physicsAnalysis.damageConsistency}.`
         },
-        analysis_notes: `TypeScript fallback analysis. Fraud probability: ${(adjustedProb * 100).toFixed(1)}%.`
+        analysis_notes: `TypeScript fallback analysis. Fraud probability: ${(adjustedProb * 100).toFixed(1)}%. Incident type: ${incidentClassification.incidentType}.`
       };
       
       console.log(`✅ Fraud detection (TypeScript): ${fraudAnalysis.risk_level} (${fraudAnalysis.risk_score}/100)`);
@@ -1442,6 +1910,20 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     physicsAnalysis,
     fraudAnalysis,
     crossValidation,
+    incidentClassification: {
+      incidentType: incidentClassification.incidentType,
+      isCollision: incidentClassification.isCollision,
+      vehicleWasStationary: incidentClassification.vehicleWasStationary,
+      confidence: incidentClassification.confidence,
+      reasoning: incidentClassification.reasoning,
+    },
+    narrativeValidation: {
+      narrativeScore: narrativeValidation.narrativeScore,
+      isPlausible: narrativeValidation.isPlausible,
+      supports: narrativeValidation.supports,
+      concerns: narrativeValidation.concerns,
+      deductions: narrativeValidation.deductions,
+    },
     normalizedComponents,
     missingData,
     dataQuality,

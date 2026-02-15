@@ -5872,3 +5872,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Added pagination to getClaimsByWorkflowState (limit 20, offset-based, select only needed columns)
 - [x] Updated ClaimsProcessorDashboard with pagination controls
 - [x] Updated ClaimsManagerDashboard and RiskManagerDashboard for paginated response
+
+
+## Critical Bug - Physics & Fraud Engine Incident Type Awareness (2026-02-15)
+- [x] Physics engine applies collision-based analysis to non-collision incidents (theft, break-in, vandalism)
+- [x] Physics engine fabricates 50 km/h impact speed for stationary vehicle break-in claims
+- [x] Fraud engine blindly amplifies physics flags without considering incident type
+- [x] Fraud engine scores 100/100 for legitimate break-in claims due to hallucinated physics analysis
+- [x] Add incident type detection from accident description (break-in, theft, vandalism, collision, etc.)
+- [x] Physics engine uses different validation logic for non-collision incidents
+- [x] Fraud engine weighs physics findings appropriately based on incident type (10% weight for non-collision vs 30% for collision)
+- [x] Fraud engine cross-references accident description with damage description for consistency
+- [x] Improved damage image extraction (better size filtering 150x150 min, pixel area check)
+- [x] Improved LLM image classification prompt for better damage photo vs document detection
+- [x] Added incident type classification with NON_COLLISION_TYPES constant and classifyIncidentType()
+- [x] Added narrative validation engine (validateNarrative()) to cross-reference claimant description against physical evidence
+- [x] Makes logical deductions about plausibility of claimant's incident description
+- [x] Skips collision dynamics (KE, g-force, impact speed) for non-collision incidents
+- [x] Applies appropriate validation logic per incident type (forced entry → lock damage, theft → stolen items)
+- [x] Fraud engine uses incident-type-aware LLM prompt with narrative validation context
+- [x] Executive Summary displays appropriate narrative for non-collision incidents (incident type badge, narrative validation section)

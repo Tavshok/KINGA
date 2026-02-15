@@ -128,6 +128,20 @@ interface ExtractedData {
     recommendations: string[];
   };
   normalizedComponents?: { raw: string; normalized: string; partId: string | null; zone: string | null }[];
+  incidentClassification?: {
+    incidentType: string;
+    isCollision: boolean;
+    vehicleWasStationary: boolean;
+    confidence: number;
+    reasoning: string;
+  };
+  narrativeValidation?: {
+    narrativeScore: number;
+    isPlausible: boolean;
+    supports: string[];
+    concerns: string[];
+    deductions: string[];
+  };
 }
 
 interface DamageSection {
@@ -776,6 +790,7 @@ export default function AssessmentResults() {
               vehicleYear={extractedData.vehicleYear}
               vehicleRegistration={extractedData.vehicleRegistration || extractedData.registration}
               accidentType={extractedData.accidentType}
+              accidentDescription={extractedData.accidentDescription}
               totalCost={totalCost}
               originalQuote={extractedData.originalQuote}
               agreedCost={extractedData.agreedCost}
@@ -784,6 +799,8 @@ export default function AssessmentResults() {
               physicsData={physicsData}
               fraudData={fraudData}
               crossValidation={extractedData.crossValidation}
+              incidentClassification={extractedData.incidentClassification}
+              narrativeValidation={extractedData.narrativeValidation}
               dataCompleteness={dataCompleteness}
               damagePhotoCount={extractedData.damagePhotos?.length || 0}
             />

@@ -118,16 +118,26 @@ export async function extractImagesFromPDFBuffer(pdfBuffer: Buffer, pdfFileName?
           const sharpInstance = sharp(fileBuffer);
           metadata = await sharpInstance.metadata();
           
-          // Skip very small images (icons, decorative elements, logos)
-          if ((metadata.width || 0) < 80 || (metadata.height || 0) < 80) {
-            console.log(`⏭️ [PDF Image Extractor] Skipping small image: ${file} (${metadata.width}x${metadata.height})`);
+          // Skip very small images (icons, decorative elements, logos, stamps)
+          // Damage photos are typically at least 150x150 pixels
+          const w = metadata.width || 0;
+          const h = metadata.height || 0;
+          if (w < 150 || h < 150) {
+            console.log(`⏭️ [PDF Image Extractor] Skipping small image: ${file} (${w}x${h})`);
             continue;
           }
           
-          // Skip very narrow images (likely borders or lines)
-          const aspectRatio = (metadata.width || 1) / (metadata.height || 1);
-          if (aspectRatio > 10 || aspectRatio < 0.1) {
-            console.log(`⏭️ [PDF Image Extractor] Skipping narrow image: ${file} (${metadata.width}x${metadata.height})`);
+          // Skip very narrow images (likely borders, lines, or decorative elements)
+          const aspectRatio = w / (h || 1);
+          if (aspectRatio > 6 || aspectRatio < 0.16) {
+            console.log(`⏭️ [PDF Image Extractor] Skipping narrow image: ${file} (${w}x${h})`);
+            continue;
+          }
+          
+          // Skip images that are too small in total pixel area (likely logos/icons)
+          const totalPixels = w * h;
+          if (totalPixels < 40000) { // Less than ~200x200 equivalent
+            console.log(`⏭️ [PDF Image Extractor] Skipping low-resolution image: ${file} (${totalPixels} pixels)`);
             continue;
           }
           

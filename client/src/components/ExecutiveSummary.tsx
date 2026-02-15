@@ -2,7 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2, AlertTriangle, XCircle, Shield, Activity,
-  DollarSign, Car, Brain, Eye, Wrench, TrendingUp, ArrowDown
+  DollarSign, Car, Brain, Eye, Wrench, TrendingUp, ArrowDown,
+  FileText, ShieldCheck
 } from "lucide-react";
 
 interface PhysicsData {
@@ -30,12 +31,29 @@ interface CrossValidationSummary {
   overallRiskLevel: string;
 }
 
+interface IncidentClassification {
+  incidentType: string;
+  isCollision: boolean;
+  vehicleWasStationary: boolean;
+  confidence: number;
+  reasoning: string;
+}
+
+interface NarrativeValidation {
+  narrativeScore: number;
+  isPlausible: boolean;
+  supports: string[];
+  concerns: string[];
+  deductions: string[];
+}
+
 interface ExecutiveSummaryProps {
   vehicleMake?: string;
   vehicleModel?: string;
   vehicleYear?: number;
   vehicleRegistration?: string;
   accidentType?: string;
+  accidentDescription?: string;
   totalCost: number;
   originalQuote?: number;
   agreedCost?: number;
@@ -44,6 +62,8 @@ interface ExecutiveSummaryProps {
   physicsData: PhysicsData;
   fraudData: FraudData;
   crossValidation?: { summary: CrossValidationSummary; fraudIndicators: string[] };
+  incidentClassification?: IncidentClassification;
+  narrativeValidation?: NarrativeValidation;
   dataCompleteness: number;
   damagePhotoCount: number;
 }
@@ -54,11 +74,11 @@ function StatusIcon({ status }: { status: 'pass' | 'warning' | 'fail' }) {
   return <XCircle className="w-5 h-5 text-red-600" />;
 }
 
-function getOverallVerdict(physics: PhysicsData, fraud: FraudData, cv?: { summary: CrossValidationSummary }) {
+function getOverallVerdict(physics: PhysicsData, fraud: FraudData, cv?: { summary: CrossValidationSummary }, narrative?: NarrativeValidation) {
   let score = 0;
   let maxScore = 0;
 
-  // Physics (weight: 30)
+  // Physics/Damage validation (weight: 30)
   maxScore += 30;
   if (physics.physicsScore >= 70) score += 30;
   else if (physics.physicsScore >= 40) score += 15;
@@ -75,9 +95,15 @@ function getOverallVerdict(physics: PhysicsData, fraud: FraudData, cv?: { summar
     else if (cv.summary.suspiciousCount <= 2) score += 12;
   }
 
-  // Data completeness is implicit
-  maxScore += 15;
-  score += 15; // base
+  // Narrative validation (weight: 15)
+  if (narrative) {
+    maxScore += 15;
+    if (narrative.isPlausible) score += 15;
+    else if (narrative.narrativeScore >= 40) score += 7;
+  } else {
+    maxScore += 15;
+    score += 15; // base
+  }
 
   const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 50;
 
@@ -86,19 +112,34 @@ function getOverallVerdict(physics: PhysicsData, fraud: FraudData, cv?: { summar
   return { label: 'SIGNIFICANT CONCERNS IDENTIFIED', color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', status: 'fail' as const };
 }
 
+/** Format incident type for display */
+function formatIncidentType(type: string): string {
+  return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export function ExecutiveSummary({
   vehicleMake, vehicleModel, vehicleYear, vehicleRegistration,
-  accidentType, totalCost, originalQuote, agreedCost, savings,
+  accidentType, accidentDescription, totalCost, originalQuote, agreedCost, savings,
   componentCount, physicsData, fraudData, crossValidation,
+  incidentClassification, narrativeValidation,
   dataCompleteness, damagePhotoCount
 }: ExecutiveSummaryProps) {
 
-  const verdict = getOverallVerdict(physicsData, fraudData, crossValidation);
+  const verdict = getOverallVerdict(physicsData, fraudData, crossValidation, narrativeValidation);
+  const isCollision = incidentClassification?.isCollision ?? true;
+  const incidentType = incidentClassification?.incidentType || accidentType || 'unknown';
+  const incidentLabel = formatIncidentType(incidentType);
+
+  // Determine the validation card label based on incident type
+  const validationLabel = isCollision ? 'Physics Validation' : 'Damage Validation';
 
   const physicsStatus = physicsData.physicsScore >= 70 ? 'pass' : physicsData.physicsScore >= 40 ? 'warning' : 'fail';
   const fraudStatus = fraudData.riskScore <= 30 ? 'pass' : fraudData.riskScore <= 60 ? 'warning' : 'fail';
   const cvStatus = crossValidation
     ? (crossValidation.summary.suspiciousCount === 0 ? 'pass' : crossValidation.summary.suspiciousCount <= 2 ? 'warning' : 'fail')
+    : null;
+  const narrativeStatus = narrativeValidation
+    ? (narrativeValidation.isPlausible ? 'pass' : narrativeValidation.narrativeScore >= 40 ? 'warning' : 'fail')
     : null;
 
   return (
@@ -120,28 +161,35 @@ export function ExecutiveSummary({
           </div>
           <p className="text-sm text-gray-600">
             AI-powered assessment of {vehicleYear} {vehicleMake} {vehicleModel} ({vehicleRegistration})
-            {accidentType && <> — {accidentType.replace(/_/g, ' ')} incident</>}
+            {' — '}{incidentLabel.toLowerCase()} incident
           </p>
         </div>
       </div>
 
       {/* Key Validation Results Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {/* Physics Validation */}
+        {/* Physics / Damage Validation */}
         <div className="p-4 bg-white rounded-lg border border-gray-200">
           <div className="flex items-center gap-2 mb-2">
             <StatusIcon status={physicsStatus} />
-            <span className="text-sm font-semibold text-gray-700">Physics Validation</span>
+            <span className="text-sm font-semibold text-gray-700">{validationLabel}</span>
           </div>
           <p className={`text-lg font-bold ${physicsStatus === 'pass' ? 'text-green-600' : physicsStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
             {physicsData.physicsScore}/100
           </p>
           <p className="text-xs text-gray-500 mt-1">
-            {physicsData.damageConsistency === 'consistent'
-              ? 'Damage consistent with reported accident'
-              : physicsData.damageConsistency === 'questionable'
-              ? 'Some inconsistencies detected'
-              : 'Damage inconsistent with reported accident'}
+            {isCollision
+              ? (physicsData.damageConsistency === 'consistent'
+                  ? 'Damage consistent with reported accident'
+                  : physicsData.damageConsistency === 'questionable'
+                  ? 'Some inconsistencies detected'
+                  : 'Damage inconsistent with reported accident')
+              : (physicsData.damageConsistency === 'consistent'
+                  ? `Damage consistent with ${incidentLabel.toLowerCase()}`
+                  : physicsData.damageConsistency === 'questionable'
+                  ? 'Some concerns with damage pattern'
+                  : `Damage pattern questionable for ${incidentLabel.toLowerCase()}`)
+            }
           </p>
           {physicsData.flags.length > 0 && (
             <p className="text-xs text-amber-600 mt-1">{physicsData.flags.length} flag(s) raised</p>
@@ -209,16 +257,90 @@ export function ExecutiveSummary({
         </div>
       </div>
 
+      {/* Narrative Validation Section (for non-collision incidents) */}
+      {narrativeValidation && (
+        <div className="mb-4 p-4 bg-white rounded-lg border border-gray-200">
+          <div className="flex items-center gap-2 mb-3">
+            <FileText className="w-5 h-5 text-indigo-600" />
+            <h3 className="text-sm font-semibold text-gray-700">Narrative & Incident Validation</h3>
+            {narrativeStatus && (
+              <Badge className={`text-xs px-2 py-0.5 ${
+                narrativeStatus === 'pass' ? 'bg-green-100 text-green-800' :
+                narrativeStatus === 'warning' ? 'bg-amber-100 text-amber-800' :
+                'bg-red-100 text-red-800'
+              }`}>
+                {narrativeValidation.narrativeScore}/100
+              </Badge>
+            )}
+          </div>
+          {incidentClassification && (
+            <p className="text-sm text-gray-600 mb-2">
+              <strong>Incident type:</strong> {incidentLabel}
+              {!isCollision && ' (non-collision)'}
+              {incidentClassification.vehicleWasStationary && ' · Vehicle was stationary'}
+            </p>
+          )}
+          {narrativeValidation.deductions.length > 0 && (
+            <div className="mb-2">
+              <p className="text-xs font-semibold text-gray-600 mb-1">AI Deductions:</p>
+              <ul className="space-y-1">
+                {narrativeValidation.deductions.map((d, i) => (
+                  <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                    <Brain className="w-3 h-3 mt-0.5 flex-shrink-0 text-indigo-500" />
+                    {d}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-3">
+            {narrativeValidation.supports.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-green-700 mb-1">Supporting Factors:</p>
+                <ul className="space-y-0.5">
+                  {narrativeValidation.supports.map((s, i) => (
+                    <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                      <CheckCircle2 className="w-3 h-3 mt-0.5 flex-shrink-0 text-green-500" />
+                      {s}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {narrativeValidation.concerns.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-amber-700 mb-1">Concerns:</p>
+                <ul className="space-y-0.5">
+                  {narrativeValidation.concerns.map((c, i) => (
+                    <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0 text-amber-500" />
+                      {c}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Key Findings Narrative */}
       <div className="p-4 bg-white rounded-lg border border-gray-200">
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Key Findings</h3>
         <div className="text-sm text-gray-700 space-y-2">
           <p>
-            <strong>Physics:</strong>{' '}
-            {physicsData.is_valid
-              ? `The reported ${accidentType?.replace(/_/g, ' ') || 'accident'} at an estimated ${physicsData.impactSpeed} km/h with ${physicsData.impactForce} kN impact force is physically consistent with the observed damage pattern (score: ${physicsData.physicsScore}/100).`
-              : `Physics analysis raises concerns about the reported ${accidentType?.replace(/_/g, ' ') || 'accident'}. The estimated ${physicsData.impactSpeed} km/h impact producing ${physicsData.impactForce} kN does not fully align with the observed damage (score: ${physicsData.physicsScore}/100).`
-            }
+            <strong>{isCollision ? 'Physics' : 'Damage Validation'}:</strong>{' '}
+            {isCollision ? (
+              // Collision incident: show physics analysis with impact speed/force
+              physicsData.is_valid
+                ? `The reported ${incidentLabel.toLowerCase()} at an estimated ${physicsData.impactSpeed} km/h with ${physicsData.impactForce} kN impact force is physically consistent with the observed damage pattern (score: ${physicsData.physicsScore}/100).`
+                : `Physics analysis raises concerns about the reported ${incidentLabel.toLowerCase()}. The estimated ${physicsData.impactSpeed} km/h impact producing ${physicsData.impactForce} kN does not fully align with the observed damage (score: ${physicsData.physicsScore}/100).`
+            ) : (
+              // Non-collision incident: show damage pattern validation WITHOUT collision dynamics
+              physicsData.is_valid
+                ? `The damage pattern is consistent with the reported ${incidentLabel.toLowerCase()} incident. The described damage to ${physicsData.damageConsistency === 'consistent' ? 'the affected components aligns with' : 'some components may not fully align with'} what would be expected from this type of incident (score: ${physicsData.physicsScore}/100).`
+                : `The damage pattern raises some questions for the reported ${incidentLabel.toLowerCase()} incident. The observed damage may not fully align with what would typically be expected from this type of incident (score: ${physicsData.physicsScore}/100).`
+            )}
             {physicsData.flags.length > 0 && ` Flags: ${physicsData.flags.join('; ')}.`}
           </p>
 
@@ -272,7 +394,7 @@ export function ExecutiveSummary({
             {physicsData.flags.map((flag, i) => (
               <li key={`p-${i}`} className="flex items-start gap-2 text-sm text-gray-700">
                 <Activity className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-blue-500" />
-                <span><strong className="text-blue-700">Physics:</strong> {flag}</span>
+                <span><strong className="text-blue-700">{isCollision ? 'Physics' : 'Damage'}:</strong> {flag}</span>
               </li>
             ))}
             {fraudData.flaggedIssues.slice(0, 5).map((issue, i) => (
