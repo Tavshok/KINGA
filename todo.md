@@ -6170,4 +6170,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Integrate comments router into main app router
 - [ ] Fix Drizzle ORM insertId extraction in tests
 - [ ] Verify zero TypeScript errors (38 remaining, unrelated to comments router)
-- [ ] Save checkpoint with complete comment router
+- [x] Save checkpoint with complete comment router
+
+
+## getClaimsByState Procedure Implementation (February 16, 2026)
+- [x] Design role-based state access rules matrix
+- [x] Implement getClaimsByState procedure with tenant isolation
+- [x] Add pagination support (limit, offset, total count)
+- [x] Implement role-based filtering (processor, executive, etc.)
+- [x] Add state access authorization checks
+- [x] Create integration test: processor cannot see technical_approval claims
+- [x] Create integration test: executive can see all states
+- [x] Create integration test: cross-tenant access blocked
+- [ ] Fix database workflow_state enum to match schema definition
+- [ ] Replace direct state queries in ClaimsManagerDashboard
+- [ ] Replace direct state queries in ClaimsProcessorDashboard
+- [ ] Replace direct state queries in ExecutiveDashboard
+- [ ] Replace direct state queries in RiskManagerDashboard
+- [ ] Verify zero TypeScript errors (89 remaining, unrelated to getClaimsByState)
+- [ ] Save checkpoint with complete getClaimsByState implementation

@@ -72,6 +72,7 @@ import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
+import { workflowQueriesRouter } from "./routers/workflow-queries";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -82,6 +83,7 @@ export const appRouter = router({
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
   workflow: workflowRouter,
+  workflowQueries: workflowQueriesRouter,
   comments: commentsRouter,
   assessorOnboarding: assessorOnboardingRouter,
   documentIngestion: documentIngestionRouter,
