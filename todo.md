@@ -6511,3 +6511,20 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add tests: tenant isolation for threshold configs
 - [x] Verify zero TypeScript errors
 - [ ] Update documentation with threshold versioning workflow
+
+
+## Routing Re-Evaluation with Immutability
+- [x] Add reEvaluateRouting function with role-based access control
+- [x] Implement Executive/ClaimsManager role validation
+- [x] Add justification length validation (minimum 20 characters)
+- [x] Implement confidence recalculation with current model version
+- [x] Fetch current active threshold version for re-evaluation
+- [x] Create new routing history event referencing previous decision
+- [x] Add audit logging to workflowAuditTrail
+- [x] Add tests: unauthorized role → fail
+- [x] Add tests: missing/short justification → fail
+- [x] Add tests: previous routing history preserved
+- [x] Add tests: multiple re-evaluations allowed (append-only)
+- [x] Add tests: re-evaluation uses current threshold version
+- [x] Verify zero TypeScript errors
+- [ ] Update documentation with re-evaluation workflow

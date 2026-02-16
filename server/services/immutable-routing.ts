@@ -11,6 +11,7 @@ import { routingHistory, claims } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getActiveThresholdConfig, getDefaultThresholdConfig, calculateRoutingCategoryWithThresholds, type ThresholdConfig } from "./threshold-version-management";
+import { logRoutingReEvaluation } from "./routing-audit-logger";
 
 /**
  * Confidence components breakdown
@@ -340,4 +341,116 @@ export function calculateConfidenceScore(components: ConfidenceComponents): numb
     components.historicalRisk * weights.historicalRisk;
   
   return Math.round(score * 100) / 100; // Round to 2 decimal places
+}
+
+/**
+ * Re-evaluation parameters
+ */
+export interface ReEvaluateRoutingParams {
+  claimId: number;
+  tenantId: string;
+  userId: number;
+  userRole: string;
+  justification: string;
+  confidenceComponents: ConfidenceComponents;
+  modelVersion: string;
+}
+
+/**
+ * Re-evaluate routing decision for a claim
+ * 
+ * This function allows authorized users (Executive, ClaimsManager) to trigger
+ * a re-evaluation of routing decisions using current model and threshold versions.
+ * 
+ * Rules:
+ * 1. Only Executive or ClaimsManager roles allowed
+ * 2. Justification must be at least 20 characters
+ * 3. Creates new routing history event (append-only)
+ * 4. References previous routing decision ID
+ * 5. Uses current active threshold version
+ * 6. Never modifies old routing records
+ * 
+ * @throws {RoutingValidationError} If role unauthorized or justification invalid
+ */
+export async function reEvaluateRouting(
+  params: ReEvaluateRoutingParams
+): Promise<{ id: string; previousRoutingId: string | null; timestamp: Date }> {
+  const db = await getDb();
+  if (!db) {
+    throw new Error("Database connection not available");
+  }
+
+  // Validate role authorization
+  const authorizedRoles = ["executive", "claims_manager"];
+  if (!authorizedRoles.includes(params.userRole.toLowerCase())) {
+    throw new RoutingValidationError(
+      `Unauthorized role: ${params.userRole}. Only Executive or ClaimsManager can re-evaluate routing decisions.`
+    );
+  }
+  
+  // Validate justification length (minimum 20 characters)
+  if (!params.justification || params.justification.trim().length < 20) {
+    throw new RoutingValidationError(
+      `Justification must be at least 20 characters, got ${params.justification?.trim().length || 0}`
+    );
+  }
+  
+  // Validate tenant isolation
+  await validateTenantIsolation(params.claimId, params.tenantId);
+  
+  // Get previous routing decision (if any)
+  const previousRouting = await getLatestRoutingDecision({
+    claimId: params.claimId,
+    tenantId: params.tenantId,
+  });
+  
+  // Recalculate confidence score using current components
+  const confidenceScore = calculateConfidenceScore(params.confidenceComponents);
+  
+  // Get current active threshold version
+  const activeThreshold = await getActiveThresholdConfig(params.tenantId);
+  const thresholds = activeThreshold || getDefaultThresholdConfig();
+  const thresholdVersion = activeThreshold?.version || "default";
+  
+  // Calculate routing category using current thresholds
+  const routingCategory = calculateRoutingCategoryWithThresholds(confidenceScore, thresholds);
+  
+  // Determine routing decision
+  const routingDecision = determineRoutingDecision(routingCategory);
+  
+  // Create new routing event with re-evaluation metadata
+  const result = await createRoutingEvent({
+    claimId: params.claimId,
+    tenantId: params.tenantId,
+    confidenceScore,
+    confidenceComponents: params.confidenceComponents,
+    routingCategory,
+    routingDecision,
+    thresholdConfigVersion: thresholdVersion,
+    modelVersion: params.modelVersion,
+    decidedBy: "USER",
+    decidedByUserId: params.userId,
+    justification: `[RE-EVALUATION] ${params.justification}${previousRouting ? ` | Previous routing: ${previousRouting.routingCategory} (${previousRouting.id})` : ""}`,
+  });
+  
+  // Log re-evaluation to workflow audit trail
+  await logRoutingReEvaluation({
+    claimId: params.claimId,
+    tenantId: params.tenantId,
+    userId: params.userId,
+    userRole: params.userRole,
+    previousRoutingId: previousRouting?.id || null,
+    newRoutingId: result.id,
+    previousCategory: previousRouting?.routingCategory || null,
+    newCategory: routingCategory,
+    justification: params.justification,
+    modelVersion: params.modelVersion,
+    thresholdVersion,
+  });
+  
+  return {
+    id: result.id,
+    previousRoutingId: previousRouting?.id || null,
+    timestamp: result.timestamp,
+  };
 }
