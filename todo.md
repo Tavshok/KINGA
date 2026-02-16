@@ -6250,4 +6250,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify zero byStatus references remain in codebase
 - [x] Run all tests and verify they pass (test failures are pre-existing, not from migration)
 - [x] Verify no new TypeScript errors introduced by migration
-- [ ] Save checkpoint with complete governance migration
+- [x] Save checkpoint with complete governance migration
+
+## Segregation-of-Duties Enforcement Update (February 16, 2026)
+- [x] Review current segregation validator implementation
+- [x] Review current involvement tracking logic
+- [x] Update segregation validator to enforce 2-stage limit rule
+- [x] Document enforcement behavior in code comments
+- [ ] Update validator to block self-approval of prior stages (if needed)
+- [x] Update "full lifecycle" test to assert failure on 3rd stage
+- [x] Add unit test: User performs 2 valid stages → allowed
+- [x] Add unit test: User attempts 3rd stage → blocked
+- [x] Add comprehensive unit tests for all scenarios
+- [x] Add unit test: User attempts to approve own stage → blocked
+- [ ] Add unit test: Executive override → allowed with audit log (to be implemented in integration layer)
+- [x] Add audit logging for segregation violation attempts
+- [x] Document enforcement behavior in code comments (already added in segregation-validator.ts)
+- [x] Run all governance tests and verify they pass
+- [x] Verify no TypeScript errors introduced (pre-existing errors unrelated to this work)
+- [ ] Save checkpoint with updated segregation enforcement

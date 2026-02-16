@@ -239,6 +239,22 @@ export class WorkflowStateMachine {
         );
 
         if (!segregationResult.allowed) {
+          // LOG SEGREGATION VIOLATION ATTEMPT
+          await this.auditLogger.logViolation(
+            claimId,
+            { from, to, allowedRoles: transitionRule!.allowedRoles, requiresSegregationCheck: true },
+            {
+              userId,
+              userRole,
+              comments: `SEGREGATION VIOLATION: ${segregationResult.reason}`,
+              metadata: {
+                violationType: "SEGREGATION_VIOLATION",
+                criticalStagesPerformed: segregationResult.criticalStagesPerformed,
+                attemptedAction: "transition_state",
+              },
+            }
+          );
+
           throw new WorkflowViolationError(
             segregationResult.reason || "Segregation of duties violation",
             "SEGREGATION_VIOLATION",

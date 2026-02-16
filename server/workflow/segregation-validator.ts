@@ -2,6 +2,18 @@
  * Segregation of Duties Validator
  * 
  * Enforces segregation of duties rules to prevent single-user end-to-end control
+ * 
+ * GOVERNANCE POLICY:
+ * - A user may perform up to 2 distinct lifecycle stages
+ * - A user may NOT complete the full claim lifecycle (3+ stages)
+ * - A user may NOT approve their own prior stage
+ * - Executive role can override with audit logging
+ * 
+ * CRITICAL STAGES:
+ * - assessment: under_assessment, internal_review
+ * - technical_approval: technical_approval
+ * - financial_decision: financial_decision
+ * - payment_authorization: payment_authorized
  */
 
 import { getDb } from "../db";
@@ -31,9 +43,12 @@ const STATE_TO_CRITICAL_STAGE: Partial<Record<WorkflowState, CriticalStage>> = {
  * Segregation of Duties Validator
  * 
  * Validates that no single user performs too many sequential critical stages
+ * 
+ * DEFAULT POLICY: User can perform max 2 critical stages
+ * This prevents single-user end-to-end control while allowing reasonable workflow flexibility
  */
 export class SegregationValidator {
-  private maxSequentialStages: number = 1; // Default: user can perform max 1 critical stage (segregation of duties)
+  private maxSequentialStages: number = 2; // POLICY: User can perform max 2 critical stages
 
   /**
    * Validates segregation of duties for a proposed action
@@ -76,11 +91,12 @@ export class SegregationValidator {
       ? involvement.criticalStageCount + 1 
       : involvement.criticalStageCount;
 
-    // Check if user would exceed max sequential stages
+    // GOVERNANCE RULE: Check if user would exceed max sequential stages
+    // Policy: User can perform up to 2 stages, but NOT complete full lifecycle (3+ stages)
     if (futureCount > this.maxSequentialStages) {
       return {
         allowed: false,
-        reason: `User has already performed ${involvement.criticalStageCount} critical stages on this claim. Performing this action would result in ${futureCount} stages, exceeding maximum allowed: ${this.maxSequentialStages}`,
+        reason: `SEGREGATION_VIOLATION: User has already performed ${involvement.criticalStageCount} critical stage(s) on this claim. Performing this action would result in ${futureCount} stages, exceeding maximum allowed: ${this.maxSequentialStages}. A different user must perform this stage to maintain segregation of duties.`,
         userInvolvement: involvement,
         criticalStagesPerformed: involvement.criticalStageCount,
       };

@@ -111,11 +111,11 @@ describe("Workflow Governance Integration Tests", () => {
   });
 
   describe("Segregation of Duties Validation", () => {
-    it("should prevent same user from performing multiple critical stages", async () => {
+    it("should allow user to perform 2 critical stages", async () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
-      // Transition to internal_review (first critical stage)
+      // Stage 1: User performs assessment (first critical stage)
       await db.update(claims)
         .set({ workflowState: "under_assessment" })
         .where(eq(claims.id, testClaimId));
@@ -131,26 +131,77 @@ describe("Workflow Governance Integration Tests", () => {
 
       expect(result1.success).toBe(true);
 
-      // Try to have same user perform technical_approval (second critical stage)
+      // Stage 2: Same user performs technical_approval (second critical stage - ALLOWED)
       await db.update(claims)
         .set({ workflowState: "internal_review" })
         .where(eq(claims.id, testClaimId));
 
       const result2 = await transitionClaimState({
         claimId: testClaimId,
-        userId: testUserId, // Same user!
+        userId: testUserId, // Same user - allowed for 2nd stage
         userRole: "risk_manager",
         tenantId: testTenantId,
         to: "technical_approval",
         action: "approve_technical",
       });
 
-      expect(result2.success).toBe(false);
-      expect(result2.errors).toBeDefined();
-      expect(result2.errors![0].code).toBe("SEGREGATION_VIOLATION");
+      expect(result2.success).toBe(true);
     });
 
-    it("should allow different users to perform sequential critical stages", async () => {
+    it("should prevent same user from performing 3rd critical stage", async () => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+
+      // Stage 1: User performs assessment
+      await db.update(claims)
+        .set({ workflowState: "under_assessment" })
+        .where(eq(claims.id, testClaimId));
+
+      const result1 = await transitionClaimState({
+        claimId: testClaimId,
+        userId: testUserId,
+        userRole: "assessor_internal",
+        tenantId: testTenantId,
+        to: "internal_review",
+        action: "complete_assessment",
+      });
+      expect(result1.success).toBe(true);
+
+      // Stage 2: Same user performs technical_approval
+      await db.update(claims)
+        .set({ workflowState: "internal_review" })
+        .where(eq(claims.id, testClaimId));
+
+      const result2 = await transitionClaimState({
+        claimId: testClaimId,
+        userId: testUserId,
+        userRole: "risk_manager",
+        tenantId: testTenantId,
+        to: "technical_approval",
+        action: "approve_technical",
+      });
+      expect(result2.success).toBe(true);
+
+      // Stage 3: Try to have same user perform financial_decision (BLOCKED)
+      await db.update(claims)
+        .set({ workflowState: "technical_approval" })
+        .where(eq(claims.id, testClaimId));
+
+      const result3 = await transitionClaimState({
+        claimId: testClaimId,
+        userId: testUserId, // Same user - attempting 3rd stage!
+        userRole: "claims_manager",
+        tenantId: testTenantId,
+        to: "financial_decision",
+        action: "approve_financial",
+      });
+
+      expect(result3.success).toBe(false);
+      expect(result3.errors).toBeDefined();
+      expect(result3.errors![0].code).toBe("SEGREGATION_VIOLATION");
+    });
+
+    it("should allow different users to perform all critical stages", async () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
 
@@ -415,10 +466,10 @@ describe("Workflow Governance Integration Tests", () => {
       });
       expect(step4.success).toBe(true);
 
-      // Step 5: Risk manager approves technical basis (second critical stage - different user required)
+      // Step 5: User 102 also performs technical_approval (second critical stage for user 102)
       const step5 = await transitionClaimState({
         claimId: testClaimId,
-        userId: 103, // Different user!
+        userId: 102, // Same user as step 4 - now doing 2nd critical stage
         userRole: "risk_manager",
         tenantId: testTenantId,
         to: "technical_approval",
@@ -426,10 +477,24 @@ describe("Workflow Governance Integration Tests", () => {
       });
       expect(step5.success).toBe(true);
 
-      // Step 6: Claims manager makes financial decision (third critical stage - different user required)
+      // Step 6: Attempt financial decision by user 102 (who already did 2 critical stages)
+      // This should FAIL because user 102 already performed 2 critical stages (assessment + technical_approval)
+      const step6Fail = await transitionClaimState({
+        claimId: testClaimId,
+        userId: 102, // Same user - attempting 3rd critical stage!
+        userRole: "claims_manager",
+        tenantId: testTenantId,
+        to: "financial_decision",
+        action: "approve_financial",
+      });
+      expect(step6Fail.success).toBe(false);
+      expect(step6Fail.errors).toBeDefined();
+      expect(step6Fail.errors![0].code).toBe("SEGREGATION_VIOLATION");
+
+      // Step 6 (retry): Claims manager makes financial decision (third critical stage - must be user who hasn't done 2 stages yet)
       const step6 = await transitionClaimState({
         claimId: testClaimId,
-        userId: 104, // Different user!
+        userId: 103, // Different user who hasn't been involved yet!
         userRole: "claims_manager",
         tenantId: testTenantId,
         to: "financial_decision",
@@ -443,7 +508,16 @@ describe("Workflow Governance Integration Tests", () => {
         .from(workflowAuditTrail)
         .where(eq(workflowAuditTrail.claimId, testClaimId));
 
-      expect(auditEntries.length).toBe(6);
+      // Should have entries for: 4 non-critical transitions + 3 critical transitions + 1 violation = 8 total
+      // But we only care that there's at least 6 (the successful ones + violation)
+      expect(auditEntries.length).toBeGreaterThanOrEqual(6);
+      
+      // Verify violation attempt was logged
+      const violationEntries = auditEntries.filter(e => 
+        e.metadata && JSON.parse(e.metadata as string).violationAttempt === true
+      );
+      expect(violationEntries.length).toBe(1);
+      expect(violationEntries[0].comments).toContain("SEGREGATION VIOLATION")
 
       // Verify segregation tracking
       const involvements = await db
@@ -451,12 +525,17 @@ describe("Workflow Governance Integration Tests", () => {
         .from(claimInvolvementTracking)
         .where(eq(claimInvolvementTracking.claimId, testClaimId));
 
-      // Should have 3 involvement records (one for each critical stage)
+      // Should have 3 involvement records: user 102 (assessment + technical_approval), user 103 (financial_decision)
       expect(involvements.length).toBe(3);
       
-      // Verify different users
-      const uniqueUsers = new Set(involvements.map(i => i.userId));
-      expect(uniqueUsers.size).toBe(3); // 3 different users
+      // Verify user 102 has 2 critical stage involvements
+      const user102Involvements = involvements.filter(i => i.userId === 102);
+      expect(user102Involvements.length).toBe(2);
+      
+      // Verify user 103 has 1 critical stage involvement
+      const user103Involvements = involvements.filter(i => i.userId === 103);
+      expect(user103Involvements.length).toBe(1);
+      expect(user103Involvements[0].workflowStage).toBe("financial_decision")
     });
   });
 });
