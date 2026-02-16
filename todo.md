@@ -6188,4 +6188,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Replace direct state queries in ExecutiveDashboard
 - [ ] Replace direct state queries in RiskManagerDashboard
 - [ ] Verify zero TypeScript errors (89 remaining, unrelated to getClaimsByState)
-- [ ] Save checkpoint with complete getClaimsByState implementation
+- [x] Save checkpoint with complete getClaimsByState implementation
+
+
+## Drizzle ORM Insert ID Extraction Fix (February 16, 2026)
+- [ ] Investigate Drizzle ORM db.insert() return structure for MySQL driver
+- [ ] Test insert return structure with actual database query
+- [ ] Create type-safe ID extraction utility supporting MySQL/SQLite/Postgres
+- [ ] Refactor comments router addComment to use safe ID extraction
+- [ ] Refactor test helpers to use safe ID extraction
+- [ ] Add test: verify inserted comment ID matches stored record
+- [ ] Add test: verify audit trail references correct commentId
+- [ ] Add test: verify no undefined/null IDs propagate
+- [ ] Verify all comment router tests pass
+- [ ] Verify zero TypeScript errors
+- [ ] Remove all unsafe type assertions and 'any' usage
+- [ ] Save checkpoint with working comment tests

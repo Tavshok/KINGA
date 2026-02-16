@@ -14,6 +14,7 @@ import { getDb } from "../db";
 import { claimComments, claims, workflowAuditTrail } from "../../drizzle/schema";
 import { eq, and, isNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import { extractInsertId } from "../utils/drizzle-helpers";
 
 export const commentsRouter = router({
   /**
@@ -73,7 +74,8 @@ export const commentsRouter = router({
         createdAt: new Date(),
       });
 
-      const commentId = Number(result.insertId);
+      // Safely extract inserted comment ID
+      const commentId = extractInsertId(result);
 
       // Log comment creation in audit trail
       await db.insert(workflowAuditTrail).values({

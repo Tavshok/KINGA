@@ -14,6 +14,7 @@ import { commentsRouter } from "./comments";
 import { getDb } from "../db";
 import { claims, claimComments, workflowAuditTrail } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { extractInsertId } from "../utils/drizzle-helpers";
 
 // Helper function to create a test claim
 async function createTestClaim(tenantId: string = "test-tenant-1") {
@@ -30,9 +31,8 @@ async function createTestClaim(tenantId: string = "test-tenant-1") {
     createdAt: new Date(),
   });
 
-  // Extract insertId from result array
-  const insertId = (claimResult as unknown as { insertId: string | number }).insertId;
-  return Number(insertId);
+  // Safely extract inserted claim ID
+  return extractInsertId(claimResult);
 }
 
 describe("Comments Router", () => {
@@ -115,6 +115,22 @@ describe("Comments Router", () => {
       expect(comment).toBeDefined();
       expect(comment.content).toBe("This is a valid comment");
       expect(comment.userId).toBe(102);
+
+      // Verify inserted comment ID matches stored record
+      expect(comment.id).toBe(result.commentId);
+
+      // Verify audit trail references correct commentId
+      const [auditEntry] = await db
+        .select()
+        .from(workflowAuditTrail)
+        .where(eq(workflowAuditTrail.claimId, claimId))
+        .orderBy(workflowAuditTrail.createdAt)
+        .limit(1);
+
+      expect(auditEntry).toBeDefined();
+      const metadata = JSON.parse(auditEntry.metadata || "{}");
+      expect(metadata.commentId).toBe(result.commentId);
+      expect(metadata.action).toBe("comment_added");
     });
   });
 
