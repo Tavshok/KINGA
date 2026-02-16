@@ -73,7 +73,7 @@ export default function AssessorDashboard() {
               <Clock className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{claims.filter(c => c.status === 'assessment_pending' || c.status === 'assessment_in_progress').length}</div>
+              <div className="text-3xl font-bold">{claims.filter(c => c.workflowState === 'assigned' || c.workflowState === 'under_assessment').length}</div>
               <p className="text-xs text-orange-100">Awaiting evaluation</p>
             </CardContent>
           </Card>
@@ -95,7 +95,7 @@ export default function AssessorDashboard() {
               <ClipboardCheck className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{claims.filter(c => c.status === 'completed').length}</div>
+              <div className="text-3xl font-bold">{claims.filter(c => c.workflowState === 'completed').length}</div>
               <p className="text-xs text-green-100">Assessments completed</p>
             </CardContent>
           </Card>
@@ -127,7 +127,7 @@ export default function AssessorDashboard() {
                         {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
                       </p>
                       <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{claim.status?.replace(/_/g, " ") || "unknown"}</Badge>
+                        <Badge variant="outline">{claim.workflowState?.replace(/_/g, " ") || "unknown"}</Badge>
                         {claim.policyVerified && (
                           <Badge variant="default" className="bg-green-600">Verified</Badge>
                         )}

@@ -123,7 +123,7 @@ export default function PortalHub() {
           {/* Welcome Section with gradient */}
           <div className="text-center mb-12">
             <div className="inline-block mb-4 px-6 py-2 rounded-full bg-primary/10 border border-primary/20">
-              <p className="text-sm font-medium text-primary">Welcome to KINGA AutoVerify AI</p>
+              <p className="text-sm font-medium text-primary">Welcome to KINGA</p>
             </div>
             <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-3">
               Welcome back, {user?.name}!

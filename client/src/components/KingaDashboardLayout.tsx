@@ -127,7 +127,7 @@ export default function KingaDashboardLayout({
       <footer className="border-t border-primary/10 bg-white/50 backdrop-blur-sm mt-12">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <p>© 2026 KINGA AutoVerify AI. All rights reserved.</p>
+            <p>© 2026 KINGA. All rights reserved.</p>
             <div className="flex items-center gap-4">
               <button
                 onClick={() => setLocation("/portal-hub")}

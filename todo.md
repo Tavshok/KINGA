@@ -6216,4 +6216,14 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Migrate RiskManagerDashboard to use trpc.workflowQueries.getClaimsByState
 - [x] Add composite index (tenant_id, workflow_state, created_at) on claims table
 - [x] Verify all 11 workflow-queries tests pass
-- [ ] Save checkpoint with corrected getClaimsByState implementation
+- [x] Save checkpoint with corrected getClaimsByState implementation
+
+
+## Branding and Dashboard Fixes (February 16, 2026)
+- [x] Update system name from "KINGA AutoVerify AI" to "KINGA" in Portal Hub
+- [x] Update system name in all dashboard headers
+- [ ] Update VITE_APP_TITLE environment variable to "KINGA"
+- [x] Fix assessor dashboard status field error (migrate to workflowState)
+- [ ] Fix claims processor dashboard status field error
+- [ ] Test all portal access and dashboard loading
+- [ ] Save checkpoint with branding and dashboard fixes
