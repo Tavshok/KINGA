@@ -12,6 +12,7 @@ import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
 import { getActiveThresholdConfig, getDefaultThresholdConfig, calculateRoutingCategoryWithThresholds, type ThresholdConfig } from "./threshold-version-management";
 import { logRoutingReEvaluation } from "./routing-audit-logger";
+import { calculateConfidenceWithExplainability, type ConfidenceExplainability } from "./confidence-explainability";
 
 /**
  * Confidence components breakdown
@@ -58,6 +59,7 @@ export interface CreateRoutingEventParams {
   decidedBy: DecidedBy;
   decidedByUserId?: number;
   justification?: string;
+  explainabilityMetadata?: ConfidenceExplainability; // Optional - will be calculated if not provided
 }
 
 /**
@@ -181,6 +183,17 @@ export async function createRoutingEvent(
   // Generate immutable ID
   const routingId = generateRoutingId();
   
+  // Calculate explainability metadata if not provided
+  let explainabilityMetadata = params.explainabilityMetadata;
+  if (!explainabilityMetadata) {
+    const { explainability } = calculateConfidenceWithExplainability(
+      params.confidenceComponents,
+      undefined, // Use default weights
+      params.modelVersion
+    );
+    explainabilityMetadata = explainability;
+  }
+  
   // Insert routing event (append-only, never update)
   const timestamp = new Date();
   await db.insert(routingHistory).values({
@@ -196,6 +209,7 @@ export async function createRoutingEvent(
     decidedBy: params.decidedBy,
     decidedByUserId: params.decidedByUserId || null,
     justification: params.justification || null,
+    explainabilityMetadata: JSON.stringify(explainabilityMetadata),
     timestamp,
   });
   

@@ -6528,3 +6528,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add tests: re-evaluation uses current threshold version
 - [x] Verify zero TypeScript errors
 - [ ] Update documentation with re-evaluation workflow
+
+
+## Confidence Calculation Explainability Enhancement
+- [x] Extend routingHistory schema with explainabilityMetadata JSON field
+- [x] Create ConfidenceExplainability type with component weights
+- [x] Update calculateConfidenceScore to return explainability metadata
+- [x] Store raw component weights in routingHistory
+- [x] Store weighted contribution per factor
+- [x] Store final normalized score
+- [x] Store model version string
+- [x] Store calculation timestamp
+- [x] Add generateConfidenceExplanation helper function
+- [x] Generate human-readable explanation from metadata
+- [x] Add tests: snapshot stored correctly
+- [x] Add tests: no recalculation required for explanation
+- [x] Add tests: historical record reproducible
+- [x] Verify zero TypeScript errors
+- [ ] Update documentation with explainability format

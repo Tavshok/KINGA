@@ -4831,6 +4831,11 @@ export const routingHistory = mysqlTable("routing_history", {
   // Justification (required for manual override)
   justification: text("justification"), // Required when decidedBy = "USER"
   
+  // Explainability metadata - full calculation snapshot for transparency
+  // Stores raw component weights, weighted contributions, and normalized score
+  // Format: { fraudRiskWeight, aiCertaintyWeight, varianceWeight, completenessWeight, historicalRiskWeight, normalizedScore, calculationTimestamp }
+  explainabilityMetadata: text("explainability_metadata"),
+  
   // Immutable timestamp
   timestamp: timestamp("timestamp").defaultNow().notNull(),
 }, (table) => ({

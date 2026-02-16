@@ -1,0 +1,1 @@
+ALTER TABLE `routing_history` ADD `explainability_metadata` text;
