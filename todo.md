@@ -6043,3 +6043,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add workflow configuration UI for insurer admins
 - [ ] Create executive oversight dashboard
 - [ ] Test complete governance system end-to-end
+
+
+## Final Workflow Governance Integration (In Progress)
+- [x] Create workflow router module with configuration procedures (server/routers/workflow.ts)
+- [x] Add workflow router to appRouter without breaking existing code
+- [x] Create workflow integration helper (server/workflow/integration.ts)
+- [x] Build workflow configuration UI page (client/src/pages/WorkflowSettings.tsx)
+- [x] Add workflow settings route to App.tsx
+- [ ] Update RBAC to allow universal claim visibility with role-based filtering
+- [ ] Create automated test suite for state transitions (server/workflow/state-machine.test.ts)
+- [ ] Create automated test suite for segregation of duties (server/workflow/segregation-validator.test.ts)
+- [ ] Create automated test suite for RBAC permissions (server/workflow/rbac.test.ts)
+- [ ] Test complete governance system end-to-end
+- [ ] Save final checkpoint with integrated governance system

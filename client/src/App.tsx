@@ -41,6 +41,7 @@ const InternalAssessorDashboard = lazy(() => import("./pages/InternalAssessorDas
 const RiskManagerDashboard = lazy(() => import("./pages/RiskManagerDashboard"));
 const ClaimsManagerDashboard = lazy(() => import("./pages/ClaimsManagerDashboard"));
 const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComparisonView"));
+const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 
 // Assessor pages
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
@@ -424,6 +425,12 @@ function Router() {
         <Route path="/admin/dashboard">
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/admin/workflow-settings">
+          <ProtectedRoute allowedRoles={["admin", "insurer"]} insurerRoles={["insurer_admin", "executive"]}>
+            <WorkflowSettings />
           </ProtectedRoute>
         </Route>
         
