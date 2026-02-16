@@ -6134,3 +6134,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create integration test: verify role validation triggers
 - [x] Confirm 100% of tRPC claim mutations use WorkflowEngine
 - [ ] Save checkpoint with complete workflow integration
+
+
+## Failing Test Investigation (February 16, 2026)
+- [x] Analyze audit trail field name test failure (fromState vs previousState)
+- [x] Debug segregation validation - why same user can perform multiple critical stages
+- [x] Investigate involvement overcounting (4 vs 3 expected records)
+- [x] Run tests with debug logging to trace execution
+- [x] Fix all 3 failing tests
+- [x] Verify 100% test coverage (13/13 passing)
+- [ ] Save final checkpoint with complete test suite

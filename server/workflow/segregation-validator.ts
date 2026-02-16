@@ -33,7 +33,7 @@ const STATE_TO_CRITICAL_STAGE: Partial<Record<WorkflowState, CriticalStage>> = {
  * Validates that no single user performs too many sequential critical stages
  */
 export class SegregationValidator {
-  private maxSequentialStages: number = 2; // Default: user can perform max 2 sequential critical stages
+  private maxSequentialStages: number = 1; // Default: user can perform max 1 critical stage (segregation of duties)
 
   /**
    * Validates segregation of duties for a proposed action
@@ -115,8 +115,8 @@ export class SegregationValidator {
       ORDER BY created_at ASC
     `);
 
-    // db.execute returns array directly, not result.rows
-    const rows = involvements as unknown as Array<Record<string, any>>;
+    // db.execute returns [rows, metadata] for SELECT queries
+    const rows = (involvements as any)[0] as Array<Record<string, any>>;
     
     const stages: StageInvolvement[] = rows.map((row) => ({
       stage: row.workflow_stage as CriticalStage,
@@ -158,21 +158,34 @@ export class SegregationValidator {
     const db = await getDb();
     if (!db) return;
     
-    await db.execute(sql`
-      INSERT INTO claim_involvement_tracking (
-        claim_id,
-        user_id,
-        workflow_stage,
-        action_type,
-        created_at
-      ) VALUES (
-        ${claimId},
-        ${userId},
-        ${criticalStage},
-        ${action},
-        NOW()
-      )
+    // Check if user already has involvement in this critical stage
+    const existing = await db.execute(sql`
+      SELECT id
+      FROM claim_involvement_tracking
+      WHERE claim_id = ${claimId}
+        AND user_id = ${userId}
+        AND workflow_stage = ${criticalStage}
+      LIMIT 1
     `);
+
+    // Only insert if no existing record for this user + stage combination
+    if ((existing as any)[0].length === 0) {
+      await db.execute(sql`
+        INSERT INTO claim_involvement_tracking (
+          claim_id,
+          user_id,
+          workflow_stage,
+          action_type,
+          created_at
+        ) VALUES (
+          ${claimId},
+          ${userId},
+          ${criticalStage},
+          ${action},
+          NOW()
+        )
+      `);
+    }
   }
 
   /**
