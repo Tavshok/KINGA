@@ -6323,4 +6323,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add test: Switching to restricted roles (validation)
 - [x] Verify zero TypeScript errors introduced (verified via tsc --noEmit)
 - [x] Verify no legacy fallback paths remain (no direct role updates found)
-- [ ] Save checkpoint with switchRole refactoring
+- [x] Save checkpoint with switchRole refactoring
+
+
+## Automated Static Governance Enforcement
+
+- [x] Create custom ESLint rule: no-direct-claim-status-update
+- [x] Create custom ESLint rule: no-direct-role-update
+- [x] Create custom ESLint rule: require-tenant-filter
+- [x] Configure ESLint to load custom rules
+- [x] Add ESLint configuration for governance rules
+- [x] Create CI check script (governance-check.sh)
+- [x] Add governance check to package.json scripts
+- [x] Document approved admin bypass patterns
+- [x] Generate enforcement report
+- [ ] Save checkpoint with static enforcement tooling
