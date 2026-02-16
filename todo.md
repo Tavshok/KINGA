@@ -6337,4 +6337,43 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add governance check to package.json scripts
 - [x] Document approved admin bypass patterns
 - [x] Generate enforcement report
-- [ ] Save checkpoint with static enforcement tooling
+- [x] Save checkpoint with static enforcement tooling
+
+
+## Executive Analytics Audit Trail Integration
+
+### Database Indexes
+- [x] Add index on workflowAuditTrail(claimId, newState, createdAt)
+- [x] Add index on workflowAuditTrail(executiveOverride, createdAt)
+- [x] Add index on claimInvolvementTracking(claimId, userId, workflowStage)
+- [x] Add index on roleAssignmentAudit(userId, timestamp)
+- [x] Add index on roleAssignmentAudit(tenantId, timestamp)
+
+### Per-State Dwell Time Refactoring
+- [x] Replace getAverageProcessingTime() with audit trail-based calculation
+- [x] Implement per-state dwell time calculation using LEAD() window function
+- [x] Add full lifecycle duration (created to closed) calculation
+- [x] Update getWorkflowBottlenecks() to use audit trail timestamps
+
+### Executive Override and Segregation Metrics
+- [x] Implement getExecutiveOverrideMetrics() using workflowAuditTrail
+- [x] Implement getSegregationViolationAttempts() using claimInvolvementTracking
+- [x] Add override frequency trends over time
+- [x] Add segregation compliance rate calculation
+
+### Role Change Analytics
+- [x] Implement getRoleChangeFrequency() using roleAssignmentAudit
+- [x] Add role assignment impact on claim processing metrics
+- [x] Add role escalation pattern analysis
+
+### Test Coverage
+- [ ] Add unit tests for audit trail-based metrics
+- [ ] Add performance comparison tests (before vs after)
+- [ ] Add tenant isolation tests for new queries
+- [ ] Add pagination tests for new endpoints
+
+### Performance Optimization
+- [ ] Document query execution time before refactoring
+- [ ] Document query execution time after refactoring
+- [ ] Generate performance comparison report
+- [ ] Save checkpoint with audit trail integration

@@ -6,7 +6,7 @@
  */
 
 import { getDb } from "./db";
-import { claims, users, aiAssessments, assessorEvaluations, panelBeaterQuotes, panelBeaters } from "../drizzle/schema";
+import { claims, users, aiAssessments, assessorEvaluations, panelBeaterQuotes, panelBeaters, workflowAuditTrail, claimInvolvementTracking, roleAssignmentAudit } from "../drizzle/schema";
 import { eq, and, or, desc, sql, gt, lt } from "drizzle-orm";
 
 /**
@@ -277,26 +277,45 @@ export async function getCostSavingsTrends() {
 
 /**
  * Get Workflow Bottleneck Analysis
+ * 
+ * REFACTORED: Now uses workflowAuditTrail to identify states where claims
+ * spend the most time, indicating potential bottlenecks in the workflow
  */
 export async function getWorkflowBottlenecks() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const bottlenecks = await db
-    .select({
-      workflowState: claims.workflowState,
-      count: sql<number>`COUNT(*)`,
-      avgDaysInState: sql<number>`AVG(TIMESTAMPDIFF(DAY, ${claims.updatedAt}, NOW()))`,
-    })
-    .from(claims)
-    .where(sql`${claims.status} NOT IN ('completed', 'rejected')`)
-    .groupBy(claims.workflowState)
-    .orderBy(desc(sql<number>`AVG(TIMESTAMPDIFF(DAY, ${claims.updatedAt}, NOW()))`));
+  // Find current state of active claims and time since entering that state
+  const bottlenecks = await db.execute(sql`
+    WITH latest_states AS (
+      SELECT 
+        w.claim_id,
+        w.new_state,
+        w.created_at as entered_at,
+        TIMESTAMPDIFF(HOUR, w.created_at, NOW()) as hours_in_state
+      FROM workflow_audit_trail w
+      INNER JOIN (
+        SELECT claim_id, MAX(created_at) as max_time
+        FROM workflow_audit_trail
+        GROUP BY claim_id
+      ) latest ON w.claim_id = latest.claim_id AND w.created_at = latest.max_time
+      WHERE w.new_state NOT IN ('closed', 'rejected')
+    )
+    SELECT 
+      new_state as state,
+      COUNT(*) as count,
+      AVG(hours_in_state) as avg_hours,
+      MAX(hours_in_state) as max_hours
+    FROM latest_states
+    GROUP BY new_state
+    ORDER BY AVG(hours_in_state) DESC
+  `);
 
-  return bottlenecks.map(b => ({
-    state: b.workflowState,
+  return (bottlenecks.rows as any[]).map(b => ({
+    state: b.state,
     count: Number(b.count || 0),
-    avgDaysInState: Math.round(Number(b.avgDaysInState || 0) * 10) / 10,
+    avgDaysInState: Math.round((Number(b.avg_hours || 0) / 24) * 10) / 10,
+    maxDaysInState: Math.round((Number(b.max_hours || 0) / 24) * 10) / 10,
   }));
 }
 
@@ -449,50 +468,78 @@ export async function getCostBreakdownByStatus() {
 }
 
 /**
- * Get Average Processing Time By Status
- * Returns average time spent in each claim status
+ * Get Average Processing Time By Workflow State
+ * Uses audit trail to calculate precise per-state dwell time
+ * 
+ * REFACTORED: Now uses workflowAuditTrail for accurate state transition timing
+ * instead of claims.updatedAt which only tracks last modification
  */
 export async function getAverageProcessingTime() {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  // Calculate average time from creation to completion for completed claims
-  const [completedResult] = await db
-    .select({
-      avgDays: sql<number>`AVG(DATEDIFF(${claims.closedAt}, ${claims.createdAt}))`,
-    })
-    .from(claims)
-    .where(eq(claims.status, "completed"));
+  // Calculate per-state dwell time using audit trail with window functions
+  // This gives us the time between entering and leaving each state
+  const stateTimings = await db.execute(sql`
+    WITH state_durations AS (
+      SELECT 
+        claim_id,
+        new_state,
+        created_at as enter_time,
+        LEAD(created_at) OVER (PARTITION BY claim_id ORDER BY created_at) as exit_time,
+        TIMESTAMPDIFF(HOUR, created_at, 
+          LEAD(created_at) OVER (PARTITION BY claim_id ORDER BY created_at)
+        ) as hours_in_state
+      FROM workflow_audit_trail
+      WHERE new_state IS NOT NULL
+    )
+    SELECT 
+      new_state as state,
+      AVG(hours_in_state) as avg_hours,
+      COUNT(DISTINCT claim_id) as claim_count
+    FROM state_durations
+    WHERE hours_in_state IS NOT NULL
+    GROUP BY new_state
+  `);
 
-  // Calculate average time for pending triage
-  const [triageResult] = await db
-    .select({
-      avgDays: sql<number>`AVG(DATEDIFF(NOW(), ${claims.createdAt}))`,
-    })
-    .from(claims)
-    .where(eq(claims.status, "triage"));
+  // Convert to object format with days (rounded to 1 decimal)
+  const timingMap: Record<string, number> = {};
+  for (const row of stateTimings.rows as any[]) {
+    const avgDays = Number(row.avg_hours || 0) / 24;
+    timingMap[row.state] = Math.round(avgDays * 10) / 10;
+  }
 
-  // Calculate average time for under assessment
-  const [assessmentResult] = await db
-    .select({
-      avgDays: sql<number>`AVG(DATEDIFF(NOW(), ${claims.createdAt}))`,
-    })
-    .from(claims)
-    .where(eq(claims.status, "assessment_in_progress"));
+  // Full lifecycle duration (created to closed)
+  const [lifecycleResult] = await db.execute(sql`
+    SELECT 
+      AVG(TIMESTAMPDIFF(HOUR, 
+        (SELECT MIN(created_at) FROM workflow_audit_trail WHERE claim_id = w.claim_id),
+        w.created_at
+      )) as avg_hours
+    FROM workflow_audit_trail w
+    WHERE w.new_state = 'closed'
+  `);
 
-  // Calculate average time for awaiting approval
-  const [approvalResult] = await db
-    .select({
-      avgDays: sql<number>`AVG(DATEDIFF(NOW(), ${claims.createdAt}))`,
-    })
-    .from(claims)
-    .where(eq(claims.status, "quotes_pending"));
+  const fullLifecycleDays = Number((lifecycleResult as any)?.avg_hours || 0) / 24;
 
   return {
-    completed: Number(completedResult?.avgDays || 0),
-    pendingTriage: Number(triageResult?.avgDays || 0),
-    underAssessment: Number(assessmentResult?.avgDays || 0),
-    awaitingApproval: Number(approvalResult?.avgDays || 0),
+    // Per-state averages from audit trail
+    created: timingMap['created'] || 0,
+    intakeVerified: timingMap['intake_verified'] || 0,
+    assigned: timingMap['assigned'] || 0,
+    underAssessment: timingMap['under_assessment'] || 0,
+    internalReview: timingMap['internal_review'] || 0,
+    technicalApproval: timingMap['technical_approval'] || 0,
+    financialDecision: timingMap['financial_decision'] || 0,
+    paymentAuthorized: timingMap['payment_authorized'] || 0,
+    
+    // Full lifecycle (created to closed)
+    fullLifecycle: Math.round(fullLifecycleDays * 10) / 10,
+    
+    // Legacy fields for backward compatibility (map to new states)
+    completed: fullLifecycleDays,
+    pendingTriage: timingMap['created'] || 0,
+    awaitingApproval: timingMap['technical_approval'] || 0,
   };
 }
 
