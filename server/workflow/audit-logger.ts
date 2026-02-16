@@ -63,9 +63,9 @@ export class AuditLogger {
       SELECT *
       FROM workflow_audit_trail
       WHERE id = LAST_INSERT_ID()
-    `) as any;
+    `);
 
-    const record = auditRecords[0] as any;
+    const record = auditRecords.rows[0] as any;
 
     return {
       id: record.id,
@@ -95,9 +95,9 @@ export class AuditLogger {
       FROM workflow_audit_trail
       WHERE claim_id = ${claimId}
       ORDER BY created_at ASC
-    `) as any;
+    `);
 
-    return result.map((row: any) => ({
+    return result.rows.map((row: any) => ({
       id: row.id,
       claimId: row.claim_id,
       userId: row.user_id,
@@ -126,9 +126,9 @@ export class AuditLogger {
       WHERE user_id = ${userId}
       ORDER BY created_at DESC
       LIMIT ${limit}
-    `) as any;
+    `);
 
-    return result.map((row: any) => ({
+    return result.rows.map((row: any) => ({
       id: row.id,
       claimId: row.claim_id,
       userId: row.user_id,
@@ -162,9 +162,9 @@ export class AuditLogger {
         AND new_state = ${toState}
       ORDER BY created_at DESC
       LIMIT ${limit}
-    `) as any;
+    `);
 
-    return result.map((row: any) => ({
+    return result.rows.map((row: any) => ({
       id: row.id,
       claimId: row.claim_id,
       userId: row.user_id,
@@ -200,9 +200,9 @@ export class AuditLogger {
       FROM workflow_audit_trail
       WHERE claim_id = ${claimId}
       GROUP BY claim_id
-    `) as any;
+    `);
 
-    const row = result[0] as any;
+    const row = result.rows[0] as any;
 
     return {
       totalTransitions: row?.total_transitions || 0,

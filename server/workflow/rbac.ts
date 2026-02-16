@@ -16,28 +16,28 @@ import {
  * Permission matrix defining what each role can do
  */
 const ROLE_PERMISSIONS: Record<InsurerRole, Set<Permission>> = {
-  claims_processor: new Set<Permission>([
+  claims_processor: new Set([
     "create_claim",
     "assign_assessor",
     "view_all_claims",
     "add_comment",
   ]),
-  assessor_internal: new Set<Permission>([
+  assessor_internal: new Set([
     "conduct_assessment",
     "add_comment",
     "view_fraud_analytics",
   ]),
-  assessor_external: new Set<Permission>([
+  assessor_external: new Set([
     "conduct_assessment",
     "add_comment",
   ]),
-  risk_manager: new Set<Permission>([
+  risk_manager: new Set([
     "approve_technical",
     "view_all_claims",
     "view_fraud_analytics",
     "add_comment",
   ]),
-  claims_manager: new Set<Permission>([
+  claims_manager: new Set([
     "authorize_payment",
     "close_claim",
     "view_all_claims",
@@ -46,13 +46,13 @@ const ROLE_PERMISSIONS: Record<InsurerRole, Set<Permission>> = {
     "create_claim",
     "assign_assessor",
   ]),
-  executive: new Set<Permission>([
+  executive: new Set([
     "view_all_claims",
     "redirect_claim",
     "view_fraud_analytics",
     "add_comment",
   ]),
-  insurer_admin: new Set<Permission>([
+  insurer_admin: new Set([
     "configure_workflow",
     "view_all_claims",
   ]),
