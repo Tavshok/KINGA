@@ -19,11 +19,11 @@ export interface ClaimReportData {
     incidentType: string | null;
   };
   aiAssessment?: {
-    fraudRiskScore: number | null;
-    fraudFlags: string[] | null;
+    fraudRiskLevel: string | null;
+    fraudIndicators: string | null;
     estimatedCost: number | null;
-    damageAnalysis: string | null;
-    detectedComponents: any[] | null;
+    damageDescription: string | null;
+    detectedDamageTypes: string | null;
   };
   assessorEval?: {
     damageAssessment: string;

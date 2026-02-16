@@ -36,13 +36,13 @@ export default function ClaimsProcessorDashboard() {
 
   // Fetch pending claims (submitted by claimants, awaiting processor action)
   const { data: pendingData, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "created", limit: PAGE_SIZE, offset: pendingPage * PAGE_SIZE });
+    trpc.claims.byStatus.useQuery({ status: "created" });
   const pendingClaims = pendingData?.items;
   const pendingTotal = pendingData?.total ?? 0;
 
   // Fetch returned claims (sent back by Claims Manager for review - disputed state)
   const { data: returnedData, isLoading: returnedLoading } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "disputed", limit: PAGE_SIZE, offset: returnedPage * PAGE_SIZE });
+    trpc.claims.byStatus.useQuery({ status: "disputed" });
   const returnedClaims = returnedData?.items;
   const returnedTotal = returnedData?.total ?? 0;
 

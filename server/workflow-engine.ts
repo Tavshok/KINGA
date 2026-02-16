@@ -56,18 +56,18 @@ export interface TransitionResult {
 
 /**
  * Stage mapping for segregation tracking
+ * Maps workflow states to critical stages defined in schema
  */
-const STATE_TO_STAGE_MAP: Record<WorkflowState, string> = {
-  created: "intake",
-  intake_verified: "intake",
-  assigned: "intake",
+const STATE_TO_STAGE_MAP: Record<WorkflowState, "assessment" | "technical_approval" | "financial_decision" | "payment_authorization" | null> = {
+  created: null, // Not a critical stage
+  assigned: null, // Not a critical stage
   under_assessment: "assessment",
-  internal_review: "technical_review",
-  technical_approval: "technical_review",
+  internal_review: "assessment", // Still part of assessment phase
+  technical_approval: "technical_approval",
   financial_decision: "financial_decision",
-  payment_authorized: "payment",
-  closed: "closure",
-  disputed: "technical_review",
+  payment_authorized: "payment_authorization",
+  closed: null, // Not a critical stage
+  disputed: null, // Not a critical stage
 };
 
 /**
@@ -75,9 +75,7 @@ const STATE_TO_STAGE_MAP: Record<WorkflowState, string> = {
  * Defines which roles can perform which state transitions
  */
 const ROLE_TRANSITION_PERMISSIONS: Record<string, InsurerRole[]> = {
-  "created → intake_verified": ["claims_processor"],
   "created → assigned": ["claims_processor"],
-  "intake_verified → assigned": ["claims_processor"],
   "assigned → under_assessment": ["internal_assessor", "claims_processor"],
   "under_assessment → internal_review": ["internal_assessor"],
   "internal_review → technical_approval": ["risk_manager", "executive"],
@@ -173,10 +171,11 @@ export async function transition(request: TransitionRequest): Promise<Transition
       );
 
     // Count unique sequential stages
-    const uniqueStages = new Set(involvement.map(i => i.stageInvolved));
+    const uniqueStages = new Set(involvement.map(i => i.workflowStage));
     const newStage = STATE_TO_STAGE_MAP[toState];
     
-    if (!uniqueStages.has(newStage)) {
+    // Only track critical stages (newStage can be null for non-critical states)
+    if (newStage && !uniqueStages.has(newStage)) {
       uniqueStages.add(newStage);
     }
 
@@ -259,13 +258,16 @@ export async function transition(request: TransitionRequest): Promise<Transition
   // ============================================
   
   const stage = STATE_TO_STAGE_MAP[toState];
-  await db.insert(claimInvolvementTracking).values({
-    claimId,
-    userId,
-    userRole,
-    stageInvolved: stage,
-    timestamp: new Date(),
-  });
+  // Only track critical stages
+  if (stage) {
+    await db.insert(claimInvolvementTracking).values({
+      claimId,
+      userId,
+      workflowStage: stage,
+      actionType: "transition_state",
+      createdAt: new Date(),
+    });
+  }
 
   // ============================================
   // RETURN RESULT
@@ -328,10 +330,11 @@ export async function validateTransition(request: Omit<TransitionRequest, "decis
         )
       );
 
-    const uniqueStages = new Set(involvement.map(i => i.stageInvolved));
+    const uniqueStages = new Set(involvement.map(i => i.workflowStage));
     const newStage = STATE_TO_STAGE_MAP[request.toState];
     
-    if (!uniqueStages.has(newStage)) {
+    // Only track critical stages (newStage can be null for non-critical states)
+    if (newStage && !uniqueStages.has(newStage)) {
       uniqueStages.add(newStage);
     }
 

@@ -609,13 +609,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         await assignClaimToAssessor(input.claimId, input.assessorId);
         
         // Automatically progress workflow state using WorkflowEngine
-        const workflowEngine = new (await import('./workflow-engine')).WorkflowEngine();
-        const { mapStatusToWorkflowState } = await import('./test-helpers/workflow');
+        const { transition } = await import('./workflow-engine');
+        const { statusToWorkflowState } = await import('./workflow-migration');
         
-        await workflowEngine.transition({
+        await transition({
           claimId: input.claimId,
           fromState: claim.workflowState as any,
-          toState: mapStatusToWorkflowState("assessment_pending"),
+          toState: statusToWorkflowState("assessment_pending"),
           userId: ctx.user.id,
           userRole: ctx.user.role as any,
           tenantId: claim.tenantId || "default",
@@ -744,21 +744,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!currentClaim) throw new Error("Claim not found");
         
         // Progress through required intermediate states to reach assessment_in_progress (legacy field only)
+        const claimTenantId = currentClaim.tenantId || "default";
         const currentStatus = currentClaim.status;
         if (currentStatus === "submitted") {
-          await updateClaimStatus(input.claimId, "triage", ctx.user.id, "claims_processor", currentClaim.tenantId);
-          await updateClaimStatus(input.claimId, "assessment_pending", ctx.user.id, "claims_processor", currentClaim.tenantId);
-          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", currentClaim.tenantId);
+          await updateClaimStatus(input.claimId, "triage", ctx.user.id, "claims_processor", claimTenantId);
+          await updateClaimStatus(input.claimId, "assessment_pending", ctx.user.id, "claims_processor", claimTenantId);
+          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         } else if (currentStatus === "triage") {
-          await updateClaimStatus(input.claimId, "assessment_pending", ctx.user.id, "claims_processor", currentClaim.tenantId);
-          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", currentClaim.tenantId);
+          await updateClaimStatus(input.claimId, "assessment_pending", ctx.user.id, "claims_processor", claimTenantId);
+          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         } else if (currentStatus === "assessment_pending") {
-          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", currentClaim.tenantId);
+          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         } else if (currentStatus === "assessment_in_progress") {
           // Already in progress, just re-run the assessment
         } else {
           // For other states, try direct transition (will throw if invalid)
-          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", currentClaim.tenantId);
+          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         }
         
         await triggerAiAssessment(input.claimId);
@@ -1289,7 +1290,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         
         // Automatically progress status to quotes_pending (legacy field only)
-        await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "internal_assessor", claim.tenantId);
+        await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "internal_assessor", claim.tenantId || "default");
         
         // Progress workflow state to internal_review (assessor completed their work)
         const { transitionWorkflowState } = await import("./workflow");

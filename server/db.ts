@@ -301,7 +301,6 @@ export async function updateClaimStatus(
     toState: toState as any,
     userId,
     userRole: userRole as any,
-    tenantId,
   });
 }
 

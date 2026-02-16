@@ -53,11 +53,11 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         incidentType: claim.incidentType,
       },
       aiAssessment: aiAssessment ? {
-        fraudRiskScore: aiAssessment.fraudRiskScore,
-        fraudFlags: aiAssessment.fraudFlags,
+        fraudRiskLevel: aiAssessment.fraudRiskLevel,
+        fraudIndicators: aiAssessment.fraudIndicators,
         estimatedCost: aiAssessment.estimatedCost,
-        damageAnalysis: aiAssessment.damageAnalysis,
-        detectedComponents: aiAssessment.detectedComponents,
+        damageDescription: aiAssessment.damageDescription,
+        detectedDamageTypes: aiAssessment.detectedDamageTypes,
       } : undefined,
       assessorEval: assessorEval ? {
         damageAssessment: assessorEval.damageAssessment,
@@ -156,36 +156,43 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                     Risk Assessment
                   </h3>
                   <div className="space-y-3">
-                    {aiAssessment?.fraudRiskScore !== undefined && aiAssessment.fraudRiskScore !== null ? (
+                    {claim?.fraudRiskScore !== undefined && claim.fraudRiskScore !== null ? (
                       <>
                         <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Fraud Risk Score:</span>
                           <Badge
                             variant={
-                              aiAssessment.fraudRiskScore >= 70
+                              claim.fraudRiskScore >= 70
                                 ? "destructive"
-                                : aiAssessment.fraudRiskScore >= 40
+                                : claim.fraudRiskScore >= 40
                                 ? "default"
                                 : "secondary"
                             }
                             className="text-lg font-bold"
                           >
-                            {aiAssessment.fraudRiskScore}/100
+                            {claim.fraudRiskScore}/100
                           </Badge>
                         </div>
-                        {aiAssessment.fraudFlags && aiAssessment.fraudFlags.length > 0 && (
-                          <div className="space-y-1">
-                            <span className="text-sm font-medium">Fraud Indicators:</span>
-                            <ul className="text-xs space-y-1">
-                              {aiAssessment.fraudFlags.map((flag: string, idx: number) => (
-                                <li key={idx} className="flex items-start gap-2">
-                                  <span className="text-orange-500 mt-0.5">•</span>
-                                  <span>{flag}</span>
-                                </li>
-                              ))}
-                            </ul>
-                          </div>
-                        )}
+                        {claim.fraudFlags && (() => {
+                          try {
+                            const flags = JSON.parse(claim.fraudFlags);
+                            return Array.isArray(flags) && flags.length > 0 && (
+                              <div className="space-y-1">
+                                <span className="text-sm font-medium">Fraud Indicators:</span>
+                                <ul className="text-xs space-y-1">
+                                  {flags.map((flag: string, idx: number) => (
+                                    <li key={idx} className="flex items-start gap-2">
+                                      <span className="text-orange-500 mt-0.5">•</span>
+                                      <span>{flag}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            );
+                          } catch {
+                            return null;
+                          }
+                        })()}
                       </>
                     ) : (
                       <p className="text-sm text-muted-foreground">No AI risk assessment available</p>
@@ -274,45 +281,54 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
               {aiAssessment ? (
                 <div className="space-y-4">
                   <Card className="p-4">
-                    <h3 className="font-semibold text-lg mb-3">Damage Analysis</h3>
-                    <p className="text-sm whitespace-pre-wrap">{aiAssessment.damageAnalysis || "No analysis available"}</p>
+                    <h3 className="font-semibold text-lg mb-3">Damage Description</h3>
+                    <p className="text-sm whitespace-pre-wrap">{aiAssessment.damageDescription || "No description available"}</p>
                   </Card>
 
                   <Card className="p-4">
-                    <h3 className="font-semibold text-lg mb-3">Detected Components</h3>
-                    {aiAssessment.detectedComponents && aiAssessment.detectedComponents.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        {aiAssessment.detectedComponents.map((component: any, idx: number) => (
-                          <div key={idx} className="flex items-center gap-2 text-sm">
-                            <CheckCircle className="h-4 w-4 text-green-500" />
-                            <span>{component.name || component}</span>
-                            {component.confidence && (
-                              <Badge variant="outline" className="ml-auto">
-                                {(component.confidence * 100).toFixed(0)}%
-                              </Badge>
-                            )}
+                    <h3 className="font-semibold text-lg mb-3">Detected Damage Types</h3>
+                    {(() => {
+                      try {
+                        const damageTypes = aiAssessment.detectedDamageTypes ? JSON.parse(aiAssessment.detectedDamageTypes) : [];
+                        return Array.isArray(damageTypes) && damageTypes.length > 0 ? (
+                          <div className="grid grid-cols-2 gap-2">
+                            {damageTypes.map((damageType: string, idx: number) => (
+                              <div key={idx} className="flex items-center gap-2 text-sm">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                                <span>{damageType}</span>
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No components detected</p>
-                    )}
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No damage types detected</p>
+                        );
+                      } catch {
+                        return <p className="text-sm text-muted-foreground">Invalid damage types data</p>;
+                      }
+                    })()}
                   </Card>
 
                   <Card className="p-4">
-                    <h3 className="font-semibold text-lg mb-3">Physics-Based Fraud Detection</h3>
-                    {aiAssessment.fraudFlags && aiAssessment.fraudFlags.length > 0 ? (
-                      <ul className="space-y-2">
-                        {aiAssessment.fraudFlags.map((flag: string, idx: number) => (
-                          <li key={idx} className="flex items-start gap-2 text-sm">
-                            <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
-                            <span>{flag}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">No fraud indicators detected</p>
-                    )}
+                    <h3 className="font-semibold text-lg mb-3">Fraud Indicators</h3>
+                    {(() => {
+                      try {
+                        const indicators = aiAssessment.fraudIndicators ? JSON.parse(aiAssessment.fraudIndicators) : [];
+                        return Array.isArray(indicators) && indicators.length > 0 ? (
+                          <ul className="space-y-2">
+                            {indicators.map((indicator: string, idx: number) => (
+                              <li key={idx} className="flex items-start gap-2 text-sm">
+                                <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 flex-shrink-0" />
+                                <span>{indicator}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-sm text-muted-foreground">No fraud indicators detected</p>
+                        );
+                      } catch {
+                        return <p className="text-sm text-muted-foreground">Invalid fraud indicators data</p>;
+                      }
+                    })()}
                   </Card>
                 </div>
               ) : (
@@ -455,7 +471,6 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                 <div className="space-y-4">
                   {[
                     { label: "Claim Submitted", date: claim?.createdAt, icon: FileText },
-                    { label: "Assessor Assigned", date: claim?.assignedAt, icon: User },
                     { label: "Assessment Completed", date: assessorEval?.createdAt, icon: CheckCircle },
                     { label: "Technically Approved", date: claim?.technicallyApprovedAt, icon: CheckCircle },
                     { label: "Financially Approved", date: claim?.financiallyApprovedAt, icon: DollarSign },

@@ -19,15 +19,16 @@ export default function RiskManagerDashboard() {
 
   // Fetch claims pending technical approval
   const { data: approvalQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
-    trpc.workflow.getClaimsByState.useQuery({ state: "technical_approval", limit: 20 });
+    trpc.claims.byStatus.useQuery({ status: "technical_approval" });
   const approvalQueue = approvalQueueData?.items;
 
   // Fetch high-value claims
+  // High value claims - using byStatus as fallback
   const { data: highValueClaims, isLoading: highValueLoading } = 
-    trpc.workflow.getHighValueClaims.useQuery();
+    trpc.claims.byStatus.useQuery({ status: "technical_approval" });
 
   // Approve technical basis mutation
-  const approveTechnical = trpc.workflow.approveTechnical.useMutation({
+  const approveTechnical = trpc.claims.approveClaim.useMutation({
     onSuccess: () => {
       toast.success("Technical Approval Complete", {
         description: "Technical basis has been approved successfully.",

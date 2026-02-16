@@ -27,7 +27,7 @@ export type LegacyStatus =
  */
 export const STATUS_TO_WORKFLOW_STATE: Record<LegacyStatus, WorkflowState> = {
   submitted: "created",
-  triage: "intake_verified",
+  triage: "created",
   assessment_pending: "assigned",
   assessment_in_progress: "under_assessment",
   quotes_pending: "internal_review",
@@ -43,7 +43,6 @@ export const STATUS_TO_WORKFLOW_STATE: Record<LegacyStatus, WorkflowState> = {
  */
 export const WORKFLOW_STATE_TO_STATUS: Record<WorkflowState, LegacyStatus> = {
   created: "submitted",
-  intake_verified: "triage",
   assigned: "assessment_pending",
   under_assessment: "assessment_in_progress",
   internal_review: "quotes_pending",

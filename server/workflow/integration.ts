@@ -6,6 +6,8 @@
  */
 
 import { getDb } from "../db";
+import { claims } from "../../drizzle/schema";
+import { eq, sql } from "drizzle-orm";
 import { WorkflowStateMachine } from "./state-machine";
 import { RoutingEngine } from "./routing-engine";
 import {
@@ -31,14 +33,23 @@ export async function getWorkflowConfig(tenantId: string): Promise<WorkflowConfi
  * Update workflow configuration for a tenant
  */
 export async function updateWorkflowConfig(config: Partial<WorkflowConfiguration> & { tenantId: string }): Promise<void> {
-  const db = getDb();
+  const db = await getDb();
+  if (!db) throw new Error("Database connection not available");
   const { tenantId, ...settings } = config;
   
-  await db.execute(
-    `INSERT INTO workflow_configuration 
+  await db.execute(sql`
+    INSERT INTO workflow_configuration 
      (tenant_id, risk_manager_enabled, high_value_threshold, executive_review_threshold, 
       ai_fast_track_enabled, external_assessor_enabled, max_sequential_stages_by_user)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
+     VALUES (
+       ${tenantId},
+       ${settings.riskManagerEnabled ?? true},
+       ${settings.highValueThreshold ?? 1000000},
+       ${settings.executiveReviewThreshold ?? 5000000},
+       ${settings.aiFastTrackEnabled ?? false},
+       ${settings.externalAssessorEnabled ?? false},
+       ${settings.maxSequentialStagesByUser ?? 2}
+     )
      ON DUPLICATE KEY UPDATE
        risk_manager_enabled = VALUES(risk_manager_enabled),
        high_value_threshold = VALUES(high_value_threshold),
@@ -46,17 +57,8 @@ export async function updateWorkflowConfig(config: Partial<WorkflowConfiguration
        ai_fast_track_enabled = VALUES(ai_fast_track_enabled),
        external_assessor_enabled = VALUES(external_assessor_enabled),
        max_sequential_stages_by_user = VALUES(max_sequential_stages_by_user),
-       updated_at = CURRENT_TIMESTAMP`,
-    [
-      tenantId,
-      settings.riskManagerEnabled ?? true,
-      settings.highValueThreshold ?? 1000000,
-      settings.executiveReviewThreshold ?? 5000000,
-      settings.aiFastTrackEnabled ?? false,
-      settings.externalAssessorEnabled ?? false,
-      settings.maxSequentialStagesByUser ?? 2,
-    ]
-  );
+       updated_at = CURRENT_TIMESTAMP
+  `);
 }
 
 /**
@@ -74,11 +76,18 @@ export async function transitionClaimState(params: {
   const { claimId, userId, userRole, tenantId, to, action, comments } = params;
   
   // Get current claim state
-  const db = getDb();
-  const [claim] = await db.query.claims.findMany({
-    where: (claims, { eq }) => eq(claims.id, claimId),
-    limit: 1,
-  });
+  const db = await getDb();
+  if (!db) {
+    return {
+      success: false,
+      newState: to,
+      auditRecordId: 0,
+      errors: [{ code: "DATABASE_ERROR", message: "Database connection not available" }],
+    };
+  }
+  
+  const claimResults = await db.select().from(claims).where(eq(claims.id, claimId)).limit(1);
+  const claim = claimResults[0];
   
   if (!claim) {
     return {
@@ -108,13 +117,16 @@ export async function transitionClaimState(params: {
   }
   
   // Perform transition
-  const result = await stateMachine.transition(from, to, userRole, {
+  const result = await stateMachine.executeTransition(
     claimId,
+    to,
     userId,
     userRole,
-    action,
-    comments,
-  });
+    {
+      comments,
+      additionalData: { action },
+    }
+  );
   
   return result;
 }
