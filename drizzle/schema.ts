@@ -4777,3 +4777,12 @@ export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
 
 export type RoleAssignmentAudit = typeof roleAssignmentAudit.$inferSelect;
 export type InsertRoleAssignmentAudit = typeof roleAssignmentAudit.$inferInsert;
+
+
+// Note: Historical Claims Ingestion System tables already defined above:
+// - ingestionBatches (line 1530)
+// - ingestionDocuments (line 1570)
+// - extractedDocumentData (line 1620)
+// - historicalClaims (line 1689)
+// - trainingDataset (line 3629)
+// - humanReviewQueue, biasDetectionFlags, ingestionAuditLog (if they exist elsewhere)

@@ -6410,4 +6410,74 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add tests for tenant isolation
 - [x] Create confidence formula documentation
 - [x] Create example routing scenarios document
-- [ ] Save checkpoint with confidence scoring system
+- [x] Save checkpoint with confidence scoring system
+
+
+## Safe Historical Claims Ingestion System
+
+### Database Schema Design
+- [x] Create historicalClaims table (reference dataset) - ALREADY EXISTS
+- [x] Create trainingDataset table (approved high-confidence claims only) - ALREADY EXISTS
+- [x] Create ingestionBatches table (batch metadata tracking) - ALREADY EXISTS
+- [x] Create ingestionAuditLog table (immutable ingestion audit) - ALREADY EXISTS
+- [x] Create humanReviewQueue table (MEDIUM confidence claims) - ALREADY EXISTS
+- [x] Create biasDetectionFlags table (flagged claims for review) - ALREADY EXISTS
+- [x] Add indexes for efficient querying
+
+### Batch Upload Pipeline
+- [x] Implement ZIP file upload endpoint with size validation
+- [x] Create folder-per-claim extraction logic
+- [x] Implement file type validation (images, PDFs, documents)
+- [x] Add S3 storage integration for uploaded files
+- [x] Create batch processing queue system
+- [x] Add progress tracking for batch uploads
+
+### OCR and LLM Extraction
+- [ ] Integrate OCR service for document text extraction
+- [ ] Create LLM extraction prompts for claim data
+- [ ] Implement structured data extraction (claim amount, date, description, etc.)
+- [ ] Add extraction confidence scoring
+- [ ] Handle multi-page documents
+- [ ] Add error handling and retry logic
+
+### Confidence Scoring and Dataset Classification
+- [ ] Implement data quality confidence scoring (HIGH/MEDIUM/LOW)
+- [ ] Create classification logic (reference vs training dataset)
+- [ ] Add automatic approval for HIGH confidence claims
+- [ ] Route MEDIUM confidence claims to human review queue
+- [ ] Flag LOW confidence claims for manual data entry
+- [ ] Add confidence score breakdown (completeness, consistency, clarity)
+
+### Bias Detection System
+- [ ] Implement extreme repair value detection (outliers)
+- [ ] Add panel beater dominance analysis (repeated vendors)
+- [ ] Create demographic skew detection (if data available)
+- [ ] Flag claims with potential bias indicators
+- [ ] Generate bias detection reports
+- [ ] Add bias mitigation recommendations
+
+### Human Review Queue
+- [ ] Create review queue UI for MEDIUM confidence claims
+- [ ] Implement claim approval/rejection workflow
+- [ ] Add data correction interface
+- [ ] Track reviewer decisions and feedback
+- [ ] Auto-promote approved claims to training dataset
+- [ ] Add batch review capabilities
+
+### Executive Dashboard
+- [ ] Add ingestion statistics cards (total claims, confidence breakdown)
+- [ ] Create bias detection summary visualization
+- [ ] Add training dataset quality metrics
+- [ ] Implement ingestion timeline chart
+- [ ] Add reviewer performance metrics
+- [ ] Create data quality trend analysis
+
+### Tests and Documentation
+- [ ] Add unit tests for extraction pipeline
+- [ ] Add tests for confidence scoring logic
+- [ ] Add tests for bias detection algorithms
+- [ ] Add tests for tenant isolation
+- [ ] Create ingestion workflow diagram
+- [ ] Document data bias mitigation strategy
+- [ ] Generate test coverage summary
+- [ ] Save checkpoint with ingestion system
