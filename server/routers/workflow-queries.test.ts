@@ -12,6 +12,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { workflowQueriesRouter } from "./workflow-queries";
 import { getDb } from "../db";
 import { claims } from "../../drizzle/schema";
+import { extractInsertId } from "../utils/drizzle-helpers";
 
 describe("Workflow Queries Router", () => {
   let testClaimIds: Record<string, number> = {};
@@ -21,7 +22,7 @@ describe("Workflow Queries Router", () => {
     if (!db) throw new Error("Database not available");
 
     // Create test claims in different states for tenant-1
-    const states = ["created", "technical_approval", "financial_decision", "approved"];
+    const states = ["created", "technical_approval", "financial_decision", "payment_authorized"];
     
     for (const state of states) {
       const uniqueClaimNumber = `TEST-WF-${state.toUpperCase()}-${Date.now()}`;
@@ -34,8 +35,7 @@ describe("Workflow Queries Router", () => {
         createdAt: new Date(),
       });
 
-      const insertId = (result as unknown as { insertId: string | number }).insertId;
-      testClaimIds[state] = Number(insertId);
+      testClaimIds[state] = extractInsertId(result);
     }
 
     // Create claims for different tenant
@@ -48,8 +48,7 @@ describe("Workflow Queries Router", () => {
       createdAt: new Date(),
     });
 
-    const crossTenantId = (crossTenantResult as unknown as { insertId: string | number }).insertId;
-    testClaimIds.crossTenant = Number(crossTenantId);
+    testClaimIds.crossTenant = extractInsertId(crossTenantResult);
   });
 
   describe("getClaimsByState", () => {

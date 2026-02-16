@@ -6204,3 +6204,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Verify zero TypeScript errors
 - [ ] Remove all unsafe type assertions and 'any' usage
 - [ ] Save checkpoint with working comment tests
+
+
+## getClaimsByState Procedure Correction (February 16, 2026)
+- [x] Sync database workflow_state enum with all schema-defined states
+- [x] Fix workflow-queries router import path errors
+- [x] Run workflow-queries integration tests to verify 100% pass rate (11/11 passing)
+- [ ] Migrate ClaimsManagerDashboard to use trpc.workflowQueries.getClaimsByState (19 instances across 8 files)
+- [ ] Migrate ClaimsProcessorDashboard to use trpc.workflowQueries.getClaimsByState
+- [ ] Migrate ExecutiveDashboard to use trpc.workflowQueries.getClaimsByState
+- [ ] Migrate RiskManagerDashboard to use trpc.workflowQueries.getClaimsByState
+- [x] Add composite index (tenant_id, workflow_state, created_at) on claims table
+- [x] Verify all 11 workflow-queries tests pass
+- [ ] Save checkpoint with corrected getClaimsByState implementation
