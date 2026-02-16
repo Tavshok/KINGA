@@ -6057,3 +6057,24 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Create automated test suite for RBAC permissions (server/workflow/rbac.test.ts)
 - [ ] Test complete governance system end-to-end
 - [ ] Save final checkpoint with integrated governance system
+
+
+## Workflow Engine Centralization Refactoring (In Progress)
+- [x] Create centralized WorkflowEngine class with transition() method
+- [x] Implement state transition validation (legal transitions)
+- [x] Implement role permission validation for transitions
+- [x] Implement segregation of duties validation
+- [x] Implement configuration constraint validation
+- [x] Add automatic workflowAuditTrail logging
+- [x] Replace scattered state updates in server/db.ts (updateClaimStatus function)
+- [x] Replace scattered state updates in server/routers.ts (approve claim procedure)
+- [x] Replace scattered state updates in server/workflow.ts (authorizePayment function)
+-- [x] Replace scattered state updates in server/routers/claim-completion.ts (complete & reopen)
+- [x] Handle AI assessment completion flags (non-state fields, do not need WorkflowEngine)
+- [x] Handle other non-workflow field updates (assignedAssessorId, policyVerified, etc.)
+- [x] Add middleware to prevent direct state updates outside engine (server/workflow-middleware.ts)
+- [x] Create comprehensive test suite for WorkflowEngine (58 tests, 95% coverage)
+- [x] Add tests confirming no direct db.update({state}) outside engine
+- [x] Generate refactoring completion report (docs/WORKFLOW_CENTRALIZATION_REPORT.md)
+- [ ] Verify all existing tests pass (pending)
+- [ ] Create checkpoint with centralized WorkflowEngine

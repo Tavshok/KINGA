@@ -57,16 +57,28 @@ export const claimCompletionRouter = router({
         }
       }
       
-      // Validate state transition to completed
-      const { validateStateTransition } = await import("../workflow-validator");
-      validateStateTransition(claim.status as any, "completed");
+      // Use WorkflowEngine for governance-compliant state transition
+      const { transition } = await import("../workflow-engine");
+      const { statusToWorkflowState } = await import("../workflow-migration");
       
-      // Update claim to completed with closure tracking
+      const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+      
+      await transition({
+        claimId: input.claimId,
+        fromState: fromState as any,
+        toState: "closed",
+        userId: ctx.user.id,
+        userRole: ctx.user.insurerRole as any || "claims_manager",
+        decisionData: {
+          comments: `Claim completed and closed`,
+        },
+      });
+      
+      // Update additional closure tracking fields (not part of workflow state)
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
       await db.update(claims).set({
-        status: "completed",
         closedBy: ctx.user.id,
         closedAt: new Date(),
         updatedAt: new Date(),
@@ -140,17 +152,31 @@ export const claimCompletionRouter = router({
         });
       }
       
-      // Validate state transition to repair_in_progress (reopening)
-      // Note: This is a special case - reopening from terminal state
-      // We validate this explicitly rather than adding to ALLOWED_TRANSITIONS
-      // to keep the workflow validator strict for normal operations
+      // Use WorkflowEngine for governance-compliant state transition
+      // Note: Reopening from closed state requires executive override
+      const { transition } = await import("../workflow-engine");
+      const { statusToWorkflowState } = await import("../workflow-migration");
       
-      // Update claim to repair_in_progress and clear closure tracking
+      const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+      
+      await transition({
+        claimId: input.claimId,
+        fromState: fromState as any,
+        toState: "disputed", // Reopened claims go to disputed state for review
+        userId: ctx.user.id,
+        userRole: ctx.user.insurerRole as any || "claims_manager",
+        executiveOverride: true,
+        overrideReason: `Claim reopened: ${input.reason}`,
+        decisionData: {
+          comments: input.reason,
+        },
+      });
+      
+      // Clear closure tracking fields
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
       await db.update(claims).set({
-        status: "repair_in_progress",
         closedBy: null,
         closedAt: null,
         updatedAt: new Date(),

@@ -856,16 +856,31 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Determine if financial approval is required
         const requiresFinancialApproval = approvedAmount > requireManagerApprovalAbove;
         
-        // Validate state transition to repair_assigned
-        const { validateStateTransition } = await import("./workflow-validator");
-        validateStateTransition(claim.status as any, "repair_assigned");
+        // Use WorkflowEngine for governance-compliant state transition
+        const { transition, getCurrentState } = await import("./workflow-engine");
+        const { statusToWorkflowState } = await import("./workflow-migration");
         
-        // Update claim with technical approval
+        const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+        const toState = statusToWorkflowState("repair_assigned" as any);
+        
+        await transition({
+          claimId: input.claimId,
+          fromState: fromState as any,
+          toState: toState as any,
+          userId: ctx.user.id,
+          userRole: ctx.user.role as any,
+          decisionData: {
+            approvedAmount,
+            selectedPanelBeaterId: input.selectedQuoteId,
+            comments: `Selected panel beater quote #${input.selectedQuoteId}. ${requiresFinancialApproval ? 'Requires financial approval (amount exceeds threshold).' : 'No financial approval required.'}`,
+          },
+        });
+        
+        // Update additional approval fields (not part of workflow state)
         const db = await getDb();
         if (!db) throw new Error("Database not available");
         
         await db.update(claims).set({
-          status: "repair_assigned",
           technicallyApprovedBy: ctx.user.id,
           technicallyApprovedAt: new Date(),
           approvedAmount,

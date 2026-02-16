@@ -193,23 +193,47 @@ export async function approveTechnicalBasis(
 
 /**
  * Authorize payment (Claims Manager)
+ * @deprecated Use WorkflowEngine.transition() for governance-compliant state changes
  */
 export async function authorizePayment(
   claimId: number,
   userId: number,
   approvedAmount: number, // in cents
-  approvalNotes?: string
+  approvalNotes?: string,
+  userRole: string = "claims_manager"
 ): Promise<void> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
+  // Get current claim state
+  const [claim] = await db.select().from(claims).where(eq(claims.id, claimId));
+  if (!claim) throw new Error(`Claim ${claimId} not found`);
+
+  // Use WorkflowEngine for governance-compliant state transition
+  const { transition } = await import("./workflow-engine");
+  const { statusToWorkflowState } = await import("./workflow-migration");
+  
+  const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+  
+  await transition({
+    claimId,
+    fromState: fromState as any,
+    toState: "payment_authorized",
+    userId,
+    userRole: userRole as any,
+    decisionData: {
+      approvedAmount,
+      comments: approvalNotes,
+    },
+  });
+
+  // Update additional approval fields (not part of workflow state)
   await db
     .update(claims)
     .set({
       financiallyApprovedBy: userId,
       financiallyApprovedAt: new Date(),
       approvedAmount,
-      workflowState: "payment_authorized",
     })
     .where(eq(claims.id, claimId));
 
@@ -218,7 +242,7 @@ export async function authorizePayment(
     await addClaimComment({
       claimId,
       userId,
-      userRole: "claims_manager",
+      userRole: userRole as any,
       commentType: "general",
       content: approvalNotes,
     });
