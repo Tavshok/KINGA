@@ -382,22 +382,22 @@ describe("Immutable Routing Service", () => {
   });
   
   describe("calculateRoutingCategory", () => {
-    it("should return HIGH for score >= 80", () => {
-      expect(calculateRoutingCategory(80)).toBe("HIGH");
-      expect(calculateRoutingCategory(90)).toBe("HIGH");
-      expect(calculateRoutingCategory(100)).toBe("HIGH");
+    it("should return HIGH for score >= 80 (default thresholds)", async () => {
+      expect(await calculateRoutingCategory(80, testTenantId)).toBe("HIGH");
+      expect(await calculateRoutingCategory(90, testTenantId)).toBe("HIGH");
+      expect(await calculateRoutingCategory(100, testTenantId)).toBe("HIGH");
     });
     
-    it("should return MEDIUM for score 50-79", () => {
-      expect(calculateRoutingCategory(50)).toBe("MEDIUM");
-      expect(calculateRoutingCategory(65)).toBe("MEDIUM");
-      expect(calculateRoutingCategory(79)).toBe("MEDIUM");
+    it("should return MEDIUM for score 50-79 (default thresholds)", async () => {
+      expect(await calculateRoutingCategory(50, testTenantId)).toBe("MEDIUM");
+      expect(await calculateRoutingCategory(65, testTenantId)).toBe("MEDIUM");
+      expect(await calculateRoutingCategory(79, testTenantId)).toBe("MEDIUM");
     });
     
-    it("should return LOW for score < 50", () => {
-      expect(calculateRoutingCategory(0)).toBe("LOW");
-      expect(calculateRoutingCategory(25)).toBe("LOW");
-      expect(calculateRoutingCategory(49)).toBe("LOW");
+    it("should return LOW for score < 50 (default thresholds)", async () => {
+      expect(await calculateRoutingCategory(0, testTenantId)).toBe("LOW");
+      expect(await calculateRoutingCategory(25, testTenantId)).toBe("LOW");
+      expect(await calculateRoutingCategory(49, testTenantId)).toBe("LOW");
     });
   });
   

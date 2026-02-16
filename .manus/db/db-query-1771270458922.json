@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `routing_threshold_config` (\n  `id` varchar(64) NOT NULL,\n  `tenant_id` varchar(64) NOT NULL,\n  `version` varchar(50) NOT NULL,\n  `high_threshold` decimal(5,2) NOT NULL,\n  `medium_threshold` decimal(5,2) NOT NULL,\n  `ai_fast_track_enabled` boolean NOT NULL DEFAULT true,\n  `created_by_user_id` int NOT NULL,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `is_active` boolean NOT NULL DEFAULT true,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `unique_threshold_tenant_version` (`tenant_id`, `version`),\n  KEY `idx_threshold_tenant_id` (`tenant_id`),\n  KEY `idx_threshold_active` (`is_active`),\n  KEY `idx_threshold_tenant_active` (`tenant_id`, `is_active`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS `routing_threshold_config` (\n  `id` varchar(64) NOT NULL,\n  `tenant_id` varchar(64) NOT NULL,\n  `version` varchar(50) NOT NULL,\n  `high_threshold` decimal(5,2) NOT NULL,\n  `medium_threshold` decimal(5,2) NOT NULL,\n  `ai_fast_track_enabled` boolean NOT NULL DEFAULT true,\n  `created_by_user_id` int NOT NULL,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `is_active` boolean NOT NULL DEFAULT true,\n  PRIMARY KEY (`id`),\n  UNIQUE KEY `unique_threshold_tenant_version` (`tenant_id`, `version`),\n  KEY `idx_threshold_tenant_id` (`tenant_id`),\n  KEY `idx_threshold_active` (`is_active`),\n  KEY `idx_threshold_tenant_active` (`tenant_id`, `is_active`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 274
+}

@@ -6495,3 +6495,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add tests: multiple routing events allowed (append-only)
 - [ ] Verify zero TypeScript errors (existing errors unrelated to routing refactor)
 - [x] Verify no 'any' types in new code
+
+
+## Routing Threshold Version Control
+- [x] Create routingThresholdConfig table schema
+- [x] Add unique constraint: one active version per tenant
+- [x] Refactor routing service to fetch active threshold version
+- [x] Update createRoutingEvent to capture thresholdConfigVersion
+- [x] Add getActiveThresholdConfig helper function
+- [x] Add createThresholdVersion function
+- [x] Add deactivateThresholdVersion function
+- [x] Add tests: multiple active versions per tenant → fail
+- [x] Add tests: past routing decisions unaffected by threshold changes
+- [x] Add tests: new claim uses latest active version
+- [x] Add tests: tenant isolation for threshold configs
+- [x] Verify zero TypeScript errors
+- [ ] Update documentation with threshold versioning workflow

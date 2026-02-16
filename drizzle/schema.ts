@@ -4844,3 +4844,46 @@ export const routingHistory = mysqlTable("routing_history", {
 
 export type RoutingHistory = typeof routingHistory.$inferSelect;
 export type InsertRoutingHistory = typeof routingHistory.$inferInsert;
+
+/**
+ * Routing Threshold Configuration - Version-Controlled Thresholds
+ * 
+ * Manages versioned threshold configurations for routing decisions.
+ * Each tenant can have multiple threshold versions, but only one active at a time.
+ * Changing thresholds creates a new version without affecting past routing decisions.
+ */
+export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
+  // Primary key - UUID for immutability
+  id: varchar("id", { length: 64 }).primaryKey(), // UUID format: threshold_{timestamp}_{random}
+  
+  // Tenant reference
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Version identifier (e.g., v1.0, v1.1, v2.0)
+  version: varchar("version", { length: 50 }).notNull(),
+  
+  // Threshold values (0-100)
+  highThreshold: decimal("high_threshold", { precision: 5, scale: 2 }).notNull(), // Default: 80
+  mediumThreshold: decimal("medium_threshold", { precision: 5, scale: 2 }).notNull(), // Default: 50
+  
+  // Feature flags
+  aiFastTrackEnabled: boolean("ai_fast_track_enabled").notNull().default(true),
+  
+  // Audit fields
+  createdByUserId: int("created_by_user_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  
+  // Active status - only one active version per tenant
+  isActive: boolean("is_active").notNull().default(true),
+}, (table) => ({
+  // Indexes for efficient querying
+  tenantIdIdx: index("idx_threshold_tenant_id").on(table.tenantId),
+  activeIdx: index("idx_threshold_active").on(table.isActive),
+  // Composite index for active config lookup
+  tenantActiveIdx: index("idx_threshold_tenant_active").on(table.tenantId, table.isActive),
+  // Unique constraint: tenant + version must be unique
+  tenantVersionUnique: unique("unique_threshold_tenant_version").on(table.tenantId, table.version),
+}));
+
+export type RoutingThresholdConfig = typeof routingThresholdConfig.$inferSelect;
+export type InsertRoutingThresholdConfig = typeof routingThresholdConfig.$inferInsert;

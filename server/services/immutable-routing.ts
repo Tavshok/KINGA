@@ -10,6 +10,7 @@ import { getDb } from "../db";
 import { routingHistory, claims } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { randomBytes } from "crypto";
+import { getActiveThresholdConfig, getDefaultThresholdConfig, calculateRoutingCategoryWithThresholds, type ThresholdConfig } from "./threshold-version-management";
 
 /**
  * Confidence components breakdown
@@ -278,21 +279,19 @@ export async function getLatestRoutingDecision(params: {
 }
 
 /**
- * Calculate routing category from confidence score
+ * Calculate routing category from confidence score using active threshold config
  * 
- * Thresholds:
- * - HIGH: >= 80
- * - MEDIUM: 50-79
- * - LOW: < 50
+ * Fetches active threshold configuration for tenant and applies thresholds.
+ * Falls back to default thresholds if no active configuration exists.
  */
-export function calculateRoutingCategory(confidenceScore: number): RoutingCategory {
-  if (confidenceScore >= 80) {
-    return "HIGH";
-  } else if (confidenceScore >= 50) {
-    return "MEDIUM";
-  } else {
-    return "LOW";
-  }
+export async function calculateRoutingCategory(
+  confidenceScore: number,
+  tenantId: string
+): Promise<RoutingCategory> {
+  const activeConfig = await getActiveThresholdConfig(tenantId);
+  const thresholds = activeConfig || getDefaultThresholdConfig();
+  
+  return calculateRoutingCategoryWithThresholds(confidenceScore, thresholds);
 }
 
 /**
