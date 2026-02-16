@@ -53,7 +53,7 @@ export const DEFAULT_ROLE_PERMISSIONS = {
     "request_documents",
     "communicate_claimants",
   ],
-  internal_assessor: [
+  assessor_internal: [
     "view_assigned_claims",
     "submit_assessments",
     "upload_reports",
@@ -203,11 +203,10 @@ export async function createTenant(data: {
   });
 
   // Create default role configs (all roles enabled by default)
-  const roleKeys = ["executive", "claims_manager", "claims_processor", "internal_assessor", "risk_manager"] as const;
+  const roleKeys = ["executive", "claims_manager", "claims_processor", "assessor_internal", "risk_manager"] as const;
   
   for (const roleKey of roleKeys) {
     await db.insert(tenantRoleConfigs).values({
-      id: `${data.id}-role-${roleKey}`,
       tenantId: data.id,
       roleKey,
       enabled: 1,
@@ -375,13 +374,10 @@ export async function updateTenantRoleConfig(
     const result = await db
       .insert(tenantRoleConfigs)
       .values({
-        id: `rc-${tenantId}-${role}`,
         tenantId,
-        roleKey: role as 'executive' | 'claims_manager' | 'claims_processor' | 'internal_assessor' | 'risk_manager',
+        roleKey: role as 'executive' | 'claims_manager' | 'claims_processor' | 'assessor_internal' | 'risk_manager',
         enabled: permissions.isEnabled ? 1 : 0,
         permissions: JSON.stringify(permissions),
-        createdAt: new Date(),
-        updatedAt: new Date()
       });
 
     return result;

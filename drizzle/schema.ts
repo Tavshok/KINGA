@@ -4286,7 +4286,6 @@ export type InsertInsurerTenant = typeof insurerTenants.$inferInsert;
  * Tenant Role Configs - Which roles are enabled for each tenant
  */
 export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
-  id: varchar("id", { length: 64 }).primaryKey(),
   tenantId: varchar("tenant_id", { length: 64 }).notNull(),
   roleKey: mysqlEnum("role_key", ["executive", "claims_manager", "claims_processor", "assessor_internal", "assessor_external", "risk_manager", "insurer_admin"]).notNull(),
   enabled: tinyint("enabled").default(1).notNull(),
@@ -4298,7 +4297,7 @@ export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
-  uniqueTenantRole: unique().on(table.tenantId, table.roleKey),
+  pk: primaryKey({ columns: [table.tenantId, table.roleKey] }),
 }));
 
 export type TenantRoleConfig = typeof tenantRoleConfigs.$inferSelect;

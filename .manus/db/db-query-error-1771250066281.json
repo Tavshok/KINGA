@@ -1,0 +1,8 @@
+{
+  "query": "ALTER TABLE tenant_role_configs DROP PRIMARY KEY, ADD PRIMARY KEY (tenant_id, role_key);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE tenant_role_configs DROP PRIMARY KEY, ADD PRIMARY KEY (tenant_id, role_key);",
+  "returncode": 1,
+  "logs": [
+    "ERROR 8200 (HY000) at line 1: Unsupported drop primary key when the table is using clustered index"
+  ]
+}
