@@ -277,8 +277,9 @@ export async function getClaimsForPanelBeater(panelBeaterId: number, tenantId?: 
 export async function updateClaimStatus(
   claimId: number,
   status: typeof claims.$inferSelect.status,
-  userId?: number,
-  userRole?: string
+  userId: number,
+  userRole: string,
+  tenantId: string
 ) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -287,28 +288,21 @@ export async function updateClaimStatus(
   const [claim] = await db.select().from(claims).where(eq(claims.id, claimId));
   if (!claim) throw new Error(`Claim ${claimId} not found`);
   
-  // If userId and userRole provided, use WorkflowEngine for governance
-  if (userId && userRole) {
-    const { transition } = await import("./workflow-engine");
-    const { statusToWorkflowState } = await import("./workflow-migration");
-    
-    const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
-    const toState = statusToWorkflowState(status as any);
-    
-    await transition({
-      claimId,
-      fromState: fromState as any,
-      toState: toState as any,
-      userId,
-      userRole: userRole as any,
-    });
-  } else {
-    // Legacy path: direct update (no governance enforcement)
-    // TODO: Remove this path once all callers provide userId/userRole
-    const { validateStateTransition } = await import("./workflow-validator");
-    validateStateTransition(claim.status as any, status as any);
-    await db.update(claims).set({ status, updatedAt: new Date() }).where(eq(claims.id, claimId));
-  }
+  // All state transitions MUST go through WorkflowEngine for governance
+  const { transition } = await import("./workflow-engine");
+  const { statusToWorkflowState } = await import("./workflow-migration");
+  
+  const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
+  const toState = statusToWorkflowState(status as any);
+  
+  await transition({
+    claimId,
+    fromState: fromState as any,
+    toState: toState as any,
+    userId,
+    userRole: userRole as any,
+    tenantId,
+  });
 }
 
 export async function assignClaimToAssessor(claimId: number, assessorId: number) {

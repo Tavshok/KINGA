@@ -14,8 +14,8 @@ import {
   createPanelBeaterQuote, 
   getClaimById, 
   getAuditTrailByClaimId,
-  updateClaimStatus,
 } from "./db";
+import { setupTestClaimState } from "./test-helpers/workflow";
 
 describe("Claims - Approve Claim Workflow", () => {
   let testClaimId: number;
@@ -51,10 +51,8 @@ describe("Claims - Approve Claim Workflow", () => {
     testClaimId = Number(result[0].insertId);
 
     // Progress claim through valid workflow to comparison status
-    await updateClaimStatus(testClaimId, "assessment_pending");
-    await updateClaimStatus(testClaimId, "assessment_in_progress");
-    await updateClaimStatus(testClaimId, "quotes_pending");
-    await updateClaimStatus(testClaimId, "comparison");
+    // Using WorkflowEngine via test helper to ensure governance enforcement
+    await setupTestClaimState(testClaimId, "technical_approval"); // "comparison" maps to "technical_approval"
 
     // Create a test quote
     const quoteResult = await createPanelBeaterQuote({

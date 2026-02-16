@@ -6090,3 +6090,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Fix remaining 46 TypeScript errors (schema type mismatches, client errors)
 - [ ] Verify all 58 governance tests still pass after fixes
 - [ ] Generate correction summary documenting what was fixed and why
+
+
+## Complete updateClaimStatus() Migration to WorkflowEngine
+- [ ] Identify all callers of updateClaimStatus() across the codebase
+- [ ] Document each caller location with context (file, line, purpose)
+- [ ] Update each caller to use WorkflowEngine.transition() with explicit userId, userRole, tenantId
+- [ ] Remove legacy fallback path from updateClaimStatus() function
+- [ ] Add test ensuring direct db.update({workflowState}) throws error
+- [ ] Add test ensuring direct db.update({status}) throws error
+- [ ] Verify 100% of state transitions route through WorkflowEngine
+- [ ] Run all existing tests to ensure no regressions
+- [ ] Create checkpoint with complete governance enforcement
