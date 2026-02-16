@@ -6481,3 +6481,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Document data bias mitigation strategy
 - [ ] Generate test coverage summary
 - [ ] Save checkpoint with ingestion system
+
+
+## Confidence Routing Refactor - Immutable Append-Only Pattern
+- [x] Create routingHistory table schema with immutable fields
+- [x] Remove mutable routingDecision field from claims table (not needed - never existed)
+- [x] Refactor confidence-routing.ts to use append-only pattern
+- [x] Add strict tenant isolation enforcement
+- [x] Create migration script for existing routed claims
+- [x] Add tests: prevent update of routing events
+- [x] Add tests: prevent cross-tenant routing insert
+- [x] Add tests: manual override requires justification
+- [x] Add tests: multiple routing events allowed (append-only)
+- [ ] Verify zero TypeScript errors (existing errors unrelated to routing refactor)
+- [x] Verify no 'any' types in new code
