@@ -234,7 +234,8 @@ export class WorkflowStateMachine {
         const segregationResult = await this.segregationValidator.validateSegregation(
           claimId,
           userId,
-          "transition_state"
+          "transition_state",
+          to  // Pass the proposed state
         );
 
         if (!segregationResult.allowed) {

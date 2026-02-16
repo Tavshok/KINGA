@@ -58,30 +58,23 @@ export class AuditLogger {
       )
     `);
 
-    // Fetch the created record
-    const auditRecords = await db.execute(sql`
-      SELECT *
-      FROM workflow_audit_trail
-      WHERE id = LAST_INSERT_ID()
-    `);
-
-    // db.execute returns array directly
-    const rows = auditRecords as unknown as Array<Record<string, any>>;
-    const record = rows[0];
+    // Get the inserted ID from the result
+    // db.execute returns [ResultSetHeader, null] for INSERT queries
+    const insertId = (result as any)[0].insertId;
 
     return {
-      id: record.id,
-      claimId: record.claim_id,
-      userId: record.user_id,
-      userRole: record.user_role,
-      previousState: record.previous_state,
-      newState: record.new_state,
-      decisionValue: record.decision_value,
-      aiScore: record.ai_score,
-      confidenceScore: record.confidence_score,
-      comments: record.comments,
-      metadata: record.metadata ? JSON.parse(record.metadata) : null,
-      createdAt: new Date(record.created_at),
+      id: insertId,
+      claimId,
+      userId: metadata.userId,
+      userRole: metadata.userRole,
+      previousState: transition.from,
+      newState: transition.to,
+      decisionValue: metadata.decisionValue ?? null,
+      aiScore: metadata.aiScore ?? null,
+      confidenceScore: metadata.confidenceScore ?? null,
+      comments: metadata.comments ?? null,
+      metadata: metadata.metadata ?? null,
+      createdAt: new Date(),
     };
   }
 

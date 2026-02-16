@@ -43,7 +43,8 @@ export class SegregationValidator {
   async validateSegregation(
     claimId: number,
     userId: number,
-    proposedAction: WorkflowAction
+    proposedAction: WorkflowAction,
+    proposedState?: WorkflowState
   ): Promise<SegregationResult> {
     // Get user's involvement history
     const involvement = await this.getUserInvolvement(claimId, userId);
@@ -57,11 +58,29 @@ export class SegregationValidator {
       };
     }
 
-    // Check if user has exceeded max sequential stages
-    if (involvement.criticalStageCount >= this.maxSequentialStages) {
+    // Check if the proposed state is a NEW critical stage
+    let wouldAddNewStage = false;
+    if (proposedState) {
+      const proposedCriticalStage = STATE_TO_CRITICAL_STAGE[proposedState];
+      if (proposedCriticalStage) {
+        // Check if user has already performed this exact stage
+        const hasPerformedThisStage = involvement.stages.some(
+          (s) => s.stage === proposedCriticalStage
+        );
+        wouldAddNewStage = !hasPerformedThisStage;
+      }
+    }
+
+    // Calculate what the count would be AFTER this action
+    const futureCount = wouldAddNewStage 
+      ? involvement.criticalStageCount + 1 
+      : involvement.criticalStageCount;
+
+    // Check if user would exceed max sequential stages
+    if (futureCount > this.maxSequentialStages) {
       return {
         allowed: false,
-        reason: `User has already performed ${involvement.criticalStageCount} critical stages on this claim. Maximum allowed: ${this.maxSequentialStages}`,
+        reason: `User has already performed ${involvement.criticalStageCount} critical stages on this claim. Performing this action would result in ${futureCount} stages, exceeding maximum allowed: ${this.maxSequentialStages}`,
         userInvolvement: involvement,
         criticalStagesPerformed: involvement.criticalStageCount,
       };

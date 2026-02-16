@@ -6122,3 +6122,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Create workflow query procedures (getClaimsByState wrapper)
 - [ ] Fix remaining type mismatches in dashboards (~32 errors remaining)
 - [ ] Achieve zero TypeScript errors
+
+
+## Workflow Integration Completion (February 16, 2026)
+- [x] Audit current workflow integration and identify direct DB state updates
+- [x] Fix async handling - ensure all getDb() calls are awaited
+- [x] Implement WorkflowStateMachine.transition() method with proper typing
+- [x] Ensure all tRPC claim mutations route through WorkflowEngine.transition()
+- [x] Create integration test: verify transition logs audit entry (10/13 passing)
+- [ ] Fix segregation validation triggering (2 tests failing)
+- [x] Create integration test: verify role validation triggers
+- [x] Confirm 100% of tRPC claim mutations use WorkflowEngine
+- [ ] Save checkpoint with complete workflow integration
