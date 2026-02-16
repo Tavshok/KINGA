@@ -55,11 +55,18 @@ export default function AdminDashboard() {
   // Get all panel beaters
   const { data: panelBeaters = [] } = trpc.panelBeaters.list.useQuery();
 
-  // Get system statistics
-  const { data: submittedClaims = [] } = trpc.claims.byStatus.useQuery({ status: "submitted" });
-  const { data: triageClaims = [] } = trpc.claims.byStatus.useQuery({ status: "triage" });
-  const { data: assessmentClaims = [] } = trpc.claims.byStatus.useQuery({ status: "assessment_pending" });
-  const { data: completedClaimsData = [] } = trpc.claims.byStatus.useQuery({ status: "completed" });
+  // Get system statistics using workflow states
+  const { data: submittedClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "created", limit: 100, offset: 0 });
+  const submittedClaims = submittedClaimsData?.items || [];
+  
+  const { data: intakeClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "intake_verified", limit: 100, offset: 0 });
+  const triageClaims = intakeClaimsData?.items || [];
+  
+  const { data: assessmentClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "under_assessment", limit: 100, offset: 0 });
+  const assessmentClaims = assessmentClaimsData?.items || [];
+  
+  const { data: completedClaimsDataResponse } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "completed", limit: 100, offset: 0 });
+  const completedClaimsData = completedClaimsDataResponse?.items || [];
 
   // Historical claims analytics (admin only)
   const { data: analyticsData } = trpc.historicalClaims.getAnalyticsSummary.useQuery(

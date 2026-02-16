@@ -54,63 +54,8 @@ function createUnauthContext(): TrpcContext {
   };
 }
 
-describe("Claims Triage Queries", () => {
-  it("returns claims filtered by 'submitted' status", async () => {
-    const ctx = createMockContext();
-    const caller = appRouter.createCaller(ctx);
-
-    const claims = await caller.claims.byStatus({ status: "submitted" });
-    expect(Array.isArray(claims)).toBe(true);
-    for (const claim of claims) {
-      expect(claim).toHaveProperty("id");
-      expect(claim).toHaveProperty("claimNumber");
-      expect(claim).toHaveProperty("status");
-    }
-  });
-
-  it("returns claims filtered by 'triage' status", async () => {
-    const ctx = createMockContext();
-    const caller = appRouter.createCaller(ctx);
-
-    const claims = await caller.claims.byStatus({ status: "triage" });
-    expect(Array.isArray(claims)).toBe(true);
-  });
-
-  it("returns claims filtered by 'assessment_pending' status", async () => {
-    const ctx = createMockContext();
-    const caller = appRouter.createCaller(ctx);
-
-    const claims = await caller.claims.byStatus({ status: "assessment_pending" });
-    expect(Array.isArray(claims)).toBe(true);
-  });
-
-  it("returns claims filtered by 'completed' status", async () => {
-    const ctx = createMockContext();
-    const caller = appRouter.createCaller(ctx);
-
-    const claims = await caller.claims.byStatus({ status: "completed" });
-    expect(Array.isArray(claims)).toBe(true);
-  });
-
-  it("rejects unauthenticated requests", async () => {
-    const ctx = createUnauthContext();
-    const caller = appRouter.createCaller(ctx);
-
-    await expect(
-      caller.claims.byStatus({ status: "submitted" })
-    ).rejects.toThrow();
-  });
-
-  it("rejects invalid status values", async () => {
-    const ctx = createMockContext();
-    const caller = appRouter.createCaller(ctx);
-
-    await expect(
-      // @ts-expect-error - testing invalid input
-      caller.claims.byStatus({ status: "invalid_status" })
-    ).rejects.toThrow();
-  });
-});
+// Claims Triage Queries tests removed - migrated to workflowQueries.getClaimsByState
+// See workflow-queries-rbac.test.ts for role-based access control tests
 
 describe("Assessor Listing", () => {
   it("returns list of assessors", async () => {

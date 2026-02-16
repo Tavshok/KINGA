@@ -226,17 +226,6 @@ export async function getClaimsByClaimant(claimantId: number, tenantId?: string)
   return await db.select().from(claims).where(conditions).orderBy(desc(claims.createdAt));
 }
 
-export async function getClaimsByStatus(status: typeof claims.$inferSelect.status, tenantId?: string) {
-  const db = await getDb();
-  if (!db) return [];
-
-  const conditions = tenantId
-    ? and(eq(claims.status, status), eq(claims.tenantId, tenantId))
-    : eq(claims.status, status);
-  
-  return await db.select().from(claims).where(conditions).orderBy(desc(claims.createdAt));
-}
-
 export async function getClaimsByAssessor(assessorId: number, tenantId?: string) {
   const db = await getDb();
   if (!db) return [];

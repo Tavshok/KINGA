@@ -23,7 +23,6 @@ import {
   getAllApprovedPanelBeaters,
   createClaim,
   getClaimsByClaimant,
-  getClaimsByStatus,
   getClaimsByAssessor,
   getClaimsForPanelBeater,
   getClaimById,
@@ -530,28 +529,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
       return await getClaimsByClaimant(ctx.user.id, tenantId);
     }),
-
-    // Get claims by status (insurers)
-    byStatus: protectedProcedure
-      .input(z.object({
-        status: z.enum([
-          "submitted",
-          "triage",
-          "assessment_pending",
-          "assessment_in_progress",
-          "quotes_pending",
-          "comparison",
-          "repair_assigned",
-          "repair_in_progress",
-          "completed",
-          "rejected"
-        ]),
-      }))
-      .query(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        return await getClaimsByStatus(input.status, tenantId);
-      }),
 
     // Get claims assigned to assessor
     myAssignments: protectedProcedure.query(async ({ ctx }) => {
