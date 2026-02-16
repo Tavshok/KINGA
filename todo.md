@@ -6003,3 +6003,43 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 ## Logo Size Adjustment
 - [x] Increase KINGA logo size in sidebar header for better visibility
 - [ ] Save checkpoint with improved logo sizing
+
+
+## Workflow Governance Refactoring
+- [ ] Analyze current workflow implementation against governance requirements
+- [ ] Add missing workflow states (intake_verified, financial_decision)
+- [ ] Add new roles (assessor_internal, assessor_external, executive, insurer_admin)
+- [ ] Create workflow configuration table for insurer-level settings
+- [ ] Implement workflow validation middleware
+- [ ] Add segregation of duties validation rules
+- [ ] Implement internal vs external assessment paths
+- [ ] Add executive oversight and redirect capabilities
+- [ ] Enhance audit trail with all required fields
+- [ ] Create automated validation test suite
+- [ ] Generate governance compliance report
+- [ ] Save checkpoint with governance implementation
+
+
+## Workflow Governance Architecture (Completed)
+- [x] Analyze current implementation against governance requirements
+- [x] Create comprehensive workflow architecture documentation (docs/WORKFLOW_ARCHITECTURE.md)
+- [x] Update database schema with missing states and roles (intake_verified, assessor_external, insurer_admin)
+- [x] Create workflow governance tables (workflow_configuration, workflow_audit_trail, claim_involvement_tracking)
+- [x] Implement type-safe workflow engine core (server/workflow/types.ts)
+- [x] Build state machine with transition validation (server/workflow/state-machine.ts)
+- [x] Build segregation of duties validator (server/workflow/segregation-validator.ts)
+- [x] Create RBAC engine for role permissions (server/workflow/rbac.ts)
+- [x] Create audit logger for immutable trail (server/workflow/audit-logger.ts)
+- [x] Create configurable routing engine (server/workflow/routing-engine.ts)
+- [x] Add executive oversight layer (server/workflow/executive-oversight.ts)
+- [x] Create governance analysis document (GOVERNANCE_ANALYSIS.md)
+- [x] Create checkpoint with workflow governance architecture
+
+## Workflow Governance Integration (Future Phase)
+- [ ] Integrate workflow engine into existing tRPC procedures
+- [ ] Replace ad-hoc workflow logic with governance-first architecture
+- [ ] Create automated validation test suite for governance rules
+- [ ] Generate compliance report showing governance score
+- [ ] Add workflow configuration UI for insurer admins
+- [ ] Create executive oversight dashboard
+- [ ] Test complete governance system end-to-end

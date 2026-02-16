@@ -162,6 +162,13 @@
       "when": 1771179164098,
       "tag": "0022_condemned_mentallo",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "5",
+      "when": 1771229856070,
+      "tag": "0023_chilly_whirlwind",
+      "breakpoints": true
     }
   ]
 }

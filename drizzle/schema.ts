@@ -18,7 +18,7 @@ export const users = mysqlTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }), // For traditional email/password auth
   loginMethod: varchar("loginMethod", { length: 64 }),
   role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]).default("user").notNull(),
-  insurerRole: mysqlEnum("insurer_role", ["claims_processor", "internal_assessor", "risk_manager", "claims_manager", "executive"]), // Hierarchical roles for insurer users
+  insurerRole: mysqlEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]), // Hierarchical roles for insurer users
   organizationId: int("organization_id"), // Link to organizations table for team members
   tenantId: varchar("tenant_id", { length: 64 }), // Link to tenants table for multi-tenant isolation
   emailVerified: tinyint("email_verified").default(0).notNull(), // Email verification status
@@ -171,6 +171,7 @@ export const claims = mysqlTable("claims", {
   // Workflow state machine
   workflowState: mysqlEnum("workflow_state", [
     "created",
+    "intake_verified",
     "assigned",
     "under_assessment",
     "internal_review",
@@ -4600,3 +4601,119 @@ export const agencyDocuments = mysqlTable("agency_documents", {
 
 export type AgencyDocument = typeof agencyDocuments.$inferSelect;
 export type InsertAgencyDocument = typeof agencyDocuments.$inferInsert;
+
+
+/**
+ * ========================================
+ * WORKFLOW GOVERNANCE TABLES
+ * ========================================
+ * Tables supporting the workflow governance system
+ */
+
+/**
+ * Workflow Configuration - Insurer-level workflow settings
+ */
+export const workflowConfiguration = mysqlTable("workflow_configuration", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull().unique(),
+  
+  // Role configuration
+  riskManagerEnabled: tinyint("risk_manager_enabled").default(1).notNull(),
+  
+  // Threshold configuration
+  highValueThreshold: int("high_value_threshold").default(1000000).notNull(), // $10,000 in cents
+  executiveReviewThreshold: int("executive_review_threshold").default(5000000).notNull(), // $50,000 in cents
+  
+  // Feature toggles
+  aiFastTrackEnabled: tinyint("ai_fast_track_enabled").default(0).notNull(),
+  externalAssessorEnabled: tinyint("external_assessor_enabled").default(1).notNull(),
+  
+  // Segregation configuration
+  maxSequentialStagesByUser: int("max_sequential_stages_by_user").default(2).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WorkflowConfiguration = typeof workflowConfiguration.$inferSelect;
+export type InsertWorkflowConfiguration = typeof workflowConfiguration.$inferInsert;
+
+/**
+ * Workflow Audit Trail - Immutable audit log for all state transitions
+ */
+export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  userId: int("user_id").notNull(),
+  userRole: mysqlEnum("user_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]).notNull(),
+  
+  // State transition
+  previousState: mysqlEnum("previous_state", [
+    "created",
+    "intake_verified",
+    "assigned",
+    "under_assessment",
+    "internal_review",
+    "technical_approval",
+    "financial_decision",
+    "payment_authorized",
+    "closed",
+    "disputed"
+  ]),
+  newState: mysqlEnum("new_state", [
+    "created",
+    "intake_verified",
+    "assigned",
+    "under_assessment",
+    "internal_review",
+    "technical_approval",
+    "financial_decision",
+    "payment_authorized",
+    "closed",
+    "disputed"
+  ]).notNull(),
+  
+  // Decision context
+  decisionValue: int("decision_value"), // Amount in cents
+  aiScore: int("ai_score"), // AI fraud score or confidence
+  confidenceScore: int("confidence_score"), // 0-100
+  comments: text("comments"),
+  metadata: text("metadata"), // JSON string for additional data
+  
+  // Immutable timestamp
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type WorkflowAuditTrail = typeof workflowAuditTrail.$inferSelect;
+export type InsertWorkflowAuditTrail = typeof workflowAuditTrail.$inferInsert;
+
+/**
+ * Claim Involvement Tracking - Track user involvement for segregation of duties
+ */
+export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  userId: int("user_id").notNull(),
+  
+  // Critical stage tracking
+  workflowStage: mysqlEnum("workflow_stage", [
+    "assessment",
+    "technical_approval",
+    "financial_decision",
+    "payment_authorization"
+  ]).notNull(),
+  
+  actionType: mysqlEnum("action_type", [
+    "transition_state",
+    "approve_technical",
+    "authorize_payment",
+    "close_claim",
+    "redirect_claim",
+    "add_assessment"
+  ]).notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type ClaimInvolvementTracking = typeof claimInvolvementTracking.$inferSelect;
+export type InsertClaimInvolvementTracking = typeof claimInvolvementTracking.$inferInsert;
