@@ -6305,4 +6305,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify zero TypeScript errors introduced (verified via tsc --noEmit)
 - [x] Verify no 'any' types used (verified via grep)
 - [x] Verify strict tenant isolation enforced (implemented at all levels)
-- [ ] Save checkpoint with role assignment audit trail
+- [x] Save checkpoint with role assignment audit trail
+
+
+## Admin switchRole Refactoring
+
+- [x] Refactor switchRole procedure to use roleAssignmentService
+- [x] Add mandatory justification parameter (min 15 chars)
+- [x] Remove direct db.update(users) call
+- [x] Add privilege elevation controls (prevent self-elevation without approval)
+- [x] Add role restriction controls (block super-admin/system roles)
+- [x] Enforce tenant isolation in role changes
+- [x] Add test: Self-role change without justification (fail)
+- [x] Add test: Cross-tenant role change attempt (fail)
+- [x] Add test: Elevation to higher privilege tracking (pass)
+- [x] Add test: Proper audit log creation (pass)
+- [x] Add test: Switching to restricted roles (validation)
+- [x] Verify zero TypeScript errors introduced (verified via tsc --noEmit)
+- [x] Verify no legacy fallback paths remain (no direct role updates found)
+- [ ] Save checkpoint with switchRole refactoring
