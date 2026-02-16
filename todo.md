@@ -6225,5 +6225,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Update VITE_APP_TITLE environment variable to "KINGA"
 - [x] Fix assessor dashboard status field error (migrate to workflowState)
 - [ ] Fix claims processor dashboard status field error
-- [ ] Test all portal access and dashboard loading
-- [ ] Save checkpoint with branding and dashboard fixes
+- [x] Test all portal access and dashboard loading
+- [x] Save checkpoint with branding and dashboard fixes
+
+## Claims Processor Dashboard Migration (February 16, 2026)
+- [x] Locate ClaimsProcessorDashboard component file
+- [x] Update metric cards to filter by workflowState instead of status
+- [x] Update claim list display to show workflowState badges
+- [x] Update any status-based filtering logic
+- [ ] Test dashboard loading and claim display
+- [ ] Save checkpoint with Claims Processor dashboard migration
