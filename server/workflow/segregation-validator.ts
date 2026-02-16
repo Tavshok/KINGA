@@ -96,7 +96,10 @@ export class SegregationValidator {
       ORDER BY created_at ASC
     `);
 
-    const stages: StageInvolvement[] = involvements.rows.map((row: any) => ({
+    // db.execute returns array directly, not result.rows
+    const rows = involvements as unknown as Array<Record<string, any>>;
+    
+    const stages: StageInvolvement[] = rows.map((row) => ({
       stage: row.workflow_stage as CriticalStage,
       action: row.action_type as WorkflowAction,
       timestamp: new Date(row.created_at),

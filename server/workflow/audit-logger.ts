@@ -65,7 +65,9 @@ export class AuditLogger {
       WHERE id = LAST_INSERT_ID()
     `);
 
-    const record = auditRecords.rows[0] as any;
+    // db.execute returns array directly
+    const rows = auditRecords as unknown as Array<Record<string, any>>;
+    const record = rows[0];
 
     return {
       id: record.id,
@@ -97,7 +99,9 @@ export class AuditLogger {
       ORDER BY created_at ASC
     `);
 
-    return result.rows.map((row: any) => ({
+    // db.execute returns array directly
+    const rows = result as unknown as Array<Record<string, any>>;
+    return rows.map((row) => ({
       id: row.id,
       claimId: row.claim_id,
       userId: row.user_id,
@@ -128,7 +132,9 @@ export class AuditLogger {
       LIMIT ${limit}
     `);
 
-    return result.rows.map((row: any) => ({
+    // db.execute returns array directly
+    const rows = result as unknown as Array<Record<string, any>>;
+    return rows.map((row) => ({
       id: row.id,
       claimId: row.claim_id,
       userId: row.user_id,
@@ -164,7 +170,9 @@ export class AuditLogger {
       LIMIT ${limit}
     `);
 
-    return result.rows.map((row: any) => ({
+    // db.execute returns array directly
+    const rows = result as unknown as Array<Record<string, any>>;
+    return rows.map((row) => ({
       id: row.id,
       claimId: row.claim_id,
       userId: row.user_id,
@@ -202,7 +210,9 @@ export class AuditLogger {
       GROUP BY claim_id
     `);
 
-    const row = result.rows[0] as any;
+    // db.execute returns array directly
+    const rows = result as unknown as Array<Record<string, any>>;
+    const row = rows[0];
 
     return {
       totalTransitions: row?.total_transitions || 0,

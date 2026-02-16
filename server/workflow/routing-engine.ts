@@ -46,12 +46,15 @@ export class RoutingEngine {
       LIMIT 1
     `);
 
-    if (result.rows.length === 0) {
+    // db.execute returns array directly, not result.rows
+    const rows = result as unknown as Array<Record<string, any>>;
+    
+    if (rows.length === 0) {
       // Return default configuration
       return { ...DEFAULT_CONFIG, tenantId };
     }
 
-    const row = result.rows[0] as any;
+    const row = rows[0];
 
     return {
       tenantId: row.tenant_id,

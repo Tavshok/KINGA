@@ -16,45 +16,45 @@ import {
  * Permission matrix defining what each role can do
  */
 const ROLE_PERMISSIONS: Record<InsurerRole, Set<Permission>> = {
-  claims_processor: new Set([
-    "create_claim",
-    "assign_assessor",
-    "view_all_claims",
-    "add_comment",
+  claims_processor: new Set<Permission>([
+    "create_claim" as Permission,
+    "assign_assessor" as Permission,
+    "view_all_claims" as Permission,
+    "add_comment" as Permission,
   ]),
-  assessor_internal: new Set([
-    "conduct_assessment",
-    "add_comment",
-    "view_fraud_analytics",
+  assessor_internal: new Set<Permission>([
+    "conduct_assessment" as Permission,
+    "add_comment" as Permission,
+    "view_fraud_analytics" as Permission,
   ]),
-  assessor_external: new Set([
-    "conduct_assessment",
-    "add_comment",
+  assessor_external: new Set<Permission>([
+    "conduct_assessment" as Permission,
+    "add_comment" as Permission,
   ]),
-  risk_manager: new Set([
-    "approve_technical",
-    "view_all_claims",
-    "view_fraud_analytics",
-    "add_comment",
+  risk_manager: new Set<Permission>([
+    "approve_technical" as Permission,
+    "view_all_claims" as Permission,
+    "view_fraud_analytics" as Permission,
+    "add_comment" as Permission,
   ]),
-  claims_manager: new Set([
-    "authorize_payment",
-    "close_claim",
-    "view_all_claims",
-    "view_fraud_analytics",
-    "add_comment",
-    "create_claim",
-    "assign_assessor",
+  claims_manager: new Set<Permission>([
+    "authorize_payment" as Permission,
+    "close_claim" as Permission,
+    "view_all_claims" as Permission,
+    "view_fraud_analytics" as Permission,
+    "add_comment" as Permission,
+    "create_claim" as Permission,
+    "assign_assessor" as Permission,
   ]),
-  executive: new Set([
-    "view_all_claims",
-    "redirect_claim",
-    "view_fraud_analytics",
-    "add_comment",
+  executive: new Set<Permission>([
+    "view_all_claims" as Permission,
+    "redirect_claim" as Permission,
+    "view_fraud_analytics" as Permission,
+    "add_comment" as Permission,
   ]),
-  insurer_admin: new Set([
-    "configure_workflow",
-    "view_all_claims",
+  insurer_admin: new Set<Permission>([
+    "configure_workflow" as Permission,
+    "view_all_claims" as Permission,
   ]),
 };
 
