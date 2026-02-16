@@ -4680,6 +4680,10 @@ export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
   comments: text("comments"),
   metadata: text("metadata"), // JSON string for additional data
   
+  // Executive override tracking
+  executiveOverride: int("executive_override").default(0), // 0 = false, 1 = true
+  overrideReason: text("override_reason"),
+  
   // Immutable timestamp
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

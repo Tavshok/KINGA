@@ -6155,4 +6155,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Remove legacy enum aliases (internal_assessor → assessor_internal)
 - [x] Verify zero TypeScript errors related to InsurerRole
 - [x] Confirm all 13 governance tests still pass
-- [ ] Save checkpoint with aligned enum values
+- [x] Save checkpoint with aligned enum values
+
+
+## Comment Router Implementation (February 16, 2026)
+- [x] Fix executiveOverride schema field error in workflowAuditTrail
+- [x] Create server/routers/comments.ts with addComment, listComments, deleteComment
+- [x] Implement RBAC enforcement (insurer tenant members only)
+- [x] Add audit logging for comment creation
+- [x] Implement soft-delete design (deletedAt timestamp)
+- [x] Create unit tests: unauthorized access
+- [x] Create unit tests: cross-tenant access attempt
+- [x] Create unit tests: successful comment creation
+- [x] Integrate comments router into main app router
+- [ ] Fix Drizzle ORM insertId extraction in tests
+- [ ] Verify zero TypeScript errors (38 remaining, unrelated to comments router)
+- [ ] Save checkpoint with complete comment router

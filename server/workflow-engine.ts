@@ -248,7 +248,7 @@ export async function transition(request: TransitionRequest): Promise<Transition
     comments: decisionData?.comments || (executiveOverride ? `Executive override: ${overrideReason}` : undefined),
     executiveOverride: executiveOverride ? 1 : 0,
     overrideReason,
-    timestamp: new Date(),
+    createdAt: new Date(),
   });
 
   const auditId = Number((auditResult as unknown as { insertId: string | number }).insertId);
