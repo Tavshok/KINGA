@@ -4720,3 +4720,60 @@ export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking",
 
 export type ClaimInvolvementTracking = typeof claimInvolvementTracking.$inferSelect;
 export type InsertClaimInvolvementTracking = typeof claimInvolvementTracking.$inferInsert;
+
+/**
+ * Role Assignment Audit Trail - Immutable audit log for all role assignment changes
+ * 
+ * Enforces:
+ * - Insert-only (no update/delete operations allowed)
+ * - Cross-tenant isolation
+ * - Automatic logging whenever role assignment changes
+ * 
+ * Used for:
+ * - Compliance and security monitoring
+ * - Role change history tracking
+ * - Unauthorized access attempt detection
+ */
+export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // User whose role is being changed
+  userId: int("user_id").notNull(),
+  
+  // Role change details
+  previousRole: mysqlEnum("previous_role", [
+    "user", "admin", "insurer", "assessor", "panel_beater", "claimant"
+  ]),
+  newRole: mysqlEnum("new_role", [
+    "user", "admin", "insurer", "assessor", "panel_beater", "claimant"
+  ]).notNull(),
+  
+  // Insurer role change details (if applicable)
+  previousInsurerRole: mysqlEnum("previous_insurer_role", [
+    "claims_processor", "assessor_internal", "assessor_external", 
+    "risk_manager", "claims_manager", "executive", "insurer_admin"
+  ]),
+  newInsurerRole: mysqlEnum("new_insurer_role", [
+    "claims_processor", "assessor_internal", "assessor_external", 
+    "risk_manager", "claims_manager", "executive", "insurer_admin"
+  ]),
+  
+  // Actor who made the change
+  changedByUserId: int("changed_by_user_id").notNull(),
+  
+  // Justification for the change
+  justification: text("justification"),
+  
+  // Immutable timestamp - no updates allowed
+  timestamp: timestamp("timestamp").defaultNow().notNull(),
+}, (table) => ({
+  // Indexes for efficient querying
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  userIdIdx: index("idx_user_id").on(table.userId),
+  changedByIdx: index("idx_changed_by").on(table.changedByUserId),
+  timestampIdx: index("idx_timestamp").on(table.timestamp),
+}));
+
+export type RoleAssignmentAudit = typeof roleAssignmentAudit.$inferSelect;
+export type InsertRoleAssignmentAudit = typeof roleAssignmentAudit.$inferInsert;
