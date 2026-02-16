@@ -5990,3 +5990,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test Excel export with various filter combinations
 - [ ] Test PDF report generation with complete claim data
 - [ ] Create checkpoint with export functionality
+
+
+## Logo Update
+- [x] Download KINGA logo from provided PNG link
+- [x] Update logo in DashboardLayout component
+- [x] Update logo in all role-specific dashboards
+- [x] Update logo in authentication pages
+- [ ] Create checkpoint with updated logo
