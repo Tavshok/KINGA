@@ -5998,3 +5998,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update logo in all role-specific dashboards
 - [x] Update logo in authentication pages
 - [ ] Create checkpoint with updated logo
+
+
+## Logo Size Adjustment
+- [x] Increase KINGA logo size in sidebar header for better visibility
+- [ ] Save checkpoint with improved logo sizing

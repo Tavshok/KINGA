@@ -178,7 +178,7 @@ function DashboardLayoutContent({
                   <img 
                     src="https://files.manuscdn.com/user_upload_by_module/session_file/310419663031527958/urRWiykzCdbYRWJQ.png" 
                     alt="KINGA" 
-                    className="h-8 w-auto object-contain"
+                    className="h-12 w-auto object-contain"
                   />
                 </div>
               ) : null}
