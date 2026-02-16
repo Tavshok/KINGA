@@ -50,7 +50,7 @@ describe("RBAC Permission System", () => {
     ...claimsProcessor,
     id: 2,
     name: "Internal Assessor",
-    insurerRole: "internal_assessor",
+    insurerRole: "assessor_internal",
   };
 
   const riskManager: User = {
@@ -279,7 +279,7 @@ describe("RBAC Permission System", () => {
   describe("Display Name Functions", () => {
     it("should return correct role display names", () => {
       expect(getRoleDisplayName("claims_processor")).toBe("Claims Processor");
-      expect(getRoleDisplayName("internal_assessor")).toBe("Internal Assessor");
+      expect(getRoleDisplayName("assessor_internal")).toBe("Internal Assessor");
       expect(getRoleDisplayName("risk_manager")).toBe("Risk Manager");
       expect(getRoleDisplayName("claims_manager")).toBe("Claims Manager");
       expect(getRoleDisplayName("executive")).toBe("GM/Executive");
@@ -302,10 +302,12 @@ describe("RBAC Permission System", () => {
     it("should have permissions defined for all roles", () => {
       const roles: InsurerRole[] = [
         "claims_processor",
-        "internal_assessor",
+        "assessor_internal",
+        "assessor_external",
         "risk_manager",
         "claims_manager",
         "executive",
+        "insurer_admin",
       ];
 
       roles.forEach(role => {

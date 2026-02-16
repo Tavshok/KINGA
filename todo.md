@@ -6143,4 +6143,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Run tests with debug logging to trace execution
 - [x] Fix all 3 failing tests
 - [x] Verify 100% test coverage (13/13 passing)
-- [ ] Save final checkpoint with complete test suite
+- [x] Save final checkpoint with complete test suite
+
+
+## InsurerRole Enum Alignment (February 16, 2026)
+- [x] Audit all InsurerRole enum definitions (schema, RBAC, workflow, client)
+- [x] Identify schema-defined canonical enum values
+- [x] Update RBAC permission matrix to use schema values
+- [x] Update workflow engine role references
+- [x] Update client components and type imports
+- [x] Remove legacy enum aliases (internal_assessor → assessor_internal)
+- [x] Verify zero TypeScript errors related to InsurerRole
+- [x] Confirm all 13 governance tests still pass
+- [ ] Save checkpoint with aligned enum values

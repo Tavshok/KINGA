@@ -14,10 +14,12 @@ import type { User } from "../drizzle/schema";
 
 export type InsurerRole = 
   | "claims_processor"
-  | "internal_assessor"
+  | "assessor_internal"
+  | "assessor_external"
   | "risk_manager"
   | "claims_manager"
-  | "executive";
+  | "executive"
+  | "insurer_admin";
 
 export type WorkflowState =
   | "created"
@@ -50,7 +52,7 @@ export const PERMISSIONS = {
     viewFraudAnalytics: false,
     viewAllClaims: true, // Claims processors need to see all incoming claims to triage and assign them
   },
-  internal_assessor: {
+  assessor_internal: {
     createClaim: false,
     assignAssessor: false,
     viewAIAssessment: true,
@@ -64,6 +66,22 @@ export const PERMISSIONS = {
     approveFinancial: false,
     closeClaim: false,
     viewFraudAnalytics: true, // Full fraud analytics access
+    viewAllClaims: false, // Only assigned claims
+  },
+  assessor_external: {
+    createClaim: false,
+    assignAssessor: false,
+    viewAIAssessment: true,
+    viewCostOptimization: true,
+    editAIAssessment: false,
+    editCostOptimization: false,
+    addComment: true,
+    viewComments: true,
+    conductInternalAssessment: false, // External assessors use different process
+    approveTechnical: false,
+    approveFinancial: false,
+    closeClaim: false,
+    viewFraudAnalytics: false, // Limited access for external
     viewAllClaims: false, // Only assigned claims
   },
   risk_manager: {
@@ -113,6 +131,22 @@ export const PERMISSIONS = {
     closeClaim: false,
     viewFraudAnalytics: true, // Strategic oversight
     viewAllClaims: true, // Full visibility
+  },
+  insurer_admin: {
+    createClaim: true,
+    assignAssessor: true,
+    viewAIAssessment: true,
+    viewCostOptimization: true,
+    editAIAssessment: true, // Admin can edit configurations
+    editCostOptimization: true,
+    addComment: true,
+    viewComments: true,
+    conductInternalAssessment: true,
+    approveTechnical: true,
+    approveFinancial: true,
+    closeClaim: true,
+    viewFraudAnalytics: true,
+    viewAllClaims: true, // Full administrative access
   },
 };
 
@@ -209,10 +243,12 @@ export function requiresGMConsultation(estimatedCost: number): boolean {
 export function getRoleDisplayName(role: InsurerRole): string {
   const names: Record<InsurerRole, string> = {
     claims_processor: "Claims Processor",
-    internal_assessor: "Internal Assessor",
+    assessor_internal: "Internal Assessor",
+    assessor_external: "External Assessor",
     risk_manager: "Risk Manager",
     claims_manager: "Claims Manager",
     executive: "GM/Executive",
+    insurer_admin: "Administrator",
   };
   return names[role];
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `tenant_role_configs` MODIFY COLUMN `role_key` enum('executive','claims_manager','claims_processor','assessor_internal','assessor_external','risk_manager','insurer_admin') NOT NULL;

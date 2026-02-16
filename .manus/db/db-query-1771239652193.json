@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE tenant_role_configs \nMODIFY COLUMN role_key ENUM('executive', 'claims_manager', 'claims_processor', 'internal_assessor', 'assessor_internal', 'assessor_external', 'risk_manager', 'insurer_admin') NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE tenant_role_configs \nMODIFY COLUMN role_key ENUM('executive', 'claims_manager', 'claims_processor', 'internal_assessor', 'assessor_internal', 'assessor_external', 'risk_manager', 'insurer_admin') NOT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1030
+}

@@ -1290,7 +1290,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         
         // Automatically progress status to quotes_pending (legacy field only)
-        await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "internal_assessor", claim.tenantId || "default");
+        await updateClaimStatus(input.claimId, "quotes_pending", ctx.user.id, "assessor_internal", claim.tenantId || "default");
         
         // Progress workflow state to internal_review (assessor completed their work)
         const { transitionWorkflowState } = await import("./workflow");
@@ -1298,7 +1298,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           input.claimId,
           "internal_review",
           ctx.user.id,
-          "internal_assessor" as any
+          "assessor_internal"
         );
 
         // Create audit entry

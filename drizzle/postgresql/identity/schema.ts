@@ -11,7 +11,7 @@ import { pgTable, serial, varchar, text, timestamp, boolean, integer, decimal, p
 
 // Enums
 export const roleEnum = pgEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]);
-export const insurerRoleEnum = pgEnum("insurer_role", ["claims_processor", "internal_assessor", "risk_manager", "claims_manager", "executive"]);
+export const insurerRoleEnum = pgEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]);
 export const assessorTierEnum = pgEnum("assessor_tier", ["free", "premium", "enterprise"]);
 export const permissionScopeEnum = pgEnum("permission_scope", ["global", "organization", "team", "self"]);
 

@@ -4288,7 +4288,7 @@ export type InsertInsurerTenant = typeof insurerTenants.$inferInsert;
 export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
   id: varchar("id", { length: 64 }).primaryKey(),
   tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  roleKey: mysqlEnum("role_key", ["executive", "claims_manager", "claims_processor", "internal_assessor", "risk_manager"]).notNull(),
+  roleKey: mysqlEnum("role_key", ["executive", "claims_manager", "claims_processor", "assessor_internal", "assessor_external", "risk_manager", "insurer_admin"]).notNull(),
   enabled: tinyint("enabled").default(1).notNull(),
   displayName: varchar("display_name", { length: 100 }), // Custom role name (e.g., "Senior Adjuster" instead of "Claims Manager")
   
