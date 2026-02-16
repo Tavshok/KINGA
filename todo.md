@@ -6035,11 +6035,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create governance analysis document (GOVERNANCE_ANALYSIS.md)
 - [x] Create checkpoint with workflow governance architecture
 
-## Workflow Governance Integration (Future Phase)
+## Workflow Governance Integration (In Progress)
+- [x] Fix remaining TypeScript errors in workflow modules (db.execute result types)
+- [x] Create workflow integration helper layer (server/workflow/integration.ts)
 - [ ] Integrate workflow engine into existing tRPC procedures
 - [ ] Replace ad-hoc workflow logic with governance-first architecture
+- [ ] Create workflow configuration UI for insurer admins
+- [ ] Add workflow settings page to admin dashboard
 - [ ] Create automated validation test suite for governance rules
+- [ ] Test segregation of duties enforcement
+- [ ] Test RBAC permission checks
+- [ ] Test state transition validation
 - [ ] Generate compliance report showing governance score
-- [ ] Add workflow configuration UI for insurer admins
 - [ ] Create executive oversight dashboard
 - [ ] Test complete governance system end-to-end
+- [ ] Create final checkpoint with integrated governance system

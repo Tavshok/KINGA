@@ -84,24 +84,31 @@ export class SegregationValidator {
     // Query claim_involvement_tracking table
     const db = await getDb();
     if (!db) return { userId, claimId, stages: [], criticalStageCount: 0 };
-    
-    const involvements = await db.execute(sql`
+        const involvements = await db.execute(sql`
       SELECT 
         workflow_stage,
         action_type,
         created_at
       FROM claim_involvement_tracking
-      WHERE claim_id = ${claimId}
-        AND user_id = ${userId}
+      WHERE claim_id = ${claimId} AND user_id = ${userId}
       ORDER BY created_at ASC
-    `);
+    `) as any;
 
-    const stages: StageInvolvement[] = involvements.rows.map((row: any) => ({
-      stage: row.workflow_stage as CriticalStage,
-      action: row.action_type as WorkflowAction,
-      timestamp: new Date(row.created_at),
-      workflowState: row.workflow_stage as WorkflowState,
-    }));
+    const stages: Array<{
+      stage: CriticalStage;
+      action: WorkflowAction;
+      timestamp: Date;
+      workflowState: WorkflowState;
+    }> = [];
+
+    for (const row of involvements as any[]) {
+      stages.push({
+        stage: row.workflow_stage as CriticalStage,
+        action: row.action_type as WorkflowAction,
+        timestamp: new Date(row.created_at),
+        workflowState: row.workflow_stage as WorkflowState,
+      });
+    }
 
     // Count unique critical stages
     const uniqueCriticalStages = new Set(

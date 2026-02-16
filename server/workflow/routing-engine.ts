@@ -44,24 +44,23 @@ export class RoutingEngine {
       FROM workflow_configuration
       WHERE tenant_id = ${tenantId}
       LIMIT 1
-    `);
+    `) as any;
 
-    if (result.rows.length === 0) {
-      // Return default configuration
-      return { ...DEFAULT_CONFIG, tenantId };
+    if (result && result.length > 0) {
+      const row = result[0] as any;
+      return {
+        tenantId: row.tenant_id,
+        riskManagerEnabled: Boolean(row.risk_manager_enabled),
+        highValueThreshold: row.high_value_threshold,
+        aiFastTrackEnabled: Boolean(row.ai_fast_track_enabled),
+        executiveReviewThreshold: row.executive_review_threshold,
+        externalAssessorEnabled: Boolean(row.external_assessor_enabled),
+        maxSequentialStagesByUser: row.max_sequential_stages_by_user || 2,
+      };
     }
 
-    const row = result.rows[0] as any;
-
-    return {
-      tenantId: row.tenant_id,
-      riskManagerEnabled: Boolean(row.risk_manager_enabled),
-      highValueThreshold: row.high_value_threshold,
-      aiFastTrackEnabled: Boolean(row.ai_fast_track_enabled),
-      executiveReviewThreshold: row.executive_review_threshold,
-      externalAssessorEnabled: Boolean(row.external_assessor_enabled),
-      maxSequentialStagesByUser: row.max_sequential_stages_by_user || 2,
-    };
+    // Return default config if no custom config found
+    return { ...DEFAULT_CONFIG, tenantId };
   }
 
   /**

@@ -145,7 +145,7 @@ export class ExecutiveOversight {
       LIMIT 1
     `);
 
-    const aiRow = aiResult.rows[0] as any;
+    const aiRow = (aiResult as any)[0] as any;
 
     // Get human assessment
     const humanResult = await db.execute(sql`
@@ -159,7 +159,7 @@ export class ExecutiveOversight {
       LIMIT 1
     `);
 
-    const humanRow = humanResult.rows[0] as any;
+    const humanRow = (humanResult as any)[0] as any;
 
     // Get final decision
     const [claim] = await db.select().from(claims).where(eq(claims.id, claimId)).limit(1);
@@ -223,7 +223,7 @@ export class ExecutiveOversight {
       ORDER BY ai.estimated_cost DESC
     `);
 
-    return result.rows.map((row: any) => row.id);
+    return (result as any).map((row: any) => row.id);
   }
 
   /**
