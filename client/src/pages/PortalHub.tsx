@@ -160,15 +160,24 @@ export default function PortalHub() {
             )}
             
             {/* Quick Role Setup Link for all users */}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setLocation("/role-setup")}
-              className="mt-2"
-            >
-              <UserCog className="h-4 w-4 mr-2" />
-              Configure Role
-            </Button>
+            <div className="flex gap-2 mt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/role-setup")}
+              >
+                <UserCog className="h-4 w-4 mr-2" />
+                Configure Role
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLocation("/user-diagnostic")}
+              >
+                <Database className="h-4 w-4 mr-2" />
+                Debug My Account
+              </Button>
+            </div>
           </div>
 
           {/* Portal Cards with KINGA brand styling */}

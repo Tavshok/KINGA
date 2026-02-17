@@ -7037,3 +7037,7 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Fix OAuth to read role and insurerRole from database during login
 - [ ] Ensure JWT token includes role and insurerRole from database
 - [ ] Test complete flow: set role → logout → login → verify role persists
+
+### Portal Hub UX Improvements
+- [x] Add "Debug My Account" button to Portal Hub for easy access to User Diagnostic page
+- [x] User couldn't find /user-diagnostic URL - need direct navigation button
