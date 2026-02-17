@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS workflow_states (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  claim_id INT NOT NULL,\n  tenant_id VARCHAR(255) NOT NULL,\n  current_state VARCHAR(100) NOT NULL,\n  previous_state VARCHAR(100),\n  transitioned_by INT NOT NULL,\n  transitioned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  metadata JSON,\n  INDEX idx_claim_id (claim_id),\n  INDEX idx_tenant_id (tenant_id)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS workflow_states (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  claim_id INT NOT NULL,\n  tenant_id VARCHAR(255) NOT NULL,\n  current_state VARCHAR(100) NOT NULL,\n  previous_state VARCHAR(100),\n  transitioned_by INT NOT NULL,\n  transitioned_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  metadata JSON,\n  INDEX idx_claim_id (claim_id),\n  INDEX idx_tenant_id (tenant_id)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 437
+}

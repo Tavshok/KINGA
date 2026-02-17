@@ -41,14 +41,15 @@ describe("Fast-Track Action Dispatcher", () => {
     // Wait for cleanup to complete
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    // Create test claim
+    // Create test claim in technical_approval state (ready for fast-track actions)
     const [result] = await db.insert(claims).values({
       tenantId: TEST_TENANT_ID,
       claimNumber: `DISP-TEST-${Date.now()}`,
       claimantId: 1, // Required field
       policyNumber: "TEST-POL-001", // Required field
       incidentDate: new Date(),
-      status: "submitted",
+      status: "assessment_in_progress",
+      workflowState: "technical_approval", // Ready for fast-track routing to financial_decision
       metadata: JSON.stringify({}),
     });
 

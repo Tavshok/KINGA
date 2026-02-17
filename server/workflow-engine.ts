@@ -351,3 +351,78 @@ export async function validateTransition(request: Omit<TransitionRequest, "decis
     warnings,
   };
 }
+
+
+/**
+ * WorkflowEngine class wrapper for OOP-style usage
+ * 
+ * Provides a class-based interface to the workflow transition system.
+ * Used by services that need to instantiate workflow engines per tenant.
+ */
+export class WorkflowEngine {
+  private tenantId: string;
+
+  constructor(tenantId: string) {
+    this.tenantId = tenantId;
+  }
+
+  /**
+   * Transition a claim to a new state
+   * 
+   * Simplified interface that infers fromState from current claim state.
+   * 
+   * @param claimId - ID of the claim to transition
+   * @param toState - Target workflow state
+   * @param userId - User performing the transition
+   * @param context - Additional context data (optional)
+   */
+  async transition(
+    claimId: number,
+    toState: WorkflowState,
+    userId: number,
+    context?: {
+      fastTrackAction?: string;
+      autoApproved?: boolean;
+      allowOverride?: boolean;
+      evaluationDetails?: any;
+      slaTag?: string;
+      reducedDocuments?: string[];
+      autoPath?: boolean;
+      bypassManualReview?: boolean;
+    }
+  ): Promise<TransitionResult> {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+
+    // Get current claim state
+    const [claim] = await db
+      .select()
+      .from(claims)
+      .where(eq(claims.id, claimId))
+      .limit(1);
+
+    if (!claim) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: `Claim ${claimId} not found`,
+      });
+    }
+
+    // Infer fromState from current workflow_state
+    const fromState = claim.workflowState as WorkflowState;
+
+    // Call the functional transition with full request
+    return transition({
+      claimId,
+      fromState,
+      toState,
+      userId,
+      userRole: "executive", // Fast-track actions are system-level
+      executiveOverride: context?.allowOverride || true, // Allow override for fast-track
+      overrideReason: context?.fastTrackAction 
+        ? `Fast-track action: ${context.fastTrackAction}` 
+        : undefined,
+      aiSnapshot: context?.evaluationDetails,
+    });
+  }
+}

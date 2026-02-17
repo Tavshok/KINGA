@@ -191,6 +191,9 @@ export const claims = mysqlTable("claims", {
   closedBy: int("closed_by"), // Claims Manager user ID
   closedAt: timestamp("closed_at"),
   
+  // Metadata for fast-track and workflow context
+  metadata: json("metadata"),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -5099,3 +5102,21 @@ export const governanceViolationLog = mysqlTable("governance_violation_log", {
 
 export type GovernanceViolationLog = typeof governanceViolationLog.$inferSelect;
 export type InsertGovernanceViolationLog = typeof governanceViolationLog.$inferInsert;
+
+// ============================================================================
+// Workflow States Table
+// ============================================================================
+
+export const workflowStates = mysqlTable("workflow_states", {
+  id: int("id").primaryKey().autoincrement(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  currentState: varchar("current_state", { length: 100 }).notNull(),
+  previousState: varchar("previous_state", { length: 100 }),
+  transitionedBy: int("transitioned_by").notNull(),
+  transitionedAt: timestamp("transitioned_at").notNull().defaultNow(),
+  metadata: json("metadata"),
+});
+
+export type WorkflowState = typeof workflowStates.$inferSelect;
+export type InsertWorkflowState = typeof workflowStates.$inferInsert;

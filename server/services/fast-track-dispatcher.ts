@@ -176,6 +176,7 @@ async function executeAutoApprove(
       routingLogId,
     };
   } catch (error) {
+    console.error("[FastTrackDispatcher] Action failed:", error);
     return {
       success: false,
       action: "AUTO_APPROVE",
@@ -247,6 +248,7 @@ async function executePriorityQueue(
       routingLogId,
     };
   } catch (error) {
+    console.error("[FastTrackDispatcher] Action failed:", error);
     return {
       success: false,
       action: "PRIORITY_QUEUE",
@@ -321,6 +323,7 @@ async function executeReducedDocumentation(
       routingLogId,
     };
   } catch (error) {
+    console.error("[FastTrackDispatcher] Action failed:", error);
     return {
       success: false,
       action: "REDUCED_DOCUMENTATION",
@@ -390,6 +393,7 @@ async function executeStraightToPayment(
       routingLogId,
     };
   } catch (error) {
+    console.error("[FastTrackDispatcher] Action failed:", error);
     return {
       success: false,
       action: "STRAIGHT_TO_PAYMENT",
