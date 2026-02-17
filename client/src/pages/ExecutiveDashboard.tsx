@@ -28,6 +28,15 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import { RiskRadarWidget } from "@/components/RiskRadarWidget";
+import { IntelligenceSection } from "@/components/IntelligenceSection";
+import {
+  calculateOperationalInsight,
+  calculateFinancialInsight,
+  calculateFraudInsight,
+  calculateGovernanceInsight,
+  calculateAIInsight,
+  calculateWorkflowInsight,
+} from "@/lib/insight-utils";
 import {
   exportKPIsToPDF,
   exportAlertsToPDF,
@@ -226,6 +235,14 @@ export default function ExecutiveDashboard() {
     };
   }, [kpis]);
 
+  // Calculate insights for each intelligence section
+  const operationalInsight = useMemo(() => calculateOperationalInsight(kpis), [kpis]);
+  const financialInsight = useMemo(() => calculateFinancialInsight(kpis, financials), [kpis, financials]);
+  const fraudInsight = useMemo(() => calculateFraudInsight(kpis), [kpis]);
+  const governanceInsight = useMemo(() => calculateGovernanceInsight(kpis), [kpis]);
+  const aiInsight = useMemo(() => calculateAIInsight(kpis), [kpis]);
+  const workflowInsight = useMemo(() => calculateWorkflowInsight(kpis, bottlenecks), [kpis, bottlenecks]);
+
   // Add comment mutation
   const addComment = { 
     mutateAsync: async (params: any) => { console.log('Comment:', params); }, 
@@ -321,9 +338,13 @@ export default function ExecutiveDashboard() {
       </div>
 
       <div className="max-w-[1600px] mx-auto px-8 py-8 space-y-8">
-        {/* Key Performance Indicators - 6 Large Cards */}
-        <section>
-          <h2 className="text-xl font-semibold text-slate-900 mb-6">Key Performance Indicators</h2>
+        {/* Operational Performance Intelligence Section */}
+        <IntelligenceSection
+          title="Operational Performance"
+          icon={Activity}
+          insight={operationalInsight}
+        >
+          <div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <LargeKPICard
               title="Total Claims Processed"
@@ -372,12 +393,18 @@ export default function ExecutiveDashboard() {
               color="slate"
             />
           </div>
-        </section>
+          </div>
+        </IntelligenceSection>
 
         {/* Risk Radar Widget */}
         <RiskRadarWidget kpis={kpis} />
 
-        {/* Confidence Score & Override Transparency Row */}
+        {/* Fraud & Risk Intelligence Section */}
+        <IntelligenceSection
+          title="Fraud & Risk"
+          icon={AlertTriangle}
+          insight={fraudInsight}
+        >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Confidence Score Gauge */}
           <Card className="border-0 shadow-lg">
@@ -473,8 +500,14 @@ export default function ExecutiveDashboard() {
             </CardContent>
           </Card>
         </div>
+        </IntelligenceSection>
 
-        {/* Workflow Bottleneck Chart */}
+        {/* Workflow Intelligence Section */}
+        <IntelligenceSection
+          title="Workflow Bottlenecks"
+          icon={BarChart3}
+          insight={workflowInsight}
+        >
         <Card className="border-0 shadow-lg">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -544,6 +577,7 @@ export default function ExecutiveDashboard() {
             )}
           </CardContent>
         </Card>
+        </IntelligenceSection>
 
         {/* Tabs Section (Existing Content) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">

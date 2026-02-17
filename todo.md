@@ -7282,6 +7282,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test Risk Radar widget
 
 ## Executive Dashboard Enhancement - Phase 2: Intelligence Sections
+- [x] Create IntelligenceSection component
+- [x] Create insight calculation utilities
 - [ ] Create intelligence section layout structure
 - [ ] Group Operational Performance metrics (processing time, completion rate, active claims)
 - [ ] Group Financial Performance metrics (cost savings, high-value claims, financial overview)
