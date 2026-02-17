@@ -100,14 +100,15 @@ describe("End-to-End System Integrity Test Suite", () => {
   beforeAll(async () => {
     const db = await getDb();
     
-    // Create test tenant
-    const tenantId = `tenant-${Date.now()}`;
+    // Create test tenant with unique name
+    const timestamp = Date.now();
+    const tenantId = `tenant-${timestamp}`;
     await db.insert(tenants).values({
       id: tenantId,
-      name: "E2E Test Tenant",
-      displayName: "E2E Test Tenant",
-      contactEmail: "test@e2e.test",
-      billingEmail: "billing@e2e.test",
+      name: `E2E Test Tenant ${timestamp}`,
+      displayName: `E2E Test Tenant ${timestamp}`,
+      contactEmail: `test-${timestamp}@e2e.test`,
+      billingEmail: `billing-${timestamp}@e2e.test`,
     });
     testTenantId = tenantId;
     
@@ -131,7 +132,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       await db.delete(aiAssessments).where(eq(aiAssessments.claimId, parseInt(testClaimId)));
       await db.delete(routingHistory).where(eq(routingHistory.claimId, parseInt(testClaimId)));
       await db.delete(claimInvolvementTracking).where(eq(claimInvolvementTracking.claimId, parseInt(testClaimId)));
-      await db.delete(auditTrail).where(eq(auditTrail.resourceId, testClaimId));
+      await db.delete(auditTrail).where(eq(auditTrail.claimId, parseInt(testClaimId)));
       await db.delete(claims).where(eq(claims.id, parseInt(testClaimId)));
     }
     
@@ -418,12 +419,12 @@ describe("End-to-End System Integrity Test Suite", () => {
       
       // Log routing decision in audit trail
       await db.insert(auditTrail).values({
+        claimId: parseInt(testClaimId),
         userId: testClaimProcessorId,
         action: "routing_decision",
-        resourceType: "claim",
-        resourceId: testClaimId,
-        metadata: JSON.stringify(routingDecision),
-        timestamp: new Date(),
+        entityType: "claim",
+        entityId: parseInt(testClaimId),
+        changeDescription: `Routing decision: ${routingDecision.decision} - ${routingDecision.reasoning}`,
       });
       
       const endTime = performance.now();
@@ -458,7 +459,7 @@ describe("End-to-End System Integrity Test Suite", () => {
         .from(auditTrail)
         .where(
           and(
-            eq(auditTrail.resourceId, testClaimId),
+            eq(auditTrail.claimId, parseInt(testClaimId)),
             eq(auditTrail.action, "routing_decision")
           )
         );
@@ -496,21 +497,19 @@ describe("End-to-End System Integrity Test Suite", () => {
       // Update claim status (simulating WorkflowEngine.transition())
       await db
         .update(claims)
-        .set({ status: "under_review" })
+        .set({ status: "assessment_pending" })
         .where(eq(claims.id, parseInt(testClaimId)));
       
       // Log state transition in audit trail
       await db.insert(auditTrail).values({
+        claimId: parseInt(testClaimId),
         userId: testClaimProcessorId,
         action: "workflow_transition",
-        resourceType: "claim",
-        resourceId: testClaimId,
-        metadata: JSON.stringify({
-          from: originalStatus,
-          to: "under_review",
-          via: "WorkflowEngine.transition()",
-        }),
-        timestamp: new Date(),
+        entityType: "claim",
+        entityId: parseInt(testClaimId),
+        previousValue: originalStatus,
+        newValue: "assessment_pending",
+        changeDescription: "State transition via WorkflowEngine.transition()",
       });
       
       const [claimAfter] = await db
@@ -521,7 +520,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       const endTime = performance.now();
       const timing = endTime - startTime;
       
-      const passed = claimAfter.status === "under_review";
+      const passed = claimAfter.status === "assessment_pending";
       
       addCheck(
         "Workflow Engine",
@@ -570,7 +569,7 @@ describe("End-to-End System Integrity Test Suite", () => {
         .from(auditTrail)
         .where(
           and(
-            eq(auditTrail.resourceId, testClaimId),
+            eq(auditTrail.claimId, parseInt(testClaimId)),
             eq(auditTrail.action, "workflow_transition")
           )
         );
@@ -734,7 +733,7 @@ describe("End-to-End System Integrity Test Suite", () => {
       const auditEntries = await db
         .select()
         .from(auditTrail)
-        .where(eq(auditTrail.resourceId, testClaimId));
+        .where(eq(auditTrail.claimId, testClaimId));
       
       const endTime = performance.now();
       const timing = endTime - startTime;
