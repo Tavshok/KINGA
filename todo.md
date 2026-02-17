@@ -6644,3 +6644,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add tests: aggregation accuracy (13/13 passing)
 - [ ] Verify zero TypeScript errors (223 errors unrelated to usage metering)
 - [ ] Document usage metering architecture
+
+
+## Fast-Track Analytics Dashboard Widgets
+- [ ] Create fast-track analytics service with optimized queries
+- [ ] Calculate fast-track rate (% of eligible claims)
+- [ ] Calculate auto-approval rate
+- [ ] Calculate average processing time (fast-track vs normal)
+- [ ] Calculate executive override frequency
+- [ ] Calculate risk distribution of fast-tracked claims
+- [ ] Use auditTrail + routingLog tables (avoid status field reliance)
+- [ ] Add date filtering support
+- [ ] Ensure tenant isolation in all queries
+- [ ] Build dashboard widgets for fast-track metrics
+- [ ] Add performance tests to prevent N+1 queries
+- [ ] Verify zero TypeScript errors
+- [ ] Document analytics architecture
