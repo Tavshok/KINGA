@@ -6565,3 +6565,25 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add tests: cross-tenant isolation
 - [ ] Verify zero TypeScript errors (existing errors unrelated to fast-track)
 - [ ] Document fast-track architecture
+
+
+## Fast-Track Governance Guardrails
+- [x] Create platformGovernanceLimits table for global limits
+- [x] Create governanceViolationLog table for rejected configuration attempts
+- [x] Add maxAutoApprovalLimitGlobal constraint
+- [x] Add minConfidenceAllowedGlobal constraint
+- [x] Add maxFraudToleranceGlobal constraint
+- [x] Build FastTrackConfigService.create() with validation enforcement
+- [x] Prevent auto-approve above global financial limit
+- [x] Prevent confidence threshold below allowed minimum
+- [x] Prevent fraud tolerance above allowed maximum
+- [x] Require justification (min 20 chars) for enabling AUTO_APPROVE
+- [x] Require justification (min 20 chars) for enabling STRAIGHT_TO_PAYMENT
+- [x] Log all rejected configuration attempts to governanceViolationLog
+- [x] Record actor, role, tenantId in audit log
+- [x] Add immutable audit trail for all configuration changes
+- [x] Add tests: invalid threshold attempts
+- [x] Add tests: boundary edge cases
+- [x] Add tests: role-based config restrictions (via audit logging)
+- [x] Verify zero TypeScript errors
+- [ ] Document governance guardrails architecture

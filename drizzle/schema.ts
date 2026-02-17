@@ -5012,3 +5012,90 @@ export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
 
 export type FastTrackRoutingLog = typeof fastTrackRoutingLog.$inferSelect;
 export type InsertFastTrackRoutingLog = typeof fastTrackRoutingLog.$inferInsert;
+
+
+/**
+ * Platform Governance Limits
+ * 
+ * Global platform-level constraints that prevent insurers from configuring
+ * unsafe fast-track automation rules.
+ * 
+ * These limits are set by the platform operator and cannot be exceeded by
+ * any tenant configuration.
+ */
+export const platformGovernanceLimits = mysqlTable("platform_governance_limits", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Global financial limits
+  maxAutoApprovalLimitGlobal: int("max_auto_approval_limit_global").notNull(), // In cents
+  
+  // Global confidence limits
+  minConfidenceAllowedGlobal: decimal("min_confidence_allowed_global", { precision: 5, scale: 2 }).notNull(), // 0-100
+  
+  // Global fraud tolerance limits
+  maxFraudToleranceGlobal: decimal("max_fraud_tolerance_global", { precision: 5, scale: 2 }).notNull(), // 0-100
+  
+  // Version tracking
+  version: int("version").notNull(),
+  effectiveFrom: timestamp("effective_from").notNull(),
+  
+  // Audit trail
+  createdBy: int("created_by").notNull(), // User ID who created this limit
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  notes: text("notes"), // Explanation for limit changes
+}, (table) => ({
+  versionIdx: index("idx_gov_limits_version").on(table.version),
+  effectiveFromIdx: index("idx_gov_limits_effective").on(table.effectiveFrom),
+}));
+
+export type PlatformGovernanceLimits = typeof platformGovernanceLimits.$inferSelect;
+export type InsertPlatformGovernanceLimits = typeof platformGovernanceLimits.$inferInsert;
+
+/**
+ * Governance Violation Log
+ * 
+ * Immutable audit trail of all rejected fast-track configuration attempts
+ * that violated platform governance limits.
+ * 
+ * Logs every violation with full context for compliance and security monitoring.
+ */
+export const governanceViolationLog = mysqlTable("governance_violation_log", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Actor information
+  userId: int("user_id").notNull(), // User who attempted the configuration
+  userRole: varchar("user_role", { length: 50 }).notNull(),
+  
+  // Violation details
+  violationType: mysqlEnum("violation_type", [
+    "EXCEEDS_AUTO_APPROVAL_LIMIT",
+    "BELOW_MIN_CONFIDENCE",
+    "EXCEEDS_MAX_FRAUD_TOLERANCE",
+    "MISSING_JUSTIFICATION",
+    "INSUFFICIENT_JUSTIFICATION"
+  ]).notNull(),
+  
+  // Attempted configuration
+  attemptedConfig: text("attempted_config").notNull(), // JSON snapshot of attempted config
+  
+  // Governance limits at time of violation
+  governanceLimitsVersion: int("governance_limits_version").notNull(),
+  governanceLimitsSnapshot: text("governance_limits_snapshot").notNull(), // JSON snapshot
+  
+  // Violation reason
+  reason: text("reason").notNull(), // Human-readable explanation
+  
+  // Immutable timestamp
+  violatedAt: timestamp("violated_at").defaultNow().notNull(),
+}, (table) => ({
+  tenantIdIdx: index("idx_gov_violation_tenant").on(table.tenantId),
+  userIdIdx: index("idx_gov_violation_user").on(table.userId),
+  violationTypeIdx: index("idx_gov_violation_type").on(table.violationType),
+  violatedAtIdx: index("idx_gov_violation_at").on(table.violatedAt),
+  // Composite index for tenant violation history
+  tenantViolationIdx: index("idx_gov_violation_tenant_time").on(table.tenantId, table.violatedAt),
+}));
+
+export type GovernanceViolationLog = typeof governanceViolationLog.$inferSelect;
+export type InsertGovernanceViolationLog = typeof governanceViolationLog.$inferInsert;
