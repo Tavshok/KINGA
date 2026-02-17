@@ -14,6 +14,8 @@ import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
 import { tenantRouter } from "./routers/tenant";
 import { analyticsRouter } from "./routers/analytics";
+import { simulationRouter } from "./routers/simulation";
+import { workflowAuditRouter } from "./routers/workflow-audit";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -84,6 +86,8 @@ export const appRouter = router({
   system: systemRouter,
   tenant: tenantRouter,
   analytics: analyticsRouter,
+  simulation: simulationRouter,
+  workflowAudit: workflowAuditRouter,
   monetization: monetizationRouter,
   operationalHealth: operationalHealthRouter,
   platformObservability: platformObservabilityRouter,
