@@ -235,6 +235,45 @@ export const appRouter = router({
      * @param approvalCode - Required for privilege elevation (optional)
      * @returns Success status and new role
      */
+    /**
+     * Set Insurer Role (Quick Setup)
+     * 
+     * Allows any authenticated user to set their role to 'insurer' with a specific insurerRole.
+     * This is a convenience endpoint for development/testing to quickly configure user roles.
+     * 
+     * @param insurerRole - The insurer role to assign
+     * @returns Success status and new roles
+     */
+    setInsurerRole: protectedProcedure
+      .input(z.object({
+        insurerRole: z.enum(["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+        
+        // Import users table
+        const { users } = await import("../drizzle/schema");
+        const { eq } = await import("drizzle-orm");
+        
+        // Update current user's role and insurerRole
+        await db
+          .update(users)
+          .set({
+            role: "insurer",
+            insurerRole: input.insurerRole,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, ctx.user.id));
+        
+        return {
+          success: true,
+          role: "insurer" as const,
+          insurerRole: input.insurerRole,
+          message: "Role updated successfully. Please refresh the page to apply changes.",
+        };
+      }),
+    
     switchRole: protectedProcedure
       .input(z.object({
         role: z.enum(["insurer", "assessor", "panel_beater", "claimant", "admin"]),

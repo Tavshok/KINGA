@@ -6977,4 +6977,14 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [ ] Test immutability enforcement (UPDATE should fail)
   - [ ] Validate multiple routing versions per claim
 - [x] Run E2E test suite and verify all 16 tests pass (100% pass rate)
-- [ ] Create checkpoint with refactored routing_history schema
+- [x] Create checkpoint with refactored routing_history schema
+
+## Bug Fixes
+
+### Claims Processor Dashboard - Failed to Load Claims Issue
+- [x] Diagnosed root cause: User missing role="insurer" AND insurerRole configuration
+- [x] Created auth.setInsurerRole endpoint for quick role configuration
+- [x] Created /role-setup page with UI for setting insurer roles
+- [x] Added route to App.tsx for role setup access
+- [ ] Test role setup flow end-to-end
+- [ ] Update Portal Hub to include link to role setup page

@@ -94,6 +94,7 @@ const PaymentVerification = lazy(() => import("./pages/PaymentVerification"));
 const InsuranceDashboard = lazy(() => import("./pages/InsuranceDashboard"));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue"));
 const AnalyticsHub = lazy(() => import("./pages/analytics/AnalyticsHub"));
+const RoleSetup = lazy(() => import("./pages/RoleSetup"));
 
 function Router() {
   return (
@@ -155,6 +156,13 @@ function Router() {
         <Route path="/simple-upload">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <SimpleUpload />
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Role Setup - Quick Configuration */}
+        <Route path="/role-setup">
+          <ProtectedRoute allowedRoles={["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]}>
+            <RoleSetup />
           </ProtectedRoute>
         </Route>
         
