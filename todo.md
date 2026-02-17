@@ -6955,3 +6955,26 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Run full E2E test suite (12/16 tests passing - 75% pass rate)
 - [x] Generate complete integrity report with timing and PASS/FAIL status
 - [ ] Create checkpoint with E2E test results
+
+
+## Routing History Schema Refactor (UUID + Immutability)
+- [x] Design new routing_history schema with UUID primary key (already uses UUID)
+- [x] Add routingVersion integer field for per-claim versioning
+- [x] Add thresholdSnapshot JSON field for threshold configuration storage
+- [x] Remove auto-increment id field (already uses UUID)
+- [x] Update Drizzle schema definition in drizzle/schema.ts
+- [x] Create migration script to:
+  - [x] Preserve existing routing records
+  - [x] Add routingVersion column (defaults to 1 for existing records)
+  - [x] Add thresholdSnapshot column (empty JSON for existing records)
+- [ ] Add database trigger/constraint to prevent UPDATE operations (immutability)
+- [ ] Update platform-observability.ts to use UUID instead of id
+- [ ] Update fast-track-analytics.ts to use UUID instead of id
+- [x] Update E2E tests to:
+  - [x] Generate UUIDs for routing records
+  - [x] Validate routingVersion and thresholdSnapshot fields
+  - [x] Remove auto-increment id assumptions
+  - [ ] Test immutability enforcement (UPDATE should fail)
+  - [ ] Validate multiple routing versions per claim
+- [x] Run E2E test suite and verify all 16 tests pass (100% pass rate)
+- [ ] Create checkpoint with refactored routing_history schema

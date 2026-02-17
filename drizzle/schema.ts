@@ -4823,6 +4823,13 @@ export const routingHistory = mysqlTable("routing_history", {
     "MANUAL_OVERRIDE"       // Manual override by authorized user
   ]).notNull(),
   
+  // Routing version per claim (incremental counter for each claim's routing history)
+  routingVersion: int("routing_version").notNull(),
+  
+  // Threshold snapshot at time of routing (JSON object with exact threshold values used)
+  // Example: { highThreshold: 85, mediumThreshold: 60, fastTrackEnabled: true, overrideAllowed: true }
+  thresholdSnapshot: text("threshold_snapshot").notNull(),
+  
   // Configuration version tracking
   thresholdConfigVersion: varchar("threshold_config_version", { length: 50 }).notNull(),
   modelVersion: varchar("model_version", { length: 50 }).notNull(),

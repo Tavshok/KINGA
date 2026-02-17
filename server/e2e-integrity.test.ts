@@ -33,7 +33,7 @@ let testTenantId: string;
 let testClaimProcessorId: number;
 let testClaimId: string;
 let testAIAssessmentId: number;
-let testRoutingId: number;
+let testRoutingId: string;
 
 // Integrity report
 interface IntegrityReport {
@@ -407,15 +407,43 @@ describe("End-to-End System Integrity Test Suite", () => {
         decision: "manual_review",
       };
       
-      // Store routing decision
-      const [routing] = await db.insert(routingHistory).values({
+      // Store routing decision with UUID and new schema fields
+      const routingUUID = `routing_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      await db.insert(routingHistory).values({
+        id: routingUUID,
         claimId: parseInt(testClaimId),
-        decision: routingDecision.decision,
-        reason: routingDecision.reasoning,
-        confidence: routingDecision.threshold,
+        tenantId: testTenantId,
+        confidenceScore: routingDecision.threshold.toString(),
+        confidenceComponents: JSON.stringify({
+          fraudRisk: 70,
+          aiCertainty: 85,
+          quoteVariance: 60,
+          claimCompleteness: 90,
+          historicalRisk: 75,
+        }),
+        routingCategory: routingDecision.category,
+        routingDecision: "INTERNAL_REVIEW",
+        routingVersion: 1,
+        thresholdSnapshot: JSON.stringify({
+          highThreshold: 85,
+          mediumThreshold: 60,
+          fastTrackEnabled: true,
+        }),
+        thresholdConfigVersion: "v1.0",
+        modelVersion: "v1.0",
+        decidedBy: "AI",
+        decidedByUserId: null,
+        justification: null,
+        explainabilityMetadata: JSON.stringify({
+          fraudRiskWeight: 0.3,
+          aiCertaintyWeight: 0.25,
+          varianceWeight: 0.2,
+          completenessWeight: 0.15,
+          historicalRiskWeight: 0.1,
+        }),
         timestamp: new Date(),
       });
-      testRoutingId = routing.insertId;
+      testRoutingId = routingUUID;
       
       // Log routing decision in audit trail
       await db.insert(auditTrail).values({
@@ -431,12 +459,13 @@ describe("End-to-End System Integrity Test Suite", () => {
       const timing = endTime - startTime;
       
       // Verify routing stored
-      const [storedRouting] = await db
+      const storedRoutings = await db
         .select()
         .from(routingHistory)
         .where(eq(routingHistory.id, testRoutingId));
+      const storedRouting = storedRoutings[0];
       
-      const passed = storedRouting && storedRouting.decision === routingDecision.decision;
+      const passed = storedRouting && storedRouting.routingDecision === "INTERNAL_REVIEW";
       
       addCheck(
         "Routing Engine",
@@ -447,7 +476,8 @@ describe("End-to-End System Integrity Test Suite", () => {
       );
       
       expect(passed).toBe(true);
-      expect(storedRouting.reason).toBe(routingDecision.reasoning);
+      expect(storedRouting.routingVersion).toBe(1);
+      expect(storedRouting.thresholdSnapshot).toBeTruthy();
     });
     
     it("should log routing decision in audit trail", async () => {
@@ -705,21 +735,22 @@ describe("End-to-End System Integrity Test Suite", () => {
       const startTime = performance.now();
       const db = await getDb();
       
-      const [routing] = await db
+      const routings = await db
         .select()
         .from(routingHistory)
         .where(eq(routingHistory.id, testRoutingId));
+      const routing = routings[0];
       
       const endTime = performance.now();
       const timing = endTime - startTime;
       
-      const passed = routing && routing.decision !== null;
+      const passed = routing && routing.routingDecision !== null;
       
       addCheck(
         "Data Persistence",
         "Persist routing decision",
         passed,
-        passed ? `Routing: ${routing.decision}` : "Routing decision lost",
+        passed ? `Routing: ${routing.routingDecision}` : "Routing decision lost",
         timing
       );
       
