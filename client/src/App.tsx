@@ -44,6 +44,7 @@ const ClaimsManagerDashboard = lazy(() => import("./pages/ClaimsManagerDashboard
 const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComparisonView"));
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
+const OperationalHealthDashboard = lazy(() => import("./pages/OperationalHealthDashboard"));
 
 // Assessor pages
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
@@ -112,6 +113,13 @@ function Router() {
         <Route path="/admin/monetization">
           <ProtectedRoute allowedRoles={["admin"]}>
             <MonetizationDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Operational Health Dashboard (Super-Admin Only) */}
+        <Route path="/admin/operational-health">
+          <ProtectedRoute allowedRoles={["admin"]}>
+            <OperationalHealthDashboard />
           </ProtectedRoute>
         </Route>
         {/* Assessment Results */}

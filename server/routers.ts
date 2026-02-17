@@ -74,6 +74,7 @@ import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
 import { reviewQueueRouter } from "./routers/review-queue";
 import { monetizationRouter } from "./routers/monetization";
+import { operationalHealthRouter } from "./routers/operational-health";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -82,6 +83,7 @@ export const appRouter = router({
   tenant: tenantRouter,
   analytics: analyticsRouter,
   monetization: monetizationRouter,
+  operationalHealth: operationalHealthRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
   workflow: workflowRouter,

@@ -6833,3 +6833,34 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test super-admin access control (ProtectedRoute with admin role)
 - [x] Test metrics aggregation accuracy (server running, endpoints ready)
 - [ ] Create checkpoint with monetization dashboard
+
+
+## Operational Readiness Dashboard (Super-Admin)
+- [x] Design operational health metrics service architecture
+- [x] Define health scoring algorithm (0-100) and traffic-light thresholds
+- [x] Implement Governance Health monitoring:
+  - [x] Calculate % of transitions via WorkflowEngine
+  - [x] Track segregation violation attempts
+  - [x] Measure audit logging coverage
+- [x] Implement Data Integrity monitoring:
+  - [x] Detect claims missing required documents
+  - [x] Identify incomplete workflow states
+  - [x] Find orphaned records (claims without assessments, quotes without claims, etc.)
+- [x] Implement Performance monitoring:
+  - [x] Measure average dashboard load time
+  - [x] Calculate average claim processing time
+  - [x] Track rows scanned per dashboard request
+- [x] Implement AI Stability monitoring:
+  - [x] Calculate average confidence score
+  - [x] Track escalation rate (AI → human)
+  - [x] Analyze AI vs Assessor variance distribution
+- [x] Create health scoring algorithm with weighted components
+- [x] Implement traffic-light system (Green: 80-100, Amber: 50-79, Red: 0-49)
+- [x] Create tRPC procedures with super-admin access control
+- [x] Build operational readiness dashboard UI
+- [x] Add health index gauge visualization
+- [x] Add traffic-light indicators for each category
+- [x] Add drill-down details for each metric
+- [x] Create route for operational dashboard (/admin/operational-health)
+- [x] Test health calculations (server running, endpoints ready)
+- [ ] Create checkpoint with operational readiness dashboard
