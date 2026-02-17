@@ -7055,3 +7055,60 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Claims Processor: Add bulk claim upload (CSV/Excel)
 - [x] Executive Dashboard Analytics: Chart code verified and server restarted
 - [ ] Test complete workflow: create claim → process → assess → assign → download reports
+
+### RBAC Diagnostic Audit (Read-Only)
+- [ ] Map all dashboard routes in App.tsx and their role requirements
+- [ ] Audit all tRPC procedures in server/routers.ts and role-based middleware
+- [ ] Map claims_processor role: routes, procedures, states, actions
+- [ ] Map assessor_internal role: routes, procedures, states, actions
+- [ ] Map assessor_external role: routes, procedures, states, actions
+- [ ] Map risk_manager role: routes, procedures, states, actions
+- [ ] Map claims_manager role: routes, procedures, states, actions
+- [ ] Map executive role: routes, procedures, states, actions
+- [ ] Trace Executive Dashboard analytics drill-down procedures
+- [ ] Verify governance-safe wrappers and tenant filtering
+- [ ] Identify missing permissions and misaligned mappings
+- [ ] Identify legacy endpoints and deleted field references
+- [ ] Generate structured diagnostic report
+
+
+## RBAC Diagnostic Audit (Completed)
+- [x] Map all dashboard routes and their role requirements
+- [x] Audit all API procedures and their RBAC controls
+- [x] Trace Executive Dashboard analytics procedures
+- [x] Identify missing permissions and misaligned mappings
+- [x] Generate structured diagnostic report (RBAC_DIAGNOSTIC_REPORT.md)
+
+### Key Findings:
+- ❌ No frontend route guards implemented
+- ❌ Analytics router lacks role validation
+- ⚠️ Most routers only check authentication, not specific roles
+- ✅ Workflow state access control properly implemented
+- ✅ Tenant isolation consistently applied
+
+### Recommendations:
+1. Implement frontend route guards (1-2 hours)
+2. Add role validation to analytics router (2-3 hours)
+3. Create governance wrapper pattern (1 hour)
+4. Apply governance wrapper to sensitive procedures (3-4 hours)
+5. Add audit logging (2-3 hours)
+
+
+## Role-Based Route Guards Implementation
+- [x] Create access_denial_log table in database schema for audit logging
+- [x] Create RoleGuard component with allowedRoles validation
+- [x] Implement audit logging for access denials (audit.logAccessDenial procedure)
+- [x] Create /unauthorized page for role mismatch redirects
+- [x] Apply RoleGuard to Claims Processor routes (/insurer-portal/claims-processor)
+- [x] Apply RoleGuard to Executive routes (/insurer-portal/executive)
+- [x] Apply RoleGuard to Risk Manager routes (/insurer-portal/risk-manager)
+- [x] Apply RoleGuard to Claims Manager routes (/insurer-portal/claims-manager)
+- [x] Apply RoleGuard to Internal Assessor routes (/insurer-portal/internal-assessor)
+- [x] Apply RoleGuard to Claims Manager Comparison routes (/claims-manager/comparison/:id)
+- [ ] Apply RoleGuard to Assessor routes (/insurer-portal/assessor)
+- [ ] Apply RoleGuard to Config/Admin routes (/insurer-portal/config)
+- [x] Remove optional tenantId parameters from analytics procedures
+- [x] Update all analytics procedures to use ctx.user.tenantId (enforced with tenant filtering on all queries)
+- [ ] Test route guards with different roles
+- [ ] Verify audit logging is working
+- [ ] Create checkpoint with route guards implementation

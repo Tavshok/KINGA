@@ -6,6 +6,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { OnboardingManager } from "./components/OnboardingManager";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { RoleGuard } from "./components/RoleGuard";
 
 // Loading fallback component
 function PageLoader() {
@@ -190,37 +191,49 @@ function Router() {
         {/* Insurer Sub-Role Dashboards */}
         <Route path="/insurer-portal/executive">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <ExecutiveDashboard />
+            <RoleGuard allowedRoles={["executive"]}>
+              <ExecutiveDashboard />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/insurer-portal/claims-processor">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <ClaimsProcessorDashboard />
+            <RoleGuard allowedRoles={["claims_processor"]}>
+              <ClaimsProcessorDashboard />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/insurer-portal/internal-assessor">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InternalAssessorDashboard />
+            <RoleGuard allowedRoles={["assessor_internal"]}>
+              <InternalAssessorDashboard />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/insurer-portal/risk-manager">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <RiskManagerDashboard />
+            <RoleGuard allowedRoles={["risk_manager"]}>
+              <RiskManagerDashboard />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/insurer-portal/claims-manager">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <ClaimsManagerDashboard />
+            <RoleGuard allowedRoles={["claims_manager"]}>
+              <ClaimsManagerDashboard />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         
         <Route path="/claims-manager/comparison/:id">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <ClaimsManagerComparisonView />
+            <RoleGuard allowedRoles={["claims_manager"]}>
+              <ClaimsManagerComparisonView />
+            </RoleGuard>
           </ProtectedRoute>
         </Route>
         

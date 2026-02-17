@@ -1,12 +1,33 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ShieldAlert } from "lucide-react";
+import { ShieldAlert, Home, Settings } from "lucide-react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 export default function Unauthorized() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
   const { user, logout } = useAuth();
+
+  // Extract denial reason from URL params
+  const params = new URLSearchParams(location.split('?')[1] || '');
+  const reason = params.get('reason') || 'insufficient_permissions';
+
+  const reasonMessages: Record<string, { title: string; description: string }> = {
+    no_tenant: {
+      title: "No Tenant Assigned",
+      description: "Your account is not associated with any insurer tenant. Please contact your administrator.",
+    },
+    no_role: {
+      title: "Role Not Configured",
+      description: "Your insurer role has not been set. Please configure your role to continue.",
+    },
+    insufficient_permissions: {
+      title: "Insufficient Permissions",
+      description: "Your current role does not have permission to access this resource.",
+    },
+  };
+
+  const message = reasonMessages[reason] || reasonMessages.insufficient_permissions;
 
   const handleGoToDashboard = () => {
     if (!user) {
@@ -43,25 +64,40 @@ export default function Unauthorized() {
           </div>
           <CardTitle className="text-2xl font-bold">Access Denied</CardTitle>
           <CardDescription>
-            You don't have permission to access this page.
+            {message.title}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="text-sm text-center text-muted-foreground space-y-2">
-            <p>This page is restricted to specific user roles.</p>
+            <p>{message.description}</p>
             {user && (
               <p className="font-medium">
-                Your current role: <span className="text-foreground capitalize">{user.role.replace('_', ' ')}</span>
+                Your current role: <span className="text-foreground capitalize">{user.role?.replace('_', ' ') || 'Not set'}</span>
+                {user.insurerRole && (
+                  <> ({user.insurerRole.replace('_', ' ')})</>
+                )}
               </p>
             )}
           </div>
           
           <div className="flex flex-col gap-2">
+            {reason === 'no_role' && (
+              <Button 
+                className="w-full" 
+                onClick={() => setLocation('/role-setup')}
+              >
+                <Settings className="w-4 h-4 mr-2" />
+                Configure Role
+              </Button>
+            )}
+            
             <Button 
               className="w-full" 
-              onClick={handleGoToDashboard}
+              variant={reason === 'no_role' ? 'outline' : 'default'}
+              onClick={() => setLocation('/portal-hub')}
             >
-              Go to My Dashboard
+              <Home className="w-4 h-4 mr-2" />
+              Return to Portal Hub
             </Button>
             
             <Button 
@@ -71,6 +107,12 @@ export default function Unauthorized() {
             >
               Sign Out
             </Button>
+          </div>
+          
+          <div className="pt-4 border-t">
+            <p className="text-xs text-gray-500 text-center">
+              This access attempt has been logged for security purposes.
+            </p>
           </div>
         </CardContent>
       </Card>

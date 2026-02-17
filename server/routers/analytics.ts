@@ -26,11 +26,18 @@ export const analyticsRouter = router({
    */
   getKPIs: protectedProcedure
     .input(z.object({
-      tenantId: z.string().optional(),
       startDate: z.date().optional(),
       endDate: z.date().optional()
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      // Enforce tenant isolation - always use authenticated user's tenantId
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ 
+          code: 'FORBIDDEN', 
+          message: 'User must be associated with a tenant to access analytics' 
+        });
+      }
+      const tenantId = ctx.user.tenantId;
       const db = await getDb();
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -40,16 +47,20 @@ export const analyticsRouter = router({
       const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      // Get claims processed this month
+      // Get claims processed this month (tenant-filtered)
       const thisMonthClaims = await db
         .select({ count: count() })
         .from(claims)
-        .where(gte(claims.createdAt, startOfMonth));
+        .where(and(
+          eq(claims.tenantId, tenantId),
+          gte(claims.createdAt, startOfMonth)
+        ));
 
       const lastMonthClaims = await db
         .select({ count: count() })
         .from(claims)
         .where(and(
+          eq(claims.tenantId, tenantId),
           gte(claims.createdAt, startOfLastMonth),
           lte(claims.createdAt, endOfLastMonth)
         ));
@@ -60,7 +71,7 @@ export const analyticsRouter = router({
         ? ((claimsThisMonth - claimsLastMonth) / claimsLastMonth) * 100 
         : 0;
 
-      // Get average processing time
+      // Get average processing time (tenant-filtered)
       const completedClaims = await db
         .select({
           createdAt: claims.createdAt,
@@ -68,6 +79,7 @@ export const analyticsRouter = router({
         })
         .from(claims)
         .where(and(
+          eq(claims.tenantId, tenantId),
           eq(claims.status, 'completed'),
           gte(claims.createdAt, startOfMonth)
         ));
@@ -79,7 +91,7 @@ export const analyticsRouter = router({
           }, 0) / completedClaims.length
         : 0;
 
-      // Get last month's avg processing time for comparison
+      // Get last month's avg processing time for comparison (tenant-filtered)
       const lastMonthCompletedClaims = await db
         .select({
           createdAt: claims.createdAt,
@@ -87,6 +99,7 @@ export const analyticsRouter = router({
         })
         .from(claims)
         .where(and(
+          eq(claims.tenantId, tenantId),
           eq(claims.status, 'completed'),
           gte(claims.createdAt, startOfLastMonth),
           lte(claims.createdAt, endOfLastMonth)
@@ -110,6 +123,7 @@ export const analyticsRouter = router({
         .select({ count: count() })
         .from(aiAssessments)
         .where(and(
+          eq(aiAssessments.tenantId, tenantId),
           gte(aiAssessments.createdAt, startOfMonth),
           sql`${aiAssessments.fraudRiskLevel} = 'high'`
         ));
@@ -117,7 +131,10 @@ export const analyticsRouter = router({
       const totalAssessments = await db
         .select({ count: count() })
         .from(aiAssessments)
-        .where(gte(aiAssessments.createdAt, startOfMonth));
+        .where(and(
+          eq(aiAssessments.tenantId, tenantId),
+          gte(aiAssessments.createdAt, startOfMonth)
+        ));
 
       const fraudCount = fraudFlagged[0]?.count || 0;
       const totalCount = totalAssessments[0]?.count || 0;
@@ -130,6 +147,7 @@ export const analyticsRouter = router({
         .select({ count: count() })
         .from(aiAssessments)
         .where(and(
+          eq(aiAssessments.tenantId, tenantId),
           gte(aiAssessments.createdAt, startOfLastMonth),
           lte(aiAssessments.createdAt, endOfLastMonth),
           sql`${aiAssessments.fraudRiskLevel} = 'high'`
@@ -139,6 +157,7 @@ export const analyticsRouter = router({
         .select({ count: count() })
         .from(aiAssessments)
         .where(and(
+          eq(aiAssessments.tenantId, tenantId),
           gte(aiAssessments.createdAt, startOfLastMonth),
           lte(aiAssessments.createdAt, endOfLastMonth)
         ));
@@ -199,11 +218,18 @@ export const analyticsRouter = router({
    */
   getClaimsByComplexity: protectedProcedure
     .input(z.object({
-      tenantId: z.string().optional(),
       startDate: z.date().optional(),
       endDate: z.date().optional()
     }))
-    .query(async ({ input }) => {
+    .query(async ({ input, ctx }) => {
+      // Enforce tenant isolation
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ 
+          code: 'FORBIDDEN', 
+          message: 'User must be associated with a tenant to access analytics' 
+        });
+      }
+      const tenantId = ctx.user.tenantId;
       const db = await getDb();
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -216,7 +242,10 @@ export const analyticsRouter = router({
           count: count()
         })
         .from(claims)
-        .where(gte(claims.createdAt, startOfMonth))
+        .where(and(
+          eq(claims.tenantId, tenantId),
+          gte(claims.createdAt, startOfMonth)
+        ))
         .groupBy(claims.complexity_score);
 
       const result = {
@@ -239,10 +268,16 @@ export const analyticsRouter = router({
    * Get SLA compliance metrics by complexity level
    */
   getSLACompliance: protectedProcedure
-    .input(z.object({
-      tenantId: z.string().optional()
-    }))
-    .query(async ({ input }) => {
+    .input(z.object({}))
+    .query(async ({ ctx }) => {
+      // Enforce tenant isolation
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ 
+          code: 'FORBIDDEN', 
+          message: 'User must be associated with a tenant to access analytics' 
+        });
+      }
+      const tenantId = ctx.user.tenantId;
       const db = await getDb();
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -265,6 +300,7 @@ export const analyticsRouter = router({
         })
         .from(claims)
         .where(and(
+          eq(claims.tenantId, tenantId),
           eq(claims.status, 'completed'),
           gte(claims.createdAt, startOfMonth)
         ));
@@ -333,10 +369,16 @@ export const analyticsRouter = router({
    * Get detailed fraud detection metrics
    */
   getFraudMetrics: protectedProcedure
-    .input(z.object({
-      tenantId: z.string().optional()
-    }))
-    .query(async ({ input }) => {
+    .input(z.object({}))
+    .query(async ({ ctx }) => {
+      // Enforce tenant isolation
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ 
+          code: 'FORBIDDEN', 
+          message: 'User must be associated with a tenant to access analytics' 
+        });
+      }
+      const tenantId = ctx.user.tenantId;
       const db = await getDb();
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -351,7 +393,10 @@ export const analyticsRouter = router({
           estimatedCost: aiAssessments.estimatedCost
         })
         .from(aiAssessments)
-        .where(gte(aiAssessments.createdAt, startOfMonth));
+        .where(and(
+          eq(aiAssessments.tenantId, tenantId),
+          gte(aiAssessments.createdAt, startOfMonth)
+        ));
 
       const flagged = fraudAssessments.filter(a => a.fraudRiskLevel === 'medium' || a.fraudRiskLevel === 'high').length;
       const confirmed = fraudAssessments.filter(a => a.fraudRiskLevel === 'high').length;
@@ -401,10 +446,16 @@ export const analyticsRouter = router({
    * Get detailed cost savings breakdown
    */
   getCostSavings: protectedProcedure
-    .input(z.object({
-      tenantId: z.string().optional()
-    }))
-    .query(async ({ input }) => {
+    .input(z.object({}))
+    .query(async ({ ctx }) => {
+      // Enforce tenant isolation
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ 
+          code: 'FORBIDDEN', 
+          message: 'User must be associated with a tenant to access analytics' 
+        });
+      }
+      const tenantId = ctx.user.tenantId;
       const db = await getDb();
       const now = new Date();
       const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -415,15 +466,21 @@ export const analyticsRouter = router({
       const claimsCount = await db
         .select({ count: count() })
         .from(claims)
-        .where(gte(claims.createdAt, startOfMonth));
+        .where(and(
+          eq(claims.tenantId, tenantId),
+          gte(claims.createdAt, startOfMonth)
+        ));
 
       const totalClaims = claimsCount[0]?.count || 0;
 
-      // Get fraud prevention savings
+      // Get fraud prevention savings (tenant-filtered)
       const fraudAssessments = await db
         .select({ fraudRiskLevel: aiAssessments.fraudRiskLevel })
         .from(aiAssessments)
-        .where(gte(aiAssessments.createdAt, startOfMonth));
+        .where(and(
+          eq(aiAssessments.tenantId, tenantId),
+          gte(aiAssessments.createdAt, startOfMonth)
+        ));
 
       const confirmedFraud = fraudAssessments.filter(a => a.fraudRiskLevel === 'high').length;
       const fraudSavings = confirmedFraud * 25000; // $25,000 per fraud case

@@ -5161,3 +5161,23 @@ export const usageEvents = mysqlTable("usage_events", {
 
 export type UsageEvent = typeof usageEvents.$inferSelect;
 export type InsertUsageEvent = typeof usageEvents.$inferInsert;
+
+/**
+ * Access Denial Log - Audit trail for role-based access control denials
+ * Logs all attempts to access routes or procedures without proper permissions
+ */
+export const accessDenialLog = mysqlTable("access_denial_log", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id"), // User who attempted access
+  attemptedRoute: varchar("attempted_route", { length: 500 }), // Route or procedure attempted
+  userRole: varchar("user_role", { length: 100 }), // User's role at time of attempt
+  insurerRole: varchar("insurer_role", { length: 100 }), // User's insurerRole at time of attempt
+  tenantId: varchar("tenant_id", { length: 255 }), // User's tenantId at time of attempt
+  denialReason: text("denial_reason"), // Reason for denial
+  ipAddress: varchar("ip_address", { length: 45 }), // IP address of request
+  userAgent: text("user_agent"), // Browser user agent
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type AccessDenialLog = typeof accessDenialLog.$inferSelect;
+export type InsertAccessDenialLog = typeof accessDenialLog.$inferInsert;
