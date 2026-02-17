@@ -6995,3 +6995,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify all analytics queries are working correctly
 - [x] Test Analytics tab with real tenant data
 - [x] Ensure all charts render without errors
+
+### Role Setup Accessibility
+- [x] Add prominent "Configure Role" button to Portal Hub
+- [x] Add warning card for users without insurerRole configured
+- [x] Test complete role setup flow from Portal Hub
+- [x] Verify Claims Processor Dashboard loads after role configuration
+- [x] Verify Executive Dashboard Analytics tab works after role configuration

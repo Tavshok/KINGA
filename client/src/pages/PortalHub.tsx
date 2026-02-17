@@ -12,7 +12,8 @@ import {
   LogOut,
   Database,
   Truck,
-  TrendingUp
+  TrendingUp,
+  UserCog
 } from "lucide-react";
 import { useLocation } from "wouter";
 
@@ -128,9 +129,46 @@ export default function PortalHub() {
             <h2 className="text-4xl font-bold bg-gradient-primary bg-clip-text text-transparent mb-3">
               Welcome back, {user?.name}!
             </h2>
-            <p className="text-lg text-secondary/70">
+            <p className="text-lg text-secondary/70 mb-4">
               Select a portal to continue your work
             </p>
+            
+            {/* Role Configuration Notice */}
+            {user && user.role === "insurer" && !user.insurerRole && (
+              <div className="max-w-2xl mx-auto mb-6">
+                <Card className="border-amber-200 bg-amber-50">
+                  <CardContent className="pt-6">
+                    <div className="flex items-start gap-4">
+                      <UserCog className="h-6 w-6 text-amber-600 flex-shrink-0 mt-1" />
+                      <div className="flex-1 text-left">
+                        <h3 className="font-semibold text-amber-900 mb-2">Role Configuration Required</h3>
+                        <p className="text-sm text-amber-800 mb-4">
+                          To access insurer dashboards, you need to configure your specific role (Claims Processor, Executive, etc.)
+                        </p>
+                        <Button
+                          onClick={() => setLocation("/role-setup")}
+                          className="bg-amber-600 hover:bg-amber-700"
+                        >
+                          <UserCog className="h-4 w-4 mr-2" />
+                          Configure My Role
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
+            {/* Quick Role Setup Link for all users */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setLocation("/role-setup")}
+              className="mt-2"
+            >
+              <UserCog className="h-4 w-4 mr-2" />
+              Configure Role
+            </Button>
           </div>
 
           {/* Portal Cards with KINGA brand styling */}
