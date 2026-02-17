@@ -28,6 +28,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import { RiskRadarWidget } from "@/components/RiskRadarWidget";
+import { ClaimDrillDownModal } from "@/components/ClaimDrillDownModal";
 import { IntelligenceSection } from "@/components/IntelligenceSection";
 import {
   calculateOperationalInsight,
@@ -170,6 +171,9 @@ export default function ExecutiveDashboard() {
   // Comment & Review Request state
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [showCommentDialog, setShowCommentDialog] = useState(false);
+  const [drillDownOpen, setDrillDownOpen] = useState(false);
+  const [drillDownFilter, setDrillDownFilter] = useState<"all" | "high_fraud" | "overridden">("all");
+  const [drillDownTitle, setDrillDownTitle] = useState("");
   const [showReviewDialog, setShowReviewDialog] = useState(false);
   const [commentContent, setCommentContent] = useState("");
   const [commentType, setCommentType] = useState("general");
@@ -346,6 +350,11 @@ export default function ExecutiveDashboard() {
         >
           <div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div onClick={() => {
+              setDrillDownFilter("all");
+              setDrillDownTitle("All Claims - Last 30 Days");
+              setDrillDownOpen(true);
+            }} className="cursor-pointer hover:opacity-90 transition-opacity">
             <LargeKPICard
               title="Total Claims Processed"
               value={kpis?.totalClaims?.toLocaleString() || "0"}
@@ -354,6 +363,7 @@ export default function ExecutiveDashboard() {
               trend={{ value: 12.5, label: "vs last month" }}
               color="blue"
             />
+            </div>
             <LargeKPICard
               title="Fast-Tracked Claims"
               value={`${kpis?.fastTrackPercentage || 0}%`}
@@ -370,6 +380,11 @@ export default function ExecutiveDashboard() {
               trend={{ value: -15.2, label: "improvement" }}
               color="purple"
             />
+            <div onClick={() => {
+              setDrillDownFilter("high_fraud");
+              setDrillDownTitle("High Fraud Risk Claims");
+              setDrillDownOpen(true);
+            }} className="cursor-pointer hover:opacity-90 transition-opacity">
             <LargeKPICard
               title="Fraud Risk Exposure"
               value={`$${(kpis?.fraudRiskAmount || 0).toLocaleString()}`}
@@ -378,6 +393,12 @@ export default function ExecutiveDashboard() {
               trend={{ value: -22.1, label: "reduction" }}
               color="red"
             />
+            </div>
+            <div onClick={() => {
+              setDrillDownFilter("overridden");
+              setDrillDownTitle("Executive Override History");
+              setDrillDownOpen(true);
+            }} className="cursor-pointer hover:opacity-90 transition-opacity">
             <LargeKPICard
               title="Executive Overrides"
               value={overrideMetrics.count}
@@ -385,6 +406,7 @@ export default function ExecutiveDashboard() {
               icon={Shield}
               color="amber"
             />
+            </div>
             <LargeKPICard
               title="Segregation Violations"
               value={kpis?.segregationViolations || 0}
@@ -399,14 +421,12 @@ export default function ExecutiveDashboard() {
         {/* Risk Radar Widget */}
         <RiskRadarWidget kpis={kpis} />
 
-        {/* Fraud & Risk Intelligence Section */}
+        {/* AI Performance Intelligence Section */}
         <IntelligenceSection
-          title="Fraud & Risk"
-          icon={AlertTriangle}
-          insight={fraudInsight}
+          title="AI Performance"
+          icon={Gauge}
+          insight={aiInsight}
         >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Confidence Score Gauge */}
           <Card className="border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -443,8 +463,14 @@ export default function ExecutiveDashboard() {
               </div>
             </CardContent>
           </Card>
+        </IntelligenceSection>
 
-          {/* Override Transparency Panel */}
+        {/* Governance Intelligence Section */}
+        <IntelligenceSection
+          title="Governance & Overrides"
+          icon={Shield}
+          insight={governanceInsight}
+        >
           <Card className="border-0 shadow-lg">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -499,7 +525,6 @@ export default function ExecutiveDashboard() {
               </div>
             </CardContent>
           </Card>
-        </div>
         </IntelligenceSection>
 
         {/* Workflow Intelligence Section */}
@@ -1053,6 +1078,14 @@ export default function ExecutiveDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Claim Drill-Down Modal */}
+      <ClaimDrillDownModal
+        open={drillDownOpen}
+        onOpenChange={setDrillDownOpen}
+        filter={drillDownFilter}
+        title={drillDownTitle}
+      />
     </div>
   );
 }
