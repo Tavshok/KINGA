@@ -17,17 +17,27 @@ export default function RoleSetup() {
   
   const { data: currentUser, refetch: refetchUser } = trpc.auth.me.useQuery();
   
+  const logout = trpc.auth.logout.useMutation();
+  
   const setInsurerRole = trpc.auth.setInsurerRole.useMutation({
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       toast.success("Role Updated", {
-        description: data.message,
+        description: "Logging out to refresh authentication. Please log in again.",
+        duration: 3000,
       });
-      // Refresh user data
-      refetchUser();
-      // Suggest page reload
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      
+      // Wait a moment for the toast to be visible
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Logout to clear JWT token
+      try {
+        await logout.mutateAsync();
+      } catch (e) {
+        console.error("Logout error:", e);
+      }
+      
+      // Redirect to login with return path to portal hub
+      window.location.href = '/login?returnTo=/portal-hub';
     },
     onError: (error) => {
       toast.error("Error", {
@@ -131,7 +141,7 @@ export default function RoleSetup() {
               ) : (
                 <>
                   <UserCog className="h-4 w-4 mr-2" />
-                  Set Role & Reload
+                  Set Role & Re-login
                 </>
               )}
             </Button>
@@ -147,8 +157,9 @@ export default function RoleSetup() {
           {/* Help Text */}
           <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
             <p className="text-sm text-amber-800">
-              <strong>Note:</strong> After setting your role, the page will automatically reload to apply the changes.
-              You can then access the appropriate dashboard from the Portal Hub.
+              <strong>Note:</strong> After setting your role, you will be logged out and redirected to the login page.
+              This ensures your authentication token is refreshed with the new role. After logging back in,
+              you can access the appropriate dashboard from the Portal Hub.
             </p>
           </div>
         </CardContent>

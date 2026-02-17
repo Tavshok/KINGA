@@ -7002,3 +7002,30 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test complete role setup flow from Portal Hub
 - [x] Verify Claims Processor Dashboard loads after role configuration
 - [x] Verify Executive Dashboard Analytics tab works after role configuration
+
+### Dashboard Fixes from User Feedback
+- [x] Change Financial Overview tab to show claims costs instead of revenue/costs
+- [ ] Verify Analytics tab chart fix is working (still showing TypeError in user's browser)
+- [x] Debug role persistence issue - user configured Claims Processor role but dashboard still shows auth error
+  - [x] Implemented logout/login flow after role change to refresh JWT token
+  - [x] Updated RoleSetup page to logout and redirect to login after role update
+  - [x] Updated help text and button labels to reflect new flow
+
+### Claims Processor Dashboard - Existing Features
+- [x] Upload PDF documents for existing claims
+- [x] Assign assessors (searchable dropdown for internal/external)
+- [x] View AI assessment results (triage, damage analysis, physics)
+- [x] Trigger AI assessment via AiAssessButton component
+- [x] Display claim workflow states
+- [x] View claim details with documents
+
+### Claims Processor Dashboard - Missing Features
+- [ ] Add "Create New Claim" button for historical claims
+- [ ] Add bulk claims upload (CSV/Excel for historical claims)
+- [ ] Add report download capabilities:
+  - [ ] Download AI assessment report as PDF
+  - [ ] Download assessor evaluation report as PDF
+  - [ ] Download panel beater quotes as PDF
+  - [ ] Download complete claim package (ZIP with all docs/photos/reports)
+  - [ ] Batch export claims data to Excel/CSV
+- [ ] Test complete claims processing workflow after role setup fix

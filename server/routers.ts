@@ -540,6 +540,115 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     /**
+     * Create Claim On Behalf Of Claimant
+     * 
+     * Allows Claims Processors to create claims on behalf of claimants
+     * (e.g., for historical claims received via email/phone).
+     * 
+     * @requires Claims Processor role
+     * @param claimantEmail - Email of the claimant (will create user if doesn't exist)
+     * @param claimantName - Name of the claimant
+     * @param claimantPhone - Phone number of the claimant
+     * @param vehicleMake - Make of the vehicle
+     * @param vehicleModel - Model of the vehicle
+     * @param vehicleYear - Year of manufacture
+     * @param vehicleRegistration - License plate number
+     * @param incidentDate - ISO date string of incident
+     * @param incidentDescription - Detailed description
+     * @param incidentLocation - Location where incident occurred
+     * @param damagePhotos - Array of S3 URLs for damage photos
+     * @param policyNumber - Insurance policy number
+     * @param triggerAI - Whether to immediately trigger AI assessment
+     * @returns Claim number and ID
+     */
+    createOnBehalfOf: protectedProcedure
+      .input(z.object({
+        claimantEmail: z.string().email(),
+        claimantName: z.string(),
+        claimantPhone: z.string().optional(),
+        vehicleMake: z.string(),
+        vehicleModel: z.string(),
+        vehicleYear: z.number(),
+        vehicleRegistration: z.string(),
+        incidentDate: z.string(),
+        incidentDescription: z.string(),
+        incidentLocation: z.string(),
+        damagePhotos: z.array(z.string()),
+        policyNumber: z.string(),
+        triggerAI: z.boolean().default(true),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        
+        // Check if user has claims processor role
+        const { hasPermission } = await import("./rbac");
+        if (!hasPermission(ctx.user, "uploadDocuments")) {
+          throw new TRPCError({ 
+            code: "FORBIDDEN",
+            message: "Only Claims Processors can create claims on behalf of claimants"
+          });
+        }
+        
+        // Find or create claimant user
+        const { getUserByEmail, createUser } = await import("./db");
+        let claimant = await getUserByEmail(input.claimantEmail);
+        
+        if (!claimant) {
+          // Create new claimant user
+          await createUser({
+            email: input.claimantEmail,
+            name: input.claimantName,
+            phone: input.claimantPhone || null,
+            role: "claimant",
+            tenantId: ctx.user.tenantId,
+          });
+          claimant = await getUserByEmail(input.claimantEmail);
+          if (!claimant) throw new Error("Failed to create claimant user");
+        }
+        
+        const claimNumber = `CLM-${nanoid(10).toUpperCase()}`;
+        
+        await createClaim({
+          claimantId: claimant.id,
+          claimNumber,
+          vehicleMake: input.vehicleMake,
+          vehicleModel: input.vehicleModel,
+          vehicleYear: input.vehicleYear,
+          vehicleRegistration: input.vehicleRegistration,
+          incidentDate: new Date(input.incidentDate),
+          incidentDescription: input.incidentDescription,
+          incidentLocation: input.incidentLocation,
+          damagePhotos: JSON.stringify(input.damagePhotos),
+          policyNumber: input.policyNumber,
+          selectedPanelBeaterIds: JSON.stringify([]),
+          status: "submitted",
+        });
+        
+        const newClaim = await getClaimByNumber(claimNumber);
+        if (!newClaim) throw new Error("Failed to retrieve newly created claim");
+        
+        // Create audit entry
+        await createAuditEntry({
+          claimId: newClaim.id,
+          userId: ctx.user.id,
+          action: "claim_created_on_behalf",
+          entityType: "claim",
+          changeDescription: `Claim ${claimNumber} created by processor on behalf of ${input.claimantName}`,
+        });
+        
+        // Trigger AI assessment if requested
+        if (input.triggerAI && input.damagePhotos.length > 0) {
+          try {
+            await triggerAiAssessment(newClaim.id);
+          } catch (error) {
+            console.error(`Failed to trigger AI assessment:`, error);
+          }
+        }
+        
+        return { success: true, claimNumber, claimId: newClaim.id };
+      }),
+
+    /**
      * Submit New Claim
      * 
      * Allows claimants to submit insurance claims with vehicle details,

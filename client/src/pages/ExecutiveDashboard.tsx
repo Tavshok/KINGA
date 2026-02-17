@@ -862,7 +862,7 @@ export default function ExecutiveDashboard() {
                       <DollarSign className="h-5 w-5 text-green-600" />
                       Financial Overview
                     </CardTitle>
-                    <CardDescription>Revenue, costs, and profitability metrics</CardDescription>
+                    <CardDescription>Claims payouts, reserves, and fraud prevention metrics</CardDescription>
                   </div>
                   <Button
                     size="sm"
@@ -881,24 +881,34 @@ export default function ExecutiveDashboard() {
                     <Activity className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : financials ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="text-center p-6 bg-green-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Total Revenue</p>
-                      <p className="text-4xl font-bold text-green-600">
-                        ${(financials.revenue || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div className="text-center p-6 bg-red-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Total Costs</p>
-                      <p className="text-4xl font-bold text-red-600">
-                        ${(financials.costs || 0).toLocaleString()}
-                      </p>
-                    </div>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
                     <div className="text-center p-6 bg-blue-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Net Profit</p>
+                      <p className="text-sm text-slate-600 mb-2">Total Payouts</p>
                       <p className="text-4xl font-bold text-blue-600">
-                        ${(financials.profit || 0).toLocaleString()}
+                        ${(financials.totalPayouts || 0).toLocaleString()}
                       </p>
+                      <p className="text-xs text-slate-500 mt-2">Approved claims paid</p>
+                    </div>
+                    <div className="text-center p-6 bg-amber-50 rounded-xl">
+                      <p className="text-sm text-slate-600 mb-2">Total Reserves</p>
+                      <p className="text-4xl font-bold text-amber-600">
+                        ${(financials.totalReserves || 0).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-2">Pending claims estimated</p>
+                    </div>
+                    <div className="text-center p-6 bg-green-50 rounded-xl">
+                      <p className="text-sm text-slate-600 mb-2">Fraud Prevented</p>
+                      <p className="text-4xl font-bold text-green-600">
+                        ${(financials.fraudPrevented || 0).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-2">High-risk claims rejected</p>
+                    </div>
+                    <div className="text-center p-6 bg-purple-50 rounded-xl">
+                      <p className="text-sm text-slate-600 mb-2">Net Exposure</p>
+                      <p className="text-4xl font-bold text-purple-600">
+                        ${(financials.netExposure || 0).toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-2">Total financial exposure</p>
                     </div>
                   </div>
                 ) : (
