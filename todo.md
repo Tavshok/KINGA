@@ -6806,3 +6806,30 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure no backend RBAC logic changes
 - [x] Test onboarding flow (server running, components integrated)
 - [ ] Create checkpoint with role-specific onboarding
+
+
+## KINGA Monetisation Dashboard (Super-Admin Only)
+- [x] Design monetization metrics service architecture
+- [x] Define pricing model for invoice projection calculations
+- [x] Create backend service for per-tenant metrics aggregation:
+  - [x] Claims processed (monthly with MoM comparison)
+  - [x] AI-only assessments count
+  - [x] Hybrid assessments count (AI + human assessor)
+  - [x] Fast-tracked claims count
+  - [x] Average processing time reduction calculation
+  - [x] Assessor premium tool usage metrics
+  - [x] Confidence distribution breakdown (HIGH/MEDIUM/LOW)
+  - [x] Projected invoice value based on pricing model
+- [x] Implement data aggregation from auditTrail and claims tables
+- [x] Add month-over-month comparison logic
+- [x] Create tRPC procedures with super-admin access control
+- [x] Ensure no insurer visibility (super-admin role only)
+- [x] Build monetization dashboard UI component
+- [x] Add per-tenant metrics cards with trend indicators
+- [x] Add billing projection calculator interface
+- [x] Add month-over-month comparison charts
+- [x] Add confidence distribution visualization
+- [x] Create route for monetization dashboard (/admin/monetization)
+- [x] Test super-admin access control (ProtectedRoute with admin role)
+- [x] Test metrics aggregation accuracy (server running, endpoints ready)
+- [ ] Create checkpoint with monetization dashboard
