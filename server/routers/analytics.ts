@@ -240,6 +240,54 @@ export const analyticsRouter = router({
           .where(highValueFilter);
         const highValueClaims = safeNumber(highValueResult?.count, 0);
 
+        // Governance metrics (30-day window)
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        
+        // Executive overrides (last 30 days)
+        const overridesFilter = tenantId
+          ? sql`tenant_id = ${tenantId} AND executive_override = 1 AND created_at >= ${thirtyDaysAgo.toISOString()}`
+          : sql`executive_override = 1 AND created_at >= ${thirtyDaysAgo.toISOString()}`;
+        
+        const [overridesResult] = await db.execute(sql`
+          SELECT COUNT(*) as total_overrides
+          FROM workflow_audit_trail
+          WHERE ${overridesFilter}
+        `);
+        const totalExecutiveOverrides = safeNumber((overridesResult.rows[0] as any)?.total_overrides, 0);
+
+        // Segregation violations (last 30 days)
+        const violationsFilter = tenantId
+          ? sql`c.tenant_id = ${tenantId} AND cit.created_at >= ${thirtyDaysAgo.toISOString()}`
+          : sql`cit.created_at >= ${thirtyDaysAgo.toISOString()}`;
+        
+        const [violationsResult] = await db.execute(sql`
+          SELECT COUNT(DISTINCT cit.user_id) as violation_attempts
+          FROM claim_involvement_tracking cit
+          INNER JOIN claims c ON cit.claim_id = c.id
+          WHERE ${violationsFilter}
+          GROUP BY cit.user_id, cit.claim_id
+          HAVING COUNT(DISTINCT cit.stage) > 1
+        `);
+        const segregationViolationAttempts = violationsResult.rows.length;
+
+        // Role changes (last 30 days)
+        const roleChangesFilter = tenantId
+          ? sql`tenant_id = ${tenantId} AND timestamp >= ${thirtyDaysAgo.toISOString()}`
+          : sql`timestamp >= ${thirtyDaysAgo.toISOString()}`;
+        
+        const [roleChangesResult] = await db.execute(sql`
+          SELECT COUNT(*) as role_changes
+          FROM role_assignment_audit
+          WHERE ${roleChangesFilter}
+        `);
+        const roleChangesLast30Days = safeNumber((roleChangesResult.rows[0] as any)?.role_changes, 0);
+
+        // Calculate override rate percentage
+        const overrideRatePercentage = totalClaims > 0 
+          ? safeNumber(Math.round((totalExecutiveOverrides / totalClaims) * 100 * 10) / 10, 0)
+          : 0;
+
         return createAnalyticsResponse({
           summaryMetrics: {
             totalClaims: safeNumber(totalClaims, 0),
@@ -250,6 +298,11 @@ export const analyticsRouter = router({
             totalSavings: safeNumber(Math.round(totalSavings / 100), 0),
             highValueClaims: safeNumber(highValueClaims, 0),
             completionRate: totalClaims > 0 ? safeNumber(Math.round((completedClaims / totalClaims) * 100), 0) : 0,
+            // Governance metrics (30-day window)
+            totalExecutiveOverrides: safeNumber(totalExecutiveOverrides, 0),
+            segregationViolationAttempts: safeNumber(segregationViolationAttempts, 0),
+            roleChangesLast30Days: safeNumber(roleChangesLast30Days, 0),
+            overrideRatePercentage: safeNumber(overrideRatePercentage, 0),
           },
           trends: {},
           riskIndicators: {
@@ -1205,4 +1258,266 @@ export const analyticsRouter = router({
         });
       }
     }),
+
+  /**
+   * Governance Analytics Sub-Router
+   * 
+   * Provides governance-focused metrics including:
+   * - Executive override tracking
+   * - Segregation-of-duties compliance
+   * - Role assignment impact analysis
+   * 
+   * All procedures enforce tenant isolation and role-based access.
+   */
+  governance: router({
+    
+    /**
+     * Get Executive Override Metrics
+     * Tracks frequency, patterns, and impact of executive overrides
+     * 
+     * @access Executive, Risk Manager, Claims Manager, Admin
+     * @uses workflowAuditTrail.executiveOverride field
+     * @indexes workflowAuditTrail(claim_id, created_at, tenant_id)
+     */
+    getOverrideMetrics: analyticsRoleProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional()
+      }))
+      .query(async ({ ctx, input }) => {
+        try {
+          const { getExecutiveOverrideMetrics } = await import("../executive-analytics-governance");
+          const tenantId = ctx.user.tenantId;
+          
+          if (!tenantId) {
+            throw new TRPCError({ 
+              code: "FORBIDDEN", 
+              message: "Tenant context required for governance metrics" 
+            });
+          }
+
+          const metrics = await getExecutiveOverrideMetrics(tenantId);
+          
+          return createAnalyticsResponse(
+            { 
+              summaryMetrics: {
+                totalOverrides: metrics.monthlyTrend.reduce((sum, m) => sum + m.totalOverrides, 0),
+                claimsAffected: metrics.monthlyTrend.reduce((sum, m) => sum + m.claimsAffected, 0),
+                executivesInvolved: Math.max(...metrics.monthlyTrend.map(m => m.executivesInvolved), 0),
+              },
+              trends: metrics.monthlyTrend,
+              riskIndicators: {
+                overrideReasons: metrics.reasonsDistribution,
+                mostOverriddenTransitions: metrics.mostOverriddenTransitions,
+              }
+            },
+            {
+              tenantId,
+              role: ctx.user.insurerRole || ctx.user.role,
+              dataScope: 'executive_overrides'
+            }
+          );
+        } catch (error) {
+          console.error('[Governance] getOverrideMetrics error:', error);
+          return createAnalyticsResponse(
+            { summaryMetrics: {}, trends: [], riskIndicators: {} },
+            { error: { code: 'GOVERNANCE_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch override metrics' } }
+          );
+        }
+      }),
+
+    /**
+     * Get Segregation of Duties Violation Attempts
+     * Tracks attempts to violate segregation rules and compliance rate
+     * 
+     * @access Executive, Risk Manager, Admin
+     * @uses claimInvolvementTracking to identify multi-stage involvement
+     * @indexes claimInvolvementTracking(claim_id, user_id)
+     */
+    getSegregationViolations: analyticsRoleProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional()
+      }))
+      .query(async ({ ctx, input }) => {
+        try {
+          const { getSegregationViolationAttempts } = await import("../executive-analytics-governance");
+          const tenantId = ctx.user.tenantId;
+          
+          if (!tenantId) {
+            throw new TRPCError({ 
+              code: "FORBIDDEN", 
+              message: "Tenant context required for governance metrics" 
+            });
+          }
+
+          const violations = await getSegregationViolationAttempts(tenantId);
+          
+          return createAnalyticsResponse(
+            { 
+              summaryMetrics: {
+                totalViolationAttempts: violations.violationAttempts.length,
+                complianceRate: violations.complianceRate,
+                usersWithViolations: violations.violationAttempts.length,
+              },
+              riskIndicators: {
+                violationAttempts: violations.violationAttempts,
+                criticalStageInvolvement: violations.criticalStageInvolvement,
+              }
+            },
+            {
+              tenantId,
+              role: ctx.user.insurerRole || ctx.user.role,
+              dataScope: 'segregation_violations'
+            }
+          );
+        } catch (error) {
+          console.error('[Governance] getSegregationViolations error:', error);
+          return createAnalyticsResponse(
+            { summaryMetrics: {}, riskIndicators: {} },
+            { error: { code: 'GOVERNANCE_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch segregation violations' } }
+          );
+        }
+      }),
+
+    /**
+     * Get Role Assignment Impact Analysis
+     * Analyzes role change impact on processing times and productivity
+     * 
+     * @access Executive, Admin
+     * @uses roleAssignmentAudit to track role changes over time
+     * @indexes roleAssignmentAudit(tenant_id, user_id, timestamp)
+     */
+    getRoleAssignmentTrends: analyticsRoleProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional()
+      }))
+      .query(async ({ ctx, input }) => {
+        try {
+          const { getRoleAssignmentImpact } = await import("../executive-analytics-governance");
+          const tenantId = ctx.user.tenantId;
+          
+          if (!tenantId) {
+            throw new TRPCError({ 
+              code: "FORBIDDEN", 
+              message: "Tenant context required for governance metrics" 
+            });
+          }
+
+          const impact = await getRoleAssignmentImpact(tenantId);
+          
+          return createAnalyticsResponse(
+            { 
+              summaryMetrics: {
+                totalRoleChanges: impact.roleChangeTrend.reduce((sum, m) => sum + m.changes, 0),
+                avgProcessingTimeChange: impact.processingTimeImpact.reduce((sum, i) => sum + i.processingHours, 0) / Math.max(impact.processingTimeImpact.length, 1),
+              },
+              trends: impact.roleChangeTrend,
+              riskIndicators: {
+                processingTimeImpact: impact.processingTimeImpact,
+                frequentSwitchers: impact.frequentRoleSwitchers,
+              }
+            },
+            {
+              tenantId,
+              role: ctx.user.insurerRole || ctx.user.role,
+              dataScope: 'role_assignment_impact'
+            }
+          );
+        } catch (error) {
+          console.error('[Governance] getRoleAssignmentTrends error:', error);
+          return createAnalyticsResponse(
+            { summaryMetrics: {}, trends: [], riskIndicators: {} },
+            { error: { code: 'GOVERNANCE_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch role assignment trends' } }
+          );
+        }
+      }),
+
+    /**
+     * Get Claim Involvement Conflicts
+     * Identifies users with suspicious involvement patterns across multiple claims
+     * 
+     * @access Executive, Risk Manager, Admin
+     * @uses claimInvolvementTracking to detect conflict patterns
+     * @indexes claimInvolvementTracking(user_id, claim_id, stage)
+     */
+    getInvolvementConflicts: analyticsRoleProcedure
+      .input(z.object({
+        startDate: z.string().optional(),
+        endDate: z.string().optional()
+      }))
+      .query(async ({ ctx, input }) => {
+        try {
+          const db = await getDb();
+          if (!db) {
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
+          }
+
+          const tenantId = ctx.user.tenantId;
+          if (!tenantId) {
+            throw new TRPCError({ 
+              code: "FORBIDDEN", 
+              message: "Tenant context required for governance metrics" 
+            });
+          }
+
+          // Query for users with involvement in multiple critical stages across different claims
+          // This indicates potential conflicts of interest or segregation violations
+          const conflictQuery = sql`
+            SELECT 
+              cit.user_id,
+              u.name as user_name,
+              COUNT(DISTINCT cit.claim_id) as claims_involved,
+              COUNT(DISTINCT cit.stage) as stages_involved,
+              GROUP_CONCAT(DISTINCT cit.stage) as stages
+            FROM claim_involvement_tracking cit
+            INNER JOIN claims c ON cit.claim_id = c.id
+            INNER JOIN users u ON cit.user_id = u.id
+            WHERE c.tenant_id = ${tenantId}
+              ${input.startDate ? sql`AND cit.created_at >= ${input.startDate}` : sql``}
+              ${input.endDate ? sql`AND cit.created_at <= ${input.endDate}` : sql``}
+            GROUP BY cit.user_id, u.name
+            HAVING COUNT(DISTINCT cit.stage) > 1
+            ORDER BY stages_involved DESC, claims_involved DESC
+            LIMIT 50
+          `;
+
+          const results = await db.execute(conflictQuery);
+          
+          const conflicts = (results.rows as any[]).map(row => ({
+            userId: row.user_id,
+            userName: safeString(row.user_name, 'Unknown'),
+            claimsInvolved: safeNumber(row.claims_involved, 0),
+            stagesInvolved: safeNumber(row.stages_involved, 0),
+            stages: safeString(row.stages, '').split(','),
+          }));
+
+          return createAnalyticsResponse(
+            { 
+              summaryMetrics: {
+                usersWithConflicts: conflicts.length,
+                avgStagesPerUser: conflicts.reduce((sum, c) => sum + c.stagesInvolved, 0) / Math.max(conflicts.length, 1),
+              },
+              riskIndicators: {
+                conflicts: conflicts,
+              }
+            },
+            {
+              tenantId,
+              role: ctx.user.insurerRole || ctx.user.role,
+              dataScope: 'involvement_conflicts'
+            }
+          );
+        } catch (error) {
+          console.error('[Governance] getInvolvementConflicts error:', error);
+          return createAnalyticsResponse(
+            { summaryMetrics: {}, riskIndicators: {} },
+            { error: { code: 'GOVERNANCE_ERROR', message: error instanceof Error ? error.message : 'Failed to fetch involvement conflicts' } }
+          );
+        }
+      }),
+
+  }),
+
 });
