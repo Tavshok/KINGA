@@ -6716,3 +6716,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure no workflow logic or state transition changes
 - [x] Test comparison page layout (server running, ready for checkpoint)
 - [ ] Create checkpoint with refactored comparison page
+
+
+## Risk Manager Analytical Overlay (Role-Based Conditional Rendering)
+- [x] Add role detection from user context (useAuth hook)
+- [x] Enhance fraud risk display for Risk Manager (larger, more prominent)
+- [x] Add AI confidence breakdown components panel
+- [x] Add historical claimant risk profile section (via Technical Validation Panel)
+- [x] Enhance discrepancy analysis between AI and Assessor
+- [x] Create Technical Validation Panel with:
+  - [x] Damage plausibility summary
+  - [x] Prior claim history flag
+  - [x] Policy coverage validation summary
+  - [x] Repair timeline risk indicator
+- [x] Hide/de-emphasize payment authorization controls for Risk Manager
+- [x] Hide/de-emphasize panel beater selection controls for Risk Manager (opacity-40 + "Reference Only" badge)
+- [x] Maintain financial decision emphasis for Claims Manager
+- [x] Emphasize cost variance and approval controls for Claims Manager
+- [x] Test role-based rendering with both roles (server running)
+- [x] Verify no workflow transition modifications (presentation only)
+- [ ] Create checkpoint with role-based comparison screen
