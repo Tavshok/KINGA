@@ -192,8 +192,8 @@ export default function ExecutiveDashboard() {
     if (!bottlenecks) return [];
     return bottlenecks.map((b: any) => ({
       state: b.state.replace(/_/g, " ").toUpperCase(),
-      avgHours: Math.round(b.avgTimeInState / 3600), // Convert seconds to hours
-      count: b.claimCount,
+      avgHours: Math.round(b.avgDaysInState * 24), // Convert days to hours
+      count: b.count,
     }));
   }, [bottlenecks]);
 

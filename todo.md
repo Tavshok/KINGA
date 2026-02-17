@@ -6988,3 +6988,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Added route to App.tsx for role setup access
 - [ ] Test role setup flow end-to-end
 - [ ] Update Portal Hub to include link to role setup page
+
+### Executive Dashboard Analytics Tab Errors
+- [x] Diagnose "TypeError: d is not a function" in chart rendering
+- [x] Fix bottleneck data transformation (backend returns avgDaysInState, frontend expected avgTimeInState)
+- [x] Verify all analytics queries are working correctly
+- [x] Test Analytics tab with real tenant data
+- [x] Ensure all charts render without errors
