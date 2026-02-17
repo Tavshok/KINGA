@@ -1,0 +1,36 @@
+{
+  "query": "SHOW CREATE TABLE fast_track_config;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW CREATE TABLE fast_track_config;",
+  "rows": [
+    {
+      "Table": "fast_track_config",
+      "Create Table": "CREATE TABLE `fast_track_config` ("
+    }
+  ],
+  "messages": [
+    "  `id` int(11) NOT NULL AUTO_INCREMENT,",
+    "  `tenant_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `product_id` int(11) DEFAULT NULL,",
+    "  `claim_type` enum('collision','theft','hail','fire','vandalism','flood','hijacking','other') COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `fast_track_action` enum('AUTO_APPROVE','PRIORITY_QUEUE','REDUCED_DOCUMENTATION','STRAIGHT_TO_PAYMENT') COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `min_confidence_score` decimal(5,2) NOT NULL,",
+    "  `max_claim_value` int(11) NOT NULL,",
+    "  `max_fraud_score` decimal(5,2) NOT NULL,",
+    "  `enabled` tinyint(4) NOT NULL DEFAULT '1',",
+    "  `version` int(11) NOT NULL,",
+    "  `effective_from` timestamp NOT NULL,",
+    "  `created_by` int(11) NOT NULL,",
+    "  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,",
+    "  KEY `idx_ft_config_tenant` (`tenant_id`),",
+    "  KEY `idx_ft_config_product` (`product_id`),",
+    "  KEY `idx_ft_config_claim_type` (`claim_type`),",
+    "  KEY `idx_ft_config_enabled` (`enabled`),",
+    "  KEY `idx_ft_config_effective` (`effective_from`),",
+    "  KEY `idx_ft_config_hierarchy` (`tenant_id`,`product_id`,`claim_type`)",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=30001"
+  ],
+  "stdout": "Table\tCreate Table\nfast_track_config\tCREATE TABLE `fast_track_config` (\n  `id` int(11) NOT NULL AUTO_INCREMENT,\n  `tenant_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `product_id` int(11) DEFAULT NULL,\n  `claim_type` enum('collision','theft','hail','fire','vandalism','flood','hijacking','other') COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `fast_track_action` enum('AUTO_APPROVE','PRIORITY_QUEUE','REDUCED_DOCUMENTATION','STRAIGHT_TO_PAYMENT') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `min_confidence_score` decimal(5,2) NOT NULL,\n  `max_claim_value` int(11) NOT NULL,\n  `max_fraud_score` decimal(5,2) NOT NULL,\n  `enabled` tinyint(4) NOT NULL DEFAULT '1',\n  `version` int(11) NOT NULL,\n  `effective_from` timestamp NOT NULL,\n  `created_by` int(11) NOT NULL,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n  KEY `idx_ft_config_tenant` (`tenant_id`),\n  KEY `idx_ft_config_product` (`product_id`),\n  KEY `idx_ft_config_claim_type` (`claim_type`),\n  KEY `idx_ft_config_enabled` (`enabled`),\n  KEY `idx_ft_config_effective` (`effective_from`),\n  KEY `idx_ft_config_hierarchy` (`tenant_id`,`product_id`,`claim_type`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci AUTO_INCREMENT=30001\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

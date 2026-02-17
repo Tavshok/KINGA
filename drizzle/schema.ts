@@ -4892,3 +4892,123 @@ export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
 
 export type RoutingThresholdConfig = typeof routingThresholdConfig.$inferSelect;
 export type InsertRoutingThresholdConfig = typeof routingThresholdConfig.$inferInsert;
+
+
+/**
+ * Fast-Track Configuration
+ * 
+ * Versioned, immutable configuration for fast-track automation rules.
+ * Supports hierarchical configuration: insurer-wide → product-specific → claim-type-specific.
+ * 
+ * Configuration hierarchy resolution (most specific wins):
+ * 1. Claim type + product + tenant (most specific)
+ * 2. Claim type + tenant (product-agnostic)
+ * 3. Product + tenant (claim-type-agnostic)
+ * 4. Tenant-wide default
+ * 
+ * Immutability: Always insert new version, never update existing configurations.
+ */
+export const fastTrackConfig = mysqlTable("fast_track_config", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Hierarchical configuration scope
+  productId: int("product_id"), // NULL = insurer-wide default
+  claimType: mysqlEnum("claim_type", [
+    "collision",
+    "theft",
+    "hail",
+    "fire",
+    "vandalism",
+    "flood",
+    "hijacking",
+    "other"
+  ]), // NULL = applies to all claim types for this product/tenant
+  
+  // Fast-track action to take when eligible
+  fastTrackAction: mysqlEnum("fast_track_action", [
+    "AUTO_APPROVE",              // Automatic approval (requires explicit config)
+    "PRIORITY_QUEUE",            // Move to priority queue for expedited review
+    "REDUCED_DOCUMENTATION",     // Reduce documentation requirements
+    "STRAIGHT_TO_PAYMENT"        // Skip review, proceed directly to payment
+  ]).notNull(),
+  
+  // Eligibility thresholds
+  minConfidenceScore: decimal("min_confidence_score", { precision: 5, scale: 2 }).notNull(), // 0-100
+  maxClaimValue: int("max_claim_value").notNull(), // In cents
+  maxFraudScore: decimal("max_fraud_score", { precision: 5, scale: 2 }).notNull(), // 0-100
+  
+  // Configuration metadata
+  enabled: tinyint("enabled").notNull().default(1), // 0 = disabled, 1 = enabled
+  version: int("version").notNull(), // Incremental version per tenant
+  effectiveFrom: timestamp("effective_from").notNull(),
+  
+  // Audit trail
+  createdBy: int("created_by").notNull(), // User ID who created this config
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  // Indexes for efficient lookups
+  tenantIdIdx: index("idx_ft_config_tenant").on(table.tenantId),
+  productIdIdx: index("idx_ft_config_product").on(table.productId),
+  claimTypeIdx: index("idx_ft_config_claim_type").on(table.claimType),
+  enabledIdx: index("idx_ft_config_enabled").on(table.enabled),
+  effectiveFromIdx: index("idx_ft_config_effective").on(table.effectiveFrom),
+  // Composite index for hierarchical resolution
+  hierarchyIdx: index("idx_ft_config_hierarchy").on(table.tenantId, table.productId, table.claimType),
+}));
+
+export type FastTrackConfig = typeof fastTrackConfig.$inferSelect;
+export type InsertFastTrackConfig = typeof fastTrackConfig.$inferInsert;
+
+/**
+ * Fast-Track Routing Log
+ * 
+ * Immutable audit trail of all fast-track routing decisions.
+ * Logs every evaluation with full context for compliance and debugging.
+ */
+export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  
+  // Configuration used for this decision
+  configId: int("config_id"), // NULL if no config matched
+  configVersion: int("config_version"), // Version of config used
+  
+  // Decision outcome
+  eligible: tinyint("eligible").notNull(), // 0 = not eligible, 1 = eligible
+  decision: mysqlEnum("decision", [
+    "AUTO_APPROVE",
+    "PRIORITY_QUEUE",
+    "REDUCED_DOCUMENTATION",
+    "STRAIGHT_TO_PAYMENT",
+    "MANUAL_REVIEW" // Default when no config matches
+  ]).notNull(),
+  reason: text("reason").notNull(), // Human-readable explanation
+  
+  // Evaluation context (snapshot at time of decision)
+  confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
+  claimValue: int("claim_value").notNull(), // In cents
+  fraudScore: decimal("fraud_score", { precision: 5, scale: 2 }).notNull(),
+  claimType: varchar("claim_type", { length: 50 }).notNull(),
+  productId: int("product_id"), // NULL if no product associated
+  
+  // Override tracking
+  override: tinyint("override").notNull().default(0), // 0 = automatic, 1 = manual override
+  overrideBy: int("override_by"), // User ID who overrode (if applicable)
+  overrideReason: text("override_reason"), // Justification for override
+  
+  // Immutable timestamp
+  evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
+}, (table) => ({
+  claimIdIdx: index("idx_ft_log_claim").on(table.claimId),
+  tenantIdIdx: index("idx_ft_log_tenant").on(table.tenantId),
+  configIdIdx: index("idx_ft_log_config").on(table.configId),
+  decisionIdx: index("idx_ft_log_decision").on(table.decision),
+  evaluatedAtIdx: index("idx_ft_log_evaluated").on(table.evaluatedAt),
+  // Composite index for claim routing history
+  claimTenantIdx: index("idx_ft_log_claim_tenant").on(table.claimId, table.tenantId),
+}));
+
+export type FastTrackRoutingLog = typeof fastTrackRoutingLog.$inferSelect;
+export type InsertFastTrackRoutingLog = typeof fastTrackRoutingLog.$inferInsert;
