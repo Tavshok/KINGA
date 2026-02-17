@@ -6784,3 +6784,25 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure no workflow logic modifications
 - [x] Test PDF generation (server running, PDF generator ready)
 - [ ] Create checkpoint with enterprise PDF report
+
+
+## Role-Specific Onboarding Flow Refactor
+- [x] Analyze current signup flow and authentication system (Manus OAuth)
+- [x] Define role-specific onboarding content for 7 roles:
+  - [x] Claimant (What you do, What you see, What you cannot modify)
+  - [x] Claims Processor (What you do, What you see, What you cannot modify)
+  - [x] Assessor - Internal (What you do, What you see, What you cannot modify)
+  - [x] Assessor - External (What you do, What you see, What you cannot modify)
+  - [x] Risk Manager (What you do, What you see, What you cannot modify)
+  - [x] Claims Manager (What you do, What you see, What you cannot modify)
+  - [x] Executive (What you do, What you see, What you cannot modify)
+  - [x] Fleet Manager (What you do, What you see, What you cannot modify)
+- [x] Create OnboardingWalkthrough component with 3-step flow
+- [x] Add progress indicators and skip option
+- [x] Create OnboardingManager to handle onboarding state
+- [x] Implement tenant isolation enforcement from first login
+- [x] Integrate onboarding flow into App.tsx (wraps Router)
+- [x] Add onboarding completion tracking via localStorage (prevent re-showing)
+- [x] Ensure no backend RBAC logic changes
+- [x] Test onboarding flow (server running, components integrated)
+- [ ] Create checkpoint with role-specific onboarding

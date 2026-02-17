@@ -3,6 +3,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Route, Switch } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
+import { OnboardingManager } from "./components/OnboardingManager";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -458,8 +459,10 @@ function App() {
         // switchable
       >
         <TooltipProvider>
-          <Toaster />
-          <Router />
+          <OnboardingManager>
+            <Toaster />
+            <Router />
+          </OnboardingManager>
         </TooltipProvider>
       </ThemeProvider>
     </ErrorBoundary>
