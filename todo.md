@@ -6900,3 +6900,49 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure zero direct DB updates from platform super admin (read-only queries only)
 - [x] Test platform super admin functionality (server running, all components integrated)
 - [ ] Create checkpoint with platform super admin observability mode
+
+## End-to-End System Integrity Test Suite
+- [x] Design comprehensive E2E test architecture
+- [ ] Historical Claim Upload Validation:
+  - [ ] Upload PDF via claim processor role
+  - [ ] Log raw extracted text length
+  - [ ] Log structured AI extraction JSON
+  - [ ] Log missing fields
+  - [ ] Log parsing confidence score
+  - [ ] Verify structured extraction stored in database
+  - [ ] Verify extraction timestamp added
+- [ ] Confidence Scoring Validation:
+  - [ ] Verify confidence score calculated once at ingestion
+  - [ ] Verify confidence score stored immutably per claim version
+  - [ ] Verify component breakdown includes: fraud risk, quote variance, completeness, AI certainty, claimant history
+  - [ ] Log calculation inputs + weights snapshot
+  - [ ] Verify confidence score persists after server restart
+- [ ] Routing Engine Validation:
+  - [ ] Store routing category (HIGH/MEDIUM/LOW)
+  - [ ] Store threshold values used at time of routing
+  - [ ] Store routing reasoning
+  - [ ] Log routing decision in workflowAuditTrail
+  - [ ] Verify routing unchanged after server restart
+- [ ] Workflow Engine Validation:
+  - [ ] Confirm state transition executed via WorkflowEngine.transition()
+  - [ ] Confirm role validation passed
+  - [ ] Confirm segregation of duties validated
+  - [ ] Confirm audit log written
+  - [ ] Fail test if any direct DB update detected
+- [ ] Dashboard Integrity:
+  - [ ] Verify claim appears in correct dashboard after ingestion
+  - [ ] Verify role-based visibility correct
+  - [ ] Verify executive dashboard reflects updated metrics
+- [ ] Data Persistence Verification:
+  - [ ] Restart dev server
+  - [ ] Confirm AI extraction still present
+  - [ ] Confirm confidence score unchanged
+  - [ ] Confirm routing unchanged
+  - [ ] Confirm audit trail intact
+- [ ] Integrity Report Generation:
+  - [ ] Generate structured report with PASS/FAIL per module
+  - [ ] Include missing persistence points
+  - [ ] Include performance timing
+  - [ ] Include any silent failures detected
+- [ ] Run full test suite
+- [ ] Create checkpoint with E2E integrity test suite
