@@ -6660,3 +6660,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add performance tests to prevent N+1 queries
 - [ ] Verify zero TypeScript errors
 - [ ] Document analytics architecture
+
+
+## Analytics Export Feature (PDF & CSV Reports)
+- [x] Create analytics export service layer (server/services/analytics/analytics-export.ts)
+- [x] Implement PDF report generation with professional formatting
+- [x] Implement CSV report generation with proper data structure
+- [x] Add report header with tenant info, date range, generation timestamp
+- [x] Include all 5 fast-track metrics in reports
+- [x] Add data visualization tables for risk distribution
+- [x] Build tRPC procedures for report generation (analytics.exportPDF, analytics.exportCSV)
+- [x] Add role-based access control (Executive/ClaimsManager only)
+- [x] Create frontend export UI component with format selection
+- [x] Add date range picker for report filtering
+- [x] Implement download functionality for generated reports
+- [x] Add loading states during report generation
+- [ ] Test PDF generation with sample data (requires fixing TypeScript errors)
+- [ ] Test CSV generation with sample data (requires fixing TypeScript errors)
+- [ ] Verify role-based access control
+- [ ] Create checkpoint with analytics export feature

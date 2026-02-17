@@ -445,5 +445,95 @@ export const analyticsRouter = router({
         avgPerClaim: avgSavingPerClaim,
         claimsProcessed: totalClaims
       };
-    })
+    }),
+
+  /**
+   * Export fast-track analytics as PDF report
+   * Role-based access: Executive and ClaimsManager only
+   */
+  exportFastTrackPDF: protectedProcedure
+    .input(z.object({
+      tenantId: z.string(),
+      startDate: z.date(),
+      endDate: z.date(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Role-based access control
+      const userRole = ctx.user.role;
+      if (userRole !== 'executive' && userRole !== 'claims_manager') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only executives and claims managers can export analytics reports',
+        });
+      }
+
+      const { gatherAnalyticsData, generatePDFReport } = await import("../services/analytics/analytics-export");
+
+      // Gather all analytics data
+      const analyticsData = await gatherAnalyticsData(
+        input.tenantId,
+        { startDate: input.startDate, endDate: input.endDate },
+        {
+          tenantId: input.tenantId,
+          tenantName: ctx.user.name || undefined,
+          generatedAt: new Date(),
+          generatedBy: ctx.user.name || ctx.user.email || 'Unknown',
+        }
+      );
+
+      // Generate PDF
+      const pdfBuffer = await generatePDFReport(analyticsData);
+
+      // Return base64-encoded PDF
+      return {
+        filename: `fast-track-analytics-${input.tenantId}-${new Date().toISOString().split('T')[0]}.pdf`,
+        data: pdfBuffer.toString('base64'),
+        mimeType: 'application/pdf',
+      };
+    }),
+
+  /**
+   * Export fast-track analytics as CSV report
+   * Role-based access: Executive and ClaimsManager only
+   */
+  exportFastTrackCSV: protectedProcedure
+    .input(z.object({
+      tenantId: z.string(),
+      startDate: z.date(),
+      endDate: z.date(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Role-based access control
+      const userRole = ctx.user.role;
+      if (userRole !== 'executive' && userRole !== 'claims_manager') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only executives and claims managers can export analytics reports',
+        });
+      }
+
+      const { gatherAnalyticsData, generateCSVReport } = await import("../services/analytics/analytics-export");
+
+      // Gather all analytics data
+      const analyticsData = await gatherAnalyticsData(
+        input.tenantId,
+        { startDate: input.startDate, endDate: input.endDate },
+        {
+          tenantId: input.tenantId,
+          tenantName: ctx.user.name || undefined,
+          generatedAt: new Date(),
+          generatedBy: ctx.user.name || ctx.user.email || 'Unknown',
+        }
+      );
+
+      // Generate CSV
+      const csvContent = await generateCSVReport(analyticsData);
+
+      // Return CSV content
+      return {
+        filename: `fast-track-analytics-${input.tenantId}-${new Date().toISOString().split('T')[0]}.csv`,
+        data: csvContent,
+        mimeType: 'text/csv',
+      };
+    }),
 });
