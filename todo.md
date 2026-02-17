@@ -7111,4 +7111,35 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update all analytics procedures to use ctx.user.tenantId (enforced with tenant filtering on all queries)
 - [ ] Test route guards with different roles
 - [ ] Verify audit logging is working
-- [ ] Create checkpoint with route guards implementation
+- [x] Create checkpoint with route guards implementation
+
+
+## Analytics Consolidation - Single Source of Truth
+- [x] Audit executive-analytics.ts functions and dependencies (13 functions identified)
+- [x] Migrate getExecutiveKPIs to analytics.ts with role-based filtering
+- [x] Migrate getCriticalAlerts to analytics.ts
+- [x] Migrate getAssessorPerformance to analytics.ts
+- [x] Migrate getPanelBeaterAnalytics to analytics.ts
+- [x] Migrate getCostSavingsTrends to analytics.ts
+- [x] Migrate getWorkflowBottlenecks to analytics.ts
+- [x] Migrate getFinancialOverview to analytics.ts
+- [x] Migrate globalSearch to analytics.ts
+- [x] Migrate getClaimsVolumeOverTime to analytics.ts
+- [x] Migrate getFraudDetectionTrends to analytics.ts
+- [x] Migrate getCostBreakdownByStatus to analytics.ts
+- [x] Migrate getAverageProcessingTime to analytics.ts
+- [x] Migrate getFraudRiskDistribution to analytics.ts
+- [x] Add role-based data filtering (executive, risk_manager, claims_manager, admin)
+- [x] Implement standardized response format for all endpoints
+- [x] Add comprehensive error handling with try/catch
+- [x] Remove duplicate trpc.executive.* router group from routers.ts
+- [x] Update Executive Dashboard to use trpc.analytics.* instead of trpc.executive.* (with response adapters)
+- [x] Comprehensive error handling already implemented in analytics router
+- [ ] Verify historical claims load correctly
+- [ ] Verify claims processor sees actionable claims
+- [ ] Verify upload/download report buttons visible
+- [ ] Verify analytics return real data (not empty arrays)
+- [ ] Test role switching updates analytics correctly
+- [x] Remove deprecated executive-analytics.ts file
+- [x] Remove unused imports and legacy code
+- [ ] Create checkpoint with consolidated analytics

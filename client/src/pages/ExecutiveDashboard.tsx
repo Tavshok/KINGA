@@ -167,19 +167,29 @@ export default function ExecutiveDashboard() {
   const [reviewNotes, setReviewNotes] = useState("");
 
   // Fetch data (reusing existing endpoints - NO NEW QUERIES)
-  const { data: kpis, isLoading: kpisLoading } = trpc.executive.getKPIs.useQuery();
-  const { data: alerts, isLoading: alertsLoading } = trpc.executive.getCriticalAlerts.useQuery();
-  const { data: assessorPerf, isLoading: assessorLoading } = trpc.executive.getAssessorPerformance.useQuery();
-  const { data: panelBeaterAnalytics, isLoading: panelBeaterLoading } = trpc.executive.getPanelBeaterAnalytics.useQuery();
-  const { data: savingsTrends, isLoading: savingsLoading } = trpc.executive.getCostSavingsTrends.useQuery();
-  const { data: bottlenecks, isLoading: bottlenecksLoading } = trpc.executive.getWorkflowBottlenecks.useQuery();
-  const { data: financials, isLoading: financialsLoading } = trpc.executive.getFinancialOverview.useQuery();
+  const { data: kpisResponse, isLoading: kpisLoading } = trpc.analytics.getKPIs.useQuery({});
+  const { data: alertsResponse, isLoading: alertsLoading } = trpc.analytics.getCriticalAlerts.useQuery();
+  const { data: assessorPerfResponse, isLoading: assessorLoading } = trpc.analytics.getAssessorPerformance.useQuery();
+  const { data: panelBeaterAnalyticsResponse, isLoading: panelBeaterLoading } = trpc.analytics.getPanelBeaterAnalytics.useQuery();
+  const { data: savingsTrendsResponse, isLoading: savingsLoading } = trpc.analytics.getCostSavingsTrends.useQuery();
+  const { data: bottlenecksResponse, isLoading: bottlenecksLoading } = trpc.analytics.getWorkflowBottlenecks.useQuery();
+  const { data: financialsResponse, isLoading: financialsLoading } = trpc.analytics.getFinancialOverview.useQuery();
 
   // Search query - only execute when searchQuery has value
-  const { data: searchResults, isLoading: searchLoading, refetch: executeSearch } = trpc.executive.globalSearch.useQuery(
+  const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
     { query: searchQuery },
     { enabled: false }
   );
+
+  // Adapt new standardized response format to legacy dashboard format
+  const kpis = kpisResponse?.data?.summaryMetrics;
+  const alerts = alertsResponse?.data?.riskIndicators;
+  const assessorPerf = assessorPerfResponse?.data?.assessors;
+  const panelBeaterAnalytics = panelBeaterAnalyticsResponse?.data?.panelBeaters;
+  const savingsTrends = savingsTrendsResponse?.data?.trends?.monthlySavings;
+  const bottlenecks = bottlenecksResponse?.data?.riskIndicators?.bottlenecks;
+  const financials = financialsResponse?.data?.summaryMetrics;
+  const searchResults = searchResultsResponse?.data?.results;
 
   const handleSearch = async () => {
     if (searchQuery.trim()) {
