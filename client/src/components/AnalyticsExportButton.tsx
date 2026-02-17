@@ -27,7 +27,7 @@ import { Download, FileText, FileSpreadsheet, Calendar as CalendarIcon, Loader2 
 import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { trpc } from "@/lib/trpc";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 
 interface AnalyticsExportButtonProps {
   tenantId: string;
@@ -46,7 +46,7 @@ export function AnalyticsExportButton({
   );
   const [endDate, setEndDate] = useState<Date | undefined>(new Date()); // Today
   const [format, setFormat] = useState<"pdf" | "csv">("pdf");
-  const { toast } = useToast();
+  // Using sonner toast (imported above)
 
   const exportPDF = trpc.analytics.exportFastTrackPDF.useMutation({
     onSuccess: (data) => {

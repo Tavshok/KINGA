@@ -27,6 +27,7 @@ import { Link } from "wouter";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import ExecutiveKPICards from "@/components/ExecutiveKPICards";
+import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import {
   exportKPIsToPDF,
   exportAlertsToPDF,
@@ -414,6 +415,14 @@ export default function ExecutiveDashboard() {
 
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-4">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-2xl font-bold text-slate-800">Fast-Track Analytics</h2>
+              <AnalyticsExportButton 
+                tenantId="default-tenant" 
+                variant="outline" 
+                size="sm"
+              />
+            </div>
             <ExecutiveAnalyticsCharts />
           </TabsContent>
 
