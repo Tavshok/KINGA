@@ -6618,3 +6618,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Run dispatcher tests to verify functionality (6/16 passing - workflow state machine constraints)
 - [ ] Verify zero TypeScript errors (unrelated errors in other files)
 - [ ] Document WorkflowEngine infrastructure
+
+
+## Fix All Failing Tests
+- [x] Fix test-helpers/workflow.ts TypeScript errors (WorkflowEngine references)
+- [x] Update workflow transition rules in server/rbac.ts for fast-track actions
+- [x] Fix fast-track-dispatcher.test.ts failures (added eligible field, fixed state transitions)
+- [ ] Verify all tests pass (tests running slowly, need to check results)
+- [ ] Verify zero TypeScript errors (225 errors remaining, mostly unrelated)

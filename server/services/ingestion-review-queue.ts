@@ -166,6 +166,7 @@ export async function submitReviewDecision(params: {
   reviewerNotes?: string;
 }): Promise<void> {
   // Get the review queue item
+  if (!db) throw new Error("Database not available");
   const [queueItem] = await db.select()
     .from(claimReviewQueue)
     .where(
@@ -184,6 +185,7 @@ export async function submitReviewDecision(params: {
     throw new Error("This claim has already been reviewed");
   }
   
+  if (!db) throw new Error("Database not available");
   // Update review queue with decision
   await db.update(claimReviewQueue)
     .set({

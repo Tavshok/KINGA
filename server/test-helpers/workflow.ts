@@ -4,8 +4,9 @@
  * Provides utilities for setting up claim states in test environments
  */
 
-import { transition } from "../workflow-engine";
-import { WorkflowState, InsurerRole } from "../workflow/types";
+import { transition, WorkflowEngine } from "../workflow-engine";
+import { WorkflowState } from "../rbac";
+import { InsurerRole } from "../workflow/types";
 
 /**
  * Test user context for workflow operations
@@ -29,7 +30,7 @@ export async function setupTestClaimState(
     tenantId?: string;
   }
 ): Promise<void> {
-  const workflowEngine = new WorkflowEngine();
+  const workflowEngine = new WorkflowEngine(options?.tenantId ?? TEST_USER.tenantId);
   
   const userId = options?.userId ?? TEST_USER.id;
   const userRole = options?.userRole ?? TEST_USER.role;
@@ -38,7 +39,6 @@ export async function setupTestClaimState(
   // Define state progression path
   const statePath: WorkflowState[] = [
     "created",
-    "intake_verified",
     "assigned",
     "under_assessment",
     "internal_review",
@@ -60,18 +60,12 @@ export async function setupTestClaimState(
   for (let i = 1; i <= targetIndex; i++) {
     const nextState = statePath[i];
     
-    await workflowEngine.transition({
+    await workflowEngine.transition(
       claimId,
-      fromState: currentState,
-      toState: nextState,
+      nextState,
       userId,
-      userRole,
-      tenantId,
-      decisionData: {
-        comments: `Test setup: transitioning to ${nextState}`,
-      },
-      aiSnapshot: null,
-    });
+      {}
+    );
     
     currentState = nextState;
   }
@@ -86,7 +80,7 @@ export function mapStatusToWorkflowState(status: string): WorkflowState {
     // Legacy status → New workflowState
     submitted: "created",
     triage: "created",
-    intake_verified: "intake_verified",
+    intake_verified: "assigned",
     assessment_pending: "assigned",
     assessment_in_progress: "under_assessment",
     quotes_pending: "internal_review",
@@ -121,7 +115,7 @@ export async function resetTestClaimState(
 ): Promise<void> {
   // This would typically use database direct update for test cleanup
   // But for governance testing, we should use WorkflowEngine even for resets
-  const workflowEngine = new WorkflowEngine();
+  const workflowEngine = new WorkflowEngine(options?.tenantId ?? TEST_USER.tenantId);
   
   const userId = options?.userId ?? TEST_USER.id;
   const userRole = options?.userRole ?? TEST_USER.role;
@@ -129,16 +123,10 @@ export async function resetTestClaimState(
 
   // Get current state and transition back to created
   // Note: This may require executive override in production
-  await workflowEngine.transition({
+  await workflowEngine.transition(
     claimId,
-    fromState: "closed", // Assuming we're resetting from closed
-    toState: "created",
+    "created",
     userId,
-    userRole,
-    tenantId,
-    decisionData: {
-      comments: "Test cleanup: resetting claim state",
-    },
-    aiSnapshot: null,
-  });
+    {}
+  );
 }

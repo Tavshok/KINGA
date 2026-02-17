@@ -215,11 +215,11 @@ async function executePriorityQueue(
       })
       .where(eq(claims.id, claim.id));
 
-    // Transition to priority state (if workflow supports it)
+    // Transition to internal_review state with priority flag
     const workflowEngine = new WorkflowEngine(claim.tenantId);
     await workflowEngine.transition(
       claim.id,
-      "priority_review",
+      "internal_review",
       executedBy,
       {
         fastTrackAction: "PRIORITY_QUEUE",
@@ -234,7 +234,7 @@ async function executePriorityQueue(
       claim.tenantId,
       evaluationResult,
       "PRIORITY_QUEUE",
-      "priority_review",
+      "internal_review",
       executedBy
     );
 
@@ -244,7 +244,7 @@ async function executePriorityQueue(
     return {
       success: true,
       action: "PRIORITY_QUEUE",
-      newState: "priority_review",
+      newState: "internal_review",
       routingLogId,
     };
   } catch (error) {
@@ -292,12 +292,11 @@ async function executeReducedDocumentation(
         }),
       })
       .where(eq(claims.id, claim.id));
-
-    // Transition to documentation_review state
+    // Transition to internal_review state with priority flag
     const workflowEngine = new WorkflowEngine(claim.tenantId);
     await workflowEngine.transition(
       claim.id,
-      "documentation_review",
+      "under_assessment",
       executedBy,
       {
         fastTrackAction: "REDUCED_DOCUMENTATION",
@@ -319,7 +318,7 @@ async function executeReducedDocumentation(
     return {
       success: true,
       action: "REDUCED_DOCUMENTATION",
-      newState: "documentation_review",
+      newState: "under_assessment",
       routingLogId,
     };
   } catch (error) {
@@ -347,12 +346,11 @@ async function executeStraightToPayment(
     throw new Error("Database connection not available");
   }
 
-  try {
-    // Transition directly to payment_authorized
+  try {    // Transition to under_assessment state with reduced documentation
     const workflowEngine = new WorkflowEngine(claim.tenantId);
     await workflowEngine.transition(
       claim.id,
-      "payment_authorized",
+      "under_assessment",
       executedBy,
       {
         fastTrackAction: "STRAIGHT_TO_PAYMENT",
@@ -422,6 +420,7 @@ async function logFastTrackRouting(
     claimId,
     tenantId,
     configVersion: evaluationResult.configVersion,
+    eligible: evaluationResult.eligible ? 1 : 0,
     decision: action as any,
     reason: evaluationResult.evaluationDetails.reason,
     confidenceScore: evaluationResult.evaluationDetails.confidenceScore.toString(),

@@ -158,7 +158,12 @@ export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
   assigned: ["under_assessment", "disputed"],
   under_assessment: ["internal_review", "disputed"],
   internal_review: ["technical_approval", "under_assessment", "disputed"], // Can send back
-  technical_approval: ["financial_decision", "internal_review", "disputed"], // Can send back
+  technical_approval: [
+    "financial_decision",
+    "internal_review",
+    "payment_authorized", // Fast-track: STRAIGHT_TO_PAYMENT
+    "disputed"
+  ],
   financial_decision: ["payment_authorized", "technical_approval", "disputed"], // Can send back
   payment_authorized: ["closed", "disputed"],
   closed: ["disputed"], // Can reopen if disputed
