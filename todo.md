@@ -7029,3 +7029,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [ ] Download complete claim package (ZIP with all docs/photos/reports)
   - [ ] Batch export claims data to Excel/CSV
 - [ ] Test complete claims processing workflow after role setup fix
+
+### OAuth Role Persistence Issue
+- [x] Created diagnostic page at /user-diagnostic to show current user data
+- [ ] User logs in via Manus OAuth but role doesn't persist from database
+- [ ] Investigate OAuth callback to see how user roles are loaded
+- [ ] Fix OAuth to read role and insurerRole from database during login
+- [ ] Ensure JWT token includes role and insurerRole from database
+- [ ] Test complete flow: set role → logout → login → verify role persists

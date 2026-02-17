@@ -95,6 +95,7 @@ const InsuranceDashboard = lazy(() => import("./pages/InsuranceDashboard"));
 const ReviewQueue = lazy(() => import("./pages/ReviewQueue"));
 const AnalyticsHub = lazy(() => import("./pages/analytics/AnalyticsHub"));
 const RoleSetup = lazy(() => import("./pages/RoleSetup"));
+const UserDiagnostic = lazy(() => import("./pages/UserDiagnostic"));
 
 function Router() {
   return (
@@ -163,6 +164,12 @@ function Router() {
         <Route path="/role-setup">
           <ProtectedRoute allowedRoles={["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]}>
             <RoleSetup />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/user-diagnostic">
+          <ProtectedRoute allowedRoles={["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]}>
+            <UserDiagnostic />
           </ProtectedRoute>
         </Route>
         
