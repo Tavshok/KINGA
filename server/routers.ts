@@ -75,6 +75,7 @@ import { workflowQueriesRouter } from "./routers/workflow-queries";
 import { reviewQueueRouter } from "./routers/review-queue";
 import { monetizationRouter } from "./routers/monetization";
 import { operationalHealthRouter } from "./routers/operational-health";
+import { platformObservabilityRouter } from "./routers/platform-observability";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -84,6 +85,7 @@ export const appRouter = router({
   analytics: analyticsRouter,
   monetization: monetizationRouter,
   operationalHealth: operationalHealthRouter,
+  platformObservability: platformObservabilityRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
   workflow: workflowRouter,

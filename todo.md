@@ -6864,3 +6864,39 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create route for operational dashboard (/admin/operational-health)
 - [x] Test health calculations (server running, endpoints ready)
 - [ ] Create checkpoint with operational readiness dashboard
+
+
+## Platform Super Admin Observability Mode
+- [x] Add PlatformSuperAdmin role to user schema (platform_super_admin enum value)
+- [x] Create middleware guard preventing all mutations for platform_super_admin role
+- [x] Implement tenant filter bypass logic for platform_super_admin queries
+- [x] Create platform observability service with cross-tenant access:
+  - [x] Get all claims across tenants
+  - [x] Get claim trace with full audit history
+  - [x] Get AI extraction data and confidence breakdown
+  - [x] Get routing decision metadata
+  - [x] Get workflow timeline from audit trail
+  - [x] Get segregation involvement tracking
+- [x] Build Platform Overview Dashboard (/platform/overview):
+  - [x] Cross-tenant claims summary
+  - [x] System-wide health metrics
+  - [x] Recent routing decisions
+  - [x] Confidence score distribution
+- [x] Build Claim Trace Panel (/platform/claim-trace/[claimId]):
+  - [x] AI extraction data display
+  - [x] Confidence score breakdown visualization
+  - [x] Routing decision metadata
+  - [x] Workflow timeline from audit trail
+  - [x] Segregation involvement tracking
+- [x] Add audit logging for all platform super admin accesses
+- [x] Create tRPC procedures with platformSuperAdminProcedure
+- [x] Write automated tests:
+  - [x] Test: Platform super admin cannot mutate claim state
+  - [x] Test: Platform super admin cannot approve financial decisions
+  - [x] Test: Platform super admin cannot assign roles
+  - [x] Test: Platform super admin can view cross-tenant claims
+  - [x] Test: All accesses are logged in audit trail
+- [x] Ensure zero governance bypass (enforced by middleware)
+- [x] Ensure zero direct DB updates from platform super admin (read-only queries only)
+- [x] Test platform super admin functionality (server running, all components integrated)
+- [ ] Create checkpoint with platform super admin observability mode

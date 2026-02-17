@@ -17,7 +17,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   passwordHash: varchar("password_hash", { length: 255 }), // For traditional email/password auth
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin"]).default("user").notNull(),
   insurerRole: mysqlEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]), // Hierarchical roles for insurer users
   organizationId: int("organization_id"), // Link to organizations table for team members
   tenantId: varchar("tenant_id", { length: 64 }), // Link to tenants table for multi-tenant isolation

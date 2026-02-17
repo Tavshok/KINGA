@@ -45,6 +45,8 @@ const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComp
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
 const OperationalHealthDashboard = lazy(() => import("./pages/OperationalHealthDashboard"));
+const PlatformOverviewDashboard = lazy(() => import("./pages/PlatformOverviewDashboard"));
+const PlatformClaimTrace = lazy(() => import("./pages/PlatformClaimTrace"));
 
 // Assessor pages
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
@@ -120,6 +122,19 @@ function Router() {
         <Route path="/admin/operational-health">
           <ProtectedRoute allowedRoles={["admin"]}>
             <OperationalHealthDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        {/* Platform Super Admin Observability */}
+        <Route path="/platform/overview">
+          <ProtectedRoute allowedRoles={["platform_super_admin"]}>
+            <PlatformOverviewDashboard />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/platform/claim-trace/:claimId">
+          <ProtectedRoute allowedRoles={["platform_super_admin"]}>
+            <PlatformClaimTrace />
           </ProtectedRoute>
         </Route>
         {/* Assessment Results */}
