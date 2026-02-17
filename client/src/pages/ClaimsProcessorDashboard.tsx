@@ -164,6 +164,14 @@ export default function ClaimsProcessorDashboard() {
             <p className="text-teal-100 text-sm">Process claims, upload documents, and assign assessors</p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="default" 
+              className="bg-white text-teal-700 hover:bg-white/90"
+              onClick={() => toast.info("Feature Coming Soon", { description: "Claim creation form will be available in the next update." })}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Create New Claim
+            </Button>
             <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => refetchPending()}>
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh

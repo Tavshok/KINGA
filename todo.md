@@ -7032,12 +7032,26 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 
 ### OAuth Role Persistence Issue
 - [x] Created diagnostic page at /user-diagnostic to show current user data
-- [ ] User logs in via Manus OAuth but role doesn't persist from database
-- [ ] Investigate OAuth callback to see how user roles are loaded
-- [ ] Fix OAuth to read role and insurerRole from database during login
-- [ ] Ensure JWT token includes role and insurerRole from database
-- [ ] Test complete flow: set role → logout → login → verify role persists
+- [x] User role verified: role="insurer" and insurerRole="claims_processor" correctly configured
+- [x] OAuth callback properly loads roles from database
+- [x] JWT token includes role and insurerRole from database
+- [x] Complete flow tested: role persists correctly across login sessions
 
 ### Portal Hub UX Improvements
 - [x] Add "Debug My Account" button to Portal Hub for easy access to User Diagnostic page
 - [x] User couldn't find /user-diagnostic URL - need direct navigation button
+
+### Claims Processor - Add Claim Upload Functionality
+- [ ] User expects to be able to upload/create claims from Claims Processor Dashboard
+- [ ] Check if claim creation UI exists but is hidden
+- [ ] Add "Upload New Claim" or "Create Claim" button to Claims Processor Dashboard
+- [ ] Implement claim creation form (claimant info, vehicle details, incident description, photos)
+- [ ] Add bulk claim upload via CSV/Excel for historical claims
+- [ ] Test end-to-end: create claim → AI assessment → assign assessor → download reports
+
+### Comprehensive Fix - All Outstanding Issues
+- [x] Claims Processor: Add claim upload/creation button (placeholder with toast notification)
+- [ ] Claims Processor: Implement full claim creation form
+- [ ] Claims Processor: Add bulk claim upload (CSV/Excel)
+- [x] Executive Dashboard Analytics: Chart code verified and server restarted
+- [ ] Test complete workflow: create claim → process → assess → assign → download reports
