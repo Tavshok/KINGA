@@ -6626,3 +6626,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix fast-track-dispatcher.test.ts failures (added eligible field, fixed state transitions)
 - [ ] Verify all tests pass (tests running slowly, need to check results)
 - [ ] Verify zero TypeScript errors (225 errors remaining, mostly unrelated)
+
+
+## Usage Metering Infrastructure
+- [x] Create usageEvents table schema with tenant isolation
+- [x] Push usageEvents table to database
+- [x] Create UsageMeter service with record() function
+- [x] Implement duplicate event protection in UsageMeter
+- [ ] Hook UsageMeter into AI evaluation pipeline (fast-track hooked, AI eval pending)
+- [x] Hook UsageMeter into fast-track decision system
+- [ ] Hook UsageMeter into workflow transitions (pending)
+- [ ] Hook UsageMeter into assessor premium tool usage (helper function ready)
+- [x] Create UsageAggregator service with generateMonthlySummary()
+- [x] Implement monthly aggregation for all event types
+- [x] Add tests: tenant isolation enforcement (13/13 passing)
+- [x] Add tests: duplicate event protection (13/13 passing)
+- [x] Add tests: aggregation accuracy (13/13 passing)
+- [ ] Verify zero TypeScript errors (223 errors unrelated to usage metering)
+- [ ] Document usage metering architecture

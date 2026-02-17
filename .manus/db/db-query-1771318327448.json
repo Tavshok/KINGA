@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `usage_events` (\n  `id` INT PRIMARY KEY AUTO_INCREMENT,\n  `tenant_id` VARCHAR(255) NOT NULL,\n  `claim_id` INT,\n  `event_type` ENUM('CLAIM_PROCESSED', 'AI_EVALUATED', 'FAST_TRACK_TRIGGERED', 'AUTO_APPROVED', 'ASSESSOR_TOOL_USED', 'FLEET_VEHICLE_ACTIVE', 'AGENCY_POLICY_BOUND') NOT NULL,\n  `quantity` INT NOT NULL DEFAULT 1,\n  `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `reference_id` VARCHAR(255),\n  `metadata` JSON,\n  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  INDEX `tenant_idx` (`tenant_id`),\n  INDEX `claim_idx` (`claim_id`),\n  INDEX `event_type_idx` (`event_type`),\n  INDEX `timestamp_idx` (`timestamp`),\n  INDEX `reference_idx` (`reference_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS `usage_events` (\n  `id` INT PRIMARY KEY AUTO_INCREMENT,\n  `tenant_id` VARCHAR(255) NOT NULL,\n  `claim_id` INT,\n  `event_type` ENUM('CLAIM_PROCESSED', 'AI_EVALUATED', 'FAST_TRACK_TRIGGERED', 'AUTO_APPROVED', 'ASSESSOR_TOOL_USED', 'FLEET_VEHICLE_ACTIVE', 'AGENCY_POLICY_BOUND') NOT NULL,\n  `quantity` INT NOT NULL DEFAULT 1,\n  `timestamp` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `reference_id` VARCHAR(255),\n  `metadata` JSON,\n  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  INDEX `tenant_idx` (`tenant_id`),\n  INDEX `claim_idx` (`claim_id`),\n  INDEX `event_type_idx` (`event_type`),\n  INDEX `timestamp_idx` (`timestamp`),\n  INDEX `reference_idx` (`reference_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 385
+}

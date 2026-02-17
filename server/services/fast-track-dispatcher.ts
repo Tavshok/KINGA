@@ -17,6 +17,10 @@ import {
   type InsertFastTrackRoutingLog,
 } from "../../drizzle/schema";
 import { WorkflowEngine } from "../workflow-engine";
+import {
+  recordFastTrackTriggered,
+  recordAutoApproval,
+} from "./usage-meter";
 
 /**
  * Fast-track evaluation result
@@ -91,6 +95,12 @@ export async function executeFastTrackAction(
     };
   }
 
+  // Record usage event: fast-track triggered
+  await recordFastTrackTriggered(claim.tenantId, claim.id, {
+    action: evaluationResult.action,
+    confidenceScore: evaluationResult.evaluationDetails.confidenceScore,
+  });
+
   // Dispatch to appropriate action handler
   switch (evaluationResult.action) {
     case "AUTO_APPROVE":
@@ -132,6 +142,12 @@ async function executeAutoApprove(
   }
 
   try {
+    // Record usage event: auto-approval
+    await recordAutoApproval(claim.tenantId, claim.id, {
+      configVersion: evaluationResult.configVersion,
+      confidenceScore: evaluationResult.evaluationDetails.confidenceScore,
+    });
+
     // Transition to financial_decision state
     const workflowEngine = new WorkflowEngine(claim.tenantId);
     await workflowEngine.transition(

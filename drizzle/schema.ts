@@ -5120,3 +5120,37 @@ export const workflowStates = mysqlTable("workflow_states", {
 
 export type WorkflowState = typeof workflowStates.$inferSelect;
 export type InsertWorkflowState = typeof workflowStates.$inferInsert;
+
+
+/**
+ * Usage Events Table
+ * Event-based usage tracking for metering and analytics
+ */
+export const usageEvents = mysqlTable("usage_events", {
+  id: int("id").primaryKey().autoincrement(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  claimId: int("claim_id"),
+  eventType: mysqlEnum("event_type", [
+    "CLAIM_PROCESSED",
+    "AI_EVALUATED",
+    "FAST_TRACK_TRIGGERED",
+    "AUTO_APPROVED",
+    "ASSESSOR_TOOL_USED",
+    "FLEET_VEHICLE_ACTIVE",
+    "AGENCY_POLICY_BOUND"
+  ]).notNull(),
+  quantity: int("quantity").notNull().default(1),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  referenceId: varchar("reference_id", { length: 255 }), // For deduplication
+  metadata: json("metadata"), // Additional context
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+}, (table) => ({
+  tenantIdx: index("tenant_idx").on(table.tenantId),
+  claimIdx: index("claim_idx").on(table.claimId),
+  eventTypeIdx: index("event_type_idx").on(table.eventType),
+  timestampIdx: index("timestamp_idx").on(table.timestamp),
+  referenceIdx: index("reference_idx").on(table.referenceId),
+}));
+
+export type UsageEvent = typeof usageEvents.$inferSelect;
+export type InsertUsageEvent = typeof usageEvents.$inferInsert;
