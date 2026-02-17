@@ -6702,3 +6702,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test UI improvements (server running, auth required for full test)
 - [x] Verify all existing functionality preserved (no backend changes)
 - [ ] Create checkpoint with premium dashboard UI
+
+
+## Claims Manager Comparison Page Refactor (Three-Column Layout)
+- [x] Locate Claims Manager comparison page component
+- [x] Design three-column layout (AI Assessment | Assessor Report | Panel Beater Quotes)
+- [x] Implement Column 1: AI Assessment with confidence meter, fraud risk, flags, fast-track indicator
+- [x] Implement Column 2: Assessor Report with cost, notes, discrepancy %, photo count
+- [x] Implement Column 3: Panel Beater Quotes with list, lowest/selected highlights, variance %
+- [x] Add automatic variance badges (Green <10%, Amber 10-20%, Red >20%)
+- [x] Add visual confidence score meter (similar to executive dashboard gauge)
+- [x] Add fraud risk score visualization
+- [x] Ensure no workflow logic or state transition changes
+- [x] Test comparison page layout (server running, ready for checkpoint)
+- [ ] Create checkpoint with refactored comparison page
