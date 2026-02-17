@@ -1,83 +1,90 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { FileText, UserPlus, Clock, CheckCircle, AlertCircle, Upload, Eye, RefreshCw, MessageSquare, Search, ChevronsUpDown, Check, Brain } from "lucide-react";
-import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
-import { cn } from "@/lib/utils";
+import { 
+  FileText, 
+  Clock, 
+  AlertCircle, 
+  Upload, 
+  RefreshCw, 
+  CheckCircle,
+  Brain,
+  Shield
+} from "lucide-react";
+import { ClaimCard } from "@/components/ClaimCard";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 /**
  * Claims Processor Dashboard
  * 
- * Responsibilities:
- * - View claims submitted by claimants (NOT create claims - that's a claimant-only function)
- * - Upload additional documents (PDFs) for existing claims (e.g., historical claims received via email)
- * - Assign external assessors to claims
- * - View AI assessment results (triage, damage analysis, physics reports)
- * - Handle claims returned by Claims Manager for review
+ * Organized into 4 sections:
+ * 1. Pending Claims - Newly submitted, awaiting initial review
+ * 2. In Review - Currently being processed
+ * 3. AI Flagged - Flagged by AI for attention
+ * 4. Completed - Processed and closed
  */
 export default function ClaimsProcessorDashboard() {
-  const [selectedClaimForUpload, setSelectedClaimForUpload] = useState<number | null>(null);
-  const [selectedClaimForAI, setSelectedClaimForAI] = useState<number | null>(null);
+  const { user } = useAuth();
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedClaimId, setSelectedClaimId] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  const [pendingPage, setPendingPage] = useState(0);
-  const [returnedPage, setReturnedPage] = useState(0);
-  const PAGE_SIZE = 20;
+  // Role validation
+  if (user?.insurerRole !== "claims_processor") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-red-600">
+              <Shield className="h-5 w-5" />
+              Access Denied
+            </CardTitle>
+            <CardDescription>
+              This dashboard requires CLAIMS_PROCESSOR role.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => window.location.href = "/portal-hub"} className="w-full">
+              Return to Portal Hub
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
-  // Fetch pending claims (submitted by claimants, awaiting processor action)
-  const { data: pendingData, isLoading: pendingLoading, error: pendingError, refetch: refetchPending } = 
+  // Fetch claims by different states
+  const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = 
     trpc.workflowQueries.getClaimsByState.useQuery({ state: "created", limit: 100, offset: 0 });
-  const pendingClaims = pendingData?.items;
-  const pendingTotal = pendingData?.total ?? 0;
-
-  // Fetch returned claims (sent back by Claims Manager for review - disputed state)
-  const { data: returnedData, isLoading: returnedLoading } = 
+  
+  const { data: inReviewData, isLoading: inReviewLoading, refetch: refetchInReview } = 
+    trpc.workflowQueries.getClaimsByState.useQuery({ state: "assigned", limit: 100, offset: 0 });
+  
+  const { data: aiFlaggedData, isLoading: aiFlaggedLoading, refetch: refetchAIFlagged } = 
     trpc.workflowQueries.getClaimsByState.useQuery({ state: "disputed", limit: 100, offset: 0 });
-  const returnedClaims = returnedData?.items;
-  const returnedTotal = returnedData?.total ?? 0;
+  
+  const { data: completedData, isLoading: completedLoading, refetch: refetchCompleted } = 
+    trpc.workflowQueries.getClaimsByState.useQuery({ state: "closed", limit: 100, offset: 0 });
 
-  // Fetch available external assessors
-  const { data: assessors, isLoading: assessorsLoading } = trpc.assessors.list.useQuery();
-
-  // Fetch AI assessment for selected claim
-  const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
-    { claimId: selectedClaimForAI! },
-    { enabled: !!selectedClaimForAI }
-  );
-
-  // Assign assessor mutation
-  const assignAssessor = trpc.claims.assignToAssessor.useMutation({
-    onSuccess: () => {
-      toast.success("Assessor Assigned", {
-        description: "External assessor has been assigned to the claim.",
-      });
-      refetchPending();
-    },
-    onError: (error: any) => {
-      toast.error("Error", {
-        description: error.message,
-      });
-    },
-  });
+  const pendingClaims = pendingData?.items || [];
+  const inReviewClaims = inReviewData?.items || [];
+  const aiFlaggedClaims = aiFlaggedData?.items || [];
+  const completedClaims = completedData?.items || [];
 
   // Upload document mutation
   const uploadDocument = trpc.documents.upload.useMutation({
     onSuccess: () => {
-      toast.success("Document Uploaded", {
-        description: "PDF document has been successfully attached to the claim.",
+      toast.success("Evidence Uploaded", {
+        description: "Additional evidence has been successfully attached to the claim.",
       });
-      setSelectedClaimForUpload(null);
-      refetchPending();
+      setUploadDialogOpen(false);
+      setSelectedClaimId(null);
+      refetchAll();
     },
     onError: (error: any) => {
       toast.error("Upload Error", {
@@ -87,17 +94,26 @@ export default function ClaimsProcessorDashboard() {
     },
   });
 
-  const handleFileUpload = async (claimId: number, file: File) => {
-    if (!file.type.includes("pdf")) {
+  const refetchAll = () => {
+    refetchPending();
+    refetchInReview();
+    refetchAIFlagged();
+    refetchCompleted();
+  };
+
+  const handleFileUpload = async (file: File) => {
+    if (!selectedClaimId) return;
+
+    if (!file.type.includes("pdf") && !file.type.includes("image")) {
       toast.error("Invalid File Type", {
-        description: "Only PDF files are supported for claims processing.",
+        description: "Only PDF and image files are supported.",
       });
       return;
     }
 
     if (file.size > 16 * 1024 * 1024) {
       toast.error("File Too Large", {
-        description: "PDF file must be smaller than 16MB.",
+        description: "File must be smaller than 16MB.",
       });
       return;
     }
@@ -105,19 +121,18 @@ export default function ClaimsProcessorDashboard() {
     setUploadingFile(true);
 
     try {
-      // Convert file to base64
       const reader = new FileReader();
       reader.onload = async (e) => {
         const base64 = e.target?.result as string;
         
         await uploadDocument.mutateAsync({
-          claimId,
+          claimId: selectedClaimId,
           fileName: file.name,
           fileData: base64,
           fileSize: file.size,
           mimeType: file.type,
           documentTitle: file.name,
-          documentDescription: "Historical claim document uploaded by Claims Processor",
+          documentDescription: "Additional evidence uploaded by Claims Processor",
           documentCategory: "other",
         });
         
@@ -130,53 +145,122 @@ export default function ClaimsProcessorDashboard() {
     }
   };
 
-  const handleAssignAssessor = (claimId: number, assessorId: number) => {
-    assignAssessor.mutate({ claimId, assessorId });
+  const handleViewDetails = (claimId: number) => {
+    window.location.href = `/claim/${claimId}`;
   };
 
-  const getStatusBadge = (status: string) => {
-    const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", icon: any }> = {
-      pending_triage: { variant: "outline", icon: Clock },
-      pending_assignment: { variant: "outline", icon: Clock },
-      pending_assessment: { variant: "secondary", icon: UserPlus },
-      assessment_complete: { variant: "default", icon: CheckCircle },
-      disputed: { variant: "destructive", icon: AlertCircle },
-    };
+  const handleDownloadReport = async (claimId: number) => {
+    toast.info("Generating Report", {
+      description: "AI assessment report is being generated...",
+    });
+    // TODO: Implement PDF download
+  };
 
-    const config = statusConfig[status] || { variant: "outline" as const, icon: Clock };
-    const Icon = config.icon;
+  const handleUploadEvidence = (claimId: number) => {
+    setSelectedClaimId(claimId);
+    setUploadDialogOpen(true);
+  };
+
+  const handleEscalate = (claimId: number) => {
+    toast.info("Escalation", {
+      description: "Escalation workflow will be implemented in the next update.",
+    });
+    // TODO: Implement escalation to underwriter
+  };
+
+  const renderSection = (
+    title: string,
+    icon: any,
+    claims: any[],
+    isLoading: boolean,
+    emptyMessage: string,
+    borderColor: string
+  ) => {
+    const Icon = icon;
 
     return (
-      <Badge variant={config.variant} className="flex items-center gap-1">
-        <Icon className="h-3 w-3" />
-        {status.replace(/_/g, " ")}
-      </Badge>
+      <Card className={`shadow-lg border-l-4 ${borderColor}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Icon className="h-5 w-5" />
+            {title}
+            <span className="ml-auto text-sm font-normal text-slate-500">
+              ({claims.length})
+            </span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <p className="text-center text-slate-500 py-8">Loading claims...</p>
+          ) : claims.length === 0 ? (
+            <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+              <Icon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <p className="text-slate-600 font-medium">{emptyMessage}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-4"
+                onClick={refetchAll}
+              >
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {claims.map((claim: any) => (
+                <ClaimCard
+                  key={claim.id}
+                  claim={{
+                    id: claim.id,
+                    claimNumber: claim.claimNumber,
+                    policyholderName: claim.claimantName || claim.policyholderName,
+                    claimType: "Motor Vehicle",
+                    vehicleRegistration: claim.vehicleRegistration,
+                    vehicleMake: claim.vehicleMake,
+                    vehicleModel: claim.vehicleModel,
+                    policyNumber: claim.policyNumber,
+                    aiConfidenceScore: claim.aiConfidenceScore || 0,
+                    fraudRiskScore: claim.fraudRiskScore || 0,
+                    status: claim.workflowState,
+                    createdAt: claim.createdAt,
+                  }}
+                  onViewDetails={handleViewDetails}
+                  onDownloadReport={handleDownloadReport}
+                  onUploadEvidence={handleUploadEvidence}
+                  onEscalate={handleEscalate}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     );
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-secondary/5">
-      {/* KINGA Branded Header */}
+      {/* Header */}
       <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white py-6 px-6 shadow-lg">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold">Claims Processor Dashboard</h1>
-            <p className="text-teal-100 text-sm">Process claims, upload documents, and assign assessors</p>
+            <p className="text-teal-100 text-sm">Process and manage insurance claims</p>
           </div>
           <div className="flex gap-2">
             <Button 
-              variant="default" 
-              className="bg-white text-teal-700 hover:bg-white/90"
-              onClick={() => toast.info("Feature Coming Soon", { description: "Claim creation form will be available in the next update." })}
+              variant="outline" 
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={refetchAll}
             >
-              <Upload className="h-4 w-4 mr-2" />
-              Create New Claim
-            </Button>
-            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => refetchPending()}>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
+              Refresh All
             </Button>
-            <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = '/portal-hub'}>
+            <Button 
+              variant="outline" 
+              className="border-white/30 text-white hover:bg-white/10"
+              onClick={() => window.location.href = "/portal-hub"}
+            >
               Portal Hub
             </Button>
           </div>
@@ -184,435 +268,90 @@ export default function ClaimsProcessorDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto space-y-6 p-6">
-
-        {/* Info Banner */}
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-primary mt-0.5" />
-              <div>
-                <h3 className="font-semibold text-secondary">Claims Processing Workflow</h3>
-                <p className="text-sm text-primary/90 mt-1">
-                  Claims are submitted by claimants through their portal. Your role is to review submitted claims,
-                  upload additional documents (e.g., historical PDFs received via email), assign assessors, and
-                  view AI assessment results.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Returned Claims (Sent Back by Claims Manager) */}
-        {returnedClaims && returnedClaims.length > 0 && (
-          <Card className="shadow-lg border-l-4 border-l-orange-500">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <RefreshCw className="h-5 w-5 text-orange-600" />
-                Claims Returned for Review
-              </CardTitle>
-              <CardDescription>
-                Claims sent back by Claims Manager requiring additional validation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {returnedClaims.map((claim: any) => (
-                  <div
-                    key={claim.id}
-                    className="p-4 bg-orange-50 rounded-lg border border-orange-200 hover:border-orange-400 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
-                          <Badge variant="outline" className="border-orange-500 text-orange-700">
-                            <AlertCircle className="h-3 w-3 mr-1" />
-                            Returned for Review
-                          </Badge>
-                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
-                          <div>
-                            <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
-                          </div>
-                          <div>
-                            <span className="font-medium">Make/Model:</span> {claim.vehicleMake} {claim.vehicleModel}
-                          </div>
-                          <div>
-                            <span className="font-medium">Policy:</span> {claim.policyNumber}
-                          </div>
-                          <div>
-                            <span className="font-medium">Created:</span>{" "}
-                            {new Date(claim.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-
-                        {/* Claims Manager Comments */}
-                        <div className="p-3 bg-white border border-orange-300 rounded mb-2">
-                          <div className="flex items-center gap-2 mb-2">
-                            <MessageSquare className="h-4 w-4 text-orange-600" />
-                            <span className="text-sm font-medium text-orange-700">Claims Manager Comments:</span>
-                          </div>
-                          <p className="text-sm text-slate-700 italic">
-                            "Please review and validate the assessment - additional verification needed"
-                          </p>
-                          <p className="text-xs text-slate-500 mt-1">
-                            Note: Full comment history available in claim details
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="ml-4 flex flex-col gap-2">
-                        <Button size="sm" variant="outline" className="border-orange-500 text-orange-700">
-                          <RefreshCw className="h-4 w-4 mr-2" />
-                          Reassign Assessor
-                        </Button>
-                        <Button size="sm" variant="outline">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          View Comments
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Pending Claims */}
+        {renderSection(
+          "Pending Claims",
+          Clock,
+          pendingClaims,
+          pendingLoading,
+          "No pending claims assigned to you",
+          "border-l-slate-400"
         )}
 
-        {/* Pending Claims (Awaiting Processor Action) */}
-        <Card className="shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-primary" />
-              Pending Claims
-            </CardTitle>
-            <CardDescription>Claims submitted by claimants awaiting your action</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {pendingLoading ? (
-              <p className="text-center text-slate-500 py-8">Loading claims...</p>
-            ) : pendingError ? (
-              <div className="text-center py-8">
-                <AlertCircle className="h-8 w-8 text-red-400 mx-auto mb-2" />
-                <p className="text-red-600 font-medium">Failed to load claims</p>
-                <p className="text-sm text-slate-500 mt-1">{pendingError.message}</p>
-                <Button variant="outline" size="sm" className="mt-3" onClick={() => refetchPending()}>
-                  <RefreshCw className="h-4 w-4 mr-2" /> Retry
-                </Button>
-              </div>
-            ) : pendingClaims && pendingClaims.length > 0 ? (
-              <div className="space-y-3">
-                {pendingClaims.map((claim: any) => (
-                  <div
-                    key={claim.id}
-                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-primary/40 transition-colors"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-2">
-                          <h3 className="font-semibold text-lg">{claim.claimNumber}</h3>
-                          {getStatusBadge(claim.workflowState)}
-                          <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
-                        </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
-                          <div>
-                            <span className="font-medium">Claimant:</span> {claim.claimantIdNumber || "N/A"}
-                          </div>
-                          <div>
-                            <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
-                          </div>
-                          <div>
-                            <span className="font-medium">Policy:</span> {claim.policyNumber}
-                          </div>
-                          <div>
-                            <span className="font-medium">Submitted:</span>{" "}
-                            {new Date(claim.createdAt).toLocaleDateString()}
-                          </div>
-                        </div>
-                      </div>
+        {/* In Review */}
+        {renderSection(
+          "In Review",
+          FileText,
+          inReviewClaims,
+          inReviewLoading,
+          "No claims currently in review",
+          "border-l-blue-400"
+        )}
 
-                      {/* Action Buttons */}
-                      <div className="ml-4 flex flex-col gap-2 min-w-[220px]">
-                        {/* Upload PDF Document */}
-                        <Dialog open={selectedClaimForUpload === claim.id} onOpenChange={(open) => !open && setSelectedClaimForUpload(null)}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="outline"
-                              onClick={() => setSelectedClaimForUpload(claim.id)}
-                            >
-                              <Upload className="h-4 w-4 mr-2" />
-                              Upload PDF
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Upload Claim Document</DialogTitle>
-                              <DialogDescription>
-                                Upload additional PDF documents for claim {claim.claimNumber}
-                                (e.g., historical claims received via email)
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-4">
-                              <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-                                <Upload className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-                                <Label
-                                  htmlFor={`file-upload-${claim.id}`}
-                                  className="cursor-pointer text-primary hover:text-primary/90 font-medium"
-                                >
-                                  Click to select PDF file
-                                </Label>
-                                <input
-                                  id={`file-upload-${claim.id}`}
-                                  type="file"
-                                  accept=".pdf"
-                                  className="hidden"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                      handleFileUpload(claim.id, file);
-                                    }
-                                  }}
-                                  disabled={uploadingFile}
-                                />
-                                <p className="text-xs text-slate-500 mt-2">
-                                  PDF files only, max 16MB
-                                </p>
-                              </div>
-                              {uploadingFile && (
-                                <p className="text-center text-sm text-primary">
-                                  Uploading document...
-                                </p>
-                              )}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
+        {/* AI Flagged */}
+        {renderSection(
+          "AI Flagged",
+          Brain,
+          aiFlaggedClaims,
+          aiFlaggedLoading,
+          "No claims flagged by AI",
+          "border-l-orange-500"
+        )}
 
-                        {/* Assign Assessor - Searchable */}
-                        {(claim.workflowState === "created" || claim.workflowState === "assigned") && (
-                          <AssessorSearchSelect
-                            assessors={assessors || []}
-                            isLoading={assessorsLoading}
-                            disabled={assignAssessor.isPending}
-                            onSelect={(assessorId) => handleAssignAssessor(claim.id, assessorId)}
-                          />
-                        )}
-
-                        {/* View AI Assessment */}
-                        <Dialog open={selectedClaimForAI === claim.id} onOpenChange={(open) => !open && setSelectedClaimForAI(null)}>
-                          <DialogTrigger asChild>
-                            <Button 
-                              size="sm" 
-                              variant="default"
-                              onClick={() => setSelectedClaimForAI(claim.id)}
-                            >
-                              <Eye className="h-4 w-4 mr-2" />
-                              View AI Assessment
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-3xl max-h-[80vh] overflow-y-auto">
-                            <DialogHeader>
-                              <DialogTitle>AI Assessment Results</DialogTitle>
-                              <DialogDescription>
-                                Triage, damage analysis, and physics validation for claim {claim.claimNumber}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="space-y-4 pt-4">
-                              {aiLoading ? (
-                                <p className="text-center text-slate-500 py-8">Loading AI assessment...</p>
-                              ) : aiAssessment ? (
-                                <div className="space-y-4">
-                                  {/* Triage Results */}
-                                  <Card>
-                                    <CardHeader>
-                                      <CardTitle className="text-lg">Triage Assessment</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                      <div className="space-y-2">
-                                        <div className="flex justify-between">
-                                          <span className="font-medium">Confidence Score:</span>
-                                          <Badge>{aiAssessment.confidenceScore ? `${aiAssessment.confidenceScore}%` : "N/A"}</Badge>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="font-medium">Fraud Risk:</span>
-                                          <Badge variant={aiAssessment.fraudRiskLevel === "high" ? "destructive" : "secondary"}>
-                                            {aiAssessment.fraudRiskLevel || "N/A"}
-                                          </Badge>
-                                        </div>
-                                        <div className="flex justify-between">
-                                          <span className="font-medium">Estimated Cost:</span>
-                                          <span>${aiAssessment.estimatedCost?.toLocaleString() || "N/A"}</span>
-                                        </div>
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-
-                                  {/* Damage Analysis */}
-                                  <Card>
-                                    <CardHeader>
-                                      <CardTitle className="text-lg">Damage Analysis</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                      <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                                        {aiAssessment.damageDescription || "No damage analysis available"}
-                                      </p>
-                                    </CardContent>
-                                  </Card>
-
-                                  {/* Physics Validation */}
-                                  {aiAssessment.physicsAnalysis && (
-                                    <Card>
-                                      <CardHeader>
-                                        <CardTitle className="text-lg">Physics Analysis</CardTitle>
-                                      </CardHeader>
-                                      <CardContent>
-                                        <p className="text-sm text-slate-700 whitespace-pre-wrap">
-                                          {aiAssessment.physicsAnalysis}
-                                        </p>
-                                      </CardContent>
-                                    </Card>
-                                  )}
-                                </div>
-                              ) : (
-                                <div className="text-center py-8">
-                                  <AlertCircle className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                                  <p className="text-slate-500">No AI assessment available for this claim</p>
-                                  <p className="text-sm text-slate-400 mt-1">
-                                    AI assessment will be generated after claim triage
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          </DialogContent>
-                        </Dialog>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">No pending claims</p>
-                <p className="text-sm text-slate-400">Claims submitted by claimants will appear here</p>
-              </div>
-            )}
-            {/* Pagination Controls */}
-            {pendingTotal > PAGE_SIZE && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t">
-                <p className="text-sm text-slate-500">
-                  Showing {pendingPage * PAGE_SIZE + 1}–{Math.min((pendingPage + 1) * PAGE_SIZE, pendingTotal)} of {pendingTotal} claims
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={pendingPage === 0}
-                    onClick={() => setPendingPage(p => p - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={(pendingPage + 1) * PAGE_SIZE >= pendingTotal}
-                    onClick={() => setPendingPage(p => p + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {/* Completed */}
+        {renderSection(
+          "Completed",
+          CheckCircle,
+          completedClaims,
+          completedLoading,
+          "No completed claims",
+          "border-l-green-500"
+        )}
       </div>
-    </div>
-  );
-}
 
-
-// ========== SEARCHABLE ASSESSOR SELECT ==========
-function AssessorSearchSelect({
-  assessors,
-  isLoading,
-  disabled,
-  onSelect,
-}: {
-  assessors: any[];
-  isLoading: boolean;
-  disabled: boolean;
-  onSelect: (assessorId: number) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-
-  const filteredAssessors = useMemo(() => {
-    if (!assessors) return [];
-    if (!searchValue) return assessors;
-    const lower = searchValue.toLowerCase();
-    return assessors.filter((a: any) =>
-      a.name?.toLowerCase().includes(lower) ||
-      a.email?.toLowerCase().includes(lower) ||
-      a.specialization?.toLowerCase().includes(lower)
-    );
-  }, [assessors, searchValue]);
-
-  return (
-    <div>
-      <Label className="text-xs mb-1">Assign Assessor</Label>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
-          <Button
-            variant="outline"
-            role="combobox"
-            aria-expanded={open}
-            className="w-full justify-between text-sm"
-            disabled={disabled || isLoading}
-          >
-            <span className="flex items-center gap-2">
-              <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              {isLoading ? "Loading..." : "Search assessor..."}
-            </span>
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[280px] p-0" align="start">
-          <Command shouldFilter={false}>
-            <CommandInput
-              placeholder="Type name or email..."
-              value={searchValue}
-              onValueChange={setSearchValue}
-            />
-            <CommandList>
-              <CommandEmpty>No assessors found.</CommandEmpty>
-              <CommandGroup>
-                {filteredAssessors.map((assessor: any) => (
-                  <CommandItem
-                    key={assessor.id}
-                    value={assessor.id.toString()}
-                    onSelect={() => {
-                      onSelect(assessor.id);
-                      setOpen(false);
-                      setSearchValue("");
-                    }}
-                  >
-                    <div className="flex flex-col">
-                      <span className="font-medium">{assessor.name}</span>
-                      {assessor.email && (
-                        <span className="text-xs text-muted-foreground">{assessor.email}</span>
-                      )}
-                      {assessor.specialization && (
-                        <span className="text-xs text-primary">{assessor.specialization}</span>
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
+      {/* Upload Evidence Dialog */}
+      <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Upload Additional Evidence</DialogTitle>
+            <DialogDescription>
+              Upload PDF documents or images as additional evidence for this claim
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+              <Upload className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+              <Label
+                htmlFor="evidence-upload"
+                className="cursor-pointer text-primary hover:text-primary/90 font-medium"
+              >
+                Click to select file
+              </Label>
+              <input
+                id="evidence-upload"
+                type="file"
+                accept=".pdf,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(file);
+                  }
+                }}
+                disabled={uploadingFile}
+              />
+              <p className="text-xs text-slate-500 mt-2">
+                PDF or image files, max 16MB
+              </p>
+            </div>
+            {uploadingFile && (
+              <p className="text-center text-sm text-primary">
+                Uploading evidence...
+              </p>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
