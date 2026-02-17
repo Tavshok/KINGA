@@ -27,6 +27,7 @@ import { Link } from "wouter";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
 import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
+import { RiskRadarWidget } from "@/components/RiskRadarWidget";
 import {
   exportKPIsToPDF,
   exportAlertsToPDF,
@@ -372,6 +373,9 @@ export default function ExecutiveDashboard() {
             />
           </div>
         </section>
+
+        {/* Risk Radar Widget */}
+        <RiskRadarWidget kpis={kpis} />
 
         {/* Confidence Score & Override Transparency Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
