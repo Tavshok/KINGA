@@ -8351,3 +8351,45 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test comparison view rendering - requires backend testing
 - [ ] Test statistics calculations - requires backend testing
 - [x] Save final checkpoint
+
+
+## Load Test Harness
+
+### Phase 1: Load Test Data Generators
+- [x] Create realistic claim data generator (VIN, make, model, damage descriptions, vehicle data)
+- [x] Create quote data generator (panel beater quotes with line items, labor + parts)
+- [x] Create user data generator (claimants, assessors, processors with names, emails, phones)
+- [x] Add randomization for realistic data distribution (8 vehicle makes, 8 damage types, 10 names)
+- [x] Document data generation schema (generateClaim, generateQuote, generateClaimBatch, generateQuoteBatch)
+
+### Phase 2: Load Test Script & Workflow Simulation
+- [x] Create load test script with parallel execution (1000 claims)
+- [x] Simulate claim submission workflow
+- [x] Simulate parallel AI scoring calls (damage detection, cost estimation, fraud scoring)
+- [x] Simulate quote submissions from panel beaters (3 quotes per claim)
+- [x] Simulate workflow state transitions (pending_intake → pending_assessment → under_review → approved)
+- [x] Add configurable concurrency levels (--claims, --concurrency, --tenant, --url CLI args)
+
+### Phase 3: Performance Metrics Collection
+- [x] Implement response time tracking (average, P50, P95, P99, min, max)
+- [x] Track error rates by endpoint and error type
+- [x] Track throughput (requests per minute)
+- [x] Add real-time progress reporting (batch progress, percentage complete)
+- [ ] Measure database performance (rows scanned, query duration) - requires DB profiling integration
+- [ ] Monitor memory usage and heap snapshots - requires Node.js profiling integration
+
+### Phase 4: Load Test Report Generation
+- [x] Generate summary statistics (avg latency, P95 latency, failure count, throughput)
+- [x] Create endpoint performance breakdown (per-endpoint latency, error rate, min/max)
+- [x] Add error analysis with error counts by message
+- [x] Identify bottlenecks and recommendations (high error rate, high latency, low throughput)
+- [x] Export report to Markdown (generateReport method)
+- [x] Export report to JSON (exportJSON method)
+- [ ] Generate database query performance report - requires DB profiling integration
+
+### Phase 5: Testing & Delivery
+- [x] Create usage documentation (load-test/README.md with architecture, usage, troubleshooting)
+- [ ] Test load harness with small batch (10 claims) - requires running backend server
+- [ ] Run full load test (1000 claims) - requires running backend server
+- [ ] Validate metrics accuracy - requires running backend server
+- [x] Save final checkpoint
