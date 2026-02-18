@@ -1,0 +1,1 @@
+ALTER TABLE `tenants` ADD `routing_config` text;

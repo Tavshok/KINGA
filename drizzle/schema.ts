@@ -1380,6 +1380,9 @@ export const tenants = mysqlTable("tenants", {
   // AI Rerun Rate Limiting Configuration
   aiRerunLimitPerHour: int("ai_rerun_limit_per_hour").default(10).notNull(), // Maximum AI reruns per user per hour (default 10)
   
+  // Routing Configuration (Dynamic Confidence Thresholds)
+  routingConfig: text("routing_config"), // JSON object for routing configuration: { autoApproveThreshold: 0.85, manualReviewMin: 0.60, manualReviewMax: 0.84, highRiskMin: 0.40, highRiskMax: 0.59, fraudInvestigationMax: 0.39 }
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),

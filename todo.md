@@ -8163,3 +8163,46 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Verify tenant isolation enforcement
 - [ ] Create seeding script documentation
 - [ ] Save final checkpoint
+
+
+## Routing System Structural Enhancement
+
+### Phase 1: Policy Versioning & Schema Cleanup
+- [ ] Revert tenant.routingConfig field (remove from schema)
+- [ ] Add version field to automation_policies table
+- [ ] Add effective_from and effective_until timestamps to automation_policies
+- [ ] Add superseded_by_policy_id reference for policy lineage
+- [ ] Add is_active flag to automation_policies
+- [ ] Push schema changes to database
+- [ ] Document policy versioning structure
+
+### Phase 2: Immutable Routing Decisions
+- [ ] Add policy_version_id to claim_routing_decisions table
+- [ ] Add policy_snapshot_json to claim_routing_decisions (immutable policy copy)
+- [ ] Add claim_version to claim_routing_decisions (for multi-version claims)
+- [ ] Update recordRoutingDecision to capture policy version
+- [ ] Ensure routing decisions are immutable (no updates, only inserts)
+- [ ] Add indexes for performance (policy_version_id, claim_version)
+
+### Phase 3: Historical Policy Replay
+- [ ] Create getHistoricalPolicy function (retrieve policy by version or timestamp)
+- [ ] Create replayRoutingDecision function (re-route claim using historical policy)
+- [ ] Add policy version comparison function (show policy changes over time)
+- [ ] Test replay with multiple policy versions
+- [ ] Validate replay produces identical results
+
+### Phase 4: Audit Reproducibility
+- [ ] Add POLICY_VERSION_CREATED action type to audit trail
+- [ ] Add POLICY_VERSION_SUPERSEDED action type to audit trail
+- [ ] Log all policy changes with version tracking
+- [ ] Create policy version history view (show all versions for a tenant)
+- [ ] Add routing decision reproducibility report (show policy used for each decision)
+- [ ] Test audit trail completeness
+
+### Phase 5: Testing & Delivery
+- [ ] Test policy versioning workflow (create, update, supersede)
+- [ ] Test routing decision immutability
+- [ ] Test historical policy replay accuracy
+- [ ] Test audit reproducibility (reproduce routing decisions from audit trail)
+- [ ] Create implementation summary document
+- [ ] Save final checkpoint
