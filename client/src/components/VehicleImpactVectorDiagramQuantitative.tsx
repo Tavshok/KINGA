@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Zap } from "lucide-react";
+import { clamp } from "@/lib/mathUtils";
 
 /**
  * Physics Validation Data (from backend)
@@ -202,7 +203,7 @@ export function VehicleImpactVectorDiagramQuantitative({
   // Calculate vector thickness based on impact force (quantitative scaling)
   // Formula: thickness = force / 20, clamped between 2-10px
   const vectorThickness = calculatedImpactForceKN 
-    ? Math.min(Math.max(calculatedImpactForceKN / 20, 2), 10) 
+    ? clamp(calculatedImpactForceKN / 20, 2, 10) 
     : 3; // Fallback to 3px if missing
   
   // Get damage zones from components

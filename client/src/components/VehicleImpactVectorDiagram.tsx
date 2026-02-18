@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Zap } from "lucide-react";
+import { clamp } from "@/lib/mathUtils";
 
 /**
  * Physics Validation Data (from backend quantitative physics engine)
@@ -27,13 +28,6 @@ interface VehicleImpactVectorDiagramProps {
   
   // NEW: Quantitative physics data
   physicsValidation?: PhysicsValidation | null;
-}
-
-/**
- * Clamp a value between min and max
- */
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
 }
 
 export function VehicleImpactVectorDiagram({
@@ -204,7 +198,7 @@ export function VehicleImpactVectorDiagram({
   const vectorThickness = physicsValidation
     ? clamp(physicsValidation.calculatedImpactForceKN / 15, 2, 8)
     : impactForce
-    ? Math.min(Math.max(impactForce / 10, 2), 6)
+    ? clamp(impactForce / 10, 2, 6)
     : 3;
   
   // Use quantitative force if available, otherwise fall back to legacy

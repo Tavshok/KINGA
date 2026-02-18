@@ -8741,3 +8741,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] Display "Impact Angle: XX°" (in metrics summary)
 - [x] Backward compatibility verified (fallback to getLegacyImpactConfig when physicsValidation missing)
 - [ ] Create checkpoint (PENDING)
+
+
+## Clamp Utility Function Refactoring (COMPLETE)
+- [x] Create shared math utilities module (client/src/lib/mathUtils.ts)
+  - [x] Export clamp function: clamp(value, min, max)
+  - [x] Add JSDoc documentation
+- [x] Refactor VehicleImpactVectorDiagram to use clamp utility
+  - [x] Remove inline clamp function definition
+  - [x] Import clamp from @/lib/mathUtils
+  - [x] Verify vector thickness calculation uses clamp
+  - [x] Verify vector length calculation uses clamp
+- [x] Refactor VehicleImpactVectorDiagramQuantitative to use clamp utility
+  - [x] Import clamp from @/lib/mathUtils
+  - [x] Replace Math.min(Math.max) with clamp in vector thickness calculation
+- [x] Verify no inline duplication across codebase (grep confirmed zero matches)
+- [ ] Create checkpoint (PENDING)
