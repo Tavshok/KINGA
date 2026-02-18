@@ -8121,3 +8121,45 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Expired invitation handling (getInvitationByToken validates expiry)
 - [x] Create implementation summary document (TENANT_ONBOARDING_WORKFLOW_SUMMARY.md)
 - [ ] Save final checkpoint
+
+
+## Production-Grade Test Data Seeding
+
+### Phase 1: Data Seeding Script Architecture
+- [x] Design claim distribution across routing categories (auto-approve, manual review, high-risk, fraud)
+- [x] Define realistic data generators (claim numbers, VINs, policy numbers, dates)
+- [x] Create seeding script structure (server/seed-production-data.ts)
+- [x] Define tenant isolation strategy (default tenant: demo-tenant)
+
+### Phase 2: Claims Generation
+- [x] Generate 50 claims with realistic data (claimant info, vehicle details, incident descriptions)
+- [x] Distribute claims across routing categories (15 auto-approve, 20 manual review, 10 high-risk, 5 fraud)
+- [x] Assign claims to processors (workload balancing simulation)
+- [x] Set workflow states (payment_authorized, under_assessment, internal_review, disputed)
+- [x] Add timestamps with realistic progression (created_at with random dates)
+
+### Phase 3: Workflow Audit Trails & AI Assessments
+- [ ] Generate workflow audit trail entries for each claim (state transitions, assignments, approvals)
+- [ ] Create AI assessments with varied confidence scores (0.3-0.99)
+- [ ] Add fraud suspicion flags (early_fraud_suspicion, fraud_confidence_score)
+- [ ] Generate routing recommendations (auto_approve, manual_review, escalate)
+- [ ] Add assessment metadata (damage severity, estimated repair cost)
+
+### Phase 4: Panel Beater Quotes & Overrides
+- [ ] Generate 3 panel beater quotes per claim (varied pricing, completion times)
+- [ ] Add quote metadata (parts breakdown, labor hours, warranty)
+- [ ] Create executive override samples (5-10 claims with manual routing changes)
+- [ ] Add override audit logs (reason, previous state, new state)
+
+### Phase 5: Segregation Violations & Tenant Isolation
+- [ ] Create segregation violation samples (same user performing conflicting actions)
+- [ ] Add segregation violation audit logs (violation type, users involved)
+- [ ] Validate tenant isolation (all data scoped by tenantId)
+- [ ] Add demo-ready metadata (claim descriptions, incident narratives)
+
+### Phase 6: Testing & Delivery
+- [ ] Run seeding script and validate data integrity
+- [ ] Test dashboard queries with seeded data
+- [ ] Verify tenant isolation enforcement
+- [ ] Create seeding script documentation
+- [ ] Save final checkpoint
