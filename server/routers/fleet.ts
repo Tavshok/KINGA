@@ -21,6 +21,14 @@ import {
 } from "../../drizzle/schema";
 import { eq, and, desc, count, sum, avg } from "drizzle-orm";
 import { fetchClaimDossierData, generateClaimDossierHTML } from "../fleet-claim-export";
+import {
+  createFleet,
+  addVehicle,
+  onboardDriver,
+  addMaintenanceRecord,
+  getFleetDrivers,
+  canManageFleet,
+} from "../fleet-service";
 
 /**
  * Fleet role validation middleware
@@ -412,6 +420,142 @@ export const fleetRouter = router({
           message: "Failed to fetch fleet analytics",
         });
       }
+    }),
+
+  /**
+   * FLEET GOVERNANCE FOUNDATION
+   */
+
+  // Create a new fleet (fleet_manager only)
+  createFleet: fleetManagerProcedure
+    .input(
+      z.object({
+        fleetName: z.string().min(1),
+        contactEmail: z.string().email(),
+        contactPhone: z.string().optional(),
+        address: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "User must belong to a tenant" });
+      }
+
+      return await createFleet(
+        ctx.user.tenantId,
+        ctx.user.id,
+        input.fleetName,
+        input.contactEmail,
+        input.contactPhone,
+        input.address
+      );
+    }),
+
+  // Add a vehicle to a fleet (fleet_manager only)
+  addVehicleToFleet: fleetManagerProcedure
+    .input(
+      z.object({
+        fleetId: z.number(),
+        vin: z.string().min(1),
+        make: z.string().min(1),
+        model: z.string().min(1),
+        year: z.number(),
+        licensePlate: z.string().min(1),
+        registrationExpiry: z.date().optional(),
+        insurancePolicyNumber: z.string().optional(),
+        insuranceExpiry: z.date().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "User must belong to a tenant" });
+      }
+
+      return await addVehicle(ctx.user.tenantId, input.fleetId, {
+        vin: input.vin,
+        make: input.make,
+        model: input.model,
+        year: input.year,
+        licensePlate: input.licensePlate,
+        registrationExpiry: input.registrationExpiry,
+        insurancePolicyNumber: input.insurancePolicyNumber,
+        insuranceExpiry: input.insuranceExpiry,
+      });
+    }),
+
+  // Onboard a driver to a fleet (fleet_manager only)
+  onboardFleetDriver: fleetManagerProcedure
+    .input(
+      z.object({
+        fleetId: z.number(),
+        userId: z.number(),
+        driverLicenseNumber: z.string().min(1),
+        licenseExpiry: z.date(),
+        licenseClass: z.string().optional(),
+        hireDate: z.date(),
+        emergencyContactName: z.string().optional(),
+        emergencyContactPhone: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "User must belong to a tenant" });
+      }
+
+      return await onboardDriver(ctx.user.tenantId, input.fleetId, input.userId, {
+        driverLicenseNumber: input.driverLicenseNumber,
+        licenseExpiry: input.licenseExpiry,
+        licenseClass: input.licenseClass,
+        hireDate: input.hireDate,
+        emergencyContactName: input.emergencyContactName,
+        emergencyContactPhone: input.emergencyContactPhone,
+      });
+    }),
+
+  // Add a maintenance record (fleet_manager only)
+  addFleetMaintenanceRecord: fleetManagerProcedure
+    .input(
+      z.object({
+        vehicleId: z.number(),
+        serviceType: z.string().min(1),
+        serviceDate: z.date(),
+        mileage: z.number().optional(),
+        cost: z.number().optional(),
+        serviceProvider: z.string().optional(),
+        notes: z.string().optional(),
+      })
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "User must belong to a tenant",
+        });
+      }
+
+      return await addMaintenanceRecord(ctx.user.tenantId, input.vehicleId, {
+        serviceType: input.serviceType,
+        serviceDate: input.serviceDate,
+        mileage: input.mileage,
+        cost: input.cost,
+        serviceProvider: input.serviceProvider,
+        notes: input.notes,
+      });
+    }),
+
+  // Get all drivers in a fleet
+  getFleetDriversList: fleetRoleProcedure
+    .input(
+      z.object({
+        fleetId: z.number(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user.tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "User must belong to a tenant" });
+      }
+
+      return await getFleetDrivers(ctx.user.tenantId, input.fleetId);
     }),
 
   /**

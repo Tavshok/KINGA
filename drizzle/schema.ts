@@ -5294,3 +5294,88 @@ export const governanceNotifications = mysqlTable("governance_notifications", {
 
 export type GovernanceNotification = typeof governanceNotifications.$inferSelect;
 export type InsertGovernanceNotification = typeof governanceNotifications.$inferInsert;
+
+
+// ============================================================================
+// FLEET GOVERNANCE FOUNDATION - Driver Management & Incident Reporting
+// ============================================================================
+
+/**
+ * Fleet Drivers - Driver profiles linked to fleet and user accounts
+ */
+export const fleetDrivers = mysqlTable("fleet_drivers", {
+  id: int("id").autoincrement().primaryKey(),
+  fleetId: int("fleet_id").notNull(), // Reference to fleets table
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(), // Multi-tenant isolation
+  userId: int("user_id").notNull(), // Reference to users table (fleet_driver role)
+  
+  // Driver license information
+  driverLicenseNumber: varchar("driver_license_number", { length: 50 }).notNull(),
+  licenseExpiry: date("license_expiry").notNull(),
+  licenseClass: varchar("license_class", { length: 20 }), // e.g., "C1", "EB"
+  
+  // Employment information
+  hireDate: date("hire_date").notNull(),
+  employmentStatus: mysqlEnum("employment_status", ["active", "suspended", "terminated"]).default("active").notNull(),
+  terminationDate: date("termination_date"),
+  
+  // Driver profile
+  emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
+  emergencyContactPhone: varchar("emergency_contact_phone", { length: 50 }),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  tenantIdIdx: index("idx_fleet_drivers_tenant_id").on(table.tenantId),
+  fleetIdIdx: index("idx_fleet_drivers_fleet_id").on(table.fleetId),
+  userIdIdx: index("idx_fleet_drivers_user_id").on(table.userId),
+}));
+
+export type FleetDriver = typeof fleetDrivers.$inferSelect;
+export type InsertFleetDriver = typeof fleetDrivers.$inferInsert;
+
+/**
+ * Fleet Incident Reports - Driver-submitted incident reports
+ */
+export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
+  id: int("id").autoincrement().primaryKey(),
+  vehicleId: int("vehicle_id").notNull(), // Reference to fleet_vehicles table
+  driverId: int("driver_id").notNull(), // Reference to fleet_drivers table
+  fleetId: int("fleet_id").notNull(), // Reference to fleets table
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(), // Multi-tenant isolation
+  
+  // Incident details
+  incidentDate: timestamp("incident_date").notNull(),
+  location: text("location").notNull(),
+  description: text("description").notNull(),
+  
+  // Severity and status
+  severity: mysqlEnum("severity", ["minor", "moderate", "major", "critical"]).default("minor").notNull(),
+  status: mysqlEnum("status", ["submitted", "under_review", "approved", "rejected", "claim_filed"]).default("submitted").notNull(),
+  
+  // Additional information
+  policeReportNumber: varchar("police_report_number", { length: 100 }),
+  witnessName: varchar("witness_name", { length: 255 }),
+  witnessPhone: varchar("witness_phone", { length: 50 }),
+  
+  // Damage assessment
+  estimatedDamage: decimal("estimated_damage", { precision: 10, scale: 2 }),
+  vehicleDriveable: tinyint("vehicle_driveable").default(1),
+  
+  // Review information
+  reviewedBy: int("reviewed_by"), // User ID of fleet_manager who reviewed
+  reviewedAt: timestamp("reviewed_at"),
+  reviewNotes: text("review_notes"),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  tenantIdIdx: index("idx_fleet_incident_reports_tenant_id").on(table.tenantId),
+  fleetIdIdx: index("idx_fleet_incident_reports_fleet_id").on(table.fleetId),
+  vehicleIdIdx: index("idx_fleet_incident_reports_vehicle_id").on(table.vehicleId),
+  driverIdIdx: index("idx_fleet_incident_reports_driver_id").on(table.driverId),
+  statusIdx: index("idx_fleet_incident_reports_status").on(table.status),
+}));
+
+export type FleetIncidentReport = typeof fleetIncidentReports.$inferSelect;
+export type InsertFleetIncidentReport = typeof fleetIncidentReports.$inferInsert;

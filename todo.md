@@ -7955,4 +7955,59 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test mark as read functionality (markAsRead, markAllAsRead)
 - [x] Test tenant isolation (all queries scoped by tenantId, recipient validation)
 - [x] Create implementation summary document (GOVERNANCE_NOTIFICATION_SERVICE_SUMMARY.md)
+- [x] Save final checkpoint (version: 380263ee)
+
+
+## Fleet Governance Foundation
+
+### Phase 1: Fleet Entities Schema
+- [x] Fleet table already exists (fleets table in schema.ts)
+- [x] Fleet vehicles table already exists (fleetVehicles table in schema.ts)
+- [x] Create fleet_drivers table (added to schema.ts with license info, employment status)
+- [x] Fleet maintenance records already exist (maintenanceRecords table in schema.ts)
+- [x] Create fleet_incident_reports table (added to schema.ts with severity, status, review workflow)
+- [x] Add indexes for performance (tenant_id, fleet_id, vehicle_id, driver_id, status)
+- [x] Push schema changes to database (fleet_drivers, fleet_incident_reports created)
+- [x] Document schema design (comprehensive JSDoc comments in schema.ts)
+
+### Phase 2: Fleet Roles
+- [x] Fleet roles already exist in user role enum (fleet_manager, fleet_driver in schema.ts line 20)
+- [x] User role validation logic already supports fleet roles (enum validation)
+- [ ] Add fleet role permission checks (in service layer)
+- [ ] Document fleet role permissions (in implementation summary)
+
+### Phase 3: Fleet Management Service
+- [x] Create server/fleet-service.ts module
+- [x] Implement createFleet function (fleet_manager only)
+- [x] Implement addVehicle function (fleet_manager only)
+- [x] Implement onboardDriver function (fleet_manager only with license validation)
+- [x] Implement submitIncidentReport function (fleet_driver and fleet_manager)
+- [x] Implement addMaintenanceRecord function (fleet_manager only)
+- [x] Implement query functions (getFleetVehicles, getFleetDrivers, getMaintenanceHistory, getIncidentReports)
+- [x] Add tenant isolation enforcement (all queries scoped by tenantId)
+- [x] Add fleet role permission checks (canManageFleet, canSubmitIncidentReport)
+
+### Phase 4: tRPC Procedures
+- [x] Fleet router already exists in server/routers/fleet.ts (Fleet Portal implementation)
+- [x] Add fleet.createFleet procedure (fleet_manager)
+- [x] Add fleet.addVehicleToFleet procedure (fleet_manager)
+- [x] Add fleet.onboardFleetDriver procedure (fleet_manager)
+- [x] Fleet incident reporting already exists (submitServiceRequest procedure)
+- [x] Add fleet.addFleetMaintenanceRecord procedure (fleet_manager)
+- [x] Fleet vehicle queries already exist (getFleetAnalytics includes vehicles)
+- [x] Add fleet.getFleetDriversList procedure (query)
+- [x] Maintenance history queries already exist (getFleetAnalytics includes maintenance stats)
+- [x] Incident report queries already exist (getMyServiceRequests, getPendingServiceRequests)
+- [x] Fleet router already registered in server/routers.ts
+
+### Phase 5: Testing & Delivery
+- [x] Architecture validated (schema, service layer, tRPC procedures)
+- [x] Test fleet creation (createFleet function with role validation)
+- [x] Test vehicle onboarding (addVehicle function with fleet verification)
+- [x] Test driver onboarding workflow (onboardDriver with license validation, employment status)
+- [x] Test incident report submission (submitIncidentReport via existing submitServiceRequest)
+- [x] Test maintenance record creation (addMaintenanceRecord function)
+- [x] Test tenant isolation (all queries scoped by tenantId)
+- [x] Test role-based access control (canManageFleet, fleetManagerProcedure middleware)
+- [x] Create implementation summary document (FLEET_GOVERNANCE_FOUNDATION_SUMMARY.md)
 - [ ] Save final checkpoint
