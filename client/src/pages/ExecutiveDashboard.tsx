@@ -26,6 +26,7 @@ import {
 import { Link } from "wouter";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from "recharts";
 import ExecutiveAnalyticsCharts from "@/components/ExecutiveAnalyticsCharts";
+import { GovernanceSummaryCard } from "@/components/GovernanceSummaryCard";
 import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import { RiskRadarWidget } from "@/components/RiskRadarWidget";
 import { ClaimDrillDownModal } from "@/components/ClaimDrillDownModal";
@@ -188,6 +189,21 @@ export default function ExecutiveDashboard() {
   const { data: savingsTrendsResponse, isLoading: savingsLoading } = trpc.analytics.getCostSavingsTrends.useQuery();
   const { data: bottlenecksResponse, isLoading: bottlenecksLoading } = trpc.analytics.getWorkflowBottlenecks.useQuery();
   const { data: financialsResponse, isLoading: financialsLoading } = trpc.analytics.getFinancialOverview.useQuery();
+  
+  // Governance metrics
+  const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery();
+  const { data: overrideTrendResponse } = trpc.governance.getOverrideFrequencyTrend.useQuery();
+  const { data: segregationHeatmapResponse } = trpc.governance.getSegregationViolationHeatmap.useQuery();
+  const { data: roleChangeTrendResponse } = trpc.governance.getRoleChangeTrend.useQuery();
+  const { data: conflictDistributionResponse } = trpc.governance.getInvolvementConflictDistribution.useQuery();
+  const { data: overrideHistoryResponse } = trpc.governance.getOverrideHistory.useQuery({ limit: 10, offset: 0 });
+  
+  const governanceMetrics = governanceResponse?.data;
+  const overrideTrend = overrideTrendResponse?.data;
+  const segregationHeatmap = segregationHeatmapResponse?.data;
+  const roleChangeTrend = roleChangeTrendResponse?.data;
+  const conflictDistribution = conflictDistributionResponse?.data;
+  const overrideHistory = overrideHistoryResponse?.data;
 
   // Search query - only execute when searchQuery has value
   const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
@@ -465,66 +481,296 @@ export default function ExecutiveDashboard() {
           </Card>
         </IntelligenceSection>
 
-        {/* Governance Intelligence Section */}
+        {/* Governance Intelligence Section - ENHANCED */}
         <IntelligenceSection
           title="Governance & Overrides"
           icon={Shield}
           insight={governanceInsight}
         >
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Shield className="h-5 w-5 text-amber-600" />
-                Override Transparency
-              </CardTitle>
-              <CardDescription>
-                Executive intervention metrics (Last 30 days)
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                  <div className="text-center p-6 bg-amber-50 rounded-xl">
-                    <p className="text-4xl font-bold text-amber-600">
-                      {overrideMetrics.count}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-2">Total Overrides</p>
-                  </div>
-                  <div className="text-center p-6 bg-blue-50 rounded-xl">
-                    <p className="text-4xl font-bold text-blue-600">
-                      {overrideMetrics.claimsOverridden}
-                    </p>
-                    <p className="text-sm text-slate-600 mt-2">Claims Affected</p>
-                  </div>
-                </div>
-                
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">
-                      Override Rate
-                    </span>
-                    <span className="text-lg font-bold text-slate-900">
-                      {overrideMetrics.percentage}%
-                    </span>
-                  </div>
-                  <div className="w-full bg-slate-200 rounded-full h-3">
-                    <div
-                      className="bg-gradient-to-r from-amber-500 to-amber-600 h-3 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(overrideMetrics.percentage, 100)}%` }}
-                    ></div>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">
-                    Percentage of auto-approved claims overridden by executives
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <CheckCircle className="h-4 w-4 text-green-600" />
-                  <span>All overrides logged and auditable</span>
-                </div>
+          <div className="space-y-8">
+            {/* Governance Summary Cards */}
+            <div>
+              <h3 className="text-lg font-semibold text-slate-900 mb-4">Governance Summary (30 Days)</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <GovernanceSummaryCard
+                  title="Total Overrides"
+                  value={governanceMetrics?.totalOverrides?.value || 0}
+                  subtitle="Executive interventions"
+                  icon={Shield}
+                  trend={governanceMetrics?.totalOverrides?.trend || "stable"}
+                  previousValue={governanceMetrics?.totalOverrides?.previousValue}
+                  color="amber"
+                  onViewDetails={() => {
+                    setDrillDownFilter("overridden");
+                    setDrillDownTitle("Executive Override History");
+                    setDrillDownOpen(true);
+                  }}
+                />
+                <GovernanceSummaryCard
+                  title="Override Rate"
+                  value={`${governanceMetrics?.overrideRate?.value || 0}%`}
+                  subtitle="Of total claims"
+                  icon={Activity}
+                  trend={governanceMetrics?.overrideRate?.trend || "stable"}
+                  previousValue={governanceMetrics?.overrideRate?.previousValue}
+                  color="blue"
+                  onViewDetails={() => {
+                    setDrillDownFilter("overridden");
+                    setDrillDownTitle("Override Rate Analysis");
+                    setDrillDownOpen(true);
+                  }}
+                />
+                <GovernanceSummaryCard
+                  title="Segregation Violations"
+                  value={governanceMetrics?.segregationViolations?.value || 0}
+                  subtitle="Blocked attempts"
+                  icon={AlertCircle}
+                  trend={governanceMetrics?.segregationViolations?.trend || "stable"}
+                  previousValue={governanceMetrics?.segregationViolations?.previousValue}
+                  color="red"
+                  onViewDetails={() => {
+                    toast.info("Segregation Violation Details", {
+                      description: "Detailed violation log available in Audit Trail",
+                    });
+                  }}
+                />
+                <GovernanceSummaryCard
+                  title="Role Assignment Changes"
+                  value={governanceMetrics?.roleChanges?.value || 0}
+                  subtitle="Permission updates"
+                  icon={Users}
+                  trend={governanceMetrics?.roleChanges?.trend || "stable"}
+                  previousValue={governanceMetrics?.roleChanges?.previousValue}
+                  color="purple"
+                  onViewDetails={() => {
+                    toast.info("Role Change History", {
+                      description: "Role assignment log available in User Management",
+                    });
+                  }}
+                />
+                <GovernanceSummaryCard
+                  title="Involvement Conflicts"
+                  value={governanceMetrics?.involvementConflicts?.value || 0}
+                  subtitle="Detected conflicts"
+                  icon={AlertTriangle}
+                  trend={governanceMetrics?.involvementConflicts?.trend || "stable"}
+                  previousValue={governanceMetrics?.involvementConflicts?.previousValue}
+                  color="orange"
+                  onViewDetails={() => {
+                    toast.info("Involvement Conflict Details", {
+                      description: "Conflict resolution log available in Audit Trail",
+                    });
+                  }}
+                />
               </div>
-            </CardContent>
-          </Card>
+            </div>
+
+            {/* Governance Intelligence Charts */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" />
+                  Governance Intelligence
+                </CardTitle>
+                <CardDescription>
+                  Detailed governance metrics and trends
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Tabs defaultValue="overrides" className="w-full">
+                  <TabsList className="grid w-full grid-cols-4">
+                    <TabsTrigger value="overrides">Override Trend</TabsTrigger>
+                    <TabsTrigger value="segregation">Segregation Heatmap</TabsTrigger>
+                    <TabsTrigger value="roles">Role Changes</TabsTrigger>
+                    <TabsTrigger value="conflicts">Conflicts</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="overrides" className="space-y-4">
+                    <div className="h-80">
+                      {overrideTrend && overrideTrend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={overrideTrend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis 
+                              dataKey="date" 
+                              stroke="#64748b"
+                              tick={{ fontSize: 12 }}
+                            />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: "white", 
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px"
+                              }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="count" 
+                              stroke="#f59e0b" 
+                              strokeWidth={2}
+                              dot={{ fill: "#f59e0b", r: 4 }}
+                              name="Overrides"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-slate-500">
+                          No override data available
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="segregation" className="space-y-4">
+                    <div className="h-80">
+                      {segregationHeatmap && segregationHeatmap.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={segregationHeatmap}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis 
+                              dataKey="role" 
+                              stroke="#64748b"
+                              tick={{ fontSize: 12 }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={100}
+                            />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: "white", 
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px"
+                              }}
+                            />
+                            <Bar dataKey="count" fill="#ef4444" name="Violations" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-slate-500">
+                          No segregation violation data available
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="roles" className="space-y-4">
+                    <div className="h-80">
+                      {roleChangeTrend && roleChangeTrend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={roleChangeTrend}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis 
+                              dataKey="date" 
+                              stroke="#64748b"
+                              tick={{ fontSize: 12 }}
+                            />
+                            <YAxis stroke="#64748b" tick={{ fontSize: 12 }} />
+                            <Tooltip 
+                              contentStyle={{ 
+                                backgroundColor: "white", 
+                                border: "1px solid #e2e8f0",
+                                borderRadius: "8px"
+                              }}
+                            />
+                            <Line 
+                              type="monotone" 
+                              dataKey="count" 
+                              stroke="#8b5cf6" 
+                              strokeWidth={2}
+                              dot={{ fill: "#8b5cf6", r: 4 }}
+                              name="Role Changes"
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-slate-500">
+                          No role change data available
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                  
+                  <TabsContent value="conflicts" className="space-y-4">
+                    <div className="h-80">
+                      {conflictDistribution && conflictDistribution.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={conflictDistribution}
+                              dataKey="count"
+                              nameKey="type"
+                              cx="50%"
+                              cy="50%"
+                              outerRadius={100}
+                              label={(entry) => `${entry.type}: ${entry.count}`}
+                            >
+                              {conflictDistribution.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={["#f97316", "#ef4444", "#dc2626"][index % 3]} />
+                              ))}
+                            </Pie>
+                            <Tooltip />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : (
+                        <div className="h-full flex items-center justify-center text-slate-500">
+                          No involvement conflict data available
+                        </div>
+                      )}
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              </CardContent>
+            </Card>
+
+            {/* Override History Table */}
+            {overrideHistory && overrideHistory.length > 0 && (
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-amber-600" />
+                    Recent Override History
+                  </CardTitle>
+                  <CardDescription>
+                    Last 10 executive interventions with justifications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {overrideHistory.map((override: any) => (
+                      <div key={override.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                        <div className="flex items-start justify-between">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <Badge variant="outline" className="bg-white">
+                                Claim #{override.claimId}
+                              </Badge>
+                              <span className="text-sm text-slate-600">
+                                {new Date(override.timestamp).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-sm font-medium text-slate-900">
+                              {override.actor} overrode routing decision
+                            </p>
+                            <p className="text-sm text-slate-600">
+                              <span className="font-medium">From:</span> {override.oldValue} → 
+                              <span className="font-medium"> To:</span> {override.newValue}
+                            </p>
+                            {override.justification && (
+                              <p className="text-sm text-slate-700 italic mt-2">
+                                "{override.justification}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </IntelligenceSection>
 
         {/* Workflow Intelligence Section */}
