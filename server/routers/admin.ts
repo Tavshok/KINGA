@@ -6,9 +6,10 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../_core/trpc";
+import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
 import { tenants } from "../../drizzle/schema";
+import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
 
 // Super-admin middleware
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {
@@ -103,4 +104,52 @@ export const adminRouter = router({
       createdAt: tenant.createdAt,
     }));
   }),
+
+  /**
+   * Send invitation to join a tenant
+   */
+  sendInvitation: superAdminProcedure
+    .input(
+      z.object({
+        tenantId: z.string(),
+        email: z.string().email(),
+        role: z.enum(["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]),
+        insurerRole: z.enum(["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]).optional(),
+        expirationDays: z.number().min(1).max(30).optional(),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      return await sendInvitation({
+        ...input,
+        createdBy: ctx.user.id,
+      });
+    }),
+
+  /**
+   * Get invitation details by token (public)
+   */
+  getInvitationByToken: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+      })
+    )
+    .query(async ({ input }) => {
+      return await getInvitationByToken(input.token);
+    }),
+
+  /**
+   * Accept invitation and create user account (public)
+   */
+  acceptInvitation: publicProcedure
+    .input(
+      z.object({
+        token: z.string(),
+        name: z.string(),
+        openId: z.string(),
+      })
+    )
+    .mutation(async ({ input }) => {
+      return await acceptInvitation(input);
+    }),
 });
