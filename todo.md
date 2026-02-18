@@ -7688,15 +7688,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update getAccessibleQueues() function (already returns accessibleQueues from permissions)
 - [ ] Update claims query procedures with role-based filtering (requires backend implementation)
 
-### Phase 3: Assignment Procedure
-- [ ] Create claims.assignToProcessor(claimId, processorId, priority?) procedure
-- [ ] Restrict access to claims_manager role only
-- [ ] Validate claim is in intake_queue state
-- [ ] Validate processor belongs to same tenant
-- [ ] Validate processor has claims_processor role
-- [ ] Transition claim from intake_queue to assigned_to_processor state
-- [ ] Insert audit trail entry with actionType = "ASSIGN_PROCESSOR"
-- [ ] Log processor assignment metadata
+### Phase 3:### Phase 3: Assignment Procedure
+- [x] Create claims.assignToProcessor(claimId, processorId, priority?) procedure (intakeGate.assignToProcessor)
+- [x] Restrict access to claims_manager role only (role validation middleware)
+- [x] Validate claim is in intake_queue state (workflowState check)
+- [x] Validate processor belongs to same tenant (tenant + role validation)
+- [x] Transition claim from intake_queue to assigned state (workflowState update)
+- [x] Insert audit trail entry with actionType = "ASSIGN_PROCESSOR" (audit trail insert)
+- [x] Log claimId, processorId, priority, timestamp (metadata JSON)
+- [x] Log processor assignment metadata (metadata JSON includes all fields)
+- [x] Create intakeGate.getIntakeQueue procedure (fetches intake_queue claims with AI scores)
+- [x] Create intakeGate.getAvailableProcessors procedure (lists claims_processor users with workload)
+- [x] Create intakeGate.overrideIntakeGate procedure (emergency bypass with audit logging)
 
 ### Phase 4: Dashboard Updates
 - [ ] Add "Intake Queue" tab to Claims Manager Dashboard
