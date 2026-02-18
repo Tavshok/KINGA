@@ -5165,12 +5165,26 @@ export const usageEvents = mysqlTable("usage_events", {
     "AUTO_APPROVED",
     "ASSESSOR_TOOL_USED",
     "FLEET_VEHICLE_ACTIVE",
-    "AGENCY_POLICY_BOUND"
+    "AGENCY_POLICY_BOUND",
+    "AI_ASSESSMENT_TRIGGERED",
+    "DOCUMENT_INGESTED",
+    "EXECUTIVE_ANALYTICS_QUERY",
+    "GOVERNANCE_CHECK",
+    "FLEET_VEHICLE_MANAGED",
+    "MARKETPLACE_QUOTE_REQUEST"
   ]).notNull(),
   quantity: int("quantity").notNull().default(1),
   timestamp: timestamp("timestamp").notNull().defaultNow(),
   referenceId: varchar("reference_id", { length: 255 }), // For deduplication
   metadata: json("metadata"), // Additional context
+  
+  // Monetisation fields
+  userId: int("user_id"), // User who triggered the event
+  resourceType: varchar("resource_type", { length: 100 }), // "claim", "document", "vehicle", etc.
+  computeUnits: decimal("compute_units", { precision: 10, scale: 4 }).default("1.0000"), // Normalized compute cost
+  processingTimeMs: int("processing_time_ms"), // Processing duration
+  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 4 }), // Cost in cents
+  
   createdAt: timestamp("created_at").notNull().defaultNow(),
 }, (table) => ({
   tenantIdx: index("tenant_idx").on(table.tenantId),
@@ -5178,7 +5192,7 @@ export const usageEvents = mysqlTable("usage_events", {
   eventTypeIdx: index("event_type_idx").on(table.eventType),
   timestampIdx: index("timestamp_idx").on(table.timestamp),
   referenceIdx: index("reference_idx").on(table.referenceId),
-}));
+}))
 
 export type UsageEvent = typeof usageEvents.$inferSelect;
 export type InsertUsageEvent = typeof usageEvents.$inferInsert;

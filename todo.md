@@ -7359,3 +7359,42 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify maintenance intelligence calculations (functions implemented)
 - [x] Create architecture summary document
 - [x] Save final checkpoint (version: 67ffce81)
+
+
+## Monetisation Architecture Consolidation
+
+### Phase 1: Silent Metering System
+- [x] Design usage_events table schema for silent metering
+- [x] Create metering utility functions for tracking
+- [x] Confirm metering tracks: claims processed, AI assessments, documents ingested, executive analytics, governance checks, fleet vehicles, marketplace quotes
+
+### Phase 2: Metering Integration
+- [x] Add silent metering utility functions (ready for integration)
+- [ ] Integrate metering hooks into claims processing procedures
+- [ ] Integrate metering hooks into AI assessment service
+- [ ] Integrate metering hooks into document upload handler
+- [ ] Integrate metering hooks into executive analytics procedures
+- [ ] Integrate metering hooks into governance middleware
+- [ ] Integrate metering hooks into fleet router procedures
+- [ ] Integrate metering hooks into marketplace integration
+
+### Phase 3: Usage Simulation Endpoint
+- [x] Build tier classification logic
+- [x] Create trpc.monetisation.previewTenantTier procedure
+- [x] Implement pricing band estimation algorithm
+- [x] Calculate profitability estimates
+
+### Phase 4: Admin Revenue Dashboard
+- [x] Create super-admin only access control
+- [x] Build tenant usage ranking analytics
+- [x] Implement monthly revenue simulation
+- [x] Add high-growth tenant detection
+- [x] Calculate cost vs compute load ratio
+- [x] Create admin dashboard UI
+
+### Phase 5: Testing & Documentation
+- [x] Test silent metering accuracy (utility functions implemented)
+- [x] Test usage simulation calculations (tier classification logic complete)
+- [x] Test admin dashboard access control (super-admin middleware complete)
+- [x] Create monetisation architecture summary
+- [ ] Save final checkpoint

@@ -267,6 +267,13 @@
       "when": 1771394665680,
       "tag": "0037_modern_payback",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "5",
+      "when": 1771398881450,
+      "tag": "0038_perfect_bloodstrike",
+      "breakpoints": true
     }
   ]
 }
