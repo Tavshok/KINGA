@@ -8563,3 +8563,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test image detection with historical claim (backend stores images, frontend display pending)
 - [x] Test vehicle-specific impact vectors (component created and integrated)
 - [ ] Create checkpoint with fixes (ready to save)
+
+
+## Role Switcher & Access Control Fixes
+- [ ] Investigate role switcher SQL error (malformed UPDATE query)
+- [ ] Fix role switcher update query syntax
+- [ ] Verify insurer_role field usage in authentication
+- [ ] Check page access controls for insurer portal pages
+- [ ] Test role switching between insurer sub-roles
+- [ ] Create checkpoint with role switcher fixes

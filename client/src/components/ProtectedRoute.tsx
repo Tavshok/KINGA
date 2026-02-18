@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: string[];
+  allowedInsurerRoles?: string[];
 }
 
 /**
@@ -37,6 +38,16 @@ export default function ProtectedRoute({ children, allowedRoles }: ProtectedRout
 
   // Check if user's role is allowed (if allowedRoles is specified)
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    return <Redirect to="/unauthorized" />;
+  }
+
+  // Check insurer sub-role if specified (only for insurer role, admin bypasses)
+  if (
+    user.role === "insurer" &&
+    allowedInsurerRoles &&
+    allowedInsurerRoles.length > 0 &&
+    (!user.insurerRole || !allowedInsurerRoles.includes(user.insurerRole))
+  ) {
     return <Redirect to="/unauthorized" />;
   }
 

@@ -167,7 +167,7 @@ function Router() {
         
         {/* Role Setup - Quick Configuration */}
         <Route path="/role-setup">
-          <ProtectedRoute allowedRoles={["user", "admin", "insurer", "assessor", "panel_beater", "claimant"]}>
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <RoleSetup />
           </ProtectedRoute>
         </Route>
@@ -210,7 +210,10 @@ function Router() {
         </Route>
         
         <Route path="/insurer-portal/governance">
-          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+          <ProtectedRoute 
+            allowedRoles={["insurer", "admin"]}
+            allowedInsurerRoles={["risk_manager", "claims_manager", "executive", "insurer_admin"]}
+          >
             <RoleGuard allowedRoles={["executive", "insurer_admin"]}>
               <GovernanceDashboard />
             </RoleGuard>
