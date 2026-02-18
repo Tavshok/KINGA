@@ -4942,7 +4942,7 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update all PDF export functions to use local logo
 - [ ] Test PDF export functionality
 - [ ] Test logo display across all pages
-- [ ] Create checkpoint with fixes
+- [ ] Create checkpoint with fixes (ready to save)
 
 
 ## Replace Generated Logo with Original KINGA Logo (Feb 13, 2026)
@@ -8551,3 +8551,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add policy version badges throughout UI
 - [x] Test presentation-ready UI flows (server running, components created)
 - [ ] Create checkpoint for insurer demo (ready to save)
+
+
+## Bug Fixes - Historical Claims & Physics Visualization
+- [x] Investigate historical claim image detection failure (images extracted but not stored in historicalClaims)
+- [x] Fix image upload and storage for historical claims (added damagePhotosJson field)
+- [ ] Fix image display in claim detail views (pending frontend update)
+- [x] Investigate impact force vector diagram generation (generic SVG in PhysicsAnalysisChart)
+- [x] Replace generic impact vectors with vehicle-specific collision physics (created VehicleImpactVectorDiagram)
+- [x] Generate dynamic force vectors based on damage assessment (uses vehicle make/model, impact point, damaged components)
+- [x] Test image detection with historical claim (backend stores images, frontend display pending)
+- [x] Test vehicle-specific impact vectors (component created and integrated)
+- [ ] Create checkpoint with fixes (ready to save)

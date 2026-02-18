@@ -1790,6 +1790,9 @@ export const historicalClaims = mysqlTable("historical_claims", {
   // Document count
   totalDocuments: int("total_documents").default(0),
   
+  // Damage photos (extracted from documents)
+  damagePhotosJson: json("damage_photos_json"), // Array of S3 URLs to extracted damage photos
+  
   // Extraction log (audit trail)
   extractionLog: json("extraction_log"), // Array of extraction events
   

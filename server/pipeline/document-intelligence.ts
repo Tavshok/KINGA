@@ -939,6 +939,7 @@ export async function processBatchForHistoricalClaim(
           items: r.repairItems.length,
           total: r.costBreakdown.totalInclVat
         }))),
+        damagePhotosJson: JSON.stringify(primaryResult.damagePhotos || []),
       })
       .where(eq(historicalClaims.id, historicalClaimId));
   }

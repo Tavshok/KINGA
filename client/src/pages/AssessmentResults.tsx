@@ -17,7 +17,7 @@ import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
-import { PhysicsAnalysisChart } from "@/components/PhysicsAnalysisChart";
+import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { FraudRiskRadarChart } from "@/components/FraudRiskRadarChart";
 import { CostBreakdownChart } from "@/components/CostBreakdownChart";
 import { AICommentaryCard } from "@/components/AICommentaryCard";
@@ -1064,7 +1064,17 @@ export default function AssessmentResults() {
                   : ['Physics check passed', 'Safe to proceed with normal claim process']
               )}
             />
-            <PhysicsAnalysisChart data={physicsData} />
+            <VehicleImpactVectorDiagram
+              vehicleMake={extractedData?.vehicleMake}
+              vehicleModel={extractedData?.vehicleModel}
+              vehicleYear={extractedData?.vehicleYear}
+              accidentType={extractedData?.accidentType}
+              impactSpeed={physicsData.impactSpeed}
+              impactForce={physicsData.impactForce}
+              impactPoint={extractedData?.accidentType}
+              damagedComponents={extractedData?.damagedComponents || []}
+              damageConsistency={physicsData.damageConsistency}
+            />
             <PhysicsFraudCrossReference physicsAnalysis={extractedData.physicsAnalysis} fraudAnalysis={extractedData.fraudAnalysis} />
           </TabsContent>
 

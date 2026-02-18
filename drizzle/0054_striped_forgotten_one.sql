@@ -1,0 +1,1 @@
+ALTER TABLE `historical_claims` ADD `damage_photos_json` json;
