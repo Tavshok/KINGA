@@ -22,6 +22,7 @@ import { claimReplayRouter } from "./routers/claim-replay";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
+import { parsePhysicsAnalysis } from "./types/physics-validation";
 import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { 
@@ -812,7 +813,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        return await getClaimById(input.id, tenantId);
+        const claim = await getClaimById(input.id, tenantId);
+        
+        // Extend response with parsed physics validation data (forensic-grade quantitative physics)
+        if (claim) {
+          const aiAssessment = await getAiAssessmentByClaimId(claim.id, tenantId);
+          return {
+            ...claim,
+            // Parse physics analysis JSON into typed PhysicsValidation object
+            // Maintains backward compatibility - returns null if missing
+            physicsValidation: aiAssessment?.physicsAnalysis 
+              ? parsePhysicsAnalysis(aiAssessment.physicsAnalysis)
+              : null
+          };
+        }
+        
+        return claim;
       }),
 
     /**
