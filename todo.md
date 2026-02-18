@@ -8757,3 +8757,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] Replace Math.min(Math.max) with clamp in vector thickness calculation
 - [x] Verify no inline duplication across codebase (grep confirmed zero matches)
 - [ ] Create checkpoint (PENDING)
+
+
+## Bug Fix: allowedInsurerRoles is not defined (Login Page Crash) - COMPLETE
+- [x] Search for allowedInsurerRoles usage in codebase (found in ProtectedRoute.tsx and App.tsx)
+- [x] Identify missing definition or import (allowedInsurerRoles not destructured from props)
+- [x] Fix ReferenceError by adding proper definition/import (added to destructuring in line 18)
+- [x] Root cause: Function parameter destructuring was missing allowedInsurerRoles
+- [ ] Create checkpoint (PENDING)

@@ -15,7 +15,7 @@ interface ProtectedRouteProps {
  * Redirects to login if user is not authenticated
  * Redirects to unauthorized page if user's role is not in allowedRoles
  */
-export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, allowedRoles, allowedInsurerRoles }: ProtectedRouteProps) {
   const { user, loading, isAuthenticated } = useAuth();
   const [, setLocation] = useLocation();
 
