@@ -18,6 +18,7 @@ import { exportClaimsToExcel, type ClaimExportData } from "@/lib/export-excel";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IntakeQueueTab } from "@/components/IntakeQueueTab";
+import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
 
 export default function ClaimsManagerDashboard() {
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
@@ -283,6 +284,8 @@ export default function ClaimsManagerDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-teal-50/30 p-6">
       <div className="max-w-7xl mx-auto space-y-6">
+        {/* Auto-Assignment Warning Badge */}
+        <AutoAssignmentBadge />
         {/* Header */}
         <header className="bg-gradient-to-r from-teal-700 via-teal-600 to-cyan-600 rounded-xl p-6 text-white shadow-lg">
           <div className="flex items-center justify-between">

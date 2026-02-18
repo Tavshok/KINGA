@@ -307,4 +307,43 @@ export const intakeGateRouter = router({
         message: "Intake gate overridden successfully",
       };
     }),
+
+  /**
+   * Get auto-assignment statistics (last 24 hours)
+   * Access: claims_manager, executive
+   */
+  getAutoAssignStats: protectedProcedure.query(async ({ ctx }) => {
+    const db = getDb();
+
+    // Validate role
+    if (
+      ctx.user.insurerRole !== "claims_manager" &&
+      ctx.user.insurerRole !== "executive" &&
+      ctx.user.insurerRole !== "insurer_admin"
+    ) {
+      throw new TRPCError({
+        code: "FORBIDDEN",
+        message: "Only Claims Managers and Executives can view auto-assignment stats",
+      });
+    }
+
+    // Query auto-assignments in last 24 hours
+    const last24Hours = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+    const result = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(auditTrail)
+      .where(
+        and(
+          eq(auditTrail.tenantId, ctx.user.tenantId!),
+          eq(auditTrail.action, "INTAKE_AUTO_ASSIGN"),
+          sql`${auditTrail.createdAt} >= ${last24Hours}`
+        )
+      );
+
+    return {
+      count: Number(result[0]?.count || 0),
+      period: "24 hours",
+    };
+  }),
 });

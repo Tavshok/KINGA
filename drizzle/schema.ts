@@ -1370,6 +1370,8 @@ export const tenants = mysqlTable("tenants", {
   
   // Configuration
   configJson: text("config_json"), // JSON object for tenant-specific configuration
+  workflowConfig: text("workflow_config"), // JSON object for workflow configuration (escalation thresholds, routing rules)
+  intakeEscalationHours: int("intake_escalation_hours").default(24), // Hours before auto-assigning stale intake claims
   
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
