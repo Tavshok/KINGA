@@ -8638,3 +8638,29 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Output exact root cause (data population issue, not technical failure)
 - [x] Output whether DB linkage issue or filter issue (neither - test data has NULL images)
 - [x] Output minimal fix required (populate test data with mock S3 URLs)
+
+
+## Physics Validation Engine Upgrade
+- [x] Locate physics validation module (accidentPhysics.ts, assessment-processor.ts)
+- [x] Identify existing force/speed calculations (calculateImpactForce, estimateImpactSpeed)
+- [ ] Implement impactAngleDegrees calculation (0-360)
+  - [ ] Derive from accidentType if available
+  - [ ] Derive from vehicle heading + collision direction
+  - [ ] Infer from damagedComponents location
+- [ ] Implement impactLocationNormalized mapping
+  - [ ] Map component names to {relativeX, relativeY}
+  - [ ] Create lookup table (front_center, rear_left, etc.)
+  - [ ] Normalize to 0-1 coordinate system
+- [ ] Implement calculatedImpactForceKN
+  - [ ] Use impulse-momentum formula
+  - [ ] Return numeric value in kilonewtons
+  - [ ] Round to 1 decimal place
+- [ ] Extend physicsValidation output object
+  - [ ] Add impactAngleDegrees field
+  - [ ] Add calculatedImpactForceKN field
+  - [ ] Add impactLocationNormalized field
+  - [ ] Keep existing impactPoint string field
+  - [ ] Keep existing severityLevel field
+  - [ ] Keep existing confidenceScore field
+- [ ] Test backward compatibility (no breaking changes)
+- [ ] Create checkpoint

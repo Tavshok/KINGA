@@ -1908,6 +1908,31 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     accidentType: extractedData.accidentType || undefined,
     damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string; partId: string | null; zone: string | null }) => nc.normalized),
     physicsAnalysis,
+    physicsValidation: (() => {
+      try {
+        const { extendPhysicsValidationOutput } = require('./physics-quantitative-output');
+        return extendPhysicsValidationOutput({
+          impactForce: physicsAnalysis.physics_analysis?.impact_force_n ? { magnitude: physicsAnalysis.physics_analysis.impact_force_n, duration: 0.05 } : undefined,
+          impactAngle: undefined,
+          primaryImpactZone: extractedData.accidentType === 'frontal' ? 'front_center' : extractedData.accidentType === 'rear' ? 'rear_center' : undefined,
+          damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string }) => ({ name: nc.normalized, location: nc.normalized })),
+          accidentType: extractedData.accidentType as any,
+          estimatedSpeed: { value: physicsAnalysis.impactSpeed || 0 },
+          damageConsistency: { score: physicsAnalysis.physicsScore || 50 },
+          mass: extractedData.vehicleMass,
+          crushDepth: 0.3, // Default crush depth estimate
+        });
+      } catch (error) {
+        console.warn('⚠️ Quantitative physics extension failed:', error);
+        return {
+          impactAngleDegrees: 0,
+          calculatedImpactForceKN: 0.0,
+          impactLocationNormalized: { relativeX: 0.5, relativeY: 0.5 },
+          severityLevel: 'unknown',
+          confidenceScore: 0,
+        };
+      }
+    })(),
     fraudAnalysis,
     crossValidation,
     incidentClassification: {
