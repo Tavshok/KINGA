@@ -5261,3 +5261,36 @@ export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
 
 export type RateLimitTracking = typeof rateLimitTracking.$inferSelect;
 export type InsertRateLimitTracking = typeof rateLimitTracking.$inferInsert;
+
+/**
+ * Governance Notifications
+ * In-app notifications for critical governance events.
+ * Governance Notification Service
+ */
+export const governanceNotifications = mysqlTable("governance_notifications", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  type: mysqlEnum("type", [
+    "intake_escalation",
+    "auto_assignment",
+    "ai_rerun",
+    "executive_override",
+    "segregation_violation",
+  ]).notNull(),
+  claimId: int("claim_id"), // Nullable for system-wide notifications
+  recipients: text("recipients").notNull(), // JSON array of user IDs
+  title: varchar("title", { length: 255 }).notNull(),
+  message: text("message").notNull(),
+  metadata: text("metadata"), // JSON object for additional context
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  readAt: timestamp("read_at"), // NULL = unread, timestamp = read
+}, (table) => ({
+  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
+  claimIdIdx: index("idx_claim_id").on(table.claimId),
+  recipientsIdx: index("idx_recipients").on(table.recipients),
+  readAtIdx: index("idx_read_at").on(table.readAt),
+  createdAtIdx: index("idx_created_at").on(table.createdAt),
+}));
+
+export type GovernanceNotification = typeof governanceNotifications.$inferSelect;
+export type InsertGovernanceNotification = typeof governanceNotifications.$inferInsert;

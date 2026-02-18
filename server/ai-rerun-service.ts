@@ -15,9 +15,14 @@
  */
 
 import { getDb } from "./db";
-import { aiAssessments, claims, auditTrail, claimConfidenceScores, claimRoutingDecisions } from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { aiAssessments, claims, auditTrail, claimConfidenceScores, claimRoutingDecisions, users } from "../drizzle/schema";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+import {
+  createNotification,
+  formatNotificationTitle,
+  formatNotificationMessage,
+} from "./notification-service";
 
 /**
  * Permission check: All insurer roles can trigger AI analysis
@@ -131,8 +136,44 @@ export async function triggerAIAnalysis(
   });
 
   console.log(
-    `[AI Rerun] AI analysis triggered for claim ${claimId} by user ${userId} (${userRole}), version ${versionNumber}`
+    `[AI Rerun Service] Created AI assessment version ${versionNumber} for claim ${claimId}`
   );
+
+  // Send governance notification to claims_manager and executive
+  try {
+    const managerUsers = await db
+      .select()
+      .from(users)
+      .where(
+        and(
+          eq(users.tenantId, tenantId),
+          inArray(users.insurerRole, ["claims_manager", "executive"])
+        )
+      );
+
+    const recipientIds = managerUsers.map((u) => u.id);
+
+    if (recipientIds.length > 0) {
+      const context = {
+        claimNumber: claim[0].claimNumber,
+        triggeredBy: userId,
+        triggeredRole: userRole,
+        versionNumber,
+      };
+
+      await createNotification(
+        tenantId,
+        "ai_rerun",
+        formatNotificationTitle("ai_rerun", context),
+        formatNotificationMessage("ai_rerun", context),
+        recipientIds,
+        claimId,
+        context
+      );
+    }
+  } catch (error) {
+    console.error("[AI Rerun Service] Failed to send AI rerun notification:", error);
+  }
 
   return {
     assessmentId: newAssessment.insertId,

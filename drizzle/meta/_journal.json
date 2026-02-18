@@ -316,6 +316,13 @@
       "when": 1771408304739,
       "tag": "0044_last_thundra",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "5",
+      "when": 1771408981998,
+      "tag": "0045_colossal_molecule_man",
+      "breakpoints": true
     }
   ]
 }

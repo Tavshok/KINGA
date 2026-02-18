@@ -13,10 +13,15 @@
  */
 
 import { getDb } from "./db";
-import { claims, tenants, auditTrail } from "../drizzle/schema";
-import { eq, and, lt, sql } from "drizzle-orm";
+import { claims, tenants, auditTrail, users } from "../drizzle/schema";
+import { eq, and, lt, sql, inArray } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
 import { findLowestWorkloadProcessor, type ProcessorWorkload } from "./workload-balancing";
+import {
+  createNotification,
+  formatNotificationTitle,
+  formatNotificationMessage,
+} from "./notification-service";
 
 // Processor selection logic moved to workload-balancing.ts service module
 
@@ -188,8 +193,42 @@ async function processTenantEscalation(tenant: any) {
         await autoAssignClaim(claim, processor, thresholdHours);
       }
 
-      // Send notification about auto-assignments
+      // Send governance notifications about auto-assignments
       try {
+        // Get claims_manager and executive users for this tenant
+        const managerUsers = await db
+          .select()
+          .from(users)
+          .where(
+            and(
+              eq(users.tenantId, tenant.id),
+              inArray(users.insurerRole, ["claims_manager", "executive"])
+            )
+          );
+
+        const recipientIds = managerUsers.map((u) => u.id);
+
+        if (recipientIds.length > 0) {
+          const context = {
+            count: staleClaims.length,
+            thresholdHours,
+            processorName: processor.processorName,
+            workloadScore: processor.weightedScore.toFixed(1),
+            claimNumbers: staleClaims.map((c) => c.claimNumber).join(", "),
+          };
+
+          await createNotification(
+            tenant.id,
+            "auto_assignment",
+            formatNotificationTitle("auto_assignment", context),
+            formatNotificationMessage("auto_assignment", context),
+            recipientIds,
+            undefined, // No single claim ID for batch operation
+            context
+          );
+        }
+
+        // Also send owner notification (existing behavior)
         await notifyOwner({
           title: `⚠️ Intake Queue Auto-Assignment Alert - ${tenantName}`,
           content: `${staleClaims.length} claim(s) were automatically assigned to processor "${processor.processorName}" due to manager inactivity.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nProcessor Workload: ${processor.weightedScore.toFixed(1)} (active: ${processor.activeClaims}, complex: ${processor.complexClaims}, high-risk: ${processor.highRiskClaims})\nAuto-Assigned Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nPlease review the Claims Manager Dashboard for details.`,
@@ -204,8 +243,40 @@ async function processTenantEscalation(tenant: any) {
       await escalateClaim(claim, thresholdHours);
     }
 
-    // Send notification about escalated claims
+    // Send governance notifications about escalated claims
     try {
+      // Get claims_manager and executive users for this tenant
+      const managerUsers = await db
+        .select()
+        .from(users)
+        .where(
+          and(
+            eq(users.tenantId, tenant.id),
+            inArray(users.insurerRole, ["claims_manager", "executive"])
+          )
+        );
+
+      const recipientIds = managerUsers.map((u) => u.id);
+
+      if (recipientIds.length > 0) {
+        const context = {
+          count: staleClaims.length,
+          thresholdHours,
+          claimNumbers: staleClaims.map((c) => c.claimNumber).join(", "),
+        };
+
+        await createNotification(
+          tenant.id,
+          "intake_escalation",
+          formatNotificationTitle("intake_escalation", context),
+          formatNotificationMessage("intake_escalation", context),
+          recipientIds,
+          undefined, // No single claim ID for batch operation
+          context
+        );
+      }
+
+      // Also send owner notification (existing behavior)
       await notifyOwner({
         title: `⚠️ Intake Queue Escalation Alert - ${tenantName}`,
         content: `${staleClaims.length} claim(s) in the intake queue require immediate attention.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nEscalated Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nThese claims have not been assigned to a processor. Please review the Claims Manager Dashboard and take action.`,

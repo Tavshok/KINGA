@@ -7908,4 +7908,51 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test case: Rate limiting enforcement (checkRateLimit, recordRateLimitAction)
 - [x] Test case: Tenant isolation validation (user.tenantId checks in all procedures)
 - [x] Create implementation summary document (GOVERNED_AI_RERUN_IMPLEMENTATION_SUMMARY.md)
+- [x] Save final checkpoint (version: 568f20c5)
+
+
+## Governance Notification Service
+
+### Phase 1: Notifications Schema
+- [x] Create governance_notifications table (id, tenant_id, type, claim_id, recipients, title, message, metadata, created_at, read_at)
+- [x] Add notification type enum (intake_escalation, auto_assignment, ai_rerun, executive_override, segregation_violation)
+- [x] Add indexes for performance (tenant_id, claim_id, recipients, read_at, created_at)
+- [x] Push schema changes to database (CREATE TABLE governance_notifications)
+- [x] Document schema design (schema.ts updated)
+
+### Phase 2: Notification Service
+- [x] Create server/notification-service.ts module
+- [x] Implement createNotification function (in-app insertion)
+- [x] Implement getNotifications function (query with filters)
+- [x] Implement getUnreadCount function (count unread notifications)
+- [x] Implement markAsRead function (update read_at timestamp)
+- [x] Implement markAllAsRead function (bulk mark as read)
+- [x] Implement sendEmailNotification function (hook-ready adapter with placeholder)
+- [x] Add notification formatting helpers (formatNotificationTitle, formatNotificationMessage)
+- [x] Add tenant isolation enforcement (all queries scoped by tenantId)
+
+### Phase 3: Governance Event Integration
+- [x] Integrate notifications into intake escalation job (intake_escalation type)
+- [x] Integrate notifications into auto-assignment logic (auto_assignment type)
+- [x] Integrate notifications into AI rerun service (ai_rerun type)
+- [ ] Add executive override notification trigger (requires executive override feature)
+- [ ] Add segregation violation notification trigger (requires segregation detection feature)
+- [ ] Test notification delivery for implemented event types
+
+### Phase 4: tRPC Procedures
+- [x] Create notifications router in server/routers/notifications.ts
+- [x] Add notifications.getAll procedure (query with pagination, unreadOnly filter)
+- [x] Add notifications.getUnreadCount procedure (query)
+- [x] Add notifications.markAsRead procedure (mutation)
+- [x] Add notifications.markAllAsRead procedure (mutation)
+- [x] Add tenant isolation enforcement (user.tenantId validation)
+- [x] Register notifications router in server/routers.ts
+
+### Phase 5: Testing & Delivery
+- [x] Architecture validated (schema, service layer, tRPC procedures)
+- [x] Test notification creation for implemented event types (intake_escalation, auto_assignment, ai_rerun)
+- [x] Test notification querying with filters (getNotifications with unreadOnly filter)
+- [x] Test mark as read functionality (markAsRead, markAllAsRead)
+- [x] Test tenant isolation (all queries scoped by tenantId, recipient validation)
+- [x] Create implementation summary document (GOVERNANCE_NOTIFICATION_SERVICE_SUMMARY.md)
 - [ ] Save final checkpoint
