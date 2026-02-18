@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, tenant_id, policy_name, is_active FROM automation_policies LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, tenant_id, policy_name, is_active FROM automation_policies LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "tenant_id": "test-tenant-1770901923846",
+      "policy_name": "Test Policy test-tenant-1770901923846",
+      "is_active": "1"
+    },
+    {
+      "id": "2",
+      "tenant_id": "test-tenant-1770901924105",
+      "policy_name": "Test Policy test-tenant-1770901924105",
+      "is_active": "1"
+    },
+    {
+      "id": "3",
+      "tenant_id": "test-tenant-1770901924250",
+      "policy_name": "Test Policy test-tenant-1770901924250",
+      "is_active": "1"
+    },
+    {
+      "id": "4",
+      "tenant_id": "test-tenant-1770901924428",
+      "policy_name": "Test Policy test-tenant-1770901924428",
+      "is_active": "1"
+    },
+    {
+      "id": "5",
+      "tenant_id": "test-tenant-1770901924631",
+      "policy_name": "Test Policy test-tenant-1770901924631",
+      "is_active": "1"
+    },
+    {
+      "id": "6",
+      "tenant_id": "test-tenant-1770901924790",
+      "policy_name": "Test Policy test-tenant-1770901924790",
+      "is_active": "1"
+    },
+    {
+      "id": "7",
+      "tenant_id": "test-tenant-1770901924982",
+      "policy_name": "Test Policy test-tenant-1770901924982",
+      "is_active": "1"
+    },
+    {
+      "id": "8",
+      "tenant_id": "test-tenant-1770901925120",
+      "policy_name": "Test Policy test-tenant-1770901925120",
+      "is_active": "1"
+    },
+    {
+      "id": "9",
+      "tenant_id": "test-tenant-1770901925331",
+      "policy_name": "Test Policy test-tenant-1770901925331",
+      "is_active": "1"
+    },
+    {
+      "id": "10",
+      "tenant_id": "test-tenant-1770901925466",
+      "policy_name": "Test Policy test-tenant-1770901925466",
+      "is_active": "1"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttenant_id\tpolicy_name\tis_active\n1\ttest-tenant-1770901923846\tTest Policy test-tenant-1770901923846\t1\n2\ttest-tenant-1770901924105\tTest Policy test-tenant-1770901924105\t1\n3\ttest-tenant-1770901924250\tTest Policy test-tenant-1770901924250\t1\n4\ttest-tenant-1770901924428\tTest Policy test-tenant-1770901924428\t1\n5\ttest-tenant-1770901924631\tTest Policy test-tenant-1770901924631\t1\n6\ttest-tenant-1770901924790\tTest Policy test-tenant-1770901924790\t1\n7\ttest-tenant-1770901924982\tTest Policy test-tenant-1770901924982\t1\n8\ttest-tenant-1770901925120\tTest Policy test-tenant-1770901925120\t1\n9\ttest-tenant-1770901925331\tTest Policy test-tenant-1770901925331\t1\n10\ttest-tenant-1770901925466\tTest Policy test-tenant-1770901925466\t1\n",
+  "stderr": "",
+  "execution_time_ms": 186
+}

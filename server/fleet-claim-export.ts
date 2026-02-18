@@ -1,3 +1,4 @@
+import { getDb } from "./db";
 /**
  * Fleet Claim Export - Portable PDF Dossier Generator
  * 
@@ -9,7 +10,8 @@
  * their insurer doesn't use KINGA.
  */
 
-import { db } from "./db";
+
+import { getDb } from "./db";
 import { claims, maintenanceRecords, serviceQuotes, fleetVehicles, fleets } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 
@@ -26,6 +28,7 @@ export interface ClaimDossierData {
  * Fetch all data required for a portable claim dossier
  */
 export async function fetchClaimDossierData(claimId: number, tenantId: string): Promise<ClaimDossierData | null> {
+  const db = getDb();
   // Fetch claim with tenant isolation
   const claim = await db.query.claims.findFirst({
     where: and(

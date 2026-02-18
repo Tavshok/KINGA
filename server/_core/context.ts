@@ -2,12 +2,16 @@ import type { CreateExpressContextOptions } from "@trpc/server/adapters/express"
 import type { User } from "../../drizzle/schema";
 import { sdk } from "./sdk";
 import { extractTenantContext, type Tenant } from "./tenant-middleware";
+import { getDb } from "../db";
+import type { MySql2Database } from "drizzle-orm/mysql2";
+import type * as schema from "../../drizzle/schema";
 
 export type TrpcContext = {
   req: CreateExpressContextOptions["req"];
   res: CreateExpressContextOptions["res"];
   user: User | null;
   tenant: Tenant | null;
+  db: MySql2Database<typeof schema>;
 };
 
 export async function createContext(
@@ -38,5 +42,6 @@ export async function createContext(
     res: opts.res,
     user,
     tenant,
+    db: getDb(),
   };
 }

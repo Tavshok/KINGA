@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeAll } from "vitest";
 import { appRouter } from "../routers";
-import { getDb } from "../db";
 import { users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 

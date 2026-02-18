@@ -6,8 +6,8 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
-import { z } from "zod";
 import { getDb } from "../db";
+import { z } from "zod";
 import {
   historicalClaims,
   multiReferenceTruth,
@@ -18,6 +18,8 @@ import {
 } from "../../drizzle/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 import { synthesizeGroundTruth, saveSynthesisResult } from "../ml/truth-synthesis";
+
+const db = getDb();
 
 /**
  * Synthesize ground truth for a historical claim

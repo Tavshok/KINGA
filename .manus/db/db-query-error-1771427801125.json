@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Performance Indexes Migration\n\nCREATE INDEX IF NOT EXISTS idx_claims_tenant_status \nON claims(tenant_id, status);\n\nCREATE INDEX IF NOT EXISTS idx_audit_claim_timestamp \nON workflow_audit_trail(claim_id, timestamp DESC);\n\nCREATE INDEX IF NOT EXISTS idx_routing_claim_decision \nON claim_routing_decisions(claim_id, routing_decision);\n\nCREATE INDEX IF NOT EXISTS idx_ai_claim_confidence \nON ai_assessments(claim_id, confidence_score DESC);\n\nCREATE INDEX IF NOT EXISTS idx_claims_tenant_created \nON claims(tenant_id, created_at DESC);\n\nCREATE INDEX IF NOT EXISTS idx_ai_tenant_fraud \nON ai_assessments(tenant_id, fraud_risk_level);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Performance Indexes Migration\n\nCREATE INDEX IF NOT EXISTS idx_claims_tenant_status \nON claims(tenant_id, status);\n\nCREATE INDEX IF NOT EXISTS idx_audit_claim_timestamp \nON workflow_audit_trail(claim_id, timestamp DESC);\n\nCREATE INDEX IF NOT EXISTS idx_routing_claim_decision \nON claim_routing_decisions(claim_id, routing_decision);\n\nCREATE INDEX IF NOT EXISTS idx_ai_claim_confidence \nON ai_assessments(claim_id, confidence_score DESC);\n\nCREATE INDEX IF NOT EXISTS idx_claims_tenant_created \nON claims(tenant_id, created_at DESC);\n\nCREATE INDEX IF NOT EXISTS idx_ai_tenant_fraud \nON ai_assessments(tenant_id, fraud_risk_level);\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1072 (42000) at line 7: column does not exist: timestamp"
+  ]
+}

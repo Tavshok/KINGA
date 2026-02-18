@@ -10,7 +10,7 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { db } from "../db";
+
 import { usageEvents, tenants, users } from "../../drizzle/schema";
 import { eq, and, gte, lte, desc, count, sum, avg, sql } from "drizzle-orm";
 import { getTenantUsageSummary } from "../metering";
@@ -293,7 +293,7 @@ export const monetisationRouter = router({
           })
           .from(usageEvents)
           .where(and(gte(usageEvents.timestamp, startDate), lte(usageEvents.timestamp, endDate)))
-          .groupBy(usageEvents.tenantId)
+          .groupBy(sql`${usageEvents.tenantId}`)
           .orderBy(sql`sum(${usageEvents.estimatedCost}) desc`)
           .limit(input.limit);
 
@@ -335,7 +335,7 @@ export const monetisationRouter = router({
           })
           .from(usageEvents)
           .where(and(gte(usageEvents.timestamp, startDate), lte(usageEvents.timestamp, endDate)))
-          .groupBy(usageEvents.tenantId);
+          .groupBy(sql`${usageEvents.tenantId}`);
 
         // Classify each tenant and calculate revenue
         const tenantClassifications = [];
@@ -422,7 +422,7 @@ export const monetisationRouter = router({
           })
           .from(usageEvents)
           .where(gte(usageEvents.timestamp, currentMonthStart))
-          .groupBy(usageEvents.tenantId);
+          .groupBy(sql`${usageEvents.tenantId}`);
 
         // Get previous period usage
         const previousUsage = await db
@@ -437,7 +437,7 @@ export const monetisationRouter = router({
               lte(usageEvents.timestamp, currentMonthStart)
             )
           )
-          .groupBy(usageEvents.tenantId);
+          .groupBy(sql`${usageEvents.tenantId}`);
 
         // Calculate growth rates
         const growthAnalysis = currentUsage
@@ -505,7 +505,7 @@ export const monetisationRouter = router({
           })
           .from(usageEvents)
           .where(and(gte(usageEvents.timestamp, startDate), lte(usageEvents.timestamp, endDate)))
-          .groupBy(usageEvents.tenantId);
+          .groupBy(sql`${usageEvents.tenantId}`);
 
         const ratioAnalysis = metrics.map((m) => {
           const computeUnits = parseFloat(m.totalComputeUnits || "0");

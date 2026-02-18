@@ -10,7 +10,6 @@
 
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
-import { getDb } from "../db";
 import { claims } from "../../drizzle/schema";
 import { eq, and, count } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";

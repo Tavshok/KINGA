@@ -9,12 +9,14 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
-import { z } from "zod";
 import { getDb } from "../db";
+import { z } from "zod";
 import { claimComments, claims, workflowAuditTrail } from "../../drizzle/schema";
 import { eq, and, isNull, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import { extractInsertId } from "../utils/drizzle-helpers";
+
+const db = getDb();
 
 export const commentsRouter = router({
   /**

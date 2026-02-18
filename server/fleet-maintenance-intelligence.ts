@@ -1,3 +1,4 @@
+import { getDb } from "../db";
 /**
  * Fleet Maintenance Intelligence Module
  * 
@@ -8,7 +9,7 @@
  * 4. Claim frequency by driver
  */
 
-import { db } from "./db";
+
 import {
   maintenanceRecords,
   maintenanceSchedules,

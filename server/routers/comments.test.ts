@@ -11,7 +11,6 @@
 
 import { describe, it, expect } from "vitest";
 import { commentsRouter } from "./comments";
-import { getDb } from "../db";
 import { claims, claimComments, workflowAuditTrail } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { extractInsertId } from "../utils/drizzle-helpers";

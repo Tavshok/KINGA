@@ -7,11 +7,13 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
+import { protectedProcedure, router } from "../_core/trpc";
 import { claims, aiAssessments, auditTrail } from "../../drizzle/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
 import { getRolePermissions, getAccessibleQueues } from "../../shared/role-permissions";
+
+const db = getDb();
 
 /**
  * AI Re-Analysis Router
@@ -35,7 +37,6 @@ export const aiReanalysisRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = getDb();
       const userId = ctx.user.id;
       const userRole = ctx.user.insurerRole;
       const tenantId = ctx.user.tenantId;
@@ -211,7 +212,6 @@ export const aiReanalysisRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = getDb();
       const tenantId = ctx.user.tenantId;
 
       // Validate claim access
@@ -268,7 +268,6 @@ export const aiReanalysisRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = getDb();
       const tenantId = ctx.user.tenantId;
 
       // Fetch both assessments
@@ -352,7 +351,6 @@ export const aiReanalysisRouter = router({
       })
     )
     .query(async ({ ctx, input }) => {
-      const db = getDb();
       const tenantId = ctx.user.tenantId;
       const userRole = ctx.user.insurerRole;
 
@@ -380,7 +378,7 @@ export const aiReanalysisRouter = router({
             tenantId ? eq(aiAssessments.tenantId, tenantId) : undefined
           )
         )
-        .groupBy(aiAssessments.triggeredRole);
+        .groupBy(sql`${aiAssessments.triggeredRole}`);
 
       // Total re-analyses
       const [totalReanalyses] = await db

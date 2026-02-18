@@ -5,13 +5,15 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { getDb } from "../db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { getDb } from "../db";
 import { claims } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { getClaimById } from "../db";
 import { createAuditEntry } from "../db";
+
+const db = getDb();
 
 export const claimCompletionRouter = router({
   /**

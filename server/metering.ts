@@ -1,3 +1,4 @@
+import { getDb } from "../db";
 /**
  * Silent Metering System
  * 
@@ -14,7 +15,7 @@
  * - Marketplace quote requests
  */
 
-import { db } from "./db";
+
 import { usageEvents } from "../drizzle/schema";
 
 /**

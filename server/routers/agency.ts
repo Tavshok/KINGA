@@ -18,6 +18,8 @@ import { eq, desc, and, or, sql } from "drizzle-orm";
 import { storagePut } from "../storage";
 import { nanoid } from "nanoid";
 
+const db = getDb();
+
 export const agencyRouter = router({
   /**
    * Submit a new insurance quotation request

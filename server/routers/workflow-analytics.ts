@@ -1,9 +1,11 @@
 import { router, protectedProcedure } from "../_core/trpc";
-import { z } from "zod";
 import { getDb } from "../db";
+import { z } from "zod";
 import { workflowAuditTrail, claims } from "../../drizzle/schema";
 import { eq, and, sql, gte, lte, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
+
+const db = getDb();
 
 /**
  * Workflow Analytics Router

@@ -10,7 +10,6 @@
 
 import { describe, it, expect, beforeAll } from "vitest";
 import { workflowQueriesRouter } from "./workflow-queries";
-import { getDb } from "../db";
 import { claims } from "../../drizzle/schema";
 import { extractInsertId } from "../utils/drizzle-helpers";
 

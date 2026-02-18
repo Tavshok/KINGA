@@ -1,11 +1,13 @@
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
-import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
+import { TRPCError } from "@trpc/server";
 import { ingestionBatches, ingestionDocuments, extractedDocumentData } from "../../drizzle/schema";
 import { storagePut } from "../storage";
 import { eq, and, desc } from "drizzle-orm";
 import crypto from "crypto";
+
+const db = getDb();
 
 /**
  * Document Ingestion Router

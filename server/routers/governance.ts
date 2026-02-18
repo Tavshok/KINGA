@@ -12,9 +12,7 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
-import { getDb } from "../db";
 
-const db = getDb();
 import { claims, auditTrail, users } from "../../drizzle/schema";
 import { eq, and, gte, sql, desc, like } from "drizzle-orm";
 import { z } from "zod";

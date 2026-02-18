@@ -12,8 +12,8 @@
 
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
-import { TRPCError } from "@trpc/server";
 import { getDb } from "../db";
+import { TRPCError } from "@trpc/server";
 import {
   historicalClaims,
   extractedRepairItems,
@@ -33,6 +33,8 @@ import {
   generateVarianceDatasets,
   type DocumentExtractionResult,
 } from "../pipeline/document-intelligence";
+
+const db = getDb();
 
 export const historicalClaimsRouter = router({
   // ============================================================
@@ -543,7 +545,7 @@ export const historicalClaimsRouter = router({
       })
       .from(historicalClaims)
       .where(eq(historicalClaims.tenantId, tenantId))
-      .groupBy(historicalClaims.pipelineStatus);
+      .groupBy(sql`${historicalClaims.pipelineStatus}`);
 
     // Average cost variance
     const varianceStats = await db
@@ -555,7 +557,7 @@ export const historicalClaimsRouter = router({
       })
       .from(varianceDatasets)
       .where(eq(varianceDatasets.tenantId, tenantId))
-      .groupBy(varianceDatasets.comparisonType);
+      .groupBy(sql`${varianceDatasets.comparisonType}`);
 
     // Average data quality
     const qualityStats = await db
@@ -584,7 +586,7 @@ export const historicalClaimsRouter = router({
       .from(extractedRepairItems)
       .innerJoin(historicalClaims, eq(extractedRepairItems.historicalClaimId, historicalClaims.id))
       .where(eq(historicalClaims.tenantId, tenantId))
-      .groupBy(extractedRepairItems.repairAction);
+      .groupBy(sql`${extractedRepairItems.repairAction}`);
 
     // Fraud pattern indicators
     const fraudStats = await db
@@ -632,7 +634,7 @@ export const historicalClaimsRouter = router({
           eq(varianceDatasets.tenantId, tenantId),
           eq(varianceDatasets.comparisonType, input.comparisonType)
         ))
-        .groupBy(varianceDatasets.varianceCategory);
+        .groupBy(sql`${varianceDatasets.varianceCategory}`);
 
       const details = await db
         .select({
@@ -682,7 +684,7 @@ export const historicalClaimsRouter = router({
         eq(varianceDatasets.comparisonType, "assessor_vs_final"),
         sql`assessor_name IS NOT NULL`
       ))
-      .groupBy(varianceDatasets.assessorName, varianceDatasets.assessorLicenseNumber)
+      .groupBy(sql`${varianceDatasets.assessorName}`, sql`${varianceDatasets.assessorLicenseNumber}`)
       .orderBy(avg(varianceDatasets.absoluteVariancePercent));
 
     return benchmarks;
@@ -712,7 +714,7 @@ export const historicalClaimsRouter = router({
         sql`vehicle_make IS NOT NULL`,
         sql`final_approved_cost IS NOT NULL`
       ))
-      .groupBy(historicalClaims.vehicleMake, historicalClaims.vehicleModel)
+      .groupBy(sql`${historicalClaims.vehicleMake}`, sql`${historicalClaims.vehicleModel}`)
       .orderBy(desc(count()))
       .limit(20);
 

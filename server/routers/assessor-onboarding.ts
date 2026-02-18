@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { getDb } from "../db";
 import {
   createAssessor,
   getAssessorByUserId,
@@ -12,8 +13,9 @@ import {
 } from "../db";
 import { users } from "../../drizzle/schema";
 import { protectedProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
 import { eq } from "drizzle-orm";
+
+const db = getDb();
 
 /**
  * Assessor Onboarding Router

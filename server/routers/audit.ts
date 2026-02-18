@@ -6,9 +6,11 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
-import { z } from "zod";
 import { getDb } from "../db";
+import { z } from "zod";
 import { accessDenialLog } from "../../drizzle/schema";
+
+const db = getDb();
 
 export const auditRouter = router({
   /**
@@ -26,7 +28,6 @@ export const auditRouter = router({
       denialReason: z.string(),
     }))
     .mutation(async ({ input, ctx }) => {
-      const db = getDb();
       
       // Log the access denial attempt
       await db.insert(accessDenialLog).values({

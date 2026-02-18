@@ -12,7 +12,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "../routers";
 import type { Context } from "../_core/context";
-import { getDb } from "../db";
 import { insurerTenants } from "../../drizzle/schema";
 
 // Mock context for testing

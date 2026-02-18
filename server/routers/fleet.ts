@@ -10,7 +10,7 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { db } from "../db";
+import { getDb } from "../db";
 import { 
   serviceRequests, 
   vehicleMileageLogs, 
@@ -29,6 +29,8 @@ import {
   getFleetDrivers,
   canManageFleet,
 } from "../fleet-service";
+
+const db = getDb();
 
 /**
  * Fleet role validation middleware
@@ -111,7 +113,7 @@ export const fleetRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Verify vehicle belongs to user's fleet
-        const vehicle = await db.query.fleetVehicles.findFirst({
+        const vehicle = await ctx.db.query.fleetVehicles.findFirst({
           where: and(
             eq(fleetVehicles.id, input.vehicleId),
             eq(fleetVehicles.tenantId, ctx.user.tenantId!)
@@ -126,7 +128,7 @@ export const fleetRouter = router({
         }
 
         // Create service request
-        const [request] = await db.insert(serviceRequests).values({
+        const [request] = await ctx.db.insert(serviceRequests).values({
           vehicleId: input.vehicleId,
           fleetId: vehicle.fleetId,
           ownerId: ctx.user.id,
@@ -169,7 +171,7 @@ export const fleetRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Verify vehicle access
-        const vehicle = await db.query.fleetVehicles.findFirst({
+        const vehicle = await ctx.db.query.fleetVehicles.findFirst({
           where: and(
             eq(fleetVehicles.id, input.vehicleId),
             eq(fleetVehicles.tenantId, ctx.user.tenantId!)
@@ -184,7 +186,7 @@ export const fleetRouter = router({
         }
 
         // Log mileage update
-        await db.insert(vehicleMileageLogs).values({
+        await ctx.db.insert(vehicleMileageLogs).values({
           vehicleId: input.vehicleId,
           tenantId: ctx.user.tenantId!,
           mileage: input.mileage,
@@ -208,7 +210,7 @@ export const fleetRouter = router({
   // Get my service requests (driver view)
   getMyServiceRequests: fleetRoleProcedure.query(async ({ ctx }) => {
     try {
-      const requests = await db.query.serviceRequests.findMany({
+      const requests = await ctx.db.query.serviceRequests.findMany({
         where: and(
           eq(serviceRequests.submittedBy, ctx.user.id),
           eq(serviceRequests.tenantId, ctx.user.tenantId!)
@@ -245,7 +247,7 @@ export const fleetRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Verify request belongs to manager's fleet
-        const request = await db.query.serviceRequests.findFirst({
+        const request = await ctx.db.query.serviceRequests.findFirst({
           where: and(
             eq(serviceRequests.id, input.requestId),
             eq(serviceRequests.tenantId, ctx.user.tenantId!)
@@ -288,7 +290,7 @@ export const fleetRouter = router({
   // Get pending service requests (manager view)
   getPendingServiceRequests: fleetManagerProcedure.query(async ({ ctx }) => {
     try {
-      const requests = await db.query.serviceRequests.findMany({
+      const requests = await ctx.db.query.serviceRequests.findMany({
         where: and(
           eq(serviceRequests.tenantId, ctx.user.tenantId!),
           eq(serviceRequests.approvalStatus, "pending")
@@ -323,7 +325,7 @@ export const fleetRouter = router({
     .mutation(async ({ ctx, input }) => {
       try {
         // Verify fleet access
-        const fleet = await db.query.fleets.findFirst({
+        const fleet = await ctx.db.query.fleets.findFirst({
           where: and(
             eq(fleets.id, input.fleetId),
             eq(fleets.tenantId, ctx.user.tenantId!)
@@ -367,7 +369,7 @@ export const fleetRouter = router({
     .query(async ({ ctx, input }) => {
       try {
         // Verify fleet access
-        const fleet = await db.query.fleets.findFirst({
+        const fleet = await ctx.db.query.fleets.findFirst({
           where: and(
             eq(fleets.id, input.fleetId),
             eq(fleets.tenantId, ctx.user.tenantId!)
@@ -382,7 +384,7 @@ export const fleetRouter = router({
         }
 
         // Get vehicles in fleet
-        const vehicles = await db.query.fleetVehicles.findMany({
+        const vehicles = await ctx.db.query.fleetVehicles.findMany({
           where: and(
             eq(fleetVehicles.fleetId, input.fleetId),
             eq(fleetVehicles.tenantId, ctx.user.tenantId!)

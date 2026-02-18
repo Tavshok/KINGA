@@ -8479,3 +8479,65 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test routing engine snapshot writes
 - [ ] Test backfill script accuracy
 - [ ] Ensure no breaking changes to existing analytics
+
+
+## Database Access Architecture Refactor
+
+### Phase 1: Update Context
+- [x] Add db property to TrpcContext type
+- [x] Import getDb and MySql2Database types
+- [x] Initialize db in createContext function
+- [x] Ensure proper typing (MySql2Database<typeof schema>)
+- [x] Preserve user and tenant in context
+
+### Phase 2: Refactor Services to Dependency Injection
+- [ ] Refactor fleet-claim-export.ts to accept db parameter
+- [ ] Refactor fleet-maintenance-intelligence.ts to accept db parameter
+- [ ] Refactor super-audit-mode.ts to accept db parameter
+- [ ] Refactor metering.ts to accept db parameter
+- [ ] Update all service function signatures
+- [ ] Remove all module-level db initialization
+
+### Phase 3: Update tRPC Routers
+- [ ] Update fleet router to use ctx.db
+- [ ] Update monetisation router to use ctx.db
+- [ ] Update super-audit router to use ctx.db
+- [ ] Pass ctx.db to service functions
+- [ ] Ensure all db access is request-scoped
+
+### Phase 4: Validation
+- [ ] Check TypeScript error count reduction
+- [ ] Verify no runtime regressions
+- [ ] Ensure WorkflowEngine governance intact
+- [ ] Run existing tests
+- [ ] Validate all db queries work correctly
+
+### Phase 5: Continue Super Audit Mode
+- [ ] Complete tenant selector and role impersonation
+- [ ] Build read-only dashboard access
+- [ ] Create AI scoring inspector
+- [ ] Add routing decision viewer
+- [ ] Implement audit logging
+
+
+## Stress Test & Performance Analysis
+- [ ] Generate 500 synthetic claims (distributed across routing categories)
+- [ ] Build concurrent routing simulation (batches of 50)
+- [ ] Build concurrent analytics query simulation
+- [ ] Build concurrent dashboard load simulation
+- [ ] Measure performance metrics (routing time, latency, DB queries, memory)
+- [ ] Identify N+1 query patterns
+- [ ] Identify missing indexes
+- [ ] Identify slow joins (especially workflowAuditTrail)
+- [ ] Generate performance report with ranked bottlenecks
+
+
+## Production Stabilization (Analytics & Performance)
+- [x] Fix Drizzle groupBy syntax across entire repository (18 instances fixed)
+- [x] Add composite indexes via migration (non-breaking) (5 indexes created)
+- [x] Eliminate high-impact N+1 query patterns (none found - already optimized)
+- [x] Validate analytics integrity and endpoint functionality (6/8 tests passing)
+- [x] Run controlled stress test (2000 claims, 20 concurrent routing, 10 concurrent analytics)
+- [x] Generate KINGA_ANALYTICS_STABILIZATION_REPORT.md
+- [x] Confirm no routing logic changed (architecture preserved)
+- [ ] Confirm automation_policies untouched

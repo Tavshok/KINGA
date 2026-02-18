@@ -6,12 +6,14 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, sql } from "drizzle-orm";
 import { getDb } from "../db";
+import { eq, and, sql } from "drizzle-orm";
 import { claims } from "../../drizzle/schema";
 import { auditTrail } from "../../drizzle/schema";
 import { users } from "../../drizzle/schema";
 import { protectedProcedure, router } from "../_core/trpc";
+
+const db = getDb();
 
 /**
  * Intake Gate Router
@@ -31,7 +33,6 @@ export const intakeGateRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = getDb();
 
       // Validate claims_manager role
       if (ctx.user.insurerRole !== "claims_manager" && ctx.user.insurerRole !== "insurer_admin") {
@@ -138,7 +139,6 @@ export const intakeGateRouter = router({
    * Access: claims_manager, executive, insurer_admin
    */
   getIntakeQueue: protectedProcedure.query(async ({ ctx }) => {
-    const db = getDb();
 
     // Validate role has intake queue access
     if (
@@ -190,7 +190,6 @@ export const intakeGateRouter = router({
    * Access: claims_manager, insurer_admin
    */
   getAvailableProcessors: protectedProcedure.query(async ({ ctx }) => {
-    const db = getDb();
 
     // Validate role
     if (
@@ -242,7 +241,6 @@ export const intakeGateRouter = router({
       })
     )
     .mutation(async ({ ctx, input }) => {
-      const db = getDb();
 
       // Validate role
       if (
@@ -313,7 +311,6 @@ export const intakeGateRouter = router({
    * Access: claims_manager, executive
    */
   getAutoAssignStats: protectedProcedure.query(async ({ ctx }) => {
-    const db = getDb();
 
     // Validate role
     if (

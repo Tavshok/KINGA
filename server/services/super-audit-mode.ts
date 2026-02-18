@@ -1,3 +1,4 @@
+import { getDb } from "../db";
 /**
  * Super Audit Mode Service
  * 
@@ -8,7 +9,7 @@
  * - Full audit logging
  */
 
-import { db } from "../db";
+
 import { superAuditSessions, auditTrail, users } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 

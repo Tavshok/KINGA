@@ -7,7 +7,6 @@
 
 import { z } from "zod";
 import { router, protectedProcedure } from "../_core/trpc";
-import { getDb } from "../db";
 import { historicalClaims, historicalReplayResults } from "../../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { replayHistoricalClaim } from "../services/claim-replay-comparison";

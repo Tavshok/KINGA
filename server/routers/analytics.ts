@@ -18,9 +18,9 @@
  */
 
 import { router, protectedProcedure, executiveOnlyProcedure } from "../_core/trpc";
+import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { getDb } from "../db";
 import { 
   claims, users, aiAssessments, assessorEvaluations, 
   panelBeaterQuotes, panelBeaters, workflowAuditTrail,
@@ -34,6 +34,8 @@ import {
   safeString,
   safeArray
 } from "../utils/analytics-utils";
+
+const db = getDb();
 
 /**
  * Role-based analytics procedure
@@ -557,7 +559,7 @@ export const analyticsRouter = router({
           .from(panelBeaters)
           .leftJoin(panelBeaterQuotes, eq(panelBeaters.id, panelBeaterQuotes.panelBeaterId))
           .leftJoin(claims, eq(panelBeaterQuotes.claimId, claims.id))
-          .groupBy(panelBeaters.id, panelBeaters.businessName)
+          .groupBy(sql`${panelBeaters.id}`, sql`${panelBeaters.businessName}`)
           .orderBy(desc(sql`COUNT(${panelBeaterQuotes.id})`));
 
         const mappedStats = beaterStats.map(stat => {

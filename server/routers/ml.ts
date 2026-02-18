@@ -13,7 +13,6 @@ import {
   addToReviewQueue,
   processClaimConfidenceScore,
 } from "../ml/confidence-scoring";
-import { getDb } from "../db";
 import {
   historicalClaims,
   trainingDataScores,

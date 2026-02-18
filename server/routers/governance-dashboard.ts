@@ -12,13 +12,11 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
-import { getDb } from "../db";
 import { claims, auditTrail, users } from "../../drizzle/schema";
 import { eq, and, gte, sql, desc, like, count } from "drizzle-orm";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 
-const db = getDb();
 
 /**
  * Middleware to enforce executive + insurer_admin access only

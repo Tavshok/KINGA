@@ -93,7 +93,7 @@ export async function calculateFraudAnalytics() {
     })
     .from(aiAssessments)
     .where(sql`${aiAssessments.fraudRiskLevel} IS NOT NULL`)
-    .groupBy(aiAssessments.fraudRiskLevel);
+    .groupBy(sql`${aiAssessments.fraudRiskLevel}`);
 
   console.log("[Metrics] Fraud analytics:", fraudStats);
 

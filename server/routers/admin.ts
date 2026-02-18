@@ -6,10 +6,12 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
+import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
 import { tenants } from "../../drizzle/schema";
 import { sendInvitation, getInvitationByToken, acceptInvitation } from "../invitation-service";
+
+const db = getDb();
 
 // Super-admin middleware
 const superAdminProcedure = protectedProcedure.use(({ ctx, next }) => {

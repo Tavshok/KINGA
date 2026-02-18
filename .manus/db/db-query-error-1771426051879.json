@@ -1,0 +1,8 @@
+{
+  "query": "\nINSERT INTO automation_policies (\n  tenant_id,\n  policy_name,\n  description,\n  is_active,\n  auto_approve_confidence_threshold,\n  auto_approve_max_value,\n  manual_review_confidence_threshold,\n  manual_review_max_value,\n  fraud_sensitivity_multiplier,\n  version,\n  effective_from,\n  created_at\n) VALUES (\n  (SELECT id FROM insurer_tenants LIMIT 1),\n  'Balanced Policy',\n  'Balanced risk profile for testing',\n  1,\n  85,\n  7500000,\n  65,\n  20000000,\n  1.0,\n  1,\n  NOW(),\n  NOW()\n);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nINSERT INTO automation_policies (\n  tenant_id,\n  policy_name,\n  description,\n  is_active,\n  auto_approve_confidence_threshold,\n  auto_approve_max_value,\n  manual_review_confidence_threshold,\n  manual_review_max_value,\n  fraud_sensitivity_multiplier,\n  version,\n  effective_from,\n  created_at\n) VALUES (\n  (SELECT id FROM insurer_tenants LIMIT 1),\n  'Balanced Policy',\n  'Balanced risk profile for testing',\n  1,\n  85,\n  7500000,\n  65,\n  20000000,\n  1.0,\n  1,\n  NOW(),\n  NOW()\n);\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'description' in 'field list'"
+  ]
+}

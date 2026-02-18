@@ -11,9 +11,9 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { getDb } from "../db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { getDb } from "../db";
 import { insurerTenants } from "../../drizzle/schema";
 import { 
   getTenantConfig,
@@ -28,6 +28,8 @@ import {
   updateTenantSlaConfig
 } from "../services/tenant-config";
 
+const db = getDb();
+
 /**
  * Tenant configuration router
  */
@@ -38,8 +40,6 @@ export const tenantRouter = router({
   list: protectedProcedure
     .query(async ({ ctx }) => {
       // For now, return all tenants. In production, filter by user permissions
-      const db = await getDb();
-      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database not available' });
       
       const tenants = await db.select().from(insurerTenants);
       return tenants;

@@ -1,0 +1,50 @@
+{
+  "query": "\nSELECT c.id, c.tenant_id as claim_tenant_id, c.claim_number,\n       ap.id as policy_id, ap.tenant_id as policy_tenant_id, ap.is_active\nFROM claims c\nLEFT JOIN automation_policies ap ON c.tenant_id = ap.tenant_id AND ap.is_active = 1\nLIMIT 5;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT c.id, c.tenant_id as claim_tenant_id, c.claim_number,\n       ap.id as policy_id, ap.tenant_id as policy_tenant_id, ap.is_active\nFROM claims c\nLEFT JOIN automation_policies ap ON c.tenant_id = ap.tenant_id AND ap.is_active = 1\nLIMIT 5;\n",
+  "rows": [
+    {
+      "id": "870256",
+      "claim_tenant_id": "test-tenant-dispatcher-001",
+      "claim_number": "DISP-TEST-1771316920359",
+      "policy_id": "NULL",
+      "policy_tenant_id": "NULL",
+      "is_active": "NULL"
+    },
+    {
+      "id": "900001",
+      "claim_tenant_id": "tenant-1771335126426",
+      "claim_number": "E2E-1771335126596",
+      "policy_id": "NULL",
+      "policy_tenant_id": "NULL",
+      "is_active": "NULL"
+    },
+    {
+      "id": "900002",
+      "claim_tenant_id": "tenant-1771335377063",
+      "claim_number": "E2E-1771335377201",
+      "policy_id": "NULL",
+      "policy_tenant_id": "NULL",
+      "is_active": "NULL"
+    },
+    {
+      "id": "930001",
+      "claim_tenant_id": "demo-tenant",
+      "claim_number": "CLM-12185966-DE56",
+      "policy_id": "NULL",
+      "policy_tenant_id": "NULL",
+      "is_active": "NULL"
+    },
+    {
+      "id": "930002",
+      "claim_tenant_id": "demo-tenant",
+      "claim_number": "CLM-12186018-74CD",
+      "policy_id": "NULL",
+      "policy_tenant_id": "NULL",
+      "is_active": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_tenant_id\tclaim_number\tpolicy_id\tpolicy_tenant_id\tis_active\n870256\ttest-tenant-dispatcher-001\tDISP-TEST-1771316920359\tNULL\tNULL\tNULL\n900001\ttenant-1771335126426\tE2E-1771335126596\tNULL\tNULL\tNULL\n900002\ttenant-1771335377063\tE2E-1771335377201\tNULL\tNULL\tNULL\n930001\tdemo-tenant\tCLM-12185966-DE56\tNULL\tNULL\tNULL\n930002\tdemo-tenant\tCLM-12186018-74CD\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

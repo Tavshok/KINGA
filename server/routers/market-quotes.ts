@@ -18,6 +18,8 @@ import { eq, desc, and, inArray } from "drizzle-orm";
 import { extractMarketQuote } from "../pricing/market-quote-extractor";
 import { storagePut } from "../storage";
 
+const db = getDb();
+
 export const marketQuotesRouter = router({
   /**
    * Upload supplier quote document (PDF/Excel/image)
