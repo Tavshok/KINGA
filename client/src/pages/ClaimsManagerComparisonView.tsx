@@ -36,6 +36,9 @@ import {
   CheckSquare,
   History
 } from "lucide-react";
+import { GovernanceIndicators } from "@/components/GovernanceIndicators";
+import { GovernanceSummaryWidget } from "@/components/GovernanceSummaryWidget";
+import { QMSCompliancePanel } from "@/components/QMSCompliancePanel";
 
 // Confidence Score Meter Component
 function ConfidenceMeter({ score, size = "default" }: { score: number; size?: "default" | "large" }) {
@@ -224,6 +227,33 @@ export default function ClaimsManagerComparisonView() {
           </div>
         </div>
       </div>
+
+      {/* Governance Indicators (For All Roles) */}
+      <div className="max-w-[1800px] mx-auto px-8 pt-6">
+        <GovernanceIndicators
+          fraudDetectionActive={true}
+          physicsValidationComplete={!!aiAssessment}
+          costOptimisationApplied={!!quotes && quotes.length > 0}
+          policyVersion={"v1.0.0"}
+          governanceLoggingActive={true}
+          fraudRiskScore={aiAssessment?.fraudRiskScore}
+          confidenceScore={aiAssessment?.confidenceScore}
+        />
+      </div>
+
+      {/* Governance Summary Widget (For Managers) */}
+      {(isRiskManager || isClaimsManager) && (
+        <div className="max-w-[1800px] mx-auto px-8 pt-6">
+          <GovernanceSummaryWidget />
+        </div>
+      )}
+
+      {/* QMS Compliance Panel (For Managers) */}
+      {(isRiskManager || isClaimsManager) && (
+        <div className="max-w-[1800px] mx-auto px-8 pt-6">
+          <QMSCompliancePanel />
+        </div>
+      )}
 
       {/* Risk Manager: Technical Validation Panel (Above Three Columns) */}
       {isRiskManager && (
