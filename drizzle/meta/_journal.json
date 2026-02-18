@@ -330,6 +330,13 @@
       "when": 1771410543144,
       "tag": "0046_many_lady_mastermind",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "5",
+      "when": 1771411411165,
+      "tag": "0047_bored_gideon",
+      "breakpoints": true
     }
   ]
 }

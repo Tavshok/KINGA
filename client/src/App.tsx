@@ -72,6 +72,7 @@ const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminTierManagement = lazy(() => import("@/pages/AdminTierManagement"));
 const TenantManagement = lazy(() => import("./pages/admin/TenantManagement"));
 const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
+const TenantRegistration = lazy(() => import("./pages/admin/TenantRegistration"));
 const MarketQuotesIngestion = lazy(() => import("./pages/MarketQuotesIngestion"));
 const KingaAgency = lazy(() => import("./pages/KingaAgency"));
 
@@ -487,6 +488,12 @@ function Router() {
         <Route path="/admin/tenants/:tenantId/roles">
           <ProtectedRoute allowedRoles={["admin"]}>
             <TenantRoleConfig />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/admin/tenants/register">
+          <ProtectedRoute allowedRoles={["platform_super_admin"]}>
+            <TenantRegistration />
           </ProtectedRoute>
         </Route>
         <Route path="/admin/tier-management">

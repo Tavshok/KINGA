@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS tenant_invitations (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  tenant_id VARCHAR(64) NOT NULL,\n  email VARCHAR(320) NOT NULL,\n  role ENUM('user', 'admin', 'insurer', 'assessor', 'panel_beater', 'claimant', 'platform_super_admin', 'fleet_admin', 'fleet_manager', 'fleet_driver') NOT NULL,\n  insurer_role ENUM('claims_processor', 'assessor_internal', 'assessor_external', 'risk_manager', 'claims_manager', 'executive', 'insurer_admin'),\n  token VARCHAR(64) NOT NULL UNIQUE,\n  expires_at TIMESTAMP NOT NULL,\n  accepted_at TIMESTAMP NULL,\n  created_by INT NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  INDEX tenant_id_idx (tenant_id),\n  INDEX email_idx (email),\n  INDEX token_idx (token),\n  INDEX expires_at_idx (expires_at)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS tenant_invitations (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  tenant_id VARCHAR(64) NOT NULL,\n  email VARCHAR(320) NOT NULL,\n  role ENUM('user', 'admin', 'insurer', 'assessor', 'panel_beater', 'claimant', 'platform_super_admin', 'fleet_admin', 'fleet_manager', 'fleet_driver') NOT NULL,\n  insurer_role ENUM('claims_processor', 'assessor_internal', 'assessor_external', 'risk_manager', 'claims_manager', 'executive', 'insurer_admin'),\n  token VARCHAR(64) NOT NULL UNIQUE,\n  expires_at TIMESTAMP NOT NULL,\n  accepted_at TIMESTAMP NULL,\n  created_by INT NOT NULL,\n  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL,\n  INDEX tenant_id_idx (tenant_id),\n  INDEX email_idx (email),\n  INDEX token_idx (token),\n  INDEX expires_at_idx (expires_at)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 339
+}

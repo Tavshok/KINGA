@@ -8071,3 +8071,53 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fleet analytics integration confirmed (existing FleetManagement page)
 - [x] Responsive design (shadcn/ui components are responsive by default)
 - [ ] Save final checkpoint
+
+
+## Tenant Onboarding Workflow
+
+### Phase 1: Invitation Schema
+- [x] Create tenant_invitations table (id, tenant_id, email, role, insurer_role, token, expires_at, accepted_at, created_by, created_at)
+- [x] Add indexes for performance (tenant_id, email, token, expires_at)
+- [ ] Add secure token generation function (crypto.randomBytes) - will be in invitation service
+- [ ] Add token expiration validation (default 7 days) - will be in invitation service
+- [ ] Add invitation status tracking (pending, accepted, expired) - tracked via acceptedAt and expiresAt
+- [x] Push schema changes to database (CREATE TABLE tenant_invitations)
+- [x] Document invitation flow (JSDoc comments in schema.ts)
+
+### Phase 2: Tenant Registration UI
+- [x] Create TenantRegistration page component (super-admin only)
+- [x] Add tenant creation form (id, display_name, contact_email, billing_email, plan)
+- [x] Add initial threshold configuration (intake escalation hours, AI rerun limits)
+- [x] Add workflow configuration (escalation mode, escalation enabled)
+- [x] Connect to admin.createTenant tRPC mutation
+- [x] Add success/error toast notifications
+- [x] Add route in App.tsx (/admin/tenants/register)
+- [x] Create admin router with createTenant procedure
+- [x] Register admin router in appRouter
+
+### Phase 3: Invitation Acceptance Workflow
+- [ ] Create invitation service module (server/invitation-service.ts)
+- [ ] Implement sendInvitation function (create invitation, send email)
+- [ ] Implement acceptInvitation function (validate token, create user, assign tenant/role)
+- [ ] Create InvitationAcceptance page component (public route)
+- [ ] Add email verification UI (token input, user details form)
+- [ ] Connect to invitation.accept tRPC mutation
+- [ ] Add onboarding audit log entry (TENANT_USER_ONBOARDED)
+- [ ] Add route in App.tsx (/invite/accept/:token)
+
+### Phase 4: Tenant Isolation Enforcement
+- [ ] Update ProtectedRoute component to check tenantId
+- [ ] Add tenant isolation middleware to tRPC context
+- [ ] Enforce tenantId requirement for all insurer routes
+- [ ] Add tenant validation in all insurer procedures
+- [ ] Update RoleGuard to validate tenant access
+- [ ] Add error handling for missing tenantId
+
+### Phase 5: Testing & Delivery
+- [ ] Test tenant creation workflow
+- [ ] Test invitation sending and acceptance
+- [ ] Test user provisioning with tenant assignment
+- [ ] Test tenant isolation enforcement
+- [ ] Test expired invitation handling
+- [ ] Create implementation summary document
+- [ ] Save final checkpoint

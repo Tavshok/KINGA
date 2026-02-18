@@ -5379,3 +5379,34 @@ export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
 
 export type FleetIncidentReport = typeof fleetIncidentReports.$inferSelect;
 export type InsertFleetIncidentReport = typeof fleetIncidentReports.$inferInsert;
+
+
+/**
+ * Tenant Invitations - Secure invitation system for onboarding users to tenants
+ * 
+ * Workflow:
+ * 1. Super-admin creates tenant and sends invitations
+ * 2. Invitee receives email with secure token
+ * 3. Invitee accepts invitation (validates token, creates user)
+ * 4. User is assigned to tenant with specified role
+ */
+export const tenantInvitations = mysqlTable("tenant_invitations", {
+  id: int("id").autoincrement().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  email: varchar("email", { length: 320 }).notNull(),
+  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]).notNull(),
+  insurerRole: mysqlEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]),
+  token: varchar("token", { length: 64 }).notNull().unique(),
+  expiresAt: timestamp("expires_at").notNull(),
+  acceptedAt: timestamp("accepted_at"),
+  createdBy: int("created_by").notNull(), // User ID of the admin who created the invitation
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  tenantIdIdx: index("tenant_id_idx").on(table.tenantId),
+  emailIdx: index("email_idx").on(table.email),
+  tokenIdx: index("token_idx").on(table.token),
+  expiresAtIdx: index("expires_at_idx").on(table.expiresAt),
+}));
+
+export type TenantInvitation = typeof tenantInvitations.$inferSelect;
+export type InsertTenantInvitation = typeof tenantInvitations.$inferInsert;
