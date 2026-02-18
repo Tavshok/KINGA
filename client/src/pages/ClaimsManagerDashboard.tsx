@@ -16,6 +16,8 @@ import { RiskBadge, AiAssessButton } from "@/components/ClaimRiskIndicators";
 import { ClaimReviewDialog } from "@/components/ClaimReviewDialog";
 import { exportClaimsToExcel, type ClaimExportData } from "@/lib/export-excel";
 import { Link } from "wouter";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 
 export default function ClaimsManagerDashboard() {
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
@@ -28,6 +30,9 @@ export default function ClaimsManagerDashboard() {
   const [sendBackTarget, setSendBackTarget] = useState("risk_manager");
   const [comparisonData, setComparisonData] = useState<any>(null);
   const [showReviewDialog, setShowReviewDialog] = useState(false);
+  
+  // Tab state
+  const [activeTab, setActiveTab] = useState("intake");
   
   // Pagination and filters
   const [currentPage, setCurrentPage] = useState(1);
@@ -315,8 +320,22 @@ export default function ClaimsManagerDashboard() {
           </div>
         </div>
 
-        {/* Filters */}
-        <Card className="shadow-lg border-0">
+        {/* Main Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="intake">Intake Queue</TabsTrigger>
+            <TabsTrigger value="review">Review Queue</TabsTrigger>
+          </TabsList>
+
+          {/* Intake Queue Tab */}
+          <TabsContent value="intake">
+            <IntakeQueueTab />
+          </TabsContent>
+
+          {/* Review Queue Tab */}
+          <TabsContent value="review" className="space-y-6">
+            {/* Filters */}
+            <Card className="shadow-lg border-0">
           <CardHeader className="bg-gradient-to-r from-slate-50 to-blue-50/50">
             <CardTitle className="flex items-center gap-2 text-base">
               <Filter className="h-4 w-4 text-blue-600" />
@@ -787,6 +806,8 @@ export default function ClaimsManagerDashboard() {
           open={showReviewDialog}
           onOpenChange={setShowReviewDialog}
         />
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
