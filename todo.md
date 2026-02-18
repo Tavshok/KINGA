@@ -8765,3 +8765,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix ReferenceError by adding proper definition/import (added to destructuring in line 18)
 - [x] Root cause: Function parameter destructuring was missing allowedInsurerRoles
 - [ ] Create checkpoint (PENDING)
+
+
+## Bug Fix: Login Page Redirects to Risk Manager Dashboard (COMPLETE)
+- [x] Investigate login route configuration in App.tsx
+- [x] Check authentication redirect logic in Login component
+- [x] Identify why authenticated users are redirected instead of showing login form (useEffect auto-redirect in Login.tsx lines 28-48)
+- [x] Remove auto-redirect useEffect from Login.tsx (completely removed lines 28-48)
+- [x] Add logout button for authenticated users (added with LogOut icon)
+- [x] Show "Already logged in" message with user info (Alert component with user.name/email and role)
+- [x] Add "Continue to Dashboard" button for authenticated users
+- [x] Conditional rendering: authenticated users see logout options, unauthenticated see login form
+- [ ] Create checkpoint (PENDING)

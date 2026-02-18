@@ -2,13 +2,13 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { getLoginUrl } from "@/const";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, LogOut, ArrowRight } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
-import { useEffect } from "react";
 import { useLocation } from "wouter";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function Login() {
-  const { user, loading, isAuthenticated } = useAuth();
+  const { user, loading, isAuthenticated, logout } = useAuth();
   const [, setLocation] = useLocation();
   
   // Get role from URL query parameter
@@ -24,28 +24,33 @@ export default function Login() {
   
   const roleLabel = roleParam ? roleLabels[roleParam] || 'KINGA Portal' : 'KINGA Portal';
 
-  // Redirect authenticated users to their role-specific dashboard
-  useEffect(() => {
-    if (isAuthenticated && user) {
-      switch (user.role) {
-        case "insurer":
-        case "admin":
-          setLocation("/insurer/dashboard");
-          break;
-        case "assessor":
-          setLocation("/assessor/dashboard");
-          break;
-        case "panel_beater":
-          setLocation("/panel-beater/dashboard");
-          break;
-        case "claimant":
-          setLocation("/claimant/dashboard");
-          break;
-        default:
-          setLocation("/");
-      }
+  // Get dashboard path based on user role
+  const getDashboardPath = (userRole: string) => {
+    switch (userRole) {
+      case "insurer":
+      case "admin":
+        return "/insurer/dashboard";
+      case "assessor":
+        return "/assessor/dashboard";
+      case "panel_beater":
+        return "/panel-beater/dashboard";
+      case "claimant":
+        return "/claimant/dashboard";
+      default:
+        return "/";
     }
-  }, [isAuthenticated, user, setLocation]);
+  };
+
+  const handleLogout = async () => {
+    await logout();
+    // After logout, the page will refresh and show the login form
+  };
+
+  const handleContinueToDashboard = () => {
+    if (user) {
+      setLocation(getDashboardPath(user.role));
+    }
+  };
 
   if (loading) {
     return (
@@ -55,6 +60,62 @@ export default function Login() {
     );
   }
 
+  // If user is already authenticated, show logout option
+  if (isAuthenticated && user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center space-y-4">
+            <div className="mx-auto flex justify-center">
+              <KingaLogo />
+            </div>
+            <CardTitle>Already Logged In</CardTitle>
+            <CardDescription className="text-lg">
+              {roleLabel}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <Alert>
+              <AlertDescription className="text-center">
+                You are currently logged in as <strong>{user.name || user.email}</strong>
+                <br />
+                <span className="text-sm text-muted-foreground">
+                  Role: {user.role === "admin" ? "Administrator" : user.role.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase())}
+                </span>
+              </AlertDescription>
+            </Alert>
+
+            <div className="space-y-3">
+              <Button 
+                className="w-full" 
+                size="lg"
+                onClick={handleContinueToDashboard}
+              >
+                Continue to Dashboard
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              <Button 
+                variant="outline"
+                className="w-full" 
+                size="lg"
+                onClick={handleLogout}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
+            </div>
+
+            <div className="text-xs text-center text-muted-foreground">
+              <p>To switch accounts, please logout first</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show login form for unauthenticated users
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 to-accent/5 p-4">
       <Card className="w-full max-w-md">
