@@ -8719,3 +8719,25 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] Assessed performance impact (zero degradation, no database migration)
   - [x] Completed security audit (tenant isolation, RBAC, immutable audit trail)
 - [ ] Create checkpoint (PENDING)
+
+
+## VehicleImpactVectorDiagram Refactoring - Real Physics Calculations (COMPLETE)
+- [x] Add physicsValidation props interface to VehicleImpactVectorDiagram.tsx
+  - [x] Add impactAngleDegrees: number
+  - [x] Add calculatedImpactForceKN: number
+  - [x] Add impactLocationNormalized: { relativeX: number, relativeY: number }
+- [x] Implement dynamic vector calculation functions
+  - [x] Angle to radians conversion: radians = angle * (Math.PI / 180)
+  - [x] Force-scaled vector length: clamp(force * 2, 20, 120)
+  - [x] Directional components: dx = cos(radians) * vectorLength, dy = sin(radians) * vectorLength
+  - [x] Normalized coordinates to SVG: impactX = relativeX * 300, impactY = relativeY * 200
+  - [x] Force-scaled thickness: clamp(force / 15, 2, 8)
+- [x] Replace hardcoded getImpactConfig with quantitative calculation logic
+  - [x] If physicsValidation exists: use dynamic calculations (getQuantitativeImpactConfig)
+  - [x] If physicsValidation missing: fall back to legacy static rendering (getLegacyImpactConfig)
+  - [x] Preserve backward compatibility (no breaking changes)
+- [x] Add force and angle labels to SVG visualization
+  - [x] Display "Impact Force: XX.X kN" (in metrics summary)
+  - [x] Display "Impact Angle: XX°" (in metrics summary)
+- [x] Backward compatibility verified (fallback to getLegacyImpactConfig when physicsValidation missing)
+- [ ] Create checkpoint (PENDING)

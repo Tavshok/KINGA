@@ -2,16 +2,38 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Zap } from "lucide-react";
 
+/**
+ * Physics Validation Data (from backend quantitative physics engine)
+ */
+interface PhysicsValidation {
+  impactAngleDegrees: number; // 0-360°
+  calculatedImpactForceKN: number; // kilonewtons
+  impactLocationNormalized: {
+    relativeX: number; // 0-1
+    relativeY: number; // 0-1
+  };
+}
+
 interface VehicleImpactVectorDiagramProps {
   vehicleMake?: string;
   vehicleModel?: string;
   vehicleYear?: number;
   accidentType?: string;
-  impactSpeed?: number; // km/h
-  impactForce?: number; // kN
-  impactPoint?: string; // front, rear, left_side, right_side, etc.
+  impactSpeed?: number; // km/h (legacy)
+  impactForce?: number; // kN (legacy)
+  impactPoint?: string; // front, rear, left_side, right_side, etc. (legacy)
   damagedComponents?: string[];
   damageConsistency?: 'consistent' | 'questionable' | 'impossible';
+  
+  // NEW: Quantitative physics data
+  physicsValidation?: PhysicsValidation | null;
+}
+
+/**
+ * Clamp a value between min and max
+ */
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
 }
 
 export function VehicleImpactVectorDiagram({
@@ -24,13 +46,87 @@ export function VehicleImpactVectorDiagram({
   impactPoint,
   damagedComponents = [],
   damageConsistency = 'consistent',
+  physicsValidation,
 }: VehicleImpactVectorDiagramProps) {
-  // Determine impact direction and vehicle orientation
-  const getImpactConfig = () => {
+  
+  // SVG canvas dimensions
+  const SVG_WIDTH = 300;
+  const SVG_HEIGHT = 200;
+  const VEHICLE_CENTER_X = 150;
+  const VEHICLE_CENTER_Y = 100;
+  
+  /**
+   * Calculate dynamic vector configuration from quantitative physics data
+   */
+  const getQuantitativeImpactConfig = () => {
+    if (!physicsValidation) {
+      return null; // Fall back to legacy
+    }
+    
+    const { impactAngleDegrees, calculatedImpactForceKN, impactLocationNormalized } = physicsValidation;
+    
+    // 1. Convert angle to radians
+    const radians = impactAngleDegrees * (Math.PI / 180);
+    
+    // 2. Calculate force-scaled vector length
+    // Scale factor: 1 kN = 2 pixels, clamped between 20-120px
+    const FORCE_SCALE_FACTOR = 2;
+    const vectorLength = clamp(calculatedImpactForceKN * FORCE_SCALE_FACTOR, 20, 120);
+    
+    // 3. Calculate directional components (pointing TOWARD impact point)
+    // Adjust angle by 180° so arrow points inward
+    const adjustedRadians = radians + Math.PI;
+    const dx = Math.cos(adjustedRadians) * vectorLength;
+    const dy = Math.sin(adjustedRadians) * vectorLength;
+    
+    // 4. Convert normalized location to SVG coordinates
+    const impactX = impactLocationNormalized.relativeX * SVG_WIDTH;
+    const impactY = impactLocationNormalized.relativeY * SVG_HEIGHT;
+    
+    // 5. Calculate vector start and end points
+    const vectorX1 = impactX - dx; // Start point (outside vehicle)
+    const vectorY1 = impactY - dy;
+    const vectorX2 = impactX; // End point (impact location)
+    const vectorY2 = impactY;
+    
+    // 6. Determine label based on angle
+    let label = 'Impact';
+    if (impactAngleDegrees >= 337.5 || impactAngleDegrees < 22.5) label = 'Frontal Impact';
+    else if (impactAngleDegrees >= 22.5 && impactAngleDegrees < 67.5) label = 'Front-Right Impact';
+    else if (impactAngleDegrees >= 67.5 && impactAngleDegrees < 112.5) label = 'Right Side Impact';
+    else if (impactAngleDegrees >= 112.5 && impactAngleDegrees < 157.5) label = 'Rear-Right Impact';
+    else if (impactAngleDegrees >= 157.5 && impactAngleDegrees < 202.5) label = 'Rear Impact';
+    else if (impactAngleDegrees >= 202.5 && impactAngleDegrees < 247.5) label = 'Rear-Left Impact';
+    else if (impactAngleDegrees >= 247.5 && impactAngleDegrees < 292.5) label = 'Left Side Impact';
+    else label = 'Front-Left Impact';
+    
+    // 7. Determine crumple zone
+    let crumpleZone: 'front' | 'rear' | 'side' = 'front';
+    if (impactAngleDegrees >= 135 && impactAngleDegrees < 225) crumpleZone = 'rear';
+    else if ((impactAngleDegrees >= 45 && impactAngleDegrees < 135) || (impactAngleDegrees >= 225 && impactAngleDegrees < 315)) crumpleZone = 'side';
+    
+    return {
+      direction: `${impactAngleDegrees}°`,
+      vectorX1,
+      vectorY1,
+      vectorX2,
+      vectorY2,
+      impactX,
+      impactY,
+      label,
+      crumpleZone,
+      isQuantitative: true,
+    };
+  };
+  
+  /**
+   * Legacy static impact configuration (fallback for historical claims)
+   */
+  const getLegacyImpactConfig = () => {
     const point = impactPoint?.toLowerCase() || '';
     const type = accidentType?.toLowerCase() || '';
     
-    // Map impact point to vector direction
+    // Map impact point to vector direction (hardcoded coordinates)
     if (point.includes('front') || type.includes('frontal') || type.includes('head_on')) {
       return {
         direction: 'front',
@@ -41,7 +137,8 @@ export function VehicleImpactVectorDiagram({
         impactX: 100,
         impactY: 100,
         label: 'Frontal Impact',
-        crumpleZone: 'front',
+        crumpleZone: 'front' as const,
+        isQuantitative: false,
       };
     } else if (point.includes('rear') || type.includes('rear_end')) {
       return {
@@ -53,7 +150,8 @@ export function VehicleImpactVectorDiagram({
         impactX: 200,
         impactY: 100,
         label: 'Rear Impact',
-        crumpleZone: 'rear',
+        crumpleZone: 'rear' as const,
+        isQuantitative: false,
       };
     } else if (point.includes('left') || type.includes('side_impact') || type.includes('t_bone')) {
       return {
@@ -65,7 +163,8 @@ export function VehicleImpactVectorDiagram({
         impactX: 150,
         impactY: 75,
         label: 'Left Side Impact',
-        crumpleZone: 'side',
+        crumpleZone: 'side' as const,
+        isQuantitative: false,
       };
     } else if (point.includes('right')) {
       return {
@@ -77,7 +176,8 @@ export function VehicleImpactVectorDiagram({
         impactX: 150,
         impactY: 125,
         label: 'Right Side Impact',
-        crumpleZone: 'side',
+        crumpleZone: 'side' as const,
+        isQuantitative: false,
       };
     } else {
       // Default to front impact
@@ -90,15 +190,27 @@ export function VehicleImpactVectorDiagram({
         impactX: 100,
         impactY: 100,
         label: 'Impact',
-        crumpleZone: 'front',
+        crumpleZone: 'front' as const,
+        isQuantitative: false,
       };
     }
   };
 
-  const config = getImpactConfig();
+  // Use quantitative calculation if available, otherwise fall back to legacy
+  const config = getQuantitativeImpactConfig() || getLegacyImpactConfig();
   
   // Calculate vector thickness based on impact force
-  const vectorThickness = impactForce ? Math.min(Math.max(impactForce / 10, 2), 6) : 3;
+  // Quantitative: force-scaled, Legacy: generic scaling
+  const vectorThickness = physicsValidation
+    ? clamp(physicsValidation.calculatedImpactForceKN / 15, 2, 8)
+    : impactForce
+    ? Math.min(Math.max(impactForce / 10, 2), 6)
+    : 3;
+  
+  // Use quantitative force if available, otherwise fall back to legacy
+  const displayForce = physicsValidation?.calculatedImpactForceKN ?? impactForce;
+  const displaySpeed = impactSpeed;
+  const displayAngle = physicsValidation?.impactAngleDegrees;
   
   // Get damage zones from components
   const getDamageZones = () => {
@@ -140,30 +252,50 @@ export function VehicleImpactVectorDiagram({
             )}
           </div>
         </div>
-        <Badge className={getConsistencyColor(damageConsistency)}>
-          {damageConsistency}
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className={getConsistencyColor(damageConsistency)}>
+            {damageConsistency}
+          </Badge>
+          {config.isQuantitative ? (
+            <Badge variant="outline" className="text-xs bg-green-50 text-green-800">
+              Quantitative Physics
+            </Badge>
+          ) : (
+            <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-800">
+              Qualitative Mode
+            </Badge>
+          )}
+        </div>
       </div>
 
       {/* Impact Metrics Summary */}
       <div className="grid grid-cols-2 gap-3 mb-4">
-        {impactSpeed && (
+        {displaySpeed && (
           <div className="p-3 bg-primary/5 rounded-lg">
             <p className="text-xs text-gray-600 mb-1">Impact Speed</p>
-            <p className="text-xl font-bold text-primary">{impactSpeed} km/h</p>
+            <p className="text-xl font-bold text-primary">{displaySpeed} km/h</p>
           </div>
         )}
-        {impactForce && (
+        {displayForce && (
           <div className="p-3 bg-purple-50 rounded-lg">
             <p className="text-xs text-gray-600 mb-1">Impact Force</p>
-            <p className="text-xl font-bold text-purple-600">{impactForce} kN</p>
+            <p className="text-xl font-bold text-purple-600">{displayForce.toFixed(1)} kN</p>
+            <p className="text-xs text-gray-500 mt-1">
+              ≈ {(displayForce * 0.102).toFixed(1)} tons
+            </p>
+          </div>
+        )}
+        {displayAngle !== undefined && (
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <p className="text-xs text-gray-600 mb-1">Impact Angle</p>
+            <p className="text-xl font-bold text-blue-600">{displayAngle}°</p>
           </div>
         )}
       </div>
 
       {/* Vehicle-Specific Force Vector Diagram */}
       <div className="bg-gray-50 rounded-lg p-4">
-        <svg viewBox="0 0 300 200" className="w-full">
+        <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="w-full">
           <defs>
             <marker id="arrowhead-red" markerWidth="10" markerHeight="10" 
                     refX="9" refY="3" orient="auto">
@@ -216,7 +348,7 @@ export function VehicleImpactVectorDiagram({
           <circle cx={config.impactX} cy={config.impactY} r="3" 
                   fill="#fca5a5" opacity="0.8"/>
           
-          {/* Primary impact vector */}
+          {/* Primary impact vector (thickness scaled by force) */}
           <line 
             x1={config.vectorX1} 
             y1={config.vectorY1} 
@@ -264,7 +396,7 @@ export function VehicleImpactVectorDiagram({
           )}
           
           {/* Deformation arrows */}
-          {impactForce && impactForce > 30 && (
+          {displayForce && displayForce > 30 && (
             <>
               <line 
                 x1={config.impactX + 10} 
