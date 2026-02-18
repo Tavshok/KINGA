@@ -16,10 +16,20 @@ import {
   UserCog
 } from "lucide-react";
 import { useLocation } from "wouter";
+import { useEffect } from "react";
+import { useRoleDashboardRoute } from "@/components/RoleRouteGuard";
 
 export default function PortalHub() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
+  const roleDashboardRoute = useRoleDashboardRoute();
+
+  // Auto-redirect insurer users to their role-specific dashboard
+  useEffect(() => {
+    if (user?.role === "insurer" && user?.insurerRole && roleDashboardRoute !== "/portal-hub") {
+      setLocation(roleDashboardRoute);
+    }
+  }, [user, roleDashboardRoute, setLocation]);
 
   const portals = [
     {
