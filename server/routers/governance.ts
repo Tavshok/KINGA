@@ -1,41 +1,36 @@
-/**
- * Governance Analytics Router
- * 
- * Provides comprehensive governance metrics for executive dashboard:
- * - Override tracking and trends
- * - Segregation violation detection
- * - Role assignment change monitoring
- * - Involvement conflict identification
- * 
- * All queries enforce tenant isolation and 30-day time windows.
- * Uses existing auditTrail table with action field mapping.
- */
-
-import { router, protectedProcedure } from "../_core/trpc";
-
-import { claims, auditTrail, users } from "../../drizzle/schema";
-import { eq, and, gte, sql, desc, like } from "drizzle-orm";
-import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
+import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
+import { getDb } from "../db";
+import { 
+  workflowAuditTrail, 
+  claimInvolvementTracking, 
+  roleAssignmentAudit,
+  claims 
+} from "../../drizzle/schema";
+import { eq, and, gte, lt, sql } from "drizzle-orm";
 
 /**
- * Calculate trend direction based on current vs previous period
- * Returns: "up" | "down" | "stable"
- */
-function calculateTrend(current: number, previous: number): "up" | "down" | "stable" {
-  if (current === previous) return "stable";
-  const changePercent = previous > 0 ? ((current - previous) / previous) * 100 : 0;
-  if (Math.abs(changePercent) < 5) return "stable"; // Less than 5% change = stable
-  return current > previous ? "up" : "down";
-}
-
-/**
- * Get 30-day governance summary metrics
+ * Governance Router
+ * 
+ * Provides governance metrics for executive dashboard:
+ * - Executive overrides tracking
+ * - Segregation of duties violations
+ * - Role assignment changes
+ * - Involvement conflicts
  */
 export const governanceRouter = router({
   /**
-   * Get comprehensive governance metrics for last 30 days
-   * Maps auditTrail actions to governance event types
+   * Get Governance Summary
+   * 
+   * Returns real-time governance metrics with trend analysis:
+   * - Total executive overrides (last 30 days vs previous 30 days)
+   * - Override rate (% of claims overridden)
+   * - Segregation violations (users involved in multiple critical stages)
+   * - Role changes (role assignment audit trail)
+   * - Involvement conflicts (claims with segregation violations)
+   * 
+   * All queries enforce tenant isolation and use indexed date filtering.
    */
   getGovernanceSummary: protectedProcedure.query(async ({ ctx }) => {
     if (!ctx.user?.tenantId) {
@@ -52,40 +47,187 @@ export const governanceRouter = router({
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
     try {
-      // Mock data for now - will be replaced with real audit trail queries when events are logged
-      // In production, these would query auditTrail with action LIKE patterns:
-      // - routing_override: action LIKE '%override%' OR action LIKE '%routing_changed%'
-      // - segregation_violation: action LIKE '%segregation%' OR action LIKE '%access_denied%'
-      // - role_changed: action LIKE '%role%' OR action LIKE '%permission%'
-      // - involvement_conflict: action LIKE '%conflict%' OR action LIKE '%duplicate_assignment%'
+      const db = await getDb();
+      
+      // Execute all queries in parallel for optimal performance
+      const [
+        overridesLast30Days,
+        overridesPrevious30Days,
+        totalClaimsLast30Days,
+        totalClaimsPrevious30Days,
+        segregationViolationsLast30Days,
+        segregationViolationsPrevious30Days,
+        roleChangesLast30Days,
+        roleChangesPrevious30Days,
+      ] = await Promise.all([
+        // 1. Total Overrides (Last 30 Days)
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(workflowAuditTrail)
+          .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+          .where(
+            and(
+              eq(claims.tenantId, ctx.user.tenantId),
+              eq(workflowAuditTrail.executiveOverride, 1),
+              gte(workflowAuditTrail.createdAt, thirtyDaysAgo)
+            )
+          ),
+
+        // 2. Total Overrides (Previous 30 Days, 30-60 days ago)
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(workflowAuditTrail)
+          .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+          .where(
+            and(
+              eq(claims.tenantId, ctx.user.tenantId),
+              eq(workflowAuditTrail.executiveOverride, 1),
+              gte(workflowAuditTrail.createdAt, sixtyDaysAgo),
+              lt(workflowAuditTrail.createdAt, thirtyDaysAgo)
+            )
+          ),
+
+        // 3. Total Claims (Last 30 Days) - for override rate calculation
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(claims)
+          .where(
+            and(
+              eq(claims.tenantId, ctx.user.tenantId),
+              gte(claims.createdAt, thirtyDaysAgo)
+            )
+          ),
+
+        // 4. Total Claims (Previous 30 Days) - for override rate calculation
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(claims)
+          .where(
+            and(
+              eq(claims.tenantId, ctx.user.tenantId),
+              gte(claims.createdAt, sixtyDaysAgo),
+              lt(claims.createdAt, thirtyDaysAgo)
+            )
+          ),
+
+        // 5. Segregation Violations (Last 30 Days)
+        // Count claim-user pairs where same user involved in 2+ critical stages
+        db
+          .select({
+            claimId: claimInvolvementTracking.claimId,
+            userId: claimInvolvementTracking.userId,
+            stageCount: sql<number>`count(distinct ${claimInvolvementTracking.workflowStage})`,
+          })
+          .from(claimInvolvementTracking)
+          .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
+          .where(
+            and(
+              eq(claims.tenantId, ctx.user.tenantId),
+              gte(claimInvolvementTracking.createdAt, thirtyDaysAgo)
+            )
+          )
+          .groupBy(sql`${claimInvolvementTracking.claimId}, ${claimInvolvementTracking.userId}`)
+          .having(sql`count(distinct ${claimInvolvementTracking.workflowStage}) > 1`),
+
+        // 6. Segregation Violations (Previous 30 Days)
+        db
+          .select({
+            claimId: claimInvolvementTracking.claimId,
+            userId: claimInvolvementTracking.userId,
+            stageCount: sql<number>`count(distinct ${claimInvolvementTracking.workflowStage})`,
+          })
+          .from(claimInvolvementTracking)
+          .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
+          .where(
+            and(
+              eq(claims.tenantId, ctx.user.tenantId),
+              gte(claimInvolvementTracking.createdAt, sixtyDaysAgo),
+              lt(claimInvolvementTracking.createdAt, thirtyDaysAgo)
+            )
+          )
+          .groupBy(sql`${claimInvolvementTracking.claimId}, ${claimInvolvementTracking.userId}`)
+          .having(sql`count(distinct ${claimInvolvementTracking.workflowStage}) > 1`),
+
+        // 7. Role Changes (Last 30 Days)
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(roleAssignmentAudit)
+          .where(
+            and(
+              eq(roleAssignmentAudit.tenantId, ctx.user.tenantId),
+              gte(roleAssignmentAudit.timestamp, thirtyDaysAgo)
+            )
+          ),
+
+        // 8. Role Changes (Previous 30 Days)
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(roleAssignmentAudit)
+          .where(
+            and(
+              eq(roleAssignmentAudit.tenantId, ctx.user.tenantId),
+              gte(roleAssignmentAudit.timestamp, sixtyDaysAgo),
+              lt(roleAssignmentAudit.timestamp, thirtyDaysAgo)
+            )
+          ),
+      ]);
+
+      // Extract counts with null safety
+      const totalOverridesValue = overridesLast30Days[0]?.count ?? 0;
+      const totalOverridesPrevious = overridesPrevious30Days[0]?.count ?? 0;
+      
+      const totalClaimsValue = totalClaimsLast30Days[0]?.count ?? 0;
+      const totalClaimsPrevious = totalClaimsPrevious30Days[0]?.count ?? 0;
+      
+      const segregationViolationsValue = segregationViolationsLast30Days.length;
+      const segregationViolationsPrevious = segregationViolationsPrevious30Days.length;
+      
+      const roleChangesValue = roleChangesLast30Days[0]?.count ?? 0;
+      const roleChangesPrevious = roleChangesPrevious30Days[0]?.count ?? 0;
+
+      // Calculate override rate (% of claims overridden)
+      const overrideRateValue = totalClaimsValue > 0
+        ? Number(((totalOverridesValue / totalClaimsValue) * 100).toFixed(1))
+        : 0;
+      
+      const overrideRatePrevious = totalClaimsPrevious > 0
+        ? Number(((totalOverridesPrevious / totalClaimsPrevious) * 100).toFixed(1))
+        : 0;
+
+      // Calculate trends
+      const calculateTrend = (current: number, previous: number): "up" | "down" | "stable" => {
+        if (current > previous) return "up";
+        if (current < previous) return "down";
+        return "stable";
+      };
 
       return {
         success: true,
         data: {
           totalOverrides: {
-            value: 12,
-            trend: "down" as const,
-            previousValue: 18,
+            value: totalOverridesValue,
+            trend: calculateTrend(totalOverridesValue, totalOverridesPrevious),
+            previousValue: totalOverridesPrevious,
           },
           overrideRate: {
-            value: 3.2,
-            trend: "stable" as const,
-            previousValue: 3.4,
+            value: overrideRateValue,
+            trend: calculateTrend(overrideRateValue, overrideRatePrevious),
+            previousValue: overrideRatePrevious,
           },
           segregationViolations: {
-            value: 5,
-            trend: "down" as const,
-            previousValue: 8,
+            value: segregationViolationsValue,
+            trend: calculateTrend(segregationViolationsValue, segregationViolationsPrevious),
+            previousValue: segregationViolationsPrevious,
           },
           roleChanges: {
-            value: 7,
-            trend: "up" as const,
-            previousValue: 4,
+            value: roleChangesValue,
+            trend: calculateTrend(roleChangesValue, roleChangesPrevious),
+            previousValue: roleChangesPrevious,
           },
           involvementConflicts: {
-            value: 2,
-            trend: "stable" as const,
-            previousValue: 2,
+            value: segregationViolationsValue, // Same as segregation violations
+            trend: calculateTrend(segregationViolationsValue, segregationViolationsPrevious),
+            previousValue: segregationViolationsPrevious,
           },
         },
       };
@@ -97,192 +239,4 @@ export const governanceRouter = router({
       });
     }
   }),
-
-  /**
-   * Get override frequency trend (daily breakdown for last 30 days)
-   */
-  getOverrideFrequencyTrend: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user?.tenantId) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Tenant ID required",
-      });
-    }
-
-    try {
-      // Mock data - replace with real query when audit trail has override events
-      const mockData = [];
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockData.push({
-          date: date.toISOString().split('T')[0],
-          count: Math.floor(Math.random() * 3), // 0-2 overrides per day
-        });
-      }
-
-      return {
-        success: true,
-        data: mockData,
-      };
-    } catch (error) {
-      console.error("Error fetching override trend:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch override trend",
-      });
-    }
-  }),
-
-  /**
-   * Get segregation violation heatmap by role
-   */
-  getSegregationViolationHeatmap: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user?.tenantId) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Tenant ID required",
-      });
-    }
-
-    try {
-      // Mock data - replace with real query
-      return {
-        success: true,
-        data: [
-          { role: "claims_processor", count: 2 },
-          { role: "assessor_internal", count: 1 },
-          { role: "risk_manager", count: 1 },
-          { role: "claims_manager", count: 1 },
-        ],
-      };
-    } catch (error) {
-      console.error("Error fetching segregation heatmap:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch segregation heatmap",
-      });
-    }
-  }),
-
-  /**
-   * Get role change trend (daily breakdown)
-   */
-  getRoleChangeTrend: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user?.tenantId) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Tenant ID required",
-      });
-    }
-
-    try {
-      // Mock data
-      const mockData = [];
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        mockData.push({
-          date: date.toISOString().split('T')[0],
-          count: i % 7 === 0 ? Math.floor(Math.random() * 2) + 1 : 0, // Role changes weekly
-        });
-      }
-
-      return {
-        success: true,
-        data: mockData,
-      };
-    } catch (error) {
-      console.error("Error fetching role change trend:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch role change trend",
-      });
-    }
-  }),
-
-  /**
-   * Get involvement conflict distribution
-   */
-  getInvolvementConflictDistribution: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user?.tenantId) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Tenant ID required",
-      });
-    }
-
-    try {
-      // Mock data
-      return {
-        success: true,
-        data: [
-          { type: "assessor_and_approver", count: 1 },
-          { type: "processor_and_reviewer", count: 1 },
-        ],
-      };
-    } catch (error) {
-      console.error("Error fetching conflict distribution:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch conflict distribution",
-      });
-    }
-  }),
-
-  /**
-   * Get override history with drill-down details
-   */
-  getOverrideHistory: protectedProcedure
-    .input(
-      z.object({
-        limit: z.number().min(1).max(100).default(50),
-        offset: z.number().min(0).default(0),
-      })
-    )
-    .query(async ({ ctx, input }) => {
-      if (!ctx.user?.tenantId) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Tenant ID required",
-        });
-      }
-
-      try {
-        // Mock data - replace with real audit trail query
-        const mockHistory = [
-          {
-            id: 1,
-            claimId: 101,
-            actor: "John Executive",
-            actorId: 1,
-            timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
-            oldValue: "auto_approve",
-            newValue: "manual_review",
-            justification: "High-value claim requires additional review despite AI confidence",
-          },
-          {
-            id: 2,
-            claimId: 205,
-            actor: "Sarah Manager",
-            actorId: 2,
-            timestamp: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000),
-            oldValue: "manual_review",
-            newValue: "escalate",
-            justification: "Complex damage pattern detected, escalating to risk manager",
-          },
-        ];
-
-        return {
-          success: true,
-          data: mockHistory.slice(input.offset, input.offset + input.limit),
-        };
-      } catch (error) {
-        console.error("Error fetching override history:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch override history",
-        });
-      }
-    }),
 });

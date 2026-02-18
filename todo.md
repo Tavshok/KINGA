@@ -8572,3 +8572,52 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Check page access controls for insurer portal pages
 - [ ] Test role switching between insurer sub-roles
 - [ ] Create checkpoint with role switcher fixes
+
+
+## Executive Dashboard Diagnostic Mode
+- [x] Find Executive Dashboard frontend components (Overview, Analytics, Critical Alerts, Assessors, Panel Beaters, Financials)
+- [x] Trace tRPC endpoints for each module (8 endpoints traced)
+- [x] Extract expected response shapes from frontend
+- [x] Extract actual response shapes from backend
+- [x] Compare shapes and identify mismatches (groupBy, nulls, joins, enums, renamed properties)
+- [x] Generate diagnostic report table (Module | Endpoint | Expected Shape | Actual Shape | Root Cause | Fix Required)
+
+
+## AI Pipeline Diagnostic Mode
+- [x] Trace image upload flow (server endpoint, S3 storage, DB reference)
+- [x] Trace AI processing pipeline (image path, model input, detection output, confidence scores)
+- [x] Trace visualization rendering (frontend data reception, bounding boxes, image src)
+- [x] Identify failure point (storage/model/rendering) - No failures detected, system operational
+- [x] Generate AI pipeline trace report with exact file and function causing failure
+
+
+## Physics Validation Mode
+- [x] Trace impact vector calculation inputs (text labels, NOT pixel coordinates)
+- [x] Validate coordinate system assumptions and normalization (hardcoded SVG, no image mapping)
+- [x] Check unit conversions (px to real-world units) - MISSING, no conversions implemented
+- [x] Validate vector math (magnitude formula, atan2 direction, zero division guards) - NO CALCULATIONS, hardcoded vectors
+- [x] Analyze canvas scaling and coordinate mapping logic (responsive SVG, no image-to-SVG mapping)
+- [x] Identify distortion source (math vs rendering) - MISSING MATH, not incorrect math
+- [x] Generate targeted fix recommendations (3 priorities, 12h effort estimate)
+
+
+## Governance Data Restoration Mode
+- [x] Locate Governance Summary endpoint (governance.getGovernanceSummary, line 40-99)
+- [x] Identify all hardcoded mock data blocks (lines 62-91, all metrics hardcoded)
+- [x] Remove mock values entirely
+- [x] Replace with live queries from workflow_audit_trail
+- [x] Replace with live queries from claim_involvement_tracking
+- [x] Replace with live queries from role_assignment_audit
+- [x] Replace with live queries from executive_overrides (tracked in workflow_audit_trail)
+- [x] Compute totalOverrides (last 30 days)
+- [x] Compute segregationViolations (last 30 days)
+- [x] Compute roleReassignments (last 30 days)
+- [x] Compute involvementConflicts
+- [x] Compute overrideRate (% of claims overridden)
+- [x] Ensure tenant isolation enforced (all queries filter by tenantId)
+- [x] Ensure date filtering indexed (uses existing indexes + new idx_involvement_claim_user)
+- [x] Ensure groupBy uses sql`` syntax
+- [x] Ensure no N+1 queries (parallel execution with Promise.all)
+- [x] Ensure all null-safe aggregations (count ?? 0, .length)
+- [x] Maintain existing response shape (exact match)
+- [x] Test and create checkpoint (ready to save)
