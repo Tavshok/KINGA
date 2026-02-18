@@ -14,6 +14,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { uploadAssessmentRouter } from "../upload-assessment";
 import { setupWebSocketServer } from "../websocket";
+import { startIntakeEscalationJob } from "../intake-escalation-job";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -98,6 +99,9 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    
+    // Start intake escalation cron job
+    startIntakeEscalationJob();
   });
 
   // Start WebSocket server on port 8080 for real-time analytics

@@ -1371,7 +1371,11 @@ export const tenants = mysqlTable("tenants", {
   // Configuration
   configJson: text("config_json"), // JSON object for tenant-specific configuration
   workflowConfig: text("workflow_config"), // JSON object for workflow configuration (escalation thresholds, routing rules)
-  intakeEscalationHours: int("intake_escalation_hours").default(24), // Hours before auto-assigning stale intake claims
+  
+  // Intake Escalation Configuration
+  intakeEscalationEnabled: tinyint("intake_escalation_enabled").default(0).notNull(), // Enable/disable intake escalation
+  intakeEscalationHours: int("intake_escalation_hours").default(6), // Hours before escalating stale intake claims (default 6)
+  intakeEscalationMode: mysqlEnum("intake_escalation_mode", ["auto_assign", "escalate_only"]).default("escalate_only"), // auto_assign: auto-assign to processor, escalate_only: notify only
   
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
