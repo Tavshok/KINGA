@@ -344,6 +344,20 @@
       "when": 1771413106625,
       "tag": "0048_charming_rawhide_kid",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "5",
+      "when": 1771413335660,
+      "tag": "0049_exotic_bullseye",
+      "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "5",
+      "when": 1771413808344,
+      "tag": "0050_regular_nightmare",
+      "breakpoints": true
     }
   ]
 }

@@ -1,0 +1,9 @@
+{
+  "query": "ALTER TABLE automation_policies \nADD COLUMN version INT NOT NULL DEFAULT 1,\nADD COLUMN effective_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\nADD COLUMN effective_until TIMESTAMP NULL,\nADD COLUMN superseded_by_policy_id INT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute ALTER TABLE automation_policies \nADD COLUMN version INT NOT NULL DEFAULT 1,\nADD COLUMN effective_from TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\nADD COLUMN effective_until TIMESTAMP NULL,\nADD COLUMN superseded_by_policy_id INT NULL;",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2838
+}

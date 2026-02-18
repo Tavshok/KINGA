@@ -2384,6 +2384,12 @@ export const automationPolicies = mysqlTable("automation_policies", {
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
   createdByUserId: int("created_by_user_id"),
   isActive: boolean("is_active").notNull().default(true),
+  
+  // Policy Versioning
+  version: int("version").notNull().default(1),
+  effectiveFrom: timestamp("effective_from").defaultNow().notNull(),
+  effectiveUntil: timestamp("effective_until"),
+  supersededByPolicyId: int("superseded_by_policy_id"),
 }, (table) => ({
   tenantActiveIdx: index("idx_tenant_active").on(table.tenantId, table.isActive),
   policyNameIdx: index("idx_policy_name").on(table.policyName),
@@ -2454,6 +2460,9 @@ export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
   
   // Policy Application Snapshot
   policyThresholdsApplied: json("policy_thresholds_applied").notNull(),
+  policyVersion: int("policy_version").notNull(),
+  policySnapshotJson: json("policy_snapshot_json").notNull(),
+  claimVersion: int("claim_version").notNull().default(1),
   
   // Decision Metadata
   decisionTimestamp: timestamp("decision_timestamp").defaultNow().notNull(),
@@ -3250,7 +3259,8 @@ export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
   alertDaysBefore: int("alert_days_before").default(7),
   alertMileageBefore: int("alert_mileage_before").default(500),
   
-  isActive: tinyint("is_active").default(1),
+  // Metadata
+  isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });

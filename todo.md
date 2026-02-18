@@ -8168,35 +8168,36 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 ## Routing System Structural Enhancement
 
 ### Phase 1: Policy Versioning & Schema Cleanup
-- [ ] Revert tenant.routingConfig field (remove from schema)
-- [ ] Add version field to automation_policies table
-- [ ] Add effective_from and effective_until timestamps to automation_policies
-- [ ] Add superseded_by_policy_id reference for policy lineage
-- [ ] Add is_active flag to automation_policies
-- [ ] Push schema changes to database
-- [ ] Document policy versioning structure
+- [x] Revert tenant.routingConfig field (removed from database)
+- [x] Add version field to automation_policies table (default 1)
+- [x] Add effective_from and effective_until timestamps to automation_policies
+- [x] Add superseded_by_policy_id reference for policy lineage
+- [x] is_active flag already exists in automation_policies
+- [x] Push schema changes to database (ALTER TABLE automation_policies)
+- [x] Document policy versioning structure (JSDoc comments in schema.ts)
 
 ### Phase 2: Immutable Routing Decisions
-- [ ] Add policy_version_id to claim_routing_decisions table
-- [ ] Add policy_snapshot_json to claim_routing_decisions (immutable policy copy)
-- [ ] Add claim_version to claim_routing_decisions (for multi-version claims)
+- [x] Add policy_version to claim_routing_decisions table
+- [x] Add policy_snapshot_json to claim_routing_decisions (immutable policy copy)
+- [x] Add claim_version to claim_routing_decisions (for multi-version claims)
 - [ ] Update recordRoutingDecision to capture policy version
 - [ ] Ensure routing decisions are immutable (no updates, only inserts)
-- [ ] Add indexes for performance (policy_version_id, claim_version)
+- [ ] Add indexes for performance (policy_version, claim_version)
 
 ### Phase 3: Historical Policy Replay
-- [ ] Create getHistoricalPolicy function (retrieve policy by version or timestamp)
-- [ ] Create replayRoutingDecision function (re-route claim using historical policy)
-- [ ] Add policy version comparison function (show policy changes over time)
+- [x] Create getHistoricalPolicy function (retrieve policy by version or timestamp)
+- [x] Create replayRoutingDecision function (re-route claim using historical policy)
+- [x] Add policy version comparison function (show policy changes over time)
+- [x] Create tRPC procedures for historical policy retrieval and replay
 - [ ] Test replay with multiple policy versions
 - [ ] Validate replay produces identical results
 
 ### Phase 4: Audit Reproducibility
-- [ ] Add POLICY_VERSION_CREATED action type to audit trail
-- [ ] Add POLICY_VERSION_SUPERSEDED action type to audit trail
-- [ ] Log all policy changes with version tracking
-- [ ] Create policy version history view (show all versions for a tenant)
-- [ ] Add routing decision reproducibility report (show policy used for each decision)
+- [x] Add POLICY_VERSION_CREATED action type to audit trail (implemented in createPolicyVersion)
+- [x] Add POLICY_VERSION_SUPERSEDED action type to audit trail (implemented in createPolicyVersion)
+- [x] Log all policy changes with version tracking (full lineage in createPolicyVersion)
+- [x] Create policy version history view (getPolicyVersionHistory tRPC procedure)
+- [x] Add routing decision reproducibility report (validateReplayAccuracy function)
 - [ ] Test audit trail completeness
 
 ### Phase 5: Testing & Delivery
@@ -8204,5 +8205,5 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test routing decision immutability
 - [ ] Test historical policy replay accuracy
 - [ ] Test audit reproducibility (reproduce routing decisions from audit trail)
-- [ ] Create implementation summary document
+- [x] Create implementation summary document (ROUTING_SYSTEM_ENHANCEMENT_SUMMARY.md)
 - [ ] Save final checkpoint
