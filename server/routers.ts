@@ -18,6 +18,7 @@ import { simulationRouter } from "./routers/simulation";
 import { workflowAuditRouter } from "./routers/workflow-audit";
 import { workflowAnalyticsRouter } from "./routers/workflow-analytics";
 import { complianceRouter } from "./routers/compliance";
+import { claimReplayRouter } from "./routers/claim-replay";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
@@ -123,6 +124,7 @@ export const appRouter = router({
   assessorOnboarding: assessorOnboardingRouter,
   documentIngestion: documentIngestionRouter,
   historicalClaims: historicalClaimsRouter,
+  claimReplay: claimReplayRouter,
   automationPolicies: automationPoliciesRouter,
   claimCompletion: claimCompletionRouter,
   ml: mlRouter,

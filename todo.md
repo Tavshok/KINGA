@@ -8257,3 +8257,48 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test audit trail completeness (all policy changes logged)
 - [x] Create implementation summary document (POLICY_MANAGEMENT_SUMMARY.md)
 - [ ] Save final checkpoint
+
+
+## Claim Replay Engine
+
+### Phase 1: Replay Schema & Database Tables
+- [x] Add replayMode flag to historicalClaims table (replay_mode, last_replayed_at, replay_count)
+- [x] Create historicalReplayResults table (comparison metrics storage)
+- [x] Add replay audit trail fields (isReplay flag, originalClaimId reference)
+- [x] Push schema changes to database (manual SQL execution)
+- [x] Document replay data model (schema.ts with full field documentation)
+
+### Phase 2: AI Re-Assessment Service
+- [x] Create replayDamageDetection service (re-run AI damage detection)
+- [x] Implement replayConfidenceScore service (recalculate using current models)
+- [x] Implement replayFraudDetection service (re-run fraud scoring)
+- [x] Implement replayCostEstimation service (re-run cost prediction)
+- [x] Create replayCompleteAiAssessment orchestrator (runs all assessments)
+- [ ] Add tRPC procedures for AI re-assessment
+
+### Phase 3: Replay Routing Engine
+- [x] Create replayRoutingDecision service (apply current policy to historical claim)
+- [x] Generate simulated workflow audit trail (marked as replay)
+- [x] Implement replay workflow state machine (no live mutations)
+- [x] Add mapOriginalDecisionToRoutingDecision helper for comparison
+- [x] Ensure isReplay = true for all replay operations
+- [ ] Add replay routing tRPC procedures
+
+### Phase 4: Comparison Analytics & Results Storage
+- [x] Implement decision comparison logic (original vs KINGA routing)
+- [x] Implement financial comparison logic (original payout vs AI predicted)
+- [x] Calculate time-to-resolution delta
+- [x] Store replay results in historicalReplayResults table
+- [x] Create replayHistoricalClaim orchestrator (complete workflow)
+- [x] Generate performance summary and recommended actions
+- [x] Add tRPC procedures for replay results retrieval (8 procedures)
+
+### Phase 5: Testing & Delivery
+- [x] Create tRPC router with 8 procedures (replayHistoricalClaim, getReplayResults, getLatestReplayResult, getAllReplayResults, getReplayStatistics, batchReplayHistoricalClaims, getEligibleHistoricalClaims)
+- [x] Register claimReplay router in main routers file
+- [x] Add RBAC middleware (insurer_admin, executive, claims_manager only)
+- [ ] Test replay workflow (end-to-end)
+- [ ] Test comparison accuracy (original vs KINGA)
+- [ ] Test replay isolation (no live workflow mutation)
+- [x] Create implementation summary document (CLAIM_REPLAY_ENGINE_SUMMARY.md)
+- [ ] Save final checkpoint
