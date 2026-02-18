@@ -8621,3 +8621,20 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure all null-safe aggregations (count ?? 0, .length)
 - [x] Maintain existing response shape (exact match)
 - [x] Test and create checkpoint (ready to save)
+
+
+## Image Pipeline Diagnostic Mode
+- [x] Locate AI analysis endpoint (server/db.ts triggerAiAssessment)
+- [x] Identify query used to fetch images for a claim (getClaimById)
+- [x] Log claimId received (passed to getClaimById)
+- [x] Log number of images returned from DB (0 for all test claims)
+- [x] Log image URLs returned (NULL for all test claims)
+- [x] Log tenantId used in filter (enforced in getClaimById)
+- [x] Cross-check claim_images table (rows for claimId) - TABLE DOES NOT EXIST
+- [x] Cross-check tenantId match (enforced correctly)
+- [x] Check for soft-delete or status filters (none applied)
+- [x] Compare with frontend image display logic (same table, same column)
+- [x] Verify frontend queries same table (claims.damage_photos)
+- [x] Output exact root cause (data population issue, not technical failure)
+- [x] Output whether DB linkage issue or filter issue (neither - test data has NULL images)
+- [x] Output minimal fix required (populate test data with mock S3 URLs)
