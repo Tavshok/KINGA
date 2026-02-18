@@ -11,6 +11,7 @@
 
 import { getDb } from "./db";
 import {
+  claims,
   claimRoutingDecisions,
   type ClaimRoutingDecision,
   type InsertClaimRoutingDecision,
@@ -211,6 +212,9 @@ export async function recordRoutingDecision(
     routedWorkflow: result.workflow,
     routingReason: result.reason,
     policyThresholdsApplied: policySnapshot,
+    policyVersion: context.automationPolicy.version || 1,
+    policySnapshotJson: context.automationPolicy,
+    claimVersion: 1,
     decisionMadeBySystem: true,
     wasOverridden: false,
   };
@@ -219,6 +223,20 @@ export async function recordRoutingDecision(
   
   const decisionId = Number((dbResult as unknown as { insertId: string | number }).insertId);
   console.log(`[Routing Engine] Claim ${context.claimId} routed to ${result.workflow} workflow (decision ${decisionId})`);
+  
+  // Write snapshot to claims table for deterministic replay
+  await db
+    .update(claims)
+    .set({
+      estimatedClaimValue: (context.estimatedRepairCost / 100).toFixed(2), // Convert cents to decimal
+      confidenceScore: Math.round(context.confidenceScore.compositeConfidenceScore || 0),
+      fraudRiskScore: Math.round(context.fraudScore),
+      routingDecision: result.workflow,
+      policyVersionId: result.policyId,
+    })
+    .where(eq(claims.id, context.claimId));
+  
+  console.log(`[Routing Engine] Claim ${context.claimId} snapshot written to claims table`);
   
   return decisionId;
 }

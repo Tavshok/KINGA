@@ -86,7 +86,7 @@ export async function calculateProcessorWorkloadScore(
     .where(
       and(
         eq(claims.tenantId, tenantId),
-        eq(claims.assignedProcessorId, processorId),
+        sql`${claims.assignedProcessorId} = ${processorId}`,
         sql`${claims.workflowState} IN ('assigned', 'ai_assessment_pending', 'manual_review')`
       )
     );
@@ -100,7 +100,7 @@ export async function calculateProcessorWorkloadScore(
     .where(
       and(
         eq(claims.tenantId, tenantId),
-        eq(claims.assignedProcessorId, processorId),
+        sql`${claims.assignedProcessorId} = ${processorId}`,
         sql`${claims.workflowState} IN ('assigned', 'ai_assessment_pending', 'manual_review')`,
         sql`${claims.estimatedClaimValue} > ${COMPLEX_CLAIM_THRESHOLD}`
       )
@@ -115,7 +115,7 @@ export async function calculateProcessorWorkloadScore(
     .where(
       and(
         eq(claims.tenantId, tenantId),
-        eq(claims.assignedProcessorId, processorId),
+        sql`${claims.assignedProcessorId} = ${processorId}`,
         sql`${claims.workflowState} IN ('assigned', 'ai_assessment_pending', 'manual_review')`,
         eq(claims.earlyFraudSuspicion, 1) // MySQL TINYINT: 1 = true
       )

@@ -51,7 +51,7 @@ async function findLowestWorkloadProcessor(tenantId: string): Promise<string | n
       .from(claims)
       .where(
         and(
-          eq(claims.assignedProcessorId, String(processor.id)),
+          sql`${claims.assignedProcessorId} = ${String(processor.id)}`,
           eq(claims.workflowState, "assigned")
         )
       );

@@ -8393,3 +8393,89 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Run full load test (1000 claims) - requires running backend server
 - [ ] Validate metrics accuracy - requires running backend server
 - [x] Save final checkpoint
+
+
+## Super Audit Mode
+
+### Phase 1: Super Admin Role & Audit Infrastructure
+- [x] Use existing platform_super_admin role (already in user schema)
+- [x] Create audit session tracking table (super_audit_sessions with 13 fields)
+- [x] Push schema changes to database (manual SQL execution)
+- [ ] Create super-admin middleware (protectedProcedure.use with role check)
+- [ ] Add audit mode context service (tenant_id, impersonated_role, is_audit_mode flags)
+
+### Phase 2: Tenant Selector & Role Impersonation
+- [ ] Create getTenants tRPC procedure (super-admin only)
+- [ ] Create setAuditContext tRPC procedure (tenant_id, role)
+- [ ] Build TenantSelector component (dropdown with all tenants)
+- [ ] Build RoleImpersonator component (role switcher: claimant, assessor, claims_manager, executive, panel_beater)
+- [ ] Add audit mode banner (visual indicator: "AUDIT MODE - READ ONLY")
+
+### Phase 3: Read-Only Dashboard Access
+- [ ] Create read-only mode enforcement middleware
+- [ ] Block all mutation operations in audit mode (server-side validation)
+- [ ] Disable all action buttons in audit mode (UI-level)
+- [ ] Add read-only indicators to all forms
+- [ ] Test mutation blocking (ensure no data changes possible)
+
+### Phase 4: AI Scoring & Routing Inspector
+- [ ] Create getAiScoringBreakdown tRPC procedure (claim_id)
+- [ ] Create getRoutingDecisionLogic tRPC procedure (claim_id)
+- [ ] Build AiScoringBreakdown component (damage score, cost estimate, fraud score, confidence levels)
+- [ ] Build RoutingDecisionInspector component (policy version, thresholds, decision tree visualization)
+- [ ] Integrate with existing claim replay functionality
+
+### Phase 5: Audit Logging & Delivery
+- [ ] Add SUPER_AUDIT_VIEW_TENANT action type to audit trail
+- [ ] Add SUPER_AUDIT_IMPERSONATE_ROLE action type
+- [ ] Add SUPER_AUDIT_REPLAY_CLAIM action type
+- [ ] Add SUPER_AUDIT_VIEW_AI_SCORING action type
+- [ ] Add SUPER_AUDIT_VIEW_ROUTING_LOGIC action type
+- [ ] Log all super-audit actions with tenant_id, impersonated_role, accessed_resource
+- [ ] Create SuperAuditDashboard main component
+- [ ] Add route at /super-admin/audit
+- [ ] Save final checkpoint
+
+
+## Claims Domain Model Normalization
+
+### Phase 1: Schema Updates & Migration
+- [x] Add estimatedClaimValue DECIMAL(12,2) NULL to claims table
+- [x] Add finalApprovedAmount DECIMAL(12,2) NULL to claims table
+- [x] Add fraudRiskScore INTEGER NULL to claims table (already existed)
+- [x] Add confidenceScore INTEGER NULL to claims table
+- [x] Add routingDecision VARCHAR(50) NULL to claims table
+- [x] Add policyVersionId INT NULL to claims table (references automation_policies.id)
+- [x] Add indexes on fraudRiskScore, confidenceScore, routingDecision, policyVersionId
+- [x] Create migration SQL script (drizzle/migrations/add-claims-snapshot-fields.sql)
+- [x] Push schema changes to database (13.15s execution time)
+
+### Phase 2: Backfill Script
+- [x] Create backfill script to populate existing claims (scripts/backfill-claims-snapshots.ts)
+- [x] Pull fraudRiskScore and confidenceScore from latest ai_assessments
+- [x] Set estimatedClaimValue from AI estimate if available
+- [x] Leave NULL if no data exists (skips claims without assessments)
+- [x] Add dry-run mode for safety (default mode)
+- [x] Add batch processing (default 100 claims per batch)
+- [ ] Test backfill script on sample data (requires running: tsx scripts/backfill-claims-snapshots.ts)
+
+### Phase 3: Routing Engine Updates
+- [x] Update routing engine to write snapshots to claims table
+- [x] Ensure policyVersionId is stored at time of routing
+- [x] Update claim-routing-engine.ts to populate new fields (estimatedClaimValue, confidenceScore, fraudRiskScore, routingDecision, policyVersionId)
+- [x] Add snapshot write after routing decision insert
+- [ ] Ensure all writes occur through WorkflowEngine (requires workflow engine refactor)
+
+### Phase 4: TypeScript Error Resolution
+- [x] Fix claim-routing-engine.ts (added policyVersion, policySnapshotJson, claimVersion)
+- [ ] Fix remaining TypeScript errors after schema normalization
+- [ ] Add type annotations for implicit 'any' parameters
+- [ ] Fix null-safety issues
+- [ ] Verify all errors resolved (target: 0 errors)
+
+### Phase 5: Test Coverage
+- [ ] Add test coverage for schema changes
+- [ ] Validate data consistency
+- [ ] Test routing engine snapshot writes
+- [ ] Test backfill script accuracy
+- [ ] Ensure no breaking changes to existing analytics

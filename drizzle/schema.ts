@@ -200,9 +200,21 @@ export const claims = mysqlTable("claims", {
   // Metadata for fast-track and workflow context
   metadata: json("metadata"),
   
+  // Routing & Governance Snapshot Fields (for deterministic replay)
+  estimatedClaimValue: decimal("estimated_claim_value", { precision: 12, scale: 2 }), // Snapshot from AI assessment at routing time
+  finalApprovedAmount: decimal("final_approved_amount", { precision: 12, scale: 2 }), // Final approved amount (replaces approvedAmount)
+  confidenceScore: int("confidence_score"), // Snapshot from AI assessment at routing time (0-100)
+  routingDecision: varchar("routing_decision", { length: 50 }), // Snapshot: ai_only, hybrid, manual
+  policyVersionId: int("policy_version_id"), // References automation_policies.id at routing time
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  fraudRiskScoreIdx: index("idx_fraud_risk_score").on(table.fraudRiskScore),
+  confidenceScoreIdx: index("idx_confidence_score").on(table.confidenceScore),
+  routingDecisionIdx: index("idx_routing_decision").on(table.routingDecision),
+  policyVersionIdIdx: index("idx_policy_version_id").on(table.policyVersionId),
+}));
 
 export type Claim = typeof claims.$inferSelect;
 export type InsertClaim = typeof claims.$inferInsert;
@@ -5514,3 +5526,46 @@ export const historicalReplayResults = mysqlTable("historical_replay_results", {
 
 export type HistoricalReplayResult = typeof historicalReplayResults.$inferSelect;
 export type InsertHistoricalReplayResult = typeof historicalReplayResults.$inferInsert;
+
+/**
+ * Super Audit Sessions
+ * 
+ * Tracks all super-admin audit sessions for compliance and security.
+ * Records tenant selection, role impersonation, and accessed resources.
+ */
+export const superAuditSessions = mysqlTable("super_audit_sessions", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Super admin user
+  superAdminUserId: int("super_admin_user_id").notNull(),
+  superAdminName: varchar("super_admin_name", { length: 255 }),
+  
+  // Audit context
+  auditedTenantId: varchar("audited_tenant_id", { length: 64 }), // Tenant being audited
+  impersonatedRole: varchar("impersonated_role", { length: 64 }), // Role being impersonated
+  
+  // Session tracking
+  sessionStartedAt: timestamp("session_started_at").defaultNow().notNull(),
+  sessionEndedAt: timestamp("session_ended_at"),
+  sessionDurationSeconds: int("session_duration_seconds"),
+  
+  // Accessed resources
+  accessedClaimIds: text("accessed_claim_ids"), // JSON array of claim IDs viewed
+  accessedDashboards: text("accessed_dashboards"), // JSON array of dashboards viewed
+  replayedClaimIds: text("replayed_claim_ids"), // JSON array of claim IDs replayed
+  viewedAiScoringClaimIds: text("viewed_ai_scoring_claim_ids"), // JSON array of AI scoring viewed
+  viewedRoutingLogicClaimIds: text("viewed_routing_logic_claim_ids"), // JSON array of routing logic viewed
+  
+  // Audit trail
+  isActive: tinyint("is_active").default(1).notNull(), // 1 = active session, 0 = ended
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  superAdminUserIdIdx: index("idx_super_audit_sessions_super_admin_user_id").on(table.superAdminUserId),
+  auditedTenantIdIdx: index("idx_super_audit_sessions_audited_tenant_id").on(table.auditedTenantId),
+  sessionStartedAtIdx: index("idx_super_audit_sessions_session_started_at").on(table.sessionStartedAt),
+}));
+
+export type SuperAuditSession = typeof superAuditSessions.$inferSelect;
+export type InsertSuperAuditSession = typeof superAuditSessions.$inferInsert;
