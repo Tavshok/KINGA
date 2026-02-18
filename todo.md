@@ -8323,28 +8323,31 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Integrate with tRPC procedures (replayHistoricalClaim, batchReplayHistoricalClaims, getEligibleHistoricalClaims)
 
 ### Phase 3: Side-by-Side Comparison View
-- [ ] Create ReplayComparisonView component
-- [ ] Build OriginalDecisionCard (original decision, payout, processing time, assessor)
-- [ ] Build KingaDecisionCard (KINGA routing, predicted payout, estimated time)
-- [ ] Build ComparisonMetricsCard (decision match, payout variance, time delta)
-- [ ] Add performance summary display with emojis
-- [ ] Add recommended action badge
-- [ ] Add simulated workflow steps timeline
+- [x] Create ReplayComparisonView component
+- [x] Build OriginalDecisionCard (original decision, payout, processing time, assessor)
+- [x] Build KingaDecisionCard (KINGA routing, predicted payout, estimated time, confidence, fraud score)
+- [x] Build ComparisonMetricsCard (decision match, payout variance, time delta, risk assessment)
+- [x] Add performance summary display with alert
+- [x] Add recommended action badge
+- [x] Create ReplayResultsTable component (paginated results with expandable comparison)
+- [x] Integrate ReplayComparisonView into Results tab
 
 ### Phase 4: Statistics & Visualizations
-- [ ] Create ReplayStatisticsCards component (total replays, decision match rate, avg variances)
-- [ ] Build ReplayChartsPanel component
+- [x] Create ReplayStatisticsCards component (total replays, decision match rate, avg variances, avg time delta)
+- [x] Integrate ReplayStatisticsCards into Statistics tab
+- [x] Reuse ReplayResultsTable for History tab (paginated results)
+- [ ] Build ReplayChartsPanel component (optional: pie chart, bar chart for visualizations)
 - [ ] Add decision match rate pie chart (match vs mismatch)
 - [ ] Add payout variance distribution chart (savings vs cost increase)
 - [ ] Add processing time delta chart (faster vs slower)
 - [ ] Add recommended actions breakdown chart
-- [ ] Create ReplayResultsTable component (paginated results with filters)
-- [ ] Add replay history timeline view
 
 ### Phase 5: Testing & Delivery
-- [ ] Test replay trigger (single + batch)
-- [ ] Test comparison view rendering
-- [ ] Test statistics calculations
-- [ ] Test chart visualizations
-- [ ] Test RBAC enforcement
-- [ ] Save final checkpoint
+- [x] Complete all UI components (ReplayDashboard, ReplayTriggerForm, ReplayComparisonView, ReplayResultsTable, ReplayStatisticsCards)
+- [x] Integrate all components into 4-tab dashboard layout
+- [x] Add route at /insurer/replay-dashboard with RBAC enforcement
+- [x] Fix import paths (useAuth, toast)
+- [ ] Test replay trigger (single + batch) - requires backend testing
+- [ ] Test comparison view rendering - requires backend testing
+- [ ] Test statistics calculations - requires backend testing
+- [x] Save final checkpoint

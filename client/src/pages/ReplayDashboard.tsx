@@ -15,6 +15,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { PlayCircle, BarChart3, History, GitCompare } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { ReplayTriggerForm } from "@/components/replay/ReplayTriggerForm";
+import { ReplayResultsTable } from "@/components/replay/ReplayResultsTable";
+import { ReplayStatisticsCards } from "@/components/replay/ReplayStatisticsCards";
 
 export default function ReplayDashboard() {
   const { user } = useAuth();
@@ -100,11 +102,7 @@ export default function ReplayDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <GitCompare className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Comparison view coming soon...</p>
-                <p className="text-sm mt-2">Original decision vs KINGA routing with metrics</p>
-              </div>
+              <ReplayResultsTable />
             </CardContent>
           </Card>
         </TabsContent>
@@ -119,11 +117,7 @@ export default function ReplayDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <BarChart3 className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Statistics dashboard coming soon...</p>
-                <p className="text-sm mt-2">Decision match rate, payout variance, processing time delta</p>
-              </div>
+              <ReplayStatisticsCards />
             </CardContent>
           </Card>
         </TabsContent>
@@ -138,11 +132,7 @@ export default function ReplayDashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                <History className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                <p>Replay history coming soon...</p>
-                <p className="text-sm mt-2">Paginated list of all replay results</p>
-              </div>
+              <ReplayResultsTable />
             </CardContent>
           </Card>
         </TabsContent>
