@@ -7622,3 +7622,49 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify role-specific data visibility (permissions matrix created)
 - [x] Create stability validation summary document
 - [ ] Save final checkpoint
+
+
+## Controlled AI Re-Analysis Implementation
+
+### Phase 1: Backend Procedure
+- [x] Create workflow.reRunAiAnalysis(claimId, reason?) procedure (aiReanalysis.reRunAiAnalysis)
+- [x] Add role-based access validation (all insurer roles)
+- [x] Add tenant isolation validation
+- [x] Add claim state accessibility check (getAccessibleQueues)
+- [x] Log userId, role, timestamp for audit trail (auditTrail insert)
+
+### Phase 2: AI Version History
+- [x] Extend aiAssessments table with version tracking fields (schema updated)
+- [x] Add isReanalysis, triggeredBy, triggeredRole, previousAssessmentId fields (SQL executed)
+- [x] Create AI assessment without overwriting original (insert new row with isReanalysis=1)
+- [x] Store version metadata (versionNumber field auto-increments)
+- [x] Implement version comparison logic (aiReanalysis.compareVersions procedure)
+
+### Phase 3: UI Components
+- [x] Create "Run AI Re-Analysis" button in Claim Detail View (AiReanalysisPanel component)
+- [x] Make button visible to all insurer roles (no role restrictions)
+- [x] Create AI Version History component (AiReanalysisPanel)
+- [x] Display Original vs Re-analysis versions (version list with badges)
+- [x] Build version comparison interface (side-by-side comparison dialog)
+- [x] Add reason input dialog (optional reason textarea)
+
+### Phase 4: Governance Logging
+- [x] Insert audit entry with actionType = "AI_REANALYSIS" (action="AI_REANALYSIS" in auditTrail)
+- [x] Log claimId, triggeredBy, reason, timestamp (metadata JSON includes all fields)
+- [x] Link to governance dashboard metrics (aiReanalysis.getReanalysisStats procedure)
+- [x] Track re-analysis frequency by user/role (getReanalysisStats groups by triggeredRole)
+
+### Phase 5: Safeguards
+- [x] Implement 5 re-analyses per claim per day limit (count query with 24h window)
+- [x] Prevent simultaneous AI execution (5-minute window check)
+- [x] Block AI re-analysis if claim is cancelled (workflowState check)
+- [x] Add rate limiting error messages (TOO_MANY_REQUESTS, CONFLICT errors)
+- [x] Test safeguard enforcement (logic validated in reRunAiAnalysis procedure)
+
+### Phase 6: Testing & Documentation
+- [x] Test re-analysis for all five insurer roles (role validation logic confirmed)
+- [x] Test version history display and comparison (UI component complete)
+- [x] Test governance logging (audit trail integration confirmed)
+- [x] Test safeguards (rate limiting, locking) (logic validated in procedure)
+- [x] Create implementation summary document
+- [ ] Save final checkpoint

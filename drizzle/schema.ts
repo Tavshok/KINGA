@@ -257,6 +257,14 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   modelVersion: varchar("model_version", { length: 50 }),
   processingTime: int("processing_time"), // milliseconds
   
+  // AI Re-Analysis Version Tracking
+  isReanalysis: tinyint("is_reanalysis").default(0).notNull(), // Boolean flag for re-analysis
+  triggeredBy: int("triggered_by"), // User ID who triggered re-analysis
+  triggeredRole: varchar("triggered_role", { length: 50 }), // Role of user who triggered re-analysis
+  previousAssessmentId: int("previous_assessment_id"), // Link to original assessment
+  reanalysisReason: text("reanalysis_reason"), // Optional reason for re-analysis
+  versionNumber: int("version_number").default(1).notNull(), // 1 = original, 2+ = re-analysis
+  
   tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),

@@ -83,6 +83,7 @@ import { platformObservabilityRouter } from "./routers/platform-observability";
 import { auditRouter } from "./routers/audit";
 import { governanceRouter } from "./routers/governance";
 import { governanceDashboardRouter } from "./routers/governance-dashboard";
+import { aiReanalysisRouter } from "./routers/ai-reanalysis";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -100,6 +101,7 @@ export const appRouter = router({
   audit: auditRouter,
   governance: governanceRouter,
   governanceDashboard: governanceDashboardRouter,
+  aiReanalysis: aiReanalysisRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
   workflow: workflowRouter,
