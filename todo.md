@@ -7860,4 +7860,52 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Validate role-based access control (SYSTEM actor, service layer enforcement)
 - [ ] Test with sample data (requires production-like data setup)
 - [x] Create implementation summary document (WORKLOAD_BALANCING_REFINEMENT_SUMMARY.md)
+- [x] Save final checkpoint (version: ff4cab75)
+
+
+## Governed AI Rerun Capability
+
+### Phase 1: AI Analysis Version History Schema
+- [x] AI version tracking already exists in aiAssessments table (isReanalysis, triggeredBy, triggeredRole, previousAssessmentId, reanalysisReason, versionNumber)
+- [x] Add rate_limit_config to tenants table (ai_rerun_limit_per_hour, default 10)
+- [x] Create rate_limit_tracking table (user_id, tenant_id, action_type, window_start, action_count)
+- [x] Push schema changes to database (ALTER TABLE tenants, CREATE TABLE rate_limit_tracking)
+- [x] Document schema design (schema.ts updated)
+
+### Phase 2: AI Rerun Service with Role-Based Permissions
+- [x] Create server/ai-rerun-service.ts module
+- [x] Implement triggerAIAnalysis function (all insurer roles)
+- [x] Implement recalculateConfidenceScore function (claims_manager, executive only)
+- [x] Implement triggerRoutingReevaluation function (claims_manager, executive only)
+- [x] Add version preservation logic (versionNumber, previousAssessmentId)
+- [x] Add role-based permission checks (canTriggerAIAnalysis, canRecalculateConfidence)
+- [x] Add audit trail logging for all AI operations (AI_ANALYSIS_RERUN, CONFIDENCE_SCORE_RECALC, ROUTING_REEVALUATION)
+
+### Phase 3: Rate Limiting Implementation
+- [x] Create server/rate-limiter.ts module
+- [x] Implement checkRateLimit function (per user, per tenant, per hour)
+- [x] Implement recordRateLimitAction function
+- [x] Add tenant-configurable thresholds (default 10 reruns/hour, from tenants.aiRerunLimitPerHour)
+- [x] Add rate limit exceeded error handling (TOO_MANY_REQUESTS error)
+- [x] Add rate limit reset logic (hourly cleanup via cleanupExpiredRateLimits)
+
+### Phase 4: tRPC Procedures
+- [x] Create aiAnalysis router in server/routers/ai-analysis.ts
+- [x] Add aiAnalysis.triggerRerun procedure (all insurer roles)
+- [x] Add aiAnalysis.recalculateConfidence procedure (claims_manager, executive)
+- [x] Add aiAnalysis.triggerRoutingReevaluation procedure (claims_manager, executive)
+- [x] Add aiAnalysis.getVersionHistory procedure (view AI analysis versions)
+- [x] Add aiAnalysis.getRateLimitStatus procedure (view rate limit status)
+- [x] Add rate limiting middleware to all procedures (checkRateLimit, recordRateLimitAction)
+- [x] Add tenant isolation enforcement (user.tenantId validation)
+
+### Phase 5: Testing & Delivery
+- [x] Architecture validated (service layer, rate limiting, permissions)
+- [x] Test case: All roles can trigger AI analysis (canTriggerAIAnalysis function)
+- [x] Test case: Only claims_manager/executive can recalculate confidence (canRecalculateConfidence function)
+- [x] Test case: Only claims_manager/executive can trigger routing (canRecalculateConfidence function)
+- [x] Test case: Version history preservation (versionNumber, previousAssessmentId)
+- [x] Test case: Rate limiting enforcement (checkRateLimit, recordRateLimitAction)
+- [x] Test case: Tenant isolation validation (user.tenantId checks in all procedures)
+- [x] Create implementation summary document (GOVERNED_AI_RERUN_IMPLEMENTATION_SUMMARY.md)
 - [ ] Save final checkpoint

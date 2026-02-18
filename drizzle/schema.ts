@@ -1377,6 +1377,9 @@ export const tenants = mysqlTable("tenants", {
   intakeEscalationHours: int("intake_escalation_hours").default(6), // Hours before escalating stale intake claims (default 6)
   intakeEscalationMode: mysqlEnum("intake_escalation_mode", ["auto_assign", "escalate_only"]).default("escalate_only"), // auto_assign: auto-assign to processor, escalate_only: notify only
   
+  // AI Rerun Rate Limiting Configuration
+  aiRerunLimitPerHour: int("ai_rerun_limit_per_hour").default(10).notNull(), // Maximum AI reruns per user per hour (default 10)
+  
   // Timestamps
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
@@ -5236,3 +5239,25 @@ export const accessDenialLog = mysqlTable("access_denial_log", {
 
 export type AccessDenialLog = typeof accessDenialLog.$inferSelect;
 export type InsertAccessDenialLog = typeof accessDenialLog.$inferInsert;
+
+/**
+ * Rate Limit Tracking
+ * Tracks AI rerun actions per user per tenant for rate limiting enforcement.
+ * Governed AI Rerun Capability
+ */
+export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("user_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+  actionType: varchar("action_type", { length: 50 }).notNull(), // 'ai_rerun', 'confidence_recalc', 'routing_reevaluation'
+  windowStart: timestamp("window_start").notNull(), // Start of the current hour window
+  actionCount: int("action_count").notNull().default(1), // Number of actions in this window
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  userTenantActionWindowIdx: index("idx_user_tenant_action_window").on(table.userId, table.tenantId, table.actionType, table.windowStart),
+  windowStartIdx: index("idx_window_start").on(table.windowStart),
+}));
+
+export type RateLimitTracking = typeof rateLimitTracking.$inferSelect;
+export type InsertRateLimitTracking = typeof rateLimitTracking.$inferInsert;

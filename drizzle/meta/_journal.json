@@ -302,6 +302,20 @@
       "when": 1771406998254,
       "tag": "0042_lying_bushwacker",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "5",
+      "when": 1771407970247,
+      "tag": "0043_true_shriek",
+      "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "5",
+      "when": 1771408304739,
+      "tag": "0044_last_thundra",
+      "breakpoints": true
     }
   ]
 }

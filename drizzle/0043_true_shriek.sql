@@ -1,0 +1,1 @@
+ALTER TABLE `tenants` ADD `ai_rerun_limit_per_hour` int DEFAULT 10 NOT NULL;

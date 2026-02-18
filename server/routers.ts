@@ -85,6 +85,7 @@ import { governanceRouter } from "./routers/governance";
 import { governanceDashboardRouter } from "./routers/governance-dashboard";
 import { aiReanalysisRouter } from "./routers/ai-reanalysis";
 import { intakeGateRouter } from "./routers/intake-gate";
+import { aiAnalysisRouter } from "./routers/ai-analysis";
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -103,6 +104,7 @@ export const appRouter = router({
   governance: governanceRouter,
   governanceDashboard: governanceDashboardRouter,
   aiReanalysis: aiReanalysisRouter,
+  aiAnalysis: aiAnalysisRouter,
   intakeGate: intakeGateRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
