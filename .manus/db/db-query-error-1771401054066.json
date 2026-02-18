@@ -1,0 +1,8 @@
+{
+  "query": "-- Create test tenant\nINSERT INTO tenants (id, name, display_name, tier, status, contact_name, contact_email, billing_email, created_at, updated_at, activated_at) \nVALUES ('test-ops-001', 'Test Insurance Co', 'Test Insurance Company - Ops Testing', 'tier-enterprise', 'active', 'Test Admin', 'test@kinga.ai', 'billing@kinga.ai', NOW(), NOW(), NOW());\n\n-- Find recent users (using correct column name)\nSELECT id, name, email, role, tenant_id FROM users ORDER BY lastSignedIn DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute -- Create test tenant\nINSERT INTO tenants (id, name, display_name, tier, status, contact_name, contact_email, billing_email, created_at, updated_at, activated_at) \nVALUES ('test-ops-001', 'Test Insurance Co', 'Test Insurance Company - Ops Testing', 'tier-enterprise', 'active', 'Test Admin', 'test@kinga.ai', 'billing@kinga.ai', NOW(), NOW(), NOW());\n\n-- Find recent users (using correct column name)\nSELECT id, name, email, role, tenant_id FROM users ORDER BY lastSignedIn DESC LIMIT 3;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1062 (23000) at line 2: Duplicate entry '?' for key 'tenants.name'"
+  ]
+}

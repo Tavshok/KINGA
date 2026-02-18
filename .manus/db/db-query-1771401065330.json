@@ -1,0 +1,18 @@
+{
+  "query": "-- Assign tenant to Tavonga Shoko (user ID 1) and set insurer role\nUPDATE users \nSET tenant_id = 'tenant-1771335377063',\n    role = 'insurer',\n    insurer_role = 'executive'\nWHERE id = 1;\n\n-- Verify update\nSELECT id, name, email, role, insurer_role, tenant_id FROM users WHERE id = 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute -- Assign tenant to Tavonga Shoko (user ID 1) and set insurer role\nUPDATE users \nSET tenant_id = 'tenant-1771335377063',\n    role = 'insurer',\n    insurer_role = 'executive'\nWHERE id = 1;\n\n-- Verify update\nSELECT id, name, email, role, insurer_role, tenant_id FROM users WHERE id = 1;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tavonga Shoko",
+      "email": "shoktav@gmail.com",
+      "role": "insurer",
+      "insurer_role": "executive",
+      "tenant_id": "tenant-1771335377063"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\temail\trole\tinsurer_role\ttenant_id\n1\tTavonga Shoko\tshoktav@gmail.com\tinsurer\texecutive\ttenant-1771335377063\n",
+  "stderr": "",
+  "execution_time_ms": 74
+}

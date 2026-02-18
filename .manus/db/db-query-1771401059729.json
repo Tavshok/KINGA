@@ -1,0 +1,33 @@
+{
+  "query": "-- Check existing tenants\nSELECT id, name, display_name, status FROM tenants LIMIT 5;\n\n-- Find recent users\nSELECT id, name, email, role, tenant_id FROM users ORDER BY lastSignedIn DESC LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute -- Check existing tenants\nSELECT id, name, display_name, status FROM tenants LIMIT 5;\n\n-- Find recent users\nSELECT id, name, email, role, tenant_id FROM users ORDER BY lastSignedIn DESC LIMIT 3;",
+  "rows": [
+    {
+      "id": "tenant-1771335377063",
+      "name": "E2E Test Tenant 1771335377063",
+      "display_name": "E2E Test Tenant 1771335377063",
+      "status": "active"
+    },
+    {
+      "id": "tenant-bb427411-1cb9-4767-b354-61831d4d2106",
+      "name": "demo-insurance",
+      "display_name": "Demo Insurance Company",
+      "status": "active"
+    },
+    {
+      "id": "test-ops-001",
+      "name": "Test Insurance Co",
+      "display_name": "Test Insurance Company - Ops Testing",
+      "status": "active"
+    }
+  ],
+  "messages": [
+    "id\tname\temail\trole\ttenant_id",
+    "1\tTavonga Shoko\tshoktav@gmail.com\tadmin\tNULL",
+    "2280002\tE2E Claim Processor\tclaim.processor@e2e.test\tinsurer\ttenant-1771335377063",
+    "2280001\tE2E Claim Processor\tclaim.processor@e2e.test\tinsurer\ttenant-1771335126426"
+  ],
+  "stdout": "id\tname\tdisplay_name\tstatus\ntenant-1771335377063\tE2E Test Tenant 1771335377063\tE2E Test Tenant 1771335377063\tactive\ntenant-bb427411-1cb9-4767-b354-61831d4d2106\tdemo-insurance\tDemo Insurance Company\tactive\ntest-ops-001\tTest Insurance Co\tTest Insurance Company - Ops Testing\tactive\nid\tname\temail\trole\ttenant_id\n1\tTavonga Shoko\tshoktav@gmail.com\tadmin\tNULL\n2280002\tE2E Claim Processor\tclaim.processor@e2e.test\tinsurer\ttenant-1771335377063\n2280001\tE2E Claim Processor\tclaim.processor@e2e.test\tinsurer\ttenant-1771335126426\n",
+  "stderr": "",
+  "execution_time_ms": 162
+}

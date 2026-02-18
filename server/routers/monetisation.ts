@@ -287,14 +287,14 @@ export const monetisationRouter = router({
         const tenantUsage = await db
           .select({
             tenantId: usageEvents.tenantId,
-            totalEvents: count(),
-            totalComputeUnits: sum(usageEvents.computeUnits),
-            totalEstimatedCost: sum(usageEvents.estimatedCost),
+            totalEvents: sql<number>`count(*)`.as('totalEvents'),
+            totalComputeUnits: sql<string>`sum(${usageEvents.computeUnits})`.as('totalComputeUnits'),
+            totalEstimatedCost: sql<string>`sum(${usageEvents.estimatedCost})`.as('totalEstimatedCost'),
           })
           .from(usageEvents)
           .where(and(gte(usageEvents.timestamp, startDate), lte(usageEvents.timestamp, endDate)))
           .groupBy(usageEvents.tenantId)
-          .orderBy(desc(sum(usageEvents.estimatedCost)))
+          .orderBy(sql`sum(${usageEvents.estimatedCost}) desc`)
           .limit(input.limit);
 
         return {
@@ -329,9 +329,9 @@ export const monetisationRouter = router({
         const tenantUsage = await db
           .select({
             tenantId: usageEvents.tenantId,
-            claimsProcessed: count(),
-            totalComputeUnits: sum(usageEvents.computeUnits),
-            totalEstimatedCost: sum(usageEvents.estimatedCost),
+            claimsProcessed: sql<number>`count(*)`.as('claimsProcessed'),
+            totalComputeUnits: sql<string>`sum(${usageEvents.computeUnits})`.as('totalComputeUnits'),
+            totalEstimatedCost: sql<string>`sum(${usageEvents.estimatedCost})`.as('totalEstimatedCost'),
           })
           .from(usageEvents)
           .where(and(gte(usageEvents.timestamp, startDate), lte(usageEvents.timestamp, endDate)))
@@ -418,7 +418,7 @@ export const monetisationRouter = router({
         const currentUsage = await db
           .select({
             tenantId: usageEvents.tenantId,
-            eventCount: count(),
+            eventCount: sql<number>`count(*)`.as('eventCount'),
           })
           .from(usageEvents)
           .where(gte(usageEvents.timestamp, currentMonthStart))
@@ -428,7 +428,7 @@ export const monetisationRouter = router({
         const previousUsage = await db
           .select({
             tenantId: usageEvents.tenantId,
-            eventCount: count(),
+            eventCount: sql<number>`count(*)`.as('eventCount'),
           })
           .from(usageEvents)
           .where(
@@ -498,10 +498,10 @@ export const monetisationRouter = router({
         const metrics = await db
           .select({
             tenantId: usageEvents.tenantId,
-            totalEvents: count(),
-            totalComputeUnits: sum(usageEvents.computeUnits),
-            totalEstimatedCost: sum(usageEvents.estimatedCost),
-            avgProcessingTime: avg(usageEvents.processingTimeMs),
+            totalEvents: sql<number>`count(*)`.as('totalEvents'),
+            totalComputeUnits: sql<string>`sum(${usageEvents.computeUnits})`.as('totalComputeUnits'),
+            totalEstimatedCost: sql<string>`sum(${usageEvents.estimatedCost})`.as('totalEstimatedCost'),
+            avgProcessingTime: sql<string>`avg(${usageEvents.processingTimeMs})`.as('avgProcessingTime'),
           })
           .from(usageEvents)
           .where(and(gte(usageEvents.timestamp, startDate), lte(usageEvents.timestamp, endDate)))
