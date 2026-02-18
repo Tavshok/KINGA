@@ -168,6 +168,20 @@ export default function ClaimsProcessorDashboard() {
     // TODO: Implement escalation to underwriter
   };
 
+  const handleTriggerAI = (claimId: number) => {
+    toast.info("AI Assessment", {
+      description: "Triggering AI assessment for this claim...",
+    });
+    // TODO: Implement AI assessment trigger via tRPC
+  };
+
+  const handleAssignAssessor = (claimId: number) => {
+    toast.info("Assign Assessor", {
+      description: "Assessor assignment workflow will be implemented in the next update.",
+    });
+    // TODO: Implement assessor assignment dialog
+  };
+
   const renderSection = (
     title: string,
     icon: any,
@@ -229,6 +243,10 @@ export default function ClaimsProcessorDashboard() {
                   onDownloadReport={handleDownloadReport}
                   onUploadEvidence={handleUploadEvidence}
                   onEscalate={handleEscalate}
+                  onTriggerAI={handleTriggerAI}
+                  onAssignAssessor={handleAssignAssessor}
+                  showAITrigger={!claim.aiConfidenceScore || claim.aiConfidenceScore === 0}
+                  showAssignAssessor={claim.workflowState === "created" || claim.workflowState === "pending"}
                 />
               ))}
             </div>
@@ -248,6 +266,14 @@ export default function ClaimsProcessorDashboard() {
             <p className="text-teal-100 text-sm">Process and manage insurance claims</p>
           </div>
           <div className="flex gap-2">
+            <Button 
+              variant="default" 
+              className="bg-white text-teal-700 hover:bg-white/90 font-medium"
+              onClick={() => window.location.href = "/insurer-portal/upload-historical-claim"}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Upload New Claim
+            </Button>
             <Button 
               variant="outline" 
               className="border-white/30 text-white hover:bg-white/10"

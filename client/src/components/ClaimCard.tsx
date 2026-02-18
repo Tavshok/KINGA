@@ -7,7 +7,9 @@ import {
   Upload, 
   AlertTriangle, 
   Eye, 
-  TrendingUp 
+  TrendingUp,
+  Brain,
+  UserPlus
 } from "lucide-react";
 
 interface ClaimCardProps {
@@ -31,6 +33,10 @@ interface ClaimCardProps {
   onDownloadReport: (claimId: number) => void;
   onUploadEvidence: (claimId: number) => void;
   onEscalate: (claimId: number) => void;
+  onTriggerAI?: (claimId: number) => void;
+  onAssignAssessor?: (claimId: number) => void;
+  showAITrigger?: boolean;
+  showAssignAssessor?: boolean;
 }
 
 export function ClaimCard({
@@ -39,6 +45,10 @@ export function ClaimCard({
   onDownloadReport,
   onUploadEvidence,
   onEscalate,
+  onTriggerAI,
+  onAssignAssessor,
+  showAITrigger = false,
+  showAssignAssessor = false,
 }: ClaimCardProps) {
   
   const getConfidenceBadge = (score?: number) => {
@@ -168,6 +178,30 @@ export function ClaimCard({
               <Upload className="h-4 w-4 mr-2" />
               Upload Evidence
             </Button>
+            
+            {showAITrigger && onTriggerAI && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => onTriggerAI(claim.id)}
+                className="w-full justify-start border-purple-300 text-purple-700 hover:bg-purple-50"
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                Trigger AI Assessment
+              </Button>
+            )}
+            
+            {showAssignAssessor && onAssignAssessor && (
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={() => onAssignAssessor(claim.id)}
+                className="w-full justify-start border-blue-300 text-blue-700 hover:bg-blue-50"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Assign Assessor
+              </Button>
+            )}
             
             <Button 
               size="sm" 

@@ -199,11 +199,11 @@ export default function ExecutiveDashboard() {
   const { data: overrideHistoryResponse } = trpc.governance.getOverrideHistory.useQuery({ limit: 10, offset: 0 });
   
   const governanceMetrics = governanceResponse?.data;
-  const overrideTrend = overrideTrendResponse?.data;
-  const segregationHeatmap = segregationHeatmapResponse?.data;
-  const roleChangeTrend = roleChangeTrendResponse?.data;
-  const conflictDistribution = conflictDistributionResponse?.data;
-  const overrideHistory = overrideHistoryResponse?.data;
+  const overrideTrend = Array.isArray(overrideTrendResponse?.data) ? overrideTrendResponse.data : [];
+  const segregationHeatmap = Array.isArray(segregationHeatmapResponse?.data) ? segregationHeatmapResponse.data : [];
+  const roleChangeTrend = Array.isArray(roleChangeTrendResponse?.data) ? roleChangeTrendResponse.data : [];
+  const conflictDistribution = Array.isArray(conflictDistributionResponse?.data) ? conflictDistributionResponse.data : [];
+  const overrideHistory = Array.isArray(overrideHistoryResponse?.data) ? overrideHistoryResponse.data : [];
 
   // Search query - only execute when searchQuery has value
   const { data: searchResultsResponse, isLoading: searchLoading, refetch: executeSearch } = trpc.analytics.globalSearch.useQuery(
@@ -229,11 +229,11 @@ export default function ExecutiveDashboard() {
 
   // Transform bottleneck data for bar chart
   const bottleneckChartData = useMemo(() => {
-    if (!bottlenecks) return [];
+    if (!bottlenecks || !Array.isArray(bottlenecks)) return [];
     return bottlenecks.map((b: any) => ({
-      state: b.state.replace(/_/g, " ").toUpperCase(),
-      avgHours: Math.round(b.avgDaysInState * 24), // Convert days to hours
-      count: b.count,
+      state: (b?.state || "UNKNOWN").replace(/_/g, " ").toUpperCase(),
+      avgHours: Math.round((b?.avgDaysInState || 0) * 24), // Convert days to hours
+      count: b?.count || 0,
     }));
   }, [bottlenecks]);
 
@@ -587,8 +587,8 @@ export default function ExecutiveDashboard() {
                   
                   <TabsContent value="overrides" className="space-y-4">
                     <div className="h-80">
-                      {overrideTrend && overrideTrend.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      {Array.isArray(overrideTrend) && overrideTrend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
                           <LineChart data={overrideTrend}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                             <XAxis 
@@ -624,8 +624,8 @@ export default function ExecutiveDashboard() {
                   
                   <TabsContent value="segregation" className="space-y-4">
                     <div className="h-80">
-                      {segregationHeatmap && segregationHeatmap.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      {Array.isArray(segregationHeatmap) && segregationHeatmap.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
                           <BarChart data={segregationHeatmap}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                             <XAxis 
@@ -657,8 +657,8 @@ export default function ExecutiveDashboard() {
                   
                   <TabsContent value="roles" className="space-y-4">
                     <div className="h-80">
-                      {roleChangeTrend && roleChangeTrend.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      {Array.isArray(roleChangeTrend) && roleChangeTrend.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
                           <LineChart data={roleChangeTrend}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                             <XAxis 
@@ -694,8 +694,8 @@ export default function ExecutiveDashboard() {
                   
                   <TabsContent value="conflicts" className="space-y-4">
                     <div className="h-80">
-                      {conflictDistribution && conflictDistribution.length > 0 ? (
-                        <ResponsiveContainer width="100%" height="100%">
+                      {Array.isArray(conflictDistribution) && conflictDistribution.length > 0 ? (
+                        <ResponsiveContainer width="100%" height={300}>
                           <PieChart>
                             <Pie
                               data={conflictDistribution}
@@ -706,7 +706,7 @@ export default function ExecutiveDashboard() {
                               outerRadius={100}
                               label={(entry) => `${entry.type}: ${entry.count}`}
                             >
-                              {conflictDistribution.map((entry, index) => (
+                              {Array.isArray(conflictDistribution) && conflictDistribution.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={["#f97316", "#ef4444", "#dc2626"][index % 3]} />
                               ))}
                             </Pie>
@@ -738,7 +738,7 @@ export default function ExecutiveDashboard() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-4">
-                    {overrideHistory.map((override: any) => (
+                    {Array.isArray(overrideHistory) && overrideHistory.map((override: any) => (
                       <div key={override.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
@@ -828,7 +828,7 @@ export default function ExecutiveDashboard() {
                     }}
                   />
                   <Bar dataKey="avgHours" radius={[8, 8, 0, 0]}>
-                    {bottleneckChartData.map((entry: any, index: number) => (
+                    {Array.isArray(bottleneckChartData) && bottleneckChartData.map((entry: any, index: number) => (
                       <Cell 
                         key={`cell-${index}`} 
                         fill={

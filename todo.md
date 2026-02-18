@@ -7545,3 +7545,36 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test PDF and CSV exports (export procedures implemented)
 - [x] Create architecture summary document
 - [ ] Save final checkpoint
+
+
+## System Role Experience Validation
+
+### Phase 1: Role Dashboard Testing
+- [ ] Test claims_processor dashboard (correct dashboard, states, actions, no 403 errors)
+- [ ] Test assessor_internal dashboard (correct dashboard, states, actions, no 403 errors)
+- [ ] Test risk_manager dashboard (correct dashboard, states, actions, no 403 errors)
+- [ ] Test claims_manager dashboard (correct dashboard, states, actions, no 403 errors)
+- [ ] Test executive dashboard (correct dashboard, states, actions, no 403 errors)
+- [ ] Document all issues and missing functionality
+
+### Phase 2: Claims Processor Dashboard Fixes
+- [x] Fix upload claim button visibility (added to header)
+- [x] Fix trigger AI button visibility (conditional on ClaimCard)
+- [x] Fix assign assessor button visibility (conditional on ClaimCard)
+- [ ] Fix historical claims accessibility (requires new route/tab)
+- [x] Fix pending claims filtering (queries by workflow state)
+
+### Phase 3: Executive Dashboard Chart Fixes
+- [x] Locate "TypeError: d is not a function" error source (Recharts data validation)
+- [x] Audit chart data format and transformation layer (all chart data reviewed)
+- [x] Add null/undefined guards to all chart data (Array.isArray checks added)
+- [x] Ensure charts render safely with empty datasets (conditional rendering added)a
+- [ ] Test chart rendering with mock data
+
+### Phase 4: Final Validation
+- [x] Re-test claims_processor role after fixes (PASS)
+- [ ] Re-test remaining four roles (requires role assignment)
+- [x] Verify no 403 errors across tested roles (PASS)
+- [x] Verify no empty state confusion (improved messaging)
+- [x] Create comprehensive fixes summary document
+- [ ] Save final checkpoint
