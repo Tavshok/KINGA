@@ -91,6 +91,7 @@ const AssignAssessor = lazy(() => import("./pages/AssignAssessor"));
 const UploadDocuments = lazy(() => import("./pages/processor/UploadDocuments"));
 const HistoricalClaimsPipeline = lazy(() => import("./pages/HistoricalClaimsPipeline"));
 const AutomationPolicies = lazy(() => import("./pages/AutomationPolicies"));
+const ReplayDashboard = lazy(() => import("./pages/ReplayDashboard"));
 const FleetManagement = lazy(() => import("./pages/FleetManagement"));
 const InsuranceQuote = lazy(() => import("./pages/InsuranceQuote"));
 const QuoteDetails = lazy(() => import("./pages/QuoteDetails"));
@@ -332,6 +333,12 @@ function Router() {
         <Route path="/insurer/automation-policies">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <AutomationPolicies />
+          </ProtectedRoute>
+        </Route>
+        
+        <Route path="/insurer/replay-dashboard">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]} insurerRoles={["insurer_admin", "executive", "claims_manager"]}>
+            <ReplayDashboard />
           </ProtectedRoute>
         </Route>
         

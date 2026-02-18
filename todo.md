@@ -8302,3 +8302,49 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test replay isolation (no live workflow mutation)
 - [x] Create implementation summary document (CLAIM_REPLAY_ENGINE_SUMMARY.md)
 - [ ] Save final checkpoint
+
+
+## Replay Dashboard UI
+
+### Phase 1: Dashboard Layout & Navigation
+- [x] Create ReplayDashboard main component (executive, insurer_admin, claims_manager only)
+- [x] Add replay dashboard route to App.tsx (/insurer/replay-dashboard)
+- [x] Create dashboard layout with tabs (Trigger, Results, Statistics, History)
+- [x] Add RBAC enforcement in UI (allowedRoles + insurerRoles)
+- [ ] Add navigation link in DashboardLayout sidebar
+
+### Phase 2: Replay Trigger Interface
+- [x] Create ReplayTriggerForm component (single claim replay + batch replay)
+- [x] Add historical claim search/select interface (search by reference or ID)
+- [x] Create batch replay form (comma-separated IDs, max 100 claims)
+- [x] Add replay progress indicator (loading states with Loader2 spinner)
+- [x] Add success/error toast notifications
+- [x] Display replay result summary after completion (batch success/error count)
+- [x] Integrate with tRPC procedures (replayHistoricalClaim, batchReplayHistoricalClaims, getEligibleHistoricalClaims)
+
+### Phase 3: Side-by-Side Comparison View
+- [ ] Create ReplayComparisonView component
+- [ ] Build OriginalDecisionCard (original decision, payout, processing time, assessor)
+- [ ] Build KingaDecisionCard (KINGA routing, predicted payout, estimated time)
+- [ ] Build ComparisonMetricsCard (decision match, payout variance, time delta)
+- [ ] Add performance summary display with emojis
+- [ ] Add recommended action badge
+- [ ] Add simulated workflow steps timeline
+
+### Phase 4: Statistics & Visualizations
+- [ ] Create ReplayStatisticsCards component (total replays, decision match rate, avg variances)
+- [ ] Build ReplayChartsPanel component
+- [ ] Add decision match rate pie chart (match vs mismatch)
+- [ ] Add payout variance distribution chart (savings vs cost increase)
+- [ ] Add processing time delta chart (faster vs slower)
+- [ ] Add recommended actions breakdown chart
+- [ ] Create ReplayResultsTable component (paginated results with filters)
+- [ ] Add replay history timeline view
+
+### Phase 5: Testing & Delivery
+- [ ] Test replay trigger (single + batch)
+- [ ] Test comparison view rendering
+- [ ] Test statistics calculations
+- [ ] Test chart visualizations
+- [ ] Test RBAC enforcement
+- [ ] Save final checkpoint
