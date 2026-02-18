@@ -13,73 +13,19 @@
  */
 
 import { getDb } from "./db";
-import { claims, tenants, users, auditTrail } from "../drizzle/schema";
-import { eq, and, lt, sql, count } from "drizzle-orm";
+import { claims, tenants, auditTrail } from "../drizzle/schema";
+import { eq, and, lt, sql } from "drizzle-orm";
 import { notifyOwner } from "./_core/notification";
+import { findLowestWorkloadProcessor, type ProcessorWorkload } from "./workload-balancing";
 
-/**
- * Find the processor with the lowest current workload for a given tenant
- */
-async function findLowestWorkloadProcessor(tenantId: string): Promise<{ id: string; name: string; workload: number } | null> {
-  const db = await getDb();
-  if (!db) return null;
-  
-  const processors = await db
-    .select({
-      id: users.id,
-      name: users.name,
-      openId: users.openId,
-    })
-    .from(users)
-    .where(
-      and(
-        eq(users.tenantId, tenantId),
-        eq(users.insurerRole, "claims_processor")
-      )
-    );
-
-  if (processors.length === 0) {
-    return null;
-  }
-
-  // Calculate workload for each processor
-  const processorsWithWorkload = await Promise.all(
-    processors.map(async (processor) => {
-      const db = await getDb();
-      if (!db) return { id: processor.openId, name: processor.name || "Unknown Processor", workload: 0 };
-      
-      const workloadResult = await db
-        .select({ count: count() })
-        .from(claims)
-        .where(
-          and(
-            eq(claims.tenantId, tenantId),
-            eq(claims.assignedProcessorId, processor.openId),
-            sql`${claims.workflowState} IN ('assigned', 'ai_assessment_pending', 'manual_review')`
-          )
-        );
-
-      return {
-        id: processor.openId,
-        name: processor.name || "Unknown Processor",
-        workload: workloadResult[0]?.count || 0,
-      };
-    })
-  );
-
-  // Sort by workload (ascending) and return the first
-  processorsWithWorkload.sort((a, b) => a.workload - b.workload);
-  return processorsWithWorkload[0];
-}
+// Processor selection logic moved to workload-balancing.ts service module
 
 /**
  * Auto-assign a claim to a processor (auto_assign mode)
  */
 async function autoAssignClaim(
   claim: any,
-  processorId: string,
-  processorName: string,
-  processorWorkload: number,
+  processor: ProcessorWorkload,
   thresholdHours: number
 ) {
   const hoursInQueue = Math.floor(
@@ -93,7 +39,7 @@ async function autoAssignClaim(
   await db
     .update(claims)
     .set({
-      assignedProcessorId: processorId,
+      assignedProcessorId: processor.processorId,
       workflowState: "assigned",
       updatedAt: new Date(),
     })
@@ -110,11 +56,15 @@ async function autoAssignClaim(
     newState: "assigned",
     reason: `Manager inactivity - auto-assigned after ${hoursInQueue} hours (threshold: ${thresholdHours} hours)`,
     metadata: JSON.stringify({
-      assignedProcessorId: processorId,
-      assignedProcessorName: processorName,
+      assignedProcessorId: processor.processorId,
+      assignedProcessorName: processor.processorName,
       hoursInQueue,
       escalationThreshold: thresholdHours,
-      processorWorkload,
+      // Weighted workload breakdown
+      processorActiveClaims: processor.activeClaims,
+      processorComplexClaims: processor.complexClaims,
+      processorHighRiskClaims: processor.highRiskClaims,
+      processorWeightedScore: processor.weightedScore,
       claimNumber: claim.claimNumber,
       estimatedValue: claim.estimatedClaimValue,
     }),
@@ -122,7 +72,9 @@ async function autoAssignClaim(
   });
 
   console.log(
-    `[Intake Escalation] Auto-assigned claim ${claim.claimNumber} to processor ${processorName} (workload: ${processorWorkload})`
+    `[Intake Escalation] Auto-assigned claim ${claim.claimNumber} to processor ${processor.processorName} ` +
+    `(weighted score: ${processor.weightedScore}, active: ${processor.activeClaims}, ` +
+    `complex: ${processor.complexClaims}, high-risk: ${processor.highRiskClaims})`
   );
 }
 
@@ -233,20 +185,14 @@ async function processTenantEscalation(tenant: any) {
     } else {
       // Auto-assign all stale claims to the selected processor
       for (const claim of staleClaims) {
-        await autoAssignClaim(
-          claim,
-          processor.id,
-          processor.name,
-          processor.workload,
-          thresholdHours
-        );
+        await autoAssignClaim(claim, processor, thresholdHours);
       }
 
       // Send notification about auto-assignments
       try {
         await notifyOwner({
           title: `⚠️ Intake Queue Auto-Assignment Alert - ${tenantName}`,
-          content: `${staleClaims.length} claim(s) were automatically assigned to processor "${processor.name}" due to manager inactivity.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nAuto-Assigned Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nPlease review the Claims Manager Dashboard for details.`,
+          content: `${staleClaims.length} claim(s) were automatically assigned to processor "${processor.processorName}" due to manager inactivity.\n\nTenant: ${tenantName}\nEscalation Threshold: ${thresholdHours} hours\nProcessor Workload: ${processor.weightedScore.toFixed(1)} (active: ${processor.activeClaims}, complex: ${processor.complexClaims}, high-risk: ${processor.highRiskClaims})\nAuto-Assigned Claims: ${staleClaims.map((c) => c.claimNumber).join(", ")}\n\nPlease review the Claims Manager Dashboard for details.`,
         });
       } catch (error) {
         console.error("[Intake Escalation] Failed to send auto-assignment notification:", error);

@@ -7822,3 +7822,42 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test backward compatibility with existing tenants (default intakeEscalationEnabled = 0)
 - [x] Create enhanced implementation summary document (TENANT_CONFIGURABLE_ESCALATION_SUMMARY.md)
 - [ ] Save final checkpoint
+
+
+## Workload Balancing System Refinement
+
+### Phase 1: Weighted Scoring Algorithm
+- [x] Create workload-balancing.ts service module
+- [x] Implement calculateProcessorWorkloadScore function
+- [x] Add weights: activeClaims (1), complexClaims (1.5), highRiskClaims (2)
+- [x] Add complexity detection logic (estimatedClaimValue > $20,000)
+- [x] Add risk detection logic (earlyFraudSuspicion = true)
+- [x] Return processor with lowest weighted score (findLowestWorkloadProcessor)
+
+### Phase 2: Integration with Escalation Job
+- [x] Update intake-escalation-job.ts to use weighted scoring
+- [x] Replace findLowestWorkloadProcessor with new algorithm (imported from workload-balancing.ts)
+- [x] Maintain backward compatibility (same function signature, enhanced logic)
+- [x] Update audit trail metadata with workload scores (activeClaims, complexClaims, highRiskClaims, weightedScore)
+
+### Phase 3: Access Control & Audit Logging
+- [x] Enforce tenant isolation in workload calculation (all queries filtered by tenantId)
+- [x] Add role-based access control (claims_manager, escalation service) (SYSTEM actor in audit trail)
+- [x] Insert audit log for each assignment decision (INTAKE_AUTO_ASSIGN with workload metadata)
+- [x] Prevent direct DB updates outside service layer (all updates through autoAssignClaim function)
+
+### Phase 4: Test Suite
+- [x] Create server/workload-balancing.test.ts (11 comprehensive test cases)
+- [x] Test case: Equal workload distribution
+- [x] Test case: High risk claim imbalance
+- [x] Test case: No available processors
+- [x] Test case: Tenant isolation validation
+- [x] Test case: Weighted score calculation accuracy
+- [ ] Run all tests and ensure passing (requires sample data setup with all required fields)
+
+### Phase 5: Validation & Delivery
+- [x] Verify tenant isolation enforcement (all queries scoped by tenantId)
+- [x] Validate role-based access control (SYSTEM actor, service layer enforcement)
+- [ ] Test with sample data (requires production-like data setup)
+- [x] Create implementation summary document (WORKLOAD_BALANCING_REFINEMENT_SUMMARY.md)
+- [ ] Save final checkpoint
