@@ -17,7 +17,7 @@ export const users = mysqlTable("users", {
   email: varchar("email", { length: 320 }),
   passwordHash: varchar("password_hash", { length: 255 }), // For traditional email/password auth
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]).default("user").notNull(),
   insurerRole: mysqlEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]), // Hierarchical roles for insurer users
   organizationId: int("organization_id"), // Link to organizations table for team members
   tenantId: varchar("tenant_id", { length: 64 }), // Link to tenants table for multi-tenant isolation
@@ -3133,6 +3133,12 @@ export const fleets = mysqlTable("fleets", {
   description: text("description"),
   primaryLocation: varchar("primary_location", { length: 255 }),
   
+  // Insurer selection (Fleet independence - insurer may or may not be on KINGA)
+  preferredInsurerId: int("preferred_insurer_id"), // Link to tenants table if insurer is on KINGA
+  preferredInsurerName: varchar("preferred_insurer_name", { length: 255 }), // Insurer name (whether on KINGA or not)
+  preferredInsurerContact: varchar("preferred_insurer_contact", { length: 255 }), // Contact email/phone
+  insurerIsOnKinga: tinyint("insurer_is_on_kinga").default(0), // Flag to indicate if insurer uses KINGA
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
 });
@@ -3262,6 +3268,11 @@ export const maintenanceRecords = mysqlTable("maintenance_records", {
   
   performedBy: int("performed_by"),
   recordedBy: int("recorded_by").notNull(),
+  
+  // Claim linkage (for tracking claim-related maintenance)
+  relatedClaimId: int("related_claim_id"), // Link to claims table if this maintenance is claim-related
+  isClaimRelated: tinyint("is_claim_related").default(0),
+  
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -3350,6 +3361,16 @@ export const serviceRequests = mysqlTable("service_requests", {
   // Selected quote
   selectedQuoteId: int("selected_quote_id"),
   selectedProviderId: int("selected_provider_id"),
+  
+  // Approval workflow (for fleet_manager approval)
+  requiresApproval: tinyint("requires_approval").default(1),
+  approvalStatus: mysqlEnum("approval_status", ["pending", "approved", "rejected"]).default("pending"),
+  approvedBy: int("approved_by"), // fleet_manager user ID
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Submitter (fleet_driver)
+  submittedBy: int("submitted_by").notNull(),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
