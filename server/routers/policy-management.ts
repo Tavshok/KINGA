@@ -26,6 +26,17 @@ import {
   updatePolicy,
   deletePolicy,
 } from "../services/policy-activation";
+import {
+  simulateRoutingDistribution,
+  comparePolicySimulations,
+  simulateSingleClaimRouting,
+  PolicySimulationInput,
+} from "../services/policy-simulation";
+import {
+  getPolicyImpactMetrics,
+  comparePolicyPerformance,
+  getAllPolicyImpactMetrics,
+} from "../services/policy-impact-analytics";
 
 /**
  * Role-based access control middleware
@@ -260,5 +271,117 @@ export const policyManagementRouter = router({
         success: true,
         message: `Policy ${input.policyId} deleted`,
       };
+    }),
+
+  /**
+   * Simulate routing distribution using a draft policy
+   */
+  simulatePolicy: policyManagementProcedure
+    .input(z.object({
+      tenantId: z.string().optional(),
+      policyInput: z.object({
+        minAutomationConfidence: z.number().min(0).max(100),
+        minHybridConfidence: z.number().min(0).max(100),
+        maxAiOnlyApprovalAmount: z.number().positive(),
+        maxHybridApprovalAmount: z.number().positive(),
+        maxFraudScoreForAutomation: z.number().min(0).max(100),
+        fraudSensitivityMultiplier: z.number().min(0.5).max(2.0),
+        eligibleClaimTypes: z.array(z.string()),
+        excludedClaimTypes: z.array(z.string()),
+        minVehicleYear: z.number(),
+        maxVehicleAge: z.number(),
+      }),
+      daysToAnalyze: z.number().optional().default(30),
+    }))
+    .query(async ({ ctx, input }) => {
+      const tenantId = input.tenantId || ctx.user.tenantId;
+
+      if (!tenantId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Tenant ID is required",
+        });
+      }
+
+      const simulationResults = await simulateRoutingDistribution(
+        tenantId,
+        input.policyInput as PolicySimulationInput,
+        input.daysToAnalyze
+      );
+
+      return simulationResults;
+    }),
+
+  /**
+   * Get policy impact metrics for a specific policy
+   */
+  getPolicyImpactMetrics: policyManagementProcedure
+    .input(z.object({
+      policyId: z.number().int().positive(),
+      tenantId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const tenantId = input.tenantId || ctx.user.tenantId;
+
+      if (!tenantId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Tenant ID is required",
+        });
+      }
+
+      const impactMetrics = await getPolicyImpactMetrics(input.policyId, tenantId);
+
+      return impactMetrics;
+    }),
+
+  /**
+   * Compare performance between two policy versions
+   */
+  comparePolicyPerformance: policyManagementProcedure
+    .input(z.object({
+      policy1Id: z.number().int().positive(),
+      policy2Id: z.number().int().positive(),
+      tenantId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const tenantId = input.tenantId || ctx.user.tenantId;
+
+      if (!tenantId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Tenant ID is required",
+        });
+      }
+
+      const comparisonResults = await comparePolicyPerformance(
+        input.policy1Id,
+        input.policy2Id,
+        tenantId
+      );
+
+      return comparisonResults;
+    }),
+
+  /**
+   * Get impact metrics for all policies
+   */
+  getAllPolicyImpactMetrics: policyManagementProcedure
+    .input(z.object({
+      tenantId: z.string().optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const tenantId = input.tenantId || ctx.user.tenantId;
+
+      if (!tenantId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Tenant ID is required",
+        });
+      }
+
+      const allMetrics = await getAllPolicyImpactMetrics(tenantId);
+
+      return allMetrics;
     }),
 });
