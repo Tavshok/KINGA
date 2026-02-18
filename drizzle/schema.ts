@@ -2368,6 +2368,7 @@ export const automationPolicies = mysqlTable("automation_policies", {
   
   // Fraud Risk Cutoff
   maxFraudScoreForAutomation: int("max_fraud_score_for_automation").notNull().default(30),
+  fraudSensitivityMultiplier: decimal("fraud_sensitivity_multiplier", { precision: 3, scale: 2 }).notNull().default("1.00"), // 0.5 (lenient) to 2.0 (strict)
   
   // Vehicle Category Rules
   eligibleVehicleCategories: json("eligible_vehicle_categories").notNull(),

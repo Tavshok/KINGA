@@ -1,0 +1,1 @@
+ALTER TABLE `automation_policies` ADD `fraud_sensitivity_multiplier` decimal(3,2) DEFAULT '1.00' NOT NULL;

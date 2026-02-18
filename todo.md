@@ -8207,3 +8207,51 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test audit reproducibility (reproduce routing decisions from audit trail)
 - [x] Create implementation summary document (ROUTING_SYSTEM_ENHANCEMENT_SUMMARY.md)
 - [ ] Save final checkpoint
+
+
+## Policy Management Enhancement (automation_policies as single source of truth)
+
+### Phase 1: Policy Profile Templates & Activation System
+- [x] Define policy profile templates (Conservative, Balanced, Aggressive, Fraud-Sensitive, Custom)
+- [x] Create policy profile configuration objects with preset thresholds
+- [x] Add fraudSensitivityMultiplier field to automation_policies schema
+- [x] Implement createPolicyFromProfile service function
+- [x] Implement activatePolicy service function (sets isActive=true, deactivates others)
+- [x] Add POLICY_ACTIVATED action type to audit trail
+- [x] Create tRPC procedures for policy profile operations
+
+### Phase 2: Policy Management UI
+- [ ] Create PolicyManagementDashboard component (insurer_admin, executive only)
+- [ ] Build ActivePolicyCard component (view current active policy)
+- [ ] Build PolicyVersionHistory component (timeline view with version comparison)
+- [ ] Build PolicyComparisonView component (side-by-side diff)
+- [ ] Build CreatePolicyForm component (select profile, customize thresholds)
+- [ ] Build PolicyActivationDialog component (confirm activation with impact preview)
+- [ ] Add role-based access control (insurer_admin, executive only)
+- [ ] Integrate with existing routingPolicyVersion tRPC procedures
+
+### Phase 3: Policy Simulation Engine
+- [ ] Create policy simulation service (simulate routing without affecting claims)
+- [ ] Implement simulateRoutingDistribution function (% auto-approve, hybrid, escalate, fraud)
+- [ ] Add simulation tRPC procedures (simulatePolicy, getSimulationResults)
+- [ ] Build PolicySimulator component (draft policy input, routing distribution output)
+- [ ] Add simulation result visualization (pie chart, bar chart)
+- [ ] Ensure simulation does NOT modify real claims or routing decisions
+
+### Phase 4: Governance Analytics Integration
+- [ ] Track policy version impact metrics (override rate, fraud detection rate, avg processing time, financial variance)
+- [ ] Create policy impact analytics service
+- [ ] Add tRPC procedures for policy analytics (getPolicyImpactMetrics, comparePolicyPerformance)
+- [ ] Build PolicyImpactDashboard component (metrics comparison across versions)
+- [ ] Add policy effectiveness scoring algorithm
+- [ ] Integrate with existing governance analytics
+
+### Phase 5: Testing & Delivery
+- [ ] Test policy profile creation (all 5 profiles)
+- [ ] Test policy activation workflow (deactivate old, activate new)
+- [ ] Test policy simulation accuracy (compare simulated vs actual routing)
+- [ ] Test governance analytics (policy impact metrics)
+- [ ] Test RBAC enforcement (insurer_admin, executive only)
+- [ ] Test audit trail completeness (all policy changes logged)
+- [ ] Create implementation summary document
+- [ ] Save final checkpoint
