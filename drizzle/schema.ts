@@ -171,6 +171,7 @@ export const claims = mysqlTable("claims", {
   // Workflow state machine
   workflowState: mysqlEnum("workflow_state", [
     "created",
+    "intake_queue",
     "intake_verified",
     "assigned",
     "under_assessment",
@@ -181,6 +182,11 @@ export const claims = mysqlTable("claims", {
     "closed",
     "disputed"
   ]),
+  
+  // Claims Manager intake gate fields
+  assignedProcessorId: int("assigned_processor_id"), // Claims Processor user ID assigned by Claims Manager
+  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium"),
+  earlyFraudSuspicion: tinyint("early_fraud_suspicion").default(0).notNull(), // Flag set by Claims Manager during intake
   
   // Approval tracking
   technicallyApprovedBy: int("technically_approved_by"), // Risk Manager user ID

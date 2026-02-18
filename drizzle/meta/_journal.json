@@ -281,6 +281,13 @@
       "when": 1771405243436,
       "tag": "0039_wild_reptil",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "5",
+      "when": 1771405575188,
+      "tag": "0040_glamorous_giant_girl",
+      "breakpoints": true
     }
   ]
 }

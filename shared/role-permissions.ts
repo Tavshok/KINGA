@@ -20,6 +20,10 @@ export interface RolePermissions {
   canEditClaim: boolean;
   canDeleteClaim: boolean;
   
+  // Intake Gate Operations
+  canViewIntakeQueue: boolean;
+  canAssignProcessor: boolean;
+  
   // Assessment Operations
   canTriggerAIAssessment: boolean;
   canViewAIAssessment: boolean;
@@ -75,6 +79,10 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canEditClaim: true,
     canDeleteClaim: false,
     
+    // Intake Gate Operations - RESTRICTED
+    canViewIntakeQueue: false,
+    canAssignProcessor: false,
+    
     // Assessment Operations
     canTriggerAIAssessment: true,
     canViewAIAssessment: true,
@@ -115,8 +123,8 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canManageWorkflowSettings: false,
     canManageAutomationPolicies: false,
     
-    // Queue Access
-    accessibleQueues: ["created", "assigned", "disputed", "closed"],
+    // Queue Access - CANNOT VIEW INTAKE_QUEUE
+    accessibleQueues: ["assigned", "disputed", "closed"], // Only assigned claims (assigned by claims_manager)
   },
   
   assessor_internal: {
@@ -125,6 +133,10 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canViewClaim: true,
     canEditClaim: false,
     canDeleteClaim: false,
+    
+    // Intake Gate Operations - RESTRICTED
+    canViewIntakeQueue: false,
+    canAssignProcessor: false,
     
     // Assessment Operations - RESTRICTED AI TRIGGER
     canTriggerAIAssessment: false, // Cannot trigger AI unless re-analysis explicitly allowed
@@ -177,6 +189,10 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canEditClaim: false,
     canDeleteClaim: false,
     
+    // Intake Gate Operations - RESTRICTED
+    canViewIntakeQueue: false,
+    canAssignProcessor: false,
+    
     // Assessment Operations
     canTriggerAIAssessment: false,
     canViewAIAssessment: true,
@@ -228,6 +244,10 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canEditClaim: true,
     canDeleteClaim: true,
     
+    // Intake Gate Operations - FULL ACCESS
+    canViewIntakeQueue: true,
+    canAssignProcessor: true,
+    
     // Assessment Operations
     canTriggerAIAssessment: true,
     canViewAIAssessment: true,
@@ -268,8 +288,8 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canManageWorkflowSettings: true,
     canManageAutomationPolicies: true,
     
-    // Queue Access - FULL OVERSIGHT
-    accessibleQueues: ["created", "assigned", "disputed", "closed", "fraud_flagged"],
+    // Queue Access - FULL OVERSIGHT INCLUDING INTAKE
+    accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
   },
   
   executive: {
@@ -278,6 +298,10 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canViewClaim: true,
     canEditClaim: false,
     canDeleteClaim: false,
+    
+    // Intake Gate Operations - VIEW ONLY
+    canViewIntakeQueue: true,
+    canAssignProcessor: false,
     
     // Assessment Operations
     canTriggerAIAssessment: false,
@@ -319,8 +343,8 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canManageWorkflowSettings: false,
     canManageAutomationPolicies: false,
     
-    // Queue Access - READ-ONLY ALL
-    accessibleQueues: ["created", "assigned", "disputed", "closed", "fraud_flagged"],
+    // Queue Access - READ-ONLY ALL INCLUDING INTAKE
+    accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
   },
   
   insurer_admin: {
@@ -329,6 +353,8 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canViewClaim: true,
     canEditClaim: true,
     canDeleteClaim: true,
+    canViewIntakeQueue: true,
+    canAssignProcessor: true,
     canTriggerAIAssessment: true,
     canViewAIAssessment: true,
     canOverrideAIAssessment: true,
@@ -355,7 +381,7 @@ export const ROLE_PERMISSIONS: Record<InsurerRole, RolePermissions> = {
     canManageUsers: true,
     canManageWorkflowSettings: true,
     canManageAutomationPolicies: true,
-    accessibleQueues: ["created", "assigned", "disputed", "closed", "fraud_flagged"],
+    accessibleQueues: ["intake_queue", "created", "assigned", "disputed", "closed", "fraud_flagged"],
   },
 };
 
@@ -370,6 +396,8 @@ export function getRolePermissions(role: InsurerRole | null | undefined): RolePe
       canViewClaim: false,
       canEditClaim: false,
       canDeleteClaim: false,
+      canViewIntakeQueue: false,
+      canAssignProcessor: false,
       canTriggerAIAssessment: false,
       canViewAIAssessment: false,
       canOverrideAIAssessment: false,

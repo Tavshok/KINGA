@@ -7668,3 +7668,63 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Test safeguards (rate limiting, locking) (logic validated in procedure)
 - [x] Create implementation summary document
 - [ ] Save final checkpoint
+
+
+## Claims Manager Intake Gate Implementation
+
+### Phase 1: Workflow & Schema Updates
+- [x] Add intake_queue to workflow states enum (schema.ts updated)
+- [x] Add assignedProcessorId field to claims table (SQL executed)
+- [x] Add priority field (low/medium/high) to claims table (SQL executed)
+- [x] Add earlyFraudSuspicion boolean field to claims table (SQL executed)
+- [ ] Update claim creation to default to intake_queue status (requires router update)
+- [x] Apply database schema changes (all SQL migrations complete)
+
+### Phase 2: Role-Based Access Restrictions
+- [x] Update role-permissions.ts with intake_queue access rules
+- [x] claims_manager can view intake_queue (canViewIntakeQueue: true, accessibleQueues includes intake_queue)
+- [x] claims_processor cannot view intake_queue (canViewIntakeQueue: false, accessibleQueues excludes intake_queue)
+- [ ] claims_processor can only view claims where assignedProcessorId matches userId (requires query procedure update)
+- [x] Update getAccessibleQueues() function (already returns accessibleQueues from permissions)
+- [ ] Update claims query procedures with role-based filtering (requires backend implementation)
+
+### Phase 3: Assignment Procedure
+- [ ] Create claims.assignToProcessor(claimId, processorId, priority?) procedure
+- [ ] Restrict access to claims_manager role only
+- [ ] Validate claim is in intake_queue state
+- [ ] Validate processor belongs to same tenant
+- [ ] Validate processor has claims_processor role
+- [ ] Transition claim from intake_queue to assigned_to_processor state
+- [ ] Insert audit trail entry with actionType = "ASSIGN_PROCESSOR"
+- [ ] Log processor assignment metadata
+
+### Phase 4: Dashboard Updates
+- [ ] Add "Intake Queue" tab to Claims Manager Dashboard
+- [ ] Display claim number, submission time, claim type, estimated value
+- [ ] Display AI preliminary score if available
+- [ ] Add priority selector dropdown (low/medium/high)
+- [ ] Add assign processor dropdown (filtered by tenant + role)
+- [ ] Add early fraud suspicion checkbox
+- [ ] Update Claims Processor Dashboard to show only "Assigned to Me" section
+- [ ] Remove unassigned claims visibility from Claims Processor Dashboard
+- [ ] Add assignment confirmation toast notifications
+
+### Phase 5: Safeguards & Override
+- [ ] Enforce claims cannot skip intake_queue on creation
+- [ ] Only claims_manager or executive can override intake gate
+- [ ] Create claims.overrideIntakeGate(claimId, reason) procedure
+- [ ] Log override as "INTAKE_OVERRIDE" in audit trail
+- [ ] Add override reason validation
+- [ ] Add governance metrics for intake override tracking
+
+### Phase 6: Testing & Documentation
+- [ ] Test claim creation enters intake_queue
+- [ ] Test claims_manager can view intake_queue
+- [ ] Test claims_processor cannot view intake_queue
+- [ ] Test processor assignment workflow
+- [ ] Test claims_processor sees only assigned claims
+- [ ] Test priority assignment
+- [ ] Test early fraud suspicion flag
+- [ ] Test intake override by executive
+- [ ] Create implementation summary document
+- [ ] Save final checkpoint
