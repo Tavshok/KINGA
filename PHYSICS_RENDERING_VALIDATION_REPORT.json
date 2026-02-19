@@ -1,0 +1,14 @@
+{
+  "generated": "2026-02-19T07:58:12.605Z",
+  "summary": {
+    "totalClaims": 0,
+    "claimsWithPhysicsData": 0,
+    "claimsWithImpactAngle": 0,
+    "claimsWithForce": 0,
+    "claimsWithLocation": 0,
+    "claimsQuantitativeMode": 0,
+    "claimsWithErrors": 0,
+    "claimsWithWarnings": 0
+  },
+  "validationResults": []
+}

@@ -1,0 +1,14 @@
+{
+  "query": "SELECT COUNT(*) as total_assessments,\n       SUM(CASE WHEN physics_analysis IS NOT NULL THEN 1 ELSE 0 END) as assessments_with_physics\nFROM ai_assessments;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT COUNT(*) as total_assessments,\n       SUM(CASE WHEN physics_analysis IS NOT NULL THEN 1 ELSE 0 END) as assessments_with_physics\nFROM ai_assessments;",
+  "rows": [
+    {
+      "total_assessments": "341",
+      "assessments_with_physics": "2"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_assessments\tassessments_with_physics\n341\t2\n",
+  "stderr": "",
+  "execution_time_ms": 87
+}
