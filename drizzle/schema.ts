@@ -364,7 +364,9 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
     tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  panelBeaterIdIdx: index("idx_panel_beater_quotes_panel_beater_id").on(table.panelBeaterId),
+}));
 
 export type PanelBeaterQuote = typeof panelBeaterQuotes.$inferSelect;
 export type InsertPanelBeaterQuote = typeof panelBeaterQuotes.$inferInsert;
