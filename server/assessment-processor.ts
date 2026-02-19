@@ -33,6 +33,69 @@ import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross
 // TYPE DEFINITIONS
 // ============================================================
 
+/**
+ * Calculate impact angle in degrees (0-360) from primary impact zone.
+ * 0° = front, 90° = right, 180° = rear, 270° = left
+ */
+function calculateImpactAngleDegrees(primaryImpactZone?: string): number {
+  if (!primaryImpactZone) return 0;
+  
+  const zone = primaryImpactZone.toLowerCase();
+  
+  // Front zones (0° ± 45°)
+  if (zone.includes('front')) {
+    if (zone.includes('left')) return 315; // Front-left
+    if (zone.includes('right')) return 45; // Front-right
+    return 0; // Front center
+  }
+  
+  // Rear zones (180° ± 45°)
+  if (zone.includes('rear')) {
+    if (zone.includes('left')) return 225; // Rear-left
+    if (zone.includes('right')) return 135; // Rear-right
+    return 180; // Rear center
+  }
+  
+  // Side zones
+  if (zone.includes('left')) return 270; // Left side
+  if (zone.includes('right')) return 90; // Right side
+  
+  // Default to front
+  return 0;
+}
+
+/**
+ * Calculate normalized impact location (0-1 range) from primary impact zone.
+ * relativeX: 0 = left, 0.5 = center, 1 = right
+ * relativeY: 0 = top, 0.5 = middle, 1 = bottom
+ */
+function calculateImpactLocationNormalized(primaryImpactZone?: string): { relativeX: number; relativeY: number } {
+  if (!primaryImpactZone) return { relativeX: 0.5, relativeY: 0.5 };
+  
+  const zone = primaryImpactZone.toLowerCase();
+  
+  // Front zones
+  if (zone.includes('front')) {
+    if (zone.includes('left')) return { relativeX: 0.25, relativeY: 0.5 };
+    if (zone.includes('right')) return { relativeX: 0.75, relativeY: 0.5 };
+    return { relativeX: 0.5, relativeY: 0.5 }; // Front center
+  }
+  
+  // Rear zones
+  if (zone.includes('rear')) {
+    if (zone.includes('left')) return { relativeX: 0.25, relativeY: 0.5 };
+    if (zone.includes('right')) return { relativeX: 0.75, relativeY: 0.5 };
+    return { relativeX: 0.5, relativeY: 0.5 }; // Rear center
+  }
+  
+  // Side zones
+  if (zone.includes('left')) return { relativeX: 0.0, relativeY: 0.5 };
+  if (zone.includes('right')) return { relativeX: 1.0, relativeY: 0.5 };
+  
+  // Default to center
+  return { relativeX: 0.5, relativeY: 0.5 };
+}
+
 interface ItemizedCost {
   description: string;
   amount: number;
@@ -1911,24 +1974,60 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     physicsValidation: (() => {
       try {
         const { extendPhysicsValidationOutput } = require('./physics-quantitative-output');
-        return extendPhysicsValidationOutput({
-          impactForce: physicsAnalysis.physics_analysis?.impact_force_n ? { magnitude: physicsAnalysis.physics_analysis.impact_force_n, duration: 0.05 } : undefined,
-          impactAngle: undefined,
-          primaryImpactZone: extractedData.accidentType === 'frontal' ? 'front_center' : extractedData.accidentType === 'rear' ? 'rear_center' : undefined,
-          damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string }) => ({ name: nc.normalized, location: nc.normalized })),
+        
+        // Determine primary impact zone from accident type
+        const primaryImpactZone = extractedData.accidentType === 'frontal' 
+          ? 'front_center' 
+          : extractedData.accidentType === 'rear' 
+          ? 'rear_center' 
+          : extractedData.accidentType === 'side' 
+          ? 'left_side' 
+          : 'front_center'; // Default to front
+        
+        // Calculate quantitative fields
+        const impactAngleDegrees = calculateImpactAngleDegrees(primaryImpactZone);
+        const impactLocationNormalized = calculateImpactLocationNormalized(primaryImpactZone);
+        
+        // Log quantitative physics calculation
+        console.log(`⚙️ Quantitative Physics: angle=${impactAngleDegrees}°, location=(${impactLocationNormalized.relativeX.toFixed(2)}, ${impactLocationNormalized.relativeY.toFixed(2)})`);
+        
+        const quantitativePhysics = extendPhysicsValidationOutput({
+          impactForce: physicsAnalysis.physics_analysis?.impact_force_n 
+            ? { magnitude: physicsAnalysis.physics_analysis.impact_force_n, duration: 0.05 } 
+            : undefined,
+          impactAngle: impactAngleDegrees,
+          primaryImpactZone,
+          damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string }) => ({ 
+            name: nc.normalized, 
+            location: nc.normalized 
+          })),
           accidentType: extractedData.accidentType as any,
           estimatedSpeed: { value: physicsAnalysis.impactSpeed || 0 },
           damageConsistency: { score: physicsAnalysis.physicsScore || 50 },
           mass: extractedData.vehicleMass,
           crushDepth: 0.3, // Default crush depth estimate
         });
+        
+        // Validate quantitative fields presence
+        if (!quantitativePhysics.impactAngleDegrees || !quantitativePhysics.calculatedImpactForceKN) {
+          console.warn('⚠️ Quantitative physics validation incomplete - missing required fields');
+        }
+        
+        return quantitativePhysics;
       } catch (error) {
-        console.warn('⚠️ Quantitative physics extension failed:', error);
+        console.error('❌ Quantitative physics extension failed:', error);
+        // Return fallback with calculated values
+        const primaryImpactZone = extractedData.accidentType === 'frontal' 
+          ? 'front_center' 
+          : extractedData.accidentType === 'rear' 
+          ? 'rear_center' 
+          : 'front_center';
+        
         return {
-          impactAngleDegrees: 0,
-          calculatedImpactForceKN: 0.0,
-          impactLocationNormalized: { relativeX: 0.5, relativeY: 0.5 },
-          severityLevel: 'unknown',
+          impactAngleDegrees: calculateImpactAngleDegrees(primaryImpactZone),
+          calculatedImpactForceKN: physicsAnalysis.impactForce ? physicsAnalysis.impactForce / 1000 : 0.0,
+          impactLocationNormalized: calculateImpactLocationNormalized(primaryImpactZone),
+          severityLevel: 'unknown' as const,
           confidenceScore: 0,
         };
       }
