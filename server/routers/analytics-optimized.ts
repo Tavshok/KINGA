@@ -218,8 +218,8 @@ export const analyticsRouter = router({
                INNER JOIN claims c ON cit.claim_id = c.id
                WHERE ${sql.raw(governanceFilter.replace('tenant_id', 'c.tenant_id'))} 
                  cit.created_at >= ${thirtyDaysAgo.toISOString()}
-             GROUP BY cit.user_id, cit.claim_id
-             HAVING COUNT(DISTINCT cit.workflow_stage) > 1
+               GROUP BY cit.user_id, cit.claim_id
+               HAVING COUNT(DISTINCT cit.stage) > 1
              ) subq
             ) as segregation_violations,
             (SELECT COUNT(*) 

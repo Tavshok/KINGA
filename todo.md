@@ -9122,3 +9122,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure no duplicate index creation
 - [x] Execute migration
 - [x] Verify index creation with SHOW INDEX query
+
+
+## Analytics.ts N+1 Query Refactoring
+- [x] Analyze analytics.ts and count current DB queries
+- [x] Identify all loops containing db.query()
+- [x] Replace loops with single JOIN queries where possible
+- [x] Replace loops with batch IN() queries where JOIN not possible
+- [x] Replace loops with GROUP BY aggregations where appropriate
+- [x] Eliminate Promise.all for DB queries if JOIN possible
+- [x] Reduce DB round trips from 12+ to 1 per dashboard
+- [x] Verify response shape maintained
+- [x] Measure query count before/after
+- [x] Calculate performance improvement estimate
