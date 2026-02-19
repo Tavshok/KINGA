@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Zap } from "lucide-react";
-import { clamp } from "@/lib/mathUtils";
+import { clamp, getConfidenceColor, formatConfidenceScore } from "@/lib/mathUtils";
 
 /**
  * Physics Validation Data (from backend quantitative physics engine)
@@ -28,6 +28,9 @@ interface VehicleImpactVectorDiagramProps {
   
   // NEW: Quantitative physics data
   physicsValidation?: PhysicsValidation | null;
+  
+  // NEW: AI confidence score (0-1)
+  confidenceScore?: number;
 }
 
 export function VehicleImpactVectorDiagram({
@@ -41,6 +44,7 @@ export function VehicleImpactVectorDiagram({
   damagedComponents = [],
   damageConsistency = 'consistent',
   physicsValidation,
+  confidenceScore,
 }: VehicleImpactVectorDiagramProps) {
   
   // SVG canvas dimensions
@@ -259,6 +263,15 @@ export function VehicleImpactVectorDiagram({
               Qualitative Mode
             </Badge>
           )}
+          {confidenceScore !== undefined && (
+            <Badge 
+              variant="outline" 
+              className={`text-xs ${getConfidenceColor(confidenceScore).bg} ${getConfidenceColor(confidenceScore).text} ${getConfidenceColor(confidenceScore).border}`}
+              title={`${getConfidenceColor(confidenceScore).label}: AI assessment reliability`}
+            >
+              {formatConfidenceScore(confidenceScore)} Confidence
+            </Badge>
+          )}
         </div>
       </div>
 
@@ -291,9 +304,18 @@ export function VehicleImpactVectorDiagram({
       <div className="bg-gray-50 rounded-lg p-4">
         <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="w-full">
           <defs>
+            {/* Confidence-based arrowheads */}
+            <marker id="arrowhead-green" markerWidth="10" markerHeight="10" 
+                    refX="9" refY="3" orient="auto">
+              <polygon points="0 0, 10 3, 0 6" fill="#15803d" />
+            </marker>
+            <marker id="arrowhead-amber" markerWidth="10" markerHeight="10" 
+                    refX="9" refY="3" orient="auto">
+              <polygon points="0 0, 10 3, 0 6" fill="#b45309" />
+            </marker>
             <marker id="arrowhead-red" markerWidth="10" markerHeight="10" 
                     refX="9" refY="3" orient="auto">
-              <polygon points="0 0, 10 3, 0 6" fill="#dc2626" />
+              <polygon points="0 0, 10 3, 0 6" fill="#b91c1c" />
             </marker>
             <marker id="arrowhead-orange" markerWidth="8" markerHeight="8" 
                     refX="7" refY="2.5" orient="auto">
@@ -342,15 +364,15 @@ export function VehicleImpactVectorDiagram({
           <circle cx={config.impactX} cy={config.impactY} r="3" 
                   fill="#fca5a5" opacity="0.8"/>
           
-          {/* Primary impact vector (thickness scaled by force) */}
+          {/* Primary impact vector (thickness scaled by force, color by confidence) */}
           <line 
             x1={config.vectorX1} 
             y1={config.vectorY1} 
             x2={config.vectorX2} 
             y2={config.vectorY2} 
-            stroke="#dc2626" 
+            stroke={confidenceScore !== undefined ? getConfidenceColor(confidenceScore).vector : "#dc2626"} 
             strokeWidth={vectorThickness} 
-            markerEnd="url(#arrowhead-red)"
+            markerEnd={confidenceScore !== undefined && confidenceScore > 0.85 ? "url(#arrowhead-green)" : confidenceScore !== undefined && confidenceScore >= 0.6 ? "url(#arrowhead-amber)" : "url(#arrowhead-red)"}
           />
           <text 
             x={(config.vectorX1 + config.vectorX2) / 2} 

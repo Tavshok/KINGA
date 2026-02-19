@@ -8895,3 +8895,29 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Root Cause: Legacy qualitative physics structure in database, quantitative fields missing
 - [x] Impact: All 553 claims fallback to qualitative rendering mode
 - [ ] Create checkpoint (PENDING)
+
+
+## VehicleImpactVectorDiagram Confidence Enhancement (COMPLETE)
+- [x] Create getConfidenceColor utility function
+  - [x] Define confidence thresholds: >0.85 (high), 0.6-0.85 (medium), <0.6 (low)
+  - [x] Return semantic colors: green (high), amber (medium), red (low)
+  - [x] Use Tailwind CSS color classes (text-green-700, bg-green-100, etc.)
+  - [x] Ensure WCAG AA accessibility standards (green-700 #15803d, amber-700 #b45309, red-700 #b91c1c)
+- [x] Add confidence score prop to VehicleImpactVectorDiagram
+  - [x] Extend props interface with confidenceScore?: number (0-1)
+  - [x] Parse confidence score from physicsValidation or aiAssessment
+- [x] Implement confidence badge component
+  - [x] Display confidence score as percentage (e.g., "85% Confidence")
+  - [x] Apply color coding using getConfidenceColor()
+  - [x] Position badge near rendering mode badge (line 266-274)
+  - [x] Add tooltip explaining confidence levels (title attribute)
+- [x] Apply color coding to impact vector
+  - [x] Color vector arrow based on confidence score (line 364: stroke color)
+  - [x] Color vector arrowhead based on confidence score (line 366: markerEnd)
+  - [x] Add confidence-based arrowhead markers (green, amber, red)
+  - [x] Maintain visual hierarchy (confidence should not overpower force data)
+- [x] Test accessibility
+  - [x] Verify color contrast meets WCAG AA standards (green-700, amber-700, red-700 all ≥4.5:1)
+  - [x] Tooltip provides semantic label ("High Confidence", "Medium Confidence", "Low Confidence")
+  - [x] Confidence information available via title attribute
+- [ ] Create checkpoint (PENDING)
