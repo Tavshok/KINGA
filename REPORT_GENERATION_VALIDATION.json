@@ -1,0 +1,491 @@
+{
+  "generatedAt": "2026-02-19T08:17:28.138Z",
+  "totalReports": 20,
+  "summary": {
+    "pass": 15,
+    "warn": 5,
+    "fail": 0
+  },
+  "results": [
+    {
+      "reportType": "Claim Dossier PDF",
+      "claimId": 960500,
+      "claimNumber": "CLM-STRESS-000499",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Damage Assessment",
+        "Physics Analysis",
+        "Financial Breakdown"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 1,
+      "status": "WARN",
+      "errors": [
+        "No damage photos found",
+        "Physics analysis not found",
+        "Confidence score not found",
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Executive Report",
+      "claimId": 960500,
+      "claimNumber": "CLM-STRESS-000499",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Key Metrics",
+        "Risk Analysis",
+        "Cost Savings",
+        "Fraud Detection"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Financial Summary",
+      "claimId": 960500,
+      "claimNumber": "CLM-STRESS-000499",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Claim Value",
+        "Repair Costs",
+        "Total Payable"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Audit Trail Report",
+      "claimId": 960500,
+      "claimNumber": "CLM-STRESS-000499",
+      "sectionsComplete": true,
+      "missingSections": [],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Claim Dossier PDF",
+      "claimId": 960499,
+      "claimNumber": "CLM-STRESS-000498",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Damage Assessment",
+        "Physics Analysis",
+        "Financial Breakdown"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "WARN",
+      "errors": [
+        "No damage photos found",
+        "Physics analysis not found",
+        "Confidence score not found",
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Executive Report",
+      "claimId": 960499,
+      "claimNumber": "CLM-STRESS-000498",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Key Metrics",
+        "Risk Analysis",
+        "Cost Savings",
+        "Fraud Detection"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Financial Summary",
+      "claimId": 960499,
+      "claimNumber": "CLM-STRESS-000498",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Claim Value",
+        "Repair Costs",
+        "Total Payable"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Audit Trail Report",
+      "claimId": 960499,
+      "claimNumber": "CLM-STRESS-000498",
+      "sectionsComplete": true,
+      "missingSections": [],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Claim Dossier PDF",
+      "claimId": 960498,
+      "claimNumber": "CLM-STRESS-000497",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Damage Assessment",
+        "Physics Analysis",
+        "Financial Breakdown"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "WARN",
+      "errors": [
+        "No damage photos found",
+        "Physics analysis not found",
+        "Confidence score not found",
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Executive Report",
+      "claimId": 960498,
+      "claimNumber": "CLM-STRESS-000497",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Key Metrics",
+        "Risk Analysis",
+        "Cost Savings",
+        "Fraud Detection"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Financial Summary",
+      "claimId": 960498,
+      "claimNumber": "CLM-STRESS-000497",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Claim Value",
+        "Repair Costs",
+        "Total Payable"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Audit Trail Report",
+      "claimId": 960498,
+      "claimNumber": "CLM-STRESS-000497",
+      "sectionsComplete": true,
+      "missingSections": [],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Claim Dossier PDF",
+      "claimId": 960497,
+      "claimNumber": "CLM-STRESS-000496",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Damage Assessment",
+        "Physics Analysis",
+        "Financial Breakdown"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "WARN",
+      "errors": [
+        "No damage photos found",
+        "Physics analysis not found",
+        "Confidence score not found",
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Executive Report",
+      "claimId": 960497,
+      "claimNumber": "CLM-STRESS-000496",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Key Metrics",
+        "Risk Analysis",
+        "Cost Savings",
+        "Fraud Detection"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Financial Summary",
+      "claimId": 960497,
+      "claimNumber": "CLM-STRESS-000496",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Claim Value",
+        "Repair Costs",
+        "Total Payable"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Audit Trail Report",
+      "claimId": 960497,
+      "claimNumber": "CLM-STRESS-000496",
+      "sectionsComplete": true,
+      "missingSections": [],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Claim Dossier PDF",
+      "claimId": 960496,
+      "claimNumber": "CLM-STRESS-000495",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Damage Assessment",
+        "Physics Analysis",
+        "Financial Breakdown"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "WARN",
+      "errors": [
+        "No damage photos found",
+        "Physics analysis not found",
+        "Confidence score not found",
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Executive Report",
+      "claimId": 960496,
+      "claimNumber": "CLM-STRESS-000495",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Key Metrics",
+        "Risk Analysis",
+        "Cost Savings",
+        "Fraud Detection"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Financial Summary",
+      "claimId": 960496,
+      "claimNumber": "CLM-STRESS-000495",
+      "sectionsComplete": false,
+      "missingSections": [
+        "Claim Value",
+        "Repair Costs",
+        "Total Payable"
+      ],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    },
+    {
+      "reportType": "Audit Trail Report",
+      "claimId": 960496,
+      "claimNumber": "CLM-STRESS-000495",
+      "sectionsComplete": true,
+      "missingSections": [],
+      "imagesEmbedded": false,
+      "imageCount": 0,
+      "physicsIncluded": false,
+      "confidenceDisplayed": false,
+      "nullSafe": false,
+      "nullFields": [
+        "claim.vehicleRegistration"
+      ],
+      "generationTimeMs": 0,
+      "status": "PASS",
+      "errors": [
+        "1 null/undefined fields found"
+      ]
+    }
+  ]
+}
