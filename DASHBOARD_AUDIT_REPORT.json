@@ -8,13 +8,12 @@
     ],
     "dataSourceTables": [
       "claims",
-      "aiAssessments",
       "users",
       "panelBeaters"
     ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "435 potential null-unsafe property accesses",
+      "181 potential null-unsafe property accesses",
       "No empty dataset handling detected"
     ],
     "indexRequired": true,
@@ -39,7 +38,7 @@
     ],
     "n1Patterns": [
       "Found 1 potential N+1 query pattern(s)",
-      "Found 10 potential N+1 query pattern(s)"
+      "Found 2 potential N+1 query pattern(s)"
     ]
   },
   {
@@ -54,13 +53,12 @@
     ],
     "dataSourceTables": [
       "claims",
-      "aiAssessments",
       "users",
       "panelBeaters"
     ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "435 potential null-unsafe property accesses",
+      "181 potential null-unsafe property accesses",
       "No empty dataset handling detected"
     ],
     "indexRequired": true,
@@ -85,7 +83,7 @@
     ],
     "n1Patterns": [
       "Found 1 potential N+1 query pattern(s)",
-      "Found 10 potential N+1 query pattern(s)"
+      "Found 2 potential N+1 query pattern(s)"
     ]
   },
   {
@@ -97,13 +95,12 @@
     ],
     "dataSourceTables": [
       "claims",
-      "aiAssessments",
       "users",
       "panelBeaters"
     ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "435 potential null-unsafe property accesses",
+      "181 potential null-unsafe property accesses",
       "No empty dataset handling detected"
     ],
     "indexRequired": true,
@@ -128,7 +125,7 @@
     ],
     "n1Patterns": [
       "Found 1 potential N+1 query pattern(s)",
-      "Found 10 potential N+1 query pattern(s)"
+      "Found 2 potential N+1 query pattern(s)"
     ]
   },
   {
@@ -140,13 +137,12 @@
     ],
     "dataSourceTables": [
       "claims",
-      "aiAssessments",
       "users",
       "panelBeaters"
     ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "435 potential null-unsafe property accesses",
+      "181 potential null-unsafe property accesses",
       "No empty dataset handling detected"
     ],
     "indexRequired": true,
@@ -171,7 +167,7 @@
     ],
     "n1Patterns": [
       "Found 1 potential N+1 query pattern(s)",
-      "Found 10 potential N+1 query pattern(s)"
+      "Found 2 potential N+1 query pattern(s)"
     ]
   },
   {
@@ -184,22 +180,69 @@
       "getTrends",
       "comparePanelBeaters"
     ],
-    "dataSourceTables": [],
-    "queryHealth": "FAIL",
-    "queryHealthDetails": [
-      "Router file not found: /home/ubuntu/kinga-replit/server/routers/panel-beater-analytics.ts"
+    "dataSourceTables": [
+      "panelBeaters"
     ],
-    "indexRequired": false,
-    "indexDetails": [],
-    "mockData": false,
-    "mockDataDetails": [],
-    "performanceRisk": "LOW",
-    "performanceRiskDetails": [],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "groupBy without sql template literal: panelBeaters.id, panelBeaters.name, panelBeaters.b...",
+      "groupBy without sql template literal: panelBeaters.id, panelBeaters.name, panelBeaters.b...",
+      "groupBy without sql template literal: panelBeaters.id, panelBeaters.name...",
+      "246 potential null-unsafe property accesses"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed)",
+      "leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed)"
+    ],
+    "mockData": true,
+    "mockDataDetails": [
+      "Found 1 potential mock data pattern(s)"
+    ],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id",
+      "Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id",
+      "Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id",
+      "Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id",
+      "Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id",
+      "Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id",
+      "Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id",
+      "Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id",
+      "Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id",
+      "Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id",
+      "N+1 query detected in loop"
+    ],
     "fixRequired": true,
     "fixDetails": [
-      "Create missing router file"
+      "Replace mock data with real DB queries",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Add index on claims.assignedPanelBeaterId or panelBeaters.id",
+      "Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id",
+      "Add index on claims.assignedPanelBeaterId or panelBeaters.id",
+      "Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id",
+      "Add index on claims.assignedPanelBeaterId or panelBeaters.id",
+      "Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id",
+      "Add index on claims.assignedPanelBeaterId or panelBeaters.id",
+      "Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id",
+      "Add index on claims.assignedPanelBeaterId or panelBeaters.id",
+      "Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins"
     ],
-    "n1Patterns": []
+    "n1Patterns": [
+      "Found 3 potential N+1 query pattern(s)"
+    ]
   },
   {
     "dashboardName": "Financials",
@@ -211,13 +254,12 @@
     ],
     "dataSourceTables": [
       "claims",
-      "aiAssessments",
       "users",
       "panelBeaters"
     ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "435 potential null-unsafe property accesses",
+      "181 potential null-unsafe property accesses",
       "No empty dataset handling detected"
     ],
     "indexRequired": true,
@@ -242,7 +284,7 @@
     ],
     "n1Patterns": [
       "Found 1 potential N+1 query pattern(s)",
-      "Found 10 potential N+1 query pattern(s)"
+      "Found 2 potential N+1 query pattern(s)"
     ]
   },
   {
@@ -253,25 +295,56 @@
       "getSegregationMetrics",
       "getRoleChangeMetrics"
     ],
-    "dataSourceTables": [],
+    "dataSourceTables": [
+      "workflowAuditTrail",
+      "claimInvolvementTracking",
+      "stages",
+      "users",
+      "userSet",
+      "allUserIds",
+      "roleAssignmentAudit"
+    ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "70 potential null-unsafe property accesses"
+      "groupBy without sql template literal: workflowAuditTrail.userId, users.name...",
+      "groupBy without sql template literal: workflowAuditTrail.userId...",
+      "groupBy without sql template literal: workflowAuditTrail.userId, users.name...",
+      "groupBy without sql template literal: workflowAuditTrail.overrideReason...",
+      "groupBy without sql template literal: roleAssignmentAudit.changedByUserId, users.name...",
+      "groupBy without sql template literal: roleAssignmentAudit.previousRole,\n              ro...",
+      "406 potential null-unsafe property accesses"
     ],
     "indexRequired": false,
     "indexDetails": [],
     "mockData": true,
     "mockDataDetails": [
-      "Found 7 potential mock data pattern(s)"
+      "Found 6 potential mock data pattern(s)"
     ],
-    "performanceRisk": "MEDIUM",
-    "performanceRiskDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "N+1 query detected in loop",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
     "fixRequired": true,
     "fixDetails": [
       "Replace mock data with real DB queries",
-      "Add null safety checks (optional chaining, nullish coalescing)"
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Wrap groupBy arguments in sql`` template literal",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins"
     ],
-    "n1Patterns": []
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 13 potential N+1 query pattern(s)",
+      "Found 6 potential N+1 query pattern(s)"
+    ]
   },
   {
     "dashboardName": "Executive",
@@ -283,13 +356,12 @@
     ],
     "dataSourceTables": [
       "claims",
-      "aiAssessments",
       "users",
       "panelBeaters"
     ],
     "queryHealth": "WARN",
     "queryHealthDetails": [
-      "435 potential null-unsafe property accesses",
+      "181 potential null-unsafe property accesses",
       "No empty dataset handling detected"
     ],
     "indexRequired": true,
@@ -314,7 +386,7 @@
     ],
     "n1Patterns": [
       "Found 1 potential N+1 query pattern(s)",
-      "Found 10 potential N+1 query pattern(s)"
+      "Found 2 potential N+1 query pattern(s)"
     ]
   }
 ]

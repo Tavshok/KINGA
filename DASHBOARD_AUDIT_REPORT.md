@@ -1,16 +1,16 @@
 # Dashboard Endpoints Audit Report
 
-**Generated:** 2/19/2026, 2:42:14 AM
+**Generated:** 2/19/2026, 4:53:25 AM
 
 ## Executive Summary
 
 - **Total Dashboards Audited:** 8
 - **Health Status:**
   - ✅ PASS: 0
-  - ⚠️  WARN: 7
-  - ❌ FAIL: 1
-- **Mock Data Detected:** 1 dashboard(s)
-- **High Performance Risk:** 6 dashboard(s)
+  - ⚠️  WARN: 8
+  - ❌ FAIL: 0
+- **Mock Data Detected:** 2 dashboard(s)
+- **High Performance Risk:** 8 dashboard(s)
 - **Fixes Required:** 8 dashboard(s)
 
 ---
@@ -25,12 +25,12 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ✅ | claims, aiAssessments, users, panelBeaters |
-| **Query Health** | ⚠️ WARN | 435 potential null-unsafe property accesses; No empty dataset handling detected |
+| **Data Source Tables** | ✅ | claims, users, panelBeaters |
+| **Query Health** | ⚠️ WARN | 181 potential null-unsafe property accesses; No empty dataset handling detected |
 | **Index Required** | ⚠️  YES | leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed) |
 | **Mock Data** | ✅ NO | Real DB queries confirmed |
 | **Performance Risk** | ❌ HIGH | Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId; N+1 query detected in loop; N+1 query detected in loop |
-| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 10 potential N+1 query pattern(s) |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 2 potential N+1 query pattern(s) |
 | **Fix Required** | ⚠️  YES | Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Add empty dataset checks and fallback values |
 
 ### Analytics
@@ -41,12 +41,12 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ✅ | claims, aiAssessments, users, panelBeaters |
-| **Query Health** | ⚠️ WARN | 435 potential null-unsafe property accesses; No empty dataset handling detected |
+| **Data Source Tables** | ✅ | claims, users, panelBeaters |
+| **Query Health** | ⚠️ WARN | 181 potential null-unsafe property accesses; No empty dataset handling detected |
 | **Index Required** | ⚠️  YES | leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed) |
 | **Mock Data** | ✅ NO | Real DB queries confirmed |
 | **Performance Risk** | ❌ HIGH | Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId; N+1 query detected in loop; N+1 query detected in loop |
-| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 10 potential N+1 query pattern(s) |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 2 potential N+1 query pattern(s) |
 | **Fix Required** | ⚠️  YES | Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Add empty dataset checks and fallback values |
 
 ### Critical Alerts
@@ -57,12 +57,12 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ✅ | claims, aiAssessments, users, panelBeaters |
-| **Query Health** | ⚠️ WARN | 435 potential null-unsafe property accesses; No empty dataset handling detected |
+| **Data Source Tables** | ✅ | claims, users, panelBeaters |
+| **Query Health** | ⚠️ WARN | 181 potential null-unsafe property accesses; No empty dataset handling detected |
 | **Index Required** | ⚠️  YES | leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed) |
 | **Mock Data** | ✅ NO | Real DB queries confirmed |
 | **Performance Risk** | ❌ HIGH | Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId; N+1 query detected in loop; N+1 query detected in loop |
-| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 10 potential N+1 query pattern(s) |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 2 potential N+1 query pattern(s) |
 | **Fix Required** | ⚠️  YES | Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Add empty dataset checks and fallback values |
 
 ### Assessors
@@ -73,12 +73,12 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ✅ | claims, aiAssessments, users, panelBeaters |
-| **Query Health** | ⚠️ WARN | 435 potential null-unsafe property accesses; No empty dataset handling detected |
+| **Data Source Tables** | ✅ | claims, users, panelBeaters |
+| **Query Health** | ⚠️ WARN | 181 potential null-unsafe property accesses; No empty dataset handling detected |
 | **Index Required** | ⚠️  YES | leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed) |
 | **Mock Data** | ✅ NO | Real DB queries confirmed |
 | **Performance Risk** | ❌ HIGH | Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId; N+1 query detected in loop; N+1 query detected in loop |
-| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 10 potential N+1 query pattern(s) |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 2 potential N+1 query pattern(s) |
 | **Fix Required** | ⚠️  YES | Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Add empty dataset checks and fallback values |
 
 ### Panel Beaters
@@ -89,13 +89,13 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ❌ | None detected |
-| **Query Health** | ❌ FAIL | Router file not found: /home/ubuntu/kinga-replit/server/routers/panel-beater-analytics.ts |
-| **Index Required** | ✅ NO | All joins use indexed columns |
-| **Mock Data** | ✅ NO | Real DB queries confirmed |
-| **Performance Risk** | ✅ LOW | No performance concerns |
-| **N+1 Patterns** | ✅ NONE | No N+1 patterns detected |
-| **Fix Required** | ⚠️  YES | Create missing router file |
+| **Data Source Tables** | ✅ | panelBeaters |
+| **Query Health** | ⚠️ WARN | groupBy without sql template literal: panelBeaters.id, panelBeaters.name, panelBeaters.b...; groupBy without sql template literal: panelBeaters.id, panelBeaters.name, panelBeaters.b...; groupBy without sql template literal: panelBeaters.id, panelBeaters.name...; 246 potential null-unsafe property accesses |
+| **Index Required** | ⚠️  YES | leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed); leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed); leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed); leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed); leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed); leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed); leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed); leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed); leftJoin on claims.assignedPanelBeaterId = panelBeaters.id (neither column indexed); leftJoin on panelBeaterQuotes.panelBeaterId = panelBeaters.id (neither column indexed) |
+| **Mock Data** | ❌ YES | Found 1 potential mock data pattern(s) |
+| **Performance Risk** | ❌ HIGH | Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id; Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id; Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id; Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id; Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id; Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id; Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id; Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id; Unindexed join: claims.assignedPanelBeaterId = panelBeaters.id; Unindexed join: panelBeaterQuotes.panelBeaterId = panelBeaters.id; N+1 query detected in loop |
+| **N+1 Patterns** | ❌ DETECTED | Found 3 potential N+1 query pattern(s) |
+| **Fix Required** | ⚠️  YES | Replace mock data with real DB queries; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Add index on claims.assignedPanelBeaterId or panelBeaters.id; Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id; Add index on claims.assignedPanelBeaterId or panelBeaters.id; Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id; Add index on claims.assignedPanelBeaterId or panelBeaters.id; Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id; Add index on claims.assignedPanelBeaterId or panelBeaters.id; Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id; Add index on claims.assignedPanelBeaterId or panelBeaters.id; Add index on panelBeaterQuotes.panelBeaterId or panelBeaters.id; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins |
 
 ### Financials
 
@@ -105,12 +105,12 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ✅ | claims, aiAssessments, users, panelBeaters |
-| **Query Health** | ⚠️ WARN | 435 potential null-unsafe property accesses; No empty dataset handling detected |
+| **Data Source Tables** | ✅ | claims, users, panelBeaters |
+| **Query Health** | ⚠️ WARN | 181 potential null-unsafe property accesses; No empty dataset handling detected |
 | **Index Required** | ⚠️  YES | leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed) |
 | **Mock Data** | ✅ NO | Real DB queries confirmed |
 | **Performance Risk** | ❌ HIGH | Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId; N+1 query detected in loop; N+1 query detected in loop |
-| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 10 potential N+1 query pattern(s) |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 2 potential N+1 query pattern(s) |
 | **Fix Required** | ⚠️  YES | Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Add empty dataset checks and fallback values |
 
 ### Governance
@@ -121,13 +121,14 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ❌ | None detected |
-| **Query Health** | ⚠️ WARN | 70 potential null-unsafe property accesses |
+| **Data Source Tables** | ✅ | workflowAuditTrail, claimInvolvementTracking, stages, users, userSet, allUserIds, roleAssignmentAudit |
+| **Query Health** | ⚠️ WARN | groupBy without sql template literal: workflowAuditTrail.userId, users.name...; groupBy without sql template literal: workflowAuditTrail.userId...; groupBy without sql template literal: workflowAuditTrail.userId, users.name...; groupBy without sql template literal: workflowAuditTrail.overrideReason...; groupBy without sql template literal: roleAssignmentAudit.changedByUserId, users.name...; groupBy without sql template literal: roleAssignmentAudit.previousRole,
+              ro...; 406 potential null-unsafe property accesses |
 | **Index Required** | ✅ NO | All joins use indexed columns |
-| **Mock Data** | ❌ YES | Found 7 potential mock data pattern(s) |
-| **Performance Risk** | ⚠️ MEDIUM | No performance concerns |
-| **N+1 Patterns** | ✅ NONE | No N+1 patterns detected |
-| **Fix Required** | ⚠️  YES | Replace mock data with real DB queries; Add null safety checks (optional chaining, nullish coalescing) |
+| **Mock Data** | ❌ YES | Found 6 potential mock data pattern(s) |
+| **Performance Risk** | ❌ HIGH | N+1 query detected in loop; N+1 query detected in loop; N+1 query detected in loop |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 13 potential N+1 query pattern(s); Found 6 potential N+1 query pattern(s) |
+| **Fix Required** | ⚠️  YES | Replace mock data with real DB queries; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Wrap groupBy arguments in sql`` template literal; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Refactor to use batch queries or joins |
 
 ### Executive
 
@@ -137,12 +138,12 @@
 
 | Metric | Status | Details |
 |--------|--------|----------|
-| **Data Source Tables** | ✅ | claims, aiAssessments, users, panelBeaters |
-| **Query Health** | ⚠️ WARN | 435 potential null-unsafe property accesses; No empty dataset handling detected |
+| **Data Source Tables** | ✅ | claims, users, panelBeaters |
+| **Query Health** | ⚠️ WARN | 181 potential null-unsafe property accesses; No empty dataset handling detected |
 | **Index Required** | ⚠️  YES | leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed) |
 | **Mock Data** | ✅ NO | Real DB queries confirmed |
 | **Performance Risk** | ❌ HIGH | Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId; N+1 query detected in loop; N+1 query detected in loop |
-| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 10 potential N+1 query pattern(s) |
+| **N+1 Patterns** | ❌ DETECTED | Found 1 potential N+1 query pattern(s); Found 2 potential N+1 query pattern(s) |
 | **Fix Required** | ⚠️  YES | Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId; Add null safety checks (optional chaining, nullish coalescing); Refactor to use batch queries or joins; Refactor to use batch queries or joins; Add empty dataset checks and fallback values |
 
 ---
@@ -151,15 +152,15 @@
 
 ### 🔴 Critical: Replace Mock Data
 
-1 dashboard(s) contain mock data patterns. Replace with real database queries to ensure accurate reporting.
+2 dashboard(s) contain mock data patterns. Replace with real database queries to ensure accurate reporting.
 
 ### 🔴 High Priority: Performance Optimization
 
-6 dashboard(s) have high performance risk. Address N+1 patterns and add missing indexes.
+8 dashboard(s) have high performance risk. Address N+1 patterns and add missing indexes.
 
 ### ⚠️  Medium Priority: Query Health
 
-7 dashboard(s) have query health warnings. Review groupBy syntax and null safety.
+8 dashboard(s) have query health warnings. Review groupBy syntax and null safety.
 
 ---
 
