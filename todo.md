@@ -9001,3 +9001,39 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Resolution: Fixed devRoleOverride.ts to use correct database enum names
 - [x] Impact: Dev override system now functional for assessor_internal and assessor_external
 - [ ] Create checkpoint (PENDING)
+
+
+## Damage Photo Upload Pipeline Forensic Trace
+- [ ] Trace frontend file input component
+  - [ ] Identify file input component location
+  - [ ] Confirm data shape (base64 vs File vs Blob)
+  - [ ] Trace file selection handler
+  - [ ] Trace data transformation before tRPC call
+- [ ] Trace tRPC mutation handling upload
+  - [ ] Identify tRPC mutation endpoint
+  - [ ] Confirm mutation receives file data
+  - [ ] Trace storagePut() invocation
+  - [ ] Confirm S3 upload success and URL return
+- [ ] Trace database INSERT/UPDATE
+  - [ ] Identify database operation (INSERT vs UPDATE)
+  - [ ] Confirm damage_photos field is targeted
+  - [ ] Check for field name mismatch (damagePhotos vs damage_photos)
+  - [ ] Verify S3 URL is inserted into damage_photos
+  - [ ] Check transaction commit/rollback
+- [ ] Generate forensic trace report
+  - [ ] Document exact failure point
+  - [ ] Identify whether damage_photos field is never written
+  - [ ] Identify field name mismatches
+  - [ ] Identify transaction rollback causes
+  - [ ] Provide data flow diagram
+- [ ] Do NOT fix issues (trace only)
+
+
+## Damage Photo Upload Pipeline Forensic Trace (COMPLETE)
+- [x] Trace frontend file input component (SubmitClaim.tsx lines 271-304)
+- [x] Trace tRPC mutation handling upload (storage.uploadImage lines 1905-1928)
+- [x] Trace database INSERT/UPDATE of claims.damage_photos (claims.submit lines 701-777)
+- [x] Generate forensic trace report (DAMAGE_PHOTO_UPLOAD_FORENSIC_TRACE.md)
+- [x] Root Cause: Data population gap - 0/553 claims submitted via SubmitClaim form with photos
+- [x] Conclusion: Pipeline fully functional, no failures detected
+- [ ] Create checkpoint (PENDING)
