@@ -9205,3 +9205,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Output total updated records
 - [x] Calculate and report % quantitative activation rate
 - [x] Test script in dry-run mode
+
+
+## Image Activation Validation Seed Script
+- [x] Create scripts/seed-claims-with-images.ts (already exists)
+- [x] Prepare 3-5 sample vehicle damage images (15 images found)
+- [x] Implement S3 upload via storagePut() (working)
+- [ ] Fix schema mismatch: claimantUserId vs claimant_id
+- [ ] Create/update 20 test claims with damage_photos JSON
+- [ ] Trigger AI assessment processor for each claim
+- [x] Log S3 upload success (implemented)
+- [x] Log AI processing success (implemented)
+- [x] Log physics_analysis storage (implemented)
+- [x] Log confidenceScore presence (implemented)
+- [ ] Verify database: COUNT(*) WHERE damage_photos IS NOT NULL
+- [ ] Confirm frontend renders images correctly
+- [x] Ensure no modification of production claims beyond 20 test claims (SEED- prefix)
