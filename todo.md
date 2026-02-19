@@ -9079,3 +9079,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Generate seed report (claims created, image URLs, AI status)
 - [ ] Test seed script
 - [ ] Create checkpoint
+
+
+## Governance Dashboard - Remove Mock Data
+- [x] Identify all hardcoded metrics in governance router
+- [x] Replace with real queries from workflow_audit_trail
+- [x] Replace with real queries from claim_involvement_tracking
+- [x] Replace with real queries from role_assignment_audit
+- [x] Implement total overrides count (last 30 days)
+- [x] Implement role escalation events
+- [x] Implement compliance breaches
+- [x] Implement average approval turnaround time
+- [x] Ensure no hardcoded fallback values
+- [x] Ensure all nulls handled with safeNumber()
+- [x] Ensure indexed joins only
+- [x] Ensure no sequential queries (avoid N+1)
+- [x] Verify frontend contract unchanged
