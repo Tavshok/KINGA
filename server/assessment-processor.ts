@@ -28,6 +28,7 @@ import { storagePut } from './storage';
 import { invokeLLM } from './_core/llm';
 import { resolveComponent, normalizeComponentName, type VehiclePart } from '../shared/vehicleParts';
 import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross-validation';
+import { extendPhysicsValidationOutput } from './physics-quantitative-output';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -1523,6 +1524,76 @@ Total repair cost: $${totalCost}`
   }
 
   // ============================================================
+  // QUANTITATIVE PHYSICS EXTENSION
+  // ============================================================
+  console.log('\n⚙️ Activating Quantitative Physics Engine...');
+  
+  try {
+    // Determine primary impact zone from accident type
+    const primaryImpactZone = extractedData.accidentType === 'frontal' 
+      ? 'front_center' 
+      : extractedData.accidentType === 'rear' 
+      ? 'rear_center' 
+      : extractedData.accidentType === 'side' 
+      ? 'left_side' 
+      : 'front_center'; // Default to front
+    
+    const impactAngleDegrees = calculateImpactAngleDegrees(primaryImpactZone);
+    const impactLocationNormalized = calculateImpactLocationNormalized(primaryImpactZone);
+    
+    // Generate quantitative physics data
+    const quantitativePhysics = extendPhysicsValidationOutput({
+      impactForce: physicsAnalysis.physics_analysis?.impact_force_n 
+        ? { magnitude: physicsAnalysis.physics_analysis.impact_force_n, duration: 0.05 } 
+        : undefined,
+      impactAngle: impactAngleDegrees,
+      primaryImpactZone,
+      damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string }) => ({ 
+        name: nc.normalized, 
+        location: nc.normalized 
+      })),
+      accidentType: extractedData.accidentType as any,
+      estimatedSpeed: { value: physicsAnalysis.impactSpeed || 0 },
+      damageConsistency: { score: physicsAnalysis.physicsScore || 50 },
+      mass: extractedData.vehicleMass,
+      crushDepth: 0.3, // Default crush depth estimate
+    });
+    
+    // Merge quantitative physics into physicsAnalysis
+    physicsAnalysis = {
+      ...physicsAnalysis,
+      ...quantitativePhysics,
+      quantitativeMode: true,
+    };
+    
+    console.log(`✅ [Physics] Quantitative Mode Activated`);
+    console.log(`   Impact Angle: ${quantitativePhysics.impactAngleDegrees}°`);
+    console.log(`   Impact Force: ${quantitativePhysics.calculatedImpactForceKN.toFixed(2)} kN`);
+    console.log(`   Impact Location: (${quantitativePhysics.impactLocationNormalized.relativeX.toFixed(2)}, ${quantitativePhysics.impactLocationNormalized.relativeY.toFixed(2)})`);
+    
+  } catch (error: any) {
+    console.warn(`⚠️ Quantitative physics extension failed: ${error.message}`);
+    console.warn(`   Falling back to legacy qualitative structure`);
+    
+    // Fallback: Add minimal quantitative fields
+    const primaryImpactZone = extractedData.accidentType === 'frontal' 
+      ? 'front_center' 
+      : extractedData.accidentType === 'rear' 
+      ? 'rear_center' 
+      : extractedData.accidentType === 'side' 
+      ? 'left_side' 
+      : 'front_center';
+    
+    physicsAnalysis = {
+      ...physicsAnalysis,
+      impactAngleDegrees: calculateImpactAngleDegrees(primaryImpactZone),
+      calculatedImpactForceKN: physicsAnalysis.impactForce ? physicsAnalysis.impactForce / 1000 : 0.0,
+      impactLocationNormalized: calculateImpactLocationNormalized(primaryImpactZone),
+      quantitativeMode: false, // Fallback mode
+    };
+  }
+
+  // ============================================================
   // STEP 6: Fraud Detection (Plugin → LLM → TypeScript)
   // ============================================================
   console.log('\n🔍 Step 6: Running fraud detection...');
@@ -1971,67 +2042,6 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
     accidentType: extractedData.accidentType || undefined,
     damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string; partId: string | null; zone: string | null }) => nc.normalized),
     physicsAnalysis,
-    physicsValidation: (() => {
-      try {
-        const { extendPhysicsValidationOutput } = require('./physics-quantitative-output');
-        
-        // Determine primary impact zone from accident type
-        const primaryImpactZone = extractedData.accidentType === 'frontal' 
-          ? 'front_center' 
-          : extractedData.accidentType === 'rear' 
-          ? 'rear_center' 
-          : extractedData.accidentType === 'side' 
-          ? 'left_side' 
-          : 'front_center'; // Default to front
-        
-        // Calculate quantitative fields
-        const impactAngleDegrees = calculateImpactAngleDegrees(primaryImpactZone);
-        const impactLocationNormalized = calculateImpactLocationNormalized(primaryImpactZone);
-        
-        // Log quantitative physics calculation
-        console.log(`⚙️ Quantitative Physics: angle=${impactAngleDegrees}°, location=(${impactLocationNormalized.relativeX.toFixed(2)}, ${impactLocationNormalized.relativeY.toFixed(2)})`);
-        
-        const quantitativePhysics = extendPhysicsValidationOutput({
-          impactForce: physicsAnalysis.physics_analysis?.impact_force_n 
-            ? { magnitude: physicsAnalysis.physics_analysis.impact_force_n, duration: 0.05 } 
-            : undefined,
-          impactAngle: impactAngleDegrees,
-          primaryImpactZone,
-          damagedComponents: normalizedComponents.map((nc: { raw: string; normalized: string }) => ({ 
-            name: nc.normalized, 
-            location: nc.normalized 
-          })),
-          accidentType: extractedData.accidentType as any,
-          estimatedSpeed: { value: physicsAnalysis.impactSpeed || 0 },
-          damageConsistency: { score: physicsAnalysis.physicsScore || 50 },
-          mass: extractedData.vehicleMass,
-          crushDepth: 0.3, // Default crush depth estimate
-        });
-        
-        // Validate quantitative fields presence
-        if (!quantitativePhysics.impactAngleDegrees || !quantitativePhysics.calculatedImpactForceKN) {
-          console.warn('⚠️ Quantitative physics validation incomplete - missing required fields');
-        }
-        
-        return quantitativePhysics;
-      } catch (error) {
-        console.error('❌ Quantitative physics extension failed:', error);
-        // Return fallback with calculated values
-        const primaryImpactZone = extractedData.accidentType === 'frontal' 
-          ? 'front_center' 
-          : extractedData.accidentType === 'rear' 
-          ? 'rear_center' 
-          : 'front_center';
-        
-        return {
-          impactAngleDegrees: calculateImpactAngleDegrees(primaryImpactZone),
-          calculatedImpactForceKN: physicsAnalysis.impactForce ? physicsAnalysis.impactForce / 1000 : 0.0,
-          impactLocationNormalized: calculateImpactLocationNormalized(primaryImpactZone),
-          severityLevel: 'unknown' as const,
-          confidenceScore: 0,
-        };
-      }
-    })(),
     fraudAnalysis,
     crossValidation,
     incidentClassification: {
