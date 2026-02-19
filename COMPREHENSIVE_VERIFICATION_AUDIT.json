@@ -1,0 +1,193 @@
+{
+  "timestamp": "2026-02-19T10:12:50.171Z",
+  "results": [
+    {
+      "scope": "1️⃣ Quantitative Physics Activation",
+      "status": "FAIL",
+      "riskLevel": "HIGH",
+      "actionRequired": "Regenerate AI assessments for legacy claims",
+      "details": {
+        "totalClaims": 2,
+        "quantitativeCount": 0,
+        "qualitativeCount": 2,
+        "percentageQuantitative": 0,
+        "percentageQualitative": 100,
+        "samples": []
+      }
+    },
+    {
+      "scope": "2️⃣ Frontend Rendering Validation",
+      "status": "PASS",
+      "riskLevel": "LOW",
+      "actionRequired": "None",
+      "details": {
+        "hasTrigonometric": true,
+        "hasForceScaling": true,
+        "hasClampUtility": true,
+        "noInlineMathMinMax": true,
+        "hasQuantitativeBadge": true,
+        "passedChecks": 4,
+        "totalChecks": 4
+      }
+    },
+    {
+      "scope": "3️⃣ Image Data Population",
+      "status": "FAIL",
+      "riskLevel": "LOW",
+      "actionRequired": "Fix JSON parsing or re-upload images",
+      "details": {
+        "claimsWithImages": 2,
+        "percentageWithImages": null,
+        "validImageCount": 0,
+        "brokenUrlCount": 0,
+        "jsonParseErrorCount": 0,
+        "sampleUrls": []
+      }
+    },
+    {
+      "scope": "4️⃣ AI Processing Completeness",
+      "status": "FAIL",
+      "riskLevel": "HIGH",
+      "actionRequired": "Fix database query",
+      "details": {
+        "error": "Error: Failed query: \n      SELECT \n        ai.id,\n        ai.claim_id,\n        ai.confidence_score,\n        ai.fraud_risk_level,\n        ai.damaged_components,\n        ai.physics_analysis\n      FROM ai_assessments ai\n      ORDER BY ai.created_at DESC\n      LIMIT 20\n    \nparams: "
+      }
+    },
+    {
+      "scope": "5️⃣ Dashboard Data Integrity",
+      "status": "WARN",
+      "riskLevel": "MEDIUM",
+      "actionRequired": "Fix dashboards with mock data or missing queries",
+      "details": {
+        "totalDashboards": 8,
+        "passCount": 6,
+        "results": [
+          {
+            "dashboard": "Overview",
+            "dataSource": "Real DB",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Analytics",
+            "dataSource": "Real DB",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Critical Alerts",
+            "dataSource": "Real DB",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Assessors",
+            "dataSource": "Real DB",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Panel Beaters",
+            "dataSource": "Unknown",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Financials",
+            "dataSource": "Real DB",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Governance",
+            "dataSource": "Unknown",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          },
+          {
+            "dashboard": "Executive",
+            "dataSource": "Real DB",
+            "quantitativeDataUsed": false,
+            "emptyState": false,
+            "errors": "None"
+          }
+        ]
+      }
+    },
+    {
+      "scope": "6️⃣ Report Generation Integrity",
+      "status": "FAIL",
+      "riskLevel": "HIGH",
+      "actionRequired": "Implement missing report types",
+      "details": {
+        "totalReportTypes": 4,
+        "passCount": 0,
+        "results": [
+          {
+            "reportType": "Claim Dossier PDF",
+            "status": "WARN",
+            "missingSection": "Implementation not verified"
+          },
+          {
+            "reportType": "Executive Report",
+            "status": "WARN",
+            "missingSection": "Implementation not verified"
+          },
+          {
+            "reportType": "Financial Summary",
+            "status": "WARN",
+            "missingSection": "Implementation not verified"
+          },
+          {
+            "reportType": "Audit Trail Report",
+            "status": "WARN",
+            "missingSection": "Implementation not verified"
+          }
+        ]
+      }
+    },
+    {
+      "scope": "7️⃣ Regression Check",
+      "status": "WARN",
+      "riskLevel": "MEDIUM",
+      "actionRequired": "Fix failing regression checks",
+      "details": {
+        "totalChecks": 4,
+        "passedChecks": 3,
+        "checks": [
+          {
+            "name": "AuthContext exists",
+            "passed": false
+          },
+          {
+            "name": "Routing configured",
+            "passed": true
+          },
+          {
+            "name": "Protected routes",
+            "passed": true
+          },
+          {
+            "name": "TypeScript config",
+            "passed": true
+          }
+        ]
+      }
+    }
+  ],
+  "systemReadinessScore": 31,
+  "forensicQuantitativeModeActive": false,
+  "summary": {
+    "totalScopes": 7,
+    "passCount": 1,
+    "warnCount": 2,
+    "failCount": 4
+  }
+}
