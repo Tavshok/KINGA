@@ -6,7 +6,17 @@
  * without re-running AI vision analysis.
  * 
  * Usage: pnpm tsx scripts/backfill-quantitative-physics.ts
+ * 
+ * DRY_RUN mode (default: true):
+ * - Set DRY_RUN = false to execute actual database updates
+ * - When DRY_RUN = true, script only simulates updates without modifying database
  */
+
+// ============================================================
+// CONFIGURATION
+// ============================================================
+const DRY_RUN = true; // Set to false to execute actual updates
+const BATCH_SIZE = 50; // Records per transaction
 
 import { getDb } from '../server/db';
 import { aiAssessments } from '../drizzle/schema';
@@ -93,10 +103,17 @@ interface BackfillStats {
 
 /**
  * Check if physics analysis already has quantitative fields
+ * Priority: Check quantitativeMode flag first, then validate required fields
  */
 function hasQuantitativeFields(physicsAnalysis: any): boolean {
   if (!physicsAnalysis) return false;
   
+  // If quantitativeMode is explicitly set to true, trust it
+  if (physicsAnalysis.quantitativeMode === true) {
+    return true;
+  }
+  
+  // Otherwise, check if all required quantitative fields exist
   return !!(
     physicsAnalysis.impactAngleDegrees !== undefined &&
     physicsAnalysis.calculatedImpactForceKN !== undefined &&
@@ -145,12 +162,13 @@ function recomputeQuantitativePhysics(physicsAnalysis: any): any {
       crushDepth: 0.3,
     });
     
-    // Merge with legacy data
+    // Merge with legacy data and set quantitativeMode flag
     return {
       ...physicsAnalysis,
       ...quantitativePhysics,
       // Ensure impactLocationNormalized is set
       impactLocationNormalized: quantitativePhysics.impactLocationNormalized || impactLocationNormalized,
+      quantitativeMode: true, // Mark as quantitative mode
     };
   } catch (error) {
     console.warn('⚠️ extendPhysicsValidationOutput failed, using fallback calculation:', error);
@@ -163,6 +181,7 @@ function recomputeQuantitativePhysics(physicsAnalysis: any): any {
       impactLocationNormalized,
       severityLevel: 'unknown',
       confidenceScore: 0.5,
+      quantitativeMode: true, // Mark as quantitative mode (fallback)
     };
   }
 }
@@ -205,15 +224,20 @@ async function processBatch(
       // Recompute quantitative physics
       const updatedPhysicsAnalysis = recomputeQuantitativePhysics(physicsAnalysis);
       
-      // Update database
-      await db!
-        .update(aiAssessments)
-        .set({
-          physicsAnalysis: JSON.stringify(updatedPhysicsAnalysis),
-        })
-        .where(eq(aiAssessments.id, assessment.id));
+      // Update database (only if not in dry-run mode)
+      if (!DRY_RUN) {
+        await db!
+          .update(aiAssessments)
+          .set({
+            physicsAnalysis: JSON.stringify(updatedPhysicsAnalysis),
+          })
+          .where(eq(aiAssessments.id, assessment.id));
+        
+        console.log(`✓ Updated assessment ${assessment.id} with quantitative physics`);
+      } else {
+        console.log(`📝 [DRY-RUN] Would update assessment ${assessment.id} with quantitative physics`);
+      }
       
-      console.log(`✓ Updated assessment ${assessment.id} with quantitative physics`);
       stats.totalUpdated++;
       
     } catch (error) {
@@ -230,6 +254,15 @@ async function processBatch(
 async function backfillQuantitativePhysics() {
   console.log('🚀 Starting quantitative physics backfill...\n');
   
+  // Dry-run warning
+  if (DRY_RUN) {
+    console.log('⚠️  DRY-RUN MODE ENABLED');
+    console.log('   No database updates will be performed.');
+    console.log('   Set DRY_RUN = false to execute actual updates.\n');
+  } else {
+    console.log('❗ LIVE MODE - Database updates will be executed\n');
+  }
+  
   const db = await getDb();
   if (!db) {
     throw new Error('Failed to connect to database');
@@ -242,7 +275,6 @@ async function backfillQuantitativePhysics() {
     errors: [],
   };
   
-  const BATCH_SIZE = 50;
   let offset = 0;
   let hasMore = true;
   
@@ -273,20 +305,35 @@ async function backfillQuantitativePhysics() {
     console.log(`\n📊 Progress: ${stats.totalProcessed} processed, ${stats.totalUpdated} updated, ${stats.totalSkipped} skipped, ${stats.errors.length} errors`);
   }
   
+  // Calculate quantitative activation rate
+  const totalRecords = stats.totalProcessed;
+  const quantitativeRecords = stats.totalUpdated + stats.totalSkipped; // Updated + already had quantitative
+  const activationRate = totalRecords > 0 ? (quantitativeRecords / totalRecords) * 100 : 0;
+  
   // Final report
   console.log('\n' + '='.repeat(60));
   console.log('✅ Backfill Complete!');
   console.log('='.repeat(60));
-  console.log(`Total Processed: ${stats.totalProcessed}`);
-  console.log(`Total Updated:   ${stats.totalUpdated}`);
-  console.log(`Total Skipped:   ${stats.totalSkipped}`);
-  console.log(`Total Errors:    ${stats.errors.length}`);
+  console.log(`Total Processed:  ${stats.totalProcessed}`);
+  console.log(`Total Updated:    ${stats.totalUpdated}${DRY_RUN ? ' (simulated)' : ''}`);
+  console.log(`Total Skipped:    ${stats.totalSkipped} (already quantitative)`);
+  console.log(`Total Errors:     ${stats.errors.length}`);
+  console.log('\n' + '-'.repeat(60));
+  console.log(`Quantitative Activation Rate: ${activationRate.toFixed(2)}%`);
+  console.log(`  - Quantitative Records: ${quantitativeRecords}`);
+  console.log(`  - Legacy Records:       ${totalRecords - quantitativeRecords}`);
+  console.log('-'.repeat(60));
   
   if (stats.errors.length > 0) {
     console.log('\n❌ Errors:');
     stats.errors.forEach(({ assessmentId, error }) => {
       console.log(`  - Assessment ${assessmentId}: ${error}`);
     });
+  }
+  
+  if (DRY_RUN) {
+    console.log('\n⚠️  DRY-RUN MODE: No database changes were made.');
+    console.log('   Set DRY_RUN = false to execute actual updates.');
   }
   
   console.log('\n' + '='.repeat(60));

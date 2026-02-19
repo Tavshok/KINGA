@@ -9188,3 +9188,20 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure backward compatibility with legacy structure
 - [x] Test quantitative physics activation
 - [x] Verify physics_analysis contains all required fields
+
+
+## Quantitative Physics Backfill Script
+- [x] Create scripts/backfill-quantitative-physics.ts
+- [x] Implement dry-run mode (default: true)
+- [x] Fetch all ai_assessments with physics_analysis
+- [x] Parse JSON and check quantitativeMode flag
+- [x] Run extendPhysicsValidationOutput for legacy records
+- [x] Merge quantitative fields and set quantitativeMode: true
+- [x] Implement batch processing (50 records per transaction)
+- [x] Add progress logging every 50 updates
+- [x] Wrap in try/catch with error handling
+- [x] Prevent deletion of legacy data
+- [x] Prevent overwriting valid quantitative records
+- [x] Output total updated records
+- [x] Calculate and report % quantitative activation rate
+- [x] Test script in dry-run mode
