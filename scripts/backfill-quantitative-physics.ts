@@ -15,7 +15,7 @@
 // ============================================================
 // CONFIGURATION
 // ============================================================
-const DRY_RUN = true; // Set to false to execute actual updates
+const DRY_RUN = false; // Set to false to execute actual updates
 const BATCH_SIZE = 50; // Records per transaction
 
 import { getDb } from '../server/db';
@@ -267,6 +267,23 @@ async function backfillQuantitativePhysics() {
   if (!db) {
     throw new Error('Failed to connect to database');
   }
+  
+  // SAFEGUARD: Count total records to update BEFORE execution
+  console.log('🔍 Counting total records to update...');
+  const totalRecordsResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(aiAssessments)
+    .where(isNotNull(aiAssessments.physicsAnalysis));
+  
+  const totalRecordsToUpdate = totalRecordsResult[0]?.count || 0;
+  console.log(`📊 Total records with physics_analysis: ${totalRecordsToUpdate}`);
+  
+  if (totalRecordsToUpdate === 0) {
+    console.error('❌ No records found to update. Aborting migration.');
+    process.exit(1);
+  }
+  
+  console.log(`✅ Confirmed ${totalRecordsToUpdate} records will be processed\n`);
   
   const stats: BackfillStats = {
     totalProcessed: 0,

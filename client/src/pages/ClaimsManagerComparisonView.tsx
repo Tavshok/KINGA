@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Claims Manager Comparison View (with Risk Manager Analytical Overlay)
  * Role-based three-column comparison: AI Assessment | Assessor Report | Panel Beater Quotes

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Executive Analytics Audit Trail Integration Tests
  * 

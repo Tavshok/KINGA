@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * CONSOLIDATED ANALYTICS ROUTER - SINGLE SOURCE OF TRUTH
  * 

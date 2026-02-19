@@ -671,6 +671,15 @@ export default function AssessmentResults() {
     flags: rawPhysics.flags || [],
     recommendations: rawPhysics.recommendations || []
   };
+  
+  // ─── Extract quantitative physics validation data ──────────────────────
+  const physicsValidation = rawPhysics.quantitativeMode && rawPhysics.impactAngleDegrees !== undefined
+    ? {
+        impactAngleDegrees: rawPhysics.impactAngleDegrees,
+        calculatedImpactForceKN: rawPhysics.calculatedImpactForceKN || 0,
+        impactLocationNormalized: rawPhysics.impactLocationNormalized || { relativeX: 0.5, relativeY: 0.5 }
+      }
+    : null;
 
   // ─── Normalize fraud data ────────────────────────────────────────────
   const rawFraud = extractedData?.fraudAnalysis || {};
@@ -1074,6 +1083,8 @@ export default function AssessmentResults() {
               impactPoint={extractedData?.accidentType}
               damagedComponents={extractedData?.damagedComponents || []}
               damageConsistency={physicsData.damageConsistency}
+              physicsValidation={physicsValidation}
+              confidenceScore={physicsData.confidence}
             />
             <PhysicsFraudCrossReference physicsAnalysis={extractedData.physicsAnalysis} fraudAnalysis={extractedData.fraudAnalysis} />
           </TabsContent>

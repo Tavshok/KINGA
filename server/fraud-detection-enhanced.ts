@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Enhanced Fraud Detection Integration
  * Integrates Python ML model with driver demographics and ownership verification

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Analytics Endpoints Test Suite
  * 

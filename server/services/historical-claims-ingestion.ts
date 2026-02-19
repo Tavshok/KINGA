@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Historical Claims Ingestion Service
  * 

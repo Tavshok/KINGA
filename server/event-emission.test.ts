@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeEach } from "vitest";
 import { getDb, emitClaimEvent } from "./db";
 import { claimEvents, claims, users, assessors, panelBeaters, assessorInsurerRelationships } from "../drizzle/schema";

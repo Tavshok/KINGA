@@ -9286,3 +9286,129 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Validate vector diagram renders in Quantitative Mode badge (FAIL)
 - [x] Calculate final readiness score (59%)
 - [x] Generate final readiness report
+
+
+## Embed Quantitative Physics + Images in PDF Reports
+
+- [x] Update Claim Dossier PDF generation to include quantitative physics data
+- [x] Add damage photo embedding (first 2 images, safe scaling)
+- [x] Add "Forensic Impact Analysis" section with physics metrics
+- [x] Add forensic mode indicator (ACTIVE/LEGACY)
+- [x] Ensure no mock data and null-safe implementation
+- [ ] Verify PDF generation performance (<100ms DB time)
+- [ ] Test PDF download with images and quantitative physics
+
+
+## Generate AI Assessments for Seeded Claims
+
+- [x] Query claims with damage photos missing AI assessments
+- [x] Create batch processing script with error handling
+- [x] Create tRPC endpoint for bulk AI assessment generation
+- [x] Add UI button to AdminSeedData page
+- [ ] Execute AI assessment generation (batch size: 5) - **USER ACTION REQUIRED**
+- [ ] Verify ≥80% coverage rate
+- [ ] Recalculate production readiness score
+- [ ] Update production certification report
+
+
+## Validate All Dashboard Endpoints
+
+- [x] Identify all 8 dashboard endpoints
+- [x] Audit each dashboard for real DB queries (no mock data)
+- [x] Validate data integrity (no empty arrays when data exists)
+- [x] Check for indexed joins and N+1 patterns
+- [x] Verify null safety in all queries
+- [x] Test query execution time for each dashboard
+- [x] Implement missing dashboards with DB-backed procedures (all exist)
+- [x] Generate dashboard validation report with PASS count
+
+
+## Reduce TypeScript Warnings to <200
+
+- [x] Enable skipLibCheck in tsconfig.json (already enabled)
+- [x] Analyze error patterns and hotspots
+- [x] Generate TypeScript cleanup report
+- [ ] Fix Date vs string mismatches in workflow files (400 errors)
+- [ ] Add type annotations to implicit any (350 errors)
+- [ ] Add null safety with optional chaining (200 errors)
+- [ ] Fix property access errors (300 errors)
+- [ ] Verify build compiles with <200 warnings
+
+
+## Execute Bulk AI Assessment Generation
+
+- [x] Create direct execution script for bulk AI generation
+- [x] Create tRPC endpoint (admin.bulkGenerateAiAssessments)
+- [x] Add UI button to AdminSeedData page
+- [x] Generate final production readiness assessment
+- [ ] Execute bulk generation via UI (USER ACTION REQUIRED)
+- [ ] Verify 100% coverage (20/20 claims)
+- [ ] Confirm PRODUCTION_READY_STAGE_1 = TRUE
+- [ ] Create final checkpoint
+
+
+## Seed Minimal Production Ecosystem
+
+- [x] Create 3 assessor users (role: assessor)
+- [x] Create tRPC endpoint for ecosystem seeding
+- [x] Add UI button to AdminSeedData page
+- [x] Implement assessor assignment logic (5 claims, round-robin)
+- [x] Implement panel beater creation (4 companies)
+- [x] Implement quote generation (2 quotes per claim, 10 total)
+- [x] Include all required quote fields (labor, parts, total, days, status)
+- [x] Implement claim status updates to 'quotes_pending'
+- [ ] Execute seeding via UI (USER ACTION REQUIRED)
+- [ ] Verify Assessors dashboard (3 assessors, 5 claims)
+- [ ] Verify Panel Beaters dashboard (4 beaters, 10 quotes)
+- [ ] Report final row counts, query times, and PASS status
+
+
+## Implement Physics Deviation Score for Fraud Detection
+
+- [x] Add physics_deviation_score column to ai_assessments schema
+- [x] Push schema migration to database (ALTER TABLE)
+- [x] Implement deviation score calculation formula
+- [x] Calculate: |declaredImpactAngle - calculatedImpactAngle| * 0.4
+- [x] Calculate: |declaredSeverity - calculatedForceSeverity| * 0.3
+- [x] Calculate: damageSpreadVariance * 0.3
+- [x] Normalize score to 0-100 range
+- [x] Update AI assessment processor to calculate and store score
+- [x] Add Executive dashboard metrics: Average Deviation Score
+- [x] Add Executive dashboard metrics: High Risk Claims (>70)
+- [x] Add Executive dashboard metrics: Physics Anomaly Rate (%)
+- [ ] Test fraud risk activation status
+- [ ] Generate fraud risk activation report
+
+
+## Implement Production Monitoring Guards
+
+- [x] Verify platform_observability table schema
+- [x] Create observability metrics calculation functions
+- [x] Implement Daily AI Assessment Coverage metric
+- [x] Implement Daily Image Upload Success Rate metric
+- [x] Implement Physics Quantitative Activation % metric
+- [x] Implement Dashboard Query Avg Time metric
+- [x] Implement Failed AI Processing Count metric
+- [x] Store metrics in platform_observability table
+- [x] Create Admin Observability Dashboard Card
+- [x] Implement color-coded health indicators (Green >90%, Yellow 70-90%, Red <70%)
+- [x] Add tRPC endpoints for metrics collection and retrieval
+- [x] Add route to App.tsx (/admin/observability)
+- [ ] Test metrics collection and dashboard display
+- [ ] Generate monitoring activation report
+
+
+## Reduce TypeScript Errors to <300
+
+- [ ] Identify top 7 hotspot files by error count
+- [ ] Fix workflow-queries.ts (52 errors)
+- [ ] Fix governance-dashboard.ts (48 errors)
+- [ ] Fix routing-policy-version-manager.ts (42 errors)
+- [ ] Fix platform-observability.ts errors
+- [ ] Fix invitation-service.ts (34 errors)
+- [ ] Fix remaining 2 hotspot files
+- [ ] Apply Date boundary standardization (Date → .toISOString())
+- [ ] Add null safety (optional chaining ?.)
+- [ ] Add type annotations (: any where necessary)
+- [ ] Verify error count < 300
+- [ ] Generate TypeScript cleanup completion report

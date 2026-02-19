@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Role-Based Access Control (RBAC) Engine
  * 

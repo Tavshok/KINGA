@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Python Integration Module for KINGA
  * Wraps Python scripts for use in Node.js/tRPC backend

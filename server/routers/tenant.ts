@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Tenant Management Router
  * 

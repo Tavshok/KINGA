@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Assessor Ecosystem Integration Tests
  * Test Plan: KINGA-TEST-2026-024

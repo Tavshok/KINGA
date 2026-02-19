@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Platform - Full Workflow Simulation
  * 

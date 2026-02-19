@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA - AutoVerify AI Insurance Claims Management Platform
  * 

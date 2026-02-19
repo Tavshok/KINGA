@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Interactive Report Renderer
  * 

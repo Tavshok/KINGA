@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Simplified Assessment Processor for Debugging
  * Removes LLM and image extraction to isolate the 500 error

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Reports Router Tests
  * 

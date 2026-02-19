@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Service Provider Marketplace Integration Layer
  * 

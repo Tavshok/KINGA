@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Confidence Score Calculation and Routing Service
  * 

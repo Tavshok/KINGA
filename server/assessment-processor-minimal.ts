@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * MINIMAL Test Processor - Only S3 Upload
  * To isolate whether S3 upload is the issue

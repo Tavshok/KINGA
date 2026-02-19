@@ -215,7 +215,7 @@ async function createTestClaim(
       .insert(claims)
       .values({
         claimNumber,
-        claimantUserId,
+        claimantId: claimantUserId,
         tenantId,
         vehicleMake: template.vehicleMake,
         vehicleModel: template.vehicleModel,
@@ -369,22 +369,56 @@ async function main() {
     console.log(`✅ Images accessible: ${report.imagesAccessible}/${report.imagesUploaded}`);
     console.log(`✅ CORS valid: ${report.imagesCorsValid}/${report.imagesUploaded}\n`);
 
-    // Step 2: Use hardcoded tenant/user IDs (database already has 553 claims with existing data)
-    console.log("👤 Step 2: Using existing tenant and user data...\n");
+    // Step 2: Query database for valid user IDs
+    console.log("👤 Step 2: Querying database for valid users...\n");
 
-    // Use hardcoded IDs from existing database (avoids connection issues)
-    // These IDs are from the existing 553 claims in the database
-    const tenantId = "default"; // Default tenant ID used in existing claims
-    const claimantUserId = 1; // Use existing user ID 1 (common default user ID)
+    const db = await getDb();
+    if (!db) {
+      throw new Error("Database connection failed - cannot proceed with seeding");
+    }
 
-    console.log(`   ✅ Tenant ID: ${tenantId}`);
-    console.log(`   ✅ Claimant User ID: ${claimantUserId}\n`);
+    // Query for users with 'insured' role (claimants)
+    const validUsers = await db
+      .select({ id: users.id, openId: users.openId, name: users.name })
+      .from(users)
+      .limit(5);
+
+    if (validUsers.length === 0) {
+      throw new Error("No valid users found in database - cannot create claims without claimant users");
+    }
+
+    const validUserIds = validUsers.map(u => u.id);
+    console.log(`   ✅ Found ${validUsers.length} valid users:`);
+    for (const user of validUsers) {
+      console.log(`      - User ID: ${user.id} (${user.name || user.openId})`);
+    }
+
+    // Query for tenants
+    const validTenants = await db
+      .select({ id: tenants.id, name: tenants.name })
+      .from(tenants)
+      .limit(1);
+
+    if (validTenants.length === 0) {
+      throw new Error("No valid tenants found in database - cannot create claims without tenant");
+    }
+
+    const tenantId = validTenants[0].id;
+    console.log(`   ✅ Using Tenant ID: ${tenantId} (${validTenants[0].name})\n`);
 
     // Step 3: Create test claims
     console.log("📝 Step 3: Creating test claims...\n");
 
-    for (const template of CLAIM_TEMPLATES) {
-      const createdClaim = await createTestClaim(template, imageMap, claimantUserId, tenantId);
+    for (let i = 0; i < CLAIM_TEMPLATES.length; i++) {
+      const template = CLAIM_TEMPLATES[i];
+      
+      // Randomly select a valid user ID for this claim
+      const randomIndex = Math.floor(Math.random() * validUserIds.length);
+      const selectedUserId = validUserIds[randomIndex];
+      
+      console.log(`   📋 Claim ${i + 1}/${CLAIM_TEMPLATES.length}: Using User ID ${selectedUserId}`);
+      
+      const createdClaim = await createTestClaim(template, imageMap, selectedUserId, tenantId);
 
       report.createdClaims.push(createdClaim);
 

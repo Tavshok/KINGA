@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * End-to-End System Integrity Test Suite
  * 

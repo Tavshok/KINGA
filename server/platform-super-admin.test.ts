@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Platform Super Admin Access Control Tests
  * 

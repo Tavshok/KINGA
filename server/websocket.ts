@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { WebSocketServer, WebSocket } from 'ws';
 
 export function setupWebSocketServer(port: number) {

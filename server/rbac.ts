@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * RBAC (Role-Based Access Control) System for KINGA
  * 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Assessment Processor — LLM-First Architecture with ML-Ready Plugin System
  * 

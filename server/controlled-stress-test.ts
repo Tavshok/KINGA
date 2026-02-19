@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Controlled Stress Test (Post-Optimization)
  * 

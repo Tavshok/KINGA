@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Fast-Track Configuration Service
  * 

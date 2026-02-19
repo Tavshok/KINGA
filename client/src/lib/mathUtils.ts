@@ -95,3 +95,19 @@ export function getConfidenceColor(score: number): ConfidenceColorConfig {
 export function formatConfidenceScore(score: number): string {
   return `${Math.round(score * 100)}%`;
 }
+
+/**
+ * Converts degrees to radians for trigonometric calculations.
+ * 
+ * @param degrees - Angle in degrees (0-360)
+ * @returns Angle in radians
+ * 
+ * @example
+ * degreesToRadians(0)   // Returns: 0
+ * degreesToRadians(90)  // Returns: ~1.571 (π/2)
+ * degreesToRadians(180) // Returns: ~3.142 (π)
+ * degreesToRadians(360) // Returns: ~6.283 (2π)
+ */
+export function degreesToRadians(degrees: number): number {
+  return degrees * (Math.PI / 180);
+}

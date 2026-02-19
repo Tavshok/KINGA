@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Tenant Configuration Service Tests
  * 

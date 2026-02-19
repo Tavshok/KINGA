@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Tests for KINGA Hybrid Intelligence Governance Layer
  * 

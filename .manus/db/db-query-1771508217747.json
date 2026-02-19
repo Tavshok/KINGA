@@ -1,0 +1,34 @@
+{
+  "query": "SELECT DISTINCT tenant_id, COUNT(*) as claim_count FROM claims GROUP BY tenant_id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT DISTINCT tenant_id, COUNT(*) as claim_count FROM claims GROUP BY tenant_id;",
+  "rows": [
+    {
+      "tenant_id": "test-tenant-dispatcher-001",
+      "claim_count": "1"
+    },
+    {
+      "tenant_id": "tenant-bb427411-1cb9-4767-b354-61831d4d2106",
+      "claim_count": "20"
+    },
+    {
+      "tenant_id": "tenant-1771335377063",
+      "claim_count": "1"
+    },
+    {
+      "tenant_id": "tenant-1771335126426",
+      "claim_count": "1"
+    },
+    {
+      "tenant_id": "test-tenant-1770901923846",
+      "claim_count": "500"
+    },
+    {
+      "tenant_id": "demo-tenant",
+      "claim_count": "50"
+    }
+  ],
+  "messages": [],
+  "stdout": "tenant_id\tclaim_count\ntest-tenant-dispatcher-001\t1\ntenant-bb427411-1cb9-4767-b354-61831d4d2106\t20\ntenant-1771335377063\t1\ntenant-1771335126426\t1\ntest-tenant-1770901923846\t500\ndemo-tenant\t50\n",
+  "stderr": "",
+  "execution_time_ms": 67
+}

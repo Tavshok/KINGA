@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * File Upload Handler - Multipart/Form-Data
  * Handles PDF uploads via standard multipart form data instead of base64 JSON

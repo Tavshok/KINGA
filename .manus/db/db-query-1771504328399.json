@@ -1,0 +1,130 @@
+{
+  "query": "SELECT \n  id,\n  claim_id,\n  physics_analysis,\n  created_at\nFROM ai_assessments\nORDER BY created_at DESC\nLIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT \n  id,\n  claim_id,\n  physics_analysis,\n  created_at\nFROM ai_assessments\nORDER BY created_at DESC\nLIMIT 20;",
+  "rows": [
+    {
+      "id": "540034",
+      "claim_id": "930034",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540024",
+      "claim_id": "930024",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540033",
+      "claim_id": "930033",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540026",
+      "claim_id": "930026",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540023",
+      "claim_id": "930023",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540020",
+      "claim_id": "930020",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540032",
+      "claim_id": "930032",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540029",
+      "claim_id": "930029",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540025",
+      "claim_id": "930025",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540016",
+      "claim_id": "930016",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540022",
+      "claim_id": "930022",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540021",
+      "claim_id": "930021",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540018",
+      "claim_id": "930018",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540017",
+      "claim_id": "930017",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540031",
+      "claim_id": "930031",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540030",
+      "claim_id": "930030",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540028",
+      "claim_id": "930028",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540027",
+      "claim_id": "930027",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540019",
+      "claim_id": "930019",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    },
+    {
+      "id": "540035",
+      "claim_id": "930035",
+      "physics_analysis": "NULL",
+      "created_at": "2026-02-18 10:56:28"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_id\tphysics_analysis\tcreated_at\n540034\t930034\tNULL\t2026-02-18 10:56:28\n540024\t930024\tNULL\t2026-02-18 10:56:28\n540033\t930033\tNULL\t2026-02-18 10:56:28\n540026\t930026\tNULL\t2026-02-18 10:56:28\n540023\t930023\tNULL\t2026-02-18 10:56:28\n540020\t930020\tNULL\t2026-02-18 10:56:28\n540032\t930032\tNULL\t2026-02-18 10:56:28\n540029\t930029\tNULL\t2026-02-18 10:56:28\n540025\t930025\tNULL\t2026-02-18 10:56:28\n540016\t930016\tNULL\t2026-02-18 10:56:28\n540022\t930022\tNULL\t2026-02-18 10:56:28\n540021\t930021\tNULL\t2026-02-18 10:56:28\n540018\t930018\tNULL\t2026-02-18 10:56:28\n540017\t930017\tNULL\t2026-02-18 10:56:28\n540031\t930031\tNULL\t2026-02-18 10:56:28\n540030\t930030\tNULL\t2026-02-18 10:56:28\n540028\t930028\tNULL\t2026-02-18 10:56:28\n540027\t930027\tNULL\t2026-02-18 10:56:28\n540019\t930019\tNULL\t2026-02-18 10:56:28\n540035\t930035\tNULL\t2026-02-18 10:56:28\n",
+  "stderr": "",
+  "execution_time_ms": 231
+}

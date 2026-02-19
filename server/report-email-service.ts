@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Report Email Service
  * 

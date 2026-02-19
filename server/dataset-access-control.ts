@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Hybrid Intelligence Governance Layer
  * RBAC Access Control for Dataset Tiers

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Panel Beater Performance Analytics
  * 

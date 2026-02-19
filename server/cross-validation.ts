@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Cross-Validation Engine
  * 

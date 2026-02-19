@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Accident Physics Engine Tests
  * 

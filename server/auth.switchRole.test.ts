@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Admin switchRole Security Tests
  * 

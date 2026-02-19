@@ -1,0 +1,15 @@
+{
+  "query": "\n-- Check quantitative physics activation rate\nSELECT \n  COUNT(*) as total_assessments,\n  SUM(CASE WHEN physics_analysis LIKE '%quantitativeMode\":true%' THEN 1 ELSE 0 END) as quantitative_active,\n  ROUND(100.0 * SUM(CASE WHEN physics_analysis LIKE '%quantitativeMode\":true%' THEN 1 ELSE 0 END) / COUNT(*), 2) as activation_rate_percent\nFROM ai_assessments\nWHERE physics_analysis IS NOT NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Check quantitative physics activation rate\nSELECT \n  COUNT(*) as total_assessments,\n  SUM(CASE WHEN physics_analysis LIKE '%quantitativeMode\":true%' THEN 1 ELSE 0 END) as quantitative_active,\n  ROUND(100.0 * SUM(CASE WHEN physics_analysis LIKE '%quantitativeMode\":true%' THEN 1 ELSE 0 END) / COUNT(*), 2) as activation_rate_percent\nFROM ai_assessments\nWHERE physics_analysis IS NOT NULL;\n",
+  "rows": [
+    {
+      "total_assessments": "2",
+      "quantitative_active": "0",
+      "activation_rate_percent": "0.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_assessments\tquantitative_active\tactivation_rate_percent\n2\t0\t0.00\n",
+  "stderr": "",
+  "execution_time_ms": 1622
+}

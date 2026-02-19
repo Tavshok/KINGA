@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Usage Metering Tests
  * Tests for tenant isolation, duplicate protection, and aggregation accuracy

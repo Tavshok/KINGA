@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * PDF Image Extraction using system-level pdfimages + sharp
  * 

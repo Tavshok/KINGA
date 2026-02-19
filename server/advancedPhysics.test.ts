@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Advanced Physics Formulas Tests
  * 

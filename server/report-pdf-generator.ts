@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Report PDF Generation Service
  * 

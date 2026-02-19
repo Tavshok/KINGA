@@ -1,5576 +1,3124 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, tinyint, decimal, json, date, time, longtext, index, bigint, boolean, unique, primaryKey } from "drizzle-orm/mysql-core";
-
-/**
- * Core user table backing auth flow.
- * Extend this file with additional tables as your product grows.
- * Columns use camelCase to match both database fields and generated types.
- */
-export const users = mysqlTable("users", {
-  /**
-   * Surrogate primary key. Auto-incremented numeric value managed by the database.
-   * Use this for relations between tables.
-   */
-  id: int("id").autoincrement().primaryKey(),
-  /** Manus OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
-  name: text("name"),
-  email: varchar("email", { length: 320 }),
-  passwordHash: varchar("password_hash", { length: 255 }), // For traditional email/password auth
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]).default("user").notNull(),
-  insurerRole: mysqlEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]), // Hierarchical roles for insurer users
-  organizationId: int("organization_id"), // Link to organizations table for team members
-  tenantId: varchar("tenant_id", { length: 64 }), // Link to tenants table for multi-tenant isolation
-  emailVerified: tinyint("email_verified").default(0).notNull(), // Email verification status
-  
-  // Assessor tier system (for freemium model)
-  assessorTier: mysqlEnum("assessor_tier", ["free", "premium", "enterprise"]).default("free"),
-  tierActivatedAt: timestamp("tier_activated_at"), // When premium/enterprise was activated
-  tierExpiresAt: timestamp("tier_expires_at"), // For manual billing, track expiration
-  
-  // Assessor performance metrics
-  performanceScore: int("performance_score").default(70), // 0-100 scale, default 70
-  totalAssessmentsCompleted: int("total_assessments_completed").default(0),
-  averageVarianceFromFinal: int("average_variance_from_final"), // Percentage variance from final approved cost
-  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default("0.00"), // Accuracy percentage
-  avgCompletionTime: decimal("avg_completion_time", { precision: 6, scale: 2 }).default("0.00"), // Average hours to complete
-  
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
-
-export type User = typeof users.$inferSelect;
-export type InsertUser = typeof users.$inferInsert;
-
-/**
- * Panel Beaters - Approved repair shops
- */
-export const panelBeaters = mysqlTable("panel_beaters", {
-  id: int("id").autoincrement().primaryKey(),
-  name: text("name").notNull(),
-  businessName: text("business_name").notNull(),
-  email: varchar("email", { length: 320 }),
-  phone: varchar("phone", { length: 20 }),
-  address: text("address"),
-  city: varchar("city", { length: 100 }),
-  approved: tinyint("approved").default(1).notNull(),
-  userId: int("user_id"), // Link to users table if they have login access
-  tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type PanelBeater = typeof panelBeaters.$inferSelect;
-export type InsertPanelBeater = typeof panelBeaters.$inferInsert;
-
-/**
- * Claims - Insurance claims submitted by claimants
- */
-export const claims = mysqlTable("claims", {
-  id: int("id").autoincrement().primaryKey(),
-  claimantId: int("claimant_id").notNull(), // Reference to users table
-  claimNumber: varchar("claim_number", { length: 50 }).notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  
-  // Lodger information (who submitted the claim - may differ from claimant)
-  lodgedBy: mysqlEnum("lodged_by", ["self", "broker", "agent", "company_rep", "family_member", "legal_rep", "other"]).default("self"),
-  lodgerName: varchar("lodger_name", { length: 255 }),
-  lodgerPhone: varchar("lodger_phone", { length: 50 }),
-  lodgerEmail: varchar("lodger_email", { length: 320 }),
-  lodgerCompany: varchar("lodger_company", { length: 255 }), // Broker firm, company name, law firm
-  lodgerReference: varchar("lodger_reference", { length: 100 }), // Broker ref, agent code, etc.
-  lodgerRelationship: varchar("lodger_relationship", { length: 255 }), // Relationship to claimant if "other"
-
-  // Claimant personal details (the actual insured person)
-  claimantIdNumber: varchar("claimant_id_number", { length: 20 }),
-  claimantPhone: varchar("claimant_phone", { length: 50 }),
-  claimantEmail: varchar("claimant_email", { length: 320 }),
-  claimantAddress: text("claimant_address"),
-
-  // Vehicle information
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
-  vehicleVin: varchar("vehicle_vin", { length: 50 }),
-  vehicleColor: varchar("vehicle_color", { length: 50 }),
-  vehicleMileage: varchar("vehicle_mileage", { length: 50 }),
-
-  // Vehicle Registration Book details (NaTIS)
-  vehicleEngineNumber: varchar("vehicle_engine_number", { length: 100 }),
-  vehicleGvm: varchar("vehicle_gvm", { length: 20 }), // Gross Vehicle Mass in kg
-  vehicleTareWeight: varchar("vehicle_tare_weight", { length: 20 }), // Tare weight in kg
-  vehicleEngineCapacity: varchar("vehicle_engine_capacity", { length: 20 }), // e.g. 1600cc
-  vehicleFuelType: varchar("vehicle_fuel_type", { length: 20 }), // petrol, diesel, hybrid, electric
-  vehicleFirstRegistrationDate: varchar("vehicle_first_registration_date", { length: 20 }),
-  vehicleOwnerName: varchar("vehicle_owner_name", { length: 255 }), // Registered owner from reg book
-  vehicleLicenceExpiryDate: varchar("vehicle_licence_expiry_date", { length: 20 }),
-  
-  // Incident details
-  incidentDate: timestamp("incident_date"),
-  incidentTime: varchar("incident_time", { length: 10 }),
-  incidentDescription: text("incident_description"),
-  incidentLocation: text("incident_location"),
-  incidentType: mysqlEnum("incident_type", ["collision", "theft", "hail", "fire", "vandalism", "flood", "hijacking", "other"]),
-
-  // Third party details
-  thirdPartyName: varchar("third_party_name", { length: 255 }),
-  thirdPartyVehicle: varchar("third_party_vehicle", { length: 255 }),
-  thirdPartyRegistration: varchar("third_party_registration", { length: 50 }),
-  thirdPartyInsurer: varchar("third_party_insurer", { length: 255 }),
-
-  // Police report
-  policeReportNumber: varchar("police_report_number", { length: 100 }),
-  policeStation: varchar("police_station", { length: 255 }),
-
-  // Witness
-  witnessName: varchar("witness_name", { length: 255 }),
-  witnessPhone: varchar("witness_phone", { length: 50 }),
-
-  // Uploaded supporting documents (S3 URLs, stored as JSON)
-  supportingDocuments: text("supporting_documents"), // JSON array of {type, url, fileName}
-  
-  // Damage photos (S3 URLs, stored as JSON array)
-  damagePhotos: text("damage_photos"), // JSON array of S3 URLs
-  
-  // Policy information
-  policyNumber: varchar("policy_number", { length: 100 }),
-  policyVerified: tinyint("policy_verified"),  // null = pending, 1 = verified, 0 = rejected
-  
-  // Workflow status
-  status: mysqlEnum("status", [
-    "submitted",
-    "triage",
-    "assessment_pending",
-    "assessment_in_progress",
-    "quotes_pending",
-    "comparison",
-    "repair_assigned",
-    "repair_in_progress",
-    "completed",
-    "rejected"
-  ]).default("submitted").notNull(),
-  
-  // Assignments
-  assignedAssessorId: int("assigned_assessor_id"), // Reference to users table
-  assignedPanelBeaterId: int("assigned_panel_beater_id"), // Final selected panel beater
-  selectedPanelBeaterIds: text("selected_panel_beater_ids"), // JSON array of 3 selected panel beater IDs
-  
-  // AI Assessment
-  aiAssessmentTriggered: tinyint("ai_assessment_triggered").default(0),
-  aiAssessmentCompleted: tinyint("ai_assessment_completed").default(0),
-  
-  // Fraud detection
-  fraudRiskScore: int("fraud_risk_score"), // 0-100 scale
-  fraudFlags: text("fraud_flags"), // JSON array of detected fraud indicators
-  
-  // Claim complexity for SLA adjustments
-  complexity_score: mysqlEnum("complexity_score", ["simple", "moderate", "complex", "exceptional"]),
-  
-  // Workflow state machine
-  workflowState: mysqlEnum("workflow_state", [
-    "created",
-    "intake_queue",
-    "intake_verified",
-    "assigned",
-    "under_assessment",
-    "internal_review",
-    "technical_approval",
-    "financial_decision",
-    "payment_authorized",
-    "closed",
-    "disputed"
-  ]),
-  
-  // Claims Manager intake gate fields
-  assignedProcessorId: int("assigned_processor_id"), // Claims Processor user ID assigned by Claims Manager
-  priority: mysqlEnum("priority", ["low", "medium", "high"]).default("medium"),
-  earlyFraudSuspicion: tinyint("early_fraud_suspicion").default(0).notNull(), // Flag set by Claims Manager during intake
-  
-  // Approval tracking
-  technicallyApprovedBy: int("technically_approved_by"), // Risk Manager user ID
-  technicallyApprovedAt: timestamp("technically_approved_at"),
-  financiallyApprovedBy: int("financially_approved_by"), // Claims Manager user ID
-  financiallyApprovedAt: timestamp("financially_approved_at"),
-  approvedAmount: int("approved_amount"), // Final approved amount in cents
-  closedBy: int("closed_by"), // Claims Manager user ID
-  closedAt: timestamp("closed_at"),
-  
-  // Metadata for fast-track and workflow context
-  metadata: json("metadata"),
-  
-  // Routing & Governance Snapshot Fields (for deterministic replay)
-  estimatedClaimValue: decimal("estimated_claim_value", { precision: 12, scale: 2 }), // Snapshot from AI assessment at routing time
-  finalApprovedAmount: decimal("final_approved_amount", { precision: 12, scale: 2 }), // Final approved amount (replaces approvedAmount)
-  confidenceScore: int("confidence_score"), // Snapshot from AI assessment at routing time (0-100)
-  routingDecision: varchar("routing_decision", { length: 50 }), // Snapshot: ai_only, hybrid, manual
-  policyVersionId: int("policy_version_id"), // References automation_policies.id at routing time
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  fraudRiskScoreIdx: index("idx_fraud_risk_score").on(table.fraudRiskScore),
-  confidenceScoreIdx: index("idx_confidence_score").on(table.confidenceScore),
-  routingDecisionIdx: index("idx_routing_decision").on(table.routingDecision),
-  policyVersionIdIdx: index("idx_policy_version_id").on(table.policyVersionId),
-}));
-
-export type Claim = typeof claims.$inferSelect;
-export type InsertClaim = typeof claims.$inferInsert;
-
-/**
- * Claim Comments - Workflow collaboration and annotations
- */
-export const claimComments = mysqlTable("claim_comments", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  userId: int("user_id").notNull(),
-  userRole: text("user_role").notNull(), // Role at time of comment (for audit trail)
-  
-  commentType: mysqlEnum("comment_type", [
-    "general",
-    "flag",
-    "clarification_request",
-    "technical_note"
-  ]).notNull(),
-  
-  content: text("content").notNull(),
-  
-    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type ClaimComment = typeof claimComments.$inferSelect;
-export type InsertClaimComment = typeof claimComments.$inferInsert;
-
-/**
- * AI Assessments - AI-powered damage assessments
- */
-export const aiAssessments = mysqlTable("ai_assessments", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Assessment results
-  estimatedCost: int("estimated_cost"), // Cost in cents
-  damageDescription: text("damage_description"),
-  detectedDamageTypes: text("detected_damage_types"), // JSON array
-  confidenceScore: int("confidence_score"), // 0-100
-  
-  // Fraud detection
-  fraudIndicators: text("fraud_indicators"), // JSON array
-  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high"]),
-  
-  // Total loss detection
-  totalLossIndicated: tinyint("total_loss_indicated").default(0), // Boolean flag for total loss
-  structuralDamageSeverity: mysqlEnum("structural_damage_severity", ["none", "minor", "moderate", "severe", "catastrophic"]).default("none"),
-  estimatedVehicleValue: int("estimated_vehicle_value"), // Vehicle market value in cents
-  repairToValueRatio: int("repair_to_value_ratio"), // Percentage (0-100+)
-  totalLossReasoning: text("total_loss_reasoning"), // Explanation for total loss determination
-   damagedComponentsJson: text("damaged_components_json"), // Full component list with severity
-  physicsAnalysis: text("physics_analysis"), // Physics-based accident analysis JSON
-  graphUrls: text("graph_urls"), // Generated visualization graph URLs (JSON)
-  
-  // AI model details
-  modelVersion: varchar("model_version", { length: 50 }),
-  processingTime: int("processing_time"), // milliseconds
-  
-  // AI Re-Analysis Version Tracking
-  isReanalysis: tinyint("is_reanalysis").default(0).notNull(), // Boolean flag for re-analysis
-  triggeredBy: int("triggered_by"), // User ID who triggered re-analysis
-  triggeredRole: varchar("triggered_role", { length: 50 }), // Role of user who triggered re-analysis
-  previousAssessmentId: int("previous_assessment_id"), // Link to original assessment
-  reanalysisReason: text("reanalysis_reason"), // Optional reason for re-analysis
-  versionNumber: int("version_number").default(1).notNull(), // 1 = original, 2+ = re-analysis
-  
-  tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type AiAssessment = typeof aiAssessments.$inferSelect;
-export type InsertAiAssessment = typeof aiAssessments.$inferInsert;
-
-/**
- * Assessor Evaluations - Human assessor evaluations
- */
-export const assessorEvaluations = mysqlTable("assessor_evaluations", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  assessorId: int("assessor_id").notNull(),
-  
-  // Cost breakdown
-  estimatedRepairCost: int("estimated_repair_cost"), // Total cost in cents
-  laborCost: int("labor_cost"), // Labor cost in cents
-  partsCost: int("parts_cost"), // Parts cost in cents
-  estimatedDuration: int("estimated_duration"), // Days
-  
-  // Evaluation details
-  damageAssessment: text("damage_assessment"),
-  recommendations: text("recommendations"),
-  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high"]),
-  
-  // AI Disagreement tracking
-  disagreesWithAi: boolean("disagrees_with_ai").default(false),
-  aiDisagreementReason: text("ai_disagreement_reason"),
-  
-  // Inspection details
-  inspectionDate: timestamp("inspection_date"),
-  inspectionPhotos: text("inspection_photos"), // JSON array of S3 URLs
-  
-  status: mysqlEnum("status", ["pending", "in_progress", "completed", "submitted"]).default("pending").notNull(),
-  
-    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type AssessorEvaluation = typeof assessorEvaluations.$inferSelect;
-export type InsertAssessorEvaluation = typeof assessorEvaluations.$inferInsert;
-
-/**
- * Panel Beater Quotes - Repair quotes from panel beaters
- */
-export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  panelBeaterId: int("panel_beater_id").notNull(),
-  
-  // Quote details
-  quotedAmount: int("quoted_amount").notNull(), // Cost in cents
-  laborCost: int("labor_cost"),
-  partsCost: int("parts_cost"),
-  estimatedDuration: int("estimated_duration"), // Days
-  laborHours: int("labor_hours"), // Estimated labor hours required for repairs
-  
-  // Quote breakdown
-  itemizedBreakdown: text("itemized_breakdown"), // JSON array of line items with component details
-  notes: text("notes"),
-  
-  // Component-level details for cost optimization
-  componentsJson: text("components_json"), // Detailed component breakdown with parts quality, action (repair/replace), warranty
-  partsQuality: mysqlEnum("parts_quality", ["aftermarket", "oem", "genuine", "used"]).default("aftermarket"),
-  warrantyMonths: int("warranty_months").default(12),
-  
-  // Modifications (if assessor requests changes)
-  modified: tinyint("modified").default(0),
-  originalQuotedAmount: int("original_quoted_amount"),
-  modificationReason: text("modification_reason"),
-  modifiedByAssessorId: int("modified_by_assessor_id"),
-  panelBeaterAgreed: tinyint("panel_beater_agreed"),
-  
-  status: mysqlEnum("status", ["draft", "submitted", "modified", "accepted", "rejected"]).default("draft").notNull(),
-  
-    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  panelBeaterIdIdx: index("idx_panel_beater_quotes_panel_beater_id").on(table.panelBeaterId),
-}));
-
-export type PanelBeaterQuote = typeof panelBeaterQuotes.$inferSelect;
-export type InsertPanelBeaterQuote = typeof panelBeaterQuotes.$inferInsert;
-
-/**
- * Appointments - Scheduled appointments between assessors and claimants/panel beaters
- */
-export const appointments = mysqlTable("appointments", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  assessorId: int("assessor_id").notNull(),
-  
-  appointmentType: mysqlEnum("appointment_type", ["claimant_inspection", "panel_beater_inspection"]).notNull(),
-  
-  // For claimant inspections
-  claimantId: int("claimant_id"),
-  
-  // For panel beater inspections
-  panelBeaterId: int("panel_beater_id"),
-  
-  // Appointment details
-  scheduledDate: timestamp("scheduled_date").notNull(),
-  location: text("location"),
-  notes: text("notes"),
-  
-  status: mysqlEnum("status", ["scheduled", "confirmed", "completed", "cancelled"]).default("scheduled").notNull(),
-  
-    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Appointment = typeof appointments.$inferSelect;
-export type InsertAppointment = typeof appointments.$inferInsert;
-
-/**
- * Audit Trail - Complete audit log of all changes and actions
- */
-export const auditTrail = mysqlTable("audit_trail", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  userId: int("user_id").notNull(),
-  
-  action: varchar("action", { length: 100 }).notNull(), // e.g., "quote_modified", "status_changed", "assessment_completed"
-  entityType: varchar("entity_type", { length: 50 }), // e.g., "quote", "claim", "assessment"
-  entityId: int("entity_id"),
-  
-  // Change details
-  previousValue: text("previous_value"), // JSON
-  newValue: text("new_value"), // JSON
-  changeDescription: text("change_description"),
-  
-  // Metadata
-  ipAddress: varchar("ip_address", { length: 45 }),
-  userAgent: text("user_agent"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type AuditTrailEntry = typeof auditTrail.$inferSelect;
-export type InsertAuditTrailEntry = typeof auditTrail.$inferInsert;
-
-/**
- * Claim Documents - File attachments for claims
- * Supports various document types: PDFs, images, Word docs, Excel sheets
- */
-export const claimDocuments = mysqlTable("claim_documents", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  uploadedBy: int("uploaded_by").notNull(), // User ID
-  
-  // File details
-  fileName: varchar("file_name", { length: 255 }).notNull(),
-  fileKey: varchar("file_key", { length: 500 }).notNull(), // S3 key
-  fileUrl: text("file_url").notNull(), // S3 URL
-  fileSize: int("file_size").notNull(), // in bytes
-  mimeType: varchar("mime_type", { length: 100 }).notNull(),
-  
-  // Document metadata
-  documentTitle: varchar("document_title", { length: 255 }),
-  documentDescription: text("document_description"),
-  documentCategory: mysqlEnum("document_category", [
-    "damage_photo",
-    "repair_quote",
-    "invoice",
-    "police_report",
-    "medical_report",
-    "insurance_policy",
-    "correspondence",
-    "other"
-  ]).default("other").notNull(),
-  
-  // Access control
-  visibleToRoles: text("visible_to_roles"), // JSON array of roles
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ClaimDocument = typeof claimDocuments.$inferSelect;
-export type InsertClaimDocument = typeof claimDocuments.$inferInsert;
-/**
- * Notifications - Real-time notifications for users
- * Tracks system events and user actions that require attention
- */
-export const notifications = mysqlTable("notifications", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull(), // Recipient user ID
-  
-  // Notification content
-  title: varchar("title", { length: 255 }).notNull(),
-  message: text("message").notNull(),
-  type: mysqlEnum("type", [
-    "claim_assigned",
-    "quote_submitted",
-    "fraud_detected",
-    "status_changed",
-    "assessment_completed",
-    "approval_required",
-    "document_uploaded",
-    "system_alert"
-  ]).notNull(),
-  
-  // Related entities
-  claimId: int("claim_id"), // Link to related claim
-  entityType: varchar("entity_type", { length: 50 }), // e.g., "claim", "quote", "assessment"
-  entityId: int("entity_id"), // ID of the related entity
-  
-  // Notification state
-  isRead: tinyint("is_read").default(0).notNull(),
-  readAt: timestamp("read_at"),
-  
-  // Action link (optional)
-  actionUrl: varchar("action_url", { length: 500 }), // URL to navigate to when clicked
-  
-  // Priority level
-  priority: mysqlEnum("priority", ["low", "medium", "high", "urgent"]).default("medium").notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type Notification = typeof notifications.$inferSelect;
-export type InsertNotification = typeof notifications.$inferInsert;
-
-/**
- * Fraud Indicators - Detailed fraud detection results for each claim
- * Stores all detected fraud patterns and their severity scores
- */
-export const fraudIndicators = mysqlTable("fraud_indicators", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Overall fraud assessment
-  overallFraudScore: int("overall_fraud_score").notNull(), // 0-100
-  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["low", "medium", "high", "critical"]).notNull(),
-  
-  // Claimant fraud indicators
-  delayedSubmissionDays: int("delayed_submission_days"), // Days between incident and claim
-  delayedSubmissionScore: int("delayed_submission_score"), // 0-100
-  
-  isNonOwnerDriver: tinyint("is_non_owner_driver").default(0),
-  nonOwnerDriverScore: int("non_owner_driver_score"),
-  
-  isSolePartyNightAccident: tinyint("is_sole_party_night_accident").default(0),
-  solePartyNightScore: int("sole_party_night_score"),
-  
-  policyAgeDays: int("policy_age_days"), // Days between policy start and incident
-  newPolicyWriteOffScore: int("new_policy_write_off_score"),
-  
-  previousInsurerCount: int("previous_insurer_count"), // Number of insurers in past year
-  insurerHoppingScore: int("insurer_hopping_score"),
-  
-  claimantHistoryScore: int("claimant_history_score"), // Based on past claims
-  
-  // Panel beater fraud indicators
-  quoteSimilarityScore: int("quote_similarity_score"), // 0-100, higher = more similar quotes
-  hasCopyQuotations: tinyint("has_copy_quotations").default(0),
-  
-  inflatedPartsCostScore: int("inflated_parts_cost_score"),
-  inflatedLaborTimeScore: int("inflated_labor_time_score"),
-  exaggeratedDamageScore: int("exaggerated_damage_score"),
-  
-  replacementVsRepairRatio: int("replacement_vs_repair_ratio"), // Percentage of parts marked for replacement
-  replacementRatioScore: int("replacement_ratio_score"),
-  
-  damageScopeCreepScore: int("damage_scope_creep_score"), // Ballooning parts list
-  
-  // Assessor fraud indicators
-  assessorCollusionScore: int("assessor_collusion_score"),
-  assessorBiasScore: int("assessor_bias_score"),
-  rubberStampingScore: int("rubber_stamping_score"),
-  
-  // Document & evidence indicators
-  photoMetadataScore: int("photo_metadata_score"), // EXIF tampering, etc.
-  reusedPhotoScore: int("reused_photo_score"),
-  documentConsistencyScore: int("document_consistency_score"),
-  
-  // Additional patterns
-  stagedAccidentScore: int("staged_accident_score"),
-  geographicRiskScore: int("geographic_risk_score"),
-  temporalAnomalyScore: int("temporal_anomaly_score"),
-  
-  // Fraud indicators summary (JSON)
-  detectedPatterns: text("detected_patterns"), // JSON array of detected pattern names
-  fraudEvidence: text("fraud_evidence"), // JSON array of evidence descriptions
-  
-  // Investigation status
-  requiresInvestigation: tinyint("requires_investigation").default(0).notNull(),
-  investigationPriority: mysqlEnum("investigation_priority", ["low", "medium", "high", "urgent"]),
-  investigationStatus: mysqlEnum("investigation_status", ["pending", "in_progress", "completed", "closed"]).default("pending"),
-  investigationNotes: text("investigation_notes"),
-  
-    tenantId: varchar("tenant_id", { length: 255 }), // Multi-tenant isolation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type FraudIndicator = typeof fraudIndicators.$inferSelect;
-export type InsertFraudIndicator = typeof fraudIndicators.$inferInsert;
-
-/**
- * Claimant History - Track all claims by each claimant across time
- * Used for pattern detection and fraud scoring
- */
-export const claimantHistory = mysqlTable("claimant_history", {
-  id: int("id").autoincrement().primaryKey(),
-  claimantId: int("claimant_id").notNull(),
-  claimantEmail: varchar("claimant_email", { length: 320 }),
-  claimantPhone: varchar("claimant_phone", { length: 20 }),
-  
-  // Claim statistics
-  totalClaims: int("total_claims").default(0).notNull(),
-  approvedClaims: int("approved_claims").default(0),
-  rejectedClaims: int("rejected_claims").default(0),
-  fraudulentClaims: int("fraudulent_claims").default(0),
-  
-  totalClaimAmount: int("total_claim_amount").default(0), // In cents
-  averageClaimAmount: int("average_claim_amount").default(0),
-  
-  // Temporal patterns
-  firstClaimDate: timestamp("first_claim_date"),
-  lastClaimDate: timestamp("last_claim_date"),
-  claimFrequency: int("claim_frequency"), // Claims per year
-  
-  // Vehicle patterns
-  uniqueVehiclesCount: int("unique_vehicles_count").default(0),
-  nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
-  
-  // Insurer patterns
-  insurerChangeCount: int("insurer_change_count").default(0),
-  currentInsurer: varchar("current_insurer", { length: 255 }),
-  previousInsurers: text("previous_insurers"), // JSON array
-  
-  // Geographic patterns
-  accidentLocations: text("accident_locations"), // JSON array of locations
-  highRiskAreaCount: int("high_risk_area_count").default(0),
-  
-  // Risk assessment
-  riskScore: int("risk_score").default(0), // 0-100
-  riskLevel: mysqlEnum("risk_level", ["low", "medium", "high", "critical"]).default("low"),
-  
-  // Flags
-  isHighRiskClient: tinyint("is_high_risk_client").default(0),
-  isFraudster: tinyint("is_fraudster").default(0),
-  isBlacklisted: tinyint("is_blacklisted").default(0),
-  
-  notes: text("notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ClaimantHistory = typeof claimantHistory.$inferSelect;
-export type InsertClaimantHistory = typeof claimantHistory.$inferInsert;
-
-/**
- * Vehicle History - Track vehicle-related fraud patterns
- */
-export const vehicleHistory = mysqlTable("vehicle_history", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull().unique(),
-  
-  // Vehicle details
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  vin: varchar("vin", { length: 17 }),
-  
-  // Ownership tracking
-  currentOwnerId: int("current_owner_id"),
-  ownershipChangeCount: int("ownership_change_count").default(0),
-  ownershipHistory: text("ownership_history"), // JSON array
-  
-  // Claim history
-  totalClaims: int("total_claims").default(0),
-  totalClaimAmount: int("total_claim_amount").default(0),
-  lastClaimDate: timestamp("last_claim_date"),
-  
-  // Fraud indicators
-  hasPreExistingDamage: tinyint("has_pre_existing_damage").default(0),
-  isSalvageTitle: tinyint("is_salvage_title").default(0),
-  hasOdometerFraud: tinyint("has_odometer_fraud").default(0),
-  isStolen: tinyint("is_stolen").default(0),
-  
-  // Driver patterns
-  uniqueDriversCount: int("unique_drivers_count").default(0),
-  nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
-  driverHistory: text("driver_history"), // JSON array
-  
-  riskScore: int("risk_score").default(0),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type VehicleHistory = typeof vehicleHistory.$inferSelect;
-export type InsertVehicleHistory = typeof vehicleHistory.$inferInsert;
-
-/**
- * Entity Relationships - Track connections between entities for collusion detection
- */
-export const entityRelationships = mysqlTable("entity_relationships", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Entity A
-  entityAType: varchar("entity_a_type", { length: 50 }).notNull(), // claimant, assessor, panel_beater
-  entityAId: int("entity_a_id").notNull(),
-  entityAName: varchar("entity_a_name", { length: 255 }),
-  
-  // Entity B
-  entityBType: varchar("entity_b_type", { length: 50 }).notNull(),
-  entityBId: int("entity_b_id").notNull(),
-  entityBName: varchar("entity_b_name", { length: 255 }),
-  
-  // Relationship details
-  relationshipType: mysqlEnum("relationship_type", [
-    "shared_address",
-    "shared_phone",
-    "shared_email",
-    "shared_bank_account",
-    "family_relation",
-    "business_relation",
-    "frequent_interaction",
-    "social_media_connection",
-    "employment_relation",
-    "suspicious_pattern"
-  ]).notNull(),
-  
-  relationshipStrength: int("relationship_strength").default(0), // 0-100
-  
-  // Interaction statistics
-  interactionCount: int("interaction_count").default(0),
-  firstInteractionDate: timestamp("first_interaction_date"),
-  lastInteractionDate: timestamp("last_interaction_date"),
-  
-  // Fraud indicators
-  isCollusionSuspected: tinyint("is_collusion_suspected").default(0),
-  collusionScore: int("collusion_score").default(0),
-  collusionEvidence: text("collusion_evidence"), // JSON array
-  
-  // Investigation
-  investigationStatus: mysqlEnum("investigation_status", ["none", "pending", "in_progress", "confirmed", "cleared"]).default("none"),
-  investigationNotes: text("investigation_notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type EntityRelationship = typeof entityRelationships.$inferSelect;
-export type InsertEntityRelationship = typeof entityRelationships.$inferInsert;
-
-/**
- * Fraud Rules - Configurable fraud detection rules
- */
-export const fraudRules = mysqlTable("fraud_rules", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  ruleName: varchar("rule_name", { length: 255 }).notNull().unique(),
-  ruleDescription: text("rule_description"),
-  ruleCategory: mysqlEnum("rule_category", [
-    "claimant",
-    "panel_beater",
-    "assessor",
-    "vehicle",
-    "document",
-    "temporal",
-    "geographic",
-    "network"
-  ]).notNull(),
-  
-  // Rule configuration
-  isActive: tinyint("is_active").default(1).notNull(),
-  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
-  scoreWeight: int("score_weight").default(10).notNull(), // 1-100
-  
-  // Threshold configuration
-  thresholdValue: int("threshold_value"), // Numeric threshold for rule trigger
-  thresholdUnit: varchar("threshold_unit", { length: 50 }), // days, percentage, count, etc.
-  
-  // Rule logic (JSON configuration)
-  ruleLogic: text("rule_logic"), // JSON object defining rule conditions
-  
-  // Actions
-  autoFlag: tinyint("auto_flag").default(1),
-  requiresManualReview: tinyint("requires_manual_review").default(0),
-  notifyInvestigator: tinyint("notify_investigator").default(0),
-  
-  // Statistics
-  timesTriggered: int("times_triggered").default(0),
-  truePositiveCount: int("true_positive_count").default(0),
-  falsePositiveCount: int("false_positive_count").default(0),
-  accuracy: int("accuracy").default(0), // Percentage
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type FraudRule = typeof fraudRules.$inferSelect;
-export type InsertFraudRule = typeof fraudRules.$inferInsert;
-
-/**
- * Fraud Alerts - Real-time fraud alerts triggered by detection system
- */
-export const fraudAlerts = mysqlTable("fraud_alerts", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Alert details
-  alertType: varchar("alert_type", { length: 100 }).notNull(),
-  alertSeverity: mysqlEnum("alert_severity", ["low", "medium", "high", "critical"]).notNull(),
-  alertTitle: varchar("alert_title", { length: 255 }).notNull(),
-  alertDescription: text("alert_description").notNull(),
-  
-  // Triggered rule
-  triggeredRuleId: int("triggered_rule_id"),
-  triggeredRuleName: varchar("triggered_rule_name", { length: 255 }),
-  
-  // Related entities
-  relatedEntityType: varchar("related_entity_type", { length: 50 }),
-  relatedEntityId: int("related_entity_id"),
-  
-  // Alert data
-  alertData: text("alert_data"), // JSON object with detailed alert information
-  fraudScore: int("fraud_score"), // 0-100
-  
-  // Status
-  status: mysqlEnum("status", ["new", "acknowledged", "investigating", "resolved", "false_alarm"]).default("new").notNull(),
-  assignedTo: int("assigned_to"), // User ID of investigator
-  
-  // Resolution
-  resolutionNotes: text("resolution_notes"),
-  resolutionDate: timestamp("resolution_date"),
-  isFraudConfirmed: tinyint("is_fraud_confirmed"),
-  
-  // Actions taken
-  actionsTaken: text("actions_taken"), // JSON array
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type FraudAlert = typeof fraudAlerts.$inferSelect;
-export type InsertFraudAlert = typeof fraudAlerts.$inferInsert;
-
-/**
- * Quote Line Items - Detailed breakdown of repair quotes
- * Captures itemized parts, labor, and costs for comprehensive quote analysis
- */
-export const quoteLineItems = mysqlTable("quote_line_items", {
-  id: int("id").autoincrement().primaryKey(),
-  quoteId: int("quote_id").notNull(), // Reference to panel_beater_quotes
-  
-  // Line item details
-  itemNumber: int("item_number"), // Sequential number in quote
-  description: varchar("description", { length: 500 }).notNull(),
-  partNumber: varchar("part_number", { length: 100 }),
-  
-  // Categorization
-  category: mysqlEnum("category", ["parts", "labor", "paint", "diagnostic", "sundries", "other"]).notNull(),
-  
-  // Pricing
-  quantity: decimal("quantity", { precision: 10, scale: 2 }).notNull(),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
-  lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
-  
-  // VAT handling
-  vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).default("15.00"), // Zimbabwe VAT is 15%
-  vatAmount: decimal("vat_amount", { precision: 10, scale: 2 }),
-  totalWithVat: decimal("total_with_vat", { precision: 10, scale: 2 }),
-  
-  // Repair vs replacement
-  isRepair: tinyint("is_repair").default(0),
-  isReplacement: tinyint("is_replacement").default(1),
-  
-  // Betterment calculation
-  bettermentAmount: decimal("betterment_amount", { precision: 10, scale: 2 }),
-  netCost: decimal("net_cost", { precision: 10, scale: 2 }), // After betterment deduction
-  
-  // Fraud detection flags
-  isPriceInflated: tinyint("is_price_inflated").default(0),
-  isUnrelatedDamage: tinyint("is_unrelated_damage").default(0),
-  isMissingInOtherQuotes: tinyint("is_missing_in_other_quotes").default(0),
-  
-  notes: text("notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type QuoteLineItem = typeof quoteLineItems.$inferSelect;
-export type InsertQuoteLineItem = typeof quoteLineItems.$inferInsert;
-
-/**
- * Third Party Vehicles - Vehicles involved in multi-vehicle accidents
- * Captures details of non-insured vehicles for liability claims
- */
-export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(), // Reference to main claim
-  
-  // Vehicle details
-  make: varchar("make", { length: 100 }),
-  model: varchar("model", { length: 100 }),
-  year: int("year"),
-  registration: varchar("registration", { length: 50 }),
-  vin: varchar("vin", { length: 17 }),
-  color: varchar("color", { length: 50 }),
-  
-  // Owner/driver details
-  ownerName: varchar("owner_name", { length: 200 }),
-  ownerContact: varchar("owner_contact", { length: 100 }),
-  ownerAddress: text("owner_address"),
-  driverName: varchar("driver_name", { length: 200 }),
-  driverLicense: varchar("driver_license", { length: 100 }),
-  
-  // Insurance details
-  insuranceCompany: varchar("insurance_company", { length: 200 }),
-  policyNumber: varchar("policy_number", { length: 100 }),
-  
-  // Damage assessment
-  damageDescription: text("damage_description"),
-  damagePhotos: text("damage_photos"), // JSON array of S3 URLs
-  estimatedRepairCost: int("estimated_repair_cost"), // In cents
-  
-  // Valuation
-  marketValue: int("market_value"), // In cents
-  marketValueSource: varchar("market_value_source", { length: 255 }), // e.g., "Facebook Marketplace", "AutoTrader SA"
-  marketValueConfidence: mysqlEnum("market_value_confidence", ["low", "medium", "high"]),
-  
-  // Liability
-  liabilityPercentage: int("liability_percentage").default(0), // 0-100, percentage of fault
-  compensationAmount: int("compensation_amount"), // Final compensation in cents
-  compensationType: mysqlEnum("compensation_type", ["repair", "cash", "total_loss"]),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ThirdPartyVehicle = typeof thirdPartyVehicles.$inferSelect;
-export type InsertThirdPartyVehicle = typeof thirdPartyVehicles.$inferInsert;
-
-/**
- * Vehicle Market Valuations - Market value assessments for vehicles
- * Supports multi-source pricing for accurate total loss and betterment calculations
- */
-export const vehicleMarketValuations = mysqlTable("vehicle_market_valuations", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Vehicle identification
-  vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
-  vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
-  vehicleYear: int("vehicle_year").notNull(),
-  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
-  mileage: int("mileage"), // Odometer reading
-  condition: mysqlEnum("condition", ["excellent", "good", "fair", "poor"]),
-  
-  // Market value assessment
-  estimatedMarketValue: int("estimated_market_value").notNull(), // In cents
-  valuationMethod: mysqlEnum("valuation_method", [
-    "facebook_marketplace",
-    "classifieds",
-    "autotrader_sa",
-    "historical_claims",
-    "manual_assessor",
-    "ai_estimation",
-    "hybrid"
-  ]).notNull(),
-  
-  // Data sources (JSON array of price points)
-  facebookPrices: text("facebook_prices"), // JSON: [{price, listing_url, date}]
-  classifiedsPrices: text("classifieds_prices"),
-  autotraderSaPrices: text("autotrader_sa_prices"),
-  
-  // SA import calculation (if applicable)
-  saBasePrice: int("sa_base_price"), // In cents
-  importDutyPercent: decimal("import_duty_percent", { precision: 5, scale: 2 }),
-  importDutyAmount: int("import_duty_amount"),
-  transportCost: int("transport_cost"),
-  totalImportCost: int("total_import_cost"),
-  
-  // Confidence scoring
-  confidenceScore: int("confidence_score"), // 0-100
-  dataPointsCount: int("data_points_count"), // Number of comparable listings found
-  priceRange: text("price_range"), // JSON: {min, max, median, average}
-  
-  // Adjustments
-  conditionAdjustment: int("condition_adjustment"), // +/- cents based on condition
-  mileageAdjustment: int("mileage_adjustment"),
-  marketTrendAdjustment: int("market_trend_adjustment"),
-  finalAdjustedValue: int("final_adjusted_value"),
-  
-  // Total loss determination
-  isTotalLoss: tinyint("is_total_loss").default(0),
-  totalLossThreshold: decimal("total_loss_threshold", { precision: 5, scale: 2 }).default("60.00"), // Percentage
-  repairCostToValueRatio: decimal("repair_cost_to_value_ratio", { precision: 5, scale: 2 }),
-  
-  // Assessor override
-  assessorOverride: tinyint("assessor_override").default(0),
-  assessorValue: int("assessor_value"),
-  assessorJustification: text("assessor_justification"),
-  
-  // Metadata
-  valuationDate: timestamp("valuation_date").defaultNow().notNull(),
-  validUntil: timestamp("valid_until"), // Valuation expires after 30 days
-  valuedBy: int("valued_by"), // User ID of assessor/system
-  
-  notes: text("notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type VehicleMarketValuation = typeof vehicleMarketValuations.$inferSelect;
-export type InsertVehicleMarketValuation = typeof vehicleMarketValuations.$inferInsert;
-
-/**
- * Police Reports - Official police accident reports
- * Captures police documentation for cross-validation with claim details
- */
-export const policeReports = mysqlTable("police_reports", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Police report details
-  reportNumber: varchar("report_number", { length: 100 }).notNull(),
-  policeStation: varchar("police_station", { length: 200 }),
-  officerName: varchar("officer_name", { length: 200 }),
-  officerBadgeNumber: varchar("officer_badge_number", { length: 100 }),
-  reportDate: timestamp("report_date"),
-  
-  // Accident details (from police perspective)
-  reportedSpeed: int("reported_speed"), // KM/H
-  reportedWeather: varchar("reported_weather", { length: 100 }),
-  reportedRoadCondition: varchar("reported_road_condition", { length: 100 }),
-  reportedVisibility: varchar("reported_visibility", { length: 100 }),
-  accidentLocation: text("accident_location"),
-  accidentDescription: text("accident_description"),
-  
-  // Violations and citations
-  violationsIssued: text("violations_issued"), // JSON array
-  citationNumbers: text("citation_numbers"), // JSON array
-  
-  // Witnesses
-  witnessStatements: text("witness_statements"), // JSON array
-  witnessCount: int("witness_count").default(0),
-  
-  // Evidence
-  policePhotos: text("police_photos"), // JSON array of S3 URLs
-  accidentDiagram: varchar("accident_diagram", { length: 500 }), // S3 URL
-  
-  // Document upload
-  reportDocumentUrl: varchar("report_document_url", { length: 500 }), // PDF of official report
-  
-  // Physics parameters (extracted via OCR)
-  roadSurface: varchar("road_surface", { length: 100 }), // asphalt, gravel, dirt, etc.
-  vehicle1Mass: int("vehicle1_mass"), // kg
-  vehicle2Mass: int("vehicle2_mass"), // kg
-  skidMarkLength: decimal("skid_mark_length", { precision: 10, scale: 2 }), // meters
-  impactSpeed: int("impact_speed"), // km/h (calculated or estimated)
-  roadGradient: decimal("road_gradient", { precision: 5, scale: 2 }), // degrees
-  lightingCondition: varchar("lighting_condition", { length: 100 }),
-  trafficCondition: varchar("traffic_condition", { length: 100 }),
-  
-  // OCR extraction metadata
-  ocrExtracted: tinyint("ocr_extracted").default(0),
-  ocrConfidence: int("ocr_confidence"), // 0-100
-  ocrNotes: text("ocr_notes"),
-  
-  // Cross-validation flags
-  speedDiscrepancy: int("speed_discrepancy"), // Difference between claimed and reported speed
-  locationMismatch: tinyint("location_mismatch").default(0),
-  weatherMismatch: tinyint("weather_mismatch").default(0),
-  descriptionInconsistent: tinyint("description_inconsistent").default(0),
-  
-  notes: text("notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type PoliceReport = typeof policeReports.$inferSelect;
-export type InsertPoliceReport = typeof policeReports.$inferInsert;
-
-/**
- * Pre-Accident Damage - Documentation of existing damage before accident
- * Prevents fraudulent claims for pre-existing damage
- */
-export const preAccidentDamage = mysqlTable("pre_accident_damage", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Damage details
-  damageType: mysqlEnum("damage_type", [
-    "rust",
-    "dent",
-    "scratch",
-    "paint_damage",
-    "mechanical",
-    "glass",
-    "interior",
-    "other"
-  ]).notNull(),
-  location: varchar("location", { length: 200 }).notNull(), // e.g., "front bumper", "driver door"
-  severity: mysqlEnum("severity", ["minor", "moderate", "severe"]).notNull(),
-  description: text("description"),
-  
-  // Evidence
-  photoUrl: varchar("photo_url", { length: 500 }), // S3 URL
-  documentedDate: timestamp("documented_date"),
-  
-  // Assessment
-  estimatedAge: varchar("estimated_age", { length: 100 }), // e.g., "6 months", "1-2 years"
-  isRelatedToCurrentClaim: tinyint("is_related_to_current_claim").default(0),
-  
-  // Assessor notes
-  assessorNotes: text("assessor_notes"),
-  documentedBy: int("documented_by"), // User ID
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type PreAccidentDamage = typeof preAccidentDamage.$inferSelect;
-export type InsertPreAccidentDamage = typeof preAccidentDamage.$inferInsert;
-
-/**
- * Vehicle Condition Assessment - Comprehensive mechanical and safety inspection
- * Documents overall vehicle condition at time of claim
- */
-export const vehicleConditionAssessment = mysqlTable("vehicle_condition_assessment", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  assessorId: int("assessor_id").notNull(),
-  
-  // Odometer
-  speedoReading: int("speedo_reading"), // Mileage
-  speedoUnit: mysqlEnum("speedo_unit", ["km", "miles"]).default("km"),
-  
-  // Mechanical condition
-  brakesCondition: mysqlEnum("brakes_condition", ["good", "fair", "poor"]),
-  brakesNotes: text("brakes_notes"),
-  
-  steeringCondition: mysqlEnum("steering_condition", ["good", "fair", "poor"]),
-  steeringNotes: text("steering_notes"),
-  
-  tiresCondition: mysqlEnum("tires_condition", ["good", "fair", "poor"]),
-  tireTreadDepthMm: int("tire_tread_depth_mm"),
-  tiresNotes: text("tires_notes"),
-  
-  suspensionCondition: mysqlEnum("suspension_condition", ["good", "fair", "poor"]),
-  suspensionNotes: text("suspension_notes"),
-  
-  // Body condition
-  bodyworkCondition: mysqlEnum("bodywork_condition", ["good", "fair", "poor"]),
-  bodyworkNotes: text("bodywork_notes"),
-  
-  paintworkCondition: mysqlEnum("paintwork_condition", ["good", "fair", "poor"]),
-  paintworkNotes: text("paintwork_notes"),
-  
-  // Interior condition
-  upholsteryCondition: mysqlEnum("upholstery_condition", ["good", "fair", "poor"]),
-  upholsteryNotes: text("upholstery_notes"),
-  
-  // General mechanical
-  generalMechanical: mysqlEnum("general_mechanical", ["good", "fair", "poor"]),
-  mechanicalNotes: text("mechanical_notes"),
-  
-  // Accessories
-  radioPresent: tinyint("radio_present").default(1),
-  radioModel: varchar("radio_model", { length: 100 }),
-  tokenNumber: varchar("token_number", { length: 100 }), // Radio security token
-  
-  // Overall assessment
-  overallCondition: mysqlEnum("overall_condition", ["excellent", "good", "fair", "poor"]),
-  maintenanceLevel: mysqlEnum("maintenance_level", ["well_maintained", "average", "poorly_maintained"]),
-  
-  // Contributory negligence flags
-  hasContributoryNegligence: tinyint("has_contributory_negligence").default(0),
-  negligenceDescription: text("negligence_description"),
-  
-  // Photos
-  conditionPhotos: text("condition_photos"), // JSON array of S3 URLs
-  
-  // Assessment metadata
-  assessmentDate: timestamp("assessment_date").defaultNow().notNull(),
-  assessorSignature: varchar("assessor_signature", { length: 500 }), // Digital signature URL
-  
-  notes: text("notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type VehicleConditionAssessment = typeof vehicleConditionAssessment.$inferSelect;
-export type InsertVehicleConditionAssessment = typeof vehicleConditionAssessment.$inferInsert;
-
-/**
- * Approval Workflow - Multi-level approval process for claims
- * Implements three-tier approval: Assessor → Risk Surveyor → Risk Manager
- */
-export const approvalWorkflow = mysqlTable("approval_workflow", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  
-  // Approval level
-  level: mysqlEnum("level", ["assessor", "risk_surveyor", "risk_manager"]).notNull(),
-  levelOrder: int("level_order").notNull(), // 1, 2, 3
-  
-  // Approver details
-  approverId: int("approver_id"), // User ID
-  approverName: varchar("approver_name", { length: 200 }),
-  approverRole: varchar("approver_role", { length: 100 }),
-  
-  // Approval status
-  status: mysqlEnum("status", ["pending", "approved", "rejected", "returned"]).default("pending").notNull(),
-  
-  // Decision details
-  approvedAmount: int("approved_amount"), // In cents
-  comments: text("comments"),
-  conditions: text("conditions"), // JSON array of approval conditions
-  
-  // Rejection/return details
-  rejectionReason: text("rejection_reason"),
-  returnReason: text("return_reason"),
-  returnToLevel: mysqlEnum("return_to_level", ["assessor", "risk_surveyor"]),
-  
-  // Timestamps
-  submittedAt: timestamp("submitted_at"),
-  reviewedAt: timestamp("reviewed_at"),
-  approvalDate: timestamp("approval_date"),
-  
-  // Escalation
-  isEscalated: tinyint("is_escalated").default(0),
-  escalationReason: text("escalation_reason"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ApprovalWorkflow = typeof approvalWorkflow.$inferSelect;
-export type InsertApprovalWorkflow = typeof approvalWorkflow.$inferInsert;
-
-/**
- * Organizations - Insurance companies and their teams
- */
-export const organizations = mysqlTable("organizations", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 200 }).notNull(),
-  businessName: varchar("business_name", { length: 200 }),
-  email: varchar("email", { length: 320 }),
-  phone: varchar("phone", { length: 20 }),
-  address: text("address"),
-  city: varchar("city", { length: 100 }),
-  country: varchar("country", { length: 100 }).default("Zimbabwe"),
-  
-  // Organization type
-  type: mysqlEnum("type", ["insurer", "broker", "tpa"]).default("insurer").notNull(), // TPA = Third Party Administrator
-  
-  // Owner/Admin
-  ownerId: int("owner_id").notNull(), // User ID of organization owner
-  
-  // Status
-  active: tinyint("active").default(1).notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Organization = typeof organizations.$inferSelect;
-export type InsertOrganization = typeof organizations.$inferInsert;
-
-/**
- * User Invitations - Team member invitations for organizations
- */
-export const userInvitations = mysqlTable("user_invitations", {
-  id: int("id").autoincrement().primaryKey(),
-  organizationId: int("organization_id").notNull(),
-  
-  // Invitee details
-  email: varchar("email", { length: 320 }).notNull(),
-  role: mysqlEnum("role", ["insurer", "assessor"]).notNull(), // Role to assign when accepted
-  
-  // Invitation details
-  invitedBy: int("invited_by").notNull(), // User ID of inviter
-  invitationToken: varchar("invitation_token", { length: 64 }).notNull().unique(),
-  
-  // Status
-  status: mysqlEnum("status", ["pending", "accepted", "expired", "cancelled"]).default("pending").notNull(),
-  
-  // Acceptance
-  acceptedAt: timestamp("accepted_at"),
-  acceptedUserId: int("accepted_user_id"), // User ID created when invitation accepted
-  
-  // Expiration
-  expiresAt: timestamp("expires_at").notNull(), // Invitations expire after 7 days
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type UserInvitation = typeof userInvitations.$inferSelect;
-export type InsertUserInvitation = typeof userInvitations.$inferInsert;
-
-/**
- * Registration Requests - Pending registrations for panel beaters and assessors
- */
-export const registrationRequests = mysqlTable("registration_requests", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Applicant details
-  name: varchar("name", { length: 200 }).notNull(),
-  email: varchar("email", { length: 320 }).notNull(),
-  phone: varchar("phone", { length: 20 }),
-  
-  // Registration type
-  role: mysqlEnum("role", ["panel_beater", "assessor"]).notNull(),
-  
-  // Panel beater specific
-  businessName: varchar("business_name", { length: 200 }),
-  address: text("address"),
-  city: varchar("city", { length: 100 }),
-  
-  // Assessor specific
-  licenseNumber: varchar("license_number", { length: 100 }),
-  yearsExperience: int("years_experience"),
-  specializations: text("specializations"), // JSON array
-  
-  // Supporting documents (S3 URLs)
-  documentsJson: text("documents_json"), // JSON array of document URLs
-  
-  // Status
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  
-  // Review
-  reviewedBy: int("reviewed_by"), // Admin user ID
-  reviewedAt: timestamp("reviewed_at"),
-  reviewNotes: text("review_notes"),
-  
-  // Created user
-  createdUserId: int("created_user_id"), // User ID created when approved
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type RegistrationRequest = typeof registrationRequests.$inferSelect;
-export type InsertRegistrationRequest = typeof registrationRequests.$inferInsert;
-
-/**
- * Email Verification Tokens - For email verification and password reset
- */
-export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull(),
-  email: varchar("email", { length: 320 }).notNull(),
-  token: varchar("token", { length: 64 }).notNull().unique(),
-  type: mysqlEnum("type", ["verification", "password_reset"]).notNull(),
-  
-  // Status
-  used: tinyint("used").default(0).notNull(),
-  usedAt: timestamp("used_at"),
-  
-  // Expiration
-  expiresAt: timestamp("expires_at").notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type EmailVerificationToken = typeof emailVerificationTokens.$inferSelect;
-export type InsertEmailVerificationToken = typeof emailVerificationTokens.$inferInsert;
-
-/**
- * Tenants - Multi-tenant isolation for insurers
- */
-export const tenants = mysqlTable("tenants", {
-  id: varchar("id", { length: 64 }).primaryKey(), // tenant-{uuid}
-  name: varchar("name", { length: 255 }).notNull(),
-  displayName: varchar("display_name", { length: 255 }).notNull(),
-  
-  // Tier and status
-  tier: mysqlEnum("tier", ["tier-basic", "tier-professional", "tier-enterprise"]).default("tier-basic").notNull(),
-  status: mysqlEnum("status", ["active", "inactive", "suspended"]).default("active").notNull(),
-  
-  // Encryption
-  encryptionKeyId: varchar("encryption_key_id", { length: 255 }), // KMS key ID for tenant-specific encryption
-  
-  // Contact information
-  contactName: varchar("contact_name", { length: 255 }),
-  contactEmail: varchar("contact_email", { length: 320 }),
-  contactPhone: varchar("contact_phone", { length: 20 }),
-  
-  // Billing
-  billingEmail: varchar("billing_email", { length: 320 }),
-  
-  // Configuration
-  configJson: text("config_json"), // JSON object for tenant-specific configuration
-  workflowConfig: text("workflow_config"), // JSON object for workflow configuration (escalation thresholds, routing rules)
-  
-  // Intake Escalation Configuration
-  intakeEscalationEnabled: tinyint("intake_escalation_enabled").default(0).notNull(), // Enable/disable intake escalation
-  intakeEscalationHours: int("intake_escalation_hours").default(6), // Hours before escalating stale intake claims (default 6)
-  intakeEscalationMode: mysqlEnum("intake_escalation_mode", ["auto_assign", "escalate_only"]).default("escalate_only"), // auto_assign: auto-assign to processor, escalate_only: notify only
-  
-  // AI Rerun Rate Limiting Configuration
-  aiRerunLimitPerHour: int("ai_rerun_limit_per_hour").default(10).notNull(), // Maximum AI reruns per user per hour (default 10)
-  
-  // Routing Configuration (Dynamic Confidence Thresholds)
-  routingConfig: text("routing_config"), // JSON object for routing configuration: { autoApproveThreshold: 0.85, manualReviewMin: 0.60, manualReviewMax: 0.84, highRiskMin: 0.40, highRiskMax: 0.59, fraudInvestigationMax: 0.39 }
-  
-  // Timestamps
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-  activatedAt: timestamp("activated_at"),
-  suspendedAt: timestamp("suspended_at"),
-});
-
-export type Tenant = typeof tenants.$inferSelect;
-export type InsertTenant = typeof tenants.$inferInsert;
-
-/**
- * Assessors - Professional assessors with classification system
- * Supports insurer-owned, marketplace, and hybrid assessors
- */
-export const assessors = mysqlTable("assessors", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull().unique(), // Links to users table
-  professionalLicenseNumber: varchar("professional_license_number", { length: 100 }).notNull().unique(),
-  licenseExpiryDate: timestamp("license_expiry_date").notNull(),
-  
-  // Assessor classification
-  assessorType: mysqlEnum("assessor_type", ["insurer_owned", "marketplace", "hybrid"]).notNull(),
-  primaryTenantId: varchar("primary_tenant_id", { length: 64 }), // For insurer-owned and hybrid assessors
-  marketplaceEnabled: tinyint("marketplace_enabled").default(0).notNull(), // Can accept marketplace assignments
-  
-  // Marketplace profile
-  marketplaceStatus: mysqlEnum("marketplace_status", ["pending_approval", "active", "suspended", "inactive"]).default("pending_approval"),
-  marketplaceOnboardedAt: timestamp("marketplace_onboarded_at"),
-  marketplaceBio: text("marketplace_bio"), // Public profile description
-  marketplaceHourlyRate: decimal("marketplace_hourly_rate", { precision: 10, scale: 2 }), // Suggested rate for marketplace
-  marketplaceAvailability: mysqlEnum("marketplace_availability", ["full_time", "part_time", "weekends_only", "on_demand"]).default("on_demand"),
-  
-  // Specializations and certifications
-  specializations: text("specializations"), // JSON array: ["vehicle", "property", "marine"]
-  certifications: text("certifications"), // JSON array: ["IICRC", "ASE", "I-CAR"]
-  certificationLevel: mysqlEnum("certification_level", ["junior", "senior", "expert", "master"]).notNull(),
-  yearsOfExperience: int("years_of_experience"),
-  
-  // Geographic coverage
-  serviceRegions: text("service_regions"), // JSON array: ["Harare", "Bulawayo"]
-  maxTravelDistanceKm: int("max_travel_distance_km").default(50),
-  
-  // Performance metrics (unified across all types)
-  activeStatus: tinyint("active_status").default(1).notNull(),
-  performanceScore: decimal("performance_score", { precision: 5, scale: 2 }), // 0.00 to 100.00
-  totalAssessmentsCompleted: int("total_assessments_completed").default(0),
-  averageAccuracyScore: decimal("average_accuracy_score", { precision: 5, scale: 2 }), // Compared to AI baseline
-  averageTurnaroundHours: decimal("average_turnaround_hours", { precision: 8, scale: 2 }),
-  averageRating: decimal("average_rating", { precision: 3, scale: 2 }), // 0.00 to 5.00 (marketplace ratings)
-  totalRatingsCount: int("total_ratings_count").default(0),
-  
-  // Marketplace earnings (for marketplace and hybrid assessors)
-  totalMarketplaceEarnings: decimal("total_marketplace_earnings", { precision: 12, scale: 2 }).default("0.00"),
-  pendingPayout: decimal("pending_payout", { precision: 12, scale: 2 }).default("0.00"),
-  lastPayoutDate: timestamp("last_payout_date"),
-  
-  // Compliance and verification
-  backgroundCheckStatus: mysqlEnum("background_check_status", ["pending", "passed", "failed"]).default("pending"),
-  backgroundCheckDate: timestamp("background_check_date"),
-  insuranceVerified: tinyint("insurance_verified").default(0), // Professional indemnity insurance
-  insuranceExpiryDate: timestamp("insurance_expiry_date"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Assessor = typeof assessors.$inferSelect;
-export type InsertAssessor = typeof assessors.$inferInsert;
-
-/**
- * Assessor-Insurer Relationships
- * Tracks relationships between assessors and insurers (both BYOA and marketplace)
- */
-export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relationships", {
-  id: int("id").autoincrement().primaryKey(),
-  assessorId: int("assessor_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Relationship type
-  relationshipType: mysqlEnum("relationship_type", ["insurer_owned", "marketplace_contract", "preferred_vendor"]).notNull(),
-  relationshipStatus: mysqlEnum("relationship_status", ["active", "suspended", "terminated"]).default("active"),
-  
-  // Contract details
-  contractStartDate: timestamp("contract_start_date").notNull(),
-  contractEndDate: timestamp("contract_end_date"),
-  contractedRatePerAssessment: decimal("contracted_rate_per_assessment", { precision: 10, scale: 2 }), // For insurer-owned assessors
-  marketplaceCommissionRate: decimal("marketplace_commission_rate", { precision: 5, scale: 2 }), // For marketplace assessors (e.g., 15.00 = 15%)
-  
-  // Performance tracking (tenant-specific)
-  performanceRating: decimal("performance_rating", { precision: 3, scale: 2 }), // Insurer-specific rating 0.00 to 5.00
-  totalAssignmentsCompleted: int("total_assignments_completed").default(0),
-  totalAssignmentsRejected: int("total_assignments_rejected").default(0),
-  averageCompletionTimeHours: decimal("average_completion_time_hours", { precision: 8, scale: 2 }),
-  
-  // Preferred vendor status (for marketplace assessors)
-  isPreferredVendor: tinyint("is_preferred_vendor").default(0),
-  preferredVendorSince: timestamp("preferred_vendor_since"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type AssessorInsurerRelationship = typeof assessorInsurerRelationships.$inferSelect;
-export type InsertAssessorInsurerRelationship = typeof assessorInsurerRelationships.$inferInsert;
-
-/**
- * Marketplace Assessor Reviews
- * Ratings and reviews for marketplace assessors
- */
-export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_reviews", {
-  id: int("id").autoincrement().primaryKey(),
-  assessorId: int("assessor_id").notNull(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  reviewerUserId: int("reviewer_user_id").notNull(), // Insurer user who left review
-  
-  // Rating (1-5 stars)
-  overallRating: int("overall_rating").notNull(), // 1-5
-  accuracyRating: int("accuracy_rating"), // 1-5
-  professionalismRating: int("professionalism_rating"), // 1-5
-  timelinessRating: int("timeliness_rating"), // 1-5
-  communicationRating: int("communication_rating"), // 1-5
-  
-  // Review content
-  reviewText: text("review_text"),
-  wouldHireAgain: tinyint("would_hire_again"),
-  
-  // Metadata
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type AssessorMarketplaceReview = typeof assessorMarketplaceReviews.$inferSelect;
-export type InsertAssessorMarketplaceReview = typeof assessorMarketplaceReviews.$inferInsert;
-
-/**
- * Marketplace Transactions
- * Tracks commission and payouts for marketplace assessments
- */
-export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
-  id: int("id").autoincrement().primaryKey(),
-  assignmentId: int("assignment_id").notNull(), // Links to assessor_claim_assignments (to be added)
-  assessorId: int("assessor_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  claimId: int("claim_id").notNull(),
-  
-  // Financial details
-  assessmentFee: decimal("assessment_fee", { precision: 10, scale: 2 }).notNull(), // Total fee charged to insurer
-  kingaCommission: decimal("kinga_commission", { precision: 10, scale: 2 }).notNull(), // KINGA's commission
-  assessorPayout: decimal("assessor_payout", { precision: 10, scale: 2 }).notNull(), // Assessor's net earnings
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(), // Percentage (e.g., 15.00)
-  
-  // Transaction status
-  transactionStatus: mysqlEnum("transaction_status", ["pending", "completed", "paid_out", "disputed", "refunded"]).default("pending"),
-  completedAt: timestamp("completed_at"),
-  paidOutAt: timestamp("paid_out_at"),
-  
-  // Payment details
-  paymentMethod: varchar("payment_method", { length: 50 }), // "stripe", "bank_transfer", "mobile_money"
-  paymentReference: varchar("payment_reference", { length: 100 }),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type MarketplaceTransaction = typeof marketplaceTransactions.$inferSelect;
-export type InsertMarketplaceTransaction = typeof marketplaceTransactions.$inferInsert;
-
-
-/**
- * Document Ingestion Batches
- * Tracks batches of documents uploaded for processing
- */
-export const ingestionBatches = mysqlTable("ingestion_batches", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Batch identification
-  batchId: varchar("batch_id", { length: 36 }).notNull().unique(), // UUID
-  batchName: varchar("batch_name", { length: 255 }),
-  
-  // Source tracking
-  ingestionSource: mysqlEnum("ingestion_source", ["processor_upload", "bulk_batch", "api", "email", "legacy_import", "broker_upload"]).notNull(),
-  ingestionChannel: mysqlEnum("ingestion_channel", ["web_ui", "api", "email", "sftp"]).notNull(),
-  
-  // Uploader information
-  uploadedByUserId: int("uploaded_by_user_id"),
-  uploadedByEmail: varchar("uploaded_by_email", { length: 320 }),
-  uploadedByIpAddress: varchar("uploaded_by_ip_address", { length: 45 }),
-  
-  // Batch statistics
-  totalDocuments: int("total_documents").default(0).notNull(),
-  processedDocuments: int("processed_documents").default(0).notNull(),
-  failedDocuments: int("failed_documents").default(0).notNull(),
-  
-  // Processing status
-  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
-  startedAt: timestamp("started_at"),
-  completedAt: timestamp("completed_at"),
-  
-  // Chain of custody
-  custodyChain: json("custody_chain"), // Array of custody events
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type IngestionBatch = typeof ingestionBatches.$inferSelect;
-export type InsertIngestionBatch = typeof ingestionBatches.$inferInsert;
-
-/**
- * Ingestion Documents
- * Individual documents within ingestion batches
- */
-export const ingestionDocuments = mysqlTable("ingestion_documents", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  batchId: int("batch_id").notNull(),
-  historicalClaimId: int("historical_claim_id"), // Link to historical_claims table
-  
-  // Document identification
-  documentId: varchar("document_id", { length: 36 }).notNull().unique(), // UUID
-  originalFilename: varchar("original_filename", { length: 500 }).notNull(),
-  fileSizeBytes: int("file_size_bytes").notNull(),
-  mimeType: varchar("mime_type", { length: 100 }).notNull(),
-  
-  // Storage location
-  s3Bucket: varchar("s3_bucket", { length: 255 }).notNull(),
-  s3Key: varchar("s3_key", { length: 1024 }).notNull(),
-  s3Url: varchar("s3_url", { length: 2048 }).notNull(),
-  
-  // Hash verification
-  sha256Hash: varchar("sha256_hash", { length: 64 }).notNull(),
-  hashVerified: tinyint("hash_verified").default(0).notNull(),
-  
-  // Classification
-  documentType: mysqlEnum("document_type", ["claim_form", "police_report", "damage_image", "repair_quote", "assessor_report", "supporting_evidence", "unknown"]),
-  classificationConfidence: decimal("classification_confidence", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
-  classificationMethod: mysqlEnum("classification_method", ["ai_model", "rule_based", "manual_override"]),
-  
-  // Extraction status
-  extractionStatus: mysqlEnum("extraction_status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
-  extractionStartedAt: timestamp("extraction_started_at"),
-  extractionCompletedAt: timestamp("extraction_completed_at"),
-  
-  // Validation status
-  validationStatus: mysqlEnum("validation_status", ["pending", "in_review", "approved", "rejected"]).default("pending").notNull(),
-  validatedByUserId: int("validated_by_user_id"),
-  validatedAt: timestamp("validated_at"),
-  
-  // Metadata
-  pageCount: int("page_count"),
-  languageDetected: varchar("language_detected", { length: 10 }), // ISO 639-1 code
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type IngestionDocument = typeof ingestionDocuments.$inferSelect;
-export type InsertIngestionDocument = typeof ingestionDocuments.$inferInsert;
-
-/**
- * Extracted Document Data
- * Structured data extracted from documents
- */
-export const extractedDocumentData = mysqlTable("extracted_document_data", {
-  id: int("id").autoincrement().primaryKey(),
-  documentId: int("document_id").notNull(), // Foreign key to ingestion_documents
-  
-  // Claim identification
-  policyNumber: varchar("policy_number", { length: 100 }),
-  claimNumber: varchar("claim_number", { length: 100 }),
-  
-  // Insured information
-  insuredName: varchar("insured_name", { length: 255 }),
-  insuredIdNumber: varchar("insured_id_number", { length: 50 }),
-  insuredPhone: varchar("insured_phone", { length: 50 }),
-  insuredEmail: varchar("insured_email", { length: 320 }),
-  insuredAddress: text("insured_address"),
-  
-  // Incident details
-  incidentDate: date("incident_date"),
-  incidentTime: time("incident_time"),
-  incidentLocation: text("incident_location"),
-  incidentDescription: text("incident_description"),
-  
-  // Vehicle details
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  vehicleVin: varchar("vehicle_vin", { length: 50 }),
-  vehicleLicensePlate: varchar("vehicle_license_plate", { length: 20 }),
-  vehicleMass: int("vehicle_mass"), // kg
-  
-  // Repair details
-  repairCostEstimate: decimal("repair_cost_estimate", { precision: 10, scale: 2 }),
-  repairPartsList: json("repair_parts_list"), // Array of parts
-  repairLaborHours: decimal("repair_labor_hours", { precision: 6, scale: 2 }),
-  repairLaborRate: decimal("repair_labor_rate", { precision: 10, scale: 2 }),
-  
-  // Assessor observations
-  assessorName: varchar("assessor_name", { length: 255 }),
-  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
-  assessorObservations: text("assessor_observations"),
-  damageSeverity: mysqlEnum("damage_severity", ["minor", "moderate", "severe", "total_loss"]),
-  
-  // Extraction metadata
-  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
-  fieldsExtractedCount: int("fields_extracted_count"),
-  fieldsMissingCount: int("fields_missing_count"),
-  
-  // Full OCR text
-  fullText: longtext("full_text"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ExtractedDocumentData = typeof extractedDocumentData.$inferSelect;
-export type InsertExtractedDocumentData = typeof extractedDocumentData.$inferInsert;
-
-// Note: claimDocuments table already exists earlier in the schema (line 350)
-// It will be extended to support both traditional uploads and document ingestion pipeline
-
-
-// ============================================================
-// HISTORICAL CLAIM INTELLIGENCE PIPELINE TABLES
-// ============================================================
-
-/**
- * Historical Claims Master
- * Central record for each historical claim imported into the intelligence pipeline.
- * Links all documents, extracted data, ground truth, and variance analysis.
- */
-export const historicalClaims = mysqlTable("historical_claims", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  batchId: int("batch_id"), // Link to ingestion batch
-  
-  // Claim identification
-  claimReference: varchar("claim_reference", { length: 100 }), // Original claim number from insurer
-  policyNumber: varchar("policy_number", { length: 100 }),
-  
-  // Vehicle details (extracted)
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
-  vehicleVin: varchar("vehicle_vin", { length: 50 }),
-  vehicleColor: varchar("vehicle_color", { length: 50 }),
-  
-  // Accident details (extracted)
-  incidentDate: date("incident_date"),
-  incidentLocation: text("incident_location"),
-  incidentDescription: text("incident_description"),
-  accidentType: varchar("accident_type", { length: 100 }), // rear_end, head_on, side_impact, rollover, etc.
-  estimatedSpeed: int("estimated_speed"), // km/h
-  
-  // Claimant details (extracted)
-  claimantName: varchar("claimant_name", { length: 255 }),
-  claimantIdNumber: varchar("claimant_id_number", { length: 50 }),
-  claimantContact: varchar("claimant_contact", { length: 100 }),
-  
-  // Cost summary
-  totalPanelBeaterQuote: decimal("total_panel_beater_quote", { precision: 12, scale: 2 }), // Original quote
-  totalAssessorEstimate: decimal("total_assessor_estimate", { precision: 12, scale: 2 }), // Assessor's estimate
-  totalAiEstimate: decimal("total_ai_estimate", { precision: 12, scale: 2 }), // AI prediction
-  finalApprovedCost: decimal("final_approved_cost", { precision: 12, scale: 2 }), // Ground truth
-  
-  // Repair decision
-  repairDecision: mysqlEnum("repair_decision", ["repair", "total_loss", "cash_settlement", "rejected"]),
-  
-  // Assessor involved
-  assessorName: varchar("assessor_name", { length: 255 }),
-  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
-  
-  // Processing status
-  pipelineStatus: mysqlEnum("pipeline_status", [
-    "pending",
-    "documents_uploaded",
-    "classification_complete",
-    "extraction_complete",
-    "ground_truth_captured",
-    "variance_calculated",
-    "complete",
-    "failed"
-  ]).default("pending").notNull(),
-  
-  // Data quality
-  dataQualityScore: int("data_quality_score"), // 0-100
-  fieldsExtracted: int("fields_extracted"),
-  fieldsMissing: int("fields_missing"),
-  manualCorrections: int("manual_corrections").default(0),
-  
-  // Document count
-  totalDocuments: int("total_documents").default(0),
-  
-  // Damage photos (extracted from documents)
-  damagePhotosJson: json("damage_photos_json"), // Array of S3 URLs to extracted damage photos
-  
-  // Extraction log (audit trail)
-  extractionLog: json("extraction_log"), // Array of extraction events
-  
-  // Error tracking
-  lastError: text("last_error"),
-  retryCount: int("retry_count").default(0),
-  
-  // Replay tracking
-  replayMode: tinyint("replay_mode").default(0).notNull(), // 0 = normal, 1 = replay enabled
-  lastReplayedAt: timestamp("last_replayed_at"), // When this claim was last replayed
-  replayCount: int("replay_count").default(0), // Number of times replayed
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type HistoricalClaim = typeof historicalClaims.$inferSelect;
-export type InsertHistoricalClaim = typeof historicalClaims.$inferInsert;
-
-/**
- * Extracted Repair Items
- * Itemized repair data extracted from panel beater quotes and assessor reports.
- * Each row represents one line item from a document.
- */
-export const extractedRepairItems = mysqlTable("extracted_repair_items", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull(),
-  documentId: int("document_id"), // Link to ingestion_documents
-  sourceType: mysqlEnum("source_type", ["panel_beater_quote", "assessor_report", "ai_estimate"]).notNull(),
-  
-  // Item details
-  itemNumber: int("item_number"),
-  description: varchar("description", { length: 500 }).notNull(),
-  partNumber: varchar("part_number", { length: 100 }),
-  
-  // Categorization
-  category: mysqlEnum("category", ["parts", "labor", "paint", "diagnostic", "sundries", "sublet", "other"]).notNull(),
-  damageLocation: varchar("damage_location", { length: 200 }), // front_bumper, rear_door, etc.
-  
-  // Action
-  repairAction: mysqlEnum("repair_action", ["repair", "replace", "refinish", "blend", "remove_refit"]),
-  
-  // Pricing
-  quantity: decimal("quantity", { precision: 10, scale: 2 }).default("1.00"),
-  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
-  lineTotal: decimal("line_total", { precision: 10, scale: 2 }),
-  
-  // Labor
-  laborHours: decimal("labor_hours", { precision: 6, scale: 2 }),
-  laborRate: decimal("labor_rate", { precision: 10, scale: 2 }),
-  
-  // Parts quality
-  partsQuality: mysqlEnum("parts_quality", ["oem", "genuine", "aftermarket", "used", "reconditioned"]),
-  
-  // Betterment
-  bettermentPercent: decimal("betterment_percent", { precision: 5, scale: 2 }),
-  bettermentAmount: decimal("betterment_amount", { precision: 10, scale: 2 }),
-  
-  // Extraction confidence
-  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
-  isHandwritten: tinyint("is_handwritten").default(0), // Flag for handwritten items
-  manuallyVerified: tinyint("manually_verified").default(0),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type ExtractedRepairItem = typeof extractedRepairItems.$inferSelect;
-export type InsertExtractedRepairItem = typeof extractedRepairItems.$inferInsert;
-
-/**
- * Cost Components
- * Aggregated cost breakdown per historical claim per source.
- * Captures labor, parts, materials, paint, sublet totals.
- */
-export const costComponents = mysqlTable("cost_components", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull(),
-  sourceType: mysqlEnum("source_type", ["panel_beater_quote", "assessor_report", "ai_estimate", "final_approved"]).notNull(),
-  documentId: int("document_id"), // Link to source document
-  
-  // Cost breakdown
-  laborCost: decimal("labor_cost", { precision: 12, scale: 2 }).default("0.00"),
-  partsCost: decimal("parts_cost", { precision: 12, scale: 2 }).default("0.00"),
-  paintCost: decimal("paint_cost", { precision: 12, scale: 2 }).default("0.00"),
-  materialsCost: decimal("materials_cost", { precision: 12, scale: 2 }).default("0.00"),
-  subletCost: decimal("sublet_cost", { precision: 12, scale: 2 }).default("0.00"),
-  sundries: decimal("sundries", { precision: 12, scale: 2 }).default("0.00"),
-  vatAmount: decimal("vat_amount", { precision: 12, scale: 2 }).default("0.00"),
-  totalExclVat: decimal("total_excl_vat", { precision: 12, scale: 2 }).default("0.00"),
-  totalInclVat: decimal("total_incl_vat", { precision: 12, scale: 2 }).default("0.00"),
-  
-  // Labor details
-  totalLaborHours: decimal("total_labor_hours", { precision: 8, scale: 2 }),
-  averageLaborRate: decimal("average_labor_rate", { precision: 10, scale: 2 }),
-  
-  // Parts details
-  totalPartsCount: int("total_parts_count"),
-  oemPartsCount: int("oem_parts_count"),
-  aftermarketPartsCount: int("aftermarket_parts_count"),
-  repairVsReplaceRatio: decimal("repair_vs_replace_ratio", { precision: 5, scale: 2 }), // % replaced
-  
-  // Betterment
-  totalBetterment: decimal("total_betterment", { precision: 12, scale: 2 }).default("0.00"),
-  
-  // Extraction metadata
-  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type CostComponent = typeof costComponents.$inferSelect;
-export type InsertCostComponent = typeof costComponents.$inferInsert;
-
-/**
- * AI Prediction Logs
- * Audit trail of every AI prediction made during historical claim processing.
- * Used for model accuracy tracking and continuous learning.
- */
-export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Prediction type
-  predictionType: mysqlEnum("prediction_type", [
-    "cost_estimate",
-    "fraud_detection",
-    "document_classification",
-    "damage_assessment",
-    "repair_vs_replace",
-    "total_loss_determination",
-    "physics_validation"
-  ]).notNull(),
-  
-  // Model details
-  modelName: varchar("model_name", { length: 100 }).notNull(), // e.g., "gpt-4o", "kinga-fraud-v1"
-  modelVersion: varchar("model_version", { length: 50 }),
-  
-  // Input summary
-  inputSummary: text("input_summary"), // Brief description of what was sent to the model
-  inputTokens: int("input_tokens"),
-  
-  // Prediction output
-  predictedValue: decimal("predicted_value", { precision: 12, scale: 2 }), // For numeric predictions (cost)
-  predictedLabel: varchar("predicted_label", { length: 100 }), // For classification predictions
-  confidenceScore: decimal("confidence_score", { precision: 5, scale: 4 }), // 0.0000 to 1.0000
-  predictionJson: json("prediction_json"), // Full structured prediction output
-  
-  // Ground truth comparison (filled after ground truth is captured)
-  actualValue: decimal("actual_value", { precision: 12, scale: 2 }),
-  actualLabel: varchar("actual_label", { length: 100 }),
-  varianceAmount: decimal("variance_amount", { precision: 12, scale: 2 }), // predicted - actual
-  variancePercent: decimal("variance_percent", { precision: 8, scale: 2 }), // ((predicted - actual) / actual) * 100
-  isAccurate: tinyint("is_accurate"), // Within acceptable threshold
-  
-  // Processing metadata
-  processingTimeMs: int("processing_time_ms"),
-  outputTokens: int("output_tokens"),
-  totalCost: decimal("total_cost", { precision: 10, scale: 6 }), // API cost in USD
-  
-  // Error tracking
-  errorOccurred: tinyint("error_occurred").default(0),
-  errorMessage: text("error_message"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type AiPredictionLog = typeof aiPredictionLogs.$inferSelect;
-export type InsertAiPredictionLog = typeof aiPredictionLogs.$inferInsert;
-
-/**
- * Final Approval Records (Ground Truth)
- * The definitive record of what was actually approved and paid.
- * This is the training label for ML models.
- */
-export const finalApprovalRecords = mysqlTable("final_approval_records", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Final decision
-  finalDecision: mysqlEnum("final_decision", ["approved_repair", "approved_total_loss", "cash_settlement", "rejected", "withdrawn"]).notNull(),
-  
-  // Final costs
-  finalApprovedAmount: decimal("final_approved_amount", { precision: 12, scale: 2 }).notNull(),
-  finalLaborCost: decimal("final_labor_cost", { precision: 12, scale: 2 }),
-  finalPartsCost: decimal("final_parts_cost", { precision: 12, scale: 2 }),
-  finalPaintCost: decimal("final_paint_cost", { precision: 12, scale: 2 }),
-  finalSubletCost: decimal("final_sublet_cost", { precision: 12, scale: 2 }),
-  finalBetterment: decimal("final_betterment", { precision: 12, scale: 2 }),
-  
-  // Decision maker
-  approvedByName: varchar("approved_by_name", { length: 255 }),
-  approvedByRole: varchar("approved_by_role", { length: 100 }),
-  approvalDate: date("approval_date"),
-  
-  // Assessor involved
-  assessorName: varchar("assessor_name", { length: 255 }),
-  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
-  assessorEstimate: decimal("assessor_estimate", { precision: 12, scale: 2 }),
-  
-  // Repair outcome
-  repairShopName: varchar("repair_shop_name", { length: 255 }),
-  actualRepairDuration: int("actual_repair_duration"), // Days
-  customerSatisfaction: int("customer_satisfaction"), // 1-5
-  
-  // Notes
-  approvalNotes: text("approval_notes"),
-  conditions: text("conditions"), // JSON array of conditions
-  
-  // Data source
-  dataSource: mysqlEnum("data_source", ["extracted_from_document", "manual_entry", "system_import"]).notNull(),
-  capturedByUserId: int("captured_by_user_id"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type FinalApprovalRecord = typeof finalApprovalRecords.$inferSelect;
-export type InsertFinalApprovalRecord = typeof finalApprovalRecords.$inferInsert;
-
-/**
- * Variance Datasets
- * Pre-computed variance analysis comparing different cost sources.
- * Used for analytics dashboards, assessor benchmarking, and ML training.
- */
-export const varianceDatasets = mysqlTable("variance_datasets", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Comparison type
-  comparisonType: mysqlEnum("comparison_type", [
-    "quote_vs_final",       // Panel beater quote vs final approved
-    "ai_vs_final",          // AI prediction vs final approved
-    "assessor_vs_final",    // Assessor estimate vs final approved
-    "quote_vs_assessor",    // Panel beater quote vs assessor
-    "ai_vs_assessor",       // AI vs assessor
-    "quote_vs_ai"           // Panel beater quote vs AI
-  ]).notNull(),
-  
-  // Source values
-  sourceALabel: varchar("source_a_label", { length: 100 }).notNull(), // e.g., "Panel Beater Quote"
-  sourceAAmount: decimal("source_a_amount", { precision: 12, scale: 2 }).notNull(),
-  sourceBLabel: varchar("source_b_label", { length: 100 }).notNull(), // e.g., "Final Approved"
-  sourceBAmount: decimal("source_b_amount", { precision: 12, scale: 2 }).notNull(),
-  
-  // Variance calculation
-  varianceAmount: decimal("variance_amount", { precision: 12, scale: 2 }).notNull(), // A - B
-  variancePercent: decimal("variance_percent", { precision: 8, scale: 2 }).notNull(), // ((A - B) / B) * 100
-  absoluteVariancePercent: decimal("absolute_variance_percent", { precision: 8, scale: 2 }).notNull(), // |variance%|
-  
-  // Component-level variance (JSON)
-  laborVariance: decimal("labor_variance", { precision: 12, scale: 2 }),
-  partsVariance: decimal("parts_variance", { precision: 12, scale: 2 }),
-  paintVariance: decimal("paint_variance", { precision: 12, scale: 2 }),
-  
-  // Categorization
-  varianceCategory: mysqlEnum("variance_category", [
-    "within_threshold",   // < 5%
-    "minor_variance",     // 5-15%
-    "significant_variance", // 15-30%
-    "major_variance",     // 30-50%
-    "extreme_variance"    // > 50%
-  ]).notNull(),
-  
-  // Vehicle context (for segmented analysis)
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  accidentType: varchar("accident_type", { length: 100 }),
-  
-  // Assessor context (for benchmarking)
-  assessorName: varchar("assessor_name", { length: 255 }),
-  assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
-  
-  // Flags
-  isFraudSuspected: tinyint("is_fraud_suspected").default(0),
-  isOutlier: tinyint("is_outlier").default(0),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type VarianceDataset = typeof varianceDatasets.$inferSelect;
-export type InsertVarianceDataset = typeof varianceDatasets.$inferInsert;
-
-
-/**
- * Claim Intelligence Dataset
- * Comprehensive ML training dataset captured at final approval.
- * Used for continuous learning, model retraining, and benchmarking.
- * Phase 2: Production Hardening & Intelligence Maturity
- */
-export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 255 }),
-  
-  // Schema version for feature evolution
-  schemaVersion: int("schema_version").notNull().default(1),
-  
-  // CLAIM CONTEXT FEATURES
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  vehicleMass: int("vehicle_mass"), // kg, for physics validation
-  accidentType: varchar("accident_type", { length: 50 }), // 'frontal', 'rear', 'side', 'rollover', 'multi-impact'
-  impactDirection: varchar("impact_direction", { length: 50 }), // 'front', 'rear', 'left', 'right', 'top'
-  accidentDescriptionText: text("accident_description_text"),
-  policeReportPresence: tinyint("police_report_presence").default(0),
-  
-  // DAMAGE FEATURES
-  detectedDamageComponents: json("detected_damage_components"), // Array of component names
-  damageSeverityScores: json("damage_severity_scores"), // Map of component → severity (0-100)
-  llmDamageReasoning: text("llm_damage_reasoning"),
-  physicsPlausibilityScore: int("physics_plausibility_score"), // 0-100
-  
-  // ASSESSMENT FEATURES
-  aiEstimatedCost: int("ai_estimated_cost"), // cents
-  assessorAdjustedCost: int("assessor_adjusted_cost"), // cents
-  insurerApprovedCost: int("insurer_approved_cost"), // cents (ground truth)
-  costVarianceAiVsAssessor: int("cost_variance_ai_vs_assessor"), // percentage
-  costVarianceAssessorVsFinal: int("cost_variance_assessor_vs_final"), // percentage
-  costVarianceAiVsFinal: int("cost_variance_ai_vs_final"), // percentage
-  
-  // FRAUD FEATURES
-  aiFraudScore: int("ai_fraud_score"), // 0-100
-  fraudExplanation: text("fraud_explanation"),
-  finalFraudOutcome: varchar("final_fraud_outcome", { length: 50 }), // 'legitimate', 'fraudulent', 'suspicious', 'under_investigation'
-  
-  // WORKFLOW FEATURES
-  assessorId: int("assessor_id"),
-  assessorTier: varchar("assessor_tier", { length: 50 }), // 'free', 'premium', 'enterprise'
-  assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
-  reassignmentCount: int("reassignment_count").default(0),
-  approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
-  
-  // METADATA
-  capturedAt: timestamp("captured_at").defaultNow().notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  
-  // HYBRID INTELLIGENCE GOVERNANCE LAYER
-  dataScope: mysqlEnum("data_scope", ["tenant_private", "tenant_feature"]).default("tenant_private").notNull(),
-  globalSharingEnabled: tinyint("global_sharing_enabled").default(0),
-  anonymizedAt: timestamp("anonymized_at"),
-  // incidentLocation: text("incident_location"), // For geographic aggregation - TODO: Add after migration
-}, (table) => ({
-  claimIdIdx: index("idx_claim_id").on(table.claimId),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  capturedAtIdx: index("idx_captured_at").on(table.capturedAt),
-  schemaVersionIdx: index("idx_schema_version").on(table.schemaVersion),
-}));
-
-export type ClaimIntelligenceDataset = typeof claimIntelligenceDataset.$inferSelect;
-export type InsertClaimIntelligenceDataset = typeof claimIntelligenceDataset.$inferInsert;
-
-/**
- * Claim Events
- * Immutable event log for all claim state transitions and actions.
- * Used for timeline reconstruction, turnaround calculation, and audit trail.
- * Phase 2: Production Hardening & Intelligence Maturity
- */
-export const claimEvents = mysqlTable("claim_events", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  eventType: varchar("event_type", { length: 100 }).notNull(),
-  eventPayload: json("event_payload"), // Flexible payload for event-specific data
-  userId: int("user_id"), // Who triggered the event (NULL for system events)
-  userRole: varchar("user_role", { length: 50 }), // Role at time of event
-  tenantId: varchar("tenant_id", { length: 255 }),
-  emittedAt: timestamp("emitted_at").defaultNow().notNull(),
-}, (table) => ({
-  claimIdIdx: index("idx_claim_id").on(table.claimId),
-  eventTypeIdx: index("idx_event_type").on(table.eventType),
-  emittedAtIdx: index("idx_emitted_at").on(table.emittedAt),
-}));
-
-export type ClaimEvent = typeof claimEvents.$inferSelect;
-export type InsertClaimEvent = typeof claimEvents.$inferInsert;
-
-/**
- * Model Training Queue
- * Queue for tracking claims ready for ML model retraining.
- * Decouples dataset capture from model training.
- * Phase 2: Production Hardening & Intelligence Maturity
- */
-export const modelTrainingQueue = mysqlTable("model_training_queue", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  datasetRecordId: int("dataset_record_id").notNull(), // FK to claim_intelligence_dataset
-  trainingPriority: varchar("training_priority", { length: 50 }).default("normal"), // 'high', 'normal', 'low'
-  processed: tinyint("processed").default(0),
-  processedAt: timestamp("processed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  processedIdx: index("idx_processed").on(table.processed),
-  trainingPriorityIdx: index("idx_training_priority").on(table.trainingPriority),
-  createdAtIdx: index("idx_created_at").on(table.createdAt),
-}));
-
-export type ModelTrainingQueue = typeof modelTrainingQueue.$inferSelect;
-export type InsertModelTrainingQueue = typeof modelTrainingQueue.$inferInsert;
-
-
-/**
- * Global Anonymized Dataset
- * Tier 3: Aggregated, anonymized dataset pooled across all tenants.
- * K-anonymity enforced, PII removed, POPIA/GDPR compliant.
- * Hybrid Intelligence Governance Layer
- */
-export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
-  id: int("id").autoincrement().primaryKey(),
-  anonymousRecordId: varchar("anonymous_record_id", { length: 36 }).notNull().unique(),
-  
-  // Temporal (generalized)
-  captureMonth: varchar("capture_month", { length: 7 }).notNull(),
-  
-  // Vehicle context (partially generalized)
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYearBracket: varchar("vehicle_year_bracket", { length: 20 }),
-  vehicleMass: int("vehicle_mass"),
-  
-  // Accident context
-  accidentType: varchar("accident_type", { length: 50 }),
-  province: varchar("province", { length: 50 }),
-  
-  // Damage features (retained)
-  detectedDamageComponents: json("detected_damage_components"),
-  damageSeverityScores: json("damage_severity_scores"),
-  physicsPlausibilityScore: int("physics_plausibility_score"),
-  
-  // Assessment features (retained)
-  aiEstimatedCost: int("ai_estimated_cost"),
-  assessorAdjustedCost: int("assessor_adjusted_cost"),
-  insurerApprovedCost: int("insurer_approved_cost"),
-  costVarianceAiVsAssessor: int("cost_variance_ai_vs_assessor"),
-  costVarianceAssessorVsFinal: int("cost_variance_assessor_vs_final"),
-  costVarianceAiVsFinal: int("cost_variance_ai_vs_final"),
-  
-  // Fraud features (retained)
-  aiFraudScore: int("ai_fraud_score"),
-  finalFraudOutcome: varchar("final_fraud_outcome", { length: 50 }),
-  
-  // Workflow features (retained)
-  assessorTier: varchar("assessor_tier", { length: 50 }),
-  assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
-  reassignmentCount: int("reassignment_count"),
-  approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
-  
-  // Metadata
-  anonymizedAt: timestamp("anonymized_at").defaultNow().notNull(),
-  schemaVersion: int("schema_version").notNull().default(1),
-}, (table) => ({
-  captureMonthIdx: index("idx_gad_capture_month").on(table.captureMonth),
-  vehicleMakeIdx: index("idx_gad_vehicle_make").on(table.vehicleMake),
-  provinceIdx: index("idx_gad_province").on(table.province),
-  accidentTypeIdx: index("idx_gad_accident_type").on(table.accidentType),
-  anonymizedAtIdx: index("idx_gad_anonymized_at").on(table.anonymizedAt),
-}));
-
-export type GlobalAnonymizedDataset = typeof globalAnonymizedDataset.$inferSelect;
-export type InsertGlobalAnonymizedDataset = typeof globalAnonymizedDataset.$inferInsert;
-
-/**
- * Anonymization Audit Log
- * Tracks all anonymization attempts, successes, and failures.
- * POPIA/GDPR compliance audit trail.
- * Hybrid Intelligence Governance Layer
- */
-export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
-  id: int("id").autoincrement().primaryKey(),
-  sourceRecordId: int("source_record_id").notNull(),
-  anonymousRecordId: varchar("anonymous_record_id", { length: 36 }),
-  
-  status: mysqlEnum("status", [
-    "success",
-    "withheld_k_anonymity",
-    "withheld_pii_detected",
-    "withheld_tenant_opt_out"
-  ]).notNull(),
-  
-  quasiIdentifierHash: varchar("quasi_identifier_hash", { length: 64 }),
-  groupSize: int("group_size"),
-  
-  transformationsApplied: json("transformations_applied"),
-  
-  anonymizedByUserId: int("anonymized_by_user_id"),
-  anonymizedAt: timestamp("anonymized_at").defaultNow().notNull(),
-}, (table) => ({
-  sourceRecordIdx: index("idx_aal_source_record").on(table.sourceRecordId),
-  statusIdx: index("idx_aal_status").on(table.status),
-  anonymizedAtIdx: index("idx_aal_anonymized_at").on(table.anonymizedAt),
-}));
-
-export type AnonymizationAuditLog = typeof anonymizationAuditLog.$inferSelect;
-export type InsertAnonymizationAuditLog = typeof anonymizationAuditLog.$inferInsert;
-
-/**
- * Dataset Access Grants
- * RBAC enforcement for dataset tier access.
- * Tracks external sharing of Tier 2 (Tenant Feature) data.
- * Hybrid Intelligence Governance Layer
- */
-export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  dataScope: mysqlEnum("data_scope", ["tenant_private", "tenant_feature", "global_anonymized"]).notNull(),
-  grantedToUserId: int("granted_to_user_id"),
-  grantedToRole: varchar("granted_to_role", { length: 50 }),
-  grantedToOrganization: varchar("granted_to_organization", { length: 255 }),
-  
-  purpose: text("purpose").notNull(),
-  expiryDate: date("expiry_date"),
-  maxRecords: int("max_records"),
-  
-  grantedByUserId: int("granted_by_user_id").notNull(),
-  grantedAt: timestamp("granted_at").defaultNow().notNull(),
-  revokedAt: timestamp("revoked_at"),
-  revokedByUserId: int("revoked_by_user_id"),
-}, (table) => ({
-  tenantIdIdx: index("idx_dag_tenant_id").on(table.tenantId),
-  dataScopeIdx: index("idx_dag_data_scope").on(table.dataScope),
-  grantedToUserIdx: index("idx_dag_granted_to_user").on(table.grantedToUserId),
-  expiryDateIdx: index("idx_dag_expiry_date").on(table.expiryDate),
-}));
-
-export type DatasetAccessGrant = typeof datasetAccessGrants.$inferSelect;
-export type InsertDatasetAccessGrant = typeof datasetAccessGrants.$inferInsert;
-
-/**
- * Federated Learning Metadata
- * Tracks federated learning training rounds and model aggregation.
- * Enables privacy-preserving multi-tenant ML training.
- * Hybrid Intelligence Governance Layer
- */
-export const federatedLearningMetadata = mysqlTable("federated_learning_metadata", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  roundNumber: int("round_number").notNull(),
-  modelType: varchar("model_type", { length: 100 }).notNull(),
-  
-  participantCount: int("participant_count").notNull(),
-  participantTenantIds: json("participant_tenant_ids"),
-  
-  globalModelVersion: varchar("global_model_version", { length: 50 }).notNull(),
-  localModelContributions: json("local_model_contributions"),
-  aggregationMethod: varchar("aggregation_method", { length: 50 }).default("federated_averaging"),
-  
-  globalModelAccuracy: decimal("global_model_accuracy", { precision: 5, scale: 4 }),
-  convergenceStatus: mysqlEnum("convergence_status", ["converging", "converged", "diverged"]).default("converging"),
-  
-  trainingStartedAt: timestamp("training_started_at").notNull(),
-  trainingCompletedAt: timestamp("training_completed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  roundNumberIdx: index("idx_flm_round_number").on(table.roundNumber),
-  modelTypeIdx: index("idx_flm_model_type").on(table.modelType),
-  trainingStartedIdx: index("idx_flm_training_started").on(table.trainingStartedAt),
-}));
-
-export type FederatedLearningMetadata = typeof federatedLearningMetadata.$inferSelect;
-export type InsertFederatedLearningMetadata = typeof federatedLearningMetadata.$inferInsert;
-
-
-// ============================================================================
-// CONFIDENCE-GOVERNED CLAIM AUTOMATION FRAMEWORK
-// ============================================================================
-
-/**
- * Automation Policies
- * Insurer-configurable automation policies for claim processing.
- * Defines confidence thresholds, claim type eligibility, financial limits, and vehicle rules.
- * Confidence-Governed Automation Framework
- */
-export const automationPolicies = mysqlTable("automation_policies", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  policyName: varchar("policy_name", { length: 255 }).notNull(),
-  
-  // Confidence Thresholds
-  minAutomationConfidence: int("min_automation_confidence").notNull().default(85),
-  minHybridConfidence: int("min_hybrid_confidence").notNull().default(60),
-  
-  // Claim Type Eligibility
-  eligibleClaimTypes: json("eligible_claim_types").notNull(),
-  excludedClaimTypes: json("excluded_claim_types").notNull(),
-  
-  // Financial Limits
-  maxAiOnlyApprovalAmount: bigint("max_ai_only_approval_amount", { mode: "number" }).notNull().default(5000000),
-  maxHybridApprovalAmount: bigint("max_hybrid_approval_amount", { mode: "number" }).notNull().default(20000000),
-  
-  // Fraud Risk Cutoff
-  maxFraudScoreForAutomation: int("max_fraud_score_for_automation").notNull().default(30),
-  fraudSensitivityMultiplier: decimal("fraud_sensitivity_multiplier", { precision: 3, scale: 2 }).notNull().default("1.00"), // 0.5 (lenient) to 2.0 (strict)
-  
-  // Vehicle Category Rules
-  eligibleVehicleCategories: json("eligible_vehicle_categories").notNull(),
-  excludedVehicleMakes: json("excluded_vehicle_makes").notNull(),
-  minVehicleYear: int("min_vehicle_year").notNull().default(2010),
-  maxVehicleAge: int("max_vehicle_age").notNull().default(15),
-  
-  // Override Controls
-  requireManagerApprovalAbove: bigint("require_manager_approval_above", { mode: "number" }).notNull().default(10000000),
-  allowPolicyOverride: boolean("allow_policy_override").notNull().default(true),
-  
-  // Metadata
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-  createdByUserId: int("created_by_user_id"),
-  isActive: boolean("is_active").notNull().default(true),
-  
-  // Policy Versioning
-  version: int("version").notNull().default(1),
-  effectiveFrom: timestamp("effective_from").defaultNow().notNull(),
-  effectiveUntil: timestamp("effective_until"),
-  supersededByPolicyId: int("superseded_by_policy_id"),
-}, (table) => ({
-  tenantActiveIdx: index("idx_tenant_active").on(table.tenantId, table.isActive),
-  policyNameIdx: index("idx_policy_name").on(table.policyName),
-}));
-
-export type AutomationPolicy = typeof automationPolicies.$inferSelect;
-export type InsertAutomationPolicy = typeof automationPolicies.$inferInsert;
-
-/**
- * Claim Confidence Scores
- * Per-claim confidence score breakdown from AI confidence scoring engine.
- * Tracks 6 component scores and composite confidence score (0-100).
- * Confidence-Governed Automation Framework
- */
-export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  
-  // Component Scores (0-100)
-  damageCertainty: decimal("damage_certainty", { precision: 5, scale: 2 }).notNull(),
-  physicsStrength: decimal("physics_strength", { precision: 5, scale: 2 }).notNull(),
-  fraudConfidence: decimal("fraud_confidence", { precision: 5, scale: 2 }).notNull(),
-  historicalAccuracy: decimal("historical_accuracy", { precision: 5, scale: 2 }).notNull(),
-  dataCompleteness: decimal("data_completeness", { precision: 5, scale: 2 }).notNull(),
-  vehicleRiskIntelligence: decimal("vehicle_risk_intelligence", { precision: 5, scale: 2 }).notNull(),
-  
-  // Composite Score
-  compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
-  
-  // Scoring Metadata
-  scoringVersion: varchar("scoring_version", { length: 50 }).notNull().default("v1.0"),
-  scoringTimestamp: timestamp("scoring_timestamp").defaultNow().notNull(),
-  
-  // Component Score Details (JSON)
-  damageCertaintyBreakdown: json("damage_certainty_breakdown"),
-  physicsValidationDetails: json("physics_validation_details"),
-  fraudAnalysisDetails: json("fraud_analysis_details"),
-  historicalAccuracyDetails: json("historical_accuracy_details"),
-  dataCompletenessDetails: json("data_completeness_details"),
-  vehicleRiskDetails: json("vehicle_risk_details"),
-}, (table) => ({
-  claimIdIdx: index("idx_claim_id").on(table.claimId),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  compositeScoreIdx: index("idx_composite_score").on(table.compositeConfidenceScore),
-  scoringTimestampIdx: index("idx_scoring_timestamp").on(table.scoringTimestamp),
-}));
-
-export type ClaimConfidenceScore = typeof claimConfidenceScores.$inferSelect;
-export type InsertClaimConfidenceScore = typeof claimConfidenceScores.$inferInsert;
-
-/**
- * Claim Routing Decisions
- * Routing decision audit trail for claim workflow assignment.
- * Tracks AI-only, hybrid, or manual workflow routing with rationale.
- * Confidence-Governed Automation Framework
- */
-export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  confidenceScoreId: int("confidence_score_id").notNull(),
-  automationPolicyId: int("automation_policy_id").notNull(),
-  
-  // Routing Decision
-  routedWorkflow: mysqlEnum("routed_workflow", ["ai_only", "hybrid", "manual"]).notNull(),
-  routingReason: text("routing_reason").notNull(),
-  
-  // Policy Application Snapshot
-  policyThresholdsApplied: json("policy_thresholds_applied").notNull(),
-  policyVersion: int("policy_version").notNull(),
-  policySnapshotJson: json("policy_snapshot_json").notNull(),
-  claimVersion: int("claim_version").notNull().default(1),
-  
-  // Decision Metadata
-  decisionTimestamp: timestamp("decision_timestamp").defaultNow().notNull(),
-  decisionMadeBySystem: boolean("decision_made_by_system").notNull().default(true),
-  decisionMadeByUserId: int("decision_made_by_user_id"),
-  
-  // Override Tracking
-  wasOverridden: boolean("was_overridden").notNull().default(false),
-  overrideReason: text("override_reason"),
-  overriddenByUserId: int("overridden_by_user_id"),
-  overriddenAt: timestamp("overridden_at"),
-}, (table) => ({
-  claimIdIdx: index("idx_claim_id").on(table.claimId),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  routedWorkflowIdx: index("idx_routed_workflow").on(table.routedWorkflow),
-  decisionTimestampIdx: index("idx_decision_timestamp").on(table.decisionTimestamp),
-}));
-
-export type ClaimRoutingDecision = typeof claimRoutingDecisions.$inferSelect;
-export type InsertClaimRoutingDecision = typeof claimRoutingDecisions.$inferInsert;
-
-/**
- * Automation Audit Log
- * Full automation event log for regulatory compliance and performance tracking.
- * Tracks confidence scores, routing decisions, policy application, and cost variances.
- * Confidence-Governed Automation Framework
- */
-export const automationAuditLog = mysqlTable("automation_audit_log", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  
-  // Confidence Score Reference
-  confidenceScoreId: int("confidence_score_id").notNull(),
-  compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
-  
-  // Routing Decision Reference
-  routingDecisionId: int("routing_decision_id").notNull(),
-  routedWorkflow: mysqlEnum("routed_workflow", ["ai_only", "hybrid", "manual"]).notNull(),
-  routingReason: text("routing_reason").notNull(),
-  
-  // Policy Application
-  automationPolicyId: int("automation_policy_id").notNull(),
-  policySnapshot: json("policy_snapshot").notNull(),
-  
-  // Cost Tracking
-  aiEstimatedCost: bigint("ai_estimated_cost", { mode: "number" }).notNull(),
-  assessorAdjustedCost: bigint("assessor_adjusted_cost", { mode: "number" }),
-  finalApprovedCost: bigint("final_approved_cost", { mode: "number" }),
-  costVarianceAiVsFinal: decimal("cost_variance_ai_vs_final", { precision: 5, scale: 2 }),
-  
-  // Timestamps
-  decisionMadeAt: timestamp("decision_made_at").notNull(),
-  claimApprovedAt: timestamp("claim_approved_at"),
-  claimRejectedAt: timestamp("claim_rejected_at"),
-  
-  // Override Tracking
-  wasOverridden: boolean("was_overridden").notNull().default(false),
-  overrideReason: text("override_reason"),
-  overriddenByUserId: int("overridden_by_user_id"),
-  
-  // Audit Metadata
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  claimIdIdx: index("idx_claim_id").on(table.claimId),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  routedWorkflowIdx: index("idx_routed_workflow").on(table.routedWorkflow),
-  compositeScoreIdx: index("idx_composite_score").on(table.compositeConfidenceScore),
-  decisionMadeAtIdx: index("idx_decision_made_at").on(table.decisionMadeAt),
-  wasOverriddenIdx: index("idx_was_overridden").on(table.wasOverridden),
-}));
-
-export type AutomationAuditLog = typeof automationAuditLog.$inferSelect;
-export type InsertAutomationAuditLog = typeof automationAuditLog.$inferInsert;
-
-
-/**
- * ============================================================================
- * Dual-Layer Reporting System Tables
- * ============================================================================
- * 
- * Supports immutable PDF snapshots and interactive living intelligence reports
- * with version control, audit hashing, and governance controls.
- */
-
-/**
- * Report Snapshots Table
- * Stores versioned snapshots of claim intelligence with cryptographic audit hashing
- */
-export const reportSnapshots = mysqlTable("report_snapshots", {
-  id: varchar("id", { length: 255 }).primaryKey(),
-  claimId: int("claim_id").notNull(),
-  version: int("version").notNull(),
-  reportType: mysqlEnum("report_type", ["insurer", "assessor", "regulatory"]).notNull(),
-  intelligenceData: json("intelligence_data").notNull(),
-  auditHash: varchar("audit_hash", { length: 64 }).notNull(),
-  generatedBy: int("generated_by").notNull(),
-  generatedAt: timestamp("generated_at").defaultNow().notNull(),
-  isImmutable: boolean("is_immutable").notNull().default(true),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-}, (table) => ({
-  claimVersionIdx: index("idx_claim_version").on(table.claimId, table.version),
-  auditHashIdx: index("idx_audit_hash").on(table.auditHash),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  generatedByIdx: index("idx_generated_by").on(table.generatedBy),
-}));
-
-export type ReportSnapshot = typeof reportSnapshots.$inferSelect;
-export type InsertReportSnapshot = typeof reportSnapshots.$inferInsert;
-
-/**
- * PDF Reports Table
- * Stores metadata for generated PDF reports with S3 storage references
- */
-export const pdfReports = mysqlTable("pdf_reports", {
-  id: varchar("id", { length: 255 }).primaryKey(),
-  snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
-  s3Url: text("s3_url").notNull(),
-  fileSizeBytes: int("file_size_bytes").notNull(),
-  generatedAt: timestamp("generated_at").defaultNow().notNull(),
-  deletedAt: timestamp("deleted_at"),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-}, (table) => ({
-  snapshotIdIdx: index("idx_snapshot_id").on(table.snapshotId),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-}));
-
-export type PdfReport = typeof pdfReports.$inferSelect;
-export type InsertPdfReport = typeof pdfReports.$inferInsert;
-
-/**
- * Report Links Table
- * Maps PDF snapshots to interactive report URLs with access control
- */
-export const reportLinks = mysqlTable("report_links", {
-  id: varchar("id", { length: 255 }).primaryKey(),
-  snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
-  interactiveUrl: text("interactive_url").notNull(),
-  accessToken: varchar("access_token", { length: 255 }).notNull(),
-  qrCodeData: text("qr_code_data"),
-  expiresAt: timestamp("expires_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-}, (table) => ({
-  snapshotIdIdx: index("idx_snapshot_id").on(table.snapshotId),
-  accessTokenIdx: index("idx_access_token").on(table.accessToken),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-}));
-
-export type ReportLink = typeof reportLinks.$inferSelect;
-export type InsertReportLink = typeof reportLinks.$inferInsert;
-
-/**
- * Report Access Audit Trail
- * Logs all access events for PDF and interactive reports
- */
-export const reportAccessAudit = mysqlTable("report_access_audit", {
-  id: int("id").autoincrement().primaryKey(),
-  reportId: varchar("report_id", { length: 255 }).notNull(),
-  reportType: mysqlEnum("report_type", ["pdf", "interactive"]).notNull(),
-  accessedBy: int("accessed_by").notNull(),
-  accessType: mysqlEnum("access_type", ["view", "download", "export", "create"]).notNull(),
-  accessedAt: timestamp("accessed_at").defaultNow().notNull(),
-  ipAddress: varchar("ip_address", { length: 45 }),
-  userAgent: text("user_agent"),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-}, (table) => ({
-  reportIdIdx: index("idx_report_id").on(table.reportId),
-  accessedByIdx: index("idx_accessed_by").on(table.accessedBy),
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  accessedAtIdx: index("idx_accessed_at").on(table.accessedAt),
-}));
-
-export type ReportAccessAudit = typeof reportAccessAudit.$inferSelect;
-export type InsertReportAccessAudit = typeof reportAccessAudit.$inferInsert;
-
-
-// ============================================================================
-// INSURANCE AGENCY PLATFORM SCHEMA
-// ============================================================================
-
-/**
- * Insurance Carriers - Insurance companies offering products through KINGA
- */
-export const insuranceCarriers = mysqlTable("insurance_carriers", {
-  id: int("id").autoincrement().primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  shortCode: varchar("short_code", { length: 50 }).notNull().unique(), // e.g., "ZIMNAT", "FIDELITY"
-  isActive: tinyint("is_active").default(1).notNull(),
-  
-  // Commission structure
-  defaultCommissionRate: decimal("default_commission_rate", { precision: 5, scale: 2 }).notNull(), // Percentage (e.g., 15.00 for 15%)
-  
-  // API integration (if carrier has API)
-  apiEndpoint: varchar("api_endpoint", { length: 500 }),
-  apiCredentials: text("api_credentials"), // Encrypted JSON with API keys
-  apiEnabled: tinyint("api_enabled").default(0),
-  
-  // Contact information
-  contactEmail: varchar("contact_email", { length: 320 }),
-  contactPhone: varchar("contact_phone", { length: 20 }),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type InsuranceCarrier = typeof insuranceCarriers.$inferSelect;
-export type InsertInsuranceCarrier = typeof insuranceCarriers.$inferInsert;
-
-/**
- * Insurance Products - Product catalog per carrier
- */
-export const insuranceProducts = mysqlTable("insurance_products", {
-  id: int("id").autoincrement().primaryKey(),
-  carrierId: int("carrier_id").notNull(),
-  
-  productName: varchar("product_name", { length: 255 }).notNull(),
-  productCode: varchar("product_code", { length: 50 }).notNull(),
-  coverageType: mysqlEnum("coverage_type", ["comprehensive", "third_party", "third_party_fire_theft"]).notNull(),
-  
-  // Pricing
-  basePremiumMonthly: int("base_premium_monthly"), // Base premium in cents
-  basePremiumAnnual: int("base_premium_annual"), // Base premium in cents
-  
-  // Coverage limits (in cents)
-  vehicleDamageLimit: int("vehicle_damage_limit"),
-  thirdPartyLiabilityLimit: int("third_party_liability_limit"),
-  personalAccidentLimit: int("personal_accident_limit"),
-  
-  // Excess options (JSON array of amounts in cents)
-  excessOptions: text("excess_options"), // e.g., [50000, 100000, 200000]
-  
-  // Eligibility rules (JSON)
-  eligibilityRules: text("eligibility_rules"), // Min/max vehicle age, driver age, etc.
-  
-  // Commission override for this product
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }), // Overrides carrier default if set
-  
-  isActive: tinyint("is_active").default(1).notNull(),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type InsuranceProduct = typeof insuranceProducts.$inferSelect;
-export type InsertInsuranceProduct = typeof insuranceProducts.$inferInsert;
-
-/**
- * Fleet Vehicles - Registry of all vehicles for insurance purposes
- */
-export const fleetVehicles = mysqlTable("fleet_vehicles", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Vehicle identification
-  vin: varchar("vin", { length: 17 }).unique(),
-  registrationNumber: varchar("registration_number", { length: 50 }).notNull().unique(),
-  
-  // Vehicle details
-  make: varchar("make", { length: 100 }).notNull(),
-  model: varchar("model", { length: 100 }).notNull(),
-  year: int("year").notNull(),
-  color: varchar("color", { length: 50 }),
-  engineNumber: varchar("engine_number", { length: 100 }),
-  chassisNumber: varchar("chassis_number", { length: 100 }),
-  
-  // Valuation
-  currentValuation: int("current_valuation"), // Current market value in cents
-  valuationDate: timestamp("valuation_date"),
-  valuationSource: varchar("valuation_source", { length: 100 }), // e.g., "KINGA AI", "Manual", "External API"
-  
-  // Risk assessment
-  maintenanceScore: int("maintenance_score"), // 0-100 score based on maintenance records
-  riskScore: int("risk_score"), // 0-100 overall risk score
-  claimsHistoryCount: int("claims_history_count").default(0),
-  
-  // Owner information
-  ownerId: int("owner_id").notNull(), // Reference to users table
-  fleetId: int("fleet_id"), // Reference to fleets table
-  
-  // Vehicle specifications
-  engineCapacity: int("engine_capacity"), // in cc
-  vehicleMass: int("vehicle_mass"), // in kg
-  fuelType: mysqlEnum("fuel_type", ["petrol", "diesel", "electric", "hybrid"]),
-  transmissionType: mysqlEnum("transmission_type", ["manual", "automatic"]),
-  
-  // Vehicle origin (critical for parts sourcing strategy)
-  vehicleOrigin: mysqlEnum("vehicle_origin", ["Local_Assembly", "Ex_Japanese", "Ex_European", "Ex_American", "Ex_Chinese", "Unknown"]).default("Unknown"),
-  importedFrom: varchar("imported_from", { length: 100 }), // e.g., "Japan", "UK", "USA", "Germany", "China"
-  importYear: int("import_year"), // Year vehicle was imported (may differ from manufacture year)
-  
-  // Usage classification
-  usageType: mysqlEnum("usage_type", ["private", "commercial", "logistics", "mining", "agriculture", "public_transport"]),
-  primaryUse: text("primary_use"),
-  averageMonthlyMileage: int("average_monthly_mileage"),
-  
-  // Insurance details
-  currentInsurer: varchar("current_insurer", { length: 255 }),
-  policyNumber: varchar("policy_number", { length: 100 }),
-  policyStartDate: timestamp("policy_start_date"),
-  policyEndDate: timestamp("policy_end_date"),
-  coverageType: mysqlEnum("coverage_type", ["comprehensive", "third_party", "third_party_fire_theft"]),
-  
-  // Valuation details
-  purchasePrice: int("purchase_price"), // in cents
-  purchaseDate: timestamp("purchase_date"),
-  replacementValue: int("replacement_value"), // in cents
-  
-  // Status
-  status: mysqlEnum("status", ["active", "inactive", "sold", "written_off", "under_repair"]).default("active"),
-  lastInspectionDate: timestamp("last_inspection_date"),
-  nextInspectionDue: timestamp("next_inspection_due"),
-  
-  // Compliance
-  maintenanceComplianceScore: int("maintenance_compliance_score"), // 0-100
-  
-  // Vehicle images (S3 URLs, JSON array)
-  vehicleImages: text("vehicle_images"), // [front, back, left, right, interior, dashboard]
-  
-  // Registration documents
-  registrationBookUrl: varchar("registration_book_url", { length: 500 }),
-  registrationBookS3Key: varchar("registration_book_s3_key", { length: 500 }),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type FleetVehicle = typeof fleetVehicles.$inferSelect;
-export type InsertFleetVehicle = typeof fleetVehicles.$inferInsert;
-
-/**
- * Insurance Quotes - Quote requests and responses
- */
-export const insuranceQuotes = mysqlTable("insurance_quotes", {
-  id: int("id").autoincrement().primaryKey(),
-  quoteNumber: varchar("quote_number", { length: 50 }).notNull().unique(),
-  
-  // Customer and vehicle
-  customerId: int("customer_id").notNull(), // Reference to users table
-  vehicleId: int("vehicle_id").notNull(), // Reference to fleet_vehicles table
-  
-  // Carrier and product
-  carrierId: int("carrier_id").notNull(),
-  productId: int("product_id").notNull(),
-  
-  // Quote details
-  premiumAmount: int("premium_amount").notNull(), // Monthly or annual premium in cents
-  premiumFrequency: mysqlEnum("premium_frequency", ["monthly", "annual"]).default("monthly").notNull(),
-  excessAmount: int("excess_amount"), // Chosen excess in cents
-  
-  // Coverage details (JSON)
-  coverageLimits: text("coverage_limits"), // Detailed coverage breakdown
-  
-  // Driver information (JSON)
-  driverDetails: text("driver_details"), // Age, years licensed, violations, etc.
-  
-  // Risk assessment
-  riskProfile: text("risk_profile"), // JSON with risk factors and scores
-  
-  // Quote validity
-  quoteValidUntil: timestamp("quote_valid_until").notNull(),
-  
-  // Status
-  status: mysqlEnum("status", ["pending", "payment_pending", "payment_submitted", "payment_verified", "accepted", "rejected", "expired"]).default("pending").notNull(),
-  
-  // Payment tracking
-  paymentMethod: mysqlEnum("payment_method", ["cash", "bank_transfer", "ecocash", "onemoney", "rtgs", "zipit"]),
-  paymentReferenceNumber: varchar("payment_reference_number", { length: 100 }), // Bank ref, mobile money ref, etc.
-  paymentProofS3Key: varchar("payment_proof_s3_key", { length: 500 }), // S3 key for uploaded receipt/screenshot
-  paymentProofS3Url: varchar("payment_proof_s3_url", { length: 500 }), // S3 URL for uploaded proof
-  paymentAmount: int("payment_amount"), // Amount paid in cents (for verification)
-  paymentDate: timestamp("payment_date"), // When customer made payment
-  paymentSubmittedAt: timestamp("payment_submitted_at"), // When customer uploaded proof
-  paymentVerifiedAt: timestamp("payment_verified_at"), // When insurer verified payment
-  paymentVerifiedBy: int("payment_verified_by"), // User ID of insurer who verified
-  paymentRejectionReason: text("payment_rejection_reason"), // If payment rejected
-  
-  // KINGA insights (JSON)
-  kingaInsights: text("kinga_insights"), // Claims reputation, settlement times, recommendations
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type InsuranceQuote = typeof insuranceQuotes.$inferSelect;
-export type InsertInsuranceQuote = typeof insuranceQuotes.$inferInsert;
-
-/**
- * Insurance Policies - Active insurance policies
- */
-export const insurancePolicies = mysqlTable("insurance_policies", {
-  id: int("id").autoincrement().primaryKey(),
-  policyNumber: varchar("policy_number", { length: 100 }).notNull().unique(),
-  
-  // Link to quote
-  quoteId: int("quote_id"), // Reference to insurance_quotes table
-  
-  // Customer and vehicle
-  customerId: int("customer_id").notNull(),
-  vehicleId: int("vehicle_id").notNull(),
-  
-  // Carrier and product
-  carrierId: int("carrier_id").notNull(),
-  productId: int("product_id").notNull(),
-  
-  // Policy terms
-  premiumAmount: int("premium_amount").notNull(), // In cents
-  premiumFrequency: mysqlEnum("premium_frequency", ["monthly", "annual"]).default("monthly").notNull(),
-  excessAmount: int("excess_amount"), // In cents
-  
-  // Coverage period
-  coverageStartDate: timestamp("coverage_start_date").notNull(),
-  coverageEndDate: timestamp("coverage_end_date").notNull(),
-  
-  // Coverage details (JSON)
-  coverageLimits: text("coverage_limits"),
-  
-  // Status
-  status: mysqlEnum("status", ["pending", "active", "endorsed", "cancelled", "expired", "renewed"]).default("pending").notNull(),
-  
-  // Cancellation
-  cancellationReason: text("cancellation_reason"),
-  cancellationDate: timestamp("cancellation_date"),
-  cancelledBy: int("cancelled_by"), // User ID who cancelled
-  
-  // Renewal
-  renewalReminderSent: tinyint("renewal_reminder_sent").default(0),
-  renewalReminderDate: timestamp("renewal_reminder_date"),
-  renewedToPolicyId: int("renewed_to_policy_id"), // Link to new policy if renewed
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type InsurancePolicy = typeof insurancePolicies.$inferSelect;
-export type InsertInsurancePolicy = typeof insurancePolicies.$inferInsert;
-
-/**
- * Policy Endorsements - Mid-term policy modifications
- */
-export const policyEndorsements = mysqlTable("policy_endorsements", {
-  id: int("id").autoincrement().primaryKey(),
-  policyId: int("policy_id").notNull(),
-  endorsementNumber: varchar("endorsement_number", { length: 50 }).notNull().unique(),
-  
-  // Endorsement type and details
-  endorsementType: mysqlEnum("endorsement_type", [
-    "add_driver",
-    "remove_driver",
-    "change_vehicle",
-    "adjust_coverage",
-    "change_excess",
-    "other"
-  ]).notNull(),
-  
-  endorsementDetails: text("endorsement_details").notNull(), // JSON with specific changes
-  
-  // Financial impact
-  premiumAdjustment: int("premium_adjustment"), // Change in premium (can be negative)
-  newPremiumAmount: int("new_premium_amount"), // New total premium
-  
-  // Effective date
-  effectiveDate: timestamp("effective_date").notNull(),
-  
-  // Approval
-  createdBy: int("created_by").notNull(), // User ID who requested endorsement
-  approvedBy: int("approved_by"), // User ID who approved
-  approvedAt: timestamp("approved_at"),
-  
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type PolicyEndorsement = typeof policyEndorsements.$inferSelect;
-export type InsertPolicyEndorsement = typeof policyEndorsements.$inferInsert;
-
-/**
- * Policy Documents - Document storage with versioning
- */
-export const policyDocuments = mysqlTable("policy_documents", {
-  id: int("id").autoincrement().primaryKey(),
-  policyId: int("policy_id").notNull(),
-  
-  // Document type
-  documentType: mysqlEnum("document_type", [
-    "policy_schedule",
-    "certificate_of_insurance",
-    "endorsement",
-    "cancellation_notice",
-    "renewal_notice",
-    "other"
-  ]).notNull(),
-  
-  // Document storage
-  documentUrl: varchar("document_url", { length: 500 }).notNull(),
-  s3Key: varchar("s3_key", { length: 500 }).notNull(),
-  
-  // Versioning
-  version: int("version").notNull().default(1),
-  
-  // Metadata
-  fileName: varchar("file_name", { length: 255 }),
-  fileSize: int("file_size"), // Bytes
-  mimeType: varchar("mime_type", { length: 100 }),
-  
-  // Audit
-  uploadedBy: int("uploaded_by"), // User ID
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type PolicyDocument = typeof policyDocuments.$inferSelect;
-export type InsertPolicyDocument = typeof policyDocuments.$inferInsert;
-
-/**
- * Commission Records - Track agency commissions
- */
-export const commissionRecords = mysqlTable("commission_records", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Policy reference
-  policyId: int("policy_id").notNull(),
-  carrierId: int("carrier_id").notNull(),
-  productId: int("product_id").notNull(),
-  
-  // Commission calculation
-  premiumAmount: int("premium_amount").notNull(), // Policy premium in cents
-  commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(), // Percentage
-  commissionAmount: int("commission_amount").notNull(), // Calculated commission in cents
-  
-  // Commission type
-  commissionType: mysqlEnum("commission_type", ["new_business", "renewal"]).notNull(),
-  
-  // Payment tracking
-  paymentStatus: mysqlEnum("payment_status", ["pending", "paid", "disputed"]).default("pending").notNull(),
-  paymentDate: timestamp("payment_date"),
-  paymentReference: varchar("payment_reference", { length: 100 }),
-  
-  // Period
-  commissionPeriod: varchar("commission_period", { length: 20 }), // e.g., "2026-02"
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type CommissionRecord = typeof commissionRecords.$inferSelect;
-export type InsertCommissionRecord = typeof commissionRecords.$inferInsert;
-
-/**
- * Customer Documents - KYC and verification documents
- */
-export const customerDocuments = mysqlTable("customer_documents", {
-  id: int("id").autoincrement().primaryKey(),
-  customerId: int("customer_id").notNull(),
-  
-  // Document type
-  documentType: mysqlEnum("document_type", [
-    "id_document",
-    "drivers_license",
-    "proof_of_residence",
-    "vehicle_registration",
-    "other"
-  ]).notNull(),
-  
-  // Document storage
-  documentUrl: varchar("document_url", { length: 500 }).notNull(),
-  s3Key: varchar("s3_key", { length: 500 }).notNull(),
-  
-  // Verification
-  verificationStatus: mysqlEnum("verification_status", ["pending", "verified", "rejected"]).default("pending").notNull(),
-  verifiedAt: timestamp("verified_at"),
-  verifiedBy: int("verified_by"), // User ID
-  rejectionReason: text("rejection_reason"),
-  
-  // Metadata
-  fileName: varchar("file_name", { length: 255 }),
-  fileSize: int("file_size"),
-  mimeType: varchar("mime_type", { length: 100 }),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
-
-export type CustomerDocument = typeof customerDocuments.$inferSelect;
-export type InsertCustomerDocument = typeof customerDocuments.$inferInsert;
-
-/**
- * Insurance Audit Logs - Complete audit trail for insurance operations
- */
-export const insuranceAuditLogs = mysqlTable("insurance_audit_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Timestamp
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  
-  // User context
-  userId: int("user_id").notNull(),
-  userRole: varchar("user_role", { length: 50 }),
-  
-  // Action details
-  action: varchar("action", { length: 100 }).notNull(), // e.g., "quote_created", "policy_issued", "endorsement_approved"
-  entityType: varchar("entity_type", { length: 50 }).notNull(), // e.g., "policy", "quote", "document"
-  entityId: int("entity_id").notNull(),
-  
-  // Changes (JSON)
-  changes: text("changes"), // Before/after values
-  
-  // Request context
-  ipAddress: varchar("ip_address", { length: 45 }),
-  userAgent: text("user_agent"),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-});
-
-export type InsuranceAuditLog = typeof insuranceAuditLogs.$inferSelect;
-export type InsertInsuranceAuditLog = typeof insuranceAuditLogs.$inferInsert;
-
-/**
- * Customer Consent - GDPR/POPIA compliance
- */
-export const customerConsent = mysqlTable("customer_consent", {
-  id: int("id").autoincrement().primaryKey(),
-  customerId: int("customer_id").notNull(),
-  
-  // Consent type
-  consentType: mysqlEnum("consent_type", [
-    "data_processing",
-    "marketing",
-    "third_party_sharing",
-    "credit_check",
-    "automated_decision_making"
-  ]).notNull(),
-  
-  // Consent status
-  consentGiven: tinyint("consent_given").notNull(),
-  consentDate: timestamp("consent_date").defaultNow().notNull(),
-  
-  // Withdrawal
-  withdrawnDate: timestamp("withdrawn_date"),
-  
-  // Context
-  consentMethod: varchar("consent_method", { length: 50 }), // e.g., "web_form", "email", "phone"
-  consentVersion: varchar("consent_version", { length: 20 }), // Version of terms accepted
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-});
-
-export type CustomerConsent = typeof customerConsent.$inferSelect;
-export type InsertCustomerConsent = typeof customerConsent.$inferInsert;
-
-/**
- * Link claims to insurance policies
- */
-export const policyClaimLinks = mysqlTable("policy_claim_links", {
-  id: int("id").autoincrement().primaryKey(),
-  policyId: int("policy_id").notNull(),
-  claimId: int("claim_id").notNull(),
-  
-  // Verification
-  coverageVerified: tinyint("coverage_verified").default(0),
-  verifiedBy: int("verified_by"), // User ID
-  verifiedAt: timestamp("verified_at"),
-  
-  // Coverage decision
-  coverageApproved: tinyint("coverage_approved"),
-  coverageDecisionReason: text("coverage_decision_reason"),
-  
-  tenantId: varchar("tenant_id", { length: 255 }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type PolicyClaimLink = typeof policyClaimLinks.$inferSelect;
-export type InsertPolicyClaimLink = typeof policyClaimLinks.$inferInsert;
-
-
-// ============================================================================
-// FLEET MANAGEMENT PLATFORM TABLES
-// ============================================================================
-
-/**
- * Fleets - Groups of vehicles owned by fleet owners
- */
-export const fleets = mysqlTable("fleets", {
-  id: int("id").autoincrement().primaryKey(),
-  ownerId: int("owner_id").notNull(), // Link to users table
-  tenantId: varchar("tenant_id", { length: 64 }), // Multi-tenant isolation
-  
-  fleetName: varchar("fleet_name", { length: 255 }).notNull(),
-  fleetType: mysqlEnum("fleet_type", ["mining", "logistics", "corporate", "rental", "public_transport", "agriculture", "construction"]).notNull(),
-  
-  // Fleet statistics
-  totalVehicles: int("total_vehicles").default(0),
-  activeVehicles: int("active_vehicles").default(0),
-  
-  // Fleet metadata
-  description: text("description"),
-  primaryLocation: varchar("primary_location", { length: 255 }),
-  
-  // Insurer selection (Fleet independence - insurer may or may not be on KINGA)
-  preferredInsurerId: int("preferred_insurer_id"), // Link to tenants table if insurer is on KINGA
-  preferredInsurerName: varchar("preferred_insurer_name", { length: 255 }), // Insurer name (whether on KINGA or not)
-  preferredInsurerContact: varchar("preferred_insurer_contact", { length: 255 }), // Contact email/phone
-  insurerIsOnKinga: tinyint("insurer_is_on_kinga").default(0), // Flag to indicate if insurer uses KINGA
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type Fleet = typeof fleets.$inferSelect;
-export type InsertFleet = typeof fleets.$inferInsert;
-
-/**
- * Fleet Documents - Documents associated with fleets and vehicles
- */
-export const fleetDocuments = mysqlTable("fleet_documents", {
-  id: int("id").autoincrement().primaryKey(),
-  fleetId: int("fleet_id"),
-  vehicleId: int("vehicle_id"),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  documentType: mysqlEnum("document_type", [
-    "registration_book",
-    "ownership_certificate",
-    "inspection_report",
-    "insurance_policy",
-    "service_history",
-    "photo",
-    "valuation_report",
-    "other"
-  ]).notNull(),
-  
-  documentName: varchar("document_name", { length: 255 }).notNull(),
-  s3Key: varchar("s3_key", { length: 500 }).notNull(),
-  s3Url: text("s3_url").notNull(),
-  fileSize: int("file_size"), // in bytes
-  mimeType: varchar("mime_type", { length: 100 }),
-  
-  // Verification
-  verificationStatus: mysqlEnum("verification_status", ["pending", "verified", "rejected"]).default("pending"),
-  verifiedBy: int("verified_by"),
-  verifiedAt: timestamp("verified_at"),
-  rejectionReason: text("rejection_reason"),
-  
-  uploadedBy: int("uploaded_by").notNull(),
-  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-});
-
-export type FleetDocument = typeof fleetDocuments.$inferSelect;
-export type InsertFleetDocument = typeof fleetDocuments.$inferInsert;
-
-/**
- * Maintenance Schedules - Scheduled maintenance for vehicles
- */
-export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Schedule definition
-  maintenanceType: mysqlEnum("maintenance_type", [
-    "oil_change",
-    "tire_rotation",
-    "brake_inspection",
-    "engine_service",
-    "transmission_service",
-    "annual_inspection",
-    "safety_inspection",
-    "filter_replacement",
-    "battery_check",
-    "coolant_flush",
-    "custom"
-  ]).notNull(),
-  description: text("description"),
-  
-  // Interval configuration
-  intervalType: mysqlEnum("interval_type", ["mileage", "time", "both"]).notNull(),
-  mileageInterval: int("mileage_interval"), // in km
-  timeInterval: int("time_interval"), // in days
-  
-  // Current status
-  lastServiceDate: timestamp("last_service_date"),
-  lastServiceMileage: int("last_service_mileage"),
-  nextDueDate: timestamp("next_due_date"),
-  nextDueMileage: int("next_due_mileage"),
-  
-  // Alert configuration
-  alertDaysBefore: int("alert_days_before").default(7),
-  alertMileageBefore: int("alert_mileage_before").default(500),
-  
-  // Metadata
-  isActive: boolean("is_active").notNull().default(true),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type MaintenanceSchedule = typeof maintenanceSchedules.$inferSelect;
-export type InsertMaintenanceSchedule = typeof maintenanceSchedules.$inferInsert;
-
-/**
- * Maintenance Records - Historical maintenance performed
- */
-export const maintenanceRecords = mysqlTable("maintenance_records", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull(),
-  scheduleId: int("schedule_id"),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Service details
-  serviceDate: timestamp("service_date").notNull(),
-  serviceMileage: int("service_mileage"),
-  serviceType: varchar("service_type", { length: 255 }).notNull(),
-  serviceProvider: varchar("service_provider", { length: 255 }),
-  serviceLocation: varchar("service_location", { length: 255 }),
-  
-  // Cost information (in cents)
-  laborCost: int("labor_cost"),
-  partsCost: int("parts_cost"),
-  totalCost: int("total_cost"),
-  
-  // Service items
-  serviceItems: text("service_items"), // JSON array
-  partsReplaced: text("parts_replaced"), // JSON array
-  
-  // Documentation
-  invoiceUrl: text("invoice_url"),
-  serviceReportUrl: text("service_report_url"),
-  
-  // Compliance
-  isCompliant: tinyint("is_compliant").default(1),
-  wasOverdue: tinyint("was_overdue").default(0),
-  daysOverdue: int("days_overdue"),
-  
-  performedBy: int("performed_by"),
-  recordedBy: int("recorded_by").notNull(),
-  
-  // Claim linkage (for tracking claim-related maintenance)
-  relatedClaimId: int("related_claim_id"), // Link to claims table if this maintenance is claim-related
-  isClaimRelated: tinyint("is_claim_related").default(0),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type MaintenanceRecord = typeof maintenanceRecords.$inferSelect;
-export type InsertMaintenanceRecord = typeof maintenanceRecords.$inferInsert;
-
-/**
- * Maintenance Alerts - Notifications for upcoming/overdue maintenance
- */
-export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull(),
-  scheduleId: int("schedule_id"),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  alertType: mysqlEnum("alert_type", [
-    "upcoming_maintenance",
-    "overdue_maintenance",
-    "inspection_due",
-    "safety_alert",
-    "compliance_alert"
-  ]).notNull(),
-  
-  severity: mysqlEnum("severity", ["low", "medium", "high", "critical"]).notNull(),
-  
-  title: varchar("title", { length: 255 }).notNull(),
-  message: text("message").notNull(),
-  dueDate: timestamp("due_date"),
-  dueMileage: int("due_mileage"),
-  
-  status: mysqlEnum("status", ["pending", "acknowledged", "resolved", "dismissed"]).default("pending"),
-  acknowledgedBy: int("acknowledged_by"),
-  acknowledgedAt: timestamp("acknowledged_at"),
-  resolvedAt: timestamp("resolved_at"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type MaintenanceAlert = typeof maintenanceAlerts.$inferSelect;
-export type InsertMaintenanceAlert = typeof maintenanceAlerts.$inferInsert;
-
-/**
- * Service Requests - Requests for repairs or maintenance quotes
- */
-export const serviceRequests = mysqlTable("service_requests", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull(),
-  fleetId: int("fleet_id"),
-  ownerId: int("owner_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Request details
-  requestType: mysqlEnum("request_type", ["maintenance", "repair", "inspection", "emergency"]).notNull(),
-  serviceCategory: mysqlEnum("service_category", [
-    "engine",
-    "transmission",
-    "brakes",
-    "suspension",
-    "electrical",
-    "bodywork",
-    "tires",
-    "hvac",
-    "general"
-  ]).notNull(),
-  
-  title: varchar("title", { length: 255 }).notNull(),
-  description: text("description").notNull(),
-  urgency: mysqlEnum("urgency", ["low", "medium", "high", "critical"]).default("medium"),
-  
-  // Vehicle condition
-  currentMileage: int("current_mileage"),
-  problemImages: text("problem_images"), // JSON array of S3 URLs
-  diagnosticCodes: text("diagnostic_codes"), // JSON array of OBD codes
-  
-  // Request status
-  status: mysqlEnum("status", [
-    "open",
-    "quotes_received",
-    "quote_accepted",
-    "in_progress",
-    "completed",
-    "cancelled"
-  ]).default("open"),
-  quotesReceived: int("quotes_received").default(0),
-  
-  // Selected quote
-  selectedQuoteId: int("selected_quote_id"),
-  selectedProviderId: int("selected_provider_id"),
-  
-  // Approval workflow (for fleet_manager approval)
-  requiresApproval: tinyint("requires_approval").default(1),
-  approvalStatus: mysqlEnum("approval_status", ["pending", "approved", "rejected"]).default("pending"),
-  approvedBy: int("approved_by"), // fleet_manager user ID
-  approvedAt: timestamp("approved_at"),
-  rejectionReason: text("rejection_reason"),
-  
-  // Submitter (fleet_driver)
-  submittedBy: int("submitted_by").notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-  completedAt: timestamp("completed_at"),
-});
-
-export type ServiceRequest = typeof serviceRequests.$inferSelect;
-export type InsertServiceRequest = typeof serviceRequests.$inferInsert;
-
-/**
- * Service Quotes - Quotes from service providers
- */
-export const serviceQuotes = mysqlTable("service_quotes", {
-  id: int("id").autoincrement().primaryKey(),
-  requestId: int("request_id").notNull(),
-  providerId: int("provider_id").notNull(), // Link to panel_beaters or service_providers
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Quote details (in cents)
-  quotedAmount: int("quoted_amount").notNull(),
-  laborCost: int("labor_cost"),
-  partsCost: int("parts_cost"),
-  additionalCosts: int("additional_costs"),
-  
-  // Timeline
-  estimatedDuration: int("estimated_duration"), // in hours
-  availabilityDate: timestamp("availability_date"),
-  completionDate: timestamp("completion_date"),
-  
-  // Quote items
-  quoteLineItems: text("quote_line_items"), // JSON array
-  partsRequired: text("parts_required"), // JSON array
-  
-  // Provider information
-  providerName: varchar("provider_name", { length: 255 }).notNull(),
-  providerLocation: varchar("provider_location", { length: 255 }),
-  providerRating: decimal("provider_rating", { precision: 3, scale: 2 }),
-  providerCompletedJobs: int("provider_completed_jobs"),
-  
-  // AI analysis
-  aiCostScore: int("ai_cost_score"), // 0-100
-  costDeviationPercent: decimal("cost_deviation_percent", { precision: 5, scale: 2 }),
-  recommendationScore: int("recommendation_score"), // 0-100
-  
-  // Status
-  status: mysqlEnum("status", ["pending", "accepted", "rejected", "expired"]).default("pending"),
-  validUntil: timestamp("valid_until"),
-  
-  submittedAt: timestamp("submitted_at").defaultNow().notNull(),
-  acceptedAt: timestamp("accepted_at"),
-});
-
-export type ServiceQuote = typeof serviceQuotes.$inferSelect;
-export type InsertServiceQuote = typeof serviceQuotes.$inferInsert;
-
-/**
- * Service Providers - Mechanics, dealerships, and service centers
- */
-export const serviceProviders = mysqlTable("service_providers", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  providerName: varchar("provider_name", { length: 255 }).notNull(),
-  providerType: mysqlEnum("provider_type", ["panel_beater", "mechanic", "dealership", "specialist"]).notNull(),
-  
-  // Contact information
-  contactPerson: varchar("contact_person", { length: 255 }),
-  email: varchar("email", { length: 320 }),
-  phone: varchar("phone", { length: 20 }),
-  address: text("address"),
-  city: varchar("city", { length: 100 }),
-  region: varchar("region", { length: 100 }),
-  
-  // Specializations
-  specializations: text("specializations"), // JSON array
-  certifications: text("certifications"), // JSON array
-  
-  // Performance metrics
-  averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
-  totalJobsCompleted: int("total_jobs_completed").default(0),
-  averageCompletionTime: decimal("average_completion_time", { precision: 6, scale: 2 }), // hours
-  averageCostDeviation: decimal("average_cost_deviation", { precision: 5, scale: 2 }), // %
-  onTimeCompletionRate: decimal("on_time_completion_rate", { precision: 5, scale: 2 }), // %
-  
-  // Status
-  isActive: tinyint("is_active").default(1),
-  isVerified: tinyint("is_verified").default(0),
-  verifiedAt: timestamp("verified_at"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ServiceProvider = typeof serviceProviders.$inferSelect;
-export type InsertServiceProvider = typeof serviceProviders.$inferInsert;
-
-/**
- * Fleet Risk Scores - Risk intelligence for vehicles
- */
-export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull().unique(),
-  fleetId: int("fleet_id"),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Overall risk score (0-100, higher = more risky)
-  overallRiskScore: int("overall_risk_score").notNull(),
-  
-  // Component scores
-  maintenanceRisk: int("maintenance_risk"),
-  claimsRisk: int("claims_risk"),
-  vehicleAgeRisk: int("vehicle_age_risk"),
-  usageRisk: int("usage_risk"),
-  repairCostRisk: int("repair_cost_risk"),
-  
-  // Risk factors
-  riskFactors: text("risk_factors"), // JSON array
-  
-  // Insurance impact
-  premiumImpact: mysqlEnum("premium_impact", ["decrease", "neutral", "increase"]),
-  recommendedPremiumAdjustment: decimal("recommended_premium_adjustment", { precision: 5, scale: 2 }), // %
-  
-  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
-  nextReviewDate: timestamp("next_review_date"),
-});
-
-export type FleetRiskScore = typeof fleetRiskScores.$inferSelect;
-export type InsertFleetRiskScore = typeof fleetRiskScores.$inferInsert;
-
-/**
- * Fleet Audit Logs - Comprehensive audit trail
- */
-export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  entityType: mysqlEnum("entity_type", [
-    "fleet",
-    "vehicle",
-    "maintenance",
-    "service_request",
-    "quote",
-    "document"
-  ]).notNull(),
-  entityId: int("entity_id").notNull(),
-  
-  action: mysqlEnum("action", ["create", "update", "delete", "view", "export"]).notNull(),
-  userId: int("user_id").notNull(),
-  userName: varchar("user_name", { length: 255 }),
-  
-  changesBefore: text("changes_before"), // JSON snapshot
-  changesAfter: text("changes_after"), // JSON snapshot
-  
-  ipAddress: varchar("ip_address", { length: 45 }),
-  userAgent: text("user_agent"),
-  
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-});
-
-export type FleetAuditLog = typeof fleetAuditLogs.$inferSelect;
-export type InsertFleetAuditLog = typeof fleetAuditLogs.$inferInsert;
-
-/**
- * Vehicle Mileage Logs - Track odometer readings
- */
-export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  mileage: int("mileage").notNull(), // Current odometer reading
-  recordedDate: timestamp("recorded_date").notNull(),
-  recordedBy: int("recorded_by").notNull(),
-  
-  // Context
-  recordType: mysqlEnum("record_type", ["manual", "service", "inspection", "claim", "automated"]).default("manual"),
-  notes: text("notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type VehicleMileageLog = typeof vehicleMileageLogs.$inferSelect;
-export type InsertVehicleMileageLog = typeof vehicleMileageLogs.$inferInsert;
-
-
-
-
-// ============================================================================
-// LEARNING GOVERNANCE FRAMEWORK - Training Dataset Management
-// ============================================================================
-
-/**
- * Training Data Scores - Confidence scoring for training dataset inclusion
- */
-export const trainingDataScores = mysqlTable("training_data_scores", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Overall confidence score (0-100)
-  trainingConfidenceScore: decimal("training_confidence_score", { precision: 5, scale: 2 }).notNull(),
-  trainingConfidenceCategory: mysqlEnum("training_confidence_category", [
-    "HIGH",
-    "MEDIUM",
-    "LOW"
-  ]).notNull(),
-  
-  // Individual scoring components (0-100 each)
-  assessorReportScore: decimal("assessor_report_score", { precision: 5, scale: 2 }).default("0.00"),
-  supportingPhotosScore: decimal("supporting_photos_score", { precision: 5, scale: 2 }).default("0.00"),
-  panelBeaterQuotesScore: decimal("panel_beater_quotes_score", { precision: 5, scale: 2 }).default("0.00"),
-  evidenceCompletenessScore: decimal("evidence_completeness_score", { precision: 5, scale: 2 }).default("0.00"),
-  handwrittenAdjustmentsScore: decimal("handwritten_adjustments_score", { precision: 5, scale: 2 }).default("0.00"),
-  fraudMarkersScore: decimal("fraud_markers_score", { precision: 5, scale: 2 }).default("0.00"),
-  disputeHistoryScore: decimal("dispute_history_score", { precision: 5, scale: 2 }).default("0.00"),
-  competingQuotesScore: decimal("competing_quotes_score", { precision: 5, scale: 2 }).default("0.00"),
-  
-  // Scoring metadata
-  scoringAlgorithmVersion: varchar("scoring_algorithm_version", { length: 20 }),
-  scoringNotes: text("scoring_notes"), // JSON: detailed scoring breakdown
-  
-  // Anomaly and bias detection
-  anomalyDetected: tinyint("anomaly_detected").default(0),
-  anomalyReason: text("anomaly_reason"),
-  biasRiskDetected: tinyint("bias_risk_detected").default(0),
-  biasRiskReason: text("bias_risk_reason"),
-  
-  scoredAt: timestamp("scored_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type TrainingDataScore = typeof trainingDataScores.$inferSelect;
-export type InsertTrainingDataScore = typeof trainingDataScores.$inferInsert;
-
-/**
- * Claim Review Queue - Human-in-the-loop approval workflow
- */
-export const claimReviewQueue = mysqlTable("claim_review_queue", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  reviewStatus: mysqlEnum("review_status", [
-    "pending_review",
-    "in_review",
-    "approved",
-    "rejected",
-    "needs_more_info"
-  ]).default("pending_review"),
-  
-  reviewPriority: mysqlEnum("review_priority", ["low", "medium", "high"]).default("medium"),
-  
-  // Routing logic
-  routedReason: varchar("routed_reason", { length: 255 }), // Why routed to manual review
-  automatedValidationLevel: varchar("automated_validation_level", { length: 50 }), // Level 1, 2, 3
-  
-  // Review assignment
-  assignedTo: int("assigned_to"), // User ID of reviewer
-  assignedAt: timestamp("assigned_at"),
-  
-  // Review outcome
-  reviewedBy: int("reviewed_by"), // User ID of reviewer
-  reviewedAt: timestamp("reviewed_at"),
-  reviewDecision: mysqlEnum("review_decision", ["approve", "reject", "request_more_info"]),
-  reviewNotes: text("review_notes"),
-  
-  // Dataset inclusion decision
-  includeInTrainingDataset: tinyint("include_in_training_dataset").default(0),
-  includeInReferenceDataset: tinyint("include_in_reference_dataset").default(1), // Default: all go to reference
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint } from "drizzle-orm/mysql-core"
+import { sql } from "drizzle-orm"
+
+export const accessDenialLog = mysqlTable("access_denial_log", {
+	id: int().autoincrement().notNull(),
+	userId: int("user_id"),
+	attemptedRoute: varchar("attempted_route", { length: 500 }),
+	userRole: varchar("user_role", { length: 100 }),
+	insurerRole: varchar("insurer_role", { length: 100 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	denialReason: text("denial_reason"),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	userAgent: text("user_agent"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
-
-export type ClaimReviewQueue = typeof claimReviewQueue.$inferSelect;
-export type InsertClaimReviewQueue = typeof claimReviewQueue.$inferInsert;
-
-/**
- * Training Dataset - Claims approved for AI model training
- */
-export const trainingDataset = mysqlTable("training_dataset", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Dataset version tracking
-  datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
-  
-  // Inclusion metadata
-  includedAt: timestamp("included_at").defaultNow().notNull(),
-  includedBy: int("included_by").notNull(), // User ID or system
-  inclusionReason: text("inclusion_reason"),
-  
-  // Training usage tracking
-  usedInModelVersions: text("used_in_model_versions"), // JSON array of model versions
-  lastUsedForTraining: timestamp("last_used_for_training"),
-  
-  // Quality flags
-  isActive: tinyint("is_active").default(1), // Can be deactivated if quality issues found
-  deactivatedAt: timestamp("deactivated_at"),
-  deactivationReason: text("deactivation_reason"),
-  
-  // Multi-Reference Truth fields
-  trainingWeight: decimal("training_weight", { precision: 3, scale: 2 }).default("1.00"), // 0.00-1.00
-  negotiatedAdjustment: tinyint("negotiated_adjustment").default(0), // Boolean: assessor value deviates from truth
-  deviationReason: mysqlEnum("deviation_reason", [
-    "none",
-    "negotiation",
-    "fraud",
-    "regional_variance",
-    "data_quality",
-    "assessor_bias",
-    "manual_override"
-  ]).default("none"),
-});
-
-export type TrainingDatasetEntry = typeof trainingDataset.$inferSelect;
-export type InsertTrainingDatasetEntry = typeof trainingDataset.$inferInsert;
-
-/**
- * Reference Dataset - All claims for benchmarking (not for training)
- */
-export const referenceDataset = mysqlTable("reference_dataset", {
-  id: int("id").autoincrement().primaryKey(),
-  historicalClaimId: int("historical_claim_id").notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  // Dataset version tracking
-  datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
-  
-  // Inclusion metadata
-  includedAt: timestamp("included_at").defaultNow().notNull(),
-  
-  // Usage tracking
-  usedForBenchmarking: tinyint("used_for_benchmarking").default(0),
-  usedForAnalytics: tinyint("used_for_analytics").default(0),
-  lastAccessedAt: timestamp("last_accessed_at"),
-  
-  // Reference purpose tags
-  referencePurpose: text("reference_purpose"), // JSON array: ["benchmarking", "analytics", "audit"]
-});
-
-export type ReferenceDatasetEntry = typeof referenceDataset.$inferSelect;
-export type InsertReferenceDatasetEntry = typeof referenceDataset.$inferInsert;
-
-/**
- * Model Version Registry - ML governance and version tracking
- */
-export const modelVersionRegistry = mysqlTable("model_version_registry", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  modelName: varchar("model_name", { length: 255 }).notNull(),
-  modelVersion: varchar("model_version", { length: 50 }).notNull().unique(),
-  
-  // Model metadata
-  modelType: varchar("model_type", { length: 100 }), // e.g., "damage_assessment", "fraud_detection"
-  algorithmUsed: varchar("algorithm_used", { length: 100 }),
-  
-  // Training metadata
-  trainingDatasetVersion: varchar("training_dataset_version", { length: 50 }),
-  trainingClaimCount: int("training_claim_count"),
-  trainingStartedAt: timestamp("training_started_at"),
-  trainingCompletedAt: timestamp("training_completed_at"),
-  trainingDuration: int("training_duration"), // Minutes
-  
-  // Performance metrics
-  accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }),
-  precisionScore: decimal("precision_score", { precision: 5, scale: 2 }),
-  recallScore: decimal("recall_score", { precision: 5, scale: 2 }),
-  f1Score: decimal("f1_score", { precision: 5, scale: 2 }),
-  
-  // Validation results
-  biasDriftValidation: varchar("bias_drift_validation", { length: 50 }), // "passed", "failed", "warning"
-  fraudDetectionStability: varchar("fraud_detection_stability", { length: 50 }),
-  performanceBenchmark: text("performance_benchmark"), // JSON: detailed metrics
-  
-  // Deployment status
-  deploymentStatus: mysqlEnum("deployment_status", [
-    "training",
-    "validation",
-    "staging",
-    "production",
-    "deprecated",
-    "archived"
-  ]).default("training"),
-  
-  deployedAt: timestamp("deployed_at"),
-  deployedBy: int("deployed_by"), // User ID
-  
-  // Approval workflow
-  approvalStatus: mysqlEnum("approval_status", [
-    "pending_validation",
-    "pending_approval",
-    "approved",
-    "rejected"
-  ]).default("pending_validation"),
-  approvedBy: int("approved_by"), // User ID
-  approvedAt: timestamp("approved_at"),
-  approvalNotes: text("approval_notes"),
-  
-  // Model artifacts
-  modelArtifactUrl: text("model_artifact_url"), // S3 URL to model file
-  modelConfigUrl: text("model_config_url"), // S3 URL to config
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type ModelVersionRegistry = typeof modelVersionRegistry.$inferSelect;
-export type InsertModelVersionRegistry = typeof modelVersionRegistry.$inferInsert;
-
-/**
- * Model Training Audit Log - Full audit trail of training activities
- */
-export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }),
-  
-  modelVersionId: int("model_version_id").notNull(),
-  
-  eventType: mysqlEnum("event_type", [
-    "training_started",
-    "training_completed",
-    "training_failed",
-    "validation_started",
-    "validation_completed",
-    "deployment_requested",
-    "deployment_approved",
-    "deployment_rejected",
-    "model_deprecated",
-    "dataset_added",
-    "dataset_removed"
-  ]).notNull(),
-  
-  eventDescription: text("event_description"),
-  eventMetadata: text("event_metadata"), // JSON: detailed event data
-  
-  performedBy: int("performed_by"), // User ID or system
-  performedAt: timestamp("performed_at").defaultNow().notNull(),
-  
-  ipAddress: varchar("ip_address", { length: 45 }),
-});
-
-export type ModelTrainingAuditLogEntry = typeof modelTrainingAuditLog.$inferSelect;
-export type InsertModelTrainingAuditLogEntry = typeof modelTrainingAuditLog.$inferInsert;
-
-
-// =====================================
-// Multi-Reference Truth Synthesis Tables
-// =====================================
-
-/**
- * Multi-Reference Truth - Synthesized ground truth from multiple evidence sources
- * Treats assessor values as advisory, not absolute truth
- */
-export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
-  id: int("id").primaryKey().autoincrement(),
-  historicalClaimId: int("historical_claim_id").notNull(),
-  
-  // Synthesized truth value (consensus from all components)
-  synthesizedValue: decimal("synthesized_value", { precision: 10, scale: 2 }).notNull(),
-  confidenceInterval: decimal("confidence_interval", { precision: 5, scale: 2 }), // ±% range
-  
-  // Individual component scores (0-100)
-  photoDamageSeverityScore: int("photo_damage_severity_score"),
-  panelBeaterQuoteClusterScore: int("panel_beater_quote_cluster_score"),
-  regionalBenchmarkScore: int("regional_benchmark_score"),
-  similarClaimsScore: int("similar_claims_score"),
-  fraudProbabilityScore: int("fraud_probability_score"),
-  settlementAmountScore: int("settlement_amount_score"),
-  
-  // Component values
-  photoDamageEstimate: decimal("photo_damage_estimate", { precision: 10, scale: 2 }),
-  panelBeaterMedian: decimal("panel_beater_median", { precision: 10, scale: 2 }),
-  regionalBenchmark: decimal("regional_benchmark", { precision: 10, scale: 2 }),
-  similarClaimsAverage: decimal("similar_claims_average", { precision: 10, scale: 2 }),
-  finalSettlement: decimal("final_settlement", { precision: 10, scale: 2 }),
-  
-  // Assessor comparison
-  assessorValue: decimal("assessor_value", { precision: 10, scale: 2 }),
-  assessorDeviation: decimal("assessor_deviation", { precision: 5, scale: 2 }), // % deviation
-  deviationAbsolute: decimal("deviation_absolute", { precision: 10, scale: 2 }),
-  
-  // Synthesis metadata
-  synthesisMethod: varchar("synthesis_method", { length: 50 }), // weighted_average, median, etc.
-  componentsUsed: int("components_used"), // Number of components available
-  synthesisQuality: mysqlEnum("synthesis_quality", ["high", "medium", "low"]),
-  
-  synthesizedAt: timestamp("synthesized_at").defaultNow().notNull(),
-  synthesizedBy: varchar("synthesized_by", { length: 50 }), // system or user ID
-  
-  // Explanation
-  synthesisExplanation: text("synthesis_explanation"), // Human-readable explanation
-});
-
-export type MultiReferenceTruth = typeof multiReferenceTruth.$inferSelect;
-export type InsertMultiReferenceTruth = typeof multiReferenceTruth.$inferInsert;
-
-/**
- * Assessor Deviation Metrics - Track assessor variance patterns
- * Detect systematic biases across assessors, regions, vehicle types
- */
-export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics", {
-  id: int("id").primaryKey().autoincrement(),
-  assessorId: int("assessor_id"),
-  assessorName: varchar("assessor_name", { length: 255 }),
-  
-  // Time period
-  periodStart: date("period_start").notNull(),
-  periodEnd: date("period_end").notNull(),
-  
-  // Aggregated metrics
-  totalClaims: int("total_claims").notNull(),
-  averageDeviation: decimal("average_deviation", { precision: 5, scale: 2 }), // % avg deviation
-  medianDeviation: decimal("median_deviation", { precision: 5, scale: 2 }),
-  standardDeviation: decimal("standard_deviation", { precision: 5, scale: 2 }),
-  
-  // Bias indicators
-  overvaluationRate: decimal("overvaluation_rate", { precision: 5, scale: 2 }), // % of claims overvalued
-  undervaluationRate: decimal("undervaluation_rate", { precision: 5, scale: 2 }),
-  consistencyScore: int("consistency_score"), // 0-100
-  
-  // Segmentation
-  region: varchar("region", { length: 100 }),
-  vehicleType: varchar("vehicle_type", { length: 50 }),
-  panelBeaterId: int("panel_beater_id"), // Relationship bias
-  
-  // Quality indicators
-  dataQualityScore: int("data_quality_score"), // 0-100
-  sampleSize: int("sample_size"),
-  
-  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
-});
-
-export type AssessorDeviationMetrics = typeof assessorDeviationMetrics.$inferSelect;
-export type InsertAssessorDeviationMetrics = typeof assessorDeviationMetrics.$inferInsert;
-
-/**
- * Regional Benchmarks - Parts and labor cost baselines by region
- * Used for truth synthesis and deviation detection
- */
-export const regionalBenchmarks = mysqlTable("regional_benchmarks", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  // Geographic
-  region: varchar("region", { length: 100 }).notNull(),
-  city: varchar("city", { length: 100 }),
-  
-  // Vehicle segmentation
-  vehicleType: varchar("vehicle_type", { length: 50 }),
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  yearRange: varchar("year_range", { length: 20 }), // e.g., "2018-2022"
-  
-  // Cost benchmarks
-  laborRatePerHour: decimal("labor_rate_per_hour", { precision: 10, scale: 2 }),
-  paintCostPerPanel: decimal("paint_cost_per_panel", { precision: 10, scale: 2 }),
-  
-  // Common parts (JSON: part_name -> avg_cost)
-  commonPartsCosts: text("common_parts_costs"), // JSON object
-  
-  // Statistical metrics
-  sampleSize: int("sample_size"),
-  confidenceLevel: decimal("confidence_level", { precision: 5, scale: 2 }), // e.g., 95.0
-  
-  // Temporal
-  effectiveFrom: date("effective_from").notNull(),
-  effectiveTo: date("effective_to"),
-  
-  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
-  dataSource: varchar("data_source", { length: 255 }), // e.g., "historical_claims", "market_survey"
-});
-
-export type RegionalBenchmark = typeof regionalBenchmarks.$inferSelect;
-export type InsertRegionalBenchmark = typeof regionalBenchmarks.$inferInsert;
-
-/**
- * Similar Claims Clusters - K-nearest neighbor groups for comparison
- * Used to find similar historical claims for truth synthesis
- */
-export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
-  id: int("id").primaryKey().autoincrement(),
-  historicalClaimId: int("historical_claim_id").notNull(),
-  
-  // Similarity features (used for clustering)
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYear: int("vehicle_year"),
-  damageType: varchar("damage_type", { length: 100 }),
-  damageSeverity: mysqlEnum("damage_severity", ["minor", "moderate", "severe", "total_loss"]),
-  region: varchar("region", { length: 100 }),
-  
-  // Cluster assignment
-  clusterId: int("cluster_id"),
-  clusterSize: int("cluster_size"),
-  
-  // Similar claims (JSON: array of claim IDs with similarity scores)
-  similarClaims: text("similar_claims"), // JSON: [{claim_id, similarity_score, cost}]
-  
-  // Statistical summary
-  clusterMedianCost: decimal("cluster_median_cost", { precision: 10, scale: 2 }),
-  clusterAverageCost: decimal("cluster_average_cost", { precision: 10, scale: 2 }),
-  clusterStdDev: decimal("cluster_std_dev", { precision: 10, scale: 2 }),
-  
-  // Quality metrics
-  similarityThreshold: decimal("similarity_threshold", { precision: 5, scale: 2 }), // e.g., 0.85
-  kNeighbors: int("k_neighbors"), // Number of neighbors used
-  
-  clusteredAt: timestamp("clustered_at").defaultNow().notNull(),
-  clusteringAlgorithm: varchar("clustering_algorithm", { length: 50 }), // e.g., "k-means", "dbscan"
-});
-
-export type SimilarClaimsCluster = typeof similarClaimsClusters.$inferSelect;
-export type InsertSimilarClaimsCluster = typeof similarClaimsClusters.$inferInsert;
-
-
-/**
- * Parts Pricing Baseline - SA public data scraping baseline
- * Stores baseline parts pricing from public SA sources (Supercheap, Midas, AutoTrader)
- */
-export const partsPricingBaseline = mysqlTable("parts_pricing_baseline", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  // Part identification
-  partName: varchar("part_name", { length: 255 }).notNull(), // e.g., "Front Bumper", "Headlight Assembly"
-  partNumber: varchar("part_number", { length: 100 }), // OEM part number if available
-  partCategory: varchar("part_category", { length: 100 }), // e.g., "body", "lighting", "mechanical"
-  
-  // Vehicle fitment
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYearFrom: int("vehicle_year_from"),
-  vehicleYearTo: int("vehicle_year_to"),
-  
-  // Pricing
-  saBasePrice: decimal("sa_base_price", { precision: 10, scale: 2 }).notNull(), // Base price
-  currency: varchar("currency", { length: 3 }).default("USD").notNull(),
-  partType: mysqlEnum("part_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).default("Unknown"),
-  
-  // Source attribution
-  source: varchar("source", { length: 100 }).notNull(), // e.g., "supercheap_auto", "midas", "manual_entry"
-  sourceUrl: text("source_url"),
-  scrapedAt: timestamp("scraped_at"),
-  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
-  
-  // Quality indicators
-  confidence: mysqlEnum("confidence", ["low", "medium", "high"]).default("medium"),
-  dataQuality: text("data_quality"), // JSON: validation notes
-});
-
-export type PartsPricingBaseline = typeof partsPricingBaseline.$inferSelect;
-export type InsertPartsPricingBaseline = typeof partsPricingBaseline.$inferInsert;
-
-/**
- * Part Stratification - OEM vs Aftermarket vs Used pricing tiers
- */
-export const partStratification = mysqlTable("part_stratification", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  stratumType: mysqlEnum("stratum_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used"]).notNull(),
-  priceMultiplier: decimal("price_multiplier", { precision: 5, scale: 2 }).notNull(), // e.g., 1.0 for OEM, 0.7 for Aftermarket
-  
-  // Quality indicators
-  qualityRating: int("quality_rating"), // 1-5 scale
-  warrantyMonths: int("warranty_months"),
-  description: text("description"),
-  
-  // Applicability
-  partCategory: varchar("part_category", { length: 100 }), // NULL = applies to all categories
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
-export type PartStratification = typeof partStratification.$inferSelect;
-export type InsertPartStratification = typeof partStratification.$inferInsert;
-
-/**
- * Regional Pricing Multipliers - Country-specific cost adjustments
- */
-export const regionalPricingMultipliers = mysqlTable("regional_pricing_multipliers", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  country: varchar("country", { length: 100 }).notNull().unique(), // e.g., "Zimbabwe", "Botswana", "South Africa"
-  countryCode: varchar("country_code", { length: 3 }).notNull(), // ISO 3166-1 alpha-3
-  
-  // Cost components
-  transportCostMultiplier: decimal("transport_cost_multiplier", { precision: 5, scale: 2 }).notNull(), // e.g., 1.15 = +15% for transport
-  dutyRate: decimal("duty_rate", { precision: 5, scale: 2 }).notNull(), // e.g., 0.25 = 25% import duty
-  handlingFeeFlat: decimal("handling_fee_flat", { precision: 10, scale: 2 }).default("0.00"), // Flat fee in local currency
-  marginMultiplier: decimal("margin_multiplier", { precision: 5, scale: 2 }).default("1.10"), // e.g., 1.10 = 10% markup
-  
-  // Currency
-  currencyCode: varchar("currency_code", { length: 3 }).notNull(), // e.g., "ZWL", "USD", "BWP"
-  exchangeRateToUSD: decimal("exchange_rate_to_usd", { precision: 15, scale: 6 }).notNull(), // e.g., 1 ZWL = 0.0012 USD
-  exchangeRateSource: varchar("exchange_rate_source", { length: 100 }), // e.g., "RBZ", "manual", "xe.com"
-  
-  // Metadata
-  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
-  updatedBy: int("updated_by"), // Admin user ID
-  notes: text("notes"),
-});
-
-export type RegionalPricingMultiplier = typeof regionalPricingMultipliers.$inferSelect;
-export type InsertRegionalPricingMultiplier = typeof regionalPricingMultipliers.$inferInsert;
-
-/**
- * Parts Pricing Overrides - Admin manual overrides for specific parts/regions
- */
-export const partsPricingOverrides = mysqlTable("parts_pricing_overrides", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  // Part identification (can be specific or wildcard)
-  partName: varchar("part_name", { length: 255 }),
-  partNumber: varchar("part_number", { length: 100 }),
-  partCategory: varchar("part_category", { length: 100 }),
-  
-  // Vehicle fitment (can be specific or wildcard)
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  
-  // Region (NULL = applies to all regions)
-  country: varchar("country", { length: 100 }),
-  
-  // Stratum (NULL = applies to all strata)
-  stratumType: mysqlEnum("stratum_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used"]),
-  
-  // Override pricing
-  overridePrice: decimal("override_price", { precision: 10, scale: 2 }),
-  overrideMultiplier: decimal("override_multiplier", { precision: 5, scale: 2 }), // Alternative: multiply baseline by this
-  
-  // Metadata
-  reason: text("reason").notNull(), // Why this override was created
-  createdBy: int("created_by").notNull(), // Admin user ID
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  expiresAt: timestamp("expires_at"), // NULL = never expires
-});
-
-export type PartsPricingOverride = typeof partsPricingOverrides.$inferSelect;
-export type InsertPartsPricingOverride = typeof partsPricingOverrides.$inferInsert;
-
-/**
- * Parts Pricing Audit Log - Track all pricing changes for transparency
- */
-export const partsPricingAuditLog = mysqlTable("parts_pricing_audit_log", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  changeType: mysqlEnum("change_type", ["baseline_update", "multiplier_update", "override_created", "override_deleted", "scraper_run"]).notNull(),
-  
-  // What changed
-  tableName: varchar("table_name", { length: 100 }).notNull(),
-  recordId: int("record_id"),
-  
-  // Change details
-  oldValue: text("old_value"), // JSON snapshot of old data
-  newValue: text("new_value"), // JSON snapshot of new data
-  
-  // Who/when
-  changedBy: int("changed_by"), // Admin user ID (NULL for automated scraper)
-  changedAt: timestamp("changed_at").defaultNow().notNull(),
-  
-  // Context
-  reason: text("reason"),
-  ipAddress: varchar("ip_address", { length: 45 }),
-});
-
-export type PartsPricingAuditLog = typeof partsPricingAuditLog.$inferSelect;
-export type InsertPartsPricingAuditLog = typeof partsPricingAuditLog.$inferInsert;
-
-
-/**
- * Supplier Quotes - Admin-uploaded market quotes from SA/Zim suppliers
- */
-export const supplierQuotes = mysqlTable("supplier_quotes", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  // Supplier information
-  supplierName: varchar("supplier_name", { length: 255 }).notNull(),
-  supplierCountry: varchar("supplier_country", { length: 100 }).notNull(), // e.g., "South Africa", "Zimbabwe", "Japan", "UAE", "Thailand", "Singapore"
-  supplierContact: varchar("supplier_contact", { length: 255 }),
-  
-  // Quote metadata
-  quoteDate: date("quote_date").notNull(),
-  quoteNumber: varchar("quote_number", { length: 100 }),
-  quoteValidUntil: date("quote_valid_until"),
-  
-  // Document
-  documentUrl: text("document_url").notNull(), // S3 URL of uploaded PDF/Excel/image
-  documentType: mysqlEnum("document_type", ["pdf", "excel", "image"]).notNull(),
-  
-  // Processing status
-  status: mysqlEnum("status", ["pending", "approved", "rejected"]).default("pending").notNull(),
-  extractedAt: timestamp("extracted_at"),
-  reviewedAt: timestamp("reviewed_at"),
-  reviewedBy: int("reviewed_by"), // Admin user ID
-  
-  // Extraction results
-  extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 2 }), // 0.00-1.00
-  extractionNotes: text("extraction_notes"), // JSON: extraction issues, warnings
-  
-  // Metadata
-  uploadedBy: int("uploaded_by").notNull(), // Admin user ID
-  uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
-  notes: text("notes"), // Admin notes about this quote
-});
-
-export type SupplierQuote = typeof supplierQuotes.$inferSelect;
-export type InsertSupplierQuote = typeof supplierQuotes.$inferInsert;
-
-/**
- * Supplier Quote Line Items - Individual parts from supplier quotes
- */
-export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  quoteId: int("quote_id").notNull(), // FK to supplierQuotes
-  
-  // Part identification
-  partName: varchar("part_name", { length: 255 }).notNull(),
-  partNumber: varchar("part_number", { length: 100 }),
-  partDescription: text("part_description"),
-  partCategory: varchar("part_category", { length: 100 }),
-  
-  // Vehicle fitment (may be extracted or NULL)
-  vehicleMake: varchar("vehicle_make", { length: 100 }),
-  vehicleModel: varchar("vehicle_model", { length: 100 }),
-  vehicleYearFrom: int("vehicle_year_from"),
-  vehicleYearTo: int("vehicle_year_to"),
-  
-  // Pricing
-  price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  currency: varchar("currency", { length: 3 }).notNull(), // e.g., "USD", "ZWL", "ZIG", "GBP", "EUR", "JPY"
-  
-  // Import costs (for international suppliers)
-  shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
-  customsDuty: decimal("customs_duty", { precision: 10, scale: 2 }),
-  clearingFees: decimal("clearing_fees", { precision: 10, scale: 2 }),
-  forexCharges: decimal("forex_charges", { precision: 10, scale: 2 }),
-  leadTimeDays: int("lead_time_days"), // Estimated delivery time
-  
-  // Part type/quality
-  partType: mysqlEnum("part_type", ["OEM", "OEM_Equivalent", "Aftermarket", "Used", "Unknown"]).default("Unknown"),
-  
-  // Quantity (if specified in quote)
-  quantity: int("quantity").default(1),
-  
-  // Approval status (can approve/reject individual line items)
-  approved: boolean("approved").default(false),
-  rejectionReason: text("rejection_reason"),
-  
-  // Metadata
-  extractedAt: timestamp("extracted_at").defaultNow().notNull(),
-  lineNumber: int("line_number"), // Line number in original quote document
-});
-
-export type SupplierQuoteLineItem = typeof supplierQuoteLineItems.$inferSelect;
-export type InsertSupplierQuoteLineItem = typeof supplierQuoteLineItems.$inferInsert;
-
-/**
- * Supplier Performance Metrics - Track supplier quote accuracy and competitiveness
- */
-export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metrics", {
-  id: int("id").primaryKey().autoincrement(),
-  
-  supplierName: varchar("supplier_name", { length: 255 }).notNull().unique(),
-  supplierCountry: varchar("supplier_country", { length: 100 }),
-  
-  // Quote statistics
-  totalQuotesSubmitted: int("total_quotes_submitted").default(0),
-  totalQuotesApproved: int("total_quotes_approved").default(0),
-  totalQuotesRejected: int("total_quotes_rejected").default(0),
-  
-  // Pricing competitiveness (vs market average)
-  avgPriceVsMarket: decimal("avg_price_vs_market", { precision: 5, scale: 2 }), // e.g., 0.95 = 5% below market avg
-  
-  // Data quality
-  avgExtractionConfidence: decimal("avg_extraction_confidence", { precision: 5, scale: 2 }),
-  
-  // Relationship
-  firstQuoteDate: date("first_quote_date"),
-  lastQuoteDate: date("last_quote_date"),
-  
-  // Metadata
-  lastUpdated: timestamp("last_updated").defaultNow().notNull(),
-});
-
-export type SupplierPerformanceMetric = typeof supplierPerformanceMetrics.$inferSelect;
-export type InsertSupplierPerformanceMetric = typeof supplierPerformanceMetrics.$inferInsert;
-
-// ============================================================================
-// TENANT CONFIGURATION TABLES
-// ============================================================================
-// Multi-tenant insurer platform configuration
-// Note: TEXT field defaults handled in application code (TiDB limitation)
-
-/**
- * Insurer Tenants - Insurance companies leasing the platform
- */
-export const insurerTenants = mysqlTable("insurer_tenants", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  name: varchar("name", { length: 255 }).notNull(),
-  displayName: varchar("display_name", { length: 255 }).notNull(),
-  logoUrl: text("logo_url"), // S3 URL for custom logo
-  primaryColor: varchar("primary_color", { length: 7 }).default("#10b981"), // Default: KINGA emerald
-  secondaryColor: varchar("secondary_color", { length: 7 }).default("#64748b"), // Default: slate
-  
-  // Multi-currency support (Zimbabwe market: USD + ZIG)
-  primaryCurrency: varchar("primary_currency", { length: 3 }).default("USD"), // ISO 4217 code
-  primaryCurrencySymbol: varchar("primary_currency_symbol", { length: 10 }).default("$"),
-  secondaryCurrency: varchar("secondary_currency", { length: 3 }), // Optional second currency (e.g., ZIG)
-  secondaryCurrencySymbol: varchar("secondary_currency_symbol", { length: 10 }), // e.g., "ZIG" or "ZWL$"
-  exchangeRate: decimal("exchange_rate", { precision: 10, scale: 4 }), // Secondary to primary rate
-  
-  // Document naming (default handled in app: KINGA-{DocType}-{ClaimNumber}-v{Version}-{Date}.pdf)
-  documentNamingTemplate: text("document_naming_template"),
-  
-  // Retention policies
-  documentRetentionYears: int("document_retention_years").default(7),
-  fraudRetentionYears: int("fraud_retention_years").default(10),
-  
-  // Approval thresholds (in cents)
-  requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default("10000.00"),
-  highValueThreshold: decimal("high_value_threshold", { precision: 10, scale: 2 }).default("10000.00"),
-  autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default("5000.00"),
-  
-  // Fraud detection
-  fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default("0.70"), // 0-1 scale
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type InsurerTenant = typeof insurerTenants.$inferSelect;
-export type InsertInsurerTenant = typeof insurerTenants.$inferInsert;
-
-/**
- * Tenant Role Configs - Which roles are enabled for each tenant
- */
-export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  roleKey: mysqlEnum("role_key", ["executive", "claims_manager", "claims_processor", "assessor_internal", "assessor_external", "risk_manager", "insurer_admin"]).notNull(),
-  enabled: tinyint("enabled").default(1).notNull(),
-  displayName: varchar("display_name", { length: 100 }), // Custom role name (e.g., "Senior Adjuster" instead of "Claims Manager")
-  
-  // Permissions (JSON array of permission keys, default handled in app)
-  permissions: text("permissions"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  pk: primaryKey({ columns: [table.tenantId, table.roleKey] }),
-}));
-
-export type TenantRoleConfig = typeof tenantRoleConfigs.$inferSelect;
-export type InsertTenantRoleConfig = typeof tenantRoleConfigs.$inferInsert;
-
-/**
- * Tenant Workflow Configs - Approval thresholds and routing rules per tenant
- */
-export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull().unique(),
-  
-  // Approval thresholds (in cents)
-  requireExecutiveApprovalAbove: decimal("require_executive_approval_above", { precision: 10, scale: 2 }).default("50000.00"),
-  requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default("10000.00"),
-  autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default("5000.00"),
-  
-  // Fraud detection
-  fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default("0.70"),
-  
-  // Assessment routing
-  requireInternalAssessment: tinyint("require_internal_assessment").default(0).notNull(), // 0 = external only, 1 = all claims
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type TenantWorkflowConfig = typeof tenantWorkflowConfigs.$inferSelect;
-export type InsertTenantWorkflowConfig = typeof tenantWorkflowConfigs.$inferInsert;
-
-/**
- * Document Naming Templates - Tenant-customizable document naming conventions
- */
-export const documentNamingTemplates = mysqlTable("document_naming_templates", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  docType: mysqlEnum("doc_type", ["claim", "assessment", "report", "approval"]).notNull(),
-  
-  // Template string (e.g., "{TenantCode}-{DocType}-{ClaimNumber}-v{Version}-{Date}.pdf")
-  template: varchar("template", { length: 500 }).notNull(),
-  
-  // Description (default handled in app)
-  description: text("description"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  uniqueTenantDocType: unique().on(table.tenantId, table.docType),
-}));
-
-export type DocumentNamingTemplate = typeof documentNamingTemplates.$inferSelect;
-export type InsertDocumentNamingTemplate = typeof documentNamingTemplates.$inferInsert;
-
-/**
- * Document Versions - Immutable version history for all generated documents
- */
-export const documentVersions = mysqlTable("document_versions", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  claimId: int("claim_id").notNull(),
-  
-  documentName: varchar("document_name", { length: 500 }).notNull(),
-  documentUrl: text("document_url").notNull(), // S3 URL
-  docType: mysqlEnum("doc_type", ["claim", "assessment", "report", "approval"]).notNull(),
-  version: int("version").notNull(),
-  
-  // Approval tracking
-  createdBy: int("created_by").notNull(),
-  approvedBy: int("approved_by"),
-  approvedAt: timestamp("approved_at"),
-  
-  // Retention (Unix timestamp for deletion)
-  retentionUntil: timestamp("retention_until").notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  uniqueClaimDocVersion: unique().on(table.claimId, table.docType, table.version),
-}));
-
-export type DocumentVersion = typeof documentVersions.$inferSelect;
-export type InsertDocumentVersion = typeof documentVersions.$inferInsert;
-
-/**
- * ISO Audit Logs - Immutable audit trail for all user actions (ISO 9001:2015 compliance)
- */
-export const isoAuditLogs = mysqlTable("iso_audit_logs", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  userId: int("user_id").notNull(),
-  userRole: varchar("user_role", { length: 50 }).notNull(),
-  
-  actionType: mysqlEnum("action_type", ["create", "update", "approve", "reject", "view", "delete"]).notNull(),
-  resourceType: varchar("resource_type", { length: 50 }).notNull(), // 'claim', 'assessment', 'document', 'user'
-  resourceId: varchar("resource_id", { length: 64 }).notNull(),
-  
-  // State snapshots (JSON, default handled in app)
-  beforeState: text("before_state"),
-  afterState: text("after_state"),
-  
-  // Session tracking
-  ipAddress: varchar("ip_address", { length: 45 }),
-  sessionId: varchar("session_id", { length: 64 }),
-  
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-  
-  // Tamper detection (SHA-256 hash)
-  integrityHash: varchar("integrity_hash", { length: 64 }).notNull(),
-});
-
-export type IsoAuditLog = typeof isoAuditLogs.$inferSelect;
-export type InsertIsoAuditLog = typeof isoAuditLogs.$inferInsert;
-
-/**
- * Quality Metrics - Process performance metrics for ISO compliance reporting
- */
-export const qualityMetrics = mysqlTable("quality_metrics", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  metricType: mysqlEnum("metric_type", ["processing_time", "approval_rate", "fraud_detection", "cost_savings"]).notNull(),
-  metricValue: decimal("metric_value", { precision: 10, scale: 2 }).notNull(),
-  
-  periodStart: timestamp("period_start").notNull(),
-  periodEnd: timestamp("period_end").notNull(),
-  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
-});
-
-export type QualityMetric = typeof qualityMetrics.$inferSelect;
-export type InsertQualityMetric = typeof qualityMetrics.$inferInsert;
-
-/**
- * Risk Register - ISO 31000 risk management tracking per claim
- */
-export const riskRegister = mysqlTable("risk_register", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  claimId: int("claim_id").notNull(),
-  
-  riskType: mysqlEnum("risk_type", ["fraud", "cost_overrun", "compliance", "operational"]).notNull(),
-  
-  // Risk scoring (1-5 scale)
-  likelihood: int("likelihood").notNull(),
-  impact: int("impact").notNull(),
-  riskScore: int("risk_score").notNull(), // likelihood * impact
-  
-  // Risk details (default handled in app)
-  description: text("description").notNull(),
-  treatmentPlan: mysqlEnum("treatment_plan", ["accept", "mitigate", "transfer", "avoid"]),
-  treatmentNotes: text("treatment_notes"),
-  
-  // Tracking
-  identifiedBy: int("identified_by").notNull(),
-  identifiedAt: timestamp("identified_at").defaultNow().notNull(),
-  reviewedBy: int("reviewed_by"),
-  reviewedAt: timestamp("reviewed_at"),
-  
-  status: mysqlEnum("status", ["open", "mitigated", "closed"]).default("open").notNull(),
-});
-
-export type RiskRegisterEntry = typeof riskRegister.$inferSelect;
-export type InsertRiskRegisterEntry = typeof riskRegister.$inferInsert;
-
-/**
- * Training Records - User competency and training tracking
- */
-export const trainingRecords = mysqlTable("training_records", {
-  id: varchar("id", { length: 64 }).primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  userId: int("user_id").notNull(),
-  
-  trainingType: mysqlEnum("training_type", ["fraud_detection", "iso_compliance", "role_onboarding"]).notNull(),
-  
-  completionDate: timestamp("completion_date").notNull(),
-  expiryDate: timestamp("expiry_date"), // For certifications that require renewal
-  
-  trainer: varchar("trainer", { length: 255 }),
-  assessmentScore: decimal("assessment_score", { precision: 5, scale: 2 }),
-  certificateUrl: text("certificate_url"), // S3 URL
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type TrainingRecord = typeof trainingRecords.$inferSelect;
-export type InsertTrainingRecord = typeof trainingRecords.$inferInsert;
-
-
-/**
- * ============================================================
- * KINGA Agency Portal - Insurance Quotation & Renewal Management
- * ============================================================
- */
-
-/**
- * Insurance Quotation Requests - Clients requesting insurance quotes
- */
-export const quotationRequests = mysqlTable("quotation_requests", {
-  id: int("id").autoincrement().primaryKey(),
-  requestNumber: varchar("request_number", { length: 50 }).notNull().unique(),
-  tenantId: varchar("tenant_id", { length: 255 }),
-  
-  // Requestor info
-  userId: int("user_id"), // Linked user (if logged in)
-  fullName: varchar("full_name", { length: 255 }).notNull(),
-  email: varchar("email", { length: 320 }).notNull(),
-  phone: varchar("phone", { length: 50 }),
-  idNumber: varchar("id_number", { length: 20 }),
-  
-  // Insurance type
-  insuranceType: mysqlEnum("insurance_type", [
-    "comprehensive",
-    "third_party",
-    "third_party_fire_theft",
-    "fleet",
-    "commercial"
-  ]).notNull(),
-  
-  // Vehicle details
-  vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
-  vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
-  vehicleYear: int("vehicle_year").notNull(),
-  vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
-  vehicleVin: varchar("vehicle_vin", { length: 50 }),
-  vehicleValue: int("vehicle_value"), // Estimated value in cents
-  vehicleUsage: mysqlEnum("vehicle_usage", ["private", "business", "both"]).default("private"),
-  
-  // Driver details
-  driverAge: int("driver_age"),
-  driverLicenseYears: int("driver_license_years"), // Years holding license
-  claimsHistory: int("claims_history").default(0), // Number of previous claims
-  
-  // Coverage preferences
-  excessAmount: int("excess_amount"), // Preferred excess in cents
-  additionalCover: text("additional_cover"), // JSON array of extras: roadside, car hire, etc.
-  
-  // Supporting documents (JSON array of {type, url, fileName})
-  documents: text("documents"),
-  
-  // Quote response
-  quotedPremium: int("quoted_premium"), // Monthly premium in cents
-  quotedAnnualPremium: int("quoted_annual_premium"), // Annual premium in cents
-  quotedExcess: int("quoted_excess"), // Excess amount in cents
-  quoteValidUntil: timestamp("quote_valid_until"),
-  quoteNotes: text("quote_notes"), // Agent notes on the quote
-  
-  // Status tracking
-  status: mysqlEnum("status", [
-    "pending",
-    "under_review",
-    "quoted",
-    "accepted",
-    "rejected",
-    "expired"
-  ]).default("pending").notNull(),
-  
-  assignedAgentId: int("assigned_agent_id"), // KINGA agent handling the request
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-});
-
-export type QuotationRequest = typeof quotationRequests.$inferSelect;
-export type InsertQuotationRequest = typeof quotationRequests.$inferInsert;
-
-// insurancePolicies table already defined above at line ~2820 - reuse existing table
 
-/**
- * Agency Documents - Documents uploaded for quotation requests and policies
- */
 export const agencyDocuments = mysqlTable("agency_documents", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 255 }),
-  
-  // Link to either a quotation request or policy
-  quotationRequestId: int("quotation_request_id"),
-  policyId: int("policy_id"),
-  
-  // Document details
-  documentType: mysqlEnum("document_type", [
-    "id_document",
-    "drivers_license",
-    "vehicle_registration",
-    "proof_of_address",
-    "bank_statement",
-    "vehicle_photos",
-    "previous_policy",
-    "claims_history",
-    "other"
-  ]).notNull(),
-  
-  title: varchar("title", { length: 255 }).notNull(),
-  fileName: varchar("file_name", { length: 255 }).notNull(),
-  fileUrl: text("file_url").notNull(), // S3 URL
-  fileSize: int("file_size"), // In bytes
-  mimeType: varchar("mime_type", { length: 100 }),
-  
-  uploadedBy: int("uploaded_by").notNull(), // User ID
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	quotationRequestId: int("quotation_request_id"),
+	policyId: int("policy_id"),
+	documentType: mysqlEnum("document_type", ['id_document','drivers_license','vehicle_registration','proof_of_address','bank_statement','vehicle_photos','previous_policy','claims_history','other']).notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	fileName: varchar("file_name", { length: 255 }).notNull(),
+	fileUrl: text("file_url").notNull(),
+	fileSize: int("file_size"),
+	mimeType: varchar("mime_type", { length: 100 }),
+	uploadedBy: int("uploaded_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 });
 
-export type AgencyDocument = typeof agencyDocuments.$inferSelect;
-export type InsertAgencyDocument = typeof agencyDocuments.$inferInsert;
+export const aiAssessments = mysqlTable("ai_assessments", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	estimatedCost: int("estimated_cost"),
+	damageDescription: text("damage_description"),
+	detectedDamageTypes: text("detected_damage_types"),
+	confidenceScore: int("confidence_score"),
+	fraudIndicators: text("fraud_indicators"),
+	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high']),
+	modelVersion: varchar("model_version", { length: 50 }),
+	processingTime: int("processing_time"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	totalLossIndicated: tinyint("total_loss_indicated").default(0),
+	structuralDamageSeverity: mysqlEnum("structural_damage_severity", ['none','minor','moderate','severe','catastrophic']).default('none'),
+	estimatedVehicleValue: int("estimated_vehicle_value"),
+	repairToValueRatio: int("repair_to_value_ratio"),
+	totalLossReasoning: text("total_loss_reasoning"),
+	damagedComponentsJson: text("damaged_components_json"),
+	physicsAnalysis: text("physics_analysis"),
+	graphUrls: text("graph_urls"),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	isReanalysis: tinyint("is_reanalysis").default(0).notNull(),
+	triggeredBy: int("triggered_by"),
+	triggeredRole: varchar("triggered_role", { length: 50 }),
+	previousAssessmentId: int("previous_assessment_id"),
+	reanalysisReason: text("reanalysis_reason"),
+	versionNumber: int("version_number").default(1).notNull(),
+	physicsDeviationScore: int("physics_deviation_score"),
+},
+(table) => [
+	index("idx_ai_assessments_claim_id").on(table.claimId),
+	index("idx_ai_claim_confidence").on(table.claimId, table.confidenceScore),
+	index("idx_ai_tenant_fraud").on(table.tenantId, table.fraudRiskLevel),
+]);
 
+export const aiPredictionLogs = mysqlTable("ai_prediction_logs", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	predictionType: mysqlEnum("prediction_type", ['cost_estimate','fraud_detection','document_classification','damage_assessment','repair_vs_replace','total_loss_determination','physics_validation']).notNull(),
+	modelName: varchar("model_name", { length: 100 }).notNull(),
+	modelVersion: varchar("model_version", { length: 50 }),
+	inputSummary: text("input_summary"),
+	inputTokens: int("input_tokens"),
+	predictedValue: decimal("predicted_value", { precision: 12, scale: 2 }),
+	predictedLabel: varchar("predicted_label", { length: 100 }),
+	confidenceScore: decimal("confidence_score", { precision: 5, scale: 4 }),
+	predictionJson: json("prediction_json"),
+	actualValue: decimal("actual_value", { precision: 12, scale: 2 }),
+	actualLabel: varchar("actual_label", { length: 100 }),
+	varianceAmount: decimal("variance_amount", { precision: 12, scale: 2 }),
+	variancePercent: decimal("variance_percent", { precision: 8, scale: 2 }),
+	isAccurate: tinyint("is_accurate"),
+	processingTimeMs: int("processing_time_ms"),
+	outputTokens: int("output_tokens"),
+	totalCost: decimal("total_cost", { precision: 10, scale: 6 }),
+	errorOccurred: tinyint("error_occurred").default(0),
+	errorMessage: text("error_message"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_apl_claim").on(table.historicalClaimId),
+	index("idx_apl_tenant").on(table.tenantId),
+]);
 
-/**
- * ========================================
- * WORKFLOW GOVERNANCE TABLES
- * ========================================
- * Tables supporting the workflow governance system
- */
+export const anonymizationAuditLog = mysqlTable("anonymization_audit_log", {
+	id: int().autoincrement().notNull(),
+	sourceRecordId: int("source_record_id").notNull(),
+	anonymousRecordId: varchar("anonymous_record_id", { length: 36 }),
+	status: mysqlEnum(['success','withheld_k_anonymity','withheld_pii_detected','withheld_tenant_opt_out']).notNull(),
+	quasiIdentifierHash: varchar("quasi_identifier_hash", { length: 64 }),
+	groupSize: int("group_size"),
+	transformationsApplied: json("transformations_applied"),
+	anonymizedByUserId: int("anonymized_by_user_id"),
+	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_aal_source_record").on(table.sourceRecordId),
+	index("idx_aal_status").on(table.status),
+	index("idx_aal_anonymized_at").on(table.anonymizedAt),
+]);
 
-/**
- * Workflow Configuration - Insurer-level workflow settings
- */
-export const workflowConfiguration = mysqlTable("workflow_configuration", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull().unique(),
-  
-  // Role configuration
-  riskManagerEnabled: tinyint("risk_manager_enabled").default(1).notNull(),
-  
-  // Threshold configuration
-  highValueThreshold: int("high_value_threshold").default(1000000).notNull(), // $10,000 in cents
-  executiveReviewThreshold: int("executive_review_threshold").default(5000000).notNull(), // $50,000 in cents
-  
-  // Feature toggles
-  aiFastTrackEnabled: tinyint("ai_fast_track_enabled").default(0).notNull(),
-  externalAssessorEnabled: tinyint("external_assessor_enabled").default(1).notNull(),
-  
-  // Segregation configuration
-  maxSequentialStagesByUser: int("max_sequential_stages_by_user").default(2).notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
+export const appointments = mysqlTable("appointments", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	assessorId: int("assessor_id").notNull(),
+	appointmentType: mysqlEnum("appointment_type", ['claimant_inspection','panel_beater_inspection']).notNull(),
+	claimantId: int("claimant_id"),
+	panelBeaterId: int("panel_beater_id"),
+	scheduledDate: timestamp("scheduled_date", { mode: 'string' }).notNull(),
+	location: text(),
+	notes: text(),
+	status: mysqlEnum(['scheduled','confirmed','completed','cancelled']).default('scheduled').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
 });
 
-export type WorkflowConfiguration = typeof workflowConfiguration.$inferSelect;
-export type InsertWorkflowConfiguration = typeof workflowConfiguration.$inferInsert;
-
-/**
- * Workflow Audit Trail - Immutable audit log for all state transitions
- */
-export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  userId: int("user_id").notNull(),
-  userRole: mysqlEnum("user_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]).notNull(),
-  
-  // State transition
-  previousState: mysqlEnum("previous_state", [
-    "created",
-    "intake_verified",
-    "assigned",
-    "under_assessment",
-    "internal_review",
-    "technical_approval",
-    "financial_decision",
-    "payment_authorized",
-    "closed",
-    "disputed"
-  ]),
-  newState: mysqlEnum("new_state", [
-    "created",
-    "intake_verified",
-    "assigned",
-    "under_assessment",
-    "internal_review",
-    "technical_approval",
-    "financial_decision",
-    "payment_authorized",
-    "closed",
-    "disputed"
-  ]).notNull(),
-  
-  // Decision context
-  decisionValue: int("decision_value"), // Amount in cents
-  aiScore: int("ai_score"), // AI fraud score or confidence
-  confidenceScore: int("confidence_score"), // 0-100
-  comments: text("comments"),
-  metadata: text("metadata"), // JSON string for additional data
-  
-  // Executive override tracking
-  executiveOverride: int("executive_override").default(0), // 0 = false, 1 = true
-  overrideReason: text("override_reason"),
-  
-  // Immutable timestamp
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+export const approvalWorkflow = mysqlTable("approval_workflow", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	level: mysqlEnum(['assessor','risk_surveyor','risk_manager']).notNull(),
+	levelOrder: int("level_order").notNull(),
+	approverId: int("approver_id"),
+	approverName: varchar("approver_name", { length: 200 }),
+	approverRole: varchar("approver_role", { length: 100 }),
+	status: mysqlEnum(['pending','approved','rejected','returned']).default('pending').notNull(),
+	approvedAmount: int("approved_amount"),
+	comments: text(),
+	conditions: text(),
+	rejectionReason: text("rejection_reason"),
+	returnReason: text("return_reason"),
+	returnToLevel: mysqlEnum("return_to_level", ['assessor','risk_surveyor']),
+	submittedAt: timestamp("submitted_at", { mode: 'string' }),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	approvalDate: timestamp("approval_date", { mode: 'string' }),
+	isEscalated: tinyint("is_escalated").default(0),
+	escalationReason: text("escalation_reason"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
-export type WorkflowAuditTrail = typeof workflowAuditTrail.$inferSelect;
-export type InsertWorkflowAuditTrail = typeof workflowAuditTrail.$inferInsert;
+export const assessorDeviationMetrics = mysqlTable("assessor_deviation_metrics", {
+	id: int().autoincrement().notNull(),
+	assessorId: int("assessor_id"),
+	assessorName: varchar("assessor_name", { length: 255 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	periodStart: date("period_start", { mode: 'string' }).notNull(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	periodEnd: date("period_end", { mode: 'string' }).notNull(),
+	totalClaims: int("total_claims").notNull(),
+	averageDeviation: decimal("average_deviation", { precision: 5, scale: 2 }),
+	medianDeviation: decimal("median_deviation", { precision: 5, scale: 2 }),
+	standardDeviation: decimal("standard_deviation", { precision: 5, scale: 2 }),
+	overvaluationRate: decimal("overvaluation_rate", { precision: 5, scale: 2 }),
+	undervaluationRate: decimal("undervaluation_rate", { precision: 5, scale: 2 }),
+	consistencyScore: int("consistency_score"),
+	region: varchar({ length: 100 }),
+	vehicleType: varchar("vehicle_type", { length: 50 }),
+	panelBeaterId: int("panel_beater_id"),
+	dataQualityScore: int("data_quality_score"),
+	sampleSize: int("sample_size"),
+	calculatedAt: timestamp("calculated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
 
-/**
- * Claim Involvement Tracking - Track user involvement for segregation of duties
- */
+export const assessorEvaluations = mysqlTable("assessor_evaluations", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	assessorId: int("assessor_id").notNull(),
+	inspectionDate: timestamp("inspection_date", { mode: 'string' }),
+	inspectionPhotos: text("inspection_photos"),
+	status: mysqlEnum(['pending','in_progress','completed','submitted']).default('pending').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	estimatedRepairCost: int("estimated_repair_cost"),
+	laborCost: int("labor_cost"),
+	partsCost: int("parts_cost"),
+	estimatedDuration: int("estimated_duration"),
+	damageAssessment: text("damage_assessment"),
+	recommendations: text(),
+	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high']),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	disagreesWithAi: tinyint("disagrees_with_ai").default(0),
+	aiDisagreementReason: text("ai_disagreement_reason"),
+},
+(table) => [
+	index("idx_evaluations_claim_id").on(table.claimId),
+	index("idx_evaluations_assessor_id").on(table.assessorId),
+]);
+
+export const assessorInsurerRelationships = mysqlTable("assessor_insurer_relationships", {
+	id: int().autoincrement().notNull(),
+	assessorId: int("assessor_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	relationshipType: mysqlEnum("relationship_type", ['insurer_owned','marketplace_contract','preferred_vendor']).notNull(),
+	relationshipStatus: mysqlEnum("relationship_status", ['active','suspended','terminated']).default('active'),
+	contractStartDate: timestamp("contract_start_date", { mode: 'string' }).notNull(),
+	contractEndDate: timestamp("contract_end_date", { mode: 'string' }),
+	contractedRatePerAssessment: decimal("contracted_rate_per_assessment", { precision: 10, scale: 2 }),
+	marketplaceCommissionRate: decimal("marketplace_commission_rate", { precision: 5, scale: 2 }),
+	performanceRating: decimal("performance_rating", { precision: 3, scale: 2 }),
+	totalAssignmentsCompleted: int("total_assignments_completed").default(0),
+	totalAssignmentsRejected: int("total_assignments_rejected").default(0),
+	averageCompletionTimeHours: decimal("average_completion_time_hours", { precision: 8, scale: 2 }),
+	isPreferredVendor: tinyint("is_preferred_vendor").default(0),
+	preferredVendorSince: timestamp("preferred_vendor_since", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("unique_assessor_tenant").on(table.assessorId, table.tenantId),
+	index("idx_tenant").on(table.tenantId),
+	index("idx_type").on(table.relationshipType),
+	index("idx_status").on(table.relationshipStatus),
+	index("idx_preferred").on(table.isPreferredVendor),
+]);
+
+export const assessorMarketplaceReviews = mysqlTable("assessor_marketplace_reviews", {
+	id: int().autoincrement().notNull(),
+	assessorId: int("assessor_id").notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	reviewerUserId: int("reviewer_user_id").notNull(),
+	overallRating: int("overall_rating").notNull(),
+	accuracyRating: int("accuracy_rating"),
+	professionalismRating: int("professionalism_rating"),
+	timelinessRating: int("timeliness_rating"),
+	communicationRating: int("communication_rating"),
+	reviewText: text("review_text"),
+	wouldHireAgain: tinyint("would_hire_again"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("unique_claim_review").on(table.claimId, table.reviewerUserId),
+	index("idx_assessor").on(table.assessorId),
+	index("idx_rating").on(table.overallRating),
+	index("idx_tenant").on(table.tenantId),
+]);
+
+export const assessors = mysqlTable("assessors", {
+	id: int().autoincrement().notNull(),
+	userId: int("user_id").notNull(),
+	professionalLicenseNumber: varchar("professional_license_number", { length: 100 }).notNull(),
+	licenseExpiryDate: timestamp("license_expiry_date", { mode: 'string' }).notNull(),
+	assessorType: mysqlEnum("assessor_type", ['insurer_owned','marketplace','hybrid']).notNull(),
+	primaryTenantId: varchar("primary_tenant_id", { length: 64 }),
+	marketplaceEnabled: tinyint("marketplace_enabled").default(0).notNull(),
+	marketplaceStatus: mysqlEnum("marketplace_status", ['pending_approval','active','suspended','inactive']).default('pending_approval'),
+	marketplaceOnboardedAt: timestamp("marketplace_onboarded_at", { mode: 'string' }),
+	marketplaceBio: text("marketplace_bio"),
+	marketplaceHourlyRate: decimal("marketplace_hourly_rate", { precision: 10, scale: 2 }),
+	marketplaceAvailability: mysqlEnum("marketplace_availability", ['full_time','part_time','weekends_only','on_demand']).default('on_demand'),
+	specializations: text(),
+	certifications: text(),
+	certificationLevel: mysqlEnum("certification_level", ['junior','senior','expert','master']).notNull(),
+	yearsOfExperience: int("years_of_experience"),
+	serviceRegions: text("service_regions"),
+	maxTravelDistanceKm: int("max_travel_distance_km").default(50),
+	activeStatus: tinyint("active_status").default(1).notNull(),
+	performanceScore: decimal("performance_score", { precision: 5, scale: 2 }),
+	totalAssessmentsCompleted: int("total_assessments_completed").default(0),
+	averageAccuracyScore: decimal("average_accuracy_score", { precision: 5, scale: 2 }),
+	averageTurnaroundHours: decimal("average_turnaround_hours", { precision: 8, scale: 2 }),
+	averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+	totalRatingsCount: int("total_ratings_count").default(0),
+	totalMarketplaceEarnings: decimal("total_marketplace_earnings", { precision: 12, scale: 2 }).default('0.00'),
+	pendingPayout: decimal("pending_payout", { precision: 12, scale: 2 }).default('0.00'),
+	lastPayoutDate: timestamp("last_payout_date", { mode: 'string' }),
+	backgroundCheckStatus: mysqlEnum("background_check_status", ['pending','passed','failed']).default('pending'),
+	backgroundCheckDate: timestamp("background_check_date", { mode: 'string' }),
+	insuranceVerified: tinyint("insurance_verified").default(0),
+	insuranceExpiryDate: timestamp("insurance_expiry_date", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_type").on(table.assessorType),
+	index("idx_marketplace_status").on(table.marketplaceStatus),
+	index("idx_primary_tenant").on(table.primaryTenantId),
+	index("idx_performance").on(table.performanceScore),
+	index("idx_rating").on(table.averageRating),
+	index("user_id").on(table.userId),
+	index("professional_license_number").on(table.professionalLicenseNumber),
+]);
+
+export const auditLogs = mysqlTable("audit_logs", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	userId: int("user_id").notNull(),
+	userRole: varchar("user_role", { length: 50 }).notNull(),
+	actionType: mysqlEnum("action_type", ['create','update','approve','reject','view','delete']).notNull(),
+	resourceType: varchar("resource_type", { length: 50 }).notNull(),
+	resourceId: varchar("resource_id", { length: 64 }).notNull(),
+	beforeState: text("before_state"),
+	afterState: text("after_state"),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	sessionId: varchar("session_id", { length: 64 }),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	integrityHash: varchar("integrity_hash", { length: 64 }).notNull(),
+});
+
+export const auditTrail = mysqlTable("audit_trail", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	userId: int("user_id").notNull(),
+	action: varchar({ length: 100 }).notNull(),
+	entityType: varchar("entity_type", { length: 50 }),
+	entityId: int("entity_id"),
+	previousValue: text("previous_value"),
+	newValue: text("new_value"),
+	changeDescription: text("change_description"),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	userAgent: text("user_agent"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_audit_claim_id").on(table.claimId),
+	index("idx_audit_user_id").on(table.userId),
+	index("idx_audit_created_at").on(table.createdAt),
+]);
+
+export const automationAuditLog = mysqlTable("automation_audit_log", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
+	compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
+	routingDecisionId: int("routing_decision_id").notNull().references(() => claimRoutingDecisions.id),
+	routedWorkflow: mysqlEnum("routed_workflow", ['ai_only','hybrid','manual']).notNull(),
+	routingReason: text("routing_reason").notNull(),
+	automationPolicyId: int("automation_policy_id").notNull().references(() => automationPolicies.id),
+	policySnapshot: json("policy_snapshot").notNull(),
+	aiEstimatedCost: bigint("ai_estimated_cost", { mode: "number" }).notNull(),
+	assessorAdjustedCost: bigint("assessor_adjusted_cost", { mode: "number" }),
+	finalApprovedCost: bigint("final_approved_cost", { mode: "number" }),
+	costVarianceAiVsFinal: decimal("cost_variance_ai_vs_final", { precision: 5, scale: 2 }),
+	decisionMadeAt: timestamp("decision_made_at", { mode: 'string' }).notNull(),
+	claimApprovedAt: timestamp("claim_approved_at", { mode: 'string' }),
+	claimRejectedAt: timestamp("claim_rejected_at", { mode: 'string' }),
+	wasOverridden: tinyint("was_overridden").default(0).notNull(),
+	overrideReason: text("override_reason"),
+	overriddenByUserId: int("overridden_by_user_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+},
+(table) => [
+	index("idx_claim_id").on(table.claimId),
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_routed_workflow").on(table.routedWorkflow),
+	index("idx_composite_score").on(table.compositeConfidenceScore),
+	index("idx_decision_made_at").on(table.decisionMadeAt),
+	index("idx_was_overridden").on(table.wasOverridden),
+]);
+
+export const automationPolicies = mysqlTable("automation_policies", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	policyName: varchar("policy_name", { length: 255 }).notNull(),
+	minAutomationConfidence: int("min_automation_confidence").default(85).notNull(),
+	minHybridConfidence: int("min_hybrid_confidence").default(60).notNull(),
+	eligibleClaimTypes: json("eligible_claim_types").notNull(),
+	excludedClaimTypes: json("excluded_claim_types").notNull(),
+	maxAiOnlyApprovalAmount: bigint("max_ai_only_approval_amount", { mode: "number" }).default(5000000).notNull(),
+	maxHybridApprovalAmount: bigint("max_hybrid_approval_amount", { mode: "number" }).default(20000000).notNull(),
+	maxFraudScoreForAutomation: int("max_fraud_score_for_automation").default(30).notNull(),
+	eligibleVehicleCategories: json("eligible_vehicle_categories").notNull(),
+	excludedVehicleMakes: json("excluded_vehicle_makes").notNull(),
+	minVehicleYear: int("min_vehicle_year").default(2010).notNull(),
+	maxVehicleAge: int("max_vehicle_age").default(15).notNull(),
+	requireManagerApprovalAbove: bigint("require_manager_approval_above", { mode: "number" }).default(10000000).notNull(),
+	allowPolicyOverride: tinyint("allow_policy_override").default(1).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
+	createdByUserId: int("created_by_user_id"),
+	isActive: tinyint("is_active").default(1).notNull(),
+	version: int().default(1).notNull(),
+	effectiveFrom: timestamp("effective_from", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	effectiveUntil: timestamp("effective_until", { mode: 'string' }),
+	supersededByPolicyId: int("superseded_by_policy_id"),
+	fraudSensitivityMultiplier: decimal("fraud_sensitivity_multiplier", { precision: 3, scale: 2 }).default('1.00').notNull(),
+},
+(table) => [
+	index("idx_tenant_active").on(table.tenantId, table.isActive),
+	index("idx_policy_name").on(table.policyName),
+]);
+
+export const claimComments = mysqlTable("claim_comments", {
+	id: int().autoincrement().notNull(),
+	claimId: int().notNull().references(() => claims.id),
+	userId: int().notNull().references(() => users.id),
+	userRole: text().notNull(),
+	commentType: text().notNull(),
+	content: text().notNull(),
+	createdAt: text().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+});
+
+export const claimConfidenceScores = mysqlTable("claim_confidence_scores", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	damageCertainty: decimal("damage_certainty", { precision: 5, scale: 2 }).notNull(),
+	physicsStrength: decimal("physics_strength", { precision: 5, scale: 2 }).notNull(),
+	fraudConfidence: decimal("fraud_confidence", { precision: 5, scale: 2 }).notNull(),
+	historicalAccuracy: decimal("historical_accuracy", { precision: 5, scale: 2 }).notNull(),
+	dataCompleteness: decimal("data_completeness", { precision: 5, scale: 2 }).notNull(),
+	vehicleRiskIntelligence: decimal("vehicle_risk_intelligence", { precision: 5, scale: 2 }).notNull(),
+	compositeConfidenceScore: decimal("composite_confidence_score", { precision: 5, scale: 2 }).notNull(),
+	scoringVersion: varchar("scoring_version", { length: 50 }).default('v1.0').notNull(),
+	scoringTimestamp: timestamp("scoring_timestamp", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	damageCertaintyBreakdown: json("damage_certainty_breakdown"),
+	physicsValidationDetails: json("physics_validation_details"),
+	fraudAnalysisDetails: json("fraud_analysis_details"),
+	historicalAccuracyDetails: json("historical_accuracy_details"),
+	dataCompletenessDetails: json("data_completeness_details"),
+	vehicleRiskDetails: json("vehicle_risk_details"),
+},
+(table) => [
+	index("idx_claim_id").on(table.claimId),
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_composite_score").on(table.compositeConfidenceScore),
+	index("idx_scoring_timestamp").on(table.scoringTimestamp),
+]);
+
+export const claimDocuments = mysqlTable("claim_documents", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	uploadedBy: int("uploaded_by").notNull(),
+	fileName: varchar("file_name", { length: 255 }).notNull(),
+	fileKey: varchar("file_key", { length: 500 }).notNull(),
+	fileUrl: text("file_url").notNull(),
+	fileSize: int("file_size").notNull(),
+	mimeType: varchar("mime_type", { length: 100 }).notNull(),
+	documentTitle: varchar("document_title", { length: 255 }),
+	documentDescription: text("document_description"),
+	documentCategory: mysqlEnum("document_category", ['damage_photo','repair_quote','invoice','police_report','medical_report','insurance_policy','correspondence','other']).default('other').notNull(),
+	visibleToRoles: text("visible_to_roles"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_claim_id").on(table.claimId),
+	index("idx_uploaded_by").on(table.uploadedBy),
+	index("idx_category").on(table.documentCategory),
+]);
+
+export const claimEvents = mysqlTable("claim_events", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	eventType: varchar("event_type", { length: 100 }).notNull(),
+	eventPayload: json("event_payload"),
+	userId: int("user_id"),
+	userRole: varchar("user_role", { length: 50 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	emittedAt: timestamp("emitted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_ce_claim_id").on(table.claimId),
+	index("idx_ce_event_type").on(table.eventType),
+	index("idx_ce_emitted_at").on(table.emittedAt),
+]);
+
+export const claimIntelligenceDataset = mysqlTable("claim_intelligence_dataset", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	schemaVersion: int("schema_version").default(1).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	vehicleMass: int("vehicle_mass"),
+	accidentType: varchar("accident_type", { length: 50 }),
+	impactDirection: varchar("impact_direction", { length: 50 }),
+	accidentDescriptionText: text("accident_description_text"),
+	policeReportPresence: tinyint("police_report_presence").default(0),
+	detectedDamageComponents: json("detected_damage_components"),
+	damageSeverityScores: json("damage_severity_scores"),
+	llmDamageReasoning: text("llm_damage_reasoning"),
+	physicsPlausibilityScore: int("physics_plausibility_score"),
+	aiEstimatedCost: int("ai_estimated_cost"),
+	assessorAdjustedCost: int("assessor_adjusted_cost"),
+	insurerApprovedCost: int("insurer_approved_cost"),
+	costVarianceAiVsAssessor: int("cost_variance_ai_vs_assessor"),
+	costVarianceAssessorVsFinal: int("cost_variance_assessor_vs_final"),
+	costVarianceAiVsFinal: int("cost_variance_ai_vs_final"),
+	aiFraudScore: int("ai_fraud_score"),
+	fraudExplanation: text("fraud_explanation"),
+	finalFraudOutcome: varchar("final_fraud_outcome", { length: 50 }),
+	assessorId: int("assessor_id"),
+	assessorTier: varchar("assessor_tier", { length: 50 }),
+	assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
+	reassignmentCount: int("reassignment_count").default(0),
+	approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
+	capturedAt: timestamp("captured_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	dataScope: mysqlEnum("data_scope", ['tenant_private','tenant_feature']).default('tenant_private').notNull(),
+	globalSharingEnabled: tinyint("global_sharing_enabled").default(0),
+	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }),
+},
+(table) => [
+	index("idx_cid_claim_id").on(table.claimId),
+	index("idx_cid_tenant_id").on(table.tenantId),
+	index("idx_cid_captured_at").on(table.capturedAt),
+	index("idx_cid_schema_version").on(table.schemaVersion),
+	index("idx_data_scope").on(table.dataScope),
+	index("idx_global_sharing").on(table.globalSharingEnabled),
+	index("idx_anonymized_at").on(table.anonymizedAt),
+]);
+
 export const claimInvolvementTracking = mysqlTable("claim_involvement_tracking", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  userId: int("user_id").notNull(),
-  
-  // Critical stage tracking
-  workflowStage: mysqlEnum("workflow_stage", [
-    "assessment",
-    "technical_approval",
-    "financial_decision",
-    "payment_authorization"
-  ]).notNull(),
-  
-  actionType: mysqlEnum("action_type", [
-    "transition_state",
-    "approve_technical",
-    "authorize_payment",
-    "close_claim",
-    "redirect_claim",
-    "add_assessment"
-  ]).notNull(),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	userId: int("user_id").notNull(),
+	workflowStage: mysqlEnum("workflow_stage", ['assessment','technical_approval','financial_decision','payment_authorization']).notNull(),
+	actionType: mysqlEnum("action_type", ['transition_state','approve_technical','authorize_payment','close_claim','redirect_claim','add_assessment']).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_involvement_claim_user_stage").on(table.claimId, table.userId, table.workflowStage),
+	index("idx_involvement_claim_user").on(table.claimId, table.userId, table.createdAt),
+]);
+
+export const claimReviewQueue = mysqlTable("claim_review_queue", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	reviewStatus: mysqlEnum("review_status", ['pending_review','in_review','approved','rejected','needs_more_info']).default('pending_review'),
+	reviewPriority: mysqlEnum("review_priority", ['low','medium','high']).default('medium'),
+	routedReason: varchar("routed_reason", { length: 255 }),
+	automatedValidationLevel: varchar("automated_validation_level", { length: 50 }),
+	assignedTo: int("assigned_to"),
+	assignedAt: timestamp("assigned_at", { mode: 'string' }),
+	reviewedBy: int("reviewed_by"),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	reviewDecision: mysqlEnum("review_decision", ['approve','reject','request_more_info']),
+	reviewNotes: text("review_notes"),
+	includeInTrainingDataset: tinyint("include_in_training_dataset").default(0),
+	includeInReferenceDataset: tinyint("include_in_reference_dataset").default(1),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("claim_review_queue_historical_claim_id_unique").on(table.historicalClaimId),
+]);
+
+export const claimRoutingDecisions = mysqlTable("claim_routing_decisions", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	confidenceScoreId: int("confidence_score_id").notNull().references(() => claimConfidenceScores.id),
+	automationPolicyId: int("automation_policy_id").notNull().references(() => automationPolicies.id),
+	routedWorkflow: mysqlEnum("routed_workflow", ['ai_only','hybrid','manual']).notNull(),
+	routingReason: text("routing_reason").notNull(),
+	policyThresholdsApplied: json("policy_thresholds_applied").notNull(),
+	decisionTimestamp: timestamp("decision_timestamp", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	decisionMadeBySystem: tinyint("decision_made_by_system").default(1).notNull(),
+	decisionMadeByUserId: int("decision_made_by_user_id"),
+	wasOverridden: tinyint("was_overridden").default(0).notNull(),
+	overrideReason: text("override_reason"),
+	overriddenByUserId: int("overridden_by_user_id"),
+	overriddenAt: timestamp("overridden_at", { mode: 'string' }),
+	policyVersion: int("policy_version").default(1).notNull(),
+	policySnapshotJson: json("policy_snapshot_json").notNull(),
+	claimVersion: int("claim_version").default(1).notNull(),
+},
+(table) => [
+	index("idx_claim_id").on(table.claimId),
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_routed_workflow").on(table.routedWorkflow),
+	index("idx_decision_timestamp").on(table.decisionTimestamp),
+]);
+
+export const claimantHistory = mysqlTable("claimant_history", {
+	id: int().autoincrement().notNull(),
+	claimantId: int("claimant_id").notNull(),
+	claimantEmail: varchar("claimant_email", { length: 320 }),
+	claimantPhone: varchar("claimant_phone", { length: 20 }),
+	totalClaims: int("total_claims").default(0).notNull(),
+	approvedClaims: int("approved_claims").default(0),
+	rejectedClaims: int("rejected_claims").default(0),
+	fraudulentClaims: int("fraudulent_claims").default(0),
+	totalClaimAmount: int("total_claim_amount").default(0),
+	averageClaimAmount: int("average_claim_amount").default(0),
+	firstClaimDate: timestamp("first_claim_date", { mode: 'string' }),
+	lastClaimDate: timestamp("last_claim_date", { mode: 'string' }),
+	claimFrequency: int("claim_frequency"),
+	uniqueVehiclesCount: int("unique_vehicles_count").default(0),
+	nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
+	insurerChangeCount: int("insurer_change_count").default(0),
+	currentInsurer: varchar("current_insurer", { length: 255 }),
+	previousInsurers: text("previous_insurers"),
+	accidentLocations: text("accident_locations"),
+	highRiskAreaCount: int("high_risk_area_count").default(0),
+	riskScore: int("risk_score").default(0),
+	riskLevel: mysqlEnum("risk_level", ['low','medium','high','critical']).default('low'),
+	isHighRiskClient: tinyint("is_high_risk_client").default(0),
+	isFraudster: tinyint("is_fraudster").default(0),
+	isBlacklisted: tinyint("is_blacklisted").default(0),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 });
 
-export type ClaimInvolvementTracking = typeof claimInvolvementTracking.$inferSelect;
-export type InsertClaimInvolvementTracking = typeof claimInvolvementTracking.$inferInsert;
+export const claims = mysqlTable("claims", {
+	id: int().autoincrement().notNull(),
+	claimantId: int("claimant_id").notNull(),
+	claimNumber: varchar("claim_number", { length: 50 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+	incidentDate: timestamp("incident_date", { mode: 'string' }),
+	incidentDescription: text("incident_description"),
+	incidentLocation: text("incident_location"),
+	damagePhotos: text("damage_photos"),
+	policyNumber: varchar("policy_number", { length: 100 }),
+	policyVerified: tinyint("policy_verified"),
+	status: mysqlEnum(['submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected']).default('submitted').notNull(),
+	workflowState: mysqlEnum("workflow_state", ['created','intake_queue','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed']),
+	assignedAssessorId: int("assigned_assessor_id"),
+	assignedPanelBeaterId: int("assigned_panel_beater_id"),
+	selectedPanelBeaterIds: text("selected_panel_beater_ids"),
+	aiAssessmentTriggered: tinyint("ai_assessment_triggered").default(0),
+	aiAssessmentCompleted: tinyint("ai_assessment_completed").default(0),
+	fraudRiskScore: int("fraud_risk_score"),
+	fraudFlags: text("fraud_flags"),
+	complexityScore: mysqlEnum("complexity_score", ['simple','moderate','complex','exceptional']),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	externalAssessmentUrl: text("external_assessment_url"),
+	workflowState: text(),
+	technicallyApprovedBy: int(),
+	technicallyApprovedAt: text(),
+	financiallyApprovedBy: int(),
+	financiallyApprovedAt: text(),
+	approvedAmount: double(),
+	closedBy: int(),
+	closedAt: text(),
+	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high']),
+	requiresGmConsultation: tinyint("requires_gm_consultation").default(0),
+	technicallyApprovedBy: int("technically_approved_by"),
+	technicallyApprovedAt: timestamp("technically_approved_at", { mode: 'string' }),
+	financiallyApprovedBy: int("financially_approved_by"),
+	financiallyApprovedAt: timestamp("financially_approved_at", { mode: 'string' }),
+	approvedAmount: int("approved_amount"),
+	closedBy: int("closed_by"),
+	closedAt: timestamp("closed_at", { mode: 'string' }),
+	lodgedBy: mysqlEnum("lodged_by", ['self','broker','agent','company_rep','family_member','legal_rep','other']).default('self'),
+	lodgerName: varchar("lodger_name", { length: 255 }),
+	lodgerPhone: varchar("lodger_phone", { length: 50 }),
+	lodgerEmail: varchar("lodger_email", { length: 320 }),
+	lodgerCompany: varchar("lodger_company", { length: 255 }),
+	lodgerReference: varchar("lodger_reference", { length: 100 }),
+	lodgerRelationship: varchar("lodger_relationship", { length: 255 }),
+	claimantIdNumber: varchar("claimant_id_number", { length: 20 }),
+	claimantPhone: varchar("claimant_phone", { length: 50 }),
+	claimantEmail: varchar("claimant_email", { length: 320 }),
+	claimantAddress: text("claimant_address"),
+	vehicleVin: varchar("vehicle_vin", { length: 50 }),
+	vehicleColor: varchar("vehicle_color", { length: 50 }),
+	vehicleMileage: varchar("vehicle_mileage", { length: 50 }),
+	vehicleEngineNumber: varchar("vehicle_engine_number", { length: 100 }),
+	vehicleGvm: varchar("vehicle_gvm", { length: 20 }),
+	vehicleTareWeight: varchar("vehicle_tare_weight", { length: 20 }),
+	vehicleEngineCapacity: varchar("vehicle_engine_capacity", { length: 20 }),
+	vehicleFuelType: varchar("vehicle_fuel_type", { length: 20 }),
+	vehicleFirstRegistrationDate: varchar("vehicle_first_registration_date", { length: 20 }),
+	vehicleOwnerName: varchar("vehicle_owner_name", { length: 255 }),
+	vehicleLicenceExpiryDate: varchar("vehicle_licence_expiry_date", { length: 20 }),
+	incidentTime: varchar("incident_time", { length: 10 }),
+	incidentType: mysqlEnum("incident_type", ['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
+	thirdPartyName: varchar("third_party_name", { length: 255 }),
+	thirdPartyVehicle: varchar("third_party_vehicle", { length: 255 }),
+	thirdPartyRegistration: varchar("third_party_registration", { length: 50 }),
+	thirdPartyInsurer: varchar("third_party_insurer", { length: 255 }),
+	policeReportNumber: varchar("police_report_number", { length: 100 }),
+	policeStation: varchar("police_station", { length: 255 }),
+	witnessName: varchar("witness_name", { length: 255 }),
+	witnessPhone: varchar("witness_phone", { length: 50 }),
+	supportingDocuments: text("supporting_documents"),
+	metadata: json(),
+	assignedProcessorId: int("assigned_processor_id"),
+	priority: mysqlEnum(['low','medium','high']).default('medium'),
+	earlyFraudSuspicion: tinyint("early_fraud_suspicion").default(0).notNull(),
+	estimatedClaimValue: decimal("estimated_claim_value", { precision: 12, scale: 2 }),
+	finalApprovedAmount: decimal("final_approved_amount", { precision: 12, scale: 2 }),
+	confidenceScore: int("confidence_score"),
+	routingDecision: varchar("routing_decision", { length: 50 }),
+	policyVersionId: int("policy_version_id"),
+},
+(table) => [
+	index("claims_claim_number_unique").on(table.claimNumber),
+	index("idx_claims_claimant_id").on(table.claimantId),
+	index("").on(table.claimantId),
+	index("idx_claims_assigned_assessor_id").on(table.assignedAssessorId),
+	index("idx_claims_status").on(table.status),
+	index("idx_claims_created_at").on(table.createdAt),
+	index("idx_claims_tenant_workflow_created").on(table.tenantId, table.workflowState, table.createdAt),
+	index("idx_fraud_risk_score").on(table.fraudRiskScore),
+	index("idx_confidence_score").on(table.confidenceScore),
+	index("idx_routing_decision").on(table.routingDecision),
+	index("idx_policy_version_id").on(table.policyVersionId),
+	index("idx_claims_tenant_status").on(table.tenantId, table.status),
+	index("idx_claims_tenant_created").on(table.tenantId, table.createdAt),
+]);
 
-/**
- * Role Assignment Audit Trail - Immutable audit log for all role assignment changes
- * 
- * Enforces:
- * - Insert-only (no update/delete operations allowed)
- * - Cross-tenant isolation
- * - Automatic logging whenever role assignment changes
- * 
- * Used for:
- * - Compliance and security monitoring
- * - Role change history tracking
- * - Unauthorized access attempt detection
- */
-export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // User whose role is being changed
-  userId: int("user_id").notNull(),
-  
-  // Role change details
-  previousRole: mysqlEnum("previous_role", [
-    "user", "admin", "insurer", "assessor", "panel_beater", "claimant"
-  ]),
-  newRole: mysqlEnum("new_role", [
-    "user", "admin", "insurer", "assessor", "panel_beater", "claimant"
-  ]).notNull(),
-  
-  // Insurer role change details (if applicable)
-  previousInsurerRole: mysqlEnum("previous_insurer_role", [
-    "claims_processor", "assessor_internal", "assessor_external", 
-    "risk_manager", "claims_manager", "executive", "insurer_admin"
-  ]),
-  newInsurerRole: mysqlEnum("new_insurer_role", [
-    "claims_processor", "assessor_internal", "assessor_external", 
-    "risk_manager", "claims_manager", "executive", "insurer_admin"
-  ]),
-  
-  // Actor who made the change
-  changedByUserId: int("changed_by_user_id").notNull(),
-  
-  // Justification for the change
-  justification: text("justification"),
-  
-  // Immutable timestamp - no updates allowed
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-}, (table) => ({
-  // Indexes for efficient querying
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  userIdIdx: index("idx_user_id").on(table.userId),
-  changedByIdx: index("idx_changed_by").on(table.changedByUserId),
-  timestampIdx: index("idx_timestamp").on(table.timestamp),
-}));
+export const commissionRecords = mysqlTable("commission_records", {
+	id: int().autoincrement().notNull(),
+	policyId: int("policy_id").notNull(),
+	carrierId: int("carrier_id").notNull(),
+	productId: int("product_id").notNull(),
+	premiumAmount: int("premium_amount").notNull(),
+	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+	commissionAmount: int("commission_amount").notNull(),
+	commissionType: mysqlEnum("commission_type", ['new_business','renewal']).notNull(),
+	paymentStatus: mysqlEnum("payment_status", ['pending','paid','disputed']).default('pending').notNull(),
+	paymentDate: timestamp("payment_date", { mode: 'string' }),
+	paymentReference: varchar("payment_reference", { length: 100 }),
+	commissionPeriod: varchar("commission_period", { length: 20 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
 
-export type RoleAssignmentAudit = typeof roleAssignmentAudit.$inferSelect;
-export type InsertRoleAssignmentAudit = typeof roleAssignmentAudit.$inferInsert;
+export const costComponents = mysqlTable("cost_components", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	sourceType: mysqlEnum("source_type", ['panel_beater_quote','assessor_report','ai_estimate','final_approved']).notNull(),
+	documentId: int("document_id"),
+	laborCost: decimal("labor_cost", { precision: 12, scale: 2 }).default('0.00'),
+	partsCost: decimal("parts_cost", { precision: 12, scale: 2 }).default('0.00'),
+	paintCost: decimal("paint_cost", { precision: 12, scale: 2 }).default('0.00'),
+	materialsCost: decimal("materials_cost", { precision: 12, scale: 2 }).default('0.00'),
+	subletCost: decimal("sublet_cost", { precision: 12, scale: 2 }).default('0.00'),
+	sundries: decimal({ precision: 12, scale: 2 }).default('0.00'),
+	vatAmount: decimal("vat_amount", { precision: 12, scale: 2 }).default('0.00'),
+	totalExclVat: decimal("total_excl_vat", { precision: 12, scale: 2 }).default('0.00'),
+	totalInclVat: decimal("total_incl_vat", { precision: 12, scale: 2 }).default('0.00'),
+	totalLaborHours: decimal("total_labor_hours", { precision: 8, scale: 2 }),
+	averageLaborRate: decimal("average_labor_rate", { precision: 10, scale: 2 }),
+	totalPartsCount: int("total_parts_count"),
+	oemPartsCount: int("oem_parts_count"),
+	aftermarketPartsCount: int("aftermarket_parts_count"),
+	repairVsReplaceRatio: decimal("repair_vs_replace_ratio", { precision: 5, scale: 2 }),
+	totalBetterment: decimal("total_betterment", { precision: 12, scale: 2 }).default('0.00'),
+	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_cc_claim").on(table.historicalClaimId),
+]);
 
+export const currencyExchangeRates = mysqlTable("currency_exchange_rates", {
+	id: int().autoincrement().notNull(),
+	currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+	currencyName: varchar("currency_name", { length: 100 }),
+	currencySymbol: varchar("currency_symbol", { length: 10 }),
+	rateToUsd: decimal("rate_to_usd", { precision: 18, scale: 6 }).notNull(),
+	source: varchar({ length: 100 }).default('manual'),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	isActive: tinyint("is_active").default(1).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("currency_exchange_rates_currency_code_unique").on(table.currencyCode),
+]);
 
-// Note: Historical Claims Ingestion System tables already defined above:
-// - ingestionBatches (line 1530)
-// - ingestionDocuments (line 1570)
-// - extractedDocumentData (line 1620)
-// - historicalClaims (line 1689)
-// - trainingDataset (line 3629)
-// - humanReviewQueue, biasDetectionFlags, ingestionAuditLog (if they exist elsewhere)
+export const customerConsent = mysqlTable("customer_consent", {
+	id: int().autoincrement().notNull(),
+	customerId: int("customer_id").notNull(),
+	consentType: mysqlEnum("consent_type", ['data_processing','marketing','third_party_sharing','credit_check','automated_decision_making']).notNull(),
+	consentGiven: tinyint("consent_given").notNull(),
+	consentDate: timestamp("consent_date", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	withdrawnDate: timestamp("withdrawn_date", { mode: 'string' }),
+	consentMethod: varchar("consent_method", { length: 50 }),
+	consentVersion: varchar("consent_version", { length: 20 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+});
 
-/**
- * Routing History - Immutable Append-Only Routing Decisions
- * 
- * Enforces immutable, append-only routing decisions for claims.
- * All routing decisions are logged here and NEVER updated or deleted.
- * Multiple routing events per claim are allowed (e.g., AI routing, then manual override).
- */
-export const routingHistory = mysqlTable("routing_history", {
-  // Primary key - UUID for immutability
-  id: varchar("id", { length: 64 }).primaryKey(), // UUID format: routing_{timestamp}_{random}
-  
-  // Claim reference
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Confidence score (0-100)
-  confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
-  
-  // Confidence components (JSON object with breakdown)
-  // Example: { fraudRisk: 85, aiCertainty: 90, quoteVariance: 75, claimCompleteness: 95, historicalRisk: 80 }
-  confidenceComponents: text("confidence_components").notNull(),
-  
-  // Routing category based on confidence score
-  routingCategory: mysqlEnum("routing_category", ["HIGH", "MEDIUM", "LOW"]).notNull(),
-  
-  // Routing decision - what workflow path to take
-  routingDecision: mysqlEnum("routing_decision", [
-    "AI_FAST_TRACK",        // HIGH confidence - AI handles entirely
-    "INTERNAL_REVIEW",      // MEDIUM confidence - internal assessor review
-    "EXTERNAL_REQUIRED",    // LOW confidence - external assessor required
-    "MANUAL_OVERRIDE"       // Manual override by authorized user
-  ]).notNull(),
-  
-  // Routing version per claim (incremental counter for each claim's routing history)
-  routingVersion: int("routing_version").notNull(),
-  
-  // Threshold snapshot at time of routing (JSON object with exact threshold values used)
-  // Example: { highThreshold: 85, mediumThreshold: 60, fastTrackEnabled: true, overrideAllowed: true }
-  thresholdSnapshot: text("threshold_snapshot").notNull(),
-  
-  // Configuration version tracking
-  thresholdConfigVersion: varchar("threshold_config_version", { length: 50 }).notNull(),
-  modelVersion: varchar("model_version", { length: 50 }).notNull(),
-  
-  // Decision maker tracking
-  decidedBy: mysqlEnum("decided_by", ["AI", "USER"]).notNull(),
-  decidedByUserId: int("decided_by_user_id"), // NULL if decidedBy = "AI"
-  
-  // Justification (required for manual override)
-  justification: text("justification"), // Required when decidedBy = "USER"
-  
-  // Explainability metadata - full calculation snapshot for transparency
-  // Stores raw component weights, weighted contributions, and normalized score
-  // Format: { fraudRiskWeight, aiCertaintyWeight, varianceWeight, completenessWeight, historicalRiskWeight, normalizedScore, calculationTimestamp }
-  explainabilityMetadata: text("explainability_metadata"),
-  
-  // Immutable timestamp
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-}, (table) => ({
-  // Indexes for efficient querying
-  claimIdIdx: index("idx_routing_claim_id").on(table.claimId),
-  tenantIdIdx: index("idx_routing_tenant_id").on(table.tenantId),
-  timestampIdx: index("idx_routing_timestamp").on(table.timestamp),
-  // Composite index for claim routing history lookup
-  claimTenantIdx: index("idx_routing_claim_tenant").on(table.claimId, table.tenantId),
-}));
+export const customerDocuments = mysqlTable("customer_documents", {
+	id: int().autoincrement().notNull(),
+	customerId: int("customer_id").notNull(),
+	documentType: mysqlEnum("document_type", ['id_document','drivers_license','proof_of_residence','vehicle_registration','other']).notNull(),
+	documentUrl: varchar("document_url", { length: 500 }).notNull(),
+	s3Key: varchar("s3_key", { length: 500 }).notNull(),
+	verificationStatus: mysqlEnum("verification_status", ['pending','verified','rejected']).default('pending').notNull(),
+	verifiedAt: timestamp("verified_at", { mode: 'string' }),
+	verifiedBy: int("verified_by"),
+	rejectionReason: text("rejection_reason"),
+	fileName: varchar("file_name", { length: 255 }),
+	fileSize: int("file_size"),
+	mimeType: varchar("mime_type", { length: 100 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
 
-export type RoutingHistory = typeof routingHistory.$inferSelect;
-export type InsertRoutingHistory = typeof routingHistory.$inferInsert;
+export const datasetAccessGrants = mysqlTable("dataset_access_grants", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	dataScope: mysqlEnum("data_scope", ['tenant_private','tenant_feature','global_anonymized']).notNull(),
+	grantedToUserId: int("granted_to_user_id"),
+	grantedToRole: varchar("granted_to_role", { length: 50 }),
+	grantedToOrganization: varchar("granted_to_organization", { length: 255 }),
+	purpose: text().notNull(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	expiryDate: date("expiry_date", { mode: 'string' }),
+	maxRecords: int("max_records"),
+	grantedByUserId: int("granted_by_user_id").notNull(),
+	grantedAt: timestamp("granted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	revokedAt: timestamp("revoked_at", { mode: 'string' }),
+	revokedByUserId: int("revoked_by_user_id"),
+},
+(table) => [
+	index("idx_dag_tenant_id").on(table.tenantId),
+	index("idx_dag_data_scope").on(table.dataScope),
+	index("idx_dag_granted_to_user").on(table.grantedToUserId),
+	index("idx_dag_expiry_date").on(table.expiryDate),
+]);
 
-/**
- * Routing Threshold Configuration - Version-Controlled Thresholds
- * 
- * Manages versioned threshold configurations for routing decisions.
- * Each tenant can have multiple threshold versions, but only one active at a time.
- * Changing thresholds creates a new version without affecting past routing decisions.
- */
-export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
-  // Primary key - UUID for immutability
-  id: varchar("id", { length: 64 }).primaryKey(), // UUID format: threshold_{timestamp}_{random}
-  
-  // Tenant reference
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Version identifier (e.g., v1.0, v1.1, v2.0)
-  version: varchar("version", { length: 50 }).notNull(),
-  
-  // Threshold values (0-100)
-  highThreshold: decimal("high_threshold", { precision: 5, scale: 2 }).notNull(), // Default: 80
-  mediumThreshold: decimal("medium_threshold", { precision: 5, scale: 2 }).notNull(), // Default: 50
-  
-  // Feature flags
-  aiFastTrackEnabled: boolean("ai_fast_track_enabled").notNull().default(true),
-  
-  // Audit fields
-  createdByUserId: int("created_by_user_id").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  
-  // Active status - only one active version per tenant
-  isActive: boolean("is_active").notNull().default(true),
-}, (table) => ({
-  // Indexes for efficient querying
-  tenantIdIdx: index("idx_threshold_tenant_id").on(table.tenantId),
-  activeIdx: index("idx_threshold_active").on(table.isActive),
-  // Composite index for active config lookup
-  tenantActiveIdx: index("idx_threshold_tenant_active").on(table.tenantId, table.isActive),
-  // Unique constraint: tenant + version must be unique
-  tenantVersionUnique: unique("unique_threshold_tenant_version").on(table.tenantId, table.version),
-}));
+export const documentNamingTemplates = mysqlTable("document_naming_templates", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	docType: mysqlEnum("doc_type", ['claim','assessment','report','approval']).notNull(),
+	template: varchar({ length: 500 }).notNull(),
+	description: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("document_naming_templates_tenant_id_doc_type_unique").on(table.tenantId, table.docType),
+]);
 
-export type RoutingThresholdConfig = typeof routingThresholdConfig.$inferSelect;
-export type InsertRoutingThresholdConfig = typeof routingThresholdConfig.$inferInsert;
+export const documentVersions = mysqlTable("document_versions", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	documentName: varchar("document_name", { length: 500 }).notNull(),
+	documentUrl: text("document_url").notNull(),
+	docType: mysqlEnum("doc_type", ['claim','assessment','report','approval']).notNull(),
+	version: int().notNull(),
+	createdBy: int("created_by").notNull(),
+	approvedBy: int("approved_by"),
+	approvedAt: timestamp("approved_at", { mode: 'string' }),
+	retentionUntil: timestamp("retention_until", { mode: 'string' }).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("document_versions_claim_id_doc_type_version_unique").on(table.claimId, table.docType, table.version),
+	index("idx_document_versions_claim_id").on(table.claimId),
+	index("idx_document_versions_tenant_id").on(table.tenantId),
+]);
 
+export const emailVerificationTokens = mysqlTable("email_verification_tokens", {
+	id: int().autoincrement().notNull(),
+	userId: int("user_id").notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	token: varchar({ length: 64 }).notNull(),
+	type: mysqlEnum(['verification','password_reset']).notNull(),
+	used: tinyint().default(0).notNull(),
+	usedAt: timestamp("used_at", { mode: 'string' }),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("token").on(table.token),
+]);
 
-/**
- * Fast-Track Configuration
- * 
- * Versioned, immutable configuration for fast-track automation rules.
- * Supports hierarchical configuration: insurer-wide → product-specific → claim-type-specific.
- * 
- * Configuration hierarchy resolution (most specific wins):
- * 1. Claim type + product + tenant (most specific)
- * 2. Claim type + tenant (product-agnostic)
- * 3. Product + tenant (claim-type-agnostic)
- * 4. Tenant-wide default
- * 
- * Immutability: Always insert new version, never update existing configurations.
- */
+export const entityRelationships = mysqlTable("entity_relationships", {
+	id: int().autoincrement().notNull(),
+	entityAType: varchar("entity_a_type", { length: 50 }).notNull(),
+	entityAId: int("entity_a_id").notNull(),
+	entityAName: varchar("entity_a_name", { length: 255 }),
+	entityBType: varchar("entity_b_type", { length: 50 }).notNull(),
+	entityBId: int("entity_b_id").notNull(),
+	entityBName: varchar("entity_b_name", { length: 255 }),
+	relationshipType: mysqlEnum("relationship_type", ['shared_address','shared_phone','shared_email','shared_bank_account','family_relation','business_relation','frequent_interaction','social_media_connection','employment_relation','suspicious_pattern']).notNull(),
+	relationshipStrength: int("relationship_strength").default(0),
+	interactionCount: int("interaction_count").default(0),
+	firstInteractionDate: timestamp("first_interaction_date", { mode: 'string' }),
+	lastInteractionDate: timestamp("last_interaction_date", { mode: 'string' }),
+	isCollusionSuspected: tinyint("is_collusion_suspected").default(0),
+	collusionScore: int("collusion_score").default(0),
+	collusionEvidence: text("collusion_evidence"),
+	investigationStatus: mysqlEnum("investigation_status", ['none','pending','in_progress','confirmed','cleared']).default('none'),
+	investigationNotes: text("investigation_notes"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const extractedDocumentData = mysqlTable("extracted_document_data", {
+	id: int().autoincrement().notNull(),
+	documentId: int("document_id").notNull(),
+	policyNumber: varchar("policy_number", { length: 100 }),
+	claimNumber: varchar("claim_number", { length: 100 }),
+	insuredName: varchar("insured_name", { length: 255 }),
+	insuredIdNumber: varchar("insured_id_number", { length: 50 }),
+	insuredPhone: varchar("insured_phone", { length: 50 }),
+	insuredEmail: varchar("insured_email", { length: 320 }),
+	insuredAddress: text("insured_address"),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	incidentDate: date("incident_date", { mode: 'string' }),
+	incidentTime: time("incident_time"),
+	incidentLocation: text("incident_location"),
+	incidentDescription: text("incident_description"),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	vehicleVin: varchar("vehicle_vin", { length: 50 }),
+	vehicleLicensePlate: varchar("vehicle_license_plate", { length: 20 }),
+	vehicleMass: int("vehicle_mass"),
+	repairCostEstimate: decimal("repair_cost_estimate", { precision: 10, scale: 2 }),
+	repairPartsList: json("repair_parts_list"),
+	repairLaborHours: decimal("repair_labor_hours", { precision: 6, scale: 2 }),
+	repairLaborRate: decimal("repair_labor_rate", { precision: 10, scale: 2 }),
+	assessorName: varchar("assessor_name", { length: 255 }),
+	assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+	assessorObservations: text("assessor_observations"),
+	damageSeverity: mysqlEnum("damage_severity", ['minor','moderate','severe','total_loss']),
+	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
+	fieldsExtractedCount: int("fields_extracted_count"),
+	fieldsMissingCount: int("fields_missing_count"),
+	fullText: longtext("full_text"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const extractedRepairItems = mysqlTable("extracted_repair_items", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	documentId: int("document_id"),
+	sourceType: mysqlEnum("source_type", ['panel_beater_quote','assessor_report','ai_estimate']).notNull(),
+	itemNumber: int("item_number"),
+	description: varchar({ length: 500 }).notNull(),
+	partNumber: varchar("part_number", { length: 100 }),
+	category: mysqlEnum(['parts','labor','paint','diagnostic','sundries','sublet','other']).notNull(),
+	damageLocation: varchar("damage_location", { length: 200 }),
+	repairAction: mysqlEnum("repair_action", ['repair','replace','refinish','blend','remove_refit']),
+	quantity: decimal({ precision: 10, scale: 2 }).default('1.00'),
+	unitPrice: decimal("unit_price", { precision: 10, scale: 2 }),
+	lineTotal: decimal("line_total", { precision: 10, scale: 2 }),
+	laborHours: decimal("labor_hours", { precision: 6, scale: 2 }),
+	laborRate: decimal("labor_rate", { precision: 10, scale: 2 }),
+	partsQuality: mysqlEnum("parts_quality", ['oem','genuine','aftermarket','used','reconditioned']),
+	bettermentPercent: decimal("betterment_percent", { precision: 5, scale: 2 }),
+	bettermentAmount: decimal("betterment_amount", { precision: 10, scale: 2 }),
+	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 4 }),
+	isHandwritten: tinyint("is_handwritten").default(0),
+	manuallyVerified: tinyint("manually_verified").default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_eri_claim").on(table.historicalClaimId),
+]);
+
 export const fastTrackConfig = mysqlTable("fast_track_config", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Hierarchical configuration scope
-  productId: int("product_id"), // NULL = insurer-wide default
-  claimType: mysqlEnum("claim_type", [
-    "collision",
-    "theft",
-    "hail",
-    "fire",
-    "vandalism",
-    "flood",
-    "hijacking",
-    "other"
-  ]), // NULL = applies to all claim types for this product/tenant
-  
-  // Fast-track action to take when eligible
-  fastTrackAction: mysqlEnum("fast_track_action", [
-    "AUTO_APPROVE",              // Automatic approval (requires explicit config)
-    "PRIORITY_QUEUE",            // Move to priority queue for expedited review
-    "REDUCED_DOCUMENTATION",     // Reduce documentation requirements
-    "STRAIGHT_TO_PAYMENT"        // Skip review, proceed directly to payment
-  ]).notNull(),
-  
-  // Eligibility thresholds
-  minConfidenceScore: decimal("min_confidence_score", { precision: 5, scale: 2 }).notNull(), // 0-100
-  maxClaimValue: int("max_claim_value").notNull(), // In cents
-  maxFraudScore: decimal("max_fraud_score", { precision: 5, scale: 2 }).notNull(), // 0-100
-  
-  // Configuration metadata
-  enabled: tinyint("enabled").notNull().default(1), // 0 = disabled, 1 = enabled
-  version: int("version").notNull(), // Incremental version per tenant
-  effectiveFrom: timestamp("effective_from").notNull(),
-  
-  // Audit trail
-  createdBy: int("created_by").notNull(), // User ID who created this config
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  // Indexes for efficient lookups
-  tenantIdIdx: index("idx_ft_config_tenant").on(table.tenantId),
-  productIdIdx: index("idx_ft_config_product").on(table.productId),
-  claimTypeIdx: index("idx_ft_config_claim_type").on(table.claimType),
-  enabledIdx: index("idx_ft_config_enabled").on(table.enabled),
-  effectiveFromIdx: index("idx_ft_config_effective").on(table.effectiveFrom),
-  // Composite index for hierarchical resolution
-  hierarchyIdx: index("idx_ft_config_hierarchy").on(table.tenantId, table.productId, table.claimType),
-}));
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	productId: int("product_id"),
+	claimType: mysqlEnum("claim_type", ['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
+	fastTrackAction: mysqlEnum("fast_track_action", ['AUTO_APPROVE','PRIORITY_QUEUE','REDUCED_DOCUMENTATION','STRAIGHT_TO_PAYMENT']).notNull(),
+	minConfidenceScore: decimal("min_confidence_score", { precision: 5, scale: 2 }).notNull(),
+	maxClaimValue: int("max_claim_value").notNull(),
+	maxFraudScore: decimal("max_fraud_score", { precision: 5, scale: 2 }).notNull(),
+	enabled: tinyint().default(1).notNull(),
+	version: int().notNull(),
+	effectiveFrom: timestamp("effective_from", { mode: 'string' }).notNull(),
+	createdBy: int("created_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_ft_config_tenant").on(table.tenantId),
+	index("idx_ft_config_product").on(table.productId),
+	index("idx_ft_config_claim_type").on(table.claimType),
+	index("idx_ft_config_enabled").on(table.enabled),
+	index("idx_ft_config_effective").on(table.effectiveFrom),
+	index("idx_ft_config_hierarchy").on(table.tenantId, table.productId, table.claimType),
+]);
 
-export type FastTrackConfig = typeof fastTrackConfig.$inferSelect;
-export type InsertFastTrackConfig = typeof fastTrackConfig.$inferInsert;
-
-/**
- * Fast-Track Routing Log
- * 
- * Immutable audit trail of all fast-track routing decisions.
- * Logs every evaluation with full context for compliance and debugging.
- */
 export const fastTrackRoutingLog = mysqlTable("fast_track_routing_log", {
-  id: int("id").autoincrement().primaryKey(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Configuration used for this decision
-  configId: int("config_id"), // NULL if no config matched
-  configVersion: int("config_version"), // Version of config used
-  
-  // Decision outcome
-  eligible: tinyint("eligible").notNull(), // 0 = not eligible, 1 = eligible
-  decision: mysqlEnum("decision", [
-    "AUTO_APPROVE",
-    "PRIORITY_QUEUE",
-    "REDUCED_DOCUMENTATION",
-    "STRAIGHT_TO_PAYMENT",
-    "MANUAL_REVIEW" // Default when no config matches
-  ]).notNull(),
-  reason: text("reason").notNull(), // Human-readable explanation
-  
-  // Evaluation context (snapshot at time of decision)
-  confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
-  claimValue: int("claim_value").notNull(), // In cents
-  fraudScore: decimal("fraud_score", { precision: 5, scale: 2 }).notNull(),
-  claimType: varchar("claim_type", { length: 50 }).notNull(),
-  productId: int("product_id"), // NULL if no product associated
-  
-  // Override tracking
-  override: tinyint("override").notNull().default(0), // 0 = automatic, 1 = manual override
-  overrideBy: int("override_by"), // User ID who overrode (if applicable)
-  overrideReason: text("override_reason"), // Justification for override
-  
-  // Immutable timestamp
-  evaluatedAt: timestamp("evaluated_at").defaultNow().notNull(),
-}, (table) => ({
-  claimIdIdx: index("idx_ft_log_claim").on(table.claimId),
-  tenantIdIdx: index("idx_ft_log_tenant").on(table.tenantId),
-  configIdIdx: index("idx_ft_log_config").on(table.configId),
-  decisionIdx: index("idx_ft_log_decision").on(table.decision),
-  evaluatedAtIdx: index("idx_ft_log_evaluated").on(table.evaluatedAt),
-  // Composite index for claim routing history
-  claimTenantIdx: index("idx_ft_log_claim_tenant").on(table.claimId, table.tenantId),
-}));
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	configId: int("config_id"),
+	configVersion: int("config_version"),
+	eligible: tinyint().notNull(),
+	decision: mysqlEnum(['AUTO_APPROVE','PRIORITY_QUEUE','REDUCED_DOCUMENTATION','STRAIGHT_TO_PAYMENT','MANUAL_REVIEW']).notNull(),
+	reason: text().notNull(),
+	confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
+	claimValue: int("claim_value").notNull(),
+	fraudScore: decimal("fraud_score", { precision: 5, scale: 2 }).notNull(),
+	claimType: varchar("claim_type", { length: 50 }).notNull(),
+	productId: int("product_id"),
+	override: tinyint().default(0).notNull(),
+	overrideBy: int("override_by"),
+	overrideReason: text("override_reason"),
+	evaluatedAt: timestamp("evaluated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_ft_log_claim").on(table.claimId),
+	index("idx_ft_log_tenant").on(table.tenantId),
+	index("idx_ft_log_config").on(table.configId),
+	index("idx_ft_log_decision").on(table.decision),
+	index("idx_ft_log_evaluated").on(table.evaluatedAt),
+	index("idx_ft_log_claim_tenant").on(table.claimId, table.tenantId),
+]);
 
-export type FastTrackRoutingLog = typeof fastTrackRoutingLog.$inferSelect;
-export type InsertFastTrackRoutingLog = typeof fastTrackRoutingLog.$inferInsert;
+export const federatedLearningMetadata = mysqlTable("federated_learning_metadata", {
+	id: int().autoincrement().notNull(),
+	roundNumber: int("round_number").notNull(),
+	modelType: varchar("model_type", { length: 100 }).notNull(),
+	participantCount: int("participant_count").notNull(),
+	participantTenantIds: json("participant_tenant_ids"),
+	globalModelVersion: varchar("global_model_version", { length: 50 }).notNull(),
+	localModelContributions: json("local_model_contributions"),
+	aggregationMethod: varchar("aggregation_method", { length: 50 }).default('federated_averaging'),
+	globalModelAccuracy: decimal("global_model_accuracy", { precision: 5, scale: 4 }),
+	convergenceStatus: mysqlEnum("convergence_status", ['converging','converged','diverged']).default('converging'),
+	trainingStartedAt: timestamp("training_started_at", { mode: 'string' }).notNull(),
+	trainingCompletedAt: timestamp("training_completed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_flm_round_number").on(table.roundNumber),
+	index("idx_flm_model_type").on(table.modelType),
+	index("idx_flm_training_started").on(table.trainingStartedAt),
+]);
 
+export const finalApprovalRecords = mysqlTable("final_approval_records", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	finalDecision: mysqlEnum("final_decision", ['approved_repair','approved_total_loss','cash_settlement','rejected','withdrawn']).notNull(),
+	finalApprovedAmount: decimal("final_approved_amount", { precision: 12, scale: 2 }).notNull(),
+	finalLaborCost: decimal("final_labor_cost", { precision: 12, scale: 2 }),
+	finalPartsCost: decimal("final_parts_cost", { precision: 12, scale: 2 }),
+	finalPaintCost: decimal("final_paint_cost", { precision: 12, scale: 2 }),
+	finalSubletCost: decimal("final_sublet_cost", { precision: 12, scale: 2 }),
+	finalBetterment: decimal("final_betterment", { precision: 12, scale: 2 }),
+	approvedByName: varchar("approved_by_name", { length: 255 }),
+	approvedByRole: varchar("approved_by_role", { length: 100 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	approvalDate: date("approval_date", { mode: 'string' }),
+	assessorName: varchar("assessor_name", { length: 255 }),
+	assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+	assessorEstimate: decimal("assessor_estimate", { precision: 12, scale: 2 }),
+	repairShopName: varchar("repair_shop_name", { length: 255 }),
+	actualRepairDuration: int("actual_repair_duration"),
+	customerSatisfaction: int("customer_satisfaction"),
+	approvalNotes: text("approval_notes"),
+	conditionsText: text("conditions_text"),
+	dataSource: mysqlEnum("data_source", ['extracted_from_document','manual_entry','system_import']).notNull(),
+	capturedByUserId: int("captured_by_user_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("historical_claim_id").on(table.historicalClaimId),
+]);
 
-/**
- * Platform Governance Limits
- * 
- * Global platform-level constraints that prevent insurers from configuring
- * unsafe fast-track automation rules.
- * 
- * These limits are set by the platform operator and cannot be exceeded by
- * any tenant configuration.
- */
-export const platformGovernanceLimits = mysqlTable("platform_governance_limits", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Global financial limits
-  maxAutoApprovalLimitGlobal: int("max_auto_approval_limit_global").notNull(), // In cents
-  
-  // Global confidence limits
-  minConfidenceAllowedGlobal: decimal("min_confidence_allowed_global", { precision: 5, scale: 2 }).notNull(), // 0-100
-  
-  // Global fraud tolerance limits
-  maxFraudToleranceGlobal: decimal("max_fraud_tolerance_global", { precision: 5, scale: 2 }).notNull(), // 0-100
-  
-  // Version tracking
-  version: int("version").notNull(),
-  effectiveFrom: timestamp("effective_from").notNull(),
-  
-  // Audit trail
-  createdBy: int("created_by").notNull(), // User ID who created this limit
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  notes: text("notes"), // Explanation for limit changes
-}, (table) => ({
-  versionIdx: index("idx_gov_limits_version").on(table.version),
-  effectiveFromIdx: index("idx_gov_limits_effective").on(table.effectiveFrom),
-}));
+export const fleetAuditLogs = mysqlTable("fleet_audit_logs", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	entityType: mysqlEnum("entity_type", ['fleet','vehicle','maintenance','service_request','quote','document']).notNull(),
+	entityId: int("entity_id").notNull(),
+	action: mysqlEnum(['create','update','delete','view','export']).notNull(),
+	userId: int("user_id").notNull(),
+	userName: varchar("user_name", { length: 255 }),
+	changesBefore: text("changes_before"),
+	changesAfter: text("changes_after"),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	userAgent: text("user_agent"),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
 
-export type PlatformGovernanceLimits = typeof platformGovernanceLimits.$inferSelect;
-export type InsertPlatformGovernanceLimits = typeof platformGovernanceLimits.$inferInsert;
+export const fleetDocuments = mysqlTable("fleet_documents", {
+	id: int().autoincrement().notNull(),
+	fleetId: int("fleet_id"),
+	vehicleId: int("vehicle_id"),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	documentType: mysqlEnum("document_type", ['registration_book','ownership_certificate','inspection_report','insurance_policy','service_history','photo','valuation_report','other']).notNull(),
+	documentName: varchar("document_name", { length: 255 }).notNull(),
+	s3Key: varchar("s3_key", { length: 500 }).notNull(),
+	s3Url: text("s3_url").notNull(),
+	fileSize: int("file_size"),
+	mimeType: varchar("mime_type", { length: 100 }),
+	verificationStatus: mysqlEnum("verification_status", ['pending','verified','rejected']).default('pending'),
+	verifiedBy: int("verified_by"),
+	verifiedAt: timestamp("verified_at", { mode: 'string' }),
+	rejectionReason: text("rejection_reason"),
+	uploadedBy: int("uploaded_by").notNull(),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
 
-/**
- * Governance Violation Log
- * 
- * Immutable audit trail of all rejected fast-track configuration attempts
- * that violated platform governance limits.
- * 
- * Logs every violation with full context for compliance and security monitoring.
- */
+export const fleetDrivers = mysqlTable("fleet_drivers", {
+	id: int().autoincrement().notNull(),
+	fleetId: int("fleet_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	userId: int("user_id").notNull(),
+	driverLicenseNumber: varchar("driver_license_number", { length: 50 }).notNull(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	licenseExpiry: date("license_expiry", { mode: 'string' }).notNull(),
+	licenseClass: varchar("license_class", { length: 20 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	hireDate: date("hire_date", { mode: 'string' }).notNull(),
+	employmentStatus: mysqlEnum("employment_status", ['active','suspended','terminated']).default('active').notNull(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	terminationDate: date("termination_date", { mode: 'string' }),
+	emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
+	emergencyContactPhone: varchar("emergency_contact_phone", { length: 50 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_fleet_drivers_tenant_id").on(table.tenantId),
+	index("idx_fleet_drivers_fleet_id").on(table.fleetId),
+	index("idx_fleet_drivers_user_id").on(table.userId),
+]);
+
+export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	driverId: int("driver_id").notNull(),
+	fleetId: int("fleet_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	incidentDate: timestamp("incident_date", { mode: 'string' }).notNull(),
+	location: text().notNull(),
+	description: text().notNull(),
+	severity: mysqlEnum(['minor','moderate','major','critical']).default('minor').notNull(),
+	status: mysqlEnum(['submitted','under_review','approved','rejected','claim_filed']).default('submitted').notNull(),
+	policeReportNumber: varchar("police_report_number", { length: 100 }),
+	witnessName: varchar("witness_name", { length: 255 }),
+	witnessPhone: varchar("witness_phone", { length: 50 }),
+	estimatedDamage: decimal("estimated_damage", { precision: 10, scale: 2 }),
+	vehicleDriveable: tinyint("vehicle_driveable").default(1),
+	reviewedBy: int("reviewed_by"),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	reviewNotes: text("review_notes"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_fleet_incident_reports_tenant_id").on(table.tenantId),
+	index("idx_fleet_incident_reports_fleet_id").on(table.fleetId),
+	index("idx_fleet_incident_reports_vehicle_id").on(table.vehicleId),
+	index("idx_fleet_incident_reports_driver_id").on(table.driverId),
+	index("idx_fleet_incident_reports_status").on(table.status),
+]);
+
+export const fleetRiskScores = mysqlTable("fleet_risk_scores", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	fleetId: int("fleet_id"),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	overallRiskScore: int("overall_risk_score").notNull(),
+	maintenanceRisk: int("maintenance_risk"),
+	claimsRisk: int("claims_risk"),
+	vehicleAgeRisk: int("vehicle_age_risk"),
+	usageRisk: int("usage_risk"),
+	repairCostRisk: int("repair_cost_risk"),
+	riskFactors: text("risk_factors"),
+	premiumImpact: mysqlEnum("premium_impact", ['decrease','neutral','increase']),
+	recommendedPremiumAdjustment: decimal("recommended_premium_adjustment", { precision: 5, scale: 2 }),
+	calculatedAt: timestamp("calculated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	nextReviewDate: timestamp("next_review_date", { mode: 'string' }),
+},
+(table) => [
+	index("fleet_risk_scores_vehicle_id_unique").on(table.vehicleId),
+]);
+
+export const fleetVehicles = mysqlTable("fleet_vehicles", {
+	id: int().autoincrement().notNull(),
+	vin: varchar({ length: 17 }),
+	registrationNumber: varchar("registration_number", { length: 50 }).notNull(),
+	make: varchar({ length: 100 }).notNull(),
+	model: varchar({ length: 100 }).notNull(),
+	year: int().notNull(),
+	color: varchar({ length: 50 }),
+	engineNumber: varchar("engine_number", { length: 100 }),
+	chassisNumber: varchar("chassis_number", { length: 100 }),
+	currentValuation: int("current_valuation"),
+	valuationDate: timestamp("valuation_date", { mode: 'string' }),
+	valuationSource: varchar("valuation_source", { length: 100 }),
+	maintenanceScore: int("maintenance_score"),
+	riskScore: int("risk_score"),
+	claimsHistoryCount: int("claims_history_count").default(0),
+	ownerId: int("owner_id").notNull(),
+	vehicleImages: text("vehicle_images"),
+	registrationBookUrl: varchar("registration_book_url", { length: 500 }),
+	registrationBookS3Key: varchar("registration_book_s3_key", { length: 500 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	fleetId: int("fleet_id"),
+	engineCapacity: int("engine_capacity"),
+	vehicleMass: int("vehicle_mass"),
+	fuelType: mysqlEnum("fuel_type", ['petrol','diesel','electric','hybrid']),
+	transmissionType: mysqlEnum("transmission_type", ['manual','automatic']),
+	usageType: mysqlEnum("usage_type", ['private','commercial','logistics','mining','agriculture','public_transport']),
+	primaryUse: text("primary_use"),
+	averageMonthlyMileage: int("average_monthly_mileage"),
+	currentInsurer: varchar("current_insurer", { length: 255 }),
+	policyNumber: varchar("policy_number", { length: 100 }),
+	policyStartDate: timestamp("policy_start_date", { mode: 'string' }),
+	policyEndDate: timestamp("policy_end_date", { mode: 'string' }),
+	coverageType: mysqlEnum("coverage_type", ['comprehensive','third_party','third_party_fire_theft']),
+	purchasePrice: int("purchase_price"),
+	purchaseDate: timestamp("purchase_date", { mode: 'string' }),
+	replacementValue: int("replacement_value"),
+	status: mysqlEnum(['active','inactive','sold','written_off','under_repair']).default('active'),
+	lastInspectionDate: timestamp("last_inspection_date", { mode: 'string' }),
+	nextInspectionDue: timestamp("next_inspection_due", { mode: 'string' }),
+	maintenanceComplianceScore: int("maintenance_compliance_score"),
+	vehicleOrigin: mysqlEnum("vehicle_origin", ['Local_Assembly','Ex_Japanese','Ex_European','Ex_American','Ex_Chinese','Unknown']).default('Unknown'),
+	importedFrom: varchar("imported_from", { length: 100 }),
+	importYear: int("import_year"),
+},
+(table) => [
+	index("fleet_vehicles_vin_unique").on(table.vin),
+	index("fleet_vehicles_registration_number_unique").on(table.registrationNumber),
+]);
+
+export const fleets = mysqlTable("fleets", {
+	id: int().autoincrement().notNull(),
+	ownerId: int("owner_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	fleetName: varchar("fleet_name", { length: 255 }).notNull(),
+	fleetType: mysqlEnum("fleet_type", ['mining','logistics','corporate','rental','public_transport','agriculture','construction']).notNull(),
+	totalVehicles: int("total_vehicles").default(0),
+	activeVehicles: int("active_vehicles").default(0),
+	description: text(),
+	primaryLocation: varchar("primary_location", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	preferredInsurerId: int("preferred_insurer_id"),
+	preferredInsurerName: varchar("preferred_insurer_name", { length: 255 }),
+	preferredInsurerContact: varchar("preferred_insurer_contact", { length: 255 }),
+	insurerIsOnKinga: tinyint("insurer_is_on_kinga").default(0).notNull(),
+});
+
+export const fraudAlerts = mysqlTable("fraud_alerts", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	alertType: varchar("alert_type", { length: 100 }).notNull(),
+	alertSeverity: mysqlEnum("alert_severity", ['low','medium','high','critical']).notNull(),
+	alertTitle: varchar("alert_title", { length: 255 }).notNull(),
+	alertDescription: text("alert_description").notNull(),
+	triggeredRuleId: int("triggered_rule_id"),
+	triggeredRuleName: varchar("triggered_rule_name", { length: 255 }),
+	relatedEntityType: varchar("related_entity_type", { length: 50 }),
+	relatedEntityId: int("related_entity_id"),
+	alertData: text("alert_data"),
+	fraudScore: int("fraud_score"),
+	status: mysqlEnum(['new','acknowledged','investigating','resolved','false_alarm']).default('new').notNull(),
+	assignedTo: int("assigned_to"),
+	resolutionNotes: text("resolution_notes"),
+	resolutionDate: timestamp("resolution_date", { mode: 'string' }),
+	isFraudConfirmed: tinyint("is_fraud_confirmed"),
+	actionsTaken: text("actions_taken"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const fraudIndicators = mysqlTable("fraud_indicators", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	overallFraudScore: int("overall_fraud_score").notNull(),
+	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high','critical']).notNull(),
+	delayedSubmissionDays: int("delayed_submission_days"),
+	delayedSubmissionScore: int("delayed_submission_score"),
+	isNonOwnerDriver: tinyint("is_non_owner_driver").default(0),
+	nonOwnerDriverScore: int("non_owner_driver_score"),
+	isSolePartyNightAccident: tinyint("is_sole_party_night_accident").default(0),
+	solePartyNightScore: int("sole_party_night_score"),
+	policyAgeDays: int("policy_age_days"),
+	newPolicyWriteOffScore: int("new_policy_write_off_score"),
+	previousInsurerCount: int("previous_insurer_count"),
+	insurerHoppingScore: int("insurer_hopping_score"),
+	claimantHistoryScore: int("claimant_history_score"),
+	quoteSimilarityScore: int("quote_similarity_score"),
+	hasCopyQuotations: tinyint("has_copy_quotations").default(0),
+	inflatedPartsCostScore: int("inflated_parts_cost_score"),
+	inflatedLaborTimeScore: int("inflated_labor_time_score"),
+	exaggeratedDamageScore: int("exaggerated_damage_score"),
+	replacementVsRepairRatio: int("replacement_vs_repair_ratio"),
+	replacementRatioScore: int("replacement_ratio_score"),
+	damageScopeCreepScore: int("damage_scope_creep_score"),
+	assessorCollusionScore: int("assessor_collusion_score"),
+	assessorBiasScore: int("assessor_bias_score"),
+	rubberStampingScore: int("rubber_stamping_score"),
+	photoMetadataScore: int("photo_metadata_score"),
+	reusedPhotoScore: int("reused_photo_score"),
+	documentConsistencyScore: int("document_consistency_score"),
+	stagedAccidentScore: int("staged_accident_score"),
+	geographicRiskScore: int("geographic_risk_score"),
+	temporalAnomalyScore: int("temporal_anomaly_score"),
+	detectedPatterns: text("detected_patterns"),
+	fraudEvidence: text("fraud_evidence"),
+	requiresInvestigation: tinyint("requires_investigation").default(0).notNull(),
+	investigationPriority: mysqlEnum("investigation_priority", ['low','medium','high','urgent']),
+	investigationStatus: mysqlEnum("investigation_status", ['pending','in_progress','completed','closed']).default('pending'),
+	investigationNotes: text("investigation_notes"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+});
+
+export const fraudRules = mysqlTable("fraud_rules", {
+	id: int().autoincrement().notNull(),
+	ruleName: varchar("rule_name", { length: 255 }).notNull(),
+	ruleDescription: text("rule_description"),
+	ruleCategory: mysqlEnum("rule_category", ['claimant','panel_beater','assessor','vehicle','document','temporal','geographic','network']).notNull(),
+	isActive: tinyint("is_active").default(1).notNull(),
+	severity: mysqlEnum(['low','medium','high','critical']).notNull(),
+	scoreWeight: int("score_weight").default(10).notNull(),
+	thresholdValue: int("threshold_value"),
+	thresholdUnit: varchar("threshold_unit", { length: 50 }),
+	ruleLogic: text("rule_logic"),
+	autoFlag: tinyint("auto_flag").default(1),
+	requiresManualReview: tinyint("requires_manual_review").default(0),
+	notifyInvestigator: tinyint("notify_investigator").default(0),
+	timesTriggered: int("times_triggered").default(0),
+	truePositiveCount: int("true_positive_count").default(0),
+	falsePositiveCount: int("false_positive_count").default(0),
+	accuracy: int().default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("rule_name").on(table.ruleName),
+]);
+
+export const globalAnonymizedDataset = mysqlTable("global_anonymized_dataset", {
+	id: int().autoincrement().notNull(),
+	anonymousRecordId: varchar("anonymous_record_id", { length: 36 }).notNull(),
+	captureMonth: varchar("capture_month", { length: 7 }).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYearBracket: varchar("vehicle_year_bracket", { length: 20 }),
+	vehicleMass: int("vehicle_mass"),
+	accidentType: varchar("accident_type", { length: 50 }),
+	province: varchar({ length: 50 }),
+	detectedDamageComponents: json("detected_damage_components"),
+	damageSeverityScores: json("damage_severity_scores"),
+	physicsPlausibilityScore: int("physics_plausibility_score"),
+	aiEstimatedCost: int("ai_estimated_cost"),
+	assessorAdjustedCost: int("assessor_adjusted_cost"),
+	insurerApprovedCost: int("insurer_approved_cost"),
+	costVarianceAiVsAssessor: int("cost_variance_ai_vs_assessor"),
+	costVarianceAssessorVsFinal: int("cost_variance_assessor_vs_final"),
+	costVarianceAiVsFinal: int("cost_variance_ai_vs_final"),
+	aiFraudScore: int("ai_fraud_score"),
+	finalFraudOutcome: varchar("final_fraud_outcome", { length: 50 }),
+	assessorTier: varchar("assessor_tier", { length: 50 }),
+	assessmentTurnaroundHours: decimal("assessment_turnaround_hours", { precision: 10, scale: 2 }),
+	reassignmentCount: int("reassignment_count"),
+	approvalTimelineHours: decimal("approval_timeline_hours", { precision: 10, scale: 2 }),
+	anonymizedAt: timestamp("anonymized_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	schemaVersion: int("schema_version").default(1).notNull(),
+},
+(table) => [
+	index("anonymous_record_id").on(table.anonymousRecordId),
+	index("idx_gad_capture_month").on(table.captureMonth),
+	index("idx_gad_vehicle_make").on(table.vehicleMake),
+	index("idx_gad_province").on(table.province),
+	index("idx_gad_accident_type").on(table.accidentType),
+	index("idx_gad_anonymized_at").on(table.anonymizedAt),
+]);
+
+export const governanceNotifications = mysqlTable("governance_notifications", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	type: mysqlEnum(['intake_escalation','auto_assignment','ai_rerun','executive_override','segregation_violation']).notNull(),
+	claimId: int("claim_id"),
+	recipients: text().notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	message: text().notNull(),
+	metadata: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	readAt: timestamp("read_at", { mode: 'string' }),
+},
+(table) => [
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_claim_id").on(table.claimId),
+	index("idx_recipients").on(table.recipients),
+	index("idx_read_at").on(table.readAt),
+	index("idx_created_at").on(table.createdAt),
+]);
+
 export const governanceViolationLog = mysqlTable("governance_violation_log", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Actor information
-  userId: int("user_id").notNull(), // User who attempted the configuration
-  userRole: varchar("user_role", { length: 50 }).notNull(),
-  
-  // Violation details
-  violationType: mysqlEnum("violation_type", [
-    "EXCEEDS_AUTO_APPROVAL_LIMIT",
-    "BELOW_MIN_CONFIDENCE",
-    "EXCEEDS_MAX_FRAUD_TOLERANCE",
-    "MISSING_JUSTIFICATION",
-    "INSUFFICIENT_JUSTIFICATION"
-  ]).notNull(),
-  
-  // Attempted configuration
-  attemptedConfig: text("attempted_config").notNull(), // JSON snapshot of attempted config
-  
-  // Governance limits at time of violation
-  governanceLimitsVersion: int("governance_limits_version").notNull(),
-  governanceLimitsSnapshot: text("governance_limits_snapshot").notNull(), // JSON snapshot
-  
-  // Violation reason
-  reason: text("reason").notNull(), // Human-readable explanation
-  
-  // Immutable timestamp
-  violatedAt: timestamp("violated_at").defaultNow().notNull(),
-}, (table) => ({
-  tenantIdIdx: index("idx_gov_violation_tenant").on(table.tenantId),
-  userIdIdx: index("idx_gov_violation_user").on(table.userId),
-  violationTypeIdx: index("idx_gov_violation_type").on(table.violationType),
-  violatedAtIdx: index("idx_gov_violation_at").on(table.violatedAt),
-  // Composite index for tenant violation history
-  tenantViolationIdx: index("idx_gov_violation_tenant_time").on(table.tenantId, table.violatedAt),
-}));
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	userId: int("user_id").notNull(),
+	userRole: varchar("user_role", { length: 50 }).notNull(),
+	violationType: mysqlEnum("violation_type", ['EXCEEDS_AUTO_APPROVAL_LIMIT','BELOW_MIN_CONFIDENCE','EXCEEDS_MAX_FRAUD_TOLERANCE','MISSING_JUSTIFICATION','INSUFFICIENT_JUSTIFICATION']).notNull(),
+	attemptedConfig: text("attempted_config").notNull(),
+	governanceLimitsVersion: int("governance_limits_version").notNull(),
+	governanceLimitsSnapshot: text("governance_limits_snapshot").notNull(),
+	reason: text().notNull(),
+	violatedAt: timestamp("violated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_gov_violation_tenant").on(table.tenantId),
+	index("idx_gov_violation_user").on(table.userId),
+	index("idx_gov_violation_type").on(table.violationType),
+	index("idx_gov_violation_at").on(table.violatedAt),
+	index("idx_gov_violation_tenant_time").on(table.tenantId, table.violatedAt),
+]);
 
-export type GovernanceViolationLog = typeof governanceViolationLog.$inferSelect;
-export type InsertGovernanceViolationLog = typeof governanceViolationLog.$inferInsert;
+export const historicalClaims = mysqlTable("historical_claims", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	batchId: int("batch_id"),
+	claimReference: varchar("claim_reference", { length: 100 }),
+	policyNumber: varchar("policy_number", { length: 100 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+	vehicleVin: varchar("vehicle_vin", { length: 50 }),
+	vehicleColor: varchar("vehicle_color", { length: 50 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	incidentDate: date("incident_date", { mode: 'string' }),
+	incidentLocation: text("incident_location"),
+	incidentDescription: text("incident_description"),
+	accidentType: varchar("accident_type", { length: 100 }),
+	estimatedSpeed: int("estimated_speed"),
+	claimantName: varchar("claimant_name", { length: 255 }),
+	claimantIdNumber: varchar("claimant_id_number", { length: 50 }),
+	claimantContact: varchar("claimant_contact", { length: 100 }),
+	totalPanelBeaterQuote: decimal("total_panel_beater_quote", { precision: 12, scale: 2 }),
+	totalAssessorEstimate: decimal("total_assessor_estimate", { precision: 12, scale: 2 }),
+	totalAiEstimate: decimal("total_ai_estimate", { precision: 12, scale: 2 }),
+	finalApprovedCost: decimal("final_approved_cost", { precision: 12, scale: 2 }),
+	repairDecision: mysqlEnum("repair_decision", ['repair','total_loss','cash_settlement','rejected']),
+	assessorName: varchar("assessor_name", { length: 255 }),
+	assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+	pipelineStatus: mysqlEnum("pipeline_status", ['pending','documents_uploaded','classification_complete','extraction_complete','ground_truth_captured','variance_calculated','complete','failed']).default('pending').notNull(),
+	dataQualityScore: int("data_quality_score"),
+	fieldsExtracted: int("fields_extracted"),
+	fieldsMissing: int("fields_missing"),
+	manualCorrections: int("manual_corrections").default(0),
+	totalDocuments: int("total_documents").default(0),
+	extractionLog: json("extraction_log"),
+	lastError: text("last_error"),
+	retryCount: int("retry_count").default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	replayMode: tinyint("replay_mode").default(0).notNull(),
+	lastReplayedAt: timestamp("last_replayed_at", { mode: 'string' }),
+	replayCount: int("replay_count").default(0).notNull(),
+	damagePhotosJson: json("damage_photos_json"),
+},
+(table) => [
+	index("idx_hc_tenant").on(table.tenantId),
+	index("idx_hc_batch").on(table.batchId),
+	index("idx_hc_status").on(table.pipelineStatus),
+]);
 
-// ============================================================================
-// Workflow States Table
-// ============================================================================
+export const historicalReplayResults = mysqlTable("historical_replay_results", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	originalClaimReference: varchar("original_claim_reference", { length: 100 }),
+	replayedAt: timestamp("replayed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	replayedByUserId: int("replayed_by_user_id"),
+	replayVersion: int("replay_version").default(1),
+	policyVersionId: int("policy_version_id"),
+	policyVersion: int("policy_version"),
+	policyName: varchar("policy_name", { length: 255 }),
+	originalDecision: mysqlEnum("original_decision", ['approved','rejected','referred','total_loss','cash_settlement']),
+	originalPayout: decimal("original_payout", { precision: 12, scale: 2 }),
+	originalProcessingTimeHours: decimal("original_processing_time_hours", { precision: 10, scale: 2 }),
+	originalAssessorName: varchar("original_assessor_name", { length: 255 }),
+	aiDamageDetectionScore: decimal("ai_damage_detection_score", { precision: 5, scale: 2 }),
+	aiEstimatedCost: decimal("ai_estimated_cost", { precision: 12, scale: 2 }),
+	aiFraudScore: decimal("ai_fraud_score", { precision: 5, scale: 2 }),
+	aiConfidenceScore: decimal("ai_confidence_score", { precision: 5, scale: 2 }),
+	kingaRoutingDecision: mysqlEnum("kinga_routing_decision", ['auto_approve','hybrid_review','escalate','fraud_review']),
+	kingaPredictedPayout: decimal("kinga_predicted_payout", { precision: 12, scale: 2 }),
+	kingaEstimatedProcessingTimeHours: decimal("kinga_estimated_processing_time_hours", { precision: 10, scale: 2 }),
+	decisionMatch: tinyint("decision_match").notNull(),
+	payoutVariance: decimal("payout_variance", { precision: 12, scale: 2 }),
+	payoutVariancePercentage: decimal("payout_variance_percentage", { precision: 5, scale: 2 }),
+	processingTimeDelta: decimal("processing_time_delta", { precision: 10, scale: 2 }),
+	processingTimeDeltaPercentage: decimal("processing_time_delta_percentage", { precision: 5, scale: 2 }),
+	confidenceLevel: mysqlEnum("confidence_level", ['very_high','high','medium','low','very_low']),
+	confidenceJustification: text("confidence_justification"),
+	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['none','low','medium','high','critical']),
+	fraudIndicators: json("fraud_indicators"),
+	simulatedWorkflowSteps: json("simulated_workflow_steps"),
+	isReplay: tinyint("is_replay").default(1).notNull(),
+	noLiveMutation: tinyint("no_live_mutation").default(1).notNull(),
+	performanceSummary: text("performance_summary"),
+	recommendedAction: mysqlEnum("recommended_action", ['adopt_kinga','review_policy','manual_review','no_action']),
+	replayDurationMs: int("replay_duration_ms"),
+	replayStatus: mysqlEnum("replay_status", ['success','partial_success','failed']).default('success').notNull(),
+	replayErrors: json("replay_errors"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_historical_replay_results_tenant_id").on(table.tenantId),
+	index("idx_historical_replay_results_historical_claim_id").on(table.historicalClaimId),
+	index("idx_historical_replay_results_replayed_at").on(table.replayedAt),
+	index("idx_historical_replay_results_policy_version_id").on(table.policyVersionId),
+]);
+
+export const ingestionBatches = mysqlTable("ingestion_batches", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	batchName: varchar("batch_name", { length: 255 }),
+	ingestionSource: mysqlEnum("ingestion_source", ['processor_upload','bulk_batch','api','email','legacy_import','broker_upload']).notNull(),
+	ingestionChannel: mysqlEnum("ingestion_channel", ['web_ui','api','email','sftp']).notNull(),
+	uploadedByUserId: int("uploaded_by_user_id"),
+	uploadedByEmail: varchar("uploaded_by_email", { length: 320 }),
+	uploadedByIpAddress: varchar("uploaded_by_ip_address", { length: 45 }),
+	totalDocuments: int("total_documents").default(0).notNull(),
+	processedDocuments: int("processed_documents").default(0).notNull(),
+	failedDocuments: int("failed_documents").default(0).notNull(),
+	status: mysqlEnum(['pending','processing','completed','failed']).default('pending').notNull(),
+	startedAt: timestamp("started_at", { mode: 'string' }),
+	completedAt: timestamp("completed_at", { mode: 'string' }),
+	custodyChain: json("custody_chain"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const ingestionDocuments = mysqlTable("ingestion_documents", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	batchId: int("batch_id").notNull(),
+	documentId: varchar("document_id", { length: 36 }).notNull(),
+	originalFilename: varchar("original_filename", { length: 500 }).notNull(),
+	fileSizeBytes: int("file_size_bytes").notNull(),
+	mimeType: varchar("mime_type", { length: 100 }).notNull(),
+	s3Bucket: varchar("s3_bucket", { length: 255 }).notNull(),
+	s3Key: varchar("s3_key", { length: 1024 }).notNull(),
+	s3Url: varchar("s3_url", { length: 2048 }).notNull(),
+	sha256Hash: varchar("sha256_hash", { length: 64 }).notNull(),
+	hashVerified: tinyint("hash_verified").default(0).notNull(),
+	documentType: mysqlEnum("document_type", ['claim_form','police_report','damage_image','repair_quote','assessor_report','supporting_evidence','unknown']),
+	classificationConfidence: decimal("classification_confidence", { precision: 5, scale: 4 }),
+	classificationMethod: mysqlEnum("classification_method", ['ai_model','rule_based','manual_override']),
+	extractionStatus: mysqlEnum("extraction_status", ['pending','processing','completed','failed']).default('pending').notNull(),
+	extractionStartedAt: timestamp("extraction_started_at", { mode: 'string' }),
+	extractionCompletedAt: timestamp("extraction_completed_at", { mode: 'string' }),
+	validationStatus: mysqlEnum("validation_status", ['pending','in_review','approved','rejected']).default('pending').notNull(),
+	validatedByUserId: int("validated_by_user_id"),
+	validatedAt: timestamp("validated_at", { mode: 'string' }),
+	pageCount: int("page_count"),
+	languageDetected: varchar("language_detected", { length: 10 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	historicalClaimId: int("historical_claim_id"),
+},
+(table) => [
+	index("document_id").on(table.documentId),
+]);
+
+export const insuranceAuditLogs = mysqlTable("insurance_audit_logs", {
+	id: int().autoincrement().notNull(),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	userId: int("user_id").notNull(),
+	userRole: varchar("user_role", { length: 50 }),
+	action: varchar({ length: 100 }).notNull(),
+	entityType: varchar("entity_type", { length: 50 }).notNull(),
+	entityId: int("entity_id").notNull(),
+	changes: text(),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	userAgent: text("user_agent"),
+	tenantId: varchar("tenant_id", { length: 255 }),
+});
+
+export const insuranceCarriers = mysqlTable("insurance_carriers", {
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	shortCode: varchar("short_code", { length: 50 }).notNull(),
+	isActive: tinyint("is_active").default(1).notNull(),
+	defaultCommissionRate: decimal("default_commission_rate", { precision: 5, scale: 2 }).notNull(),
+	apiEndpoint: varchar("api_endpoint", { length: 500 }),
+	apiCredentials: text("api_credentials"),
+	apiEnabled: tinyint("api_enabled").default(0),
+	contactEmail: varchar("contact_email", { length: 320 }),
+	contactPhone: varchar("contact_phone", { length: 20 }),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("insurance_carriers_short_code_unique").on(table.shortCode),
+]);
+
+export const insurancePolicies = mysqlTable("insurance_policies", {
+	id: int().autoincrement().notNull(),
+	policyNumber: varchar("policy_number", { length: 100 }).notNull(),
+	quoteId: int("quote_id"),
+	customerId: int("customer_id").notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	carrierId: int("carrier_id").notNull(),
+	productId: int("product_id").notNull(),
+	premiumAmount: int("premium_amount").notNull(),
+	premiumFrequency: mysqlEnum("premium_frequency", ['monthly','annual']).default('monthly').notNull(),
+	excessAmount: int("excess_amount"),
+	coverageStartDate: timestamp("coverage_start_date", { mode: 'string' }).notNull(),
+	coverageEndDate: timestamp("coverage_end_date", { mode: 'string' }).notNull(),
+	coverageLimits: text("coverage_limits"),
+	status: mysqlEnum(['pending','active','endorsed','cancelled','expired','renewed']).default('pending').notNull(),
+	cancellationReason: text("cancellation_reason"),
+	cancellationDate: timestamp("cancellation_date", { mode: 'string' }),
+	cancelledBy: int("cancelled_by"),
+	renewalReminderSent: tinyint("renewal_reminder_sent").default(0),
+	renewalReminderDate: timestamp("renewal_reminder_date", { mode: 'string' }),
+	renewedToPolicyId: int("renewed_to_policy_id"),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("insurance_policies_policy_number_unique").on(table.policyNumber),
+]);
+
+export const insuranceProducts = mysqlTable("insurance_products", {
+	id: int().autoincrement().notNull(),
+	carrierId: int("carrier_id").notNull(),
+	productName: varchar("product_name", { length: 255 }).notNull(),
+	productCode: varchar("product_code", { length: 50 }).notNull(),
+	coverageType: mysqlEnum("coverage_type", ['comprehensive','third_party','third_party_fire_theft']).notNull(),
+	basePremiumMonthly: int("base_premium_monthly"),
+	basePremiumAnnual: int("base_premium_annual"),
+	vehicleDamageLimit: int("vehicle_damage_limit"),
+	thirdPartyLiabilityLimit: int("third_party_liability_limit"),
+	personalAccidentLimit: int("personal_accident_limit"),
+	excessOptions: text("excess_options"),
+	eligibilityRules: text("eligibility_rules"),
+	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }),
+	isActive: tinyint("is_active").default(1).notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const insuranceQuotes = mysqlTable("insurance_quotes", {
+	id: int().autoincrement().notNull(),
+	quoteNumber: varchar("quote_number", { length: 50 }).notNull(),
+	customerId: int("customer_id").notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	carrierId: int("carrier_id").notNull(),
+	productId: int("product_id").notNull(),
+	premiumAmount: int("premium_amount").notNull(),
+	premiumFrequency: mysqlEnum("premium_frequency", ['monthly','annual']).default('monthly').notNull(),
+	excessAmount: int("excess_amount"),
+	coverageLimits: text("coverage_limits"),
+	driverDetails: text("driver_details"),
+	riskProfile: text("risk_profile"),
+	quoteValidUntil: timestamp("quote_valid_until", { mode: 'string' }).notNull(),
+	status: mysqlEnum(['pending','payment_pending','payment_submitted','payment_verified','accepted','rejected','expired']).default('pending').notNull(),
+	kingaInsights: text("kinga_insights"),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	paymentMethod: mysqlEnum("payment_method", ['cash','bank_transfer','ecocash','onemoney','rtgs','zipit']),
+	paymentReferenceNumber: varchar("payment_reference_number", { length: 100 }),
+	paymentProofS3Key: varchar("payment_proof_s3_key", { length: 500 }),
+	paymentProofS3Url: varchar("payment_proof_s3_url", { length: 500 }),
+	paymentAmount: int("payment_amount"),
+	paymentDate: timestamp("payment_date", { mode: 'string' }),
+	paymentSubmittedAt: timestamp("payment_submitted_at", { mode: 'string' }),
+	paymentVerifiedAt: timestamp("payment_verified_at", { mode: 'string' }),
+	paymentVerifiedBy: int("payment_verified_by"),
+	paymentRejectionReason: text("payment_rejection_reason"),
+},
+(table) => [
+	index("insurance_quotes_quote_number_unique").on(table.quoteNumber),
+]);
+
+export const insurerTenants = mysqlTable("insurer_tenants", {
+	id: varchar({ length: 64 }).notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	displayName: varchar("display_name", { length: 255 }).notNull(),
+	logoUrl: text("logo_url"),
+	primaryColor: varchar("primary_color", { length: 7 }).default('#10b981'),
+	secondaryColor: varchar("secondary_color", { length: 7 }).default('#64748b'),
+	documentNamingTemplate: text("document_naming_template"),
+	documentRetentionYears: int("document_retention_years").default(7),
+	fraudRetentionYears: int("fraud_retention_years").default(10),
+	requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default('10000.00'),
+	highValueThreshold: decimal("high_value_threshold", { precision: 10, scale: 2 }).default('10000.00'),
+	autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default('5000.00'),
+	fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default('0.70'),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	primaryCurrency: varchar("primary_currency", { length: 3 }).default('USD'),
+	primaryCurrencySymbol: varchar("primary_currency_symbol", { length: 10 }).default('$'),
+	secondaryCurrency: varchar("secondary_currency", { length: 3 }),
+	secondaryCurrencySymbol: varchar("secondary_currency_symbol", { length: 10 }),
+	exchangeRate: decimal("exchange_rate", { precision: 10, scale: 4 }),
+});
+
+export const isoAuditLogs = mysqlTable("iso_audit_logs", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	userId: int("user_id").notNull(),
+	userRole: varchar("user_role", { length: 50 }).notNull(),
+	actionType: mysqlEnum("action_type", ['create','update','approve','reject','view','delete']).notNull(),
+	resourceType: varchar("resource_type", { length: 50 }).notNull(),
+	resourceId: varchar("resource_id", { length: 64 }).notNull(),
+	beforeState: text("before_state"),
+	afterState: text("after_state"),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	sessionId: varchar("session_id", { length: 64 }),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	integrityHash: varchar("integrity_hash", { length: 64 }).notNull(),
+},
+(table) => [
+	index("idx_iso_audit_logs_tenant_id").on(table.tenantId),
+	index("idx_iso_audit_logs_user_id").on(table.userId),
+	index("idx_iso_audit_logs_timestamp").on(table.timestamp),
+]);
+
+export const maintenanceAlerts = mysqlTable("maintenance_alerts", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	scheduleId: int("schedule_id"),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	alertType: mysqlEnum("alert_type", ['upcoming_maintenance','overdue_maintenance','inspection_due','safety_alert','compliance_alert']).notNull(),
+	severity: mysqlEnum(['low','medium','high','critical']).notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	message: text().notNull(),
+	dueDate: timestamp("due_date", { mode: 'string' }),
+	dueMileage: int("due_mileage"),
+	status: mysqlEnum(['pending','acknowledged','resolved','dismissed']).default('pending'),
+	acknowledgedBy: int("acknowledged_by"),
+	acknowledgedAt: timestamp("acknowledged_at", { mode: 'string' }),
+	resolvedAt: timestamp("resolved_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const maintenanceRecords = mysqlTable("maintenance_records", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	scheduleId: int("schedule_id"),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	serviceDate: timestamp("service_date", { mode: 'string' }).notNull(),
+	serviceMileage: int("service_mileage"),
+	serviceType: varchar("service_type", { length: 255 }).notNull(),
+	serviceProvider: varchar("service_provider", { length: 255 }),
+	serviceLocation: varchar("service_location", { length: 255 }),
+	laborCost: int("labor_cost"),
+	partsCost: int("parts_cost"),
+	totalCost: int("total_cost"),
+	serviceItems: text("service_items"),
+	partsReplaced: text("parts_replaced"),
+	invoiceUrl: text("invoice_url"),
+	serviceReportUrl: text("service_report_url"),
+	isCompliant: tinyint("is_compliant").default(1),
+	wasOverdue: tinyint("was_overdue").default(0),
+	daysOverdue: int("days_overdue"),
+	performedBy: int("performed_by"),
+	recordedBy: int("recorded_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	relatedClaimId: int("related_claim_id"),
+	isClaimRelated: tinyint("is_claim_related").default(0).notNull(),
+});
+
+export const maintenanceSchedules = mysqlTable("maintenance_schedules", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	maintenanceType: mysqlEnum("maintenance_type", ['oil_change','tire_rotation','brake_inspection','engine_service','transmission_service','annual_inspection','safety_inspection','filter_replacement','battery_check','coolant_flush','custom']).notNull(),
+	description: text(),
+	intervalType: mysqlEnum("interval_type", ['mileage','time','both']).notNull(),
+	mileageInterval: int("mileage_interval"),
+	timeInterval: int("time_interval"),
+	lastServiceDate: timestamp("last_service_date", { mode: 'string' }),
+	lastServiceMileage: int("last_service_mileage"),
+	nextDueDate: timestamp("next_due_date", { mode: 'string' }),
+	nextDueMileage: int("next_due_mileage"),
+	alertDaysBefore: int("alert_days_before").default(7),
+	alertMileageBefore: int("alert_mileage_before").default(500),
+	isActive: tinyint("is_active").default(1),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const marketplaceTransactions = mysqlTable("marketplace_transactions", {
+	id: int().autoincrement().notNull(),
+	assignmentId: int("assignment_id").notNull(),
+	assessorId: int("assessor_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	assessmentFee: decimal("assessment_fee", { precision: 10, scale: 2 }).notNull(),
+	kingaCommission: decimal("kinga_commission", { precision: 10, scale: 2 }).notNull(),
+	assessorPayout: decimal("assessor_payout", { precision: 10, scale: 2 }).notNull(),
+	commissionRate: decimal("commission_rate", { precision: 5, scale: 2 }).notNull(),
+	transactionStatus: mysqlEnum("transaction_status", ['pending','completed','paid_out','disputed','refunded']).default('pending'),
+	completedAt: timestamp("completed_at", { mode: 'string' }),
+	paidOutAt: timestamp("paid_out_at", { mode: 'string' }),
+	paymentMethod: varchar("payment_method", { length: 50 }),
+	paymentReference: varchar("payment_reference", { length: 100 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_assignment").on(table.assignmentId),
+	index("idx_assessor").on(table.assessorId),
+	index("idx_tenant").on(table.tenantId),
+	index("idx_status").on(table.transactionStatus),
+]);
+
+export const modelTrainingAuditLog = mysqlTable("model_training_audit_log", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	modelVersionId: int("model_version_id").notNull(),
+	eventType: mysqlEnum("event_type", ['training_started','training_completed','training_failed','validation_started','validation_completed','deployment_requested','deployment_approved','deployment_rejected','model_deprecated','dataset_added','dataset_removed']).notNull(),
+	eventDescription: text("event_description"),
+	eventMetadata: text("event_metadata"),
+	performedBy: int("performed_by"),
+	performedAt: timestamp("performed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	ipAddress: varchar("ip_address", { length: 45 }),
+});
+
+export const modelTrainingQueue = mysqlTable("model_training_queue", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	datasetRecordId: int("dataset_record_id").notNull(),
+	trainingPriority: varchar("training_priority", { length: 50 }).default('normal'),
+	processed: tinyint().default(0),
+	processedAt: timestamp("processed_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_mtq_processed").on(table.processed),
+	index("idx_mtq_training_priority").on(table.trainingPriority),
+	index("idx_mtq_created_at").on(table.createdAt),
+]);
+
+export const modelVersionRegistry = mysqlTable("model_version_registry", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	modelName: varchar("model_name", { length: 255 }).notNull(),
+	modelVersion: varchar("model_version", { length: 50 }).notNull(),
+	modelType: varchar("model_type", { length: 100 }),
+	algorithmUsed: varchar("algorithm_used", { length: 100 }),
+	trainingDatasetVersion: varchar("training_dataset_version", { length: 50 }),
+	trainingClaimCount: int("training_claim_count"),
+	trainingStartedAt: timestamp("training_started_at", { mode: 'string' }),
+	trainingCompletedAt: timestamp("training_completed_at", { mode: 'string' }),
+	trainingDuration: int("training_duration"),
+	accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }),
+	precisionScore: decimal("precision_score", { precision: 5, scale: 2 }),
+	recallScore: decimal("recall_score", { precision: 5, scale: 2 }),
+	f1Score: decimal("f1_score", { precision: 5, scale: 2 }),
+	biasDriftValidation: varchar("bias_drift_validation", { length: 50 }),
+	fraudDetectionStability: varchar("fraud_detection_stability", { length: 50 }),
+	performanceBenchmark: text("performance_benchmark"),
+	deploymentStatus: mysqlEnum("deployment_status", ['training','validation','staging','production','deprecated','archived']).default('training'),
+	deployedAt: timestamp("deployed_at", { mode: 'string' }),
+	deployedBy: int("deployed_by"),
+	approvalStatus: mysqlEnum("approval_status", ['pending_validation','pending_approval','approved','rejected']).default('pending_validation'),
+	approvedBy: int("approved_by"),
+	approvedAt: timestamp("approved_at", { mode: 'string' }),
+	approvalNotes: text("approval_notes"),
+	modelArtifactUrl: text("model_artifact_url"),
+	modelConfigUrl: text("model_config_url"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("model_version_registry_model_version_unique").on(table.modelVersion),
+]);
+
+export const multiReferenceTruth = mysqlTable("multi_reference_truth", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	synthesizedValue: decimal("synthesized_value", { precision: 10, scale: 2 }).notNull(),
+	confidenceInterval: decimal("confidence_interval", { precision: 5, scale: 2 }),
+	photoDamageSeverityScore: int("photo_damage_severity_score"),
+	panelBeaterQuoteClusterScore: int("panel_beater_quote_cluster_score"),
+	regionalBenchmarkScore: int("regional_benchmark_score"),
+	similarClaimsScore: int("similar_claims_score"),
+	fraudProbabilityScore: int("fraud_probability_score"),
+	settlementAmountScore: int("settlement_amount_score"),
+	photoDamageEstimate: decimal("photo_damage_estimate", { precision: 10, scale: 2 }),
+	panelBeaterMedian: decimal("panel_beater_median", { precision: 10, scale: 2 }),
+	regionalBenchmark: decimal("regional_benchmark", { precision: 10, scale: 2 }),
+	similarClaimsAverage: decimal("similar_claims_average", { precision: 10, scale: 2 }),
+	finalSettlement: decimal("final_settlement", { precision: 10, scale: 2 }),
+	assessorValue: decimal("assessor_value", { precision: 10, scale: 2 }),
+	assessorDeviation: decimal("assessor_deviation", { precision: 5, scale: 2 }),
+	deviationAbsolute: decimal("deviation_absolute", { precision: 10, scale: 2 }),
+	synthesisMethod: varchar("synthesis_method", { length: 50 }),
+	componentsUsed: int("components_used"),
+	synthesisQuality: mysqlEnum("synthesis_quality", ['high','medium','low']),
+	synthesizedAt: timestamp("synthesized_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	synthesizedBy: varchar("synthesized_by", { length: 50 }),
+	synthesisExplanation: text("synthesis_explanation"),
+});
+
+export const notifications = mysqlTable("notifications", {
+	id: int().autoincrement().notNull(),
+	userId: int("user_id").notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	message: text().notNull(),
+	type: mysqlEnum(['claim_assigned','quote_submitted','fraud_detected','status_changed','assessment_completed','approval_required','document_uploaded','system_alert']).notNull(),
+	claimId: int("claim_id"),
+	entityType: varchar("entity_type", { length: 50 }),
+	entityId: int("entity_id"),
+	isRead: tinyint("is_read").default(0).notNull(),
+	readAt: timestamp("read_at", { mode: 'string' }),
+	actionUrl: varchar("action_url", { length: 500 }),
+	priority: mysqlEnum(['low','medium','high','urgent']).default('medium').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const organizations = mysqlTable("organizations", {
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 200 }).notNull(),
+	businessName: varchar("business_name", { length: 200 }),
+	email: varchar({ length: 320 }),
+	phone: varchar({ length: 20 }),
+	address: text(),
+	city: varchar({ length: 100 }),
+	country: varchar({ length: 100 }).default('Zimbabwe'),
+	type: mysqlEnum(['insurer','broker','tpa']).default('insurer').notNull(),
+	ownerId: int("owner_id").notNull(),
+	active: tinyint().default(1).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	panelBeaterId: int("panel_beater_id").notNull(),
+	quotedAmount: int("quoted_amount").notNull(),
+	laborCost: int("labor_cost"),
+	partsCost: int("parts_cost"),
+	estimatedDuration: int("estimated_duration"),
+	laborHours: int("labor_hours"),
+	itemizedBreakdown: text("itemized_breakdown"),
+	notes: text(),
+	modified: tinyint().default(0),
+	originalQuotedAmount: int("original_quoted_amount"),
+	modificationReason: text("modification_reason"),
+	modifiedByAssessorId: int("modified_by_assessor_id"),
+	panelBeaterAgreed: tinyint("panel_beater_agreed"),
+	status: mysqlEnum(['draft','submitted','modified','accepted','rejected']).default('draft').notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	componentsJson: text("components_json"),
+	partsQuality: mysqlEnum("parts_quality", ['aftermarket','oem','genuine','used']).default('aftermarket'),
+	warrantyMonths: int("warranty_months").default(12),
+	tenantId: varchar("tenant_id", { length: 255 }),
+},
+(table) => [
+	index("idx_quotes_claim_id").on(table.claimId),
+	index("idx_quotes_panel_beater_id").on(table.panelBeaterId),
+	index("idx_panel_beater_quotes_panel_beater_id").on(table.panelBeaterId),
+]);
+
+export const panelBeaters = mysqlTable("panel_beaters", {
+	id: int().autoincrement().notNull(),
+	name: text().notNull(),
+	businessName: text("business_name").notNull(),
+	email: varchar({ length: 320 }),
+	phone: varchar({ length: 20 }),
+	address: text(),
+	city: varchar({ length: 100 }),
+	approved: tinyint().default(1).notNull(),
+	userId: int("user_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+});
+
+export const partStratification = mysqlTable("part_stratification", {
+	id: int().autoincrement().notNull(),
+	stratumType: mysqlEnum("stratum_type", ['OEM','OEM_Equivalent','Aftermarket','Used']).notNull(),
+	priceMultiplier: decimal("price_multiplier", { precision: 5, scale: 2 }).notNull(),
+	qualityRating: int("quality_rating"),
+	warrantyMonths: int("warranty_months"),
+	description: text(),
+	partCategory: varchar("part_category", { length: 100 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const partsPricingAuditLog = mysqlTable("parts_pricing_audit_log", {
+	id: int().autoincrement().notNull(),
+	changeType: mysqlEnum("change_type", ['baseline_update','multiplier_update','override_created','override_deleted','scraper_run']).notNull(),
+	tableName: varchar("table_name", { length: 100 }).notNull(),
+	recordId: int("record_id"),
+	oldValue: text("old_value"),
+	newValue: text("new_value"),
+	changedBy: int("changed_by"),
+	changedAt: timestamp("changed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	reason: text(),
+	ipAddress: varchar("ip_address", { length: 45 }),
+});
+
+export const partsPricingBaseline = mysqlTable("parts_pricing_baseline", {
+	id: int().autoincrement().notNull(),
+	partName: varchar("part_name", { length: 255 }).notNull(),
+	partNumber: varchar("part_number", { length: 100 }),
+	partCategory: varchar("part_category", { length: 100 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYearFrom: int("vehicle_year_from"),
+	vehicleYearTo: int("vehicle_year_to"),
+	saBasePrice: decimal("sa_base_price", { precision: 10, scale: 2 }).notNull(),
+	currency: varchar({ length: 3 }).default('ZAR').notNull(),
+	source: varchar({ length: 100 }).notNull(),
+	sourceUrl: text("source_url"),
+	scrapedAt: timestamp("scraped_at", { mode: 'string' }),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	confidence: mysqlEnum(['low','medium','high']).default('medium'),
+	dataQuality: text("data_quality"),
+	partType: mysqlEnum("part_type", ['OEM','OEM_Equivalent','Aftermarket','Used','Unknown']).default('Unknown'),
+});
+
+export const partsPricingOverrides = mysqlTable("parts_pricing_overrides", {
+	id: int().autoincrement().notNull(),
+	partName: varchar("part_name", { length: 255 }),
+	partNumber: varchar("part_number", { length: 100 }),
+	partCategory: varchar("part_category", { length: 100 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	country: varchar({ length: 100 }),
+	stratumType: mysqlEnum("stratum_type", ['OEM','OEM_Equivalent','Aftermarket','Used']),
+	overridePrice: decimal("override_price", { precision: 10, scale: 2 }),
+	overrideMultiplier: decimal("override_multiplier", { precision: 5, scale: 2 }),
+	reason: text().notNull(),
+	createdBy: int("created_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	expiresAt: timestamp("expires_at", { mode: 'string' }),
+});
+
+export const pdfReports = mysqlTable("pdf_reports", {
+	id: varchar({ length: 255 }).notNull(),
+	snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
+	s3Url: text("s3_url").notNull(),
+	fileSizeBytes: int("file_size_bytes").notNull(),
+	generatedAt: timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	deletedAt: timestamp("deleted_at", { mode: 'string' }),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+},
+(table) => [
+	index("idx_snapshot_id").on(table.snapshotId),
+	index("idx_tenant_id").on(table.tenantId),
+]);
+
+export const platformGovernanceLimits = mysqlTable("platform_governance_limits", {
+	id: int().autoincrement().notNull(),
+	maxAutoApprovalLimitGlobal: int("max_auto_approval_limit_global").notNull(),
+	minConfidenceAllowedGlobal: decimal("min_confidence_allowed_global", { precision: 5, scale: 2 }).notNull(),
+	maxFraudToleranceGlobal: decimal("max_fraud_tolerance_global", { precision: 5, scale: 2 }).notNull(),
+	version: int().notNull(),
+	effectiveFrom: timestamp("effective_from", { mode: 'string' }).notNull(),
+	createdBy: int("created_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	notes: text(),
+},
+(table) => [
+	index("idx_gov_limits_version").on(table.version),
+	index("idx_gov_limits_effective").on(table.effectiveFrom),
+]);
+
+export const policeReports = mysqlTable("police_reports", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	reportNumber: varchar("report_number", { length: 100 }).notNull(),
+	policeStation: varchar("police_station", { length: 200 }),
+	officerName: varchar("officer_name", { length: 200 }),
+	officerBadgeNumber: varchar("officer_badge_number", { length: 100 }),
+	reportDate: timestamp("report_date", { mode: 'string' }),
+	reportedSpeed: int("reported_speed"),
+	reportedWeather: varchar("reported_weather", { length: 100 }),
+	reportedRoadCondition: varchar("reported_road_condition", { length: 100 }),
+	reportedVisibility: varchar("reported_visibility", { length: 100 }),
+	accidentLocation: text("accident_location"),
+	accidentDescription: text("accident_description"),
+	violationsIssued: text("violations_issued"),
+	citationNumbers: text("citation_numbers"),
+	witnessStatements: text("witness_statements"),
+	witnessCount: int("witness_count").default(0),
+	policePhotos: text("police_photos"),
+	accidentDiagram: varchar("accident_diagram", { length: 500 }),
+	reportDocumentUrl: varchar("report_document_url", { length: 500 }),
+	speedDiscrepancy: int("speed_discrepancy"),
+	locationMismatch: tinyint("location_mismatch").default(0),
+	weatherMismatch: tinyint("weather_mismatch").default(0),
+	descriptionInconsistent: tinyint("description_inconsistent").default(0),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	roadSurface: varchar("road_surface", { length: 100 }),
+	vehicle1Mass: int("vehicle1_mass"),
+	vehicle2Mass: int("vehicle2_mass"),
+	skidMarkLength: decimal("skid_mark_length", { precision: 10, scale: 2 }),
+	impactSpeed: int("impact_speed"),
+	roadGradient: decimal("road_gradient", { precision: 5, scale: 2 }),
+	lightingCondition: varchar("lighting_condition", { length: 100 }),
+	trafficCondition: varchar("traffic_condition", { length: 100 }),
+	ocrExtracted: tinyint("ocr_extracted").default(0),
+	ocrConfidence: int("ocr_confidence"),
+	ocrNotes: text("ocr_notes"),
+});
+
+export const policyClaimLinks = mysqlTable("policy_claim_links", {
+	id: int().autoincrement().notNull(),
+	policyId: int("policy_id").notNull(),
+	claimId: int("claim_id").notNull(),
+	coverageVerified: tinyint("coverage_verified").default(0),
+	verifiedBy: int("verified_by"),
+	verifiedAt: timestamp("verified_at", { mode: 'string' }),
+	coverageApproved: tinyint("coverage_approved"),
+	coverageDecisionReason: text("coverage_decision_reason"),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const policyDocuments = mysqlTable("policy_documents", {
+	id: int().autoincrement().notNull(),
+	policyId: int("policy_id").notNull(),
+	documentType: mysqlEnum("document_type", ['policy_schedule','certificate_of_insurance','endorsement','cancellation_notice','renewal_notice','other']).notNull(),
+	documentUrl: varchar("document_url", { length: 500 }).notNull(),
+	s3Key: varchar("s3_key", { length: 500 }).notNull(),
+	version: int().default(1).notNull(),
+	fileName: varchar("file_name", { length: 255 }),
+	fileSize: int("file_size"),
+	mimeType: varchar("mime_type", { length: 100 }),
+	uploadedBy: int("uploaded_by"),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const policyEndorsements = mysqlTable("policy_endorsements", {
+	id: int().autoincrement().notNull(),
+	policyId: int("policy_id").notNull(),
+	endorsementNumber: varchar("endorsement_number", { length: 50 }).notNull(),
+	endorsementType: mysqlEnum("endorsement_type", ['add_driver','remove_driver','change_vehicle','adjust_coverage','change_excess','other']).notNull(),
+	endorsementDetails: text("endorsement_details").notNull(),
+	premiumAdjustment: int("premium_adjustment"),
+	newPremiumAmount: int("new_premium_amount"),
+	effectiveDate: timestamp("effective_date", { mode: 'string' }).notNull(),
+	createdBy: int("created_by").notNull(),
+	approvedBy: int("approved_by"),
+	approvedAt: timestamp("approved_at", { mode: 'string' }),
+	status: mysqlEnum(['pending','approved','rejected']).default('pending').notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("policy_endorsements_endorsement_number_unique").on(table.endorsementNumber),
+]);
+
+export const preAccidentDamage = mysqlTable("pre_accident_damage", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	damageType: mysqlEnum("damage_type", ['rust','dent','scratch','paint_damage','mechanical','glass','interior','other']).notNull(),
+	location: varchar({ length: 200 }).notNull(),
+	severity: mysqlEnum(['minor','moderate','severe']).notNull(),
+	description: text(),
+	photoUrl: varchar("photo_url", { length: 500 }),
+	documentedDate: timestamp("documented_date", { mode: 'string' }),
+	estimatedAge: varchar("estimated_age", { length: 100 }),
+	isRelatedToCurrentClaim: tinyint("is_related_to_current_claim").default(0),
+	assessorNotes: text("assessor_notes"),
+	documentedBy: int("documented_by"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const qualityMetrics = mysqlTable("quality_metrics", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	metricType: mysqlEnum("metric_type", ['processing_time','approval_rate','fraud_detection','cost_savings']).notNull(),
+	metricValue: decimal("metric_value", { precision: 10, scale: 2 }).notNull(),
+	periodStart: timestamp("period_start", { mode: 'string' }).notNull(),
+	periodEnd: timestamp("period_end", { mode: 'string' }).notNull(),
+	calculatedAt: timestamp("calculated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_quality_metrics_tenant_id").on(table.tenantId),
+]);
+
+export const quotationRequests = mysqlTable("quotation_requests", {
+	id: int().autoincrement().notNull(),
+	requestNumber: varchar("request_number", { length: 50 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }),
+	userId: int("user_id"),
+	fullName: varchar("full_name", { length: 255 }).notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	phone: varchar({ length: 50 }),
+	idNumber: varchar("id_number", { length: 20 }),
+	insuranceType: mysqlEnum("insurance_type", ['comprehensive','third_party','third_party_fire_theft','fleet','commercial']).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+	vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+	vehicleYear: int("vehicle_year").notNull(),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+	vehicleVin: varchar("vehicle_vin", { length: 50 }),
+	vehicleValue: int("vehicle_value"),
+	vehicleUsage: mysqlEnum("vehicle_usage", ['private','business','both']).default('private'),
+	driverAge: int("driver_age"),
+	driverLicenseYears: int("driver_license_years"),
+	claimsHistory: int("claims_history").default(0),
+	excessAmount: int("excess_amount"),
+	additionalCover: text("additional_cover"),
+	documents: text(),
+	quotedPremium: int("quoted_premium"),
+	quotedAnnualPremium: int("quoted_annual_premium"),
+	quotedExcess: int("quoted_excess"),
+	quoteValidUntil: timestamp("quote_valid_until", { mode: 'string' }),
+	quoteNotes: text("quote_notes"),
+	status: mysqlEnum(['pending','under_review','quoted','accepted','rejected','expired']).default('pending').notNull(),
+	assignedAgentId: int("assigned_agent_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("request_number").on(table.requestNumber),
+]);
+
+export const quoteLineItems = mysqlTable("quote_line_items", {
+	id: int().autoincrement().notNull(),
+	quoteId: int("quote_id").notNull(),
+	itemNumber: int("item_number"),
+	description: varchar({ length: 500 }).notNull(),
+	partNumber: varchar("part_number", { length: 100 }),
+	category: mysqlEnum(['parts','labor','paint','diagnostic','sundries','other']).notNull(),
+	quantity: decimal({ precision: 10, scale: 2 }).notNull(),
+	unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+	lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+	vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).default('15.00'),
+	vatAmount: decimal("vat_amount", { precision: 10, scale: 2 }),
+	totalWithVat: decimal("total_with_vat", { precision: 10, scale: 2 }),
+	isRepair: tinyint("is_repair").default(0),
+	isReplacement: tinyint("is_replacement").default(1),
+	bettermentAmount: decimal("betterment_amount", { precision: 10, scale: 2 }),
+	netCost: decimal("net_cost", { precision: 10, scale: 2 }),
+	isPriceInflated: tinyint("is_price_inflated").default(0),
+	isUnrelatedDamage: tinyint("is_unrelated_damage").default(0),
+	isMissingInOtherQuotes: tinyint("is_missing_in_other_quotes").default(0),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
+	id: int().autoincrement().notNull(),
+	userId: int("user_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	actionType: varchar("action_type", { length: 50 }).notNull(),
+	windowStart: timestamp("window_start", { mode: 'string' }).notNull(),
+	actionCount: int("action_count").default(1).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
+},
+(table) => [
+	index("idx_user_tenant_action_window").on(table.userId, table.tenantId, table.actionType, table.windowStart),
+	index("idx_window_start").on(table.windowStart),
+]);
+
+export const referenceDataset = mysqlTable("reference_dataset", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
+	includedAt: timestamp("included_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	usedForBenchmarking: tinyint("used_for_benchmarking").default(0),
+	usedForAnalytics: tinyint("used_for_analytics").default(0),
+	lastAccessedAt: timestamp("last_accessed_at", { mode: 'string' }),
+	referencePurpose: text("reference_purpose"),
+},
+(table) => [
+	index("reference_dataset_historical_claim_id_unique").on(table.historicalClaimId),
+]);
+
+export const regionalBenchmarks = mysqlTable("regional_benchmarks", {
+	id: int().autoincrement().notNull(),
+	region: varchar({ length: 100 }).notNull(),
+	city: varchar({ length: 100 }),
+	vehicleType: varchar("vehicle_type", { length: 50 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	yearRange: varchar("year_range", { length: 20 }),
+	laborRatePerHour: decimal("labor_rate_per_hour", { precision: 10, scale: 2 }),
+	paintCostPerPanel: decimal("paint_cost_per_panel", { precision: 10, scale: 2 }),
+	commonPartsCosts: text("common_parts_costs"),
+	sampleSize: int("sample_size"),
+	confidenceLevel: decimal("confidence_level", { precision: 5, scale: 2 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	effectiveFrom: date("effective_from", { mode: 'string' }).notNull(),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	effectiveTo: date("effective_to", { mode: 'string' }),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	dataSource: varchar("data_source", { length: 255 }),
+});
+
+export const regionalPricingMultipliers = mysqlTable("regional_pricing_multipliers", {
+	id: int().autoincrement().notNull(),
+	country: varchar({ length: 100 }).notNull(),
+	countryCode: varchar("country_code", { length: 3 }).notNull(),
+	transportCostMultiplier: decimal("transport_cost_multiplier", { precision: 5, scale: 2 }).notNull(),
+	dutyRate: decimal("duty_rate", { precision: 5, scale: 2 }).notNull(),
+	handlingFeeFlat: decimal("handling_fee_flat", { precision: 10, scale: 2 }).default('0.00'),
+	marginMultiplier: decimal("margin_multiplier", { precision: 5, scale: 2 }).default('1.10'),
+	currencyCode: varchar("currency_code", { length: 3 }).notNull(),
+	exchangeRateToUsd: decimal("exchange_rate_to_usd", { precision: 15, scale: 6 }).notNull(),
+	exchangeRateSource: varchar("exchange_rate_source", { length: 100 }),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedBy: int("updated_by"),
+	notes: text(),
+},
+(table) => [
+	index("regional_pricing_multipliers_country_unique").on(table.country),
+]);
+
+export const registrationRequests = mysqlTable("registration_requests", {
+	id: int().autoincrement().notNull(),
+	name: varchar({ length: 200 }).notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	phone: varchar({ length: 20 }),
+	role: mysqlEnum(['panel_beater','assessor']).notNull(),
+	businessName: varchar("business_name", { length: 200 }),
+	address: text(),
+	city: varchar({ length: 100 }),
+	licenseNumber: varchar("license_number", { length: 100 }),
+	yearsExperience: int("years_experience"),
+	specializations: text(),
+	documentsJson: text("documents_json"),
+	status: mysqlEnum(['pending','approved','rejected']).default('pending').notNull(),
+	reviewedBy: int("reviewed_by"),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	reviewNotes: text("review_notes"),
+	createdUserId: int("created_user_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const reportAccessAudit = mysqlTable("report_access_audit", {
+	id: int().autoincrement().notNull(),
+	reportId: varchar("report_id", { length: 255 }).notNull(),
+	reportType: mysqlEnum("report_type", ['pdf','interactive']).notNull(),
+	accessedBy: int("accessed_by").notNull(),
+	accessType: mysqlEnum("access_type", ['view','download','export','create']).notNull(),
+	accessedAt: timestamp("accessed_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	ipAddress: varchar("ip_address", { length: 45 }),
+	userAgent: text("user_agent"),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+},
+(table) => [
+	index("idx_report_id").on(table.reportId),
+	index("idx_accessed_by").on(table.accessedBy),
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_accessed_at").on(table.accessedAt),
+]);
+
+export const reportLinks = mysqlTable("report_links", {
+	id: varchar({ length: 255 }).notNull(),
+	snapshotId: varchar("snapshot_id", { length: 255 }).notNull(),
+	interactiveUrl: text("interactive_url").notNull(),
+	accessToken: varchar("access_token", { length: 255 }).notNull(),
+	qrCodeData: text("qr_code_data"),
+	expiresAt: timestamp("expires_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+},
+(table) => [
+	index("idx_snapshot_id").on(table.snapshotId),
+	index("idx_access_token").on(table.accessToken),
+	index("idx_tenant_id").on(table.tenantId),
+]);
+
+export const reportSnapshots = mysqlTable("report_snapshots", {
+	id: varchar({ length: 255 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	version: int().notNull(),
+	reportType: mysqlEnum("report_type", ['insurer','assessor','regulatory']).notNull(),
+	intelligenceData: json("intelligence_data").notNull(),
+	auditHash: varchar("audit_hash", { length: 64 }).notNull(),
+	generatedBy: int("generated_by").notNull(),
+	generatedAt: timestamp("generated_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	isImmutable: tinyint("is_immutable").default(1).notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+},
+(table) => [
+	index("idx_claim_version").on(table.claimId, table.version),
+	index("idx_audit_hash").on(table.auditHash),
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_generated_by").on(table.generatedBy),
+]);
+
+export const riskRegister = mysqlTable("risk_register", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	riskType: mysqlEnum("risk_type", ['fraud','cost_overrun','compliance','operational']).notNull(),
+	likelihood: int().notNull(),
+	impact: int().notNull(),
+	riskScore: int("risk_score").notNull(),
+	description: text().notNull(),
+	treatmentPlan: mysqlEnum("treatment_plan", ['accept','mitigate','transfer','avoid']),
+	treatmentNotes: text("treatment_notes"),
+	identifiedBy: int("identified_by").notNull(),
+	identifiedAt: timestamp("identified_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	reviewedBy: int("reviewed_by"),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	status: mysqlEnum(['open','mitigated','closed']).default('open').notNull(),
+},
+(table) => [
+	index("idx_risk_register_claim_id").on(table.claimId),
+	index("idx_risk_register_tenant_id").on(table.tenantId),
+]);
+
+export const roleAssignmentAudit = mysqlTable("role_assignment_audit", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	userId: int("user_id").notNull(),
+	previousRole: mysqlEnum("previous_role", ['user','admin','insurer','assessor','panel_beater','claimant']),
+	newRole: mysqlEnum("new_role", ['user','admin','insurer','assessor','panel_beater','claimant']).notNull(),
+	previousInsurerRole: mysqlEnum("previous_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin']),
+	newInsurerRole: mysqlEnum("new_insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin']),
+	changedByUserId: int("changed_by_user_id").notNull(),
+	justification: text(),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_tenant_id").on(table.tenantId),
+	index("idx_user_id").on(table.userId),
+	index("idx_changed_by").on(table.changedByUserId),
+	index("idx_timestamp").on(table.timestamp),
+	index("idx_role_audit_user_time").on(table.userId, table.timestamp),
+	index("idx_role_audit_tenant_time").on(table.tenantId, table.timestamp),
+]);
+
+export const routingHistory = mysqlTable("routing_history", {
+	id: varchar({ length: 64 }).notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	confidenceScore: decimal("confidence_score", { precision: 5, scale: 2 }).notNull(),
+	confidenceComponents: text("confidence_components").notNull(),
+	routingCategory: mysqlEnum("routing_category", ['HIGH','MEDIUM','LOW']).notNull(),
+	routingDecision: mysqlEnum("routing_decision", ['AI_FAST_TRACK','INTERNAL_REVIEW','EXTERNAL_REQUIRED','MANUAL_OVERRIDE']).notNull(),
+	thresholdConfigVersion: varchar("threshold_config_version", { length: 50 }).notNull(),
+	modelVersion: varchar("model_version", { length: 50 }).notNull(),
+	decidedBy: mysqlEnum("decided_by", ['AI','USER']).notNull(),
+	decidedByUserId: int("decided_by_user_id"),
+	justification: text(),
+	explainabilityMetadata: text("explainability_metadata"),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	routingVersion: int("routing_version").notNull(),
+	thresholdSnapshot: text("threshold_snapshot").notNull(),
+},
+(table) => [
+	index("idx_routing_claim_id").on(table.claimId),
+	index("idx_routing_tenant_id").on(table.tenantId),
+	index("idx_routing_timestamp").on(table.timestamp),
+	index("idx_routing_claim_tenant").on(table.claimId, table.tenantId),
+]);
+
+export const routingThresholdConfig = mysqlTable("routing_threshold_config", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	version: varchar({ length: 50 }).notNull(),
+	highThreshold: decimal("high_threshold", { precision: 5, scale: 2 }).notNull(),
+	mediumThreshold: decimal("medium_threshold", { precision: 5, scale: 2 }).notNull(),
+	aiFastTrackEnabled: tinyint("ai_fast_track_enabled").default(1).notNull(),
+	createdByUserId: int("created_by_user_id").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	isActive: tinyint("is_active").default(1).notNull(),
+},
+(table) => [
+	index("unique_threshold_tenant_version").on(table.tenantId, table.version),
+	index("idx_threshold_tenant_id").on(table.tenantId),
+	index("idx_threshold_active").on(table.isActive),
+	index("idx_threshold_tenant_active").on(table.tenantId, table.isActive),
+]);
+
+export const serviceProviders = mysqlTable("service_providers", {
+	id: int().autoincrement().notNull(),
+	providerName: varchar("provider_name", { length: 255 }).notNull(),
+	providerType: mysqlEnum("provider_type", ['panel_beater','mechanic','dealership','specialist']).notNull(),
+	contactPerson: varchar("contact_person", { length: 255 }),
+	email: varchar({ length: 320 }),
+	phone: varchar({ length: 20 }),
+	address: text(),
+	city: varchar({ length: 100 }),
+	region: varchar({ length: 100 }),
+	specializations: text(),
+	certifications: text(),
+	averageRating: decimal("average_rating", { precision: 3, scale: 2 }),
+	totalJobsCompleted: int("total_jobs_completed").default(0),
+	averageCompletionTime: decimal("average_completion_time", { precision: 6, scale: 2 }),
+	averageCostDeviation: decimal("average_cost_deviation", { precision: 5, scale: 2 }),
+	onTimeCompletionRate: decimal("on_time_completion_rate", { precision: 5, scale: 2 }),
+	isActive: tinyint("is_active").default(1),
+	isVerified: tinyint("is_verified").default(0),
+	verifiedAt: timestamp("verified_at", { mode: 'string' }),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const serviceQuotes = mysqlTable("service_quotes", {
+	id: int().autoincrement().notNull(),
+	requestId: int("request_id").notNull(),
+	providerId: int("provider_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	quotedAmount: int("quoted_amount").notNull(),
+	laborCost: int("labor_cost"),
+	partsCost: int("parts_cost"),
+	additionalCosts: int("additional_costs"),
+	estimatedDuration: int("estimated_duration"),
+	availabilityDate: timestamp("availability_date", { mode: 'string' }),
+	completionDate: timestamp("completion_date", { mode: 'string' }),
+	quoteLineItems: text("quote_line_items"),
+	partsRequired: text("parts_required"),
+	providerName: varchar("provider_name", { length: 255 }).notNull(),
+	providerLocation: varchar("provider_location", { length: 255 }),
+	providerRating: decimal("provider_rating", { precision: 3, scale: 2 }),
+	providerCompletedJobs: int("provider_completed_jobs"),
+	aiCostScore: int("ai_cost_score"),
+	costDeviationPercent: decimal("cost_deviation_percent", { precision: 5, scale: 2 }),
+	recommendationScore: int("recommendation_score"),
+	status: mysqlEnum(['pending','accepted','rejected','expired']).default('pending'),
+	validUntil: timestamp("valid_until", { mode: 'string' }),
+	submittedAt: timestamp("submitted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
+});
+
+export const serviceRequests = mysqlTable("service_requests", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	fleetId: int("fleet_id"),
+	ownerId: int("owner_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	requestType: mysqlEnum("request_type", ['maintenance','repair','inspection','emergency']).notNull(),
+	serviceCategory: mysqlEnum("service_category", ['engine','transmission','brakes','suspension','electrical','bodywork','tires','hvac','general']).notNull(),
+	title: varchar({ length: 255 }).notNull(),
+	description: text().notNull(),
+	urgency: mysqlEnum(['low','medium','high','critical']).default('medium'),
+	currentMileage: int("current_mileage"),
+	problemImages: text("problem_images"),
+	diagnosticCodes: text("diagnostic_codes"),
+	status: mysqlEnum(['open','quotes_received','quote_accepted','in_progress','completed','cancelled']).default('open'),
+	quotesReceived: int("quotes_received").default(0),
+	selectedQuoteId: int("selected_quote_id"),
+	selectedProviderId: int("selected_provider_id"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	completedAt: timestamp("completed_at", { mode: 'string' }),
+	requiresApproval: tinyint("requires_approval").default(1).notNull(),
+	approvalStatus: mysqlEnum("approval_status", ['pending','approved','rejected']).default('pending').notNull(),
+	approvedBy: int("approved_by"),
+	approvedAt: timestamp("approved_at", { mode: 'string' }),
+	rejectionReason: text("rejection_reason"),
+	submittedBy: int("submitted_by").notNull(),
+});
+
+export const similarClaimsClusters = mysqlTable("similar_claims_clusters", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	damageType: varchar("damage_type", { length: 100 }),
+	damageSeverity: mysqlEnum("damage_severity", ['minor','moderate','severe','total_loss']),
+	region: varchar({ length: 100 }),
+	clusterId: int("cluster_id"),
+	clusterSize: int("cluster_size"),
+	similarClaims: text("similar_claims"),
+	clusterMedianCost: decimal("cluster_median_cost", { precision: 10, scale: 2 }),
+	clusterAverageCost: decimal("cluster_average_cost", { precision: 10, scale: 2 }),
+	clusterStdDev: decimal("cluster_std_dev", { precision: 10, scale: 2 }),
+	similarityThreshold: decimal("similarity_threshold", { precision: 5, scale: 2 }),
+	kNeighbors: int("k_neighbors"),
+	clusteredAt: timestamp("clustered_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	clusteringAlgorithm: varchar("clustering_algorithm", { length: 50 }),
+});
+
+export const superAuditSessions = mysqlTable("super_audit_sessions", {
+	id: int().autoincrement().notNull(),
+	superAdminUserId: int("super_admin_user_id").notNull(),
+	superAdminName: varchar("super_admin_name", { length: 255 }),
+	auditedTenantId: varchar("audited_tenant_id", { length: 64 }),
+	impersonatedRole: varchar("impersonated_role", { length: 64 }),
+	sessionStartedAt: timestamp("session_started_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	sessionEndedAt: timestamp("session_ended_at", { mode: 'string' }),
+	sessionDurationSeconds: int("session_duration_seconds"),
+	accessedClaimIds: text("accessed_claim_ids"),
+	accessedDashboards: text("accessed_dashboards"),
+	replayedClaimIds: text("replayed_claim_ids"),
+	viewedAiScoringClaimIds: text("viewed_ai_scoring_claim_ids"),
+	viewedRoutingLogicClaimIds: text("viewed_routing_logic_claim_ids"),
+	isActive: tinyint("is_active").default(1).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("idx_super_audit_sessions_super_admin_user_id").on(table.superAdminUserId),
+	index("idx_super_audit_sessions_audited_tenant_id").on(table.auditedTenantId),
+	index("idx_super_audit_sessions_session_started_at").on(table.sessionStartedAt),
+]);
+
+export const supplierPerformanceMetrics = mysqlTable("supplier_performance_metrics", {
+	id: int().autoincrement().notNull(),
+	supplierName: varchar("supplier_name", { length: 255 }).notNull(),
+	supplierCountry: varchar("supplier_country", { length: 100 }),
+	totalQuotesSubmitted: int("total_quotes_submitted").default(0),
+	totalQuotesApproved: int("total_quotes_approved").default(0),
+	totalQuotesRejected: int("total_quotes_rejected").default(0),
+	avgPriceVsMarket: decimal("avg_price_vs_market", { precision: 5, scale: 2 }),
+	avgExtractionConfidence: decimal("avg_extraction_confidence", { precision: 5, scale: 2 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	firstQuoteDate: date("first_quote_date", { mode: 'string' }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	lastQuoteDate: date("last_quote_date", { mode: 'string' }),
+	lastUpdated: timestamp("last_updated", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("supplier_performance_metrics_supplier_name_unique").on(table.supplierName),
+]);
+
+export const supplierQuoteLineItems = mysqlTable("supplier_quote_line_items", {
+	id: int().autoincrement().notNull(),
+	quoteId: int("quote_id").notNull(),
+	partName: varchar("part_name", { length: 255 }).notNull(),
+	partNumber: varchar("part_number", { length: 100 }),
+	partDescription: text("part_description"),
+	partCategory: varchar("part_category", { length: 100 }),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYearFrom: int("vehicle_year_from"),
+	vehicleYearTo: int("vehicle_year_to"),
+	price: decimal({ precision: 10, scale: 2 }).notNull(),
+	currency: varchar({ length: 3 }).notNull(),
+	partType: mysqlEnum("part_type", ['OEM','OEM_Equivalent','Aftermarket','Used','Unknown']).default('Unknown'),
+	quantity: int().default(1),
+	approved: tinyint().default(0),
+	rejectionReason: text("rejection_reason"),
+	extractedAt: timestamp("extracted_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	lineNumber: int("line_number"),
+	shippingCost: decimal("shipping_cost", { precision: 10, scale: 2 }),
+	customsDuty: decimal("customs_duty", { precision: 10, scale: 2 }),
+	clearingFees: decimal("clearing_fees", { precision: 10, scale: 2 }),
+	forexCharges: decimal("forex_charges", { precision: 10, scale: 2 }),
+	leadTimeDays: int("lead_time_days"),
+});
+
+export const supplierQuotes = mysqlTable("supplier_quotes", {
+	id: int().autoincrement().notNull(),
+	supplierName: varchar("supplier_name", { length: 255 }).notNull(),
+	supplierCountry: varchar("supplier_country", { length: 100 }).notNull(),
+	supplierContact: varchar("supplier_contact", { length: 255 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	quoteDate: date("quote_date", { mode: 'string' }).notNull(),
+	quoteNumber: varchar("quote_number", { length: 100 }),
+	// you can use { mode: 'date' }, if you want to have Date as type for this column
+	quoteValidUntil: date("quote_valid_until", { mode: 'string' }),
+	documentUrl: text("document_url").notNull(),
+	documentType: mysqlEnum("document_type", ['pdf','excel','image']).notNull(),
+	status: mysqlEnum(['pending','approved','rejected']).default('pending').notNull(),
+	extractedAt: timestamp("extracted_at", { mode: 'string' }),
+	reviewedAt: timestamp("reviewed_at", { mode: 'string' }),
+	reviewedBy: int("reviewed_by"),
+	extractionConfidence: decimal("extraction_confidence", { precision: 5, scale: 2 }),
+	extractionNotes: text("extraction_notes"),
+	uploadedBy: int("uploaded_by").notNull(),
+	uploadedAt: timestamp("uploaded_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	notes: text(),
+});
+
+export const tenantInvitations = mysqlTable("tenant_invitations", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).notNull(),
+	insurerRole: mysqlEnum("insurer_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin']),
+	token: varchar({ length: 64 }).notNull(),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
+	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
+	createdBy: int("created_by").notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("tenant_id_idx").on(table.tenantId),
+	index("email_idx").on(table.email),
+	index("token_idx").on(table.token),
+	index("expires_at_idx").on(table.expiresAt),
+	index("token").on(table.token),
+]);
+
+export const tenantRoleConfigs = mysqlTable("tenant_role_configs", {
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	roleKey: mysqlEnum("role_key", ['executive','claims_manager','claims_processor','assessor_internal','assessor_external','risk_manager','insurer_admin']).notNull(),
+	enabled: tinyint().default(1).notNull(),
+	displayName: varchar("display_name", { length: 100 }),
+	permissions: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const tenantWorkflowConfigs = mysqlTable("tenant_workflow_configs", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	requireExecutiveApprovalAbove: decimal("require_executive_approval_above", { precision: 10, scale: 2 }).default('50000.00'),
+	requireManagerApprovalAbove: decimal("require_manager_approval_above", { precision: 10, scale: 2 }).default('10000.00'),
+	autoApproveBelow: decimal("auto_approve_below", { precision: 10, scale: 2 }).default('5000.00'),
+	fraudFlagThreshold: decimal("fraud_flag_threshold", { precision: 3, scale: 2 }).default('0.70'),
+	requireInternalAssessment: tinyint("require_internal_assessment").default(0).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("tenant_id").on(table.tenantId),
+]);
+
+export const tenants = mysqlTable("tenants", {
+	id: varchar({ length: 255 }).notNull(),
+	name: varchar({ length: 255 }).notNull(),
+	displayName: varchar("display_name", { length: 255 }).notNull(),
+	tier: mysqlEnum(['tier-basic','tier-professional','tier-enterprise']).default('tier-basic').notNull(),
+	status: mysqlEnum(['active','suspended','cancelled']).default('active').notNull(),
+	encryptionKeyId: varchar("encryption_key_id", { length: 255 }),
+	contactName: varchar("contact_name", { length: 255 }),
+	contactEmail: varchar("contact_email", { length: 255 }).notNull(),
+	contactPhone: varchar("contact_phone", { length: 50 }),
+	billingEmail: varchar("billing_email", { length: 255 }).notNull(),
+	configJson: json("config_json"),
+	workflowConfig: text("workflow_config"),
+	intakeEscalationHours: int("intake_escalation_hours").default(6),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP'),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow(),
+	activatedAt: timestamp("activated_at", { mode: 'string' }),
+	suspendedAt: timestamp("suspended_at", { mode: 'string' }),
+	intakeEscalationEnabled: tinyint("intake_escalation_enabled").default(0).notNull(),
+	intakeEscalationMode: mysqlEnum("intake_escalation_mode", ['auto_assign','escalate_only']).default('escalate_only'),
+	aiRerunLimitPerHour: int("ai_rerun_limit_per_hour").default(10).notNull(),
+},
+(table) => [
+	index("idx_tenants_name").on(table.name),
+	index("idx_tenants_status").on(table.status),
+	index("name").on(table.name),
+]);
+
+export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	make: varchar({ length: 100 }),
+	model: varchar({ length: 100 }),
+	year: int(),
+	registration: varchar({ length: 50 }),
+	vin: varchar({ length: 17 }),
+	color: varchar({ length: 50 }),
+	ownerName: varchar("owner_name", { length: 200 }),
+	ownerContact: varchar("owner_contact", { length: 100 }),
+	ownerAddress: text("owner_address"),
+	driverName: varchar("driver_name", { length: 200 }),
+	driverLicense: varchar("driver_license", { length: 100 }),
+	insuranceCompany: varchar("insurance_company", { length: 200 }),
+	policyNumber: varchar("policy_number", { length: 100 }),
+	damageDescription: text("damage_description"),
+	damagePhotos: text("damage_photos"),
+	estimatedRepairCost: int("estimated_repair_cost"),
+	marketValue: int("market_value"),
+	marketValueSource: varchar("market_value_source", { length: 255 }),
+	marketValueConfidence: mysqlEnum("market_value_confidence", ['low','medium','high']),
+	liabilityPercentage: int("liability_percentage").default(0),
+	compensationAmount: int("compensation_amount"),
+	compensationType: mysqlEnum("compensation_type", ['repair','cash','total_loss']),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const trainingDataScores = mysqlTable("training_data_scores", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	trainingConfidenceScore: decimal("training_confidence_score", { precision: 5, scale: 2 }).notNull(),
+	trainingConfidenceCategory: mysqlEnum("training_confidence_category", ['HIGH','MEDIUM','LOW']).notNull(),
+	assessorReportScore: decimal("assessor_report_score", { precision: 5, scale: 2 }).default('0.00'),
+	supportingPhotosScore: decimal("supporting_photos_score", { precision: 5, scale: 2 }).default('0.00'),
+	panelBeaterQuotesScore: decimal("panel_beater_quotes_score", { precision: 5, scale: 2 }).default('0.00'),
+	evidenceCompletenessScore: decimal("evidence_completeness_score", { precision: 5, scale: 2 }).default('0.00'),
+	handwrittenAdjustmentsScore: decimal("handwritten_adjustments_score", { precision: 5, scale: 2 }).default('0.00'),
+	fraudMarkersScore: decimal("fraud_markers_score", { precision: 5, scale: 2 }).default('0.00'),
+	disputeHistoryScore: decimal("dispute_history_score", { precision: 5, scale: 2 }).default('0.00'),
+	competingQuotesScore: decimal("competing_quotes_score", { precision: 5, scale: 2 }).default('0.00'),
+	scoringAlgorithmVersion: varchar("scoring_algorithm_version", { length: 20 }),
+	scoringNotes: text("scoring_notes"),
+	anomalyDetected: tinyint("anomaly_detected").default(0),
+	anomalyReason: text("anomaly_reason"),
+	biasRiskDetected: tinyint("bias_risk_detected").default(0),
+	biasRiskReason: text("bias_risk_reason"),
+	scoredAt: timestamp("scored_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("training_data_scores_historical_claim_id_unique").on(table.historicalClaimId),
+]);
+
+export const trainingDataset = mysqlTable("training_dataset", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	datasetVersion: varchar("dataset_version", { length: 50 }).notNull(),
+	includedAt: timestamp("included_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	includedBy: int("included_by").notNull(),
+	inclusionReason: text("inclusion_reason"),
+	usedInModelVersions: text("used_in_model_versions"),
+	lastUsedForTraining: timestamp("last_used_for_training", { mode: 'string' }),
+	isActive: tinyint("is_active").default(1),
+	deactivatedAt: timestamp("deactivated_at", { mode: 'string' }),
+	deactivationReason: text("deactivation_reason"),
+	trainingWeight: decimal("training_weight", { precision: 3, scale: 2 }).default('1.00'),
+	negotiatedAdjustment: tinyint("negotiated_adjustment").default(0),
+	deviationReason: mysqlEnum("deviation_reason", ['none','negotiation','fraud','regional_variance','data_quality','assessor_bias','manual_override']).default('none'),
+},
+(table) => [
+	index("training_dataset_historical_claim_id_unique").on(table.historicalClaimId),
+]);
+
+export const trainingRecords = mysqlTable("training_records", {
+	id: varchar({ length: 64 }).notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	userId: int("user_id").notNull(),
+	trainingType: mysqlEnum("training_type", ['fraud_detection','iso_compliance','role_onboarding']).notNull(),
+	completionDate: timestamp("completion_date", { mode: 'string' }).notNull(),
+	expiryDate: timestamp("expiry_date", { mode: 'string' }),
+	trainer: varchar({ length: 255 }),
+	assessmentScore: decimal("assessment_score", { precision: 5, scale: 2 }),
+	certificateUrl: text("certificate_url"),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_training_records_user_id").on(table.userId),
+	index("idx_training_records_tenant_id").on(table.tenantId),
+]);
+
+export const usageEvents = mysqlTable("usage_events", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	claimId: int("claim_id"),
+	eventType: mysqlEnum("event_type", ['CLAIM_PROCESSED','AI_EVALUATED','FAST_TRACK_TRIGGERED','AUTO_APPROVED','ASSESSOR_TOOL_USED','FLEET_VEHICLE_ACTIVE','AGENCY_POLICY_BOUND','AI_ASSESSMENT_TRIGGERED','DOCUMENT_INGESTED','EXECUTIVE_ANALYTICS_QUERY','GOVERNANCE_CHECK','FLEET_VEHICLE_MANAGED','MARKETPLACE_QUOTE_REQUEST']).notNull(),
+	quantity: int().default(1).notNull(),
+	timestamp: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	referenceId: varchar("reference_id", { length: 255 }),
+	metadata: json(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	userId: int("user_id"),
+	resourceType: varchar("resource_type", { length: 100 }),
+	computeUnits: decimal("compute_units", { precision: 10, scale: 4 }).default('1.0000'),
+	processingTimeMs: int("processing_time_ms"),
+	estimatedCost: decimal("estimated_cost", { precision: 10, scale: 4 }),
+},
+(table) => [
+	index("tenant_idx").on(table.tenantId),
+	index("claim_idx").on(table.claimId),
+	index("event_type_idx").on(table.eventType),
+	index("timestamp_idx").on(table.timestamp),
+	index("reference_idx").on(table.referenceId),
+]);
+
+export const userInvitations = mysqlTable("user_invitations", {
+	id: int().autoincrement().notNull(),
+	organizationId: int("organization_id").notNull(),
+	email: varchar({ length: 320 }).notNull(),
+	role: mysqlEnum(['insurer','assessor']).notNull(),
+	invitedBy: int("invited_by").notNull(),
+	invitationToken: varchar("invitation_token", { length: 64 }).notNull(),
+	status: mysqlEnum(['pending','accepted','expired','cancelled']).default('pending').notNull(),
+	acceptedAt: timestamp("accepted_at", { mode: 'string' }),
+	acceptedUserId: int("accepted_user_id"),
+	expiresAt: timestamp("expires_at", { mode: 'string' }).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("invitation_token").on(table.invitationToken),
+]);
+
+export const users = mysqlTable("users", {
+	id: int().autoincrement().notNull(),
+	openId: varchar({ length: 64 }).notNull(),
+	name: text(),
+	email: varchar({ length: 320 }),
+	passwordHash: varchar("password_hash", { length: 255 }),
+	loginMethod: varchar({ length: 64 }),
+	role: mysqlEnum(['user','admin','insurer','assessor','panel_beater','claimant','platform_super_admin','fleet_admin','fleet_manager','fleet_driver']).default('user').notNull(),
+	insurerRole: mysqlEnum("insurer_role", ['claims_processor','internal_assessor','risk_manager','claims_manager','executive']),
+	organizationId: int("organization_id"),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	emailVerified: tinyint("email_verified").default(0).notNull(),
+	createdAt: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp({ mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+	lastSignedIn: timestamp({ mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	assessorTier: mysqlEnum("assessor_tier", ['free','premium','enterprise']).default('free'),
+	tierActivatedAt: timestamp("tier_activated_at", { mode: 'string' }),
+	tierExpiresAt: timestamp("tier_expires_at", { mode: 'string' }),
+	performanceScore: int("performance_score").default(70),
+	totalAssessmentsCompleted: int("total_assessments_completed").default(0),
+	averageVarianceFromFinal: int("average_variance_from_final"),
+	accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default('0.00'),
+	avgCompletionTime: decimal("avg_completion_time", { precision: 6, scale: 2 }).default('0.00'),
+	insurerRole: text(),
+},
+(table) => [
+	index("users_openId_unique").on(table.openId),
+	index("idx_users_tenant_id").on(table.tenantId),
+]);
+
+export const varianceDatasets = mysqlTable("variance_datasets", {
+	id: int().autoincrement().notNull(),
+	historicalClaimId: int("historical_claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }).notNull(),
+	comparisonType: mysqlEnum("comparison_type", ['quote_vs_final','ai_vs_final','assessor_vs_final','quote_vs_assessor','ai_vs_assessor','quote_vs_ai']).notNull(),
+	sourceALabel: varchar("source_a_label", { length: 100 }).notNull(),
+	sourceAAmount: decimal("source_a_amount", { precision: 12, scale: 2 }).notNull(),
+	sourceBLabel: varchar("source_b_label", { length: 100 }).notNull(),
+	sourceBAmount: decimal("source_b_amount", { precision: 12, scale: 2 }).notNull(),
+	varianceAmount: decimal("variance_amount", { precision: 12, scale: 2 }).notNull(),
+	variancePercent: decimal("variance_percent", { precision: 8, scale: 2 }).notNull(),
+	absoluteVariancePercent: decimal("absolute_variance_percent", { precision: 8, scale: 2 }).notNull(),
+	laborVariance: decimal("labor_variance", { precision: 12, scale: 2 }),
+	partsVariance: decimal("parts_variance", { precision: 12, scale: 2 }),
+	paintVariance: decimal("paint_variance", { precision: 12, scale: 2 }),
+	varianceCategory: mysqlEnum("variance_category", ['within_threshold','minor_variance','significant_variance','major_variance','extreme_variance']).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	accidentType: varchar("accident_type", { length: 100 }),
+	assessorName: varchar("assessor_name", { length: 255 }),
+	assessorLicenseNumber: varchar("assessor_license_number", { length: 100 }),
+	isFraudSuspected: tinyint("is_fraud_suspected").default(0),
+	isOutlier: tinyint("is_outlier").default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+	index("idx_vd_claim").on(table.historicalClaimId),
+	index("idx_vd_tenant").on(table.tenantId),
+	index("idx_vd_type").on(table.comparisonType),
+]);
+
+export const vehicleConditionAssessment = mysqlTable("vehicle_condition_assessment", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	assessorId: int("assessor_id").notNull(),
+	speedoReading: int("speedo_reading"),
+	speedoUnit: mysqlEnum("speedo_unit", ['km','miles']).default('km'),
+	brakesCondition: mysqlEnum("brakes_condition", ['good','fair','poor']),
+	brakesNotes: text("brakes_notes"),
+	steeringCondition: mysqlEnum("steering_condition", ['good','fair','poor']),
+	steeringNotes: text("steering_notes"),
+	tiresCondition: mysqlEnum("tires_condition", ['good','fair','poor']),
+	tireTreadDepthMm: int("tire_tread_depth_mm"),
+	tiresNotes: text("tires_notes"),
+	suspensionCondition: mysqlEnum("suspension_condition", ['good','fair','poor']),
+	suspensionNotes: text("suspension_notes"),
+	bodyworkCondition: mysqlEnum("bodywork_condition", ['good','fair','poor']),
+	bodyworkNotes: text("bodywork_notes"),
+	paintworkCondition: mysqlEnum("paintwork_condition", ['good','fair','poor']),
+	paintworkNotes: text("paintwork_notes"),
+	upholsteryCondition: mysqlEnum("upholstery_condition", ['good','fair','poor']),
+	upholsteryNotes: text("upholstery_notes"),
+	generalMechanical: mysqlEnum("general_mechanical", ['good','fair','poor']),
+	mechanicalNotes: text("mechanical_notes"),
+	radioPresent: tinyint("radio_present").default(1),
+	radioModel: varchar("radio_model", { length: 100 }),
+	tokenNumber: varchar("token_number", { length: 100 }),
+	overallCondition: mysqlEnum("overall_condition", ['excellent','good','fair','poor']),
+	maintenanceLevel: mysqlEnum("maintenance_level", ['well_maintained','average','poorly_maintained']),
+	hasContributoryNegligence: tinyint("has_contributory_negligence").default(0),
+	negligenceDescription: text("negligence_description"),
+	conditionPhotos: text("condition_photos"),
+	assessmentDate: timestamp("assessment_date", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	assessorSignature: varchar("assessor_signature", { length: 500 }),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const vehicleHistory = mysqlTable("vehicle_history", {
+	id: int().autoincrement().notNull(),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }).notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }),
+	vehicleModel: varchar("vehicle_model", { length: 100 }),
+	vehicleYear: int("vehicle_year"),
+	vin: varchar({ length: 17 }),
+	currentOwnerId: int("current_owner_id"),
+	ownershipChangeCount: int("ownership_change_count").default(0),
+	ownershipHistory: text("ownership_history"),
+	totalClaims: int("total_claims").default(0),
+	totalClaimAmount: int("total_claim_amount").default(0),
+	lastClaimDate: timestamp("last_claim_date", { mode: 'string' }),
+	hasPreExistingDamage: tinyint("has_pre_existing_damage").default(0),
+	isSalvageTitle: tinyint("is_salvage_title").default(0),
+	hasOdometerFraud: tinyint("has_odometer_fraud").default(0),
+	isStolen: tinyint("is_stolen").default(0),
+	uniqueDriversCount: int("unique_drivers_count").default(0),
+	nonOwnerAccidentCount: int("non_owner_accident_count").default(0),
+	driverHistory: text("driver_history"),
+	riskScore: int("risk_score").default(0),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("vehicle_registration").on(table.vehicleRegistration),
+]);
+
+export const vehicleMarketValuations = mysqlTable("vehicle_market_valuations", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+	vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+	vehicleYear: int("vehicle_year").notNull(),
+	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
+	mileage: int(),
+	condition: mysqlEnum(['excellent','good','fair','poor']),
+	estimatedMarketValue: int("estimated_market_value").notNull(),
+	valuationMethod: mysqlEnum("valuation_method", ['facebook_marketplace','classifieds','autotrader_sa','historical_claims','manual_assessor','ai_estimation','hybrid']).notNull(),
+	facebookPrices: text("facebook_prices"),
+	classifiedsPrices: text("classifieds_prices"),
+	autotraderSaPrices: text("autotrader_sa_prices"),
+	saBasePrice: int("sa_base_price"),
+	importDutyPercent: decimal("import_duty_percent", { precision: 5, scale: 2 }),
+	importDutyAmount: int("import_duty_amount"),
+	transportCost: int("transport_cost"),
+	totalImportCost: int("total_import_cost"),
+	confidenceScore: int("confidence_score"),
+	dataPointsCount: int("data_points_count"),
+	priceRange: text("price_range"),
+	conditionAdjustment: int("condition_adjustment"),
+	mileageAdjustment: int("mileage_adjustment"),
+	marketTrendAdjustment: int("market_trend_adjustment"),
+	finalAdjustedValue: int("final_adjusted_value"),
+	isTotalLoss: tinyint("is_total_loss").default(0),
+	totalLossThreshold: decimal("total_loss_threshold", { precision: 5, scale: 2 }).default('60.00'),
+	repairCostToValueRatio: decimal("repair_cost_to_value_ratio", { precision: 5, scale: 2 }),
+	assessorOverride: tinyint("assessor_override").default(0),
+	assessorValue: int("assessor_value"),
+	assessorJustification: text("assessor_justification"),
+	valuationDate: timestamp("valuation_date", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	validUntil: timestamp("valid_until", { mode: 'string' }),
+	valuedBy: int("valued_by"),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+});
+
+export const vehicleMileageLogs = mysqlTable("vehicle_mileage_logs", {
+	id: int().autoincrement().notNull(),
+	vehicleId: int("vehicle_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 64 }),
+	mileage: int().notNull(),
+	recordedDate: timestamp("recorded_date", { mode: 'string' }).notNull(),
+	recordedBy: int("recorded_by").notNull(),
+	recordType: mysqlEnum("record_type", ['manual','service','inspection','claim','automated']).default('manual'),
+	notes: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+});
+
+export const workflowAuditTrail = mysqlTable("workflow_audit_trail", {
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	userId: int("user_id").notNull(),
+	userRole: mysqlEnum("user_role", ['claims_processor','assessor_internal','assessor_external','risk_manager','claims_manager','executive','insurer_admin']).notNull(),
+	previousState: mysqlEnum("previous_state", ['created','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed']),
+	newState: mysqlEnum("new_state", ['created','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed']).notNull(),
+	decisionValue: int("decision_value"),
+	aiScore: int("ai_score"),
+	confidenceScore: int("confidence_score"),
+	comments: text(),
+	metadata: text(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	executiveOverride: int("executive_override").default(0),
+	overrideReason: text("override_reason"),
+},
+(table) => [
+	index("idx_workflow_audit_claim_state_time").on(table.claimId, table.newState, table.createdAt),
+	index("idx_workflow_audit_override").on(table.executiveOverride, table.createdAt),
+	index("idx_audit_claim_timestamp").on(table.claimId, table.createdAt),
+	index("").on(table.claimId, table.createdAt),
+]);
+
+export const workflowConfiguration = mysqlTable("workflow_configuration", {
+	id: int().autoincrement().notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	riskManagerEnabled: tinyint("risk_manager_enabled").default(1).notNull(),
+	highValueThreshold: int("high_value_threshold").default(1000000).notNull(),
+	executiveReviewThreshold: int("executive_review_threshold").default(5000000).notNull(),
+	aiFastTrackEnabled: tinyint("ai_fast_track_enabled").default(0).notNull(),
+	externalAssessorEnabled: tinyint("external_assessor_enabled").default(1).notNull(),
+	maxSequentialStagesByUser: int("max_sequential_stages_by_user").default(2).notNull(),
+	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+	index("tenant_id").on(table.tenantId),
+]);
 
 export const workflowStates = mysqlTable("workflow_states", {
-  id: int("id").primaryKey().autoincrement(),
-  claimId: int("claim_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  currentState: varchar("current_state", { length: 100 }).notNull(),
-  previousState: varchar("previous_state", { length: 100 }),
-  transitionedBy: int("transitioned_by").notNull(),
-  transitionedAt: timestamp("transitioned_at").notNull().defaultNow(),
-  metadata: json("metadata"),
-});
-
-export type WorkflowState = typeof workflowStates.$inferSelect;
-export type InsertWorkflowState = typeof workflowStates.$inferInsert;
-
-
-/**
- * Usage Events Table
- * Event-based usage tracking for metering and analytics
- */
-export const usageEvents = mysqlTable("usage_events", {
-  id: int("id").primaryKey().autoincrement(),
-  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
-  claimId: int("claim_id"),
-  eventType: mysqlEnum("event_type", [
-    "CLAIM_PROCESSED",
-    "AI_EVALUATED",
-    "FAST_TRACK_TRIGGERED",
-    "AUTO_APPROVED",
-    "ASSESSOR_TOOL_USED",
-    "FLEET_VEHICLE_ACTIVE",
-    "AGENCY_POLICY_BOUND",
-    "AI_ASSESSMENT_TRIGGERED",
-    "DOCUMENT_INGESTED",
-    "EXECUTIVE_ANALYTICS_QUERY",
-    "GOVERNANCE_CHECK",
-    "FLEET_VEHICLE_MANAGED",
-    "MARKETPLACE_QUOTE_REQUEST"
-  ]).notNull(),
-  quantity: int("quantity").notNull().default(1),
-  timestamp: timestamp("timestamp").notNull().defaultNow(),
-  referenceId: varchar("reference_id", { length: 255 }), // For deduplication
-  metadata: json("metadata"), // Additional context
-  
-  // Monetisation fields
-  userId: int("user_id"), // User who triggered the event
-  resourceType: varchar("resource_type", { length: 100 }), // "claim", "document", "vehicle", etc.
-  computeUnits: decimal("compute_units", { precision: 10, scale: 4 }).default("1.0000"), // Normalized compute cost
-  processingTimeMs: int("processing_time_ms"), // Processing duration
-  estimatedCost: decimal("estimated_cost", { precision: 10, scale: 4 }), // Cost in cents
-  
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-}, (table) => ({
-  tenantIdx: index("tenant_idx").on(table.tenantId),
-  claimIdx: index("claim_idx").on(table.claimId),
-  eventTypeIdx: index("event_type_idx").on(table.eventType),
-  timestampIdx: index("timestamp_idx").on(table.timestamp),
-  referenceIdx: index("reference_idx").on(table.referenceId),
-}))
-
-export type UsageEvent = typeof usageEvents.$inferSelect;
-export type InsertUsageEvent = typeof usageEvents.$inferInsert;
-
-/**
- * Access Denial Log - Audit trail for role-based access control denials
- * Logs all attempts to access routes or procedures without proper permissions
- */
-export const accessDenialLog = mysqlTable("access_denial_log", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id"), // User who attempted access
-  attemptedRoute: varchar("attempted_route", { length: 500 }), // Route or procedure attempted
-  userRole: varchar("user_role", { length: 100 }), // User's role at time of attempt
-  insurerRole: varchar("insurer_role", { length: 100 }), // User's insurerRole at time of attempt
-  tenantId: varchar("tenant_id", { length: 255 }), // User's tenantId at time of attempt
-  denialReason: text("denial_reason"), // Reason for denial
-  ipAddress: varchar("ip_address", { length: 45 }), // IP address of request
-  userAgent: text("user_agent"), // Browser user agent
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-export type AccessDenialLog = typeof accessDenialLog.$inferSelect;
-export type InsertAccessDenialLog = typeof accessDenialLog.$inferInsert;
-
-/**
- * Rate Limit Tracking
- * Tracks AI rerun actions per user per tenant for rate limiting enforcement.
- * Governed AI Rerun Capability
- */
-export const rateLimitTracking = mysqlTable("rate_limit_tracking", {
-  id: int("id").autoincrement().primaryKey(),
-  userId: int("user_id").notNull(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  actionType: varchar("action_type", { length: 50 }).notNull(), // 'ai_rerun', 'confidence_recalc', 'routing_reevaluation'
-  windowStart: timestamp("window_start").notNull(), // Start of the current hour window
-  actionCount: int("action_count").notNull().default(1), // Number of actions in this window
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  userTenantActionWindowIdx: index("idx_user_tenant_action_window").on(table.userId, table.tenantId, table.actionType, table.windowStart),
-  windowStartIdx: index("idx_window_start").on(table.windowStart),
-}));
-
-export type RateLimitTracking = typeof rateLimitTracking.$inferSelect;
-export type InsertRateLimitTracking = typeof rateLimitTracking.$inferInsert;
-
-/**
- * Governance Notifications
- * In-app notifications for critical governance events.
- * Governance Notification Service
- */
-export const governanceNotifications = mysqlTable("governance_notifications", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  type: mysqlEnum("type", [
-    "intake_escalation",
-    "auto_assignment",
-    "ai_rerun",
-    "executive_override",
-    "segregation_violation",
-  ]).notNull(),
-  claimId: int("claim_id"), // Nullable for system-wide notifications
-  recipients: text("recipients").notNull(), // JSON array of user IDs
-  title: varchar("title", { length: 255 }).notNull(),
-  message: text("message").notNull(),
-  metadata: text("metadata"), // JSON object for additional context
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  readAt: timestamp("read_at"), // NULL = unread, timestamp = read
-}, (table) => ({
-  tenantIdIdx: index("idx_tenant_id").on(table.tenantId),
-  claimIdIdx: index("idx_claim_id").on(table.claimId),
-  recipientsIdx: index("idx_recipients").on(table.recipients),
-  readAtIdx: index("idx_read_at").on(table.readAt),
-  createdAtIdx: index("idx_created_at").on(table.createdAt),
-}));
-
-export type GovernanceNotification = typeof governanceNotifications.$inferSelect;
-export type InsertGovernanceNotification = typeof governanceNotifications.$inferInsert;
-
-
-// ============================================================================
-// FLEET GOVERNANCE FOUNDATION - Driver Management & Incident Reporting
-// ============================================================================
-
-/**
- * Fleet Drivers - Driver profiles linked to fleet and user accounts
- */
-export const fleetDrivers = mysqlTable("fleet_drivers", {
-  id: int("id").autoincrement().primaryKey(),
-  fleetId: int("fleet_id").notNull(), // Reference to fleets table
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(), // Multi-tenant isolation
-  userId: int("user_id").notNull(), // Reference to users table (fleet_driver role)
-  
-  // Driver license information
-  driverLicenseNumber: varchar("driver_license_number", { length: 50 }).notNull(),
-  licenseExpiry: date("license_expiry").notNull(),
-  licenseClass: varchar("license_class", { length: 20 }), // e.g., "C1", "EB"
-  
-  // Employment information
-  hireDate: date("hire_date").notNull(),
-  employmentStatus: mysqlEnum("employment_status", ["active", "suspended", "terminated"]).default("active").notNull(),
-  terminationDate: date("termination_date"),
-  
-  // Driver profile
-  emergencyContactName: varchar("emergency_contact_name", { length: 255 }),
-  emergencyContactPhone: varchar("emergency_contact_phone", { length: 50 }),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  tenantIdIdx: index("idx_fleet_drivers_tenant_id").on(table.tenantId),
-  fleetIdIdx: index("idx_fleet_drivers_fleet_id").on(table.fleetId),
-  userIdIdx: index("idx_fleet_drivers_user_id").on(table.userId),
-}));
-
-export type FleetDriver = typeof fleetDrivers.$inferSelect;
-export type InsertFleetDriver = typeof fleetDrivers.$inferInsert;
-
-/**
- * Fleet Incident Reports - Driver-submitted incident reports
- */
-export const fleetIncidentReports = mysqlTable("fleet_incident_reports", {
-  id: int("id").autoincrement().primaryKey(),
-  vehicleId: int("vehicle_id").notNull(), // Reference to fleet_vehicles table
-  driverId: int("driver_id").notNull(), // Reference to fleet_drivers table
-  fleetId: int("fleet_id").notNull(), // Reference to fleets table
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(), // Multi-tenant isolation
-  
-  // Incident details
-  incidentDate: timestamp("incident_date").notNull(),
-  location: text("location").notNull(),
-  description: text("description").notNull(),
-  
-  // Severity and status
-  severity: mysqlEnum("severity", ["minor", "moderate", "major", "critical"]).default("minor").notNull(),
-  status: mysqlEnum("status", ["submitted", "under_review", "approved", "rejected", "claim_filed"]).default("submitted").notNull(),
-  
-  // Additional information
-  policeReportNumber: varchar("police_report_number", { length: 100 }),
-  witnessName: varchar("witness_name", { length: 255 }),
-  witnessPhone: varchar("witness_phone", { length: 50 }),
-  
-  // Damage assessment
-  estimatedDamage: decimal("estimated_damage", { precision: 10, scale: 2 }),
-  vehicleDriveable: tinyint("vehicle_driveable").default(1),
-  
-  // Review information
-  reviewedBy: int("reviewed_by"), // User ID of fleet_manager who reviewed
-  reviewedAt: timestamp("reviewed_at"),
-  reviewNotes: text("review_notes"),
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  tenantIdIdx: index("idx_fleet_incident_reports_tenant_id").on(table.tenantId),
-  fleetIdIdx: index("idx_fleet_incident_reports_fleet_id").on(table.fleetId),
-  vehicleIdIdx: index("idx_fleet_incident_reports_vehicle_id").on(table.vehicleId),
-  driverIdIdx: index("idx_fleet_incident_reports_driver_id").on(table.driverId),
-  statusIdx: index("idx_fleet_incident_reports_status").on(table.status),
-}));
-
-export type FleetIncidentReport = typeof fleetIncidentReports.$inferSelect;
-export type InsertFleetIncidentReport = typeof fleetIncidentReports.$inferInsert;
-
-
-/**
- * Tenant Invitations - Secure invitation system for onboarding users to tenants
- * 
- * Workflow:
- * 1. Super-admin creates tenant and sends invitations
- * 2. Invitee receives email with secure token
- * 3. Invitee accepts invitation (validates token, creates user)
- * 4. User is assigned to tenant with specified role
- */
-export const tenantInvitations = mysqlTable("tenant_invitations", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  email: varchar("email", { length: 320 }).notNull(),
-  role: mysqlEnum("role", ["user", "admin", "insurer", "assessor", "panel_beater", "claimant", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]).notNull(),
-  insurerRole: mysqlEnum("insurer_role", ["claims_processor", "assessor_internal", "assessor_external", "risk_manager", "claims_manager", "executive", "insurer_admin"]),
-  token: varchar("token", { length: 64 }).notNull().unique(),
-  expiresAt: timestamp("expires_at").notNull(),
-  acceptedAt: timestamp("accepted_at"),
-  createdBy: int("created_by").notNull(), // User ID of the admin who created the invitation
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-}, (table) => ({
-  tenantIdIdx: index("tenant_id_idx").on(table.tenantId),
-  emailIdx: index("email_idx").on(table.email),
-  tokenIdx: index("token_idx").on(table.token),
-  expiresAtIdx: index("expires_at_idx").on(table.expiresAt),
-}));
-
-export type TenantInvitation = typeof tenantInvitations.$inferSelect;
-export type InsertTenantInvitation = typeof tenantInvitations.$inferInsert;
-
-
-/**
- * Historical Replay Results
- * 
- * Stores comparison metrics when historical claims are replayed through current KINGA system.
- * Enables performance analysis and validation of AI routing decisions.
- */
-export const historicalReplayResults = mysqlTable("historical_replay_results", {
-  id: int("id").autoincrement().primaryKey(),
-  tenantId: varchar("tenant_id", { length: 64 }).notNull(),
-  
-  // Link to original historical claim
-  historicalClaimId: int("historical_claim_id").notNull(),
-  originalClaimReference: varchar("original_claim_reference", { length: 100 }),
-  
-  // Replay metadata
-  replayedAt: timestamp("replayed_at").defaultNow().notNull(),
-  replayedByUserId: int("replayed_by_user_id"), // User who triggered replay
-  replayVersion: int("replay_version").default(1), // Increments for each replay of same claim
-  
-  // Policy used for replay
-  policyVersionId: int("policy_version_id"), // automation_policies.id
-  policyVersion: int("policy_version"), // automation_policies.version
-  policyName: varchar("policy_name", { length: 255 }),
-  
-  // Original decision (from historical claim)
-  originalDecision: mysqlEnum("original_decision", ["approved", "rejected", "referred", "total_loss", "cash_settlement"]),
-  originalPayout: decimal("original_payout", { precision: 12, scale: 2 }), // finalApprovedCost from historical claim
-  originalProcessingTimeHours: decimal("original_processing_time_hours", { precision: 10, scale: 2 }),
-  originalAssessorName: varchar("original_assessor_name", { length: 255 }),
-  
-  // KINGA AI re-assessment results
-  aiDamageDetectionScore: decimal("ai_damage_detection_score", { precision: 5, scale: 2 }), // 0-100
-  aiEstimatedCost: decimal("ai_estimated_cost", { precision: 12, scale: 2 }),
-  aiFraudScore: decimal("ai_fraud_score", { precision: 5, scale: 2 }), // 0-100
-  aiConfidenceScore: decimal("ai_confidence_score", { precision: 5, scale: 2 }), // 0-100
-  
-  // KINGA routing decision
-  kingaRoutingDecision: mysqlEnum("kinga_routing_decision", ["auto_approve", "hybrid_review", "escalate", "fraud_review"]),
-  kingaPredictedPayout: decimal("kinga_predicted_payout", { precision: 12, scale: 2 }), // AI estimated cost
-  kingaEstimatedProcessingTimeHours: decimal("kinga_estimated_processing_time_hours", { precision: 10, scale: 2 }),
-  
-  // Comparison metrics
-  decisionMatch: tinyint("decision_match").notNull(), // 1 if KINGA decision matches original, 0 otherwise
-  payoutVariance: decimal("payout_variance", { precision: 12, scale: 2 }), // originalPayout - kingaPredictedPayout
-  payoutVariancePercentage: decimal("payout_variance_percentage", { precision: 5, scale: 2 }), // (variance / originalPayout) * 100
-  processingTimeDelta: decimal("processing_time_delta", { precision: 10, scale: 2 }), // originalProcessingTime - kingaEstimatedProcessingTime
-  processingTimeDeltaPercentage: decimal("processing_time_delta_percentage", { precision: 5, scale: 2 }),
-  
-  // Confidence analysis
-  confidenceLevel: mysqlEnum("confidence_level", ["very_high", "high", "medium", "low", "very_low"]),
-  confidenceJustification: text("confidence_justification"), // Explanation of confidence level
-  
-  // Fraud analysis
-  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["none", "low", "medium", "high", "critical"]),
-  fraudIndicators: json("fraud_indicators"), // Array of fraud indicators detected
-  
-  // Simulated workflow audit trail
-  simulatedWorkflowSteps: json("simulated_workflow_steps"), // Array of workflow steps that would have been executed
-  
-  // Replay flags
-  isReplay: tinyint("is_replay").default(1).notNull(), // Always 1 for replay results
-  noLiveMutation: tinyint("no_live_mutation").default(1).notNull(), // Always 1 to indicate no live workflow changes
-  
-  // Analysis summary
-  performanceSummary: text("performance_summary"), // Human-readable summary of comparison
-  recommendedAction: mysqlEnum("recommended_action", ["adopt_kinga", "review_policy", "manual_review", "no_action"]),
-  
-  // Metadata
-  replayDurationMs: int("replay_duration_ms"), // Time taken to complete replay
-  replayStatus: mysqlEnum("replay_status", ["success", "partial_success", "failed"]).default("success").notNull(),
-  replayErrors: json("replay_errors"), // Array of errors encountered during replay
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  tenantIdIdx: index("idx_historical_replay_results_tenant_id").on(table.tenantId),
-  historicalClaimIdIdx: index("idx_historical_replay_results_historical_claim_id").on(table.historicalClaimId),
-  replayedAtIdx: index("idx_historical_replay_results_replayed_at").on(table.replayedAt),
-  policyVersionIdIdx: index("idx_historical_replay_results_policy_version_id").on(table.policyVersionId),
-}));
-
-export type HistoricalReplayResult = typeof historicalReplayResults.$inferSelect;
-export type InsertHistoricalReplayResult = typeof historicalReplayResults.$inferInsert;
-
-/**
- * Super Audit Sessions
- * 
- * Tracks all super-admin audit sessions for compliance and security.
- * Records tenant selection, role impersonation, and accessed resources.
- */
-export const superAuditSessions = mysqlTable("super_audit_sessions", {
-  id: int("id").autoincrement().primaryKey(),
-  
-  // Super admin user
-  superAdminUserId: int("super_admin_user_id").notNull(),
-  superAdminName: varchar("super_admin_name", { length: 255 }),
-  
-  // Audit context
-  auditedTenantId: varchar("audited_tenant_id", { length: 64 }), // Tenant being audited
-  impersonatedRole: varchar("impersonated_role", { length: 64 }), // Role being impersonated
-  
-  // Session tracking
-  sessionStartedAt: timestamp("session_started_at").defaultNow().notNull(),
-  sessionEndedAt: timestamp("session_ended_at"),
-  sessionDurationSeconds: int("session_duration_seconds"),
-  
-  // Accessed resources
-  accessedClaimIds: text("accessed_claim_ids"), // JSON array of claim IDs viewed
-  accessedDashboards: text("accessed_dashboards"), // JSON array of dashboards viewed
-  replayedClaimIds: text("replayed_claim_ids"), // JSON array of claim IDs replayed
-  viewedAiScoringClaimIds: text("viewed_ai_scoring_claim_ids"), // JSON array of AI scoring viewed
-  viewedRoutingLogicClaimIds: text("viewed_routing_logic_claim_ids"), // JSON array of routing logic viewed
-  
-  // Audit trail
-  isActive: tinyint("is_active").default(1).notNull(), // 1 = active session, 0 = ended
-  
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  superAdminUserIdIdx: index("idx_super_audit_sessions_super_admin_user_id").on(table.superAdminUserId),
-  auditedTenantIdIdx: index("idx_super_audit_sessions_audited_tenant_id").on(table.auditedTenantId),
-  sessionStartedAtIdx: index("idx_super_audit_sessions_session_started_at").on(table.sessionStartedAt),
-}));
-
-export type SuperAuditSession = typeof superAuditSessions.$inferSelect;
-export type InsertSuperAuditSession = typeof superAuditSessions.$inferInsert;
+	id: int().autoincrement().notNull(),
+	claimId: int("claim_id").notNull(),
+	tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+	currentState: varchar("current_state", { length: 100 }).notNull(),
+	previousState: varchar("previous_state", { length: 100 }),
+	transitionedBy: int("transitioned_by").notNull(),
+	transitionedAt: timestamp("transitioned_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+	metadata: json(),
+},
+(table) => [
+	index("idx_claim_id").on(table.claimId),
+	index("idx_tenant_id").on(table.tenantId),
+]);

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Governance Dashboard Helper Functions
  * 

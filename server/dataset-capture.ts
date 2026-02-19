@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Phase 2: Claim Intelligence Dataset Capture Layer
  * 

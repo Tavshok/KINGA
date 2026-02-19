@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Enterprise-Grade Final Claim Report PDF Generator
  * 

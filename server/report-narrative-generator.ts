@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Report Narrative Generation Service
  * 

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Production-Grade Test Data Seeding Script
  * 

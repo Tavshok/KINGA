@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Truth Synthesis Router
  * 

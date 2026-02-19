@@ -1,0 +1,15 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM claims WHERE claim_number LIKE 'SEED-%') as total_seed_claims,\n  (SELECT COUNT(*) FROM claims WHERE claim_number LIKE 'SEED-%' AND damage_photos IS NOT NULL AND damage_photos != '[]') as seed_claims_with_photos,\n  (SELECT COUNT(*) FROM ai_assessments WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'SEED-%')) as ai_assessments_created;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT \n  (SELECT COUNT(*) FROM claims WHERE claim_number LIKE 'SEED-%') as total_seed_claims,\n  (SELECT COUNT(*) FROM claims WHERE claim_number LIKE 'SEED-%' AND damage_photos IS NOT NULL AND damage_photos != '[]') as seed_claims_with_photos,\n  (SELECT COUNT(*) FROM ai_assessments WHERE claim_id IN (SELECT id FROM claims WHERE claim_number LIKE 'SEED-%')) as ai_assessments_created;",
+  "rows": [
+    {
+      "total_seed_claims": "20",
+      "seed_claims_with_photos": "20",
+      "ai_assessments_created": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_seed_claims\tseed_claims_with_photos\tai_assessments_created\n20\t20\t0\n",
+  "stderr": "",
+  "execution_time_ms": 89
+}

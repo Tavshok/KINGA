@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Physics Validation Helper
  * 

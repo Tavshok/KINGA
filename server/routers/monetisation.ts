@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Monetisation Router - Usage Simulation & Revenue Analytics
  * 

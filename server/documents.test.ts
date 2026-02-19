@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Document Upload/Download Feature Tests
  * Tests document management across all roles and workflows

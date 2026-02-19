@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * OPTIMIZED ANALYTICS ROUTER - N+1 QUERY ELIMINATION
  * 

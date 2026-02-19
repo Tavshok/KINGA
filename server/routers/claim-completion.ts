@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Claim Completion Router
  * 

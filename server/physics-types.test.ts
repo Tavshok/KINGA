@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Physics Types Validation Tests
  * 

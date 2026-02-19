@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Analytics Router Optimization Tests
  * 

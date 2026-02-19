@@ -1,0 +1,70 @@
+{
+  "query": "SELECT id, name, openId, role FROM users LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, name, openId, role FROM users LIMIT 10;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "Tavonga Shoko",
+      "openId": "YihPnA7MJmAvNyMeTe2HUX",
+      "role": "insurer"
+    },
+    {
+      "id": "30055",
+      "name": "Dr. James Mutasa",
+      "openId": "assessor-nCc_eYiV6x",
+      "role": "assessor"
+    },
+    {
+      "id": "30056",
+      "name": "Dr. Linda Moyo",
+      "openId": "assessor-qCOW4zKM-P",
+      "role": "assessor"
+    },
+    {
+      "id": "30057",
+      "name": "Michael Ncube",
+      "openId": "claimant-7sz0ecSFdT",
+      "role": "claimant"
+    },
+    {
+      "id": "30058",
+      "name": "Sarah Chikwanha",
+      "openId": "claimant-ZYjDASji_Z",
+      "role": "claimant"
+    },
+    {
+      "id": "30059",
+      "name": "John Moyo",
+      "openId": "panel_beater-XA9l7QFrYB",
+      "role": "panel_beater"
+    },
+    {
+      "id": "30220",
+      "name": "Sarah Johnson",
+      "openId": "test-insurer-001",
+      "role": "insurer"
+    },
+    {
+      "id": "30221",
+      "name": "Michael Chen",
+      "openId": "test-assessor-001",
+      "role": "assessor"
+    },
+    {
+      "id": "30222",
+      "name": "Emily Rodriguez",
+      "openId": "test-assessor-002",
+      "role": "assessor"
+    },
+    {
+      "id": "30223",
+      "name": "David Mbeki",
+      "openId": "test-panelbeater-001",
+      "role": "panel_beater"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\topenId\trole\n1\tTavonga Shoko\tYihPnA7MJmAvNyMeTe2HUX\tinsurer\n30055\tDr. James Mutasa\tassessor-nCc_eYiV6x\tassessor\n30056\tDr. Linda Moyo\tassessor-qCOW4zKM-P\tassessor\n30057\tMichael Ncube\tclaimant-7sz0ecSFdT\tclaimant\n30058\tSarah Chikwanha\tclaimant-ZYjDASji_Z\tclaimant\n30059\tJohn Moyo\tpanel_beater-XA9l7QFrYB\tpanel_beater\n30220\tSarah Johnson\ttest-insurer-001\tinsurer\n30221\tMichael Chen\ttest-assessor-001\tassessor\n30222\tEmily Rodriguez\ttest-assessor-002\tassessor\n30223\tDavid Mbeki\ttest-panelbeater-001\tpanel_beater\n",
+  "stderr": "",
+  "execution_time_ms": 104
+}

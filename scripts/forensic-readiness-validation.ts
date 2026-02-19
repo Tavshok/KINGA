@@ -37,7 +37,7 @@ async function main() {
     SELECT 
       COUNT(*) as total_assessments,
       SUM(CASE 
-        WHEN JSON_EXTRACT(physics_analysis, '$.quantitativeMode') = true 
+        WHEN JSON_EXTRACT(physics_analysis, '$.quantitativeMode') = 1 
         THEN 1 
         ELSE 0 
       END) as quantitative_count

@@ -1,0 +1,15 @@
+{
+  "query": "\n-- Check AI assessments for claims with photos\nSELECT \n  c.total_claims_with_photos,\n  COALESCE(a.assessments_count, 0) as ai_assessments_created,\n  ROUND(100.0 * COALESCE(a.assessments_count, 0) / c.total_claims_with_photos, 2) as assessment_coverage_percent\nFROM \n  (SELECT COUNT(*) as total_claims_with_photos \n   FROM claims \n   WHERE damage_photos IS NOT NULL AND damage_photos != '[]') c\nLEFT JOIN\n  (SELECT COUNT(*) as assessments_count \n   FROM ai_assessments) a\nON 1=1;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Check AI assessments for claims with photos\nSELECT \n  c.total_claims_with_photos,\n  COALESCE(a.assessments_count, 0) as ai_assessments_created,\n  ROUND(100.0 * COALESCE(a.assessments_count, 0) / c.total_claims_with_photos, 2) as assessment_coverage_percent\nFROM \n  (SELECT COUNT(*) as total_claims_with_photos \n   FROM claims \n   WHERE damage_photos IS NOT NULL AND damage_photos != '[]') c\nLEFT JOIN\n  (SELECT COUNT(*) as assessments_count \n   FROM ai_assessments) a\nON 1=1;\n",
+  "rows": [
+    {
+      "total_claims_with_photos": "20",
+      "ai_assessments_created": "341",
+      "assessment_coverage_percent": "1705.00"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_claims_with_photos\tai_assessments_created\tassessment_coverage_percent\n20\t341\t1705.00\n",
+  "stderr": "",
+  "execution_time_ms": 209
+}

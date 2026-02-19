@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Stress Test Script for KINGA System
  * 

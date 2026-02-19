@@ -1,0 +1,90 @@
+{
+  "query": "\nSELECT id, claim_number \nFROM claims \nWHERE damage_photos IS NOT NULL \n  AND damage_photos != '[]'\n  AND id NOT IN (\n    SELECT claim_id FROM ai_assessments\n  )\nORDER BY id;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT id, claim_number \nFROM claims \nWHERE damage_photos IS NOT NULL \n  AND damage_photos != '[]'\n  AND id NOT IN (\n    SELECT claim_id FROM ai_assessments\n  )\nORDER BY id;\n",
+  "rows": [
+    {
+      "id": "1020001",
+      "claim_number": "SEED-1771500745028-VSL4"
+    },
+    {
+      "id": "1020002",
+      "claim_number": "SEED-1771500745081-5698"
+    },
+    {
+      "id": "1020003",
+      "claim_number": "SEED-1771500745095-351S"
+    },
+    {
+      "id": "1020004",
+      "claim_number": "SEED-1771500745111-0JYF"
+    },
+    {
+      "id": "1020005",
+      "claim_number": "SEED-1771500745128-YTCY"
+    },
+    {
+      "id": "1020006",
+      "claim_number": "SEED-1771500745140-GNOW"
+    },
+    {
+      "id": "1020007",
+      "claim_number": "SEED-1771500745151-UQCX"
+    },
+    {
+      "id": "1020008",
+      "claim_number": "SEED-1771500745166-AZKE"
+    },
+    {
+      "id": "1020009",
+      "claim_number": "SEED-1771500745180-2OGZ"
+    },
+    {
+      "id": "1020010",
+      "claim_number": "SEED-1771500745197-79ZH"
+    },
+    {
+      "id": "1020011",
+      "claim_number": "SEED-1771500745209-8RWG"
+    },
+    {
+      "id": "1020012",
+      "claim_number": "SEED-1771500745228-QLET"
+    },
+    {
+      "id": "1020013",
+      "claim_number": "SEED-1771500745275-J1FI"
+    },
+    {
+      "id": "1020014",
+      "claim_number": "SEED-1771500745291-25QJ"
+    },
+    {
+      "id": "1020015",
+      "claim_number": "SEED-1771500745305-USXD"
+    },
+    {
+      "id": "1020016",
+      "claim_number": "SEED-1771500745315-364F"
+    },
+    {
+      "id": "1020017",
+      "claim_number": "SEED-1771500745328-BEKY"
+    },
+    {
+      "id": "1020018",
+      "claim_number": "SEED-1771500745340-A0R8"
+    },
+    {
+      "id": "1020019",
+      "claim_number": "SEED-1771500745351-HPUD"
+    },
+    {
+      "id": "1020020",
+      "claim_number": "SEED-1771500745375-1JZO"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\n1020001\tSEED-1771500745028-VSL4\n1020002\tSEED-1771500745081-5698\n1020003\tSEED-1771500745095-351S\n1020004\tSEED-1771500745111-0JYF\n1020005\tSEED-1771500745128-YTCY\n1020006\tSEED-1771500745140-GNOW\n1020007\tSEED-1771500745151-UQCX\n1020008\tSEED-1771500745166-AZKE\n1020009\tSEED-1771500745180-2OGZ\n1020010\tSEED-1771500745197-79ZH\n1020011\tSEED-1771500745209-8RWG\n1020012\tSEED-1771500745228-QLET\n1020013\tSEED-1771500745275-J1FI\n1020014\tSEED-1771500745291-25QJ\n1020015\tSEED-1771500745305-USXD\n1020016\tSEED-1771500745315-364F\n1020017\tSEED-1771500745328-BEKY\n1020018\tSEED-1771500745340-A0R8\n1020019\tSEED-1771500745351-HPUD\n1020020\tSEED-1771500745375-1JZO\n",
+  "stderr": "",
+  "execution_time_ms": 182
+}

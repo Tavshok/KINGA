@@ -1,0 +1,15 @@
+{
+  "query": "SELECT \n  COUNT(*) as total_assessments,\n  SUM(CASE \n    WHEN physics_analysis LIKE '%impactAngleDegrees%' \n     AND physics_analysis LIKE '%calculatedImpactForceKN%'\n     AND physics_analysis LIKE '%impactLocationNormalized%'\n    THEN 1 ELSE 0 \n  END) as quantitative_count,\n  SUM(CASE \n    WHEN physics_analysis LIKE '%quantitativeMode\":true%'\n    THEN 1 ELSE 0 \n  END) as quantitative_mode_count\nFROM ai_assessments\nORDER BY created_at DESC\nLIMIT 20;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT \n  COUNT(*) as total_assessments,\n  SUM(CASE \n    WHEN physics_analysis LIKE '%impactAngleDegrees%' \n     AND physics_analysis LIKE '%calculatedImpactForceKN%'\n     AND physics_analysis LIKE '%impactLocationNormalized%'\n    THEN 1 ELSE 0 \n  END) as quantitative_count,\n  SUM(CASE \n    WHEN physics_analysis LIKE '%quantitativeMode\":true%'\n    THEN 1 ELSE 0 \n  END) as quantitative_mode_count\nFROM ai_assessments\nORDER BY created_at DESC\nLIMIT 20;",
+  "rows": [
+    {
+      "total_assessments": "341",
+      "quantitative_count": "2",
+      "quantitative_mode_count": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_assessments\tquantitative_count\tquantitative_mode_count\n341\t2\t0\n",
+  "stderr": "",
+  "execution_time_ms": 129
+}

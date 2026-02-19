@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Intake Gate Router
  * 

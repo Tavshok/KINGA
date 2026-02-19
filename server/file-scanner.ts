@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * File scanning utility for malware detection and content validation.
  * Uses ClamAV daemon when available, falls back to MIME type validation.

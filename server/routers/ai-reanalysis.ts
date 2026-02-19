@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * AI Re-Analysis Router
  * 

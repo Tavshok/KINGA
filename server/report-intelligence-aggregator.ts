@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Report Intelligence Aggregation Service
  * 

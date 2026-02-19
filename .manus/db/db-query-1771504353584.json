@@ -1,0 +1,13 @@
+{
+  "query": "SELECT COUNT(*) as claims_with_photos FROM claims WHERE damage_photos IS NOT NULL;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT COUNT(*) as claims_with_photos FROM claims WHERE damage_photos IS NOT NULL;",
+  "rows": [
+    {
+      "claims_with_photos": "20"
+    }
+  ],
+  "messages": [],
+  "stdout": "claims_with_photos\n20\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

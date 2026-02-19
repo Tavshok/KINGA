@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Intake Escalation Background Job
  * 

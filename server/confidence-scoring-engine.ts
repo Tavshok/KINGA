@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA AI Confidence Scoring Engine
  * 

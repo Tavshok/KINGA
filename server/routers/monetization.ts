@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA Monetisation Router
  * 

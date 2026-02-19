@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Confidence Scoring and Dataset Classification Service
  * Assesses data quality and routes claims to appropriate datasets

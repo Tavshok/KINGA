@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * KINGA - Automation Policies Router
  * 

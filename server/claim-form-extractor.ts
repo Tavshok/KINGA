@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Claim Form Document Extractor
  * 

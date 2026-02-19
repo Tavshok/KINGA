@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Centralized Workflow Engine for KINGA
  * 

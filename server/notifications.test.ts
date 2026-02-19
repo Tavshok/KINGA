@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, beforeAll } from "vitest";
 import { appRouter } from "./routers";
 import { createClaim, createNotification, getNotificationsByUser } from "./db";

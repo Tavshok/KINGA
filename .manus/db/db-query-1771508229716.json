@@ -1,0 +1,25 @@
+{
+  "query": "-- Get 5 random claims\nSELECT id FROM claims ORDER BY RAND() LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute -- Get 5 random claims\nSELECT id FROM claims ORDER BY RAND() LIMIT 5;",
+  "rows": [
+    {
+      "id": "960472"
+    },
+    {
+      "id": "960153"
+    },
+    {
+      "id": "960276"
+    },
+    {
+      "id": "960283"
+    },
+    {
+      "id": "960325"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\n960472\n960153\n960276\n960283\n960325\n",
+  "stderr": "",
+  "execution_time_ms": 62
+}

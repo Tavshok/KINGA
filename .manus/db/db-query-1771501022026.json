@@ -1,0 +1,15 @@
+{
+  "query": "SELECT \n  (SELECT COUNT(*) FROM claims) as total_claims,\n  (SELECT COUNT(*) FROM ai_assessments) as total_ai_assessments,\n  (SELECT COUNT(*) FROM claims WHERE ai_assessment_triggered = 1) as claims_with_ai_triggered;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT \n  (SELECT COUNT(*) FROM claims) as total_claims,\n  (SELECT COUNT(*) FROM ai_assessments) as total_ai_assessments,\n  (SELECT COUNT(*) FROM claims WHERE ai_assessment_triggered = 1) as claims_with_ai_triggered;",
+  "rows": [
+    {
+      "total_claims": "573",
+      "total_ai_assessments": "341",
+      "claims_with_ai_triggered": "0"
+    }
+  ],
+  "messages": [],
+  "stdout": "total_claims\ttotal_ai_assessments\tclaims_with_ai_triggered\n573\t341\t0\n",
+  "stderr": "",
+  "execution_time_ms": 75
+}

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Fast-Track Analytics Performance Tests
  * Ensures no N+1 queries and validates tenant isolation

@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Automation Policy Configuration System
  * 

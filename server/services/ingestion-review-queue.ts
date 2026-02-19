@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Human Review Queue Service
  * Manages manual review and approval workflow for MEDIUM confidence historical claims

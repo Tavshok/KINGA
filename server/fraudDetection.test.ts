@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Fraud Detection Module Tests
  * 

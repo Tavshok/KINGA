@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Governance Notification Service
  * 

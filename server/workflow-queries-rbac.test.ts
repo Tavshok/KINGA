@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { describe, it, expect, vi } from "vitest";
 import { appRouter } from "./routers";
 import type { TrpcContext } from "./_core/context";

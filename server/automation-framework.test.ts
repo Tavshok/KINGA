@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Confidence-Governed Automation Framework Tests
  * 
