@@ -1,0 +1,133 @@
+name: Dashboard Integrity Audit
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'server/routers/**/*.ts'
+      - 'server/db.ts'
+      - 'drizzle/schema.ts'
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - 'server/routers/**/*.ts'
+      - 'server/db.ts'
+      - 'drizzle/schema.ts'
+
+jobs:
+  audit:
+    name: Dashboard Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run Dashboard Audit
+        id: audit
+        run: |
+          echo "Running dashboard integrity audit..."
+          pnpm tsx scripts/dashboard-audit-ci.ts
+        continue-on-error: true
+      
+      - name: Upload Audit Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dashboard-audit-report
+          path: DASHBOARD_AUDIT_CI_RESULT.json
+          retention-days: 30
+      
+      - name: Comment PR with Audit Results
+        if: github.event_name == 'pull_request' && always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const auditResult = JSON.parse(fs.readFileSync('DASHBOARD_AUDIT_CI_RESULT.json', 'utf8'));
+            
+            const { summary, violations, success } = auditResult;
+            
+            let comment = '## 📊 Dashboard Integrity Audit Results\n\n';
+            
+            if (success) {
+              comment += '✅ **All checks passed!**\n\n';
+            } else {
+              comment += '❌ **Integrity violations detected - Build failed**\n\n';
+            }
+            
+            comment += '### Summary\n\n';
+            comment += `| Metric | Count |\n`;
+            comment += `|--------|-------|\n`;
+            comment += `| Total Dashboards | ${summary.totalDashboards} |\n`;
+            comment += `| ✅ PASS | ${summary.passCount} |\n`;
+            comment += `| ⚠️ WARN | ${summary.warnCount} |\n`;
+            comment += `| ❌ FAIL | ${summary.failCount} |\n`;
+            comment += `| 🚫 Mock Data | ${summary.mockDataCount} |\n`;
+            comment += `| 🔄 N+1 Patterns | ${summary.n1PatternCount} |\n`;
+            comment += `| ⚡ High Risk | ${summary.highRiskCount} |\n\n`;
+            
+            if (!success) {
+              comment += '### ❌ Violations\n\n';
+              
+              if (violations.failedDashboards.length > 0) {
+                comment += '**Failed Dashboards:**\n';
+                violations.failedDashboards.forEach(d => {
+                  comment += `- ${d}\n`;
+                });
+                comment += '\n';
+              }
+              
+              if (violations.mockDataDashboards.length > 0) {
+                comment += '**Mock Data Detected:**\n';
+                violations.mockDataDashboards.forEach(d => {
+                  comment += `- ${d}\n`;
+                });
+                comment += '\n';
+              }
+              
+              if (violations.n1PatternDashboards.length > 0) {
+                comment += '**N+1 Patterns Detected:**\n';
+                violations.n1PatternDashboards.forEach(d => {
+                  comment += `- ${d}\n`;
+                });
+                comment += '\n';
+              }
+              
+              comment += '### 🔧 Required Actions\n\n';
+              comment += '1. Replace mock data with real database queries\n';
+              comment += '2. Refactor N+1 patterns to use batch queries or joins\n';
+              comment += '3. Ensure all joins use indexed columns\n';
+              comment += '4. Re-run audit after fixes: `pnpm tsx scripts/dashboard-audit-ci.ts`\n';
+            }
+            
+            comment += '\n---\n';
+            comment += `*Audit completed at ${auditResult.timestamp}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+      
+      - name: Fail build on violations
+        if: steps.audit.outcome == 'failure'
+        run: |
+          echo "❌ Dashboard audit failed - integrity violations detected"
+          echo "Review the audit report artifact for details"
+          exit 1

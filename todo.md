@@ -9146,3 +9146,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify all indexed joins (actual: all critical joins indexed, audit script missing primary keys)
 - [x] Compare against previous audit report
 - [x] Generate delta summary
+
+
+## Dashboard Audit CI Integration
+- [x] Create CI-ready dashboard audit script with exit codes
+- [x] Add build failure logic for FAIL status
+- [x] Add build failure logic for mock data detection
+- [x] Add build failure logic for N+1 pattern detection
+- [x] Generate JSON artifact for CI consumption
+- [x] Create GitHub Actions workflow file
+- [x] Add audit step to GitHub Actions
+- [x] Add artifact upload step
+- [x] Test audit script with passing scenario
+- [ ] Test audit script with failing scenario (would require introducing violations)
+- [x] Document CI integration in README

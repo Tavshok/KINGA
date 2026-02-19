@@ -1,0 +1,202 @@
+{
+  "success": true,
+  "timestamp": "2026-02-19T09:59:48.119Z",
+  "summary": {
+    "totalDashboards": 8,
+    "passCount": 6,
+    "warnCount": 2,
+    "failCount": 0,
+    "mockDataCount": 0,
+    "n1PatternCount": 0,
+    "highRiskCount": 0
+  },
+  "violations": {
+    "failedDashboards": [],
+    "mockDataDashboards": [],
+    "n1PatternDashboards": []
+  },
+  "dashboards": [
+    {
+      "dashboardName": "Overview",
+      "routerFile": "analytics.ts",
+      "procedures": [
+        "getExecutiveKPIs",
+        "getOverviewMetrics"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "PASS",
+      "queryHealthDetails": [],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "LOW",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Analytics",
+      "routerFile": "analytics.ts",
+      "procedures": [
+        "getKPIs",
+        "getClaimsByComplexity",
+        "getSLACompliance",
+        "getFraudMetrics",
+        "getCostSavings"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "PASS",
+      "queryHealthDetails": [],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "LOW",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Critical Alerts",
+      "routerFile": "analytics.ts",
+      "procedures": [
+        "getCriticalAlerts",
+        "getHighRiskClaims"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "PASS",
+      "queryHealthDetails": [],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "LOW",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Assessors",
+      "routerFile": "analytics.ts",
+      "procedures": [
+        "getAssessorPerformance",
+        "getAssessorLeaderboard"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "PASS",
+      "queryHealthDetails": [],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "LOW",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Panel Beaters",
+      "routerFile": "panel-beater-analytics.ts",
+      "procedures": [
+        "getAllPerformance",
+        "getPerformance",
+        "getTopPanelBeaters",
+        "getTrends",
+        "comparePanelBeaters"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "WARN",
+      "queryHealthDetails": [
+        "groupBy without sql template literal: panelBeaters.id, panelBeaters.name, panelBeaters.b...",
+        "groupBy without sql template literal: panelBeaters.id, panelBeaters.name, panelBeaters.b...",
+        "groupBy without sql template literal: panelBeaters.id, panelBeaters.name...",
+        "Limited null safety: 1 optional chaining, 0 nullish coalescing"
+      ],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "MEDIUM",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Financials",
+      "routerFile": "analytics.ts",
+      "procedures": [
+        "getFinancialMetrics",
+        "getCostSavings",
+        "getRevenueAnalytics"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "PASS",
+      "queryHealthDetails": [],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "LOW",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Governance",
+      "routerFile": "governance-dashboard.ts",
+      "procedures": [
+        "getOverrideMetrics",
+        "getSegregationMetrics",
+        "getRoleChangeMetrics"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "WARN",
+      "queryHealthDetails": [
+        "groupBy without sql template literal: workflowAuditTrail.userId, users.name...",
+        "groupBy without sql template literal: workflowAuditTrail.userId...",
+        "groupBy without sql template literal: workflowAuditTrail.userId, users.name...",
+        "groupBy without sql template literal: workflowAuditTrail.overrideReason...",
+        "groupBy without sql template literal: roleAssignmentAudit.changedByUserId, users.name...",
+        "groupBy without sql template literal: roleAssignmentAudit.previousRole,\n              ro..."
+      ],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "MEDIUM",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    },
+    {
+      "dashboardName": "Executive",
+      "routerFile": "analytics.ts",
+      "procedures": [
+        "getExecutiveKPIs",
+        "getExecutiveDashboard",
+        "getStrategicInsights"
+      ],
+      "dataSourceTables": [],
+      "queryHealth": "PASS",
+      "queryHealthDetails": [],
+      "indexRequired": false,
+      "indexDetails": [],
+      "mockData": false,
+      "mockDataDetails": [],
+      "performanceRisk": "LOW",
+      "performanceRiskDetails": [],
+      "fixRequired": false,
+      "fixDetails": [],
+      "n1Patterns": []
+    }
+  ],
+  "exitCode": 0
+}
