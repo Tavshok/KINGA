@@ -24,10 +24,10 @@ http://localhost:3000/?devRole=executive
 
 ```bash
 # Internal Assessor - Internal damage assessment
-http://localhost:3000/?devRole=internal_assessor
+http://localhost:3000/?devRole=assessor_internal
 
 # External Assessor - External damage assessment
-http://localhost:3000/?devRole=external_assessor
+http://localhost:3000/?devRole=assessor_external
 ```
 
 ### Panel Beater Role (1 role)
@@ -47,8 +47,8 @@ http://localhost:3000/?devRole=panel_beater
 | `risk_manager` | `insurer` | `risk_manager` | dev.risk@kinga-dev.local | Dev Risk Manager |
 | `claims_manager` | `insurer` | `claims_manager` | dev.claims@kinga-dev.local | Dev Claims Manager |
 | `executive` | `insurer` | `executive` | dev.executive@kinga-dev.local | Dev Executive |
-| `internal_assessor` | `assessor` | - | dev.internal.assessor@kinga-dev.local | Dev Internal Assessor |
-| `external_assessor` | `assessor` | - | dev.external.assessor@kinga-dev.local | Dev External Assessor |
+| `assessor_internal` | `assessor` | - | dev.internal.assessor@kinga-dev.local | Dev Internal Assessor |
+| `assessor_external` | `assessor` | - | dev.external.assessor@kinga-dev.local | Dev External Assessor |
 | `panel_beater` | `panel_beater` | - | dev.panelbeater@kinga-dev.local | Dev Panel Beater |
 
 ---
@@ -123,8 +123,8 @@ http://localhost:3000/?devRole=executive
 ### 3. Test Non-Insurer Roles
 ```bash
 # Assessor roles
-http://localhost:3000/?devRole=internal_assessor
-http://localhost:3000/?devRole=external_assessor
+http://localhost:3000/?devRole=assessor_internal
+http://localhost:3000/?devRole=assessor_external
 
 # Panel beater role
 http://localhost:3000/?devRole=panel_beater
@@ -190,7 +190,7 @@ http://localhost:3000/governance?devRole=risk_manager  # ❌ Should redirect
 ### 4. Testing Workflow Transitions
 ```bash
 # Start as assessor, complete assessment
-?devRole=internal_assessor
+?devRole=assessor_internal
 
 # Switch to claims manager to review
 ?devRole=claims_manager

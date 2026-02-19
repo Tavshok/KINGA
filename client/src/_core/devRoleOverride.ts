@@ -12,8 +12,8 @@ export type DevRole =
   | "risk_manager"
   | "claims_manager"
   | "executive"
-  | "internal_assessor"
-  | "external_assessor"
+  | "assessor_internal"
+  | "assessor_external"
   | "panel_beater";
 
 export type InsurerRole = "insurer_admin" | "risk_manager" | "claims_manager" | "executive";
@@ -57,8 +57,8 @@ export function getDevRoleFromURL(): DevRole | null {
     "risk_manager",
     "claims_manager",
     "executive",
-    "internal_assessor",
-    "external_assessor",
+    "assessor_internal",
+    "assessor_external",
     "panel_beater",
   ];
 
@@ -119,20 +119,22 @@ export function generateMockUser(devRole: DevRole): MockUser {
         insurerRole: "executive",
       };
 
-    case "internal_assessor":
+    case "assessor_internal":
       return {
         ...baseUser,
         email: "dev.internal.assessor@kinga-dev.local",
         name: "Dev Internal Assessor",
-        role: "assessor",
+        role: "insurer",
+        insurerRole: "assessor_internal",
       };
 
-    case "external_assessor":
+    case "assessor_external":
       return {
         ...baseUser,
         email: "dev.external.assessor@kinga-dev.local",
         name: "Dev External Assessor",
-        role: "assessor",
+        role: "insurer",
+        insurerRole: "assessor_external",
       };
 
     case "panel_beater":

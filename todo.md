@@ -8974,3 +8974,30 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] All reports have 1 null field (vehicleYear)
   - [x] Performance excellent: all reports <3ms
 - [ ] Create checkpoint (PENDING)
+
+
+## internal_assessor Role Configuration Audit (COMPLETE)
+- [x] Verify assessor_internal role in database schema
+  - [x] Check users table role enum (role field does not include assessor roles)
+  - [x] Check insurerRole enum includes assessor_internal (✅ CORRECT NAME)
+- [x] Verify assessor_internal in frontend types
+  - [x] Check DevRole type definition (FIXED: changed internal_assessor → assessor_internal)
+  - [x] Check InsurerRole type definition (production code uses correct assessor_internal)
+- [x] Audit route protection for assessor_internal
+  - [x] Check ProtectedRoute supports assessor_internal (allowedRoles: ["insurer", "admin"])
+  - [x] Check RoleGuard supports assessor_internal (allowedRoles: ["assessor_internal"])
+  - [x] Verify route protection works correctly
+- [x] Audit dashboard registration for assessor_internal
+  - [x] Check App.tsx has assessor_internal dashboard route (/insurer-portal/internal-assessor)
+  - [x] Verify dashboard component exists (InternalAssessorDashboard.tsx)
+  - [x] Check RoleRouteGuard maps assessor_internal to correct route
+- [x] Audit authentication flow for assessor_internal
+  - [x] Check Login.tsx redirect logic (no explicit redirect, uses RoleRouteGuard)
+  - [x] Check useAuth hook with dev override (FIXED: now generates correct insurerRole)
+  - [x] Simulate login with ?devRole=assessor_internal (FIXED: now works correctly)
+  - [x] Trace redirect path: devRole → mock user → RoleRouteGuard → /insurer-portal/internal-assessor
+- [x] Generate role configuration audit report (ROLE_CONFIGURATION_AUDIT_REPORT.md)
+- [x] Root Cause: Naming inconsistency (internal_assessor vs assessor_internal)
+- [x] Resolution: Fixed devRoleOverride.ts to use correct database enum names
+- [x] Impact: Dev override system now functional for assessor_internal and assessor_external
+- [ ] Create checkpoint (PENDING)
