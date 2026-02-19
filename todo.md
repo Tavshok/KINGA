@@ -9051,3 +9051,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add error logs if extension fails (line 2018, console.error)
 - [x] Improved fallback logic to use calculated values instead of zeros
 - [ ] Create checkpoint (PENDING)
+
+
+## Backfill Quantitative Physics Script (COMPLETE)
+- [x] Create scripts/backfill-quantitative-physics.ts
+- [x] Implement database connection and batch processing (groups of 50)
+- [x] Retrieve ai_assessments.physicsAnalysis for each claim
+- [x] Check if quantitative fields missing (hasQuantitativeFields function)
+- [x] Recompute quantitative physics from legacy data using extendPhysicsValidationOutput
+- [x] Update physicsAnalysis JSON with quantitative fields (db.update)
+- [x] Add progress logging (batch progress + per-assessment logs)
+- [x] Generate final report (total processed: 2, total updated: 2, total skipped: 0, total errors: 0)
+- [x] Test backfill script on existing claims (successfully updated 2 assessments)
+- [ ] Create checkpoint (PENDING)
