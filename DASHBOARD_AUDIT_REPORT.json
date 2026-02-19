@@ -1,0 +1,320 @@
+[
+  {
+    "dashboardName": "Overview",
+    "routerFile": "analytics.ts",
+    "procedures": [
+      "getExecutiveKPIs",
+      "getOverviewMetrics"
+    ],
+    "dataSourceTables": [
+      "claims",
+      "aiAssessments",
+      "users",
+      "panelBeaters"
+    ],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "435 potential null-unsafe property accesses",
+      "No empty dataset handling detected"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed)"
+    ],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
+    "fixRequired": true,
+    "fixDetails": [
+      "Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Add empty dataset checks and fallback values"
+    ],
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 10 potential N+1 query pattern(s)"
+    ]
+  },
+  {
+    "dashboardName": "Analytics",
+    "routerFile": "analytics.ts",
+    "procedures": [
+      "getKPIs",
+      "getClaimsByComplexity",
+      "getSLACompliance",
+      "getFraudMetrics",
+      "getCostSavings"
+    ],
+    "dataSourceTables": [
+      "claims",
+      "aiAssessments",
+      "users",
+      "panelBeaters"
+    ],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "435 potential null-unsafe property accesses",
+      "No empty dataset handling detected"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed)"
+    ],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
+    "fixRequired": true,
+    "fixDetails": [
+      "Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Add empty dataset checks and fallback values"
+    ],
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 10 potential N+1 query pattern(s)"
+    ]
+  },
+  {
+    "dashboardName": "Critical Alerts",
+    "routerFile": "analytics.ts",
+    "procedures": [
+      "getCriticalAlerts",
+      "getHighRiskClaims"
+    ],
+    "dataSourceTables": [
+      "claims",
+      "aiAssessments",
+      "users",
+      "panelBeaters"
+    ],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "435 potential null-unsafe property accesses",
+      "No empty dataset handling detected"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed)"
+    ],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
+    "fixRequired": true,
+    "fixDetails": [
+      "Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Add empty dataset checks and fallback values"
+    ],
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 10 potential N+1 query pattern(s)"
+    ]
+  },
+  {
+    "dashboardName": "Assessors",
+    "routerFile": "analytics.ts",
+    "procedures": [
+      "getAssessorPerformance",
+      "getAssessorLeaderboard"
+    ],
+    "dataSourceTables": [
+      "claims",
+      "aiAssessments",
+      "users",
+      "panelBeaters"
+    ],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "435 potential null-unsafe property accesses",
+      "No empty dataset handling detected"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed)"
+    ],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
+    "fixRequired": true,
+    "fixDetails": [
+      "Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Add empty dataset checks and fallback values"
+    ],
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 10 potential N+1 query pattern(s)"
+    ]
+  },
+  {
+    "dashboardName": "Panel Beaters",
+    "routerFile": "panel-beater-analytics.ts",
+    "procedures": [
+      "getAllPerformance",
+      "getPerformance",
+      "getTopPanelBeaters",
+      "getTrends",
+      "comparePanelBeaters"
+    ],
+    "dataSourceTables": [],
+    "queryHealth": "FAIL",
+    "queryHealthDetails": [
+      "Router file not found: /home/ubuntu/kinga-replit/server/routers/panel-beater-analytics.ts"
+    ],
+    "indexRequired": false,
+    "indexDetails": [],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "LOW",
+    "performanceRiskDetails": [],
+    "fixRequired": true,
+    "fixDetails": [
+      "Create missing router file"
+    ],
+    "n1Patterns": []
+  },
+  {
+    "dashboardName": "Financials",
+    "routerFile": "analytics.ts",
+    "procedures": [
+      "getFinancialMetrics",
+      "getCostSavings",
+      "getRevenueAnalytics"
+    ],
+    "dataSourceTables": [
+      "claims",
+      "aiAssessments",
+      "users",
+      "panelBeaters"
+    ],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "435 potential null-unsafe property accesses",
+      "No empty dataset handling detected"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed)"
+    ],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
+    "fixRequired": true,
+    "fixDetails": [
+      "Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Add empty dataset checks and fallback values"
+    ],
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 10 potential N+1 query pattern(s)"
+    ]
+  },
+  {
+    "dashboardName": "Governance",
+    "routerFile": "governance-dashboard.ts",
+    "procedures": [
+      "getOverrideMetrics",
+      "getSegregationMetrics",
+      "getRoleChangeMetrics"
+    ],
+    "dataSourceTables": [],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "70 potential null-unsafe property accesses"
+    ],
+    "indexRequired": false,
+    "indexDetails": [],
+    "mockData": true,
+    "mockDataDetails": [
+      "Found 7 potential mock data pattern(s)"
+    ],
+    "performanceRisk": "MEDIUM",
+    "performanceRiskDetails": [],
+    "fixRequired": true,
+    "fixDetails": [
+      "Replace mock data with real DB queries",
+      "Add null safety checks (optional chaining, nullish coalescing)"
+    ],
+    "n1Patterns": []
+  },
+  {
+    "dashboardName": "Executive",
+    "routerFile": "analytics.ts",
+    "procedures": [
+      "getExecutiveKPIs",
+      "getExecutiveDashboard",
+      "getStrategicInsights"
+    ],
+    "dataSourceTables": [
+      "claims",
+      "aiAssessments",
+      "users",
+      "panelBeaters"
+    ],
+    "queryHealth": "WARN",
+    "queryHealthDetails": [
+      "435 potential null-unsafe property accesses",
+      "No empty dataset handling detected"
+    ],
+    "indexRequired": true,
+    "indexDetails": [
+      "leftJoin on panelBeaters.id = panelBeaterQuotes.panelBeaterId (neither column indexed)"
+    ],
+    "mockData": false,
+    "mockDataDetails": [],
+    "performanceRisk": "HIGH",
+    "performanceRiskDetails": [
+      "Unindexed join: panelBeaters.id = panelBeaterQuotes.panelBeaterId",
+      "N+1 query detected in loop",
+      "N+1 query detected in loop"
+    ],
+    "fixRequired": true,
+    "fixDetails": [
+      "Add index on panelBeaters.id or panelBeaterQuotes.panelBeaterId",
+      "Add null safety checks (optional chaining, nullish coalescing)",
+      "Refactor to use batch queries or joins",
+      "Refactor to use batch queries or joins",
+      "Add empty dataset checks and fallback values"
+    ],
+    "n1Patterns": [
+      "Found 1 potential N+1 query pattern(s)",
+      "Found 10 potential N+1 query pattern(s)"
+    ]
+  }
+]

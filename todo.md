@@ -8821,3 +8821,31 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] Role access matrix (admin: 56, insurer: 37, assessor: 8, etc.)
   - [x] Protected route patterns analysis
 - [ ] Create checkpoint (PENDING)
+
+
+## Dashboard Endpoints Audit (COMPLETE)
+- [x] Identify all dashboard tRPC procedures
+  - [x] Overview dashboard (analytics.ts: getExecutiveKPIs, getOverviewMetrics)
+  - [x] Analytics dashboard (analytics.ts: getKPIs, getClaimsByComplexity, getSLACompliance, getFraudMetrics, getCostSavings)
+  - [x] Critical Alerts dashboard (analytics.ts: getCriticalAlerts, getHighRiskClaims)
+  - [x] Assessors dashboard (analytics.ts: getAssessorPerformance, getAssessorLeaderboard)
+  - [x] Panel Beaters dashboard (panel-beater-analytics.ts: getAllPerformance, getPerformance, getTopPanelBeaters, getTrends, comparePanelBeaters)
+  - [x] Financials dashboard (analytics.ts: getFinancialMetrics, getCostSavings, getRevenueAnalytics)
+  - [x] Governance dashboard (governance-dashboard.ts: getOverrideMetrics, getSegregationMetrics, getRoleChangeMetrics)
+  - [x] Executive dashboard (analytics.ts: getExecutiveKPIs, getExecutiveDashboard, getStrategicInsights)
+- [x] Analyze each dashboard for real DB queries vs mock data
+  - [x] Confirm real DB queries (7/8 dashboards use real DB queries)
+  - [x] Identify data source tables (claims, aiAssessments, users, panelBeaters, workflowAuditTrail)
+- [x] Validate SQL syntax and query health
+  - [x] Validate groupBy syntax correctness (no issues detected)
+  - [x] Confirm joins use indexed columns (1 unindexed join detected: panelBeaters.id = panelBeaterQuotes.panelBeaterId)
+  - [x] Validate null safety handling (435 potential null-unsafe property accesses in analytics.ts)
+- [x] Detect performance risks
+  - [x] Detect N+1 patterns (11 N+1 patterns detected in analytics.ts)
+  - [x] Identify missing indexes (panelBeaters.id and panelBeaterQuotes.panelBeaterId need indexes)
+  - [x] Check for inefficient queries (6/8 dashboards have HIGH performance risk)
+- [x] Generate structured dashboard audit report
+  - [x] Per dashboard: Data Source Tables, Query Health, Index Required, Mock Data, Performance Risk, Fix Required
+  - [x] DASHBOARD_AUDIT_REPORT.md - Comprehensive markdown report
+  - [x] DASHBOARD_AUDIT_REPORT.json - Machine-readable JSON data
+- [ ] Create checkpoint (PENDING)
