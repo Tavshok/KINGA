@@ -1,0 +1,290 @@
+{
+  "totalClaims": 20,
+  "quantitativeActive": 0,
+  "quantitativePercentage": 0,
+  "claimsWithImages": 0,
+  "imagesPercentage": 0,
+  "claimDetails": [
+    {
+      "claimId": 960500,
+      "claimNumber": "CLM-STRESS-000499",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960499,
+      "claimNumber": "CLM-STRESS-000498",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960498,
+      "claimNumber": "CLM-STRESS-000497",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960497,
+      "claimNumber": "CLM-STRESS-000496",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960496,
+      "claimNumber": "CLM-STRESS-000495",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960495,
+      "claimNumber": "CLM-STRESS-000494",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960494,
+      "claimNumber": "CLM-STRESS-000493",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960493,
+      "claimNumber": "CLM-STRESS-000492",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960492,
+      "claimNumber": "CLM-STRESS-000491",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960491,
+      "claimNumber": "CLM-STRESS-000490",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960490,
+      "claimNumber": "CLM-STRESS-000489",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960489,
+      "claimNumber": "CLM-STRESS-000488",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960488,
+      "claimNumber": "CLM-STRESS-000487",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960487,
+      "claimNumber": "CLM-STRESS-000486",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960486,
+      "claimNumber": "CLM-STRESS-000485",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960485,
+      "claimNumber": "CLM-STRESS-000484",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960484,
+      "claimNumber": "CLM-STRESS-000483",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960483,
+      "claimNumber": "CLM-STRESS-000482",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960482,
+      "claimNumber": "CLM-STRESS-000481",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    },
+    {
+      "claimId": 960481,
+      "claimNumber": "CLM-STRESS-000480",
+      "hasQuantitativePhysics": false,
+      "hasImpactAngle": false,
+      "hasImpactForce": false,
+      "hasImages": false,
+      "imageCount": 0,
+      "physicsAnalysis": {}
+    }
+  ],
+  "dashboards": [
+    {
+      "name": "Overview Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Analytics Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Critical Alerts Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Assessors Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Panel Beaters Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Financials Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Governance Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    },
+    {
+      "name": "Executive Dashboard",
+      "hasData": true,
+      "chartsPopulated": true,
+      "noMockData": true,
+      "noN1Warnings": true,
+      "noNullIssues": true,
+      "status": "PASS"
+    }
+  ],
+  "reportGeneration": {
+    "claimDossier": "NOT_TESTED",
+    "executiveReport": "NOT_TESTED",
+    "financialSummary": "NOT_TESTED",
+    "auditTrail": "NOT_TESTED"
+  },
+  "overallStatus": "WARN"
+}

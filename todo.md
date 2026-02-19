@@ -9236,3 +9236,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update all tRPC endpoints to expose typed physicsAnalysis
 - [x] Prevent malformed physics data from persisting
 - [x] Test type safety across frontend and backend
+
+
+## Post-Activation Verification Audit
+- [x] Create post-activation verification audit script
+- [x] Query 20 most recent claims from database
+- [x] Verify physics_analysis.quantitativeMode = true for each claim
+- [x] Confirm impactAngleDegrees exists in physics_analysis
+- [x] Confirm calculatedImpactForceKN exists in physics_analysis
+- [x] Confirm damage_photos length > 0 for each claim
+- [x] Verify dashboards show non-empty datasets
+- [x] Verify charts are populated with real data
+- [x] Verify no mock data in dashboards
+- [x] Verify no N+1 query warnings
+- [x] Verify no null rendering issues
+- [x] Calculate % quantitative active
+- [x] Calculate % claims with images
+- [x] Generate dashboard integrity status report
+- [x] Generate report generation completeness assessment
+- [x] Output comprehensive summary
