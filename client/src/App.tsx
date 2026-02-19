@@ -71,6 +71,7 @@ const SubmitClaim = lazy(() => import("./pages/SubmitClaim"));
 // Admin pages
 const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
 const AdminTierManagement = lazy(() => import("@/pages/AdminTierManagement"));
+const AdminSeedData = lazy(() => import("./pages/AdminSeedData"));
 const TenantManagement = lazy(() => import("./pages/admin/TenantManagement"));
 const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
 const TenantRegistration = lazy(() => import("./pages/admin/TenantRegistration"));
@@ -510,6 +511,11 @@ function Router() {
         <Route path="/admin/tier-management">
           <ProtectedRoute allowedRoles={["admin"]}>
             <AdminTierManagement />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/seed-data">
+          <ProtectedRoute allowedRoles={["platform_super_admin"]}>
+            <AdminSeedData />
           </ProtectedRoute>
         </Route>
         <Route path="/admin/market-quotes">

@@ -9064,3 +9064,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Generate final report (total processed: 2, total updated: 2, total skipped: 0, total errors: 0)
 - [x] Test backfill script on existing claims (successfully updated 2 assessments)
 - [ ] Create checkpoint (PENDING)
+
+
+## Seed Claims with Images Script
+- [ ] Create scripts/seed-claims-with-images.ts
+- [ ] Download 10 sample vehicle damage images (frontal, rear, side impacts)
+- [ ] Upload images to S3 using storagePut()
+- [ ] Verify S3 URLs accessible (HTTP 200)
+- [ ] Test CORS headers for frontend domain
+- [ ] Create 20 test claims with populated damage_photos arrays
+- [ ] Trigger AI assessment for each claim (processClaimAssessment)
+- [ ] Verify AI vision runs successfully
+- [ ] Verify physicsAnalysis saved to database
+- [ ] Generate seed report (claims created, image URLs, AI status)
+- [ ] Test seed script
+- [ ] Create checkpoint
