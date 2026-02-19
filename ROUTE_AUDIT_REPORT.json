@@ -1,0 +1,849 @@
+{
+  "totalRoutes": 70,
+  "protectedRoutes": 59,
+  "publicRoutes": 11,
+  "routesByRole": {
+    "insurer": 37,
+    "admin": 56,
+    "platform_super_admin": 3,
+    "user": 1,
+    "assessor": 8,
+    "panel_beater": 5,
+    "claimant": 6
+  },
+  "routes": [
+    {
+      "path": "/",
+      "component": "Home",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/login",
+      "component": "Login",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/onboarding",
+      "component": "Onboarding",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/unauthorized",
+      "component": "Unauthorized",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/analytics",
+      "component": "AnalyticsHub",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/monetization",
+      "component": "MonetizationDashboard",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/operational-health",
+      "component": "OperationalHealthDashboard",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/platform/overview",
+      "component": "PlatformOverviewDashboard",
+      "allowedRoles": [
+        "platform_super_admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/platform/claim-trace/:claimId",
+      "component": "PlatformClaimTrace",
+      "allowedRoles": [
+        "platform_super_admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessment-results",
+      "component": "AssessmentResults",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/new-upload",
+      "component": "NewAssessmentUpload",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/simple-upload",
+      "component": "SimpleUpload",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/role-setup",
+      "component": "RoleSetup",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/user-diagnostic",
+      "component": "UserDiagnostic",
+      "allowedRoles": [
+        "user",
+        "admin",
+        "insurer",
+        "assessor",
+        "panel_beater",
+        "claimant"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/portal-hub",
+      "component": "PortalHub",
+      "allowedRoles": [
+        "insurer",
+        "assessor",
+        "panel_beater",
+        "claimant",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer-portal",
+      "component": "InsurerRoleSelection",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer-portal/workflow-analytics",
+      "component": "WorkflowAnalyticsDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: executive, risk_manager, claims_manager"
+      ]
+    },
+    {
+      "path": "/insurer-portal/executive",
+      "component": "ExecutiveDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: executive"
+      ]
+    },
+    {
+      "path": "/insurer-portal/governance",
+      "component": "GovernanceDashboard",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [
+        "risk_manager",
+        "claims_manager",
+        "executive",
+        "insurer_admin"
+      ],
+      "isProtected": false,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: executive, insurer_admin"
+      ]
+    },
+    {
+      "path": "/insurer-portal/claims-processor",
+      "component": "ClaimsProcessorDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: claims_processor"
+      ]
+    },
+    {
+      "path": "/insurer-portal/internal-assessor",
+      "component": "InternalAssessorDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: assessor_internal"
+      ]
+    },
+    {
+      "path": "/insurer-portal/risk-manager",
+      "component": "RiskManagerDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: risk_manager"
+      ]
+    },
+    {
+      "path": "/insurer-portal/claims-manager",
+      "component": "ClaimsManagerDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: claims_manager"
+      ]
+    },
+    {
+      "path": "/claims-manager/comparison/:id",
+      "component": "ClaimsManagerComparisonView",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": true,
+      "notes": [
+        "RoleGuard: claims_manager"
+      ]
+    },
+    {
+      "path": "/insurer",
+      "component": "InsurerDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/dashboard",
+      "component": "InsurerDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/claims/triage",
+      "component": "InsurerClaimsTriage",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/claims/:id/comparison",
+      "component": "InsurerComparisonView",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/comparison/:id",
+      "component": "InsurerComparisonView",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/claims/:claimId/quote-comparison",
+      "component": "InsurerQuoteComparison",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/panel-beater-performance",
+      "component": "PanelBeaterPerformanceDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/claims/:id",
+      "component": "InsurerClaimDetails",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/quote-optimization/:id",
+      "component": "InsurerQuoteComparison",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/fraud-analytics",
+      "component": "FraudAnalyticsDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/batch-export",
+      "component": "BatchExport",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/external-assessment",
+      "component": "InsurerExternalAssessmentUpload",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/automation-policies",
+      "component": "AutomationPolicies",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurer/replay-dashboard",
+      "component": "ReplayDashboard",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/fleet-management",
+      "component": "FleetManagement",
+      "allowedRoles": [
+        "insurer",
+        "admin",
+        "claimant"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurance/quote",
+      "component": "InsuranceQuote",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/agency",
+      "component": "KingaAgency",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurance/quote/:quoteId",
+      "component": "QuoteDetails",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurance/payments",
+      "component": "PaymentVerification",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/insurance/dashboard",
+      "component": "InsuranceDashboard",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/add-assessor",
+      "component": "AddAssessor",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessors",
+      "component": "AssessorList",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assign-assessor/:claimId",
+      "component": "AssignAssessor",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/join-as-assessor",
+      "component": "JoinAsAssessor",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/processor/upload-documents",
+      "component": "UploadDocuments",
+      "allowedRoles": [
+        "insurer",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/historical-claims",
+      "component": "HistoricalClaimsPipeline",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/ml/review/queue",
+      "component": "ReviewQueue",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/claims/:id/documents",
+      "component": "ClaimDocuments",
+      "allowedRoles": [
+        "insurer",
+        "admin",
+        "assessor",
+        "panel_beater",
+        "claimant"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessor",
+      "component": "AssessorDashboard",
+      "allowedRoles": [
+        "assessor",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessor/dashboard",
+      "component": "AssessorDashboard",
+      "allowedRoles": [
+        "assessor",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessor/claims/:id",
+      "component": "AssessorClaimDetails",
+      "allowedRoles": [
+        "assessor",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessor/performance",
+      "component": "AssessorPerformanceDashboard",
+      "allowedRoles": [
+        "assessor",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/assessor/leaderboard",
+      "component": "AssessorLeaderboard",
+      "allowedRoles": [
+        "assessor",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/panel-beater/dashboard",
+      "component": "PanelBeaterDashboard",
+      "allowedRoles": [
+        "panel_beater",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/panel-beater/claims/:id/quote",
+      "component": "PanelBeaterQuoteSubmission",
+      "allowedRoles": [
+        "panel_beater",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/claimant/dashboard",
+      "component": "ClaimantDashboard",
+      "allowedRoles": [
+        "claimant",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/claimant/submit-claim",
+      "component": "SubmitClaim",
+      "allowedRoles": [
+        "claimant",
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin",
+      "component": "AdminDashboard",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/tenants",
+      "component": "TenantManagement",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/tenants/:tenantId/roles",
+      "component": "TenantRoleConfig",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/tenants/register",
+      "component": "TenantRegistration",
+      "allowedRoles": [
+        "platform_super_admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/tier-management",
+      "component": "AdminTierManagement",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/market-quotes",
+      "component": "MarketQuotesIngestion",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/dashboard",
+      "component": "AdminDashboard",
+      "allowedRoles": [
+        "admin"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/admin/workflow-settings",
+      "component": "WorkflowSettings",
+      "allowedRoles": [
+        "admin",
+        "insurer"
+      ],
+      "allowedInsurerRoles": [],
+      "isProtected": true,
+      "hasRoleGuard": false,
+      "notes": []
+    },
+    {
+      "path": "/404",
+      "component": "NotFound",
+      "allowedRoles": [],
+      "allowedInsurerRoles": [],
+      "isProtected": false,
+      "hasRoleGuard": false,
+      "notes": [
+        "NOTE: About Theme",
+        "- First choose a default theme according to your design style (dark or light bg), than change color palette in index.css",
+        "to keep consistent foreground/background color across components",
+        "- If you want to make theme switchable, pass `switchable` ThemeProvider and use `useTheme` hook",
+        "switchable"
+      ]
+    }
+  ],
+  "generatedAt": "2026-02-19T07:33:45.698Z"
+}

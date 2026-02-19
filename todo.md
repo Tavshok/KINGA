@@ -8800,3 +8800,24 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] Security guarantees and production safety
   - [x] Troubleshooting guide and best practices
 - [ ] Create checkpoint (PENDING)
+
+
+## Route Audit Script (COMPLETE)
+- [x] Analyze App.tsx router configuration (scripts/route-audit.ts)
+  - [x] Extract all route paths and components (parseRoutes function)
+  - [x] Identify ProtectedRoute wrappers and role requirements
+  - [x] Map routes to allowedRoles and allowedInsurerRoles
+- [x] Create route audit script (scripts/route-audit.ts)
+  - [x] Enumerate all routes programmatically (70 routes found)
+  - [x] Parse ProtectedRoute allowedRoles arrays
+  - [x] Parse RoleGuard allowedRoles arrays
+  - [x] Extract component names from lazy imports
+  - [x] Capture route comments and annotations
+- [x] Generate structured audit report
+  - [x] Table format: Route | Component | Protected | Allowed Roles | Insurer Roles | Notes
+  - [x] Export as markdown (ROUTE_AUDIT_REPORT.md)
+  - [x] Export as JSON (ROUTE_AUDIT_REPORT.json)
+  - [x] Include summary statistics (70 total, 59 protected, 11 public)
+  - [x] Role access matrix (admin: 56, insurer: 37, assessor: 8, etc.)
+  - [x] Protected route patterns analysis
+- [ ] Create checkpoint (PENDING)
