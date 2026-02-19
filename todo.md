@@ -8777,3 +8777,26 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add "Continue to Dashboard" button for authenticated users
 - [x] Conditional rendering: authenticated users see logout options, unauthenticated see login form
 - [ ] Create checkpoint (PENDING)
+
+
+## Development-Only Role Override System (COMPLETE)
+- [x] Create mock user generator function with role mapping (devRoleOverride.ts)
+  - [x] Map devRole query parameter to user role and insurerRole
+  - [x] Generate mock user object with permissions (generateMockUser function)
+  - [x] Support roles: insurer_admin, risk_manager, claims_manager, executive, internal_assessor, external_assessor, panel_beater
+- [x] Modify useAuth hook to detect devRole query parameter (useAuth.ts)
+  - [x] Check import.meta.env.MODE === 'development' (isDevRoleOverrideEnabled)
+  - [x] Parse ?devRole from URL query string (getDevRoleFromURL)
+  - [x] Inject mock user into auth state via useState (devMockUser state)
+  - [x] Skip real tRPC query when override active (enabled: !devMockUser)
+  - [x] Bypass normal login redirect (isAuthenticated: true when devMockUser exists)
+- [x] Add console warning and production safeguards
+  - [x] Log styled console warning (logDevRoleOverrideWarning with red background)
+  - [x] Ensure override disabled in production (import.meta.env.MODE check)
+  - [x] Add visual indicator in UI (DevRoleBadge component in top-right)
+  - [x] Add isDevOverride flag to auth state
+- [x] Create comprehensive documentation (DEV_ROLE_OVERRIDE_README.md)
+  - [x] Usage instructions and supported roles table
+  - [x] Security guarantees and production safety
+  - [x] Troubleshooting guide and best practices
+- [ ] Create checkpoint (PENDING)
