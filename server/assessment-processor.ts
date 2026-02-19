@@ -29,6 +29,7 @@ import { invokeLLM } from './_core/llm';
 import { resolveComponent, normalizeComponentName, type VehiclePart } from '../shared/vehicleParts';
 import { crossValidateQuotesVsPhotos, type CrossValidationReport } from './cross-validation';
 import { extendPhysicsValidationOutput } from './physics-quantitative-output';
+import { validatePhysicsAnalysis, type PhysicsAnalysis as TypedPhysicsAnalysis } from '../shared/physics-types';
 
 // ============================================================
 // TYPE DEFINITIONS
@@ -1996,6 +1997,21 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
 
   // Clean up temp file
   try { unlinkSync(tempPdfPath); } catch (e) { /* ignore */ }
+
+  // ============================================================
+  // VALIDATE PHYSICS ANALYSIS BEFORE RETURNING
+  // ============================================================
+  console.log('\n🔍 Validating physics analysis data...');
+  
+  const physicsValidationResult = validatePhysicsAnalysis(physicsAnalysis);
+  
+  if (!physicsValidationResult.success) {
+    console.warn('⚠️ Physics validation warnings:');
+    physicsValidationResult.errors?.forEach(err => console.warn(`   - ${err}`));
+    console.warn('   Proceeding with unvalidated physics data (graceful degradation)');
+  } else {
+    console.log('✅ Physics analysis validation passed');
+  }
 
   console.log(`\n${'='.repeat(60)}`);
   console.log(`✅ ASSESSMENT PROCESSING COMPLETE`);

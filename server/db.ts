@@ -956,9 +956,11 @@ export async function createAiAssessment(data: InsertAiAssessment) {
 }
 
 export async function getAiAssessmentByClaimId(claimId: number, tenantId?: string) {
+  const { parsePhysicsAnalysis } = await import('../shared/physics-types');
   const db = await getDb();
   if (!db) return null;
 
+  let rawAssessment;
   if (tenantId) {
     // Join with claims to enforce tenant filtering
     const result = await db.select({ assessment: aiAssessments })
@@ -966,11 +968,19 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
       .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
       .where(and(eq(aiAssessments.claimId, claimId), eq(claims.tenantId, tenantId)))
       .limit(1);
-    return result.length > 0 ? result[0].assessment : null;
+    rawAssessment = result.length > 0 ? result[0].assessment : null;
   } else {
     const result = await db.select().from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
-    return result.length > 0 ? result[0] : null;
+    rawAssessment = result.length > 0 ? result[0] : null;
   }
+  
+  if (!rawAssessment) return null;
+  
+  // Parse physicsAnalysis JSON with typed helper
+  return {
+    ...rawAssessment,
+    physicsAnalysisParsed: parsePhysicsAnalysis(rawAssessment.physicsAnalysis),
+  };
 }
 
 // ============================================================================

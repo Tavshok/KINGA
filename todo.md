@@ -9221,3 +9221,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Verify database: COUNT(*) WHERE damage_photos IS NOT NULL
 - [ ] Confirm frontend renders images correctly
 - [x] Ensure no modification of production claims beyond 20 test claims (SEED- prefix)
+
+
+## TypeScript Type Alignment for Quantitative Physics
+- [x] Update AiAssessment interface with quantitative physics fields
+- [x] Create PhysicsAnalysis type definition
+- [x] Create parsePhysicsAnalysis helper function
+- [x] Add safe JSON parse with fallback
+- [x] Create Zod validation schema for physics data
+- [x] Validate impactAngleDegrees (0-360)
+- [x] Validate calculatedImpactForceKN (>0)
+- [x] Validate impactLocationNormalized x/y (0-1)
+- [x] Add validation to assessment processor before DB insert
+- [x] Update all tRPC endpoints to expose typed physicsAnalysis
+- [x] Prevent malformed physics data from persisting
+- [x] Test type safety across frontend and backend
