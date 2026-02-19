@@ -92,7 +92,8 @@ import { notificationsRouter } from "./routers/notifications";
 import { adminRouter } from "./routers/admin";
 import { routingPolicyVersionRouter } from "./routers/routing-policy-version";
 import { policyManagementRouter } from "./routers/policy-management";
-import { panelBeaterAnalyticsRouter } from "./routers/panel-beater-analytics";
+import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
+import { reportsRouter } from './routers/reports';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -117,6 +118,7 @@ export const appRouter = router({
   routingPolicyVersion: routingPolicyVersionRouter,
   policyManagement: policyManagementRouter,
   panelBeaterAnalytics: panelBeaterAnalyticsRouter,
+  reports: reportsRouter,
   intakeGate: intakeGateRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,

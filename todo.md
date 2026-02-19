@@ -9255,3 +9255,20 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Generate dashboard integrity status report
 - [x] Generate report generation completeness assessment
 - [x] Output comprehensive summary
+
+
+## Report Generation Endpoints
+- [x] Create server/routers/reports.ts
+- [x] Implement reports.generateExecutiveReport procedure
+- [x] Implement reports.generateFinancialSummary procedure
+- [x] Implement reports.generateAuditTrailReport procedure
+- [x] Query real database data with indexed joins
+- [x] Ensure no N+1 queries
+- [x] Implement proper null handling
+- [x] Integrate PDF generation
+- [x] Generate structured JSON payloads
+- [x] Return PDF buffer + metadata
+- [x] Add performance monitoring (< 100ms DB time)
+- [x] Log generation time for monitoring
+- [x] Register reports router in main router
+- [ ] Fix test setup issues (router not loading in test environment)
