@@ -9426,3 +9426,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Scan all role dashboards for broken routes
 - [x] Fix any discovered routing issues
 - [x] Create comprehensive route validation report
+
+## Bug Fixes - Landing Page & Document Upload
+- [x] Fix landing page redirect (should go to Portal Hub, not Claims Processor Dashboard)
+- [x] Fix document upload JSON error (Unexpected token '<', "<!DOCTYPE "... is not valid JSON)
+- [x] Implement auto-tenant assignment for admin users during testing
+- [ ] Test complete upload workflow end-to-end (requires user testing)

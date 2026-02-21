@@ -24,12 +24,12 @@ export default function PortalHub() {
   const [, setLocation] = useLocation();
   const roleDashboardRoute = useRoleDashboardRoute();
 
-  // Auto-redirect insurer users to their role-specific dashboard
-  useEffect(() => {
-    if (user?.role === "insurer" && user?.insurerRole && roleDashboardRoute !== "/portal-hub") {
-      setLocation(roleDashboardRoute);
-    }
-  }, [user, roleDashboardRoute, setLocation]);
+  // Auto-redirect disabled - let users choose their portal
+  // useEffect(() => {
+  //   if (user?.role === "insurer" && user?.insurerRole && roleDashboardRoute !== "/portal-hub") {
+  //     setLocation(roleDashboardRoute);
+  //   }
+  // }, [user, roleDashboardRoute, setLocation]);
 
   const portals = [
     {

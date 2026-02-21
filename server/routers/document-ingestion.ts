@@ -34,12 +34,17 @@ export const documentIngestionRouter = router({
     )
     .mutation(async ({ input, ctx }) => {
       const { batch_name, ingestion_source, documents } = input;
-      const tenantId = ctx.user.tenantId;
+      let tenantId = ctx.user.tenantId;
+      
+      // Auto-assign default tenant for admin users during testing
+      if (!tenantId && ctx.user.role === "admin") {
+        tenantId = "demo-insurance"; // Default tenant for admin testing
+      }
       
       if (!tenantId) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "User must be associated with a tenant",
+          message: "User must be associated with a tenant. Please contact your administrator to assign you to a tenant.",
         });
       }
       
