@@ -9412,3 +9412,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Add type annotations (: any where necessary)
 - [ ] Verify error count < 300
 - [ ] Generate TypeScript cleanup completion report
+
+## Bug Fixes - Upload Historical Claim & Authentication
+- [x] Fix 404 error on /insurer-portal/upload-historical-claim route
+- [x] Fix logout/login redirect behavior (should redirect to home/dashboard, not previous page)
+- [ ] Test upload historical claim functionality as claims processor
+- [ ] Verify authentication flow redirects correctly after logout

@@ -269,7 +269,7 @@ export default function ClaimsProcessorDashboard() {
             <Button 
               variant="default" 
               className="bg-white text-teal-700 hover:bg-white/90 font-medium"
-              onClick={() => window.location.href = "/insurer-portal/upload-historical-claim"}
+              onClick={() => window.location.href = "/processor/upload-documents"}
             >
               <Upload className="h-4 w-4 mr-2" />
               Upload New Claim
