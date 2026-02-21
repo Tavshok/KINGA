@@ -146,7 +146,7 @@ export default function ClaimsProcessorDashboard() {
   };
 
   const handleViewDetails = (claimId: number) => {
-    window.location.href = `/claim/${claimId}`;
+    window.location.href = `/insurer/claims/${claimId}`;
   };
 
   const handleDownloadReport = async (claimId: number) => {
