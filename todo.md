@@ -9432,3 +9432,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix document upload JSON error (Unexpected token '<', "<!DOCTYPE "... is not valid JSON)
 - [x] Implement auto-tenant assignment for admin users during testing
 - [ ] Test complete upload workflow end-to-end (requires user testing)
+
+## Debug Document Upload JSON Error (Persistent Issue)
+- [x] Check server logs for actual error during upload
+- [x] Verify tenant assignment is working correctly
+- [x] Fix batch ID retrieval issue in document-ingestion.ts
+- [x] Add proper error logging to document-ingestion.ts
+- [ ] Test upload with detailed error messages (requires user testing)
