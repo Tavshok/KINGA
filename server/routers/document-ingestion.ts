@@ -135,7 +135,7 @@ export const documentIngestionRouter = router({
           status: failedCount === 0 ? "completed" : "failed",
           completedAt: new Date(),
         })
-        .where(eq(ingestionBatches.id, batch.insertId));
+        .where(eq(ingestionBatches.id, batchDbId));
       
       return {
         batch_id: batchId,

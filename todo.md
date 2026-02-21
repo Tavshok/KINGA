@@ -9439,3 +9439,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix batch ID retrieval issue in document-ingestion.ts
 - [x] Add proper error logging to document-ingestion.ts
 - [ ] Test upload with detailed error messages (requires user testing)
+
+## Fix 'batch is not defined' Error
+- [x] Find all references to `batch` variable in document-ingestion.ts
+- [x] Replace with correct variable name (batchDbId)
+- [ ] Test upload after fix (requires user testing)
