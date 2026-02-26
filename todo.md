@@ -9444,3 +9444,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Find all references to `batch` variable in document-ingestion.ts
 - [x] Replace with correct variable name (batchDbId)
 - [ ] Test upload after fix (requires user testing)
+
+## Fix batchDbId NaN Error
+- [x] Investigate Drizzle MySQL insertId return format
+- [x] Fix insertId extraction from batchInsertResult (using type assertion pattern)
+- [ ] Test upload after fix (requires user testing)

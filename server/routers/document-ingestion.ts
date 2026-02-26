@@ -69,8 +69,8 @@ export const documentIngestionRouter = router({
         status: "pending",
       });
       
-      // Get the inserted batch ID
-      const batchDbId = Number(batchInsertResult.insertId);
+      // Get the inserted batch ID using type assertion
+      const batchDbId = Number((batchInsertResult as unknown as { insertId: string | number }).insertId);
       
       // Upload documents to S3 and create records
       const uploadedDocs = await Promise.all(
