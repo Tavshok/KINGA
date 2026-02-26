@@ -33,8 +33,13 @@ export const documentIngestionRouter = router({
       })
     )
     .mutation(async ({ input, ctx }) => {
-      const { batch_name, ingestion_source, documents } = input;
-      let tenantId = ctx.user.tenantId;
+      try {
+        console.log('[Document Upload] Starting upload mutation');
+        console.log('[Document Upload] User:', ctx.user.id, ctx.user.email, ctx.user.role);
+        console.log('[Document Upload] Input:', { batch_name: input.batch_name, ingestion_source: input.ingestion_source, doc_count: input.documents.length });
+        
+        const { batch_name, ingestion_source, documents } = input;
+        let tenantId = ctx.user.tenantId;
       
       // Auto-assign default tenant for admin users during testing
       if (!tenantId && ctx.user.role === "admin") {
@@ -141,6 +146,16 @@ export const documentIngestionRouter = router({
         failed: failedCount,
         documents: uploadedDocs,
       };
+      } catch (error) {
+        console.error('[Document Upload] FATAL ERROR:', error);
+        console.error('[Document Upload] Error stack:', error instanceof Error ? error.stack : 'No stack');
+        console.error('[Document Upload] Error details:', JSON.stringify(error, null, 2));
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: error instanceof Error ? error.message : "Unknown error during document upload",
+          cause: error,
+        });
+      }
     }),
 
   /**
