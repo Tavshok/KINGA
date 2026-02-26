@@ -55,7 +55,7 @@ export const documentIngestionRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
       
-      const batchInsertResult = await db.insert(ingestionBatches).values({
+      const [batch] = await db.insert(ingestionBatches).values({
         tenantId,
         batchId,
         batchName: batch_name || `Batch ${new Date().toLocaleDateString()}`,
@@ -68,9 +68,6 @@ export const documentIngestionRouter = router({
         failedDocuments: 0,
         status: "pending",
       });
-      
-      // Get the inserted batch ID using type assertion
-      const batchDbId = Number((batchInsertResult as unknown as { insertId: string | number }).insertId);
       
       // Upload documents to S3 and create records
       const uploadedDocs = await Promise.all(
@@ -92,7 +89,7 @@ export const documentIngestionRouter = router({
             // Create document record
             const [docRecord] = await db!.insert(ingestionDocuments).values({
               tenantId,
-              batchId: batchDbId,
+              batchId: batch.insertId,
               documentId,
               originalFilename: doc.filename,
               fileSizeBytes: buffer.length,
@@ -135,7 +132,7 @@ export const documentIngestionRouter = router({
           status: failedCount === 0 ? "completed" : "failed",
           completedAt: new Date(),
         })
-        .where(eq(ingestionBatches.id, batchDbId));
+        .where(eq(ingestionBatches.id, batch.insertId));
       
       return {
         batch_id: batchId,

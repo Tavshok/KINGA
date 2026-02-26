@@ -9449,3 +9449,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Investigate Drizzle MySQL insertId return format
 - [x] Fix insertId extraction from batchInsertResult (using type assertion pattern)
 - [ ] Test upload after fix (requires user testing)
+
+## Debug batchDbId Still NaN After Type Assertion Fix
+- [x] Add console.log to inspect actual batchInsertResult structure
+- [x] Check git history for working document upload code before insurer role split
+- [x] Compare current code with previous working version
+- [x] Restore working implementation (array destructuring pattern)
+- [ ] Test upload after restoration (requires user testing)
