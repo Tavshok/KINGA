@@ -25,7 +25,7 @@ import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
 import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers } from "../drizzle/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
   createClaim,
@@ -1569,6 +1569,107 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
 
         return { success: true };
+      }),
+
+    /**
+     * Resolve the 3 claimant panel beater choices to company names + insurer relationship flags.
+     * Returns an ordered list of { rank, profileId, companyName, preferred, slaSigned }.
+     * Also returns the assigned panel beater's profileId so the UI can detect a mismatch.
+     */
+    getPanelBeaterChoices: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || ctx.user.insurerTenantId || "default");
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+        const { marketplaceProfiles, insurerMarketplaceRelationships } = await import("../drizzle/schema");
+
+        const choiceIds = [
+          claim.panelBeaterChoice1,
+          claim.panelBeaterChoice2,
+          claim.panelBeaterChoice3,
+        ].filter(Boolean) as string[];
+
+        if (choiceIds.length === 0) {
+          return { choices: [], assignedProfileId: null };
+        }
+
+        // Fetch marketplace profiles for the three choices
+        const profiles = await db
+          .select({
+            id: marketplaceProfiles.id,
+            companyName: marketplaceProfiles.companyName,
+          })
+          .from(marketplaceProfiles)
+          .where(inArray(marketplaceProfiles.id, choiceIds));
+
+        // Fetch insurer relationship flags (preferred + slaSigned) for these profiles
+        // Use the insurer tenant from context if available, otherwise skip flags
+        const insurerTenantId = ctx.user.insurerTenantId || ctx.user.tenantId;
+        let relationshipMap: Record<string, { preferred: boolean; slaSigned: boolean }> = {};
+
+        if (insurerTenantId) {
+          const relationships = await db
+            .select({
+              marketplaceProfileId: insurerMarketplaceRelationships.marketplaceProfileId,
+              preferred: insurerMarketplaceRelationships.preferred,
+              slaSigned: insurerMarketplaceRelationships.slaSigned,
+            })
+            .from(insurerMarketplaceRelationships)
+            .where(
+              and(
+                eq(insurerMarketplaceRelationships.insurerTenantId, insurerTenantId),
+                inArray(insurerMarketplaceRelationships.marketplaceProfileId, choiceIds)
+              )
+            );
+
+          for (const rel of relationships) {
+            relationshipMap[rel.marketplaceProfileId] = {
+              preferred: rel.preferred === 1,
+              slaSigned: rel.slaSigned === 1,
+            };
+          }
+        }
+
+        const profileMap = Object.fromEntries(profiles.map(p => [p.id, p.companyName]));
+
+        const choices = [
+          claim.panelBeaterChoice1,
+          claim.panelBeaterChoice2,
+          claim.panelBeaterChoice3,
+        ]
+          .map((profileId, index) => {
+            if (!profileId) return null;
+            const flags = relationshipMap[profileId] ?? { preferred: false, slaSigned: false };
+            return {
+              rank: index + 1,
+              profileId,
+              companyName: profileMap[profileId] ?? "Unknown Repairer",
+              preferred: flags.preferred,
+              slaSigned: flags.slaSigned,
+            };
+          })
+          .filter(Boolean) as Array<{ rank: number; profileId: string; companyName: string; preferred: boolean; slaSigned: boolean }>;
+
+        // Resolve assigned panel beater's marketplace profile ID (if any)
+        // assignedPanelBeaterId is an integer FK to marketplace_profiles.id (which is a varchar UUID)
+        // We need to look it up by the integer PK if the column is actually int
+        let assignedProfileId: string | null = null;
+        if (claim.assignedPanelBeaterId) {
+          const assigned = await db
+            .select({ id: marketplaceProfiles.id })
+            .from(marketplaceProfiles)
+            .where(eq(marketplaceProfiles.id, String(claim.assignedPanelBeaterId)))
+            .limit(1);
+          assignedProfileId = assigned[0]?.id ?? null;
+        }
+
+        return { choices, assignedProfileId };
       }),
   }),
 

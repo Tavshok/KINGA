@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useState } from "react";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
+import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -188,6 +189,9 @@ export default function AssessorClaimDetails() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Panel Beater Choices */}
+            <PanelBeaterChoicesCard claimId={claimId} />
 
             {/* AI Co-Pilot Assessment */}
             {aiAssessment && (

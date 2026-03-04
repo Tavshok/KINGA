@@ -17,6 +17,7 @@ import { Download } from "lucide-react";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
+import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -368,6 +369,9 @@ export default function InsurerComparisonView() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Panel Beater Choices */}
+        <PanelBeaterChoicesCard claimId={claimId} />
 
         {/* Police Report Section */}
         <div className="mb-6">
