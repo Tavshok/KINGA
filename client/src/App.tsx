@@ -359,7 +359,7 @@ function Router() {
         </Route>
 
         <Route path="/agency">
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["agency", "admin"]}>
             <KingaAgency />
           </ProtectedRoute>
         </Route>

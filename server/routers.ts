@@ -76,6 +76,7 @@ import { mlRouter } from "./routers/ml";
 import { truthSynthesisRouter } from "./routers/truth-synthesis";
 import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
+import { agencyBrokerRouter } from "./routers/agency-broker";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
@@ -124,6 +125,7 @@ export const appRouter = router({
   intakeGate: intakeGateRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
+  agencyBroker: agencyBrokerRouter,
   workflow: workflowRouter,
   workflowQueries: workflowQueriesRouter,
   comments: commentsRouter,

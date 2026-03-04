@@ -3180,3 +3180,63 @@ export const insurerMarketplaceLinks = mysqlTable("insurer_marketplace_links", {
 
 export type InsurerMarketplaceLink = typeof insurerMarketplaceLinks.$inferSelect;
 export type InsertInsurerMarketplaceLink = typeof insurerMarketplaceLinks.$inferInsert;
+
+// ============================================================================
+// AGENCY BROKER DOMAIN
+// Standalone broker model: agency_clients and insurer_quote_requests.
+// Agency claims reuse the claims table with claim_source = 'agency'.
+// ============================================================================
+
+export const agencyClients = mysqlTable("agency_clients", {
+  id: int().autoincrement().notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  idNumber: varchar("id_number", { length: 50 }),
+  email: varchar({ length: 320 }),
+  phone: varchar({ length: 50 }),
+  address: text(),
+  vehicleRegistration: varchar("vehicle_registration", { length: 30 }),
+  vehicleMake: varchar("vehicle_make", { length: 100 }),
+  vehicleModel: varchar("vehicle_model", { length: 100 }),
+  vehicleYear: int("vehicle_year"),
+  vehicleVin: varchar("vehicle_vin", { length: 50 }),
+  notes: text(),
+  createdBy: int("created_by"),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_agency_clients_tenant").on(table.agencyTenantId),
+  index("idx_agency_clients_id_number").on(table.idNumber),
+  index("idx_agency_clients_email").on(table.email),
+]);
+
+export type AgencyClient = typeof agencyClients.$inferSelect;
+export type InsertAgencyClient = typeof agencyClients.$inferInsert;
+
+export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").notNull(),
+  insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
+  agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
+  status: mysqlEnum(['pending','sent','quoted','accepted','rejected','expired']).notNull().default('pending'),
+  quoteAmount: decimal("quote_amount", { precision: 12, scale: 2 }),
+  quoteCurrency: varchar("quote_currency", { length: 10 }).default('ZAR'),
+  quoteNotes: text("quote_notes"),
+  quoteValidUntil: timestamp("quote_valid_until", { mode: 'string' }),
+  sentAt: timestamp("sent_at", { mode: 'string' }),
+  quotedAt: timestamp("quoted_at", { mode: 'string' }),
+  respondedAt: timestamp("responded_at", { mode: 'string' }),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("unique_claim_insurer_quote").on(table.claimId, table.insurerTenantId),
+  index("idx_iqr_claim_id").on(table.claimId),
+  index("idx_iqr_insurer_tenant").on(table.insurerTenantId),
+  index("idx_iqr_agency_tenant").on(table.agencyTenantId),
+  index("idx_iqr_status").on(table.status),
+]);
+
+export type InsurerQuoteRequest = typeof insurerQuoteRequests.$inferSelect;
+export type InsertInsurerQuoteRequest = typeof insurerQuoteRequests.$inferInsert;
