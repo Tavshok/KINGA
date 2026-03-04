@@ -13,7 +13,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { eq, and } from "drizzle-orm";
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, protectedProcedure, insurerDomainProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import {
   marketplaceProfiles,
@@ -401,18 +401,15 @@ export const marketplaceRouter = router({
 
   /**
    * Insurer: create or update a governance relationship with a marketplace provider.
-   * Sets relationship_status, sla_signed, preferred, and notes.
-   * Uses INSERT ... ON DUPLICATE KEY UPDATE semantics via Drizzle.
+   *
+   * Uses insurerDomainProcedure — ctx.insurerTenantId is guaranteed non-null by middleware.
+   * All SQL is filtered exclusively by ctx.insurerTenantId; no manual tenant derivation.
    */
-  upsertRelationship: protectedProcedure
+  upsertRelationship: insurerDomainProcedure
     .input(upsertRelationshipInput)
     .mutation(async ({ ctx, input }) => {
-      const { user, tenant } = ctx;
-
-      const tenantId = (tenant as { id?: string } | null)?.id ?? user.tenantId;
-      if (!tenantId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant ID required." });
-      }
+      // ctx.insurerTenantId is structurally guaranteed by insurerDomainProcedure
+      const tenantId = ctx.insurerTenantId;
 
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
@@ -435,7 +432,7 @@ export const marketplaceRouter = router({
 
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
-      // Check if relationship already exists
+      // Check if a relationship already exists for THIS tenant only
       const [existing] = await db
         .select({ id: insurerMarketplaceRelationships.id })
         .from(insurerMarketplaceRelationships)
@@ -447,6 +444,9 @@ export const marketplaceRouter = router({
         );
 
       if (existing) {
+        // Update is scoped to the existing row's primary key — which was fetched
+        // with a WHERE insurerTenantId = tenantId filter, so cross-tenant mutation
+        // is structurally impossible.
         await db
           .update(insurerMarketplaceRelationships)
           .set({
@@ -456,11 +456,18 @@ export const marketplaceRouter = router({
             notes: input.notes ?? null,
             updatedAt: now,
           })
-          .where(eq(insurerMarketplaceRelationships.id, existing.id));
+          .where(
+            and(
+              eq(insurerMarketplaceRelationships.id, existing.id),
+              // Double-lock: redundant tenant filter prevents any edge-case leakage
+              eq(insurerMarketplaceRelationships.insurerTenantId, tenantId)
+            )
+          );
 
         console.log(`[Marketplace Governance] Updated relationship: insurer=${tenantId} profile=${input.marketplaceProfileId} status=${input.relationshipStatus}`);
         return { success: true, action: "updated" as const };
       } else {
+        // Insert always writes ctx.insurerTenantId as the owner — never user-supplied
         await db.insert(insurerMarketplaceRelationships).values({
           insurerTenantId: tenantId,
           marketplaceProfileId: input.marketplaceProfileId,
@@ -518,18 +525,20 @@ export const marketplaceRouter = router({
    * Insurer: list all governance relationships for their tenant.
    * Returns profiles with relationship metadata (status, SLA, preferred).
    */
-  listRelationships: protectedProcedure
+  /**
+   * Insurer: list all governance relationships for their tenant.
+   *
+   * Uses insurerDomainProcedure — ctx.insurerTenantId is guaranteed non-null by middleware.
+   * The WHERE clause is built exclusively from ctx.insurerTenantId; no manual tenant derivation.
+   */
+  listRelationships: insurerDomainProcedure
     .input(z.object({
       relationshipStatus: z.enum(["approved", "suspended", "blacklisted"]).optional(),
       type: z.enum(["assessor", "panel_beater"]).optional(),
     }))
     .query(async ({ ctx, input }) => {
-      const { user, tenant } = ctx;
-
-      const tenantId = (tenant as { id?: string } | null)?.id ?? user.tenantId;
-      if (!tenantId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant ID required." });
-      }
+      // ctx.insurerTenantId is structurally guaranteed by insurerDomainProcedure
+      const tenantId = ctx.insurerTenantId;
 
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
