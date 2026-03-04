@@ -1,7 +1,7 @@
 // @ts-nocheck
 import { z } from "zod";
 import { publicProcedure, protectedProcedure, router } from "../_core/trpc";
-import { getDb } from "../db";
+import { getDb, triggerAiAssessment } from "../db";
 import { TRPCError } from "@trpc/server";
 import { ingestionBatches, ingestionDocuments, extractedDocumentData, claims } from "../../drizzle/schema";
 import { storagePut } from "../storage";
@@ -246,6 +246,31 @@ export const documentIngestionRouter = router({
                   message: "Document already ingested. Existing claim returned.",
                 };
               }
+
+              // ---------------------------------------------------------------
+              // AI PROCESSING TRIGGER
+              // Fires AFTER the transaction commits — non-blocking so a slow LLM
+              // call never delays the upload response.
+              // At this stage the claim has no damage photos, so triggerAiAssessment
+              // will create a placeholder assessment (status: pending photos).
+              // Full AI analysis runs once the processor uploads damage photos.
+              // ---------------------------------------------------------------
+              const triggeredClaimId = txResult.claimDbId;
+              setImmediate(async () => {
+                try {
+                  await triggerAiAssessment(triggeredClaimId);
+                  console.log(
+                    `[Document Upload] AI processing triggered successfully for claim ${triggeredClaimId}`
+                  );
+                } catch (aiError) {
+                  console.error(
+                    `[Document Upload] AI processing trigger failed for claim ${triggeredClaimId}:`,
+                    aiError instanceof Error ? aiError.message : aiError
+                  );
+                  // Non-fatal: claim and document are already committed.
+                  // Processor can manually trigger AI assessment from the dashboard.
+                }
+              });
 
               return {
                 document_id: documentId,
