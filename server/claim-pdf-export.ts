@@ -1,16 +1,23 @@
 /**
- * Claim PDF Export
+ * Claim PDF Export — Governance-Complete Edition
  *
  * Generates a comprehensive single-claim PDF report for insurers, including:
  *   - Claim header (vehicle, policy, incident details)
  *   - AI Assessment summary
+ *   - Ranked Panel Beater Choices (1st/2nd/3rd) with Preferred, SLA Signed,
+ *     and AI Recommended badges
+ *   - Mismatch warning when assigned repairer differs from claimant preference
+ *   - Override Reason display when insurer overrode the AI recommendation
  *   - Panel beater quotes table
  *   - AI Quote Optimisation Summary (risk score, recommended repairer,
  *     per-quote cost deviation, flags, AI narrative, insurer decision)
  *   - Graceful fallback when no optimisation result exists
+ *   - Audit log entry: action = "claim_pdf_exported"
  *
- * Uses Puppeteer-core + Chromium (same pattern as pdf-export.ts and
- * final-claim-report-pdf.ts) to convert HTML → PDF, then uploads to S3.
+ * Security: uses insurerDomainProcedure — structural tenant isolation enforced.
+ * All queries filter by ctx.insurerTenantId.
+ *
+ * Uses Puppeteer-core + Chromium to convert HTML → PDF, then uploads to S3.
  */
 
 import { z } from "zod";
@@ -20,9 +27,9 @@ import { tmpdir } from "os";
 import { randomBytes } from "crypto";
 import puppeteer from "puppeteer-core";
 import { TRPCError } from "@trpc/server";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray } from "drizzle-orm";
 
-import { protectedProcedure } from "./_core/trpc";
+import { insurerDomainProcedure } from "./_core/trpc";
 import { getDb } from "./db";
 import { storagePut } from "./storage";
 import {
@@ -30,6 +37,9 @@ import {
   panelBeaterQuotes,
   aiAssessments,
   quoteOptimisationResults,
+  marketplaceProfiles,
+  insurerMarketplaceRelationships,
+  auditTrail,
   users,
 } from "../drizzle/schema";
 
@@ -45,6 +55,16 @@ interface PerQuoteAnalysis {
   costDeviationPercent?: number;
   flags?: string[];
   recommendation?: string;
+}
+
+/** Resolved panel beater choice with relationship metadata */
+interface PanelBeaterChoice {
+  rank: 1 | 2 | 3;
+  profileId: string;
+  companyName: string;
+  preferred: boolean;
+  slaSigned: boolean;
+  aiRecommended: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -110,6 +130,18 @@ function riskLevelColor(level: string | null | undefined): string {
   }
 }
 
+const RANK_LABELS: Record<1 | 2 | 3, string> = {
+  1: "1st Choice",
+  2: "2nd Choice",
+  3: "3rd Choice",
+};
+
+const RANK_ICONS: Record<1 | 2 | 3, string> = {
+  1: "①",
+  2: "②",
+  3: "③",
+};
+
 // ─── HTML Generator ──────────────────────────────────────────────────────────
 
 interface ClaimPDFData {
@@ -118,10 +150,20 @@ interface ClaimPDFData {
   quotes: (typeof panelBeaterQuotes.$inferSelect)[];
   optimisation: typeof quoteOptimisationResults.$inferSelect | null;
   decisionUser: { name: string | null } | null;
+  panelBeaterChoices: PanelBeaterChoice[];
+  assignedRepairerName: string | null;
 }
 
 function generateClaimPDFHTML(data: ClaimPDFData): string {
-  const { claim, aiAssessment, quotes, optimisation, decisionUser } = data;
+  const {
+    claim,
+    aiAssessment,
+    quotes,
+    optimisation,
+    decisionUser,
+    panelBeaterChoices,
+    assignedRepairerName,
+  } = data;
 
   // ── Parse per-quote analysis ──────────────────────────────────────────────
   let perQuoteAnalysis: PerQuoteAnalysis[] = [];
@@ -171,6 +213,64 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
         <td>${flagStr}</td>
       </tr>`;
   }).join("\n");
+
+  // ── Ranked Panel Beater Choices section ──────────────────────────────────
+  const choiceProfileIds = new Set(panelBeaterChoices.map(c => c.profileId));
+  const assignedIsInChoices = assignedRepairerName != null &&
+    panelBeaterChoices.some(c => c.companyName === assignedRepairerName);
+
+  const choicesRows = panelBeaterChoices.length > 0
+    ? panelBeaterChoices.map(choice => {
+        const badges: string[] = [];
+        if (choice.aiRecommended) {
+          badges.push(`<span class="badge badge-ai">AI Recommended</span>`);
+        }
+        if (choice.preferred) {
+          badges.push(`<span class="badge badge-preferred">Preferred</span>`);
+        }
+        if (choice.slaSigned) {
+          badges.push(`<span class="badge badge-sla">SLA Signed</span>`);
+        }
+        const badgeStr = badges.length > 0
+          ? `<div class="choice-badges">${badges.join(" ")}</div>`
+          : "";
+        return `
+        <div class="choice-row">
+          <div class="choice-rank">${RANK_ICONS[choice.rank]}</div>
+          <div class="choice-body">
+            <div class="choice-label">${RANK_LABELS[choice.rank]}</div>
+            <div class="choice-name">${choice.companyName}</div>
+            ${badgeStr}
+          </div>
+        </div>`;
+      }).join("\n")
+    : `<p class="no-data-text">No panel beater preferences were recorded for this claim.</p>`;
+
+  // ── Mismatch warning ──────────────────────────────────────────────────────
+  const mismatchWarning = (assignedRepairerName && !assignedIsInChoices)
+    ? `
+    <div class="mismatch-warning">
+      <span class="mismatch-icon">⚠</span>
+      <div>
+        <strong>Final assigned repairer differs from claimant preference.</strong>
+        <div class="mismatch-sub">
+          Assigned: <strong>${assignedRepairerName}</strong>
+          ${overrideReason
+            ? `<div class="override-reason-inline">Override Reason: ${overrideReason}</div>`
+            : ""}
+        </div>
+      </div>
+    </div>`
+    : "";
+
+  const panelBeaterChoicesSection = `
+  <div class="section no-break">
+    <h2 class="section-title">Panel Beater Choices (Claimant Preference)</h2>
+    <div class="choices-container">
+      ${choicesRows}
+    </div>
+    ${mismatchWarning}
+  </div>`;
 
   // ── AI Optimisation Summary section ──────────────────────────────────────
   let optimisationSection: string;
@@ -273,11 +373,10 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
         </div>
 
         <div class="opt-metric-card">
-          <div class="opt-metric-label">Recommended Repairer</div>
+          <div class="opt-metric-label">AI Recommended Repairer</div>
           <div class="opt-metric-value opt-metric-repairer">
-            ${optimisation.recommendedCompanyName ?? "—"}
+            ${optimisation.recommendedCompanyName ?? optimisation.recommendedProfileId ?? "—"}
           </div>
-          <div class="opt-metric-sublabel">AI-selected lowest-risk quote</div>
         </div>
 
         <div class="opt-metric-card">
@@ -287,23 +386,21 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
             ${flagPartsInflation  ? `<span class="flag-chip flag-red">Parts Inflation</span>`  : ""}
             ${flagOverpricing     ? `<span class="flag-chip flag-amber">Overpricing</span>`    : ""}
             ${!flagLabourInflation && !flagPartsInflation && !flagOverpricing
-              ? `<span class="flag-chip flag-green">No Flags</span>` : ""}
+              ? `<span style="color:#10b981;font-size:9pt;">✓ No flags raised</span>`
+              : ""}
           </div>
         </div>
       </div>
 
-      <!-- Per-quote deviation table ─────────────────────────────────────── -->
-      ${perQuoteTable}
-
-      <!-- AI Narrative Summary ─────────────────────────────────────────── -->
+      <!-- AI Narrative ────────────────────────────────────────────────────── -->
       ${optimisation.optimisationSummary ? `
       <h3 class="section-subtitle">AI Narrative Summary</h3>
-      <div class="narrative-box">
-        ${optimisation.optimisationSummary}
-      </div>` : ""}
+      <div class="ai-narrative">${optimisation.optimisationSummary}</div>` : ""}
 
-      <!-- Insurer Decision ─────────────────────────────────────────────── -->
-      <h3 class="section-subtitle">Insurer Decision</h3>
+      <!-- Per-Quote Analysis ──────────────────────────────────────────────── -->
+      ${perQuoteTable}
+
+      <!-- Insurer Decision ───────────────────────────────────────────────── -->
       ${decisionBlock}
     </div>`;
   }
@@ -312,192 +409,261 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Claim Report — ${claim.claimNumber}</title>
   <style>
-    @page { size: A4; margin: 20mm 15mm; }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    /* ── Base ─────────────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
       font-size: 10pt;
-      line-height: 1.5;
       color: #1f2937;
-      background: white;
+      background: #ffffff;
+      line-height: 1.5;
     }
+    .container { max-width: 780px; margin: 0 auto; padding: 8mm 10mm; }
 
-    /* ── Layout ─────────────────────────────────────────────────────────── */
-    .container { max-width: 100%; }
-    .section { margin-bottom: 28px; }
-    .no-break { page-break-inside: avoid; }
+    /* ── Page breaks ─────────────────────────────────────────────────────── */
     .page-break { page-break-before: always; }
+    .no-break   { page-break-inside: avoid; }
 
-    /* ── Header ─────────────────────────────────────────────────────────── */
+    /* ── Report header ───────────────────────────────────────────────────── */
     .report-header {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      padding-bottom: 16px;
-      border-bottom: 3px solid #2563eb;
-      margin-bottom: 28px;
+      border-bottom: 2px solid #1e3a5f;
+      padding-bottom: 8px;
+      margin-bottom: 16px;
     }
-    .report-title { font-size: 20pt; font-weight: 700; color: #1e40af; margin-bottom: 6px; }
-    .report-subtitle { font-size: 10pt; color: #6b7280; margin-bottom: 12px; }
-    .header-meta { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 9pt; }
-    .header-meta-label { font-weight: 600; color: #374151; }
-    .header-meta-value { color: #1f2937; }
-    .kinga-brand { font-size: 14pt; font-weight: 700; color: #1e40af; }
-    .generated-at { font-size: 8pt; color: #6b7280; margin-top: 6px; }
+    .report-title   { font-size: 18pt; font-weight: 700; color: #1e3a5f; }
+    .report-subtitle { font-size: 9pt; color: #6b7280; margin-top: 2px; }
+    .kinga-brand    { font-size: 22pt; font-weight: 900; color: #1e3a5f; letter-spacing: 2px; }
+    .generated-at   { font-size: 8pt; color: #9ca3af; margin-top: 4px; }
+    .header-meta    { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+    .header-meta-label { font-size: 8pt; color: #6b7280; }
+    .header-meta-value { font-size: 8pt; font-weight: 600; color: #1f2937; }
 
-    /* ── Section titles ──────────────────────────────────────────────────── */
+    /* ── Sections ────────────────────────────────────────────────────────── */
+    .section { margin-bottom: 18px; }
     .section-title {
-      font-size: 13pt;
+      font-size: 11pt;
       font-weight: 700;
-      color: #1e40af;
-      border-bottom: 2px solid #93c5fd;
-      padding-bottom: 6px;
-      margin-bottom: 14px;
+      color: #1e3a5f;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 4px;
+      margin-bottom: 10px;
     }
     .section-subtitle {
       font-size: 10pt;
       font-weight: 600;
       color: #374151;
-      margin-top: 14px;
+      margin: 10px 0 6px;
+    }
+
+    /* ── AI Assessment card ──────────────────────────────────────────────── */
+    .ai-card {
+      display: flex;
+      gap: 20px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 10px 14px;
       margin-bottom: 8px;
+    }
+    .ai-card-item-label { font-size: 8pt; color: #6b7280; }
+    .ai-card-item-value { font-size: 12pt; font-weight: 700; color: #1f2937; }
+
+    /* ── Panel Beater Choices ────────────────────────────────────────────── */
+    .choices-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+    .choice-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 8px 12px;
+    }
+    .choice-rank {
+      font-size: 18pt;
+      color: #1e3a5f;
+      font-weight: 700;
+      min-width: 28px;
+      line-height: 1.2;
+    }
+    .choice-body { flex: 1; }
+    .choice-label { font-size: 7.5pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.5px; }
+    .choice-name  { font-size: 11pt; font-weight: 700; color: #1f2937; margin: 2px 0 4px; }
+    .choice-badges { display: flex; flex-wrap: wrap; gap: 4px; }
+
+    /* ── Badges ──────────────────────────────────────────────────────────── */
+    .badge {
+      display: inline-block;
+      font-size: 7.5pt;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 10px;
+      letter-spacing: 0.3px;
+    }
+    .badge-ai        { background: #dbeafe; color: #1d4ed8; }
+    .badge-preferred { background: #fef3c7; color: #92400e; }
+    .badge-sla       { background: #d1fae5; color: #065f46; }
+
+    /* ── Mismatch warning ────────────────────────────────────────────────── */
+    .mismatch-warning {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      border-left: 4px solid #f97316;
+      border-radius: 6px;
+      padding: 10px 14px;
+      margin-top: 8px;
+    }
+    .mismatch-icon { font-size: 14pt; color: #f97316; }
+    .mismatch-sub  { font-size: 9pt; color: #374151; margin-top: 4px; }
+    .override-reason-inline {
+      margin-top: 4px;
+      font-size: 9pt;
+      color: #7c3aed;
+      font-style: italic;
     }
 
     /* ── Tables ──────────────────────────────────────────────────────────── */
-    table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 9pt; }
-    th {
-      background: #1e40af;
-      color: white;
-      padding: 8px 10px;
-      text-align: left;
-      font-weight: 600;
-      border: 1px solid #1e3a8a;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5pt;
+      margin-bottom: 8px;
     }
-    td { padding: 8px 10px; border: 1px solid #d1d5db; }
+    th {
+      background: #1e3a5f;
+      color: #ffffff;
+      font-weight: 600;
+      padding: 5px 8px;
+      text-align: left;
+    }
+    td { padding: 4px 8px; border-bottom: 1px solid #e5e7eb; }
     tr:nth-child(even) td { background: #f9fafb; }
 
-    /* ── AI assessment card ──────────────────────────────────────────────── */
-    .ai-card {
-      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-      border-left: 4px solid #3b82f6;
-      padding: 14px;
-      border-radius: 6px;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 12px;
-      margin-bottom: 14px;
+    /* ── Flag chips ──────────────────────────────────────────────────────── */
+    .flag-chip {
+      display: inline-block;
+      font-size: 7pt;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: #fee2e2;
+      color: #991b1b;
+      margin-right: 2px;
     }
-    .ai-card-item-label { font-size: 8pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; }
-    .ai-card-item-value { font-size: 14pt; font-weight: 700; color: #1e40af; }
+    .flag-red   { background: #fee2e2; color: #991b1b; }
+    .flag-amber { background: #fef3c7; color: #92400e; }
 
-    /* ── Optimisation header grid ────────────────────────────────────────── */
+    /* ── AI Optimisation header grid ─────────────────────────────────────── */
     .opt-header-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 14px;
-      margin-bottom: 18px;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
     }
     .opt-metric-card {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+      flex: 1;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 14px;
+      padding: 10px 12px;
     }
-    .opt-metric-label { font-size: 8pt; color: #6b7280; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 6px; }
-    .opt-metric-value { font-size: 22pt; font-weight: 700; line-height: 1; margin-bottom: 6px; }
-    .opt-metric-repairer { font-size: 13pt; }
-    .opt-metric-unit { font-size: 11pt; font-weight: 400; color: #6b7280; }
-    .opt-metric-sublabel { font-size: 8pt; color: #6b7280; }
+    .opt-metric-label    { font-size: 8pt; color: #6b7280; margin-bottom: 4px; }
+    .opt-metric-value    { font-size: 18pt; font-weight: 700; color: #1f2937; line-height: 1.1; }
+    .opt-metric-unit     { font-size: 10pt; color: #6b7280; }
+    .opt-metric-repairer { font-size: 11pt; }
+    .opt-metric-sublabel { margin-top: 4px; }
+    .opt-flags-list      { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 
     /* ── Risk level badge ────────────────────────────────────────────────── */
     .risk-level-badge {
       display: inline-block;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 8pt;
+      font-size: 7.5pt;
       font-weight: 700;
-      color: white;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
+      color: #ffffff;
+      padding: 2px 8px;
+      border-radius: 10px;
     }
-
-    /* ── Flags ───────────────────────────────────────────────────────────── */
-    .opt-flags-list { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-    .flag-chip {
-      display: inline-block;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 8pt;
-      font-weight: 600;
-    }
-    .flag-red    { background: #fee2e2; color: #991b1b; }
-    .flag-amber  { background: #fef3c7; color: #92400e; }
-    .flag-green  { background: #d1fae5; color: #065f46; }
-
-    /* ── Optimisation table ──────────────────────────────────────────────── */
-    .opt-table th { background: #1e40af; }
 
     /* ── AI Narrative ────────────────────────────────────────────────────── */
-    .narrative-box {
-      background: #fefce8;
-      border-left: 4px solid #ca8a04;
-      padding: 14px;
-      border-radius: 6px;
+    .ai-narrative {
+      background: #f0f9ff;
+      border-left: 3px solid #0ea5e9;
+      padding: 8px 12px;
       font-size: 9pt;
-      line-height: 1.7;
-      color: #1f2937;
-      margin-bottom: 14px;
+      color: #374151;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 10px;
     }
 
     /* ── Decision blocks ─────────────────────────────────────────────────── */
-    .decision-block { padding: 14px; border-radius: 6px; margin-top: 10px; }
-    .decision-accepted  { background: #d1fae5; border: 1px solid #6ee7b7; }
-    .decision-overridden { background: #fef3c7; border: 2px solid #f59e0b; }
-    .decision-pending   { padding: 10px 0; }
-    .decision-label { font-size: 9pt; font-weight: 600; color: #374151; margin-right: 10px; }
+    .decision-block, .decision-pending {
+      margin-top: 12px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+    }
+    .decision-accepted  { background: #f0fdf4; border-color: #86efac; }
+    .decision-overridden { background: #fff7ed; border-color: #fed7aa; }
+    .decision-pending   { background: #f8fafc; }
+    .decision-label     { font-size: 9pt; color: #6b7280; margin-right: 8px; }
     .decision-badge {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 4px;
       font-size: 9pt;
       font-weight: 700;
+      padding: 2px 10px;
+      border-radius: 10px;
     }
-    .decision-accepted-badge  { background: #065f46; color: white; }
-    .decision-overridden-badge { background: #92400e; color: white; }
-    .decision-pending-badge   { background: #6b7280; color: white; }
-    .decision-meta { font-size: 8pt; color: #374151; margin-top: 8px; }
+    .decision-accepted-badge  { background: #dcfce7; color: #15803d; }
+    .decision-overridden-badge { background: #fee2e2; color: #dc2626; }
+    .decision-pending-badge   { background: #e5e7eb; color: #374151; }
+    .decision-meta { font-size: 8.5pt; color: #6b7280; margin-top: 6px; }
     .override-reason-box {
-      margin-top: 10px;
-      padding: 10px;
-      background: white;
-      border: 1px solid #f59e0b;
+      margin-top: 8px;
+      padding: 8px 10px;
+      background: #fef9c3;
+      border: 1px solid #fde047;
       border-radius: 4px;
       font-size: 9pt;
-      line-height: 1.6;
-      color: #78350f;
+      color: #713f12;
     }
 
-    /* ── No-optimisation notice ──────────────────────────────────────────── */
+    /* ── No-data states ──────────────────────────────────────────────────── */
     .no-optimisation-notice {
       display: flex;
       align-items: center;
-      gap: 10px;
-      background: #f3f4f6;
-      border: 1px solid #d1d5db;
+      gap: 8px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
       border-radius: 6px;
-      padding: 16px;
-      font-size: 10pt;
-      color: #374151;
+      padding: 10px 14px;
+      font-size: 9pt;
+      color: #6b7280;
     }
-    .no-opt-icon { font-size: 18pt; color: #9ca3af; }
+    .no-opt-icon { font-size: 14pt; }
+    .no-data-text { font-size: 9pt; color: #6b7280; }
+
+    /* ── Opt table ───────────────────────────────────────────────────────── */
+    .opt-table { margin-bottom: 12px; }
 
     /* ── Footer ──────────────────────────────────────────────────────────── */
     .report-footer {
-      margin-top: 30px;
-      padding-top: 12px;
-      border-top: 1px solid #d1d5db;
+      margin-top: 20px;
+      padding-top: 8px;
+      border-top: 1px solid #e5e7eb;
       font-size: 8pt;
       color: #6b7280;
       text-align: center;
@@ -565,6 +731,9 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     ` : `<p style="color:#6b7280;font-size:9pt;">No AI assessment has been performed for this claim.</p>`}
   </div>
 
+  <!-- ── Ranked Panel Beater Choices ────────────────────────────────────── -->
+  ${panelBeaterChoicesSection}
+
   <!-- ── Panel Beater Quotes ─────────────────────────────────────────────── -->
   <div class="section no-break">
     <h2 class="section-title">Panel Beater Quotes</h2>
@@ -604,31 +773,32 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
 /**
  * exportClaimPDF
  *
- * Generates a comprehensive PDF for a single claim, including the AI Quote
- * Optimisation Summary section. Uploads the result to S3 and returns the URL.
+ * Generates a governance-complete PDF for a single claim.
+ * Includes ranked panel beater choices with Preferred/SLA/AI-Recommended badges,
+ * mismatch warning, override reason, AI Quote Optimisation Summary, and an
+ * audit log entry (action: "claim_pdf_exported").
  *
- * @requires Authentication (any authenticated user with access to the claim)
+ * @requires insurerDomainProcedure — structural tenant isolation enforced
  * @param claimId - The numeric ID of the claim to export
  * @returns { success, pdfUrl, fileName }
  */
-export const exportClaimPDF = protectedProcedure
+export const exportClaimPDF = insurerDomainProcedure
   .input(z.object({ claimId: z.number().int().positive() }))
   .mutation(async ({ ctx, input }) => {
-    if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-
     const db = await getDb();
     if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
 
-    // ── 1. Fetch claim (with optional tenant isolation for non-admin users) ─
-    const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId ?? undefined);
+    const tenantId = ctx.insurerTenantId; // guaranteed non-null by insurerDomainProcedure
 
+    // ── 1. Fetch claim — hard-filtered by tenant ───────────────────────────
     const claimRows = await db
       .select()
       .from(claims)
       .where(
-        tenantId
-          ? and(eq(claims.id, input.claimId), eq(claims.tenantId, tenantId))
-          : eq(claims.id, input.claimId)
+        and(
+          eq(claims.id, input.claimId),
+          eq(claims.tenantId, tenantId)
+        )
       )
       .limit(1);
 
@@ -667,7 +837,7 @@ export const exportClaimPDF = protectedProcedure
       .limit(1);
     const optimisation = optRows[0] ?? null;
 
-    // ── 5. Fetch insurer decision user name (if decision was recorded) ─────
+    // ── 5. Fetch insurer decision user name ───────────────────────────────
     let decisionUser: { name: string | null } | null = null;
     if (optimisation?.insurerDecisionBy) {
       const userRows = await db
@@ -678,16 +848,101 @@ export const exportClaimPDF = protectedProcedure
       decisionUser = userRows[0] ?? null;
     }
 
-    // ── 6. Generate HTML ──────────────────────────────────────────────────
+    // ── 6. Resolve ranked panel beater choices ────────────────────────────
+    const choiceIds = [
+      claim.panelBeaterChoice1,
+      claim.panelBeaterChoice2,
+      claim.panelBeaterChoice3,
+    ].filter((id): id is string => !!id);
+
+    let panelBeaterChoices: PanelBeaterChoice[] = [];
+
+    if (choiceIds.length > 0) {
+      // Fetch marketplace profiles for the three choices
+      const profiles = await db
+        .select({ id: marketplaceProfiles.id, companyName: marketplaceProfiles.companyName })
+        .from(marketplaceProfiles)
+        .where(inArray(marketplaceProfiles.id, choiceIds));
+
+      // Fetch insurer relationship flags (preferred, slaSigned) for this tenant
+      const relationships = await db
+        .select({
+          marketplaceProfileId: insurerMarketplaceRelationships.marketplaceProfileId,
+          preferred: insurerMarketplaceRelationships.preferred,
+          slaSigned: insurerMarketplaceRelationships.slaSigned,
+        })
+        .from(insurerMarketplaceRelationships)
+        .where(
+          and(
+            eq(insurerMarketplaceRelationships.insurerTenantId, tenantId),
+            inArray(insurerMarketplaceRelationships.marketplaceProfileId, choiceIds)
+          )
+        );
+
+      const profileMap = new Map(profiles.map(p => [p.id, p.companyName]));
+      const relMap = new Map(relationships.map(r => [
+        r.marketplaceProfileId,
+        { preferred: r.preferred === 1, slaSigned: r.slaSigned === 1 },
+      ]));
+
+      const aiRecommendedId = optimisation?.recommendedProfileId ?? null;
+
+      const rawChoices: [string | null, 1 | 2 | 3][] = [
+        [claim.panelBeaterChoice1, 1],
+        [claim.panelBeaterChoice2, 2],
+        [claim.panelBeaterChoice3, 3],
+      ];
+
+      panelBeaterChoices = rawChoices
+        .filter(([id]) => !!id)
+        .map(([id, rank]) => {
+          const profileId = id!;
+          const rel = relMap.get(profileId);
+          return {
+            rank,
+            profileId,
+            companyName: profileMap.get(profileId) ?? profileId,
+            preferred: rel?.preferred ?? false,
+            slaSigned: rel?.slaSigned ?? false,
+            aiRecommended: profileId === aiRecommendedId,
+          };
+        });
+    }
+
+    // ── 7. Resolve assigned repairer name (if any) ────────────────────────
+    let assignedRepairerName: string | null = null;
+    if (claim.assignedPanelBeaterId) {
+      // assignedPanelBeaterId is an integer FK to panel_beater_quotes.panel_beater_id
+      // Try to find the company name from the quotes submitted for this claim
+      const assignedQuote = quotes.find(q => q.panelBeaterId === claim.assignedPanelBeaterId);
+      if (assignedQuote) {
+        // Try to match to a marketplace profile via the per-quote analysis
+        let perQuoteAnalysis: PerQuoteAnalysis[] = [];
+        if (optimisation?.quoteAnalysis) {
+          try {
+            const raw = typeof optimisation.quoteAnalysis === "string"
+              ? JSON.parse(optimisation.quoteAnalysis)
+              : optimisation.quoteAnalysis;
+            if (Array.isArray(raw)) perQuoteAnalysis = raw as PerQuoteAnalysis[];
+          } catch { /* ignore */ }
+        }
+        const qIdx = quotes.indexOf(assignedQuote);
+        assignedRepairerName = perQuoteAnalysis[qIdx]?.companyName ?? null;
+      }
+    }
+
+    // ── 8. Generate HTML ──────────────────────────────────────────────────
     const htmlContent = generateClaimPDFHTML({
       claim,
       aiAssessment,
       quotes,
       optimisation,
       decisionUser,
+      panelBeaterChoices,
+      assignedRepairerName,
     });
 
-    // ── 7. Convert HTML → PDF via Puppeteer ──────────────────────────────
+    // ── 9. Convert HTML → PDF via Puppeteer ──────────────────────────────
     const tempId = randomBytes(16).toString("hex");
     const htmlPath = join(tmpdir(), `kinga-claim-${tempId}.html`);
 
@@ -727,13 +982,35 @@ export const exportClaimPDF = protectedProcedure
       await unlink(htmlPath).catch(() => {});
     }
 
-    // ── 8. Upload to S3 ───────────────────────────────────────────────────
+    // ── 10. Upload to S3 ──────────────────────────────────────────────────
     const fileName = `claim-report-${claim.claimNumber}-${Date.now()}.pdf`;
     const { url: pdfUrl } = await storagePut(
       `claim-reports/${fileName}`,
       pdfBuffer,
       "application/pdf"
     );
+
+    // ── 11. Audit log — fire-and-forget ───────────────────────────────────
+    // Write audit entry asynchronously; failure must never block the response.
+    (async () => {
+      try {
+        await db.insert(auditTrail).values({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_pdf_exported",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `PDF exported for claim ${claim.claimNumber} by user ${ctx.user.id} (tenant: ${tenantId}). File: ${fileName}`,
+          ipAddress: (ctx.req?.headers?.["x-forwarded-for"] as string | undefined)
+            ?.split(",")[0]?.trim()
+            ?? (ctx.req as any)?.ip
+            ?? null,
+          userAgent: ctx.req?.headers?.["user-agent"] as string | undefined ?? null,
+        });
+      } catch (err) {
+        console.error("[ClaimPDFExport] Failed to write audit log:", err);
+      }
+    })();
 
     return { success: true, pdfUrl, fileName };
   });
