@@ -85,6 +85,14 @@ export const workflowQueriesRouter = router({
       // ctx.insurerTenantId is guaranteed non-null by insurerDomainProcedure
       const { insurerTenantId } = ctx;
 
+      // Only insurer tenant members can query claims
+      if (ctx.user.role !== 'insurer' && ctx.user.role !== 'admin') {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Only insurer tenant members can query claims by workflow state',
+        });
+      }
+
       // Role-based state access (admin users bypass role check)
       const isAdmin = ctx.user.role === "admin";
       if (!isAdmin && ctx.user.insurerRole) {
@@ -179,6 +187,12 @@ export const workflowQueriesRouter = router({
    * Get accessible workflow states for the current user's insurer role.
    */
   getAccessibleStates: insurerDomainProcedure.query(async ({ ctx }) => {
+    if (ctx.user.role !== 'insurer' && ctx.user.role !== 'admin') {
+      throw new TRPCError({
+        code: 'FORBIDDEN',
+        message: 'Only insurer tenant members can query accessible states',
+      });
+    }
     if (!ctx.user.insurerRole) {
       return { role: null, accessibleStates: [] };
     }

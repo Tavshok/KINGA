@@ -3,6 +3,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { appRouter } from "../routers";
 import { users } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { getDb } from "../db";
 
 describe("Assessor Onboarding Router", () => {
   let insurerContext: any;

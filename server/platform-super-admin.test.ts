@@ -12,8 +12,9 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { getDb } from "./db";
-import { users, claims, tenants, auditTrail } from "../drizzle/schema";
+import { users, claims, insurerTenants, auditTrail } from "../drizzle/schema";
 import { eq } from "drizzle-orm";
+import { extractInsertId } from "./utils/drizzle-helpers";
 
 describe("Platform Super Admin Access Control", () => {
   let testPlatformSuperAdminId: number;
@@ -26,47 +27,39 @@ describe("Platform Super Admin Access Control", () => {
     const db = await getDb();
     
     // Create test tenants
-    const [tenant1] = await db.insert(tenants).values({
-      name: "Test Tenant 1",
-      tenantId: "test-tenant-1",
-    });
-    testTenant1Id = tenant1.insertId.toString();
-    
-    const [tenant2] = await db.insert(tenants).values({
-      name: "Test Tenant 2",
-      tenantId: "test-tenant-2",
-    });
-    testTenant2Id = tenant2.insertId.toString();
+    testTenant1Id = `test-psa-tenant-1-${Date.now()}`;
+    testTenant2Id = `test-psa-tenant-2-${Date.now()}`;
+    await db.insert(insurerTenants).values({ id: testTenant1Id, name: "Test Tenant 1", displayName: "Test Tenant 1" }).onDuplicateKeyUpdate({ set: { name: "Test Tenant 1" } });
+    await db.insert(insurerTenants).values({ id: testTenant2Id, name: "Test Tenant 2", displayName: "Test Tenant 2" }).onDuplicateKeyUpdate({ set: { name: "Test Tenant 2" } });
     
     // Create platform super admin user
-    const [platformSuperAdmin] = await db.insert(users).values({
-      email: "platform.superadmin@test.com",
+    const psaResult = await db.insert(users).values({
+      openId: `psa-openid-${Date.now()}`,
+      email: `platform.superadmin.${Date.now()}@test.com`,
       name: "Platform Super Admin",
       role: "platform_super_admin",
       tenantId: null, // Platform super admins are not tied to a specific tenant
     });
-    testPlatformSuperAdminId = platformSuperAdmin.insertId;
+    testPlatformSuperAdminId = extractInsertId(psaResult);
     
     // Create test claims in different tenants
-    const [claim1] = await db.insert(claims).values({
-      claimNumber: "TEST-CLAIM-001",
+    const claim1Result = await db.insert(claims).values({
+      claimNumber: `TEST-CLAIM-PSA-001-${Date.now()}`,
       tenantId: testTenant1Id,
       claimantId: testPlatformSuperAdminId,
       vehicleRegistration: "ABC123",
-      incidentDate: new Date(),
       status: "submitted",
     });
-    testClaim1Id = claim1.insertId.toString();
+    testClaim1Id = String(extractInsertId(claim1Result));
     
-    const [claim2] = await db.insert(claims).values({
-      claimNumber: "TEST-CLAIM-002",
+    const claim2Result = await db.insert(claims).values({
+      claimNumber: `TEST-CLAIM-PSA-002-${Date.now()}`,
       tenantId: testTenant2Id,
       claimantId: testPlatformSuperAdminId,
       vehicleRegistration: "XYZ789",
-      incidentDate: new Date(),
       status: "submitted",
     });
-    testClaim2Id = claim2.insertId.toString();
+    testClaim2Id = String(extractInsertId(claim2Result));
   });
   
   afterAll(async () => {
@@ -76,8 +69,8 @@ describe("Platform Super Admin Access Control", () => {
     await db.delete(claims).where(eq(claims.id, parseInt(testClaim1Id)));
     await db.delete(claims).where(eq(claims.id, parseInt(testClaim2Id)));
     await db.delete(users).where(eq(users.id, testPlatformSuperAdminId));
-    await db.delete(tenants).where(eq(tenants.id, parseInt(testTenant1Id)));
-    await db.delete(tenants).where(eq(tenants.id, parseInt(testTenant2Id)));
+    await db.delete(insurerTenants).where(eq(insurerTenants.id, testTenant1Id));
+    await db.delete(insurerTenants).where(eq(insurerTenants.id, testTenant2Id));
     
     // Clean up audit trail entries
     await db.delete(auditTrail).where(eq(auditTrail.userId, testPlatformSuperAdminId));
@@ -126,23 +119,25 @@ describe("Platform Super Admin Access Control", () => {
     const db = await getDb();
     
     // Create a test user
-    const [testUser] = await db.insert(users).values({
-      email: "test.user@test.com",
+    const testUserResult = await db.insert(users).values({
+      openId: `test-user-openid-${Date.now()}`,
+      email: `test.user.${Date.now()}@test.com`,
       name: "Test User",
       role: "user",
       tenantId: testTenant1Id,
     });
+    const testUserId = extractInsertId(testUserResult);
     
     // Verify the user's role remains unchanged
     const [userAfter] = await db
       .select()
       .from(users)
-      .where(eq(users.id, testUser.insertId));
+      .where(eq(users.id, testUserId));
     
     expect(userAfter.role).toBe("user");
     
     // Clean up
-    await db.delete(users).where(eq(users.id, testUser.insertId));
+    await db.delete(users).where(eq(users.id, testUserId));
   });
   
   it("should allow platform super admin to view cross-tenant claims", async () => {
@@ -192,13 +187,13 @@ describe("Platform Super Admin Access Control", () => {
     
     const lastEntry = auditEntries[auditEntries.length - 1];
     expect(lastEntry.action).toBe("platform_super_admin_view_claim_trace");
-    expect(lastEntry.resourceType).toBe("claim");
-    expect(lastEntry.resourceId).toBe(testClaim1Id);
+    expect(lastEntry.entityType).toBe("claim");
+    expect(lastEntry.entityId).toBe(parseInt(testClaim1Id, 10) || 0);
   });
   
-  it("should enforce read-only access through middleware", () => {
+  it("should enforce read-only access through middleware", async () => {
     // This test verifies the middleware guard logic
-    const { platformSuperAdminGuard } = require("./core/platform-super-admin-guard");
+    const { platformSuperAdminGuard } = await import("./core/platform-super-admin-guard");
     
     // Mock context with platform super admin user
     const mockCtx = {
@@ -236,8 +231,8 @@ describe("Platform Super Admin Access Control", () => {
     expect(mutationResult).rejects.toThrow("Platform super admins have read-only access");
   });
   
-  it("should bypass tenant filtering for platform super admin", () => {
-    const { shouldBypassTenantFilter, getTenantFilterClause } = require("./core/platform-super-admin-guard");
+  it("should bypass tenant filtering for platform super admin", async () => {
+    const { shouldBypassTenantFilter, getTenantFilterClause } = await import("./core/platform-super-admin-guard");
     
     // Platform super admin should bypass tenant filtering
     expect(shouldBypassTenantFilter("platform_super_admin")).toBe(true);

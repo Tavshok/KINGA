@@ -19,7 +19,7 @@
  */
 
 import { getDb } from "../db";
-import { claims, aiAssessments, tenantRoleConfigs, workflowAuditTrail } from "../../drizzle/schema";
+import { claims, aiAssessments, tenantRoleConfigs, routingThresholdConfig, workflowAuditTrail } from "../../drizzle/schema";
 import { eq, and, sql, desc } from "drizzle-orm";
 
 /**
@@ -344,24 +344,20 @@ export async function getRoutingThresholds(tenantId: string): Promise<RoutingThr
 
   const configs = await db
     .select()
-    .from(tenantRoleConfigs)
-    .where(eq(tenantRoleConfigs.tenantId, tenantId));
+    .from(routingThresholdConfig)
+    .where(and(eq(routingThresholdConfig.tenantId, tenantId), eq(routingThresholdConfig.isActive, 1)))
+    .orderBy(desc(routingThresholdConfig.createdAt))
+    .limit(1);
 
-  // Find routing config (stored as JSON in config field)
-  const routingConfig = configs.find(c => c.roleKey === "routing_thresholds");
-
-  if (!routingConfig || !routingConfig.config) {
+  if (!configs.length) {
     return DEFAULT_ROUTING_THRESHOLDS;
   }
 
-  const config = typeof routingConfig.config === "string" 
-    ? JSON.parse(routingConfig.config)
-    : routingConfig.config;
-
+  const cfg = configs[0];
   return {
-    highConfidenceThreshold: config.highConfidenceThreshold ?? DEFAULT_ROUTING_THRESHOLDS.highConfidenceThreshold,
-    mediumConfidenceThreshold: config.mediumConfidenceThreshold ?? DEFAULT_ROUTING_THRESHOLDS.mediumConfidenceThreshold,
-    aiFastTrackEnabled: config.aiFastTrackEnabled ?? DEFAULT_ROUTING_THRESHOLDS.aiFastTrackEnabled,
+    highConfidenceThreshold: Number(cfg.highThreshold) ?? DEFAULT_ROUTING_THRESHOLDS.highConfidenceThreshold,
+    mediumConfidenceThreshold: Number(cfg.mediumThreshold) ?? DEFAULT_ROUTING_THRESHOLDS.mediumConfidenceThreshold,
+    aiFastTrackEnabled: cfg.aiFastTrackEnabled === 1,
   };
 }
 
@@ -393,18 +389,25 @@ export async function updateRoutingThresholds(
     throw new Error("Thresholds must be between 0 and 100");
   }
 
-  // Upsert config
+  // Deactivate existing active configs for this tenant
   await db
-    .insert(tenantRoleConfigs)
+    .update(routingThresholdConfig)
+    .set({ isActive: 0 })
+    .where(and(eq(routingThresholdConfig.tenantId, tenantId), eq(routingThresholdConfig.isActive, 1)));
+
+  // Insert new active config version
+  const newId = `rtc-${tenantId}-${Date.now()}`;
+  await db
+    .insert(routingThresholdConfig)
     .values({
+      id: newId,
       tenantId,
-      roleKey: "routing_thresholds",
-      config: JSON.stringify(updated),
-    })
-    .onDuplicateKeyUpdate({
-      set: {
-        config: JSON.stringify(updated),
-      },
+      version: `v${Date.now()}`,
+      highThreshold: String(updated.highConfidenceThreshold),
+      mediumThreshold: String(updated.mediumConfidenceThreshold),
+      aiFastTrackEnabled: updated.aiFastTrackEnabled ? 1 : 0,
+      createdByUserId: 0,
+      isActive: 1,
     });
 }
 

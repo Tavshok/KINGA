@@ -14,6 +14,7 @@ import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { appRouter } from "../routers";
 import type { Context } from "../_core/context";
 import { insurerTenants } from "../../drizzle/schema";
+import { getDb } from "../db";
 
 // Mock context for testing
 const createMockContext = (role: string = "admin"): Context => ({

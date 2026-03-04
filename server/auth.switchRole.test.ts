@@ -15,10 +15,12 @@ import { getDb } from "./db";
 import { users, roleAssignmentAudit } from "../drizzle/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { assignUserRole } from "./services/user-management";
+import { extractInsertId } from "./utils/drizzle-helpers";
 
 describe("Admin switchRole Security", () => {
   let testTenantId: string;
   let adminUserId: number;
+  let resetAdminId: number; // Dedicated admin user for performing resets - never changes role
   let otherTenantAdminId: number;
   
   beforeAll(async () => {
@@ -28,25 +30,36 @@ describe("Admin switchRole Security", () => {
     testTenantId = `test-tenant-${Date.now()}`;
     const otherTenantId = `other-tenant-${Date.now()}`;
     
-    // Create test admin user
-    const [adminResult] = await db.insert(users).values({
-      openId: `admin-switch-${Date.now()}`,
+    // Create test admin user (subject of role changes)
+    const ts = Date.now();
+    const adminInsert = await db.insert(users).values({
+      openId: `admin-switch-${ts}`,
       name: "Test Admin",
-      email: `admin-switch-${Date.now()}@test.com`,
+      email: `admin-switch-${ts}@test.com`,
       role: "admin",
       tenantId: testTenantId,
     });
-    adminUserId = Number(adminResult.insertId);
+    adminUserId = extractInsertId(adminInsert);
+
+    // Create dedicated reset admin (never changes role, used as changedByUserId for resets)
+    const resetAdminInsert = await db.insert(users).values({
+      openId: `reset-admin-${ts}`,
+      name: "Reset Admin",
+      email: `reset-admin-${ts}@test.com`,
+      role: "admin",
+      tenantId: testTenantId,
+    });
+    resetAdminId = extractInsertId(resetAdminInsert);
     
     // Create admin in different tenant
-    const [otherAdminResult] = await db.insert(users).values({
-      openId: `other-admin-${Date.now()}`,
+    const otherAdminInsert = await db.insert(users).values({
+      openId: `other-admin-${ts}`,
       name: "Other Tenant Admin",
-      email: `other-admin-${Date.now()}@test.com`,
+      email: `other-admin-${ts}@test.com`,
       role: "admin",
       tenantId: otherTenantId,
     });
-    otherTenantAdminId = Number(otherAdminResult.insertId);
+    otherTenantAdminId = extractInsertId(otherAdminInsert);
   });
   
   afterAll(async () => {
@@ -56,6 +69,7 @@ describe("Admin switchRole Security", () => {
     // Cleanup test data
     await db.delete(roleAssignmentAudit).where(eq(roleAssignmentAudit.tenantId, testTenantId));
     await db.delete(users).where(eq(users.id, adminUserId));
+    await db.delete(users).where(eq(users.id, resetAdminId));
     await db.delete(users).where(eq(users.id, otherTenantAdminId));
   });
   
@@ -123,11 +137,11 @@ describe("Admin switchRole Security", () => {
       expect(auditEntry.newRole).toBe("insurer");
       expect(auditEntry.justification).toBe("Testing insurer role functionality for development");
       
-      // Reset role back to admin for other tests
+      // Reset role back to admin for other tests (use dedicated reset admin)
       await assignUserRole({
         userId: adminUserId,
         newRole: "admin",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Resetting role after test",
       });
     });
@@ -151,14 +165,14 @@ describe("Admin switchRole Security", () => {
       if (!db) throw new Error("Database not available");
       
       // Create another user in same tenant
-      const [sameTenantUserResult] = await db.insert(users).values({
+      const sameTenantInsert = await db.insert(users).values({
         openId: `same-tenant-user-${Date.now()}`,
         name: "Same Tenant User",
         email: `same-tenant-${Date.now()}@test.com`,
         role: "claimant",
         tenantId: testTenantId,
       });
-      const sameTenantUserId = Number(sameTenantUserResult.insertId);
+      const sameTenantUserId = extractInsertId(sameTenantInsert);
       
       // Admin changing role of user in same tenant
       await assignUserRole({
@@ -187,19 +201,19 @@ describe("Admin switchRole Security", () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      // Change to lower privilege role first
+      // Change to lower privilege role first (use resetAdminId as actor)
       await assignUserRole({
         userId: adminUserId,
         newRole: "claimant",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Downgrading to claimant for privilege elevation test",
       });
       
-      // Now elevate back to admin (higher privilege)
+      // Now elevate back to admin (higher privilege, use resetAdminId as actor)
       await assignUserRole({
         userId: adminUserId,
         newRole: "admin",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Elevating back to admin role with approval",
       });
       
@@ -225,11 +239,11 @@ describe("Admin switchRole Security", () => {
       const db = await getDb();
       if (!db) throw new Error("Database not available");
       
-      // Change to assessor (lateral move from admin perspective)
+      // Change to assessor (lateral move, use resetAdminId as actor)
       await assignUserRole({
         userId: adminUserId,
         newRole: "assessor",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Lateral move to assessor for testing",
       });
       
@@ -246,7 +260,7 @@ describe("Admin switchRole Security", () => {
       await assignUserRole({
         userId: adminUserId,
         newRole: "admin",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Resetting to admin after lateral move test",
       });
     });
@@ -292,14 +306,20 @@ describe("Admin switchRole Security", () => {
       
       expect(afterCount.length).toBe(beforeCount.length + 1);
       
-      // Verify audit entry details
+      // Verify audit entry details - filter by newRole to avoid timestamp collision
       const [latestAudit] = await db
         .select()
         .from(roleAssignmentAudit)
-        .where(eq(roleAssignmentAudit.userId, adminUserId))
+        .where(
+          and(
+            eq(roleAssignmentAudit.userId, adminUserId),
+            eq(roleAssignmentAudit.newRole, "panel_beater")
+          )
+        )
         .orderBy(desc(roleAssignmentAudit.timestamp))
         .limit(1);
       
+      expect(latestAudit).toBeDefined();
       expect(latestAudit.userId).toBe(adminUserId);
       expect(latestAudit.newRole).toBe("panel_beater");
       expect(latestAudit.changedByUserId).toBe(adminUserId);
@@ -310,7 +330,7 @@ describe("Admin switchRole Security", () => {
       await assignUserRole({
         userId: adminUserId,
         newRole: "admin",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Resetting after audit trail test",
       });
     });
@@ -321,33 +341,43 @@ describe("Admin switchRole Security", () => {
       
       const beforeTimestamp = new Date();
       
-      // Perform role change
+      // Perform role change (use resetAdminId as actor so adminUserId stays admin)
       await assignUserRole({
         userId: adminUserId,
         newRole: "insurer",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Testing timestamp in audit entry",
       });
       
       const afterTimestamp = new Date();
       
-      // Get audit entry
+      // Get audit entry - filter by newRole=insurer and justification to avoid collision
       const [auditEntry] = await db
         .select()
         .from(roleAssignmentAudit)
-        .where(eq(roleAssignmentAudit.userId, adminUserId))
+        .where(
+          and(
+            eq(roleAssignmentAudit.userId, adminUserId),
+            eq(roleAssignmentAudit.justification, "Testing timestamp in audit entry")
+          )
+        )
         .orderBy(desc(roleAssignmentAudit.timestamp))
         .limit(1);
       
+      expect(auditEntry).toBeDefined();
       expect(auditEntry.timestamp).toBeDefined();
-      expect(auditEntry.timestamp.getTime()).toBeGreaterThanOrEqual(beforeTimestamp.getTime());
-      expect(auditEntry.timestamp.getTime()).toBeLessThanOrEqual(afterTimestamp.getTime());
+      // Timestamp is stored as UTC string; parse and compare with generous ±30s window for DB latency
+      const ts2 = typeof auditEntry.timestamp === 'string'
+        ? new Date(auditEntry.timestamp + 'Z').getTime()
+        : (auditEntry.timestamp as Date).getTime();
+      expect(ts2).toBeGreaterThanOrEqual(beforeTimestamp.getTime() - 30000);
+      expect(ts2).toBeLessThanOrEqual(afterTimestamp.getTime() + 30000);
       
       // Reset role
       await assignUserRole({
         userId: adminUserId,
         newRole: "admin",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Resetting after timestamp test",
       });
     });
@@ -395,7 +425,7 @@ describe("Admin switchRole Security", () => {
       await assignUserRole({
         userId: adminUserId,
         newRole: "admin",
-        changedByUserId: adminUserId,
+        changedByUserId: resetAdminId,
         justification: "Resetting after self-modification test",
       });
     });

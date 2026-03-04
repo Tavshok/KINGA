@@ -13,7 +13,7 @@ import {
   getAllProcessorWorkloads,
   WORKLOAD_WEIGHTS,
 } from "./workload-balancing";
-import { users, claims, tenants } from "../drizzle/schema";
+import { users, claims, insurerTenants } from "../drizzle/schema";
 import { eq, and } from "drizzle-orm";
 
 // Test tenant and user IDs
@@ -34,7 +34,7 @@ async function cleanupTestData() {
   await db.delete(users).where(eq(users.tenantId, TEST_TENANT_ID));
 
   // Delete test tenant
-  await db.delete(tenants).where(eq(tenants.id, TEST_TENANT_ID));
+  await db.delete(insurerTenants).where(eq(insurerTenants.id, TEST_TENANT_ID));
 }
 
 // Setup test data
@@ -43,17 +43,11 @@ async function setupTestData() {
   if (!db) throw new Error("Database not available");
 
   // Create test tenant
-  await db.insert(tenants).values({
+  await db.insert(insurerTenants).values({
     id: TEST_TENANT_ID,
     name: "Test Tenant - Workload Balancing",
     displayName: "Test Tenant - Workload Balancing",
-    contactEmail: "test@workload-balancing.com",
-    billingEmail: "billing@workload-balancing.com",
-    status: "active",
-    intakeEscalationEnabled: 1,
-    intakeEscalationHours: 6,
-    intakeEscalationMode: "auto_assign",
-  });
+  }).onDuplicateKeyUpdate({ set: { name: "Test Tenant - Workload Balancing" } });
 
   // Create test processors
   await db.insert(users).values([
@@ -259,7 +253,7 @@ describe("Workload Balancing System", () => {
 
       // Create claim for different tenant
       await db.insert(claims).values({
-        claimNumber: "WB-TEST-ISOLATION",
+        claimNumber: `WB-TEST-ISOLATION-${Date.now()}`,
         tenantId: "other-tenant-id",
         assignedProcessorId: TEST_PROCESSOR_1_ID,
         workflowState: "assigned",

@@ -19,6 +19,7 @@ import {
   type CreateRoutingEventParams,
 } from "./immutable-routing";
 import { createThresholdVersion, type CreateThresholdVersionParams } from "./threshold-version-management";
+import { extractInsertId } from "../utils/drizzle-helpers";
 
 const db = await getDb();
 
@@ -36,14 +37,12 @@ describe("Routing Re-Evaluation", () => {
     if (!db) throw new Error("Database not available");
     
     // Create test claim
-    const [claim] = await db.insert(claims).values({
-      claimantId: 1,
+    const claimInsert = await db.insert(claims).values({
       claimNumber: `TEST-REEVAL-${Date.now()}`,
       tenantId: testTenantId,
       status: "submitted",
-    }).$returningId();
-    
-    testClaimId = claim.id;
+    });
+    testClaimId = extractInsertId(claimInsert);
     createdRoutingIds = [];
     createdThresholdIds = [];
   });

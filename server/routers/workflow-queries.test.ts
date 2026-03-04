@@ -13,6 +13,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { workflowQueriesRouter } from "./workflow-queries";
 import { claims } from "../../drizzle/schema";
 import { extractInsertId } from "../utils/drizzle-helpers";
+import { getDb } from "../db";
 
 describe("Workflow Queries Router", () => {
   let testClaimIds: Record<string, number> = {};

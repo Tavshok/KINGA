@@ -106,7 +106,7 @@ describe("Event Emission for Analytics", () => {
       expect(event.userRole).toBe("insurer");
       expect(event.tenantId).toBe(testTenantId);
       expect(event.eventPayload).toEqual({ testData: "test value" });
-      expect(event.emittedAt).toBeInstanceOf(Date);
+      expect(typeof event.emittedAt).toBe('string'); // timestamp stored as string in DB
     });
 
     it("should emit event without optional fields", async () => {
@@ -322,8 +322,8 @@ describe("Event Emission for Analytics", () => {
 
       // Verify timestamps are in ascending order
       for (let i = 1; i < events.length; i++) {
-        expect(events[i].emittedAt.getTime()).toBeGreaterThanOrEqual(
-          events[i - 1].emittedAt.getTime()
+        expect(new Date(events[i].emittedAt).getTime()).toBeGreaterThanOrEqual(
+          new Date(events[i - 1].emittedAt).getTime()
         );
       }
     });
@@ -360,8 +360,8 @@ describe("Event Emission for Analytics", () => {
 
       expect(events.length).toBe(2);
 
-      const assignmentTime = events[0].emittedAt.getTime();
-      const evaluationTime = events[1].emittedAt.getTime();
+      const assignmentTime = new Date(events[0].emittedAt).getTime();
+      const evaluationTime = new Date(events[1].emittedAt).getTime();
       const turnaroundTime = evaluationTime - assignmentTime;
 
       expect(turnaroundTime).toBeGreaterThanOrEqual(0); // At least 0ms (events are ordered)

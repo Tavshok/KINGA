@@ -188,8 +188,8 @@ export async function calculateProcessingTime(
   const fastTrackTimes = await db
     .select({
       claimId: workflowAuditTrail.claimId,
-      minTime: sql<Date>`MIN(${workflowAuditTrail.timestamp})`.as("minTime"),
-      maxTime: sql<Date>`MAX(${workflowAuditTrail.timestamp})`.as("maxTime"),
+      minTime: sql<Date>`MIN(${workflowAuditTrail.createdAt})`.as("minTime"),
+      maxTime: sql<Date>`MAX(${workflowAuditTrail.createdAt})`.as("maxTime"),
     })
     .from(workflowAuditTrail)
     .innerJoin(
@@ -198,10 +198,10 @@ export async function calculateProcessingTime(
     )
     .where(
       and(
-        eq(workflowAuditTrail.tenantId, tenantId),
+        eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.eligible, true),
-        gte(workflowAuditTrail.timestamp, dateRange.startDate),
-        lte(workflowAuditTrail.timestamp, dateRange.endDate)
+        gte(workflowAuditTrail.createdAt, dateRange.startDate),
+        lte(workflowAuditTrail.createdAt, dateRange.endDate)
       )
     )
     .groupBy(workflowAuditTrail.claimId);
@@ -222,8 +222,8 @@ export async function calculateProcessingTime(
   const normalTimes = await db
     .select({
       claimId: workflowAuditTrail.claimId,
-      minTime: sql<Date>`MIN(${workflowAuditTrail.timestamp})`.as("minTime"),
-      maxTime: sql<Date>`MAX(${workflowAuditTrail.timestamp})`.as("maxTime"),
+      minTime: sql<Date>`MIN(${workflowAuditTrail.createdAt})`.as("minTime"),
+      maxTime: sql<Date>`MAX(${workflowAuditTrail.createdAt})`.as("maxTime"),
     })
     .from(workflowAuditTrail)
     .leftJoin(
@@ -232,10 +232,10 @@ export async function calculateProcessingTime(
     )
     .where(
       and(
-        eq(workflowAuditTrail.tenantId, tenantId),
+        eq(fastTrackRoutingLog.tenantId, tenantId),
         sql`${fastTrackRoutingLog.id} IS NULL`, // Not in fast-track log
-        gte(workflowAuditTrail.timestamp, dateRange.startDate),
-        lte(workflowAuditTrail.timestamp, dateRange.endDate)
+        gte(workflowAuditTrail.createdAt, dateRange.startDate),
+        lte(workflowAuditTrail.createdAt, dateRange.endDate)
       )
     )
     .groupBy(workflowAuditTrail.claimId);
@@ -289,25 +289,20 @@ export async function calculateExecutiveOverrides(
 
   const totalAutoApprovals = Number(totalResult?.count || 0);
 
-  // Count overrides (audit trail entries with override flag)
+  // Count overrides directly from fast_track_routing_log (override flag set on the log entry)
   const [overrideResult] = await db
     .select({ count: count() })
-    .from(workflowAuditTrail)
-    .innerJoin(
-      fastTrackRoutingLog,
-      eq(workflowAuditTrail.claimId, fastTrackRoutingLog.claimId)
-    )
+    .from(fastTrackRoutingLog)
     .where(
       and(
-        eq(workflowAuditTrail.tenantId, tenantId),
+        eq(fastTrackRoutingLog.tenantId, tenantId),
         eq(fastTrackRoutingLog.decision, "AUTO_APPROVE"),
-        eq(fastTrackRoutingLog.override, true),
-        gte(workflowAuditTrail.timestamp, dateRange.startDate),
-        lte(workflowAuditTrail.timestamp, dateRange.endDate)
+        eq(fastTrackRoutingLog.override, 1),
+        gte(fastTrackRoutingLog.evaluatedAt, dateRange.startDate),
+        lte(fastTrackRoutingLog.evaluatedAt, dateRange.endDate)
       )
     );
-
-  const overrideCount = Number(overrideResult?.count || 0);
+  const overrideCount = Number(overrideResult?.count || 0);;
 
   return {
     totalAutoApprovals,

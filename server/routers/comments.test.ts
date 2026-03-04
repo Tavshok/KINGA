@@ -10,11 +10,34 @@
  * - Successful comment deletion
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { commentsRouter } from "./comments";
-import { claims, claimComments, workflowAuditTrail } from "../../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { claims, claimComments, workflowAuditTrail, users } from "../../drizzle/schema";
+import { eq, inArray } from "drizzle-orm";
 import { extractInsertId } from "../utils/drizzle-helpers";
+import { getDb } from "../db";
+
+// Test user IDs used throughout this file
+const TEST_USER_IDS = [100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115];
+
+beforeAll(async () => {
+  const db = await getDb();
+  if (!db) return;
+  // Ensure test users exist (use INSERT IGNORE to avoid conflicts)
+  for (const id of TEST_USER_IDS) {
+    await db.execute(
+      `INSERT IGNORE INTO users (id, openId, role) VALUES (${id}, 'test-comments-user-${id}', 'insurer')`
+    );
+  }
+});
+
+afterAll(async () => {
+  const db = await getDb();
+  if (!db) return;
+  // Delete comments first (FK constraint: claim_comments.userId -> users.id)
+  await db.delete(claimComments).where(inArray(claimComments.userId, TEST_USER_IDS));
+  await db.delete(users).where(inArray(users.id, TEST_USER_IDS));
+});
 
 // Helper function to create a test claim
 async function createTestClaim(tenantId: string = "test-tenant-1") {

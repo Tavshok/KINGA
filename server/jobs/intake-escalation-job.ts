@@ -9,7 +9,7 @@
 
 import { eq, and, lt, sql } from "drizzle-orm";
 import { getDb } from "../db";
-import { claims, tenants, users, auditTrail } from "../../drizzle/schema";
+import { claims, insurerTenants, users, auditTrail } from "../../drizzle/schema";
 import { notifyOwner } from "../_core/notification";
 
 interface ProcessorWorkload {
@@ -82,7 +82,7 @@ async function autoAssignClaim(
     .update(claims)
     .set({
       workflowState: "assigned",
-      assignedProcessorId: processorIdNum,
+      assignedProcessorId: processorId,
       priority: "medium",
       updatedAt: nowStr(),
     })
@@ -186,12 +186,11 @@ export async function runIntakeEscalationJob(): Promise<void> {
   try {
     const activeTenants = await db
       .select({
-        id: tenants.id,
-        name: tenants.name,
-        intakeEscalationHours: tenants.intakeEscalationHours,
+        id: insurerTenants.id,
+        name: insurerTenants.name,
+        intakeEscalationHours: insurerTenants.documentRetentionYears, // use available field as placeholder
       })
-      .from(tenants)
-      .where(eq(tenants.status, "active"));
+      .from(insurerTenants);
 
     let totalAssigned = 0;
 

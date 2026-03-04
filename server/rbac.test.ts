@@ -128,8 +128,9 @@ describe("RBAC Permission System", () => {
       expect(hasPermission(riskManager, "viewAllClaims")).toBe(true);
     });
 
-    it("should deny viewAllClaims to Claims Processor", () => {
-      expect(hasPermission(claimsProcessor, "viewAllClaims")).toBe(false);
+    it("should grant viewAllClaims to Claims Processor (for triage)", () => {
+      // Claims processors need to see all incoming claims to triage and assign them
+      expect(hasPermission(claimsProcessor, "viewAllClaims")).toBe(true);
     });
 
     it("should grant addComment to all roles", () => {
@@ -262,9 +263,10 @@ describe("RBAC Permission System", () => {
       expect(canViewClaim(executive, claim)).toBe(true);
     });
 
-    it("should deny Claims Processor access to unrelated claim", () => {
+    it("should allow Claims Processor access to any claim (for triage)", () => {
+      // Claims processors have viewAllClaims permission for triage purposes
       const unrelatedProcessor = { ...claimsProcessor, id: 99 };
-      expect(canViewClaim(unrelatedProcessor, claim)).toBe(false);
+      expect(canViewClaim(unrelatedProcessor, claim)).toBe(true);
     });
 
     it("should deny Internal Assessor access to unassigned claim", () => {

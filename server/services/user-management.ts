@@ -84,6 +84,13 @@ export async function assignUserRole(request: RoleAssignmentRequest) {
     );
   }
 
+  // Validate justification: required and must be at least 15 characters
+  if (!request.justification || request.justification.trim().length < 15) {
+    throw new Error(
+      "Justification is required and must be at least 15 characters for role changes"
+    );
+  }
+
   // Store previous values for audit trail
   const previousRole = targetUser[0].role;
   const previousInsurerRole = targetUser[0].insurerRole;

@@ -29,8 +29,6 @@ import {
   updateTenantSlaConfig
 } from "../services/tenant-config";
 
-const db = getDb();
-
 /**
  * Tenant configuration router
  */
@@ -41,7 +39,8 @@ export const tenantRouter = router({
   list: protectedProcedure
     .query(async ({ ctx }) => {
       // For now, return all tenants. In production, filter by user permissions
-      
+      const db = await getDb();
+      if (!db) return [];
       const tenants = await db.select().from(insurerTenants);
       return tenants;
     }),

@@ -194,7 +194,7 @@ export const analyticsRouter = router({
           WHERE ${sql.raw(tenantFilter)}
         `);
 
-        const claimsMetrics = claimsMetricsResult.rows[0] as any;
+        const claimsMetrics = (claimsMetricsResult.rows?.[0] ?? (Array.isArray(claimsMetricsResult) ? claimsMetricsResult[0] : claimsMetricsResult)) as any;
         const totalClaims = safeNumber(claimsMetrics?.total_claims, 0);
         const completedClaims = safeNumber(claimsMetrics?.completed_claims, 0);
         const fraudDetected = safeNumber(claimsMetrics?.fraud_detected, 0);
@@ -239,7 +239,7 @@ export const analyticsRouter = router({
             ) as role_changes
         `);
 
-        const governanceMetrics = governanceMetricsResult.rows[0] as any;
+        const governanceMetrics = (governanceMetricsResult.rows?.[0] ?? (Array.isArray(governanceMetricsResult) ? governanceMetricsResult[0] : governanceMetricsResult)) as any;
         const totalExecutiveOverrides = safeNumber(governanceMetrics?.total_overrides, 0);
         const segregationViolationAttempts = safeNumber(governanceMetrics?.segregation_violations, 0);
         const roleChangesLast30Days = safeNumber(governanceMetrics?.role_changes, 0);

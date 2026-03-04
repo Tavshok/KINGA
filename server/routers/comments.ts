@@ -73,6 +73,8 @@ export const commentsRouter = router({
       const result = await db.insert(claimComments).values({
         claimId: input.claimId,
         userId: ctx.user.id,
+        userRole: ctx.user.insurerRole || ctx.user.role || 'claims_processor',
+        commentType: 'general',
         content: input.content,
         createdAt: new Date(),
       });

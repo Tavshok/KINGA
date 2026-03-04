@@ -260,8 +260,8 @@ describe("Role Assignment Audit Trail", () => {
       expect(auditTrail.length).toBe(2);
       expect(auditTrail.every(entry => entry.userId === testUserId1)).toBe(true);
       // Should be ordered by timestamp descending
-      expect(auditTrail[0].timestamp.getTime()).toBeGreaterThanOrEqual(
-        auditTrail[1].timestamp.getTime()
+      expect(new Date(auditTrail[0].timestamp).getTime()).toBeGreaterThanOrEqual(
+        new Date(auditTrail[1].timestamp).getTime()
       );
     });
 
@@ -330,7 +330,7 @@ describe("Role Assignment Audit Trail", () => {
       const retrievedEntry = auditTrail.find(entry => entry.id === auditEntry.id);
 
       // Timestamp should be unchanged
-      expect(retrievedEntry!.timestamp.getTime()).toBe(originalTimestamp.getTime());
+      expect(new Date(retrievedEntry!.timestamp).getTime()).toBe(new Date(originalTimestamp).getTime());
     });
   });
 

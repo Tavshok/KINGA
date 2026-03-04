@@ -150,7 +150,7 @@ describe("Approval Tracking", () => {
       const [claim] = await db!.select().from(claims).where(eq(claims.id, lowValueClaimId));
       
       expect(claim.technicallyApprovedBy).toBe(riskManagerId);
-      expect(claim.technicallyApprovedAt).toBeInstanceOf(Date);
+      expect(claim.technicallyApprovedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
       expect(claim.approvedAmount).toBe(1500000);
     });
 
@@ -167,7 +167,7 @@ describe("Approval Tracking", () => {
       const [claim] = await db!.select().from(claims).where(eq(claims.id, highValueClaimId));
       
       expect(claim.technicallyApprovedBy).toBe(riskManagerId);
-      expect(claim.technicallyApprovedAt).toBeInstanceOf(Date);
+      expect(claim.technicallyApprovedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
       expect(claim.approvedAmount).toBe(5000000);
       expect(claim.financiallyApprovedBy).toBeNull();
       expect(claim.financiallyApprovedAt).toBeNull();
@@ -194,9 +194,9 @@ describe("Approval Tracking", () => {
       const [claim] = await db!.select().from(claims).where(eq(claims.id, highValueClaimId));
       
       expect(claim.technicallyApprovedBy).toBe(riskManagerId);
-      expect(claim.technicallyApprovedAt).toBeInstanceOf(Date);
+      expect(claim.technicallyApprovedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
       expect(claim.financiallyApprovedBy).toBe(claimsManagerId);
-      expect(claim.financiallyApprovedAt).toBeInstanceOf(Date);
+      expect(claim.financiallyApprovedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
     });
 
     it("should allow Executive role to provide financial approval", async () => {
@@ -218,7 +218,7 @@ describe("Approval Tracking", () => {
       const [claim] = await db!.select().from(claims).where(eq(claims.id, highValueClaimId));
       
       expect(claim.financiallyApprovedBy).toBe(executiveId);
-      expect(claim.financiallyApprovedAt).toBeInstanceOf(Date);
+      expect(claim.financiallyApprovedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
     });
 
     it("should not require financial approval for low-value claims", async () => {
@@ -261,7 +261,7 @@ describe("Approval Tracking", () => {
       
       expect(claim.status).toBe("completed");
       expect(claim.closedBy).toBe(claimsManagerId);
-      expect(claim.closedAt).toBeInstanceOf(Date);
+      expect(claim.closedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
     });
 
     it("should require approval tracking before claim completion", async () => {
@@ -306,7 +306,7 @@ describe("Approval Tracking", () => {
       
       expect(claimAfter.status).toBe("completed");
       expect(claimAfter.closedBy).toBe(claimsManagerId);
-      expect(claimAfter.closedAt).toBeInstanceOf(Date);
+      expect(claimAfter.closedAt).toEqual(expect.stringMatching(/\d{4}-\d{2}-\d{2}/)) // timestamp stored as string;
     });
   });
 

@@ -212,6 +212,8 @@ export async function createRoutingEvent(
     justification: params.justification || null,
     explainabilityMetadata: JSON.stringify(explainabilityMetadata),
     timestamp,
+    routingVersion: (params as any).routingVersion ?? 1,
+    thresholdSnapshot: (params as any).thresholdSnapshot ?? JSON.stringify({ version: params.thresholdConfigVersion ?? 'v1.0' }),
   });
   
   return { id: routingId, timestamp };
