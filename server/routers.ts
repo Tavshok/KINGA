@@ -83,6 +83,7 @@ import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
 import { marketplaceRouter } from "./routers/marketplace";
+import { platformMarketplaceRouter } from "./routers/platform-marketplace";
 import { reviewQueueRouter } from "./routers/review-queue";
 import { monetizationRouter } from "./routers/monetization";
 import { operationalHealthRouter } from "./routers/operational-health";
@@ -142,6 +143,7 @@ export const appRouter = router({
   automationPolicies: automationPoliciesRouter,
   claimCompletion: claimCompletionRouter,
   marketplace: marketplaceRouter,
+  platformMarketplace: platformMarketplaceRouter,
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
   assessorSubscription: router({
     /**

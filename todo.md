@@ -9490,3 +9490,32 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Handle zero-data states gracefully in all four new sections
 - [x] Write 33 unit tests for all four procedures (server/routers/executive.test.ts)
 - [x] Verify TypeScript 0 errors
+
+## Platform Marketplace Management — Super Admin
+- [x] Add superAdminProcedure middleware to server/_core/trpc.ts
+- [x] Create server/routers/platform-marketplace.ts with listProviders, getProviderDetail, updateApprovalStatus, getProviderRelationships, getStats
+- [x] All procedures use superAdminProcedure — only platform_super_admin can call them
+- [x] listProviders returns per-provider stats: totalRelationships, blacklistedCount, preferredCount, suspendedCount, activeCount
+- [x] updateApprovalStatus supports approve, reject, and suspend (stored as [SUSPENDED] prefix)
+- [x] getProviderRelationships returns all insurer relationships for modal display
+- [x] Register platformMarketplaceRouter in server/routers.ts
+- [x] Create client/src/pages/PlatformMarketplace.tsx with provider table, KPI cards, action modals, relationships modal
+- [x] Add /platform/marketplace route to App.tsx with ProtectedRoute domain="platform"
+- [x] Status badges: Approved, Pending, Rejected, Suspended, Blacklisted by X insurers, Preferred by X insurers
+- [x] Write 31 unit tests in server/routers/platform-marketplace.test.ts
+- [x] Verify TypeScript 0 errors
+
+
+## Platform Marketplace Management — Super Admin
+- [x] Add superAdminProcedure middleware to server/_core/trpc.ts
+- [x] Create server/routers/platform-marketplace.ts with listProviders, getProviderDetail, updateApprovalStatus, getProviderRelationships, getStats
+- [x] All procedures use superAdminProcedure — only platform_super_admin can call them
+- [x] listProviders returns per-provider stats: totalRelationships, blacklistedCount, preferredCount, suspendedCount, activeCount
+- [x] updateApprovalStatus supports approve, reject, and suspend (stored as [SUSPENDED] prefix)
+- [x] getProviderRelationships returns all insurer relationships for modal display
+- [x] Register platformMarketplaceRouter in server/routers.ts
+- [x] Create client/src/pages/PlatformMarketplace.tsx with provider table, KPI cards, action modals, relationships modal
+- [x] Add /platform/marketplace route to App.tsx with ProtectedRoute domain=platform
+- [x] Status badges: Approved, Pending, Rejected, Suspended, Blacklisted by X insurers, Preferred by X insurers
+- [x] Write 31 unit tests in server/routers/platform-marketplace.test.ts
+- [x] Verify TypeScript 0 errors

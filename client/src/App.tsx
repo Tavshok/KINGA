@@ -51,6 +51,7 @@ const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard")
 const OperationalHealthDashboard = lazy(() => import("./pages/OperationalHealthDashboard"));
 const PlatformOverviewDashboard = lazy(() => import("./pages/PlatformOverviewDashboard"));
 const PlatformClaimTrace = lazy(() => import("./pages/PlatformClaimTrace"));
+const PlatformMarketplace = lazy(() => import("./pages/PlatformMarketplace"));
 
 // Assessor pages
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
@@ -145,6 +146,13 @@ function Router() {
         <Route path="/platform/claim-trace/:claimId">
           <ProtectedRoute domain="platform">
             <PlatformClaimTrace />
+          </ProtectedRoute>
+        </Route>
+
+        {/* Platform Marketplace Management */}
+        <Route path="/platform/marketplace">
+          <ProtectedRoute domain="platform">
+            <PlatformMarketplace />
           </ProtectedRoute>
         </Route>
         {/* Assessment Results */}

@@ -45,6 +45,31 @@ export const adminProcedure = t.procedure.use(
 );
 
 /**
+ * Platform Super Admin procedure middleware
+ *
+ * Only platform_super_admin users can call procedures wrapped with this.
+ * These users have no tenantId and have cross-tenant read + management access.
+ */
+const requireSuperAdmin = t.middleware(async opts => {
+  const { ctx, next } = opts;
+
+  if (!ctx.user) {
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Authentication required' });
+  }
+
+  if (ctx.user.role !== 'platform_super_admin') {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'Platform super admin access required.',
+    });
+  }
+
+  return next({ ctx: { ...ctx, user: ctx.user } });
+});
+
+export const superAdminProcedure = t.procedure.use(requireSuperAdmin);
+
+/**
  * Executive-only procedure middleware
  * Validates that the user has insurerRole === "executive"
  * Ensures tenantId is present in session context
