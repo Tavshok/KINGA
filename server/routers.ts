@@ -66,6 +66,7 @@ import { invokeLLM } from "./_core/llm";
 import { optimizeQuotes, calculateAssessorPerformanceScore, type QuoteAnalysis } from "./cost-optimization";
 import { processExternalAssessment } from "./assessment-processor";
 import { exportAssessmentPDF } from "./pdf-export";
+import { exportClaimPDF } from "./claim-pdf-export";
 import { extractClaimFormData } from "./claim-form-extractor";
 import { assessorOnboardingRouter } from "./routers/assessor-onboarding";
 import { documentIngestionRouter } from "./routers/document-ingestion";
@@ -1492,6 +1493,20 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
     
     // Financial approval for high-value claims
+    /**
+     * Export Claim PDF
+     *
+     * Generates a comprehensive PDF report for a single claim, including the
+     * AI Quote Optimisation Summary section (risk score, recommended repairer,
+     * per-quote cost deviation, flags, AI narrative, and insurer decision).
+     * Uploads the result to S3 and returns a download URL.
+     *
+     * @requires Authentication
+     * @param claimId - The numeric ID of the claim to export
+     * @returns { success, pdfUrl, fileName }
+     */
+    exportClaimPDF,
+
     financialApproval: protectedProcedure
       .input(z.object({
         claimId: z.number(),

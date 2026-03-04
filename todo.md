@@ -9470,3 +9470,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Implement redirect after successful upload
 - [ ] Verify documents are stored in database and S3
 - [ ] Test complete upload-to-analysis workflow
+
+## Claim PDF Export — AI Quote Optimisation Summary
+- [x] Create server/claim-pdf-export.ts with exportClaimPDF procedure
+- [x] Fetch quote_optimisation_results by claim_id in exportClaimPDF
+- [x] Render "AI Quote Optimisation Summary" section in PDF HTML
+- [x] Include risk score, recommended repairer, per-quote cost deviation, flags, AI narrative
+- [x] Include insurer decision: Accepted or Overridden (with override_reason)
+- [x] Render "No AI optimisation performed." when no result exists
+- [x] Register exportClaimPDF in claims router in routers.ts
+- [x] Verify TypeScript 0 errors
