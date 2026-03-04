@@ -14,7 +14,7 @@ import {
 
 // Mock the LLM module so valuateVehicle tests don't hit the real API
 vi.mock("./_core/llm", () => ({
-  invokeLLM: vi.fn().mockResolvedValue({
+  invokeLLM: async () => ({
     choices: [{
       message: {
         content: JSON.stringify({

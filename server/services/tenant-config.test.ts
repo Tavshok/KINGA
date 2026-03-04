@@ -5,7 +5,7 @@
  * Tests for tenant configuration management and default handling
  */
 
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { 
   createTenant, 
   getTenantConfig, 
@@ -126,7 +126,7 @@ describe("Tenant Configuration Service", () => {
       expect(roleKeys).toContain("executive");
       expect(roleKeys).toContain("claims_manager");
       expect(roleKeys).toContain("claims_processor");
-      expect(roleKeys).toContain("internal_assessor");
+      expect(roleKeys).toContain("assessor_internal");
       expect(roleKeys).toContain("risk_manager");
     });
 
@@ -200,7 +200,7 @@ describe("Tenant Configuration Service", () => {
       expect(DEFAULT_ROLE_PERMISSIONS.executive).toBeDefined();
       expect(DEFAULT_ROLE_PERMISSIONS.claims_manager).toBeDefined();
       expect(DEFAULT_ROLE_PERMISSIONS.claims_processor).toBeDefined();
-      expect(DEFAULT_ROLE_PERMISSIONS.internal_assessor).toBeDefined();
+      expect(DEFAULT_ROLE_PERMISSIONS.assessor_internal).toBeDefined();
       expect(DEFAULT_ROLE_PERMISSIONS.risk_manager).toBeDefined();
     });
 
@@ -417,6 +417,12 @@ describe("Tenant Role Configuration - Composite Primary Key", () => {
   });
 
   describe("Tenant Isolation", () => {
+    beforeEach(async () => {
+      const db = await getDb();
+      if (!db) throw new Error("Database not available");
+      await db.delete(tenantRoleConfigs).where(eq(tenantRoleConfigs.tenantId, testTenantId1));
+      await db.delete(tenantRoleConfigs).where(eq(tenantRoleConfigs.tenantId, testTenantId2));
+    });
     it("should only return roles for requested tenant", async () => {
       const tenant1Roles = await getTenantRoles(testTenantId1);
       const tenant2Roles = await getTenantRoles(testTenantId2);

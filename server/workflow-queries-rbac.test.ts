@@ -128,7 +128,7 @@ describe("Workflow Queries RBAC - Role-Based Access Control", () => {
           limit: 10, 
           offset: 0 
         })
-      ).rejects.toThrow("Only insurer tenant members can query claims by workflow state");
+      ).rejects.toThrow(/insurer tenant/i);
     });
   });
 

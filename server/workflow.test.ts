@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, afterAll, it, expect, vi, beforeEach } from 'vitest';
 import { TRPCError } from '@trpc/server';
 
 // Mock database
@@ -17,6 +17,8 @@ vi.mock('./db', () => ({
     orderBy: vi.fn().mockReturnThis(),
   })),
 }));
+
+
 
 describe('Workflow Router', () => {
   beforeEach(() => {

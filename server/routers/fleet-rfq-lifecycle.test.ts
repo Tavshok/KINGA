@@ -9,7 +9,7 @@
  * verifying the correct SQL operations are triggered.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, afterAll, it, expect, vi, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 
 // ─── Mock getDb ───────────────────────────────────────────────────────────────
@@ -42,6 +42,8 @@ vi.mock("../db", () => ({
     }),
   })),
 }));
+
+
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

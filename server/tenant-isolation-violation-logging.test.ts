@@ -11,7 +11,7 @@
  *   6. logTenantIsolationViolation is async-safe (no unhandled rejection on DB error)
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, afterAll, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 
 // ─── Mock the DB module ───────────────────────────────────────────────────────
@@ -22,6 +22,8 @@ import { TRPCError } from "@trpc/server";
 vi.mock("../db", () => ({
   getDb: vi.fn(),
 }));
+
+
 
 // Import after mock registration
 import { getDb } from "../db";

@@ -6,7 +6,7 @@
  * RBAC permissions, and audit trail integrity.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterAll, vi } from "vitest";
 import { transition, getCurrentState } from "./workflow-engine";
 import { getDb } from "./db";
 import { claims, workflowAuditTrail, claimInvolvementTracking } from "../drizzle/schema";
@@ -17,6 +17,7 @@ import { createMockDb } from "./test-helpers/mock-db";
 vi.mock("./db", () => ({
   getDb: vi.fn(),
 }));
+
 
 describe("WorkflowEngine - State Transition Validation", () => {
   
@@ -241,8 +242,8 @@ describe("WorkflowEngine - Segregation of Duties", () => {
         tenantId: "default",
       }],
       involvement: [
-        { claimId: 1, userId: 100, stageInvolved: "intake" },
-        { claimId: 1, userId: 100, stageInvolved: "assessment" },
+        { claimId: 1, userId: 100, workflowStage: "assessment" },
+        { claimId: 1, userId: 100, workflowStage: "technical_approval" },
       ],
       config: [{ maxSequentialStagesByUser: 2 }],
     });

@@ -41,7 +41,7 @@ describe("Tenant Isolation", () => {
     email: "insurer-a@test.com",
     role: "insurer" as const,
     tenantId: "tenant_a",
-    insurerRole: "claims_handler" as const,
+    insurerRole: "claims_processor" as const,
   };
 
   const tenantBInsurerUser = {
@@ -51,7 +51,7 @@ describe("Tenant Isolation", () => {
     email: "insurer-b@test.com",
     role: "insurer" as const,
     tenantId: "tenant_b",
-    insurerRole: "claims_handler" as const,
+    insurerRole: "claims_processor" as const,
   };
 
   // Assessor users will be created dynamically with actual IDs

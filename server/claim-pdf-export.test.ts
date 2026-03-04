@@ -422,7 +422,11 @@ describe("exportClaimPDF procedure", () => {
       limit: vi.fn().mockResolvedValue([]),  // empty — tenant mismatch
     };
 
-    vi.doMock("./db", () => ({ getDb: vi.fn().mockResolvedValue(mockDb) }));
+    vi.resetModules();
+    vi.doMock("puppeteer-core", () => ({ default: { launch: vi.fn().mockResolvedValue({ newPage: vi.fn().mockResolvedValue({ goto: vi.fn(), pdf: vi.fn().mockResolvedValue(Buffer.from("PDF")), setContent: vi.fn() }), close: vi.fn() }) } }));
+    vi.doMock("./storage", () => ({ storagePut: vi.fn().mockResolvedValue({ url: "https://s3.example.com/x.pdf" }) }));
+    vi.doMock("fs/promises", () => ({ writeFile: vi.fn().mockResolvedValue(undefined), unlink: vi.fn().mockResolvedValue(undefined) }));
+    vi.doMock("./db", () => ({ getDb: async () => mockDb }));
 
     const { exportClaimPDF: proc } = await import("./claim-pdf-export");
 

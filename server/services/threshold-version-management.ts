@@ -109,7 +109,7 @@ export async function getActiveThresholdConfig(tenantId: string): Promise<{
     version: config.version,
     highThreshold: parseFloat(config.highThreshold),
     mediumThreshold: parseFloat(config.mediumThreshold),
-    aiFastTrackEnabled: config.aiFastTrackEnabled,
+    aiFastTrackEnabled: Boolean(config.aiFastTrackEnabled),
     createdByUserId: config.createdByUserId,
     createdAt: config.createdAt,
   };
@@ -250,10 +250,10 @@ export async function getThresholdVersionHistory(tenantId: string): Promise<Arra
     version: v.version,
     highThreshold: parseFloat(v.highThreshold),
     mediumThreshold: parseFloat(v.mediumThreshold),
-    aiFastTrackEnabled: v.aiFastTrackEnabled,
+    aiFastTrackEnabled: Boolean(v.aiFastTrackEnabled),
     createdByUserId: v.createdByUserId,
     createdAt: v.createdAt,
-    isActive: v.isActive,
+    isActive: Boolean(v.isActive),
   }));
 }
 

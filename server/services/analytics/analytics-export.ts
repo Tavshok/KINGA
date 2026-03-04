@@ -85,9 +85,9 @@ export async function gatherAnalyticsData(
 
   // Transform data to match expected format
   const fastTrackRate = {
-    fastTrackCount: fastTrackRateData.fastTrackedClaims,
-    totalClaims: fastTrackRateData.totalClaims,
-    percentage: fastTrackRateData.fastTrackRate,
+    fastTrackCount: fastTrackRateData?.fastTrackedClaims ?? 0,
+    totalClaims: fastTrackRateData?.totalClaims ?? 0,
+    percentage: fastTrackRateData?.fastTrackRate ?? 0,
   };
 
   const autoApprovalRate = {

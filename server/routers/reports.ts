@@ -148,7 +148,7 @@ export const reportsRouter = router({
             completedClaims: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN 1 ELSE 0 END)`,
             pendingClaims: sql<number>`SUM(CASE WHEN ${claims.status} IN ('submitted', 'under_review', 'pending_approval') THEN 1 ELSE 0 END)`,
             avgProcessingDays: sql<number>`AVG(CASE WHEN ${claims.closedAt} IS NOT NULL THEN DATEDIFF(${claims.closedAt}, ${claims.createdAt}) ELSE NULL END)`,
-            totalApprovedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN ${claims.approvedAmount} ELSE 0 END)`,
+            totalApprovedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN ${claims.finalApprovedAmount} ELSE 0 END)`,
             fraudDetected: sql<number>`COUNT(DISTINCT CASE WHEN ${aiAssessments.fraudRiskLevel} = 'high' THEN ${claims.id} ELSE NULL END)`,
           })
           .from(claims)
@@ -245,21 +245,21 @@ export const reportsRouter = router({
         
         const financialQuery = await db
           .select({
-            totalClaimsValue: sql<number>`SUM(${claims.claimAmount})`,
-            totalApprovedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN ${claims.approvedAmount} ELSE 0 END)`,
-            totalRejectedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'rejected' THEN ${claims.claimAmount} ELSE 0 END)`,
-            avgClaimValue: sql<number>`AVG(${claims.claimAmount})`,
+            totalClaimsValue: sql<number>`SUM(${claims.estimatedClaimValue})`,
+            totalApprovedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'closed' THEN ${claims.finalApprovedAmount} ELSE 0 END)`,
+            totalRejectedAmount: sql<number>`SUM(CASE WHEN ${claims.status} = 'rejected' THEN ${claims.estimatedClaimValue} ELSE 0 END)`,
+            avgClaimValue: sql<number>`AVG(${claims.estimatedClaimValue})`,
             approvedCount: sql<number>`COUNT(CASE WHEN ${claims.status} = 'closed' THEN 1 ELSE NULL END)`,
             totalCount: sql<number>`COUNT(*)`,
             // Value bands
-            band0_5k: sql<number>`COUNT(CASE WHEN ${claims.claimAmount} < 5000 THEN 1 ELSE NULL END)`,
-            band5_15k: sql<number>`COUNT(CASE WHEN ${claims.claimAmount} >= 5000 AND ${claims.claimAmount} < 15000 THEN 1 ELSE NULL END)`,
-            band15_50k: sql<number>`COUNT(CASE WHEN ${claims.claimAmount} >= 15000 AND ${claims.claimAmount} < 50000 THEN 1 ELSE NULL END)`,
-            band50k_plus: sql<number>`COUNT(CASE WHEN ${claims.claimAmount} >= 50000 THEN 1 ELSE NULL END)`,
-            bandValue0_5k: sql<number>`SUM(CASE WHEN ${claims.claimAmount} < 5000 THEN ${claims.claimAmount} ELSE 0 END)`,
-            bandValue5_15k: sql<number>`SUM(CASE WHEN ${claims.claimAmount} >= 5000 AND ${claims.claimAmount} < 15000 THEN ${claims.claimAmount} ELSE 0 END)`,
-            bandValue15_50k: sql<number>`SUM(CASE WHEN ${claims.claimAmount} >= 15000 AND ${claims.claimAmount} < 50000 THEN ${claims.claimAmount} ELSE 0 END)`,
-            bandValue50k_plus: sql<number>`SUM(CASE WHEN ${claims.claimAmount} >= 50000 THEN ${claims.claimAmount} ELSE 0 END)`,
+            band0_5k: sql<number>`COUNT(CASE WHEN ${claims.estimatedClaimValue} < 5000 THEN 1 ELSE NULL END)`,
+            band5_15k: sql<number>`COUNT(CASE WHEN ${claims.estimatedClaimValue} >= 5000 AND ${claims.estimatedClaimValue} < 15000 THEN 1 ELSE NULL END)`,
+            band15_50k: sql<number>`COUNT(CASE WHEN ${claims.estimatedClaimValue} >= 15000 AND ${claims.estimatedClaimValue} < 50000 THEN 1 ELSE NULL END)`,
+            band50k_plus: sql<number>`COUNT(CASE WHEN ${claims.estimatedClaimValue} >= 50000 THEN 1 ELSE NULL END)`,
+            bandValue0_5k: sql<number>`SUM(CASE WHEN ${claims.estimatedClaimValue} < 5000 THEN ${claims.estimatedClaimValue} ELSE 0 END)`,
+            bandValue5_15k: sql<number>`SUM(CASE WHEN ${claims.estimatedClaimValue} >= 5000 AND ${claims.estimatedClaimValue} < 15000 THEN ${claims.estimatedClaimValue} ELSE 0 END)`,
+            bandValue15_50k: sql<number>`SUM(CASE WHEN ${claims.estimatedClaimValue} >= 15000 AND ${claims.estimatedClaimValue} < 50000 THEN ${claims.estimatedClaimValue} ELSE 0 END)`,
+            bandValue50k_plus: sql<number>`SUM(CASE WHEN ${claims.estimatedClaimValue} >= 50000 THEN ${claims.estimatedClaimValue} ELSE 0 END)`,
           })
           .from(claims)
           .where(eq(claims.tenantId, tenantId));
@@ -354,24 +354,26 @@ export const reportsRouter = router({
         const auditQuery = await db
           .select({
             totalEvents: sql<number>`COUNT(*)`,
-            executiveOverrides: sql<number>`SUM(CASE WHEN ${workflowAuditTrail.executiveOverride} = true THEN 1 ELSE 0 END)`,
+            executiveOverrides: sql<number>`SUM(CASE WHEN ${workflowAuditTrail.executiveOverride} = 1 THEN 1 ELSE 0 END)`,
             segregationViolations: sql<number>`COUNT(DISTINCT ${claimInvolvementTracking.claimId})`,
           })
           .from(workflowAuditTrail)
+          .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
           .leftJoin(claimInvolvementTracking, eq(workflowAuditTrail.claimId, claimInvolvementTracking.claimId))
-          .where(eq(workflowAuditTrail.tenantId, tenantId));
+          .where(eq(claims.tenantId, tenantId));
 
         // Get recent audit events
         const recentEvents = await db
           .select({
-            timestamp: workflowAuditTrail.timestamp,
-            action: workflowAuditTrail.currentState,
+            timestamp: workflowAuditTrail.createdAt,
+            action: workflowAuditTrail.newState,
             user: users.name,
           })
           .from(workflowAuditTrail)
-          .leftJoin(users, eq(workflowAuditTrail.actorUserId, users.id))
-          .where(eq(workflowAuditTrail.tenantId, tenantId))
-          .orderBy(desc(workflowAuditTrail.timestamp))
+          .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+          .leftJoin(users, eq(workflowAuditTrail.userId, users.id))
+          .where(eq(claims.tenantId, tenantId))
+          .orderBy(desc(workflowAuditTrail.createdAt))
           .limit(10);
 
         const dbEndTime = Date.now();

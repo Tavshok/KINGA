@@ -1159,10 +1159,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         
         await transition({
           claimId: input.claimId,
-          fromState: claim.workflowState as any,
+          fromState: (claim.workflowState || "created") as any,
           toState: statusToWorkflowState("assessment_pending"),
           userId: ctx.user.id,
-          userRole: ctx.user.role as any,
+          userRole: (ctx.user.insurerRole || "claims_processor") as any,
           tenantId: claim.tenantId || "default",
           decisionData: {
             comments: `Claim assigned to assessor ${input.assessorId}`,
@@ -1428,7 +1428,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           fromState: fromState as any,
           toState: toState as any,
           userId: ctx.user.id,
-          userRole: ctx.user.role as any,
+          userRole: (ctx.user.insurerRole || ctx.user.role) as any,
           decisionData: {
             approvedAmount,
             selectedPanelBeaterId: input.selectedQuoteId,
@@ -2986,7 +2986,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
    * 
    * Handles intelligent report generation for claims
    */
-  reports: router({
+  claimReports: router({
     /**
      * Validate Report Data
      * 

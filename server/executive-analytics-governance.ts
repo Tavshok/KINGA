@@ -30,11 +30,11 @@ export async function getExecutiveOverrideMetrics(tenantId?: string) {
       COUNT(DISTINCT claim_id) as claims_affected,
       COUNT(DISTINCT user_id) as executives_involved,
       AVG(decision_value) as avg_override_amount,
-      DATE_FORMAT(created_at, '%Y-%m') as month
-    FROM workflow_audit_trail
-    WHERE executive_override = 1
-      ${tenantId ? sql`AND tenant_id = ${tenantId}` : sql``}
-    GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+      DATE_FORMAT(w.created_at, '%Y-%m') as month
+    FROM workflow_audit_trail w
+    ${tenantId ? sql`INNER JOIN claims c ON w.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+    WHERE w.executive_override = 1
+    GROUP BY DATE_FORMAT(w.created_at, '%Y-%m')
     ORDER BY month DESC
     LIMIT 12
   `);
@@ -45,10 +45,11 @@ export async function getExecutiveOverrideMetrics(tenantId?: string) {
       override_reason,
       COUNT(*) as count,
       AVG(decision_value) as avg_amount
-    FROM workflow_audit_trail
-    WHERE executive_override = 1
+    FROM workflow_audit_trail w
+    ${tenantId ? sql`INNER JOIN claims c ON w.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+    WHERE w.executive_override = 1
       AND override_reason IS NOT NULL
-      ${tenantId ? sql`AND tenant_id = ${tenantId}` : sql``}
+
     GROUP BY override_reason
     ORDER BY count DESC
     LIMIT 10
@@ -60,28 +61,29 @@ export async function getExecutiveOverrideMetrics(tenantId?: string) {
       previous_state,
       new_state,
       COUNT(*) as override_count
-    FROM workflow_audit_trail
-    WHERE executive_override = 1
-      ${tenantId ? sql`AND tenant_id = ${tenantId}` : sql``}
+    FROM workflow_audit_trail w
+    ${tenantId ? sql`INNER JOIN claims c ON w.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+    WHERE w.executive_override = 1
+
     GROUP BY previous_state, new_state
     ORDER BY override_count DESC
     LIMIT 10
   `);
 
   return {
-    monthlyTrend: (overrideStats.rows as any[]).map(r => ({
+    monthlyTrend: (((overrideStats as any)[0] || []) as any[]).map(r => ({
       month: r.month,
       totalOverrides: Number(r.total_overrides || 0),
       claimsAffected: Number(r.claims_affected || 0),
       executivesInvolved: Number(r.executives_involved || 0),
       avgOverrideAmount: Number(r.avg_override_amount || 0) / 100, // Convert cents to dollars
     })),
-    reasonsDistribution: (overrideReasons.rows as any[]).map(r => ({
+    reasonsDistribution: (((overrideReasons as any)[0] || []) as any[]).map(r => ({
       reason: r.override_reason,
       count: Number(r.count || 0),
       avgAmount: Number(r.avg_amount || 0) / 100,
     })),
-    mostOverriddenTransitions: (overriddenStates.rows as any[]).map(r => ({
+    mostOverriddenTransitions: (((overriddenStates as any)[0] || []) as any[]).map(r => ({
       from: r.previous_state,
       to: r.new_state,
       count: Number(r.override_count || 0),
@@ -106,10 +108,10 @@ export async function getSegregationViolationAttempts(tenantId?: string) {
       user_id,
       claim_id,
       COUNT(DISTINCT workflow_stage) as stage_count,
-      GROUP_CONCAT(DISTINCT workflow_stage ORDER BY created_at) as stages_involved
-    FROM claim_involvement_tracking
-    ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
-    GROUP BY user_id, claim_id
+      GROUP_CONCAT(DISTINCT cit.workflow_stage ORDER BY cit.created_at) as stages_involved
+    FROM claim_involvement_tracking cit
+    ${tenantId ? sql`INNER JOIN claims c ON cit.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+    GROUP BY cit.user_id, cit.claim_id
     HAVING stage_count >= 2
     ORDER BY stage_count DESC
   `);
@@ -121,10 +123,10 @@ export async function getSegregationViolationAttempts(tenantId?: string) {
         user_id,
         claim_id,
         COUNT(DISTINCT workflow_stage) as stage_count,
-        DATE_FORMAT(MAX(created_at), '%Y-%m') as month
-      FROM claim_involvement_tracking
-      ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
-      GROUP BY user_id, claim_id, DATE_FORMAT(created_at, '%Y-%m')
+        DATE_FORMAT(MAX(cit.created_at), '%Y-%m') as month
+      FROM claim_involvement_tracking cit
+      ${tenantId ? sql`INNER JOIN claims c ON cit.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+        GROUP BY cit.user_id, cit.claim_id, DATE_FORMAT(cit.created_at, '%Y-%m')
     )
     SELECT 
       month,
@@ -142,10 +144,10 @@ export async function getSegregationViolationAttempts(tenantId?: string) {
     SELECT 
       GROUP_CONCAT(DISTINCT workflow_stage ORDER BY workflow_stage) as pattern,
       COUNT(DISTINCT CONCAT(user_id, '-', claim_id)) as occurrence_count
-    FROM claim_involvement_tracking
-    ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
-    GROUP BY user_id, claim_id
-    HAVING COUNT(DISTINCT workflow_stage) >= 2
+    FROM claim_involvement_tracking cit
+    ${tenantId ? sql`INNER JOIN claims c ON cit.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+    GROUP BY cit.user_id, cit.claim_id
+    HAVING COUNT(DISTINCT cit.workflow_stage) >= 2
     ORDER BY occurrence_count DESC
     LIMIT 10
   `);
@@ -157,9 +159,9 @@ export async function getSegregationViolationAttempts(tenantId?: string) {
         user_id,
         claim_id,
         COUNT(DISTINCT workflow_stage) as stage_count
-      FROM claim_involvement_tracking
-      ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
-      GROUP BY user_id, claim_id
+      FROM claim_involvement_tracking cit
+      ${tenantId ? sql`INNER JOIN claims c ON cit.claim_id = c.id AND c.tenant_id = ${tenantId}` : sql``}
+        GROUP BY cit.user_id, cit.claim_id
     )
     SELECT 
       COUNT(*) as total_user_claim_pairs,
@@ -168,7 +170,7 @@ export async function getSegregationViolationAttempts(tenantId?: string) {
     FROM user_claim_stages
   `);
 
-  const stats = (complianceStats as any).rows[0] || {};
+  const stats = ((complianceStats as any)[0] || [])[0] || {};
   const totalPairs = Number(stats.total_user_claim_pairs || 0);
   const compliantPairs = Number(stats.compliant_pairs || 0);
   const complianceRate = totalPairs > 0 ? (compliantPairs / totalPairs) * 100 : 100;
@@ -176,19 +178,19 @@ export async function getSegregationViolationAttempts(tenantId?: string) {
   return {
     complianceRate: Math.round(complianceRate * 10) / 10,
     totalViolations: Number(stats.violation_pairs || 0),
-    multiStageInvolvements: (multiStageUsers.rows as any[]).map(r => ({
+    multiStageInvolvements: (((multiStageUsers as any)[0] || []) as any[]).map(r => ({
       userId: Number(r.user_id),
       claimId: Number(r.claim_id),
       stageCount: Number(r.stage_count),
       stagesInvolved: r.stages_involved,
     })),
-    monthlyTrend: (violationTrend.rows as any[]).map(r => ({
+    monthlyTrend: (((violationTrend as any)[0] || []) as any[]).map(r => ({
       month: r.month,
       violations: Number(r.violations || 0),
       warnings: Number(r.warnings || 0),
       totalClaims: Number(r.total_claims || 0),
     })),
-    commonPatterns: (violationPatterns.rows as any[]).map(r => ({
+    commonPatterns: (((violationPatterns as any)[0] || []) as any[]).map(r => ({
       pattern: r.pattern,
       occurrences: Number(r.occurrence_count || 0),
     })),
@@ -281,32 +283,32 @@ export async function getRoleChangeFrequency(tenantId?: string) {
       COUNT(*) as count
     FROM role_assignment_audit
     WHERE justification IS NOT NULL
-      ${tenantId ? sql`AND tenant_id = ${tenantId}` : sql``}
+
     GROUP BY justification_category
     ORDER BY count DESC
   `);
 
   return {
-    monthlyTrend: (roleChangeTrend.rows as any[]).map(r => ({
+    monthlyTrend: (((roleChangeTrend as any)[0] || []) as any[]).map(r => ({
       month: r.month,
       totalChanges: Number(r.total_changes || 0),
       usersAffected: Number(r.users_affected || 0),
       adminsInvolved: Number(r.admins_involved || 0),
     })),
-    commonTransitions: (roleTransitions.rows as any[]).map(r => ({
+    commonTransitions: (((roleTransitions as any)[0] || []) as any[]).map(r => ({
       from: r.previous_role,
       to: r.new_role,
       count: Number(r.transition_count || 0),
       uniqueUsers: Number(r.unique_users || 0),
     })),
-    frequentSwitchers: (frequentSwitchers.rows as any[]).map(r => ({
+    frequentSwitchers: (((frequentSwitchers as any)[0] || []) as any[]).map(r => ({
       userId: Number(r.user_id),
       changeCount: Number(r.change_count),
       firstChange: r.first_change,
       lastChange: r.last_change,
       roleHistory: r.role_history,
     })),
-    justificationCategories: (justificationPatterns.rows as any[]).map(r => ({
+    justificationCategories: (((justificationPatterns as any)[0] || []) as any[]).map(r => ({
       category: r.justification_category,
       count: Number(r.count || 0),
     })),
@@ -334,7 +336,7 @@ export async function getRoleAssignmentImpact(tenantId?: string) {
         new_role
       FROM role_assignment_audit
       ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
-    ),
+      ),
     user_claims AS (
       SELECT 
         w.user_id,
@@ -372,7 +374,7 @@ export async function getRoleAssignmentImpact(tenantId?: string) {
         new_role
       FROM role_assignment_audit
       ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
-    ),
+      ),
     claim_times AS (
       SELECT 
         w.user_id,
@@ -402,13 +404,13 @@ export async function getRoleAssignmentImpact(tenantId?: string) {
   `);
 
   return {
-    claimsProcessedImpact: (impactAnalysis.rows as any[]).map(r => ({
+    claimsProcessedImpact: (((impactAnalysis as any)[0] || []) as any[]).map(r => ({
       role: r.new_role,
       period: r.period,
       claimsProcessed: Number(r.claims_processed || 0),
       usersInvolved: Number(r.users_involved || 0),
     })),
-    processingTimeImpact: (processingTimeImpact.rows as any[]).map(r => ({
+    processingTimeImpact: (((processingTimeImpact as any)[0] || []) as any[]).map(r => ({
       role: r.new_role,
       period: r.period,
       avgHours: Math.round(Number(r.avg_hours || 0) * 10) / 10,

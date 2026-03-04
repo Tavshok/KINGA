@@ -50,6 +50,11 @@ const STATE_TO_CRITICAL_STAGE: Partial<Record<WorkflowState, CriticalStage>> = {
  */
 export class SegregationValidator {
   private maxSequentialStages: number = 2; // POLICY: User can perform max 2 critical stages
+  private _injectedDb: any = null; // Optional DB injection for testing
+
+  constructor(db?: any) {
+    if (db) this._injectedDb = db;
+  }
 
   /**
    * Validates segregation of duties for a proposed action
@@ -118,7 +123,7 @@ export class SegregationValidator {
     userId: number
   ): Promise<InvolvementHistory> {
     // Query claim_involvement_tracking table
-    const db = await getDb();
+    const db = this._injectedDb ?? await getDb();
     if (!db) return { userId, claimId, stages: [], criticalStageCount: 0 };
     
     const involvements = await db.execute(sql`
@@ -172,7 +177,7 @@ export class SegregationValidator {
       return;
     }
 
-    const db = await getDb();
+    const db = this._injectedDb ?? await getDb();
     if (!db) return;
     
     // Check if user already has involvement in this critical stage

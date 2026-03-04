@@ -88,7 +88,7 @@ describe("Analytics Validation (Post-groupBy Fix)", () => {
         .select({
           riskLevel: aiAssessments.fraudRiskLevel,
           count: count(),
-          avgScore: avg(aiAssessments.fraudRiskScore),
+          avgScore: avg(aiAssessments.confidenceScore),
         })
         .from(aiAssessments)
         .where(sql`${aiAssessments.fraudRiskLevel} IS NOT NULL`)
@@ -168,7 +168,7 @@ describe("Analytics Validation (Post-groupBy Fix)", () => {
     it("should group claims by month using sql`` template", async () => {
       const result = await db
         .select({
-          month: sql<string>`DATE_FORMAT(${claims.createdAt}, '%Y-%m')`.as('month'),
+          month: sql<string>`DATE_FORMAT(MAX(${claims.createdAt}), '%Y-%m')`.as('month'),
           count: count(),
         })
         .from(claims)

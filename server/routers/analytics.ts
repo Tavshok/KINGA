@@ -182,8 +182,8 @@ export const analyticsRouter = router({
               ELSE NULL 
             END) as avg_processing_days,
             SUM(CASE 
-              WHEN c.approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL 
-              THEN GREATEST(0, ai.estimated_cost - c.approved_amount)
+              WHEN c.final_approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL 
+              THEN GREATEST(0, ai.estimated_cost - c.final_approved_amount)
             ELSE 0 END) as total_savings_cents,
             AVG(ai.physics_deviation_score) as avg_deviation_score,
             SUM(CASE WHEN ai.physics_deviation_score > 70 THEN 1 ELSE 0 END) as high_risk_physics_claims,
@@ -194,7 +194,8 @@ export const analyticsRouter = router({
           WHERE ${sql.raw(tenantFilter)}
         `);
 
-        const claimsMetrics = (claimsMetricsResult.rows?.[0] ?? (Array.isArray(claimsMetricsResult) ? claimsMetricsResult[0] : claimsMetricsResult)) as any;
+        const _claimsRows = (claimsMetricsResult as any)[0];
+        const claimsMetrics = (Array.isArray(_claimsRows) ? _claimsRows[0] : _claimsRows) as any;
         const totalClaims = safeNumber(claimsMetrics?.total_claims, 0);
         const completedClaims = safeNumber(claimsMetrics?.completed_claims, 0);
         const fraudDetected = safeNumber(claimsMetrics?.fraud_detected, 0);
@@ -239,7 +240,8 @@ export const analyticsRouter = router({
             ) as role_changes
         `);
 
-        const governanceMetrics = (governanceMetricsResult.rows?.[0] ?? (Array.isArray(governanceMetricsResult) ? governanceMetricsResult[0] : governanceMetricsResult)) as any;
+        const _govRows = (governanceMetricsResult as any)[0];
+        const governanceMetrics = (Array.isArray(_govRows) ? _govRows[0] : _govRows) as any;
         const totalExecutiveOverrides = safeNumber(governanceMetrics?.total_overrides, 0);
         const segregationViolationAttempts = safeNumber(governanceMetrics?.segregation_violations, 0);
         const roleChangesLast30Days = safeNumber(governanceMetrics?.role_changes, 0);
@@ -372,7 +374,9 @@ export const analyticsRouter = router({
         const disputedClaims: any[] = [];
         const stuckClaims: any[] = [];
 
-        for (const row of alertsResult.rows as any[]) {
+        const _alertRows = (alertsResult as any)[0];
+        const _alertsArr = Array.isArray(_alertRows) ? _alertRows : [];
+        for (const row of _alertsArr as any[]) {
           const alertData = {
             id: row.id,
             claimNumber: row.claim_number,

@@ -5,7 +5,7 @@
  * Verifies that fleet insurance requests are routed exclusively through
  * KINGA Agency — no direct insurer relationships are created.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, afterAll, it, expect, vi, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 import { appRouter } from "../routers";
 import type { TrpcContext } from "../_core/context";
@@ -35,8 +35,10 @@ const { mockDb, mockInsert, mockUpdate } = vi.hoisted(() => {
 });
 
 vi.mock("../db", () => ({
-  getDb: vi.fn().mockResolvedValue(mockDb),
+  getDb: async () => mockDb,
 }));
+
+
 
 // ─── Context helpers ──────────────────────────────────────────────────────────
 

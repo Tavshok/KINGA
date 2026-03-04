@@ -13,29 +13,29 @@ import {
 
 // Mock the fast-track-analytics module
 vi.mock("../fast-track-analytics", () => ({
-  calculateFastTrackRate: vi.fn().mockResolvedValue({
+  calculateFastTrackRate: async () => ({
     totalClaims: 1000,
     eligibleClaims: 800,
     fastTrackedClaims: 700,
     fastTrackRate: 70.0,
   }),
-  calculateAutoApprovalRate: vi.fn().mockResolvedValue({
+  calculateAutoApprovalRate: async () => ({
     totalFastTracked: 700,
     autoApproved: 560,
     autoApprovalRate: 80.0,
   }),
-  calculateProcessingTime: vi.fn().mockResolvedValue({
+  calculateProcessingTime: async () => ({
     fastTrackAvgHours: 24,
     normalAvgHours: 72,
     timeSavings: 66.67,
     timeSavingsHours: 48,
   }),
-  calculateExecutiveOverrides: vi.fn().mockResolvedValue({
+  calculateExecutiveOverrides: async () => ({
     totalAutoApprovals: 560,
     overrideCount: 28,
     overrideRate: 5.0,
   }),
-  calculateRiskDistribution: vi.fn().mockResolvedValue({
+  calculateRiskDistribution: async () => ({
     lowRisk: 490,
     mediumRisk: 175,
     highRisk: 35,

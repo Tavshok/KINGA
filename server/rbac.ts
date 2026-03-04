@@ -218,6 +218,7 @@ export function canTransitionTo(
   newState: WorkflowState
 ): boolean {
   const validTransitions = WORKFLOW_TRANSITIONS[currentState];
+  if (!validTransitions) return false;
   return validTransitions.includes(newState);
 }
 

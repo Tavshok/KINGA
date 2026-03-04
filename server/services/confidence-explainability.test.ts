@@ -30,14 +30,13 @@ describe("Confidence Explainability", () => {
     if (!db) throw new Error("Database not available");
     
     // Create test claim
-    const [claim] = await db.insert(claims).values({
+    const claimResult = await db.insert(claims).values({
       claimantId: 1,
       claimNumber: `TEST-EXPLAIN-${Date.now()}`,
       tenantId: testTenantId,
       status: "submitted",
-    }).$returningId();
-    
-    testClaimId = claim.id;
+    });
+    testClaimId = (claimResult as any)[0]?.insertId || (claimResult as any).insertId;
     createdRoutingIds = [];
   });
   

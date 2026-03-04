@@ -33,8 +33,8 @@ describe('Analytics Router Optimization', () => {
             ELSE NULL 
           END) as avg_processing_days,
           SUM(CASE 
-            WHEN c.approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL 
-            THEN GREATEST(0, ai.estimated_cost - c.approved_amount)
+            WHEN c.final_approved_amount IS NOT NULL AND ai.estimated_cost IS NOT NULL 
+            THEN GREATEST(0, ai.estimated_cost - c.final_approved_amount)
             ELSE 0 
           END) as total_savings_cents,
           SUM(CASE WHEN ai.estimated_cost > 1000000 THEN 1 ELSE 0 END) as high_value_claims
@@ -43,7 +43,8 @@ describe('Analytics Router Optimization', () => {
         WHERE 1=1
       `);
 
-      const metrics = (claimsMetricsResult as any)[0] || (claimsMetricsResult.rows?.[0] as any);
+      const metricsRows = (claimsMetricsResult as any)[0];
+      const metrics = Array.isArray(metricsRows) ? metricsRows[0] : metricsRows;
 
       // Verify all metrics are present
       expect(metrics).toHaveProperty('total_claims');
@@ -53,10 +54,10 @@ describe('Analytics Router Optimization', () => {
       expect(metrics).toHaveProperty('total_savings_cents');
       expect(metrics).toHaveProperty('high_value_claims');
 
-      // Verify metrics are numbers (not null)
-      expect(typeof metrics.total_claims).toBe('number');
-      expect(typeof metrics.completed_claims).toBe('number');
-      expect(typeof metrics.fraud_detected).toBe('number');
+      // Verify metrics are present and numeric (TiDB may return strings)
+      expect(Number(metrics.total_claims)).toBeGreaterThanOrEqual(0);
+      expect(Number(metrics.completed_claims)).toBeGreaterThanOrEqual(0);
+      expect(Number(metrics.fraud_detected)).toBeGreaterThanOrEqual(0);
     });
 
     it('should consolidate governance metrics in single query', async () => {
@@ -86,17 +87,16 @@ describe('Analytics Router Optimization', () => {
           ) as role_changes
       `);
 
-      const governance = (governanceMetricsResult as any)[0] || (governanceMetricsResult.rows?.[0] as any);
-
+      const govRows = (governanceMetricsResult as any)[0];
+      const governance = Array.isArray(govRows) ? govRows[0] : govRows;
       // Verify all governance metrics are present
       expect(governance).toHaveProperty('total_overrides');
       expect(governance).toHaveProperty('segregation_violations');
       expect(governance).toHaveProperty('role_changes');
-
-      // Verify metrics are numbers
-      expect(typeof governance.total_overrides).toBe('number');
-      expect(typeof governance.segregation_violations).toBe('number');
-      expect(typeof governance.role_changes).toBe('number');
+      // Verify metrics are numeric (TiDB may return strings)
+      expect(Number(governance.total_overrides)).toBeGreaterThanOrEqual(0);
+      expect(Number(governance.segregation_violations)).toBeGreaterThanOrEqual(0);
+      expect(Number(governance.role_changes)).toBeGreaterThanOrEqual(0);
     });
   });
 
@@ -153,7 +153,8 @@ describe('Analytics Router Optimization', () => {
         )
       `);
 
-      const alerts = ((alertsResult as any) || alertsResult.rows || []) as any[];
+      const alertsRows = (alertsResult as any)[0];
+      const alerts = Array.isArray(alertsRows) ? alertsRows : [];
 
       // Verify alerts have correct structure
       if (alerts.length > 0) {

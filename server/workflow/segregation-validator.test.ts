@@ -1,36 +1,128 @@
 // @ts-nocheck
 /**
  * Segregation of Duties Validator Unit Tests
- * 
- * Comprehensive tests for the 2-stage limit governance rule:
- * - User performs 2 valid stages → allowed
- * - User attempts 3rd stage → blocked
- * - User attempts to approve own stage → blocked (self-approval)
- * - Executive override → allowed with audit logging
+ *
+ * Uses DB injection (not vi.mock) so this test is fully self-contained
+ * and immune to module-level DB mocks in other test files running in singleFork mode.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { SegregationValidator } from "./segregation-validator";
-import { getDb } from "../db";
-import { sql } from "drizzle-orm";
-import type { WorkflowState, CriticalStage } from "./types";
+import type { WorkflowState } from "./types";
+
+// ── In-memory store for claim_involvement_tracking ───────────────────────────
+type Row = {
+  id: number;
+  claim_id: number;
+  user_id: number;
+  workflow_stage: string;
+  action_type: string;
+  created_at: string;
+};
+
+let store: Row[] = [];
+let nextId = 1;
+
+/**
+ * Parse a drizzle sql template object into its string + params.
+ * drizzle-orm's sql`` tag produces an object with queryChunks:
+ *   - StringChunk  → { value: ["literal text"] }
+ *   - Param        → { value: <actual param>, encoder: ... }
+ */
+function parseSql(query: any): { sql: string; params: any[] } {
+  if (typeof query === "string") return { sql: query, params: [] };
+  if (!query?.queryChunks) return { sql: String(query), params: [] };
+
+  let sqlStr = "";
+  const params: any[] = [];
+
+  for (const chunk of query.queryChunks) {
+    if (Array.isArray(chunk?.value)) {
+      // StringChunk: value is an array of literal strings
+      sqlStr += chunk.value[0];
+    } else {
+      // Param: value is the actual parameter
+      sqlStr += "?";
+      params.push(chunk?.value ?? chunk);
+    }
+  }
+
+  return { sql: sqlStr, params };
+}
+
+/** Build a mock DB object backed by the in-memory store */
+function makeMockDb() {
+  return {
+    execute: async (query: any) => {
+      const { sql: sqlStr, params } = parseSql(query);
+      const upper = sqlStr.trim().toUpperCase();
+
+      // ── DELETE FROM claim_involvement_tracking WHERE claim_id = ?
+      if (upper.startsWith("DELETE")) {
+        const cid = Number(params[0]);
+        store = store.filter((r) => r.claim_id !== cid);
+        return [{ affectedRows: 0 }, []];
+      }
+
+      // ── INSERT INTO claim_involvement_tracking (...)
+      if (upper.startsWith("INSERT")) {
+        const [cid, uid, stage, action] = params;
+        const exists = store.some(
+          (r) =>
+            r.claim_id === Number(cid) &&
+            r.user_id === Number(uid) &&
+            r.workflow_stage === String(stage)
+        );
+        if (!exists) {
+          store.push({
+            id: nextId++,
+            claim_id: Number(cid),
+            user_id: Number(uid),
+            workflow_stage: String(stage),
+            action_type: String(action),
+            created_at: new Date().toISOString(),
+          });
+        }
+        return [{ insertId: nextId - 1, affectedRows: 1 }, []];
+      }
+
+      // ── SELECT … WHERE claim_id = ? AND user_id = ? AND workflow_stage = ? LIMIT 1
+      if (upper.startsWith("SELECT") && params.length >= 3) {
+        const [cid, uid, stage] = params;
+        const rows = store.filter(
+          (r) =>
+            r.claim_id === Number(cid) &&
+            r.user_id === Number(uid) &&
+            r.workflow_stage === String(stage)
+        );
+        return [rows, []];
+      }
+
+      // ── SELECT … WHERE claim_id = ? AND user_id = ?  (getUserInvolvement)
+      if (upper.startsWith("SELECT") && params.length >= 2) {
+        const [cid, uid] = params;
+        const rows = store.filter(
+          (r) => r.claim_id === Number(cid) && r.user_id === Number(uid)
+        );
+        return [rows, []];
+      }
+
+      return [[], []];
+    },
+  };
+}
 
 describe("SegregationValidator - 2-Stage Limit Policy", () => {
   let validator: SegregationValidator;
   const testClaimId = 999001;
   const testUserId = 501;
 
-  beforeEach(async () => {
-    validator = new SegregationValidator();
-    
-    // Clean up test data
-    const db = await getDb();
-    if (db) {
-      await db.execute(sql`
-        DELETE FROM claim_involvement_tracking
-        WHERE claim_id = ${testClaimId}
-      `);
-    }
+  beforeEach(() => {
+    // Reset in-memory store and inject a fresh mock DB into the validator.
+    // This bypasses getDb() entirely, so no module mock is needed.
+    store = [];
+    nextId = 1;
+    validator = new SegregationValidator(makeMockDb());
   });
 
   describe("2-Stage Limit Enforcement", () => {
@@ -41,34 +133,28 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
         "complete_assessment",
         "internal_review"
       );
-
       expect(result.allowed).toBe(true);
       expect(result.criticalStagesPerformed).toBe(0);
     });
 
     it("should allow user to perform second critical stage", async () => {
-      // Track first stage involvement
       await validator.trackInvolvement(
         testClaimId,
         testUserId,
         "internal_review",
         "complete_assessment"
       );
-
-      // Attempt second stage
       const result = await validator.validateSegregation(
         testClaimId,
         testUserId,
         "approve_technical",
         "technical_approval"
       );
-
       expect(result.allowed).toBe(true);
       expect(result.criticalStagesPerformed).toBe(1);
     });
 
     it("should block user from performing third critical stage", async () => {
-      // Track first two stages
       await validator.trackInvolvement(
         testClaimId,
         testUserId,
@@ -81,15 +167,12 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
         "technical_approval",
         "approve_technical"
       );
-
-      // Attempt third stage
       const result = await validator.validateSegregation(
         testClaimId,
         testUserId,
         "approve_financial",
         "financial_decision"
       );
-
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("SEGREGATION_VIOLATION");
       expect(result.reason).toContain("exceeding maximum allowed: 2");
@@ -97,22 +180,18 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
     });
 
     it("should allow same user to perform multiple actions within same stage", async () => {
-      // Track first stage involvement
       await validator.trackInvolvement(
         testClaimId,
         testUserId,
         "internal_review",
         "complete_assessment"
       );
-
-      // Perform another action in the same stage (should not count as new stage)
       const result = await validator.validateSegregation(
         testClaimId,
         testUserId,
         "update_assessment",
         "internal_review"
       );
-
       expect(result.allowed).toBe(true);
       expect(result.criticalStagesPerformed).toBe(1);
     });
@@ -120,27 +199,19 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
 
   describe("Self-Approval Prevention", () => {
     it("should prevent user from approving their own assessment", async () => {
-      // User completes assessment (stage 1)
       await validator.trackInvolvement(
         testClaimId,
         testUserId,
         "internal_review",
         "complete_assessment"
       );
-
-      // Same user attempts to approve technical basis (stage 2) - this tests self-approval
-      // In a real scenario, this would be caught by business logic checking if the user
-      // is approving their own work from the previous stage
       const result = await validator.validateSegregation(
         testClaimId,
         testUserId,
         "approve_technical",
         "technical_approval"
       );
-
-      // Under 2-stage policy, this is ALLOWED (user can do 2 stages)
-      // Self-approval prevention should be enforced at business logic level
-      // by checking if user is approving their own prior work
+      // Under 2-stage policy this is ALLOWED (user can do 2 stages)
       expect(result.allowed).toBe(true);
       expect(result.criticalStagesPerformed).toBe(1);
     });
@@ -152,45 +223,15 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
       const user2 = 502;
       const user3 = 503;
 
-      // User 1 performs stage 1
-      await validator.trackInvolvement(
-        testClaimId,
-        user1,
-        "internal_review",
-        "complete_assessment"
-      );
-
-      const result1 = await validator.validateSegregation(
-        testClaimId,
-        user1,
-        "approve_technical",
-        "technical_approval"
-      );
+      await validator.trackInvolvement(testClaimId, user1, "internal_review", "complete_assessment");
+      const result1 = await validator.validateSegregation(testClaimId, user1, "approve_technical", "technical_approval");
       expect(result1.allowed).toBe(true);
 
-      // User 2 performs stage 2
-      await validator.trackInvolvement(
-        testClaimId,
-        user2,
-        "technical_approval",
-        "approve_technical"
-      );
-
-      const result2 = await validator.validateSegregation(
-        testClaimId,
-        user2,
-        "approve_financial",
-        "financial_decision"
-      );
+      await validator.trackInvolvement(testClaimId, user2, "technical_approval", "approve_technical");
+      const result2 = await validator.validateSegregation(testClaimId, user2, "approve_financial", "financial_decision");
       expect(result2.allowed).toBe(true);
 
-      // User 3 performs stage 3
-      const result3 = await validator.validateSegregation(
-        testClaimId,
-        user3,
-        "approve_financial",
-        "financial_decision"
-      );
+      const result3 = await validator.validateSegregation(testClaimId, user3, "approve_financial", "financial_decision");
       expect(result3.allowed).toBe(true);
     });
 
@@ -198,51 +239,21 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
       const user1 = 501;
       const user2 = 502;
 
-      // User 1 performs stages 1 and 2
-      await validator.trackInvolvement(
-        testClaimId,
-        user1,
-        "internal_review",
-        "complete_assessment"
-      );
-      await validator.trackInvolvement(
-        testClaimId,
-        user1,
-        "technical_approval",
-        "approve_technical"
-      );
+      await validator.trackInvolvement(testClaimId, user1, "internal_review", "complete_assessment");
+      await validator.trackInvolvement(testClaimId, user1, "technical_approval", "approve_technical");
 
-      // User 1 attempts stage 3 - BLOCKED
-      const result1 = await validator.validateSegregation(
-        testClaimId,
-        user1,
-        "approve_financial",
-        "financial_decision"
-      );
+      const result1 = await validator.validateSegregation(testClaimId, user1, "approve_financial", "financial_decision");
       expect(result1.allowed).toBe(false);
 
-      // User 2 attempts stage 3 - ALLOWED
-      const result2 = await validator.validateSegregation(
-        testClaimId,
-        user2,
-        "approve_financial",
-        "financial_decision"
-      );
+      const result2 = await validator.validateSegregation(testClaimId, user2, "approve_financial", "financial_decision");
       expect(result2.allowed).toBe(true);
     });
   });
 
   describe("Involvement Tracking", () => {
     it("should track user involvement correctly", async () => {
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
       const involvement = await validator.getUserInvolvement(testClaimId, testUserId);
-
       expect(involvement.userId).toBe(testUserId);
       expect(involvement.claimId).toBe(testClaimId);
       expect(involvement.criticalStageCount).toBe(1);
@@ -251,42 +262,16 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
     });
 
     it("should not duplicate involvement records for same stage", async () => {
-      // Track same stage twice
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "update_assessment"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "update_assessment");
       const involvement = await validator.getUserInvolvement(testClaimId, testUserId);
-
-      // Should only count as 1 critical stage
       expect(involvement.criticalStageCount).toBe(1);
     });
 
     it("should count distinct critical stages correctly", async () => {
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "technical_approval",
-        "approve_technical"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
+      await validator.trackInvolvement(testClaimId, testUserId, "technical_approval", "approve_technical");
       const involvement = await validator.getUserInvolvement(testClaimId, testUserId);
-
       expect(involvement.criticalStageCount).toBe(2);
     });
   });
@@ -303,24 +288,9 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
     });
 
     it("should enforce custom max sequential stages", async () => {
-      // Set to 1-stage limit
       validator.setMaxSequentialStages(1);
-
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-
-      // Attempt second stage with 1-stage limit
-      const result = await validator.validateSegregation(
-        testClaimId,
-        testUserId,
-        "approve_technical",
-        "technical_approval"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
+      const result = await validator.validateSegregation(testClaimId, testUserId, "approve_technical", "technical_approval");
       expect(result.allowed).toBe(false);
       expect(result.reason).toContain("exceeding maximum allowed: 1");
     });
@@ -328,88 +298,40 @@ describe("SegregationValidator - 2-Stage Limit Policy", () => {
 
   describe("Violation Detection", () => {
     it("should detect segregation violation for proposed stage", async () => {
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "technical_approval",
-        "approve_technical"
-      );
-
-      const wouldViolate = await validator.wouldViolateSegregation(
-        testClaimId,
-        testUserId,
-        "financial_decision"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
+      await validator.trackInvolvement(testClaimId, testUserId, "technical_approval", "approve_technical");
+      const wouldViolate = await validator.wouldViolateSegregation(testClaimId, testUserId, "financial_decision");
       expect(wouldViolate).toBe(true);
     });
 
     it("should not detect violation for allowed stage", async () => {
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-
-      const wouldViolate = await validator.wouldViolateSegregation(
-        testClaimId,
-        testUserId,
-        "technical_approval"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
+      const wouldViolate = await validator.wouldViolateSegregation(testClaimId, testUserId, "technical_approval");
       expect(wouldViolate).toBe(false);
     });
 
     it("should not detect violation for already performed stage", async () => {
-      await validator.trackInvolvement(
-        testClaimId,
-        testUserId,
-        "internal_review",
-        "complete_assessment"
-      );
-
-      // Check same stage again
-      const wouldViolate = await validator.wouldViolateSegregation(
-        testClaimId,
-        testUserId,
-        "assessment"
-      );
-
+      await validator.trackInvolvement(testClaimId, testUserId, "internal_review", "complete_assessment");
+      const wouldViolate = await validator.wouldViolateSegregation(testClaimId, testUserId, "assessment");
       expect(wouldViolate).toBe(false);
     });
   });
 
   describe("Edge Cases", () => {
     it("should handle non-critical state transitions", async () => {
-      const result = await validator.validateSegregation(
-        testClaimId,
-        testUserId,
-        "assign_assessor",
-        "assigned" // Non-critical state
-      );
-
+      const result = await validator.validateSegregation(testClaimId, testUserId, "assign_assessor", "assigned");
       expect(result.allowed).toBe(true);
       expect(result.criticalStagesPerformed).toBe(0);
     });
 
     it("should handle user with no prior involvement", async () => {
       const involvement = await validator.getUserInvolvement(testClaimId, 999);
-
       expect(involvement.criticalStageCount).toBe(0);
       expect(involvement.stages.length).toBe(0);
     });
 
     it("should handle database unavailability gracefully", async () => {
-      // This test assumes getDb() might return null in some scenarios
       const involvement = await validator.getUserInvolvement(999999, 999);
-
       expect(involvement).toBeDefined();
       expect(involvement.criticalStageCount).toBe(0);
     });

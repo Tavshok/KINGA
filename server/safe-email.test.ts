@@ -11,7 +11,7 @@
  *   - DB unavailable: graceful skip, no throw
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, afterAll, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Mock } from "vitest";
 
 // ─── Mock getDb ───────────────────────────────────────────────────────────────
@@ -22,7 +22,6 @@ const mockInsert = vi.fn(() => ({ values: mockInsertValues }));
 const mockUpdateSet = vi.fn();
 const mockUpdateWhere = vi.fn();
 const mockUpdate = vi.fn(() => ({ set: mockUpdateSet }));
-mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
 
 const mockSelectFrom = vi.fn();
 const mockSelectWhere = vi.fn();
@@ -49,6 +48,8 @@ vi.mock("drizzle-orm", () => ({
   gte: vi.fn((col, val) => ({ type: "gte", col, val })),
   count: vi.fn(() => ({ type: "count" })),
 }));
+
+
 
 import { getDb } from "./db";
 import { notifyOwner } from "./_core/notification";
@@ -79,6 +80,9 @@ function makeDb(overrides: Partial<typeof mockDb> = {}) {
 describe("sendEmailSafe", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-setup mock chains after clearAllMocks
+    mockSelectFrom.mockReturnValue({ where: mockSelectWhere });
+    mockUpdateSet.mockReturnValue({ where: mockUpdateWhere });
     // Default: insert succeeds (no duplicate), count returns 1 (under limit)
     mockInsertValues.mockResolvedValue(undefined);
     mockSelectWhere.mockResolvedValue([{ value: 1 }]);

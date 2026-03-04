@@ -12,7 +12,7 @@
  *   8. Domain guard: admin role cannot call super-admin procedures
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, afterAll, it, expect, vi, beforeEach } from "vitest";
 import { TRPCError } from "@trpc/server";
 
 // ─── Mock DB ──────────────────────────────────────────────────────────────────
@@ -26,6 +26,8 @@ vi.mock("../../drizzle/schema", () => ({
   insurerMarketplaceRelationships: { id: "id", marketplaceProfileId: "marketplace_profile_id", insurerTenantId: "insurer_tenant_id" },
   users: { id: "id", tenantId: "tenant_id", role: "role" },
 }));
+
+
 
 import { getDb } from "../db";
 

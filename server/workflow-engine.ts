@@ -119,7 +119,7 @@ export async function transition(request: TransitionRequest): Promise<Transition
   if (!canTransitionTo(fromState, toState)) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: `Invalid workflow transition: ${fromState} → ${toState}. Allowed transitions from ${fromState}: ${WORKFLOW_TRANSITIONS[fromState].join(", ")}`,
+      message: `Invalid workflow transition: ${fromState} → ${toState}. Allowed transitions from ${fromState}: ${(WORKFLOW_TRANSITIONS[fromState] || []).join(", ")}`,
     });
   }
 
@@ -409,8 +409,8 @@ export class WorkflowEngine {
       });
     }
 
-    // Infer fromState from current workflow_state
-    const fromState = claim.workflowState as WorkflowState;
+    // Infer fromState from current workflow_state, default to "created" if null
+    const fromState = (claim.workflowState as WorkflowState) || "created";
 
     // Call the functional transition with full request
     return transition({

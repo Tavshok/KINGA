@@ -313,14 +313,13 @@ describe("Threshold Version Management", () => {
       if (!db) throw new Error("Database not available");
       
       // Create test claim
-      const [claim] = await db.insert(claims).values({
+      const claimInsert = await db.insert(claims).values({
         claimantId: 1,
         claimNumber: `TEST-THRESHOLD-${Date.now()}`,
         tenantId: testTenantId,
         status: "submitted",
-      }).$returningId();
-      
-      testClaimId = claim.id;
+      });
+      testClaimId = (claimInsert as any)[0]?.insertId ?? (claimInsert as any)?.insertId;
     });
     
     afterEach(async () => {
