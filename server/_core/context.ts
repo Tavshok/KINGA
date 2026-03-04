@@ -20,9 +20,15 @@ export async function createContext(
   let user: User | null = null;
   let tenant: Tenant | null = null;
 
+  // Resolve db first so it can be passed to extractTenantContext
+  const rawDb = await getDb();
+  // Cast: at runtime the DB is always initialised before requests arrive.
+  // If it is null the server would have failed to start, so this cast is safe.
+  const db = rawDb as unknown as MySql2Database<typeof schema>;
+
   try {
     user = await sdk.authenticateRequest(opts.req);
-  } catch (error) {
+  } catch {
     // Authentication is optional for public procedures.
     user = null;
   }
@@ -30,8 +36,15 @@ export async function createContext(
   // Extract tenant context if user is authenticated
   if (user) {
     try {
-      tenant = await extractTenantContext({ req: opts.req, res: opts.res, user, tenant: null });
-    } catch (error) {
+      const partialCtx: TrpcContext = {
+        req: opts.req,
+        res: opts.res,
+        user,
+        tenant: null,
+        db,
+      };
+      tenant = await extractTenantContext(partialCtx);
+    } catch {
       // Tenant extraction failure should not block request
       tenant = null;
     }
@@ -42,6 +55,6 @@ export async function createContext(
     res: opts.res,
     user,
     tenant,
-    db: getDb(),
+    db,
   };
 }

@@ -130,13 +130,14 @@ export async function logPlatformSuperAdminAccess(
   const { auditTrail } = await import("../../drizzle/schema");
   
   const db = await getDb();
-  
+  if (!db) return; // DB unavailable — skip audit log silently
+
   await db.insert(auditTrail).values({
     userId,
     action: `platform_super_admin_${action}`,
     resourceType,
-    resourceId: resourceId?.toString(),
-    metadata: metadata ? JSON.stringify(metadata) : undefined,
+    resourceId: resourceId?.toString() ?? null,
+    metadata: metadata ? JSON.stringify(metadata) : null,
     timestamp: new Date(),
-  });
+  } as Parameters<typeof db.insert>[0] extends never ? never : any);
 }

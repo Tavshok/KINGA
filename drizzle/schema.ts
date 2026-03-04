@@ -2917,13 +2917,12 @@ export const users = mysqlTable("users", {
 	averageVarianceFromFinal: int("average_variance_from_final"),
 	accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default('0.00'),
 	avgCompletionTime: decimal("avg_completion_time", { precision: 6, scale: 2 }).default('0.00'),
-	insurerRole: text(),
 },
 (table) => [
-	index("users_openId_unique").on(table.openId),
+		index("users_openId_unique").on(table.openId),
 	index("idx_users_tenant_id").on(table.tenantId),
 ]);
-
+export type User = typeof users.$inferSelect;
 export const varianceDatasets = mysqlTable("variance_datasets", {
 	id: int().autoincrement().notNull(),
 	historicalClaimId: int("historical_claim_id").notNull(),
