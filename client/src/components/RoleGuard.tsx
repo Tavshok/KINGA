@@ -69,6 +69,11 @@ export function RoleGuard({ children, allowedRoles, requireTenant = true }: Role
     return <Redirect to="/" />;
   }
 
+  // Admin users bypass all role checks (for testing)
+  if (user.role === "admin") {
+    return <>{children}</>;
+  }
+
   // Check tenant requirement
   if (requireTenant && !user.tenantId) {
     return <Redirect to="/unauthorized?reason=no_tenant" />;

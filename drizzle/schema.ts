@@ -1,4 +1,4 @@
-import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint } from "drizzle-orm/mysql-core"
+import { mysqlTable, mysqlSchema, AnyMySqlColumn, int, varchar, text, timestamp, mysqlEnum, index, uniqueIndex, decimal, json, date, foreignKey, double, time, longtext, tinyint, bigint } from "drizzle-orm/mysql-core"
 import { sql } from "drizzle-orm"
 
 export const accessDenialLog = mysqlTable("access_denial_log", {
@@ -700,9 +700,12 @@ export const claims = mysqlTable("claims", {
 	confidenceScore: int("confidence_score"),
 	routingDecision: varchar("routing_decision", { length: 50 }),
 	policyVersionId: int("policy_version_id"),
+	sourceDocumentId: int("source_document_id"),
+	claimSource: varchar("claim_source", { length: 50 }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
+	uniqueIndex("idx_claims_source_document_id").on(table.sourceDocumentId),
 	index("idx_claims_claimant_id").on(table.claimantId),
 	index("").on(table.claimantId),
 	index("idx_claims_assigned_assessor_id").on(table.assignedAssessorId),

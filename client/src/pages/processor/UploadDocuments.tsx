@@ -105,11 +105,10 @@ export default function UploadDocuments() {
         description: `Uploaded ${result.uploaded} documents in batch ${result.batch_id}`,
       });
 
-      // Reset form
+      // Redirect to Claims Processor Dashboard after short delay
       setTimeout(() => {
-        setFiles([]);
-        setBatchName("");
-      }, 2000);
+        window.location.href = "/insurer-portal/claims-processor";
+      }, 1500);
     } catch (error) {
       console.error("Upload error:", error);
       setFiles((prev) =>

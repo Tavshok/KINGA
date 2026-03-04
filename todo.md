@@ -9463,3 +9463,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Test upload and capture server logs (requires user testing)
 - [ ] Analyze actual error from logs
 - [ ] Fix root cause
+
+## Post-Upload Workflow Implementation
+- [ ] Check current upload success handler in UploadDocuments.tsx
+- [ ] Identify expected post-upload page (analysis/report/batch details)
+- [ ] Implement redirect after successful upload
+- [ ] Verify documents are stored in database and S3
+- [ ] Test complete upload-to-analysis workflow

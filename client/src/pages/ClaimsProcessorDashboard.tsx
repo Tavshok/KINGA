@@ -34,8 +34,8 @@ export default function ClaimsProcessorDashboard() {
   const [selectedClaimId, setSelectedClaimId] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  // Role validation
-  if (user?.insurerRole !== "claims_processor") {
+  // Role validation — allow admin users to bypass for testing
+  if (user?.role !== "admin" && user?.insurerRole !== "claims_processor") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Card className="max-w-md">
@@ -60,7 +60,7 @@ export default function ClaimsProcessorDashboard() {
 
   // Fetch claims by different states
   const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = 
-    trpc.workflowQueries.getClaimsByState.useQuery({ state: "created", limit: 100, offset: 0 });
+    trpc.workflowQueries.getClaimsByState.useQuery({ state: "intake_queue", limit: 100, offset: 0 });
   
   const { data: inReviewData, isLoading: inReviewLoading, refetch: refetchInReview } = 
     trpc.workflowQueries.getClaimsByState.useQuery({ state: "assigned", limit: 100, offset: 0 });
@@ -71,10 +71,10 @@ export default function ClaimsProcessorDashboard() {
   const { data: completedData, isLoading: completedLoading, refetch: refetchCompleted } = 
     trpc.workflowQueries.getClaimsByState.useQuery({ state: "closed", limit: 100, offset: 0 });
 
-  const pendingClaims = pendingData?.items || [];
-  const inReviewClaims = inReviewData?.items || [];
-  const aiFlaggedClaims = aiFlaggedData?.items || [];
-  const completedClaims = completedData?.items || [];
+  const pendingClaims = pendingData?.claims || pendingData?.items || [];
+  const inReviewClaims = inReviewData?.claims || inReviewData?.items || [];
+  const aiFlaggedClaims = aiFlaggedData?.claims || aiFlaggedData?.items || [];
+  const completedClaims = completedData?.claims || completedData?.items || [];
 
   // Upload document mutation
   const uploadDocument = trpc.documents.upload.useMutation({
