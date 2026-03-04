@@ -1,0 +1,35 @@
+{
+  "query": "SHOW CREATE TABLE marketplace_profiles;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW CREATE TABLE marketplace_profiles;",
+  "rows": [
+    {
+      "Table": "marketplace_profiles",
+      "Create Table": "CREATE TABLE `marketplace_profiles` ("
+    }
+  ],
+  "messages": [
+    "  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT (uuid()),",
+    "  `type` enum('assessor','panel_beater') COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `company_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `country_id` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ZA',",
+    "  `contact_email` varchar(320) COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `contact_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `address` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `license_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `specializations` json DEFAULT NULL,",
+    "  `approval_status` enum('pending','approved','rejected') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',",
+    "  `rejection_reason` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `approved_by` int DEFAULT NULL,",
+    "  `approved_at` timestamp NULL DEFAULT NULL,",
+    "  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,",
+    "  KEY `idx_marketplace_profiles_type` (`type`),",
+    "  KEY `idx_marketplace_profiles_approval_status` (`approval_status`),",
+    "  KEY `idx_marketplace_profiles_country_id` (`country_id`)",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  ],
+  "stdout": "Table\tCreate Table\nmarketplace_profiles\tCREATE TABLE `marketplace_profiles` (\n  `id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT (uuid()),\n  `type` enum('assessor','panel_beater') COLLATE utf8mb4_unicode_ci NOT NULL,\n  `company_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `country_id` varchar(10) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'ZA',\n  `contact_email` varchar(320) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `contact_phone` varchar(50) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `address` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `license_number` varchar(100) COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `specializations` json DEFAULT NULL,\n  `approval_status` enum('pending','approved','rejected') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'pending',\n  `rejection_reason` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `approved_by` int DEFAULT NULL,\n  `approved_at` timestamp NULL DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n  KEY `idx_marketplace_profiles_type` (`type`),\n  KEY `idx_marketplace_profiles_approval_status` (`approval_status`),\n  KEY `idx_marketplace_profiles_country_id` (`country_id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n",
+  "stderr": "",
+  "execution_time_ms": 354
+}

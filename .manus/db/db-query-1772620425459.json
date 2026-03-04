@@ -1,0 +1,31 @@
+{
+  "query": "SHOW CREATE TABLE insurer_marketplace_links;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW CREATE TABLE insurer_marketplace_links;",
+  "rows": [
+    {
+      "Table": "insurer_marketplace_links",
+      "Create Table": "CREATE TABLE `insurer_marketplace_links` ("
+    }
+  ],
+  "messages": [
+    "  `id` int NOT NULL AUTO_INCREMENT,",
+    "  `insurer_tenant_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `marketplace_profile_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,",
+    "  `status` enum('active','suspended') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',",
+    "  `linked_by` int DEFAULT NULL,",
+    "  `linked_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `suspended_at` timestamp NULL DEFAULT NULL,",
+    "  `suspension_reason` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,",
+    "  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,",
+    "  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,",
+    "  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,",
+    "  UNIQUE KEY `unique_insurer_marketplace_link` (`insurer_tenant_id`,`marketplace_profile_id`),",
+    "  KEY `idx_insurer_marketplace_links_tenant` (`insurer_tenant_id`),",
+    "  KEY `idx_insurer_marketplace_links_profile` (`marketplace_profile_id`),",
+    "  CONSTRAINT `fk_iml_marketplace_profile` FOREIGN KEY (`marketplace_profile_id`) REFERENCES `marketplace_profiles` (`id`) ON DELETE CASCADE",
+    ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci"
+  ],
+  "stdout": "Table\tCreate Table\ninsurer_marketplace_links\tCREATE TABLE `insurer_marketplace_links` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `insurer_tenant_id` varchar(64) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `marketplace_profile_id` varchar(36) COLLATE utf8mb4_unicode_ci NOT NULL,\n  `status` enum('active','suspended') COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'active',\n  `linked_by` int DEFAULT NULL,\n  `linked_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `suspended_at` timestamp NULL DEFAULT NULL,\n  `suspension_reason` text COLLATE utf8mb4_unicode_ci DEFAULT NULL,\n  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  PRIMARY KEY (`id`) /*T![clustered_index] CLUSTERED */,\n  UNIQUE KEY `unique_insurer_marketplace_link` (`insurer_tenant_id`,`marketplace_profile_id`),\n  KEY `idx_insurer_marketplace_links_tenant` (`insurer_tenant_id`),\n  KEY `idx_insurer_marketplace_links_profile` (`marketplace_profile_id`),\n  CONSTRAINT `fk_iml_marketplace_profile` FOREIGN KEY (`marketplace_profile_id`) REFERENCES `marketplace_profiles` (`id`) ON DELETE CASCADE\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci\n",
+  "stderr": "",
+  "execution_time_ms": 368
+}

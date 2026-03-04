@@ -132,10 +132,19 @@ export default function SubmitClaim() {
     // Photos & docs
     damagePhotos: [] as string[],
     supportingDocuments: [] as SupportingDoc[],
-    selectedPanelBeaterIds: [] as number[],
+    selectedPanelBeaterIds: [] as string[],
   });
 
-  const { data: panelBeaters = [] } = trpc.panelBeaters.list.useQuery();
+  // Governance-aware panel beater query:
+  // Only loads panel beaters that are:
+  //   1. Platform-approved (marketplace_profiles.approval_status = 'approved')
+  //   2. Insurer SLA-approved (insurer_marketplace_relationships.relationship_status = 'approved')
+  const insurerTenantId = user?.tenantId ?? "";
+  const { data: panelBeatersData, isLoading: panelBeatersLoading } = trpc.marketplace.getApprovedPanelBeaters.useQuery(
+    { insurerTenantId },
+    { enabled: !!insurerTenantId }
+  );
+  const panelBeaters = panelBeatersData?.panelBeaters ?? [];
   const uploadImage = trpc.storage.uploadImage.useMutation();
   const extractFromDoc = trpc.claims.extractFromDocument.useMutation();
 
@@ -339,7 +348,7 @@ export default function SubmitClaim() {
     }
   };
 
-  const handlePanelBeaterToggle = (id: number) => {
+  const handlePanelBeaterToggle = (id: string) => {
     setFormData(prev => {
       const current = prev.selectedPanelBeaterIds;
       if (current.includes(id)) {
@@ -1165,26 +1174,52 @@ export default function SubmitClaim() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
+                {panelBeatersLoading && (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground py-4">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading approved panel beaters...
+                  </div>
+                )}
+                {!panelBeatersLoading && panelBeaters.length === 0 && (
+                  <div className="text-sm text-muted-foreground py-4 text-center border rounded-lg bg-muted/30">
+                    <Building2 className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+                    <p className="font-medium">No approved panel beaters available</p>
+                    <p className="text-xs mt-1">Your insurer has not yet approved any panel beaters. Please contact your insurer.</p>
+                  </div>
+                )}
                 {panelBeaters.map((pb) => (
                   <div
-                    key={pb.id}
+                    key={pb.profileId}
                     className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${
-                      formData.selectedPanelBeaterIds.includes(pb.id)
+                      formData.selectedPanelBeaterIds.includes(pb.profileId)
                         ? "border-emerald-300 bg-emerald-50"
                         : "hover:bg-muted/50"
                     }`}
                   >
                     <Checkbox
-                      id={`pb-${pb.id}`}
-                      checked={formData.selectedPanelBeaterIds.includes(pb.id)}
-                      onCheckedChange={() => { handlePanelBeaterToggle(pb.id); if (currentStep < 6) setCurrentStep(6); }}
+                      id={`pb-${pb.profileId}`}
+                      checked={formData.selectedPanelBeaterIds.includes(pb.profileId)}
+                      onCheckedChange={() => { handlePanelBeaterToggle(pb.profileId); if (currentStep < 6) setCurrentStep(6); }}
                     />
                     <div className="flex-1">
-                      <Label htmlFor={`pb-${pb.id}`} className="font-medium cursor-pointer">
-                        {pb.businessName}
-                      </Label>
-                      <p className="text-sm text-muted-foreground">{pb.city}</p>
-                      {pb.phone && <p className="text-xs text-muted-foreground">{pb.phone}</p>}
+                      <div className="flex items-center gap-2">
+                        <Label htmlFor={`pb-${pb.profileId}`} className="font-medium cursor-pointer">
+                          {pb.companyName}
+                        </Label>
+                        {!!pb.preferred && (
+                          <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                            Preferred
+                          </Badge>
+                        )}
+                        {!!pb.slaSigned && (
+                          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                            SLA Signed
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{pb.address}</p>
+                      {pb.contactPhone && <p className="text-xs text-muted-foreground">{pb.contactPhone}</p>}
+                      {pb.contactEmail && <p className="text-xs text-muted-foreground">{pb.contactEmail}</p>}
                     </div>
                   </div>
                 ))}

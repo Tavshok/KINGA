@@ -720,7 +720,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         incidentLocation: z.string(),
         damagePhotos: z.array(z.string()), // Array of S3 URLs
         policyNumber: z.string(),
-        selectedPanelBeaterIds: z.array(z.number()).min(0).max(3), // Allow 0-3 panel beaters (0 for external assessments)
+        selectedPanelBeaterIds: z.array(z.string()).min(0).max(3), // Allow 0-3 panel beaters (0 for external assessments); accepts marketplace profile UUIDs
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");

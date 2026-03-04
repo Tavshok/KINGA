@@ -1,8 +1,13 @@
 /**
- * Marketplace Router
+ * Marketplace Router — Governance Model
  *
  * Manages assessors and panel beaters as cross-tenant marketplace entities.
- * Only approved marketplace_profiles are visible to insurers.
+ *
+ * Governance layers:
+ *   1. Platform approval: marketplace_profiles.approval_status = 'approved'
+ *   2. Insurer SLA relationship: insurer_marketplace_relationships.relationship_status = 'approved'
+ *
+ * Claimants only see panel_beaters that pass BOTH filters for their insurer's tenant.
  */
 
 import { z } from "zod";
@@ -13,6 +18,7 @@ import { getDb } from "../db";
 import {
   marketplaceProfiles,
   insurerMarketplaceLinks,
+  insurerMarketplaceRelationships,
   users,
 } from "../../drizzle/schema";
 import { randomUUID } from "crypto";
@@ -54,6 +60,27 @@ const linkProfileInput = z.object({
 const suspendLinkInput = z.object({
   marketplaceProfileId: z.string().uuid(),
   suspensionReason: z.string().optional(),
+});
+
+// Governance relationship management
+const upsertRelationshipInput = z.object({
+  marketplaceProfileId: z.string().uuid(),
+  relationshipStatus: z.enum(["approved", "suspended", "blacklisted"]).default("approved"),
+  slaSigned: z.boolean().default(false),
+  preferred: z.boolean().default(false),
+  notes: z.string().optional(),
+});
+
+const updateRelationshipStatusInput = z.object({
+  marketplaceProfileId: z.string().uuid(),
+  relationshipStatus: z.enum(["approved", "suspended", "blacklisted"]),
+  notes: z.string().optional(),
+});
+
+// Claimant panel beater query — requires insurerTenantId
+const getApprovedPanelBeatersInput = z.object({
+  insurerTenantId: z.string().min(1),
+  countryId: z.string().optional(),
 });
 
 // ─── Router ───────────────────────────────────────────────────────────────────
@@ -339,5 +366,283 @@ export const marketplaceRouter = router({
         );
 
       return { links };
+    }),
+
+  // ─── GOVERNANCE LAYER ────────────────────────────────────────────────────────
+
+  /**
+   * Insurer: create or update a governance relationship with a marketplace provider.
+   * Sets relationship_status, sla_signed, preferred, and notes.
+   * Uses INSERT ... ON DUPLICATE KEY UPDATE semantics via Drizzle.
+   */
+  upsertRelationship: protectedProcedure
+    .input(upsertRelationshipInput)
+    .mutation(async ({ ctx, input }) => {
+      const { user, tenant } = ctx;
+
+      const tenantId = (tenant as { id?: string } | null)?.id ?? user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant ID required." });
+      }
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Verify profile exists and is platform-approved
+      const [profile] = await db
+        .select({ id: marketplaceProfiles.id, approvalStatus: marketplaceProfiles.approvalStatus })
+        .from(marketplaceProfiles)
+        .where(eq(marketplaceProfiles.id, input.marketplaceProfileId));
+
+      if (!profile) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Marketplace profile not found." });
+      }
+      if (profile.approvalStatus !== "approved") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Only platform-approved profiles can have insurer relationships.",
+        });
+      }
+
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+      // Check if relationship already exists
+      const [existing] = await db
+        .select({ id: insurerMarketplaceRelationships.id })
+        .from(insurerMarketplaceRelationships)
+        .where(
+          and(
+            eq(insurerMarketplaceRelationships.insurerTenantId, tenantId),
+            eq(insurerMarketplaceRelationships.marketplaceProfileId, input.marketplaceProfileId)
+          )
+        );
+
+      if (existing) {
+        await db
+          .update(insurerMarketplaceRelationships)
+          .set({
+            relationshipStatus: input.relationshipStatus,
+            slaSigned: input.slaSigned ? 1 : 0,
+            preferred: input.preferred ? 1 : 0,
+            notes: input.notes ?? null,
+            updatedAt: now,
+          })
+          .where(eq(insurerMarketplaceRelationships.id, existing.id));
+
+        console.log(`[Marketplace Governance] Updated relationship: insurer=${tenantId} profile=${input.marketplaceProfileId} status=${input.relationshipStatus}`);
+        return { success: true, action: "updated" as const };
+      } else {
+        await db.insert(insurerMarketplaceRelationships).values({
+          insurerTenantId: tenantId,
+          marketplaceProfileId: input.marketplaceProfileId,
+          relationshipStatus: input.relationshipStatus,
+          slaSigned: input.slaSigned ? 1 : 0,
+          preferred: input.preferred ? 1 : 0,
+          notes: input.notes ?? null,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        console.log(`[Marketplace Governance] Created relationship: insurer=${tenantId} profile=${input.marketplaceProfileId} status=${input.relationshipStatus}`);
+        return { success: true, action: "created" as const };
+      }
+    }),
+
+  /**
+   * Insurer: update the relationship_status of an existing governance relationship.
+   * Quick action for approve/suspend/blacklist without touching SLA or preferred flags.
+   */
+  updateRelationshipStatus: protectedProcedure
+    .input(updateRelationshipStatusInput)
+    .mutation(async ({ ctx, input }) => {
+      const { user, tenant } = ctx;
+
+      const tenantId = (tenant as { id?: string } | null)?.id ?? user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant ID required." });
+      }
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+      const result = await db
+        .update(insurerMarketplaceRelationships)
+        .set({
+          relationshipStatus: input.relationshipStatus,
+          notes: input.notes ?? null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(insurerMarketplaceRelationships.insurerTenantId, tenantId),
+            eq(insurerMarketplaceRelationships.marketplaceProfileId, input.marketplaceProfileId)
+          )
+        );
+
+      console.log(`[Marketplace Governance] Status updated: insurer=${tenantId} profile=${input.marketplaceProfileId} → ${input.relationshipStatus}`);
+      return { success: true };
+    }),
+
+  /**
+   * Insurer: list all governance relationships for their tenant.
+   * Returns profiles with relationship metadata (status, SLA, preferred).
+   */
+  listRelationships: protectedProcedure
+    .input(z.object({
+      relationshipStatus: z.enum(["approved", "suspended", "blacklisted"]).optional(),
+      type: z.enum(["assessor", "panel_beater"]).optional(),
+    }))
+    .query(async ({ ctx, input }) => {
+      const { user, tenant } = ctx;
+
+      const tenantId = (tenant as { id?: string } | null)?.id ?? user.tenantId;
+      if (!tenantId) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "Tenant ID required." });
+      }
+
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const conditions: ReturnType<typeof eq>[] = [
+        eq(insurerMarketplaceRelationships.insurerTenantId, tenantId),
+      ];
+      if (input.relationshipStatus) {
+        conditions.push(eq(insurerMarketplaceRelationships.relationshipStatus, input.relationshipStatus));
+      }
+      if (input.type) {
+        conditions.push(eq(marketplaceProfiles.type, input.type));
+      }
+
+      const relationships = await db
+        .select({
+          relationshipId: insurerMarketplaceRelationships.id,
+          relationshipStatus: insurerMarketplaceRelationships.relationshipStatus,
+          slaSigned: insurerMarketplaceRelationships.slaSigned,
+          preferred: insurerMarketplaceRelationships.preferred,
+          notes: insurerMarketplaceRelationships.notes,
+          createdAt: insurerMarketplaceRelationships.createdAt,
+          updatedAt: insurerMarketplaceRelationships.updatedAt,
+          profile: {
+            id: marketplaceProfiles.id,
+            type: marketplaceProfiles.type,
+            companyName: marketplaceProfiles.companyName,
+            countryId: marketplaceProfiles.countryId,
+            contactEmail: marketplaceProfiles.contactEmail,
+            contactPhone: marketplaceProfiles.contactPhone,
+            address: marketplaceProfiles.address,
+            approvalStatus: marketplaceProfiles.approvalStatus,
+          },
+        })
+        .from(insurerMarketplaceRelationships)
+        .innerJoin(
+          marketplaceProfiles,
+          eq(insurerMarketplaceRelationships.marketplaceProfileId, marketplaceProfiles.id)
+        )
+        .where(and(...conditions));
+
+      return { relationships };
+    }),
+
+  /**
+   * Claimant / portal: get panel beaters approved by a specific insurer.
+   *
+   * Dual-filter:
+   *   1. marketplace_profiles.approval_status = 'approved' (platform-level)
+   *   2. insurer_marketplace_relationships.relationship_status = 'approved' (insurer SLA)
+   *
+   * Only panel_beaters are returned (not assessors).
+   * Preferred providers are sorted first.
+   */
+  getApprovedPanelBeaters: protectedProcedure
+    .input(getApprovedPanelBeatersInput)
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const conditions = [
+        eq(insurerMarketplaceRelationships.insurerTenantId, input.insurerTenantId),
+        eq(insurerMarketplaceRelationships.relationshipStatus, "approved"),
+        eq(marketplaceProfiles.approvalStatus, "approved"),
+        eq(marketplaceProfiles.type, "panel_beater"),
+      ];
+
+      if (input.countryId) {
+        conditions.push(eq(marketplaceProfiles.countryId, input.countryId));
+      }
+
+      const panelBeaters = await db
+        .select({
+          profileId: marketplaceProfiles.id,
+          companyName: marketplaceProfiles.companyName,
+          countryId: marketplaceProfiles.countryId,
+          contactEmail: marketplaceProfiles.contactEmail,
+          contactPhone: marketplaceProfiles.contactPhone,
+          address: marketplaceProfiles.address,
+          specializations: marketplaceProfiles.specializations,
+          slaSigned: insurerMarketplaceRelationships.slaSigned,
+          preferred: insurerMarketplaceRelationships.preferred,
+        })
+        .from(insurerMarketplaceRelationships)
+        .innerJoin(
+          marketplaceProfiles,
+          eq(insurerMarketplaceRelationships.marketplaceProfileId, marketplaceProfiles.id)
+        )
+        .where(and(...conditions));
+
+      // Sort: preferred providers first
+      panelBeaters.sort((a, b) => (b.preferred ?? 0) - (a.preferred ?? 0));
+
+      return { panelBeaters };
+    }),
+
+  /**
+   * Claimant / portal: get assessors approved by a specific insurer.
+   * Same dual-filter as getApprovedPanelBeaters but for assessors.
+   */
+  getApprovedAssessors: protectedProcedure
+    .input(z.object({
+      insurerTenantId: z.string().min(1),
+      countryId: z.string().optional(),
+    }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const conditions = [
+        eq(insurerMarketplaceRelationships.insurerTenantId, input.insurerTenantId),
+        eq(insurerMarketplaceRelationships.relationshipStatus, "approved"),
+        eq(marketplaceProfiles.approvalStatus, "approved"),
+        eq(marketplaceProfiles.type, "assessor"),
+      ];
+
+      if (input.countryId) {
+        conditions.push(eq(marketplaceProfiles.countryId, input.countryId));
+      }
+
+      const assessors = await db
+        .select({
+          profileId: marketplaceProfiles.id,
+          companyName: marketplaceProfiles.companyName,
+          countryId: marketplaceProfiles.countryId,
+          contactEmail: marketplaceProfiles.contactEmail,
+          contactPhone: marketplaceProfiles.contactPhone,
+          address: marketplaceProfiles.address,
+          specializations: marketplaceProfiles.specializations,
+          slaSigned: insurerMarketplaceRelationships.slaSigned,
+          preferred: insurerMarketplaceRelationships.preferred,
+        })
+        .from(insurerMarketplaceRelationships)
+        .innerJoin(
+          marketplaceProfiles,
+          eq(insurerMarketplaceRelationships.marketplaceProfileId, marketplaceProfiles.id)
+        )
+        .where(and(...conditions));
+
+      // Sort: preferred providers first
+      assessors.sort((a, b) => (b.preferred ?? 0) - (a.preferred ?? 0));
+
+      return { assessors };
     }),
 });

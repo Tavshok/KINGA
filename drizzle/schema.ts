@@ -3270,3 +3270,33 @@ export const fleetAccounts = mysqlTable("fleet_accounts", {
 
 export type FleetAccount = typeof fleetAccounts.$inferSelect;
 export type InsertFleetAccount = typeof fleetAccounts.$inferInsert;
+
+// ============================================================================
+// MARKETPLACE GOVERNANCE — SLA-based insurer ↔ provider relationships
+// Extends insurer_marketplace_links with governance columns:
+//   relationship_status: approved | suspended | blacklisted
+//   sla_signed: boolean — SLA document acknowledged by both parties
+//   preferred: boolean — insurer marks provider as preferred
+// Claimants only see panel_beaters with relationship_status = 'approved'.
+// ============================================================================
+
+export const insurerMarketplaceRelationships = mysqlTable("insurer_marketplace_relationships", {
+  id: int().autoincrement().notNull(),
+  insurerTenantId: varchar("insurer_tenant_id", { length: 255 }).notNull(),
+  marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
+  relationshipStatus: mysqlEnum("relationship_status", ['approved','suspended','blacklisted']).notNull().default('approved'),
+  slaSigned: tinyint("sla_signed").notNull().default(0),
+  preferred: tinyint().notNull().default(0),
+  notes: text(),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("unique_insurer_relationship").on(table.insurerTenantId, table.marketplaceProfileId),
+  index("idx_imr_tenant").on(table.insurerTenantId),
+  index("idx_imr_profile").on(table.marketplaceProfileId),
+  index("idx_imr_status").on(table.relationshipStatus),
+]);
+
+export type InsurerMarketplaceRelationship = typeof insurerMarketplaceRelationships.$inferSelect;
+export type InsertInsurerMarketplaceRelationship = typeof insurerMarketplaceRelationships.$inferInsert;
