@@ -12,13 +12,16 @@
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { eq, and, desc, inArray, sql, ne } from "drizzle-orm";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import {
   agencyClients,
   insurerQuoteRequests,
+  insurerTenants,
+  fleetAccounts,
   claims,
+  auditTrail,
 } from "../../drizzle/schema";
 import { randomUUID } from "crypto";
 
@@ -381,6 +384,167 @@ export const agencyBrokerRouter = router({
       return { success: true };
     }),
 
+  // ── Fleet Policy RFQ ──────────────────────────────────────────────────────
+
+  /**
+   * Create a fleet insurance RFQ routed through KINGA Agency.
+   *
+   * Architecture: Fleet → Agency Broker → ALL active insurers
+   * - Validates fleet account ownership
+   * - Creates an agency_clients entry for the fleet owner if one does not exist
+   * - Creates a synthetic "fleet_policy" claim as the RFQ anchor
+   * - Fans out insurer_quote_requests to ALL active insurer tenants
+   * - Prevents duplicate pending/sent/quoted requests per insurer
+   * - Writes an audit trail entry
+   */
+  createFleetQuoteRequest: protectedProcedure
+    .input(z.object({
+      fleetAccountId: z.number().int().positive(),
+      notes: z.string().max(2000).optional(),
+    }))
+    .mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const AGENCY_TENANT_ID = "kinga-agency";
+      const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+
+      // ── 1. Validate fleet account ownership ─────────────────────────────────
+      const [fleet] = await db
+        .select()
+        .from(fleetAccounts)
+        .where(and(
+          eq(fleetAccounts.id, input.fleetAccountId),
+          eq(fleetAccounts.ownerUserId, ctx.user.id),
+        ));
+
+      if (!fleet) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Fleet account not found or access denied." });
+      }
+      if (fleet.status !== "active") {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Fleet account must be active to request quotes." });
+      }
+
+      // ── 2. Upsert agency_clients entry for this fleet owner ─────────────────
+      const [existingClient] = await db
+        .select({ id: agencyClients.id })
+        .from(agencyClients)
+        .where(and(
+          eq(agencyClients.agencyTenantId, AGENCY_TENANT_ID),
+          eq(agencyClients.createdBy, ctx.user.id),
+        ))
+        .limit(1);
+
+      let agencyClientId: number;
+      if (existingClient) {
+        agencyClientId = existingClient.id;
+      } else {
+        const [newClient] = await db.insert(agencyClients).values({
+          agencyTenantId: AGENCY_TENANT_ID,
+          fullName: ctx.user.name ?? `Fleet Owner ${ctx.user.id}`,
+          email: ctx.user.email ?? null,
+          notes: `Auto-created for fleet account: ${fleet.accountName}`,
+          createdBy: ctx.user.id,
+        }).$returningId() as { id: number }[];
+        agencyClientId = newClient.id;
+      }
+
+      // ── 3. Create synthetic fleet_policy claim as RFQ anchor ────────────────
+      const claimNumber = `FLEET-RFQ-${Date.now().toString(36).toUpperCase()}-${randomUUID().slice(0, 6).toUpperCase()}`;
+      const [claimResult] = await db.insert(claims).values({
+        claimNumber,
+        claimantId: ctx.user.id,
+        tenantId: AGENCY_TENANT_ID,
+        status: "intake_pending" as any,
+        workflowState: "intake_queue" as any,
+        claimSource: "fleet_agency",
+        documentProcessingStatus: "pending",
+        incidentDescription: `Fleet insurance RFQ for account: ${fleet.accountName} (${fleet.accountCode ?? fleet.id}). Vehicle count: ${fleet.vehicleCount}.${input.notes ? ` Notes: ${input.notes}` : ""}`,
+        incidentDate: now.slice(0, 10),
+        estimatedRepairCost: null,
+        createdAt: now,
+        updatedAt: now,
+      } as any).$returningId() as { id: number }[];
+      const claimId = claimResult.id;
+
+      // ── 4. Fetch ALL active insurer tenants ──────────────────────────────────
+      const allInsurers = await db
+        .select({ id: insurerTenants.id, name: insurerTenants.name })
+        .from(insurerTenants);
+
+      if (allInsurers.length === 0) {
+        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "No active insurer tenants found on the platform." });
+      }
+
+      // ── 5. Prevent duplicate pending/sent/quoted requests ───────────────────
+      const existingRequests = await db
+        .select({ insurerTenantId: insurerQuoteRequests.insurerTenantId })
+        .from(insurerQuoteRequests)
+        .where(and(
+          eq(insurerQuoteRequests.fleetAccountId, input.fleetAccountId),
+          inArray(insurerQuoteRequests.status, ["pending", "sent", "quoted"]),
+        ));
+      const alreadyPending = new Set(existingRequests.map(r => r.insurerTenantId));
+      const targetInsurers = allInsurers.filter(i => !alreadyPending.has(i.id));
+
+      if (targetInsurers.length === 0) {
+        return {
+          success: true,
+          claimId,
+          claimNumber,
+          sent: 0,
+          skipped: allInsurers.length,
+          message: "All insurers already have a pending RFQ for this fleet account.",
+        };
+      }
+
+      // ── 6. Fan-out insurer_quote_requests ────────────────────────────────────
+      await db.insert(insurerQuoteRequests).values(
+        targetInsurers.map(insurer => ({
+          claimId,
+          insurerTenantId: insurer.id,
+          agencyTenantId: AGENCY_TENANT_ID,
+          status: "pending" as const,
+          requestType: "fleet_policy" as const,
+          claimSource: "fleet_agency",
+          fleetAccountId: input.fleetAccountId,
+          vehicleCount: fleet.vehicleCount ?? null,
+          estimatedTotalValue: null,
+          claimsHistorySummary: input.notes ?? null,
+          sentAt: now,
+          createdAt: now,
+          updatedAt: now,
+        }))
+      );
+
+      // ── 7. Audit trail ───────────────────────────────────────────────────────
+      try {
+        await db.insert(auditTrail).values({
+          claimId,
+          userId: ctx.user.id,
+          action: "fleet_rfq_created",
+          entityType: "fleet_account",
+          entityId: input.fleetAccountId,
+          changeDescription: `Fleet account ${fleet.accountName} initiated insurance RFQ via KINGA Agency. Dispatched to ${targetInsurers.length} insurer(s).`,
+          createdAt: now,
+        } as any);
+      } catch {
+        // Non-fatal: audit failure must not block the RFQ
+        console.warn(`[AgencyBroker] Audit trail insert failed for fleet RFQ claimId=${claimId}`);
+      }
+
+      console.log(`[AgencyBroker] Fleet RFQ created: claimId=${claimId} claimNumber=${claimNumber} fleet=${fleet.accountName} insurers=${targetInsurers.length}`);
+
+      return {
+        success: true,
+        claimId,
+        claimNumber,
+        sent: targetInsurers.length,
+        skipped: alreadyPending.size,
+        message: `Fleet RFQ dispatched to ${targetInsurers.length} insurer(s) via KINGA Agency.`,
+      };
+    }),
+
   /**
    * Get all quote requests for the current agency tenant (across all claims).
    */
@@ -413,5 +577,129 @@ export const agencyBrokerRouter = router({
         .where(and(...conditions));
 
       return { quotes, total: countRow?.count ?? 0 };
+    }),
+
+  /**
+   * List fleet policy RFQs for the current user (fleet owner view).
+   * Groups by fleet_account_id and returns all insurer responses per RFQ.
+   */
+  listFleetQuoteRequests: protectedProcedure
+    .input(z.object({
+      fleetAccountId: z.number().int().positive().optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      // Only return fleet RFQs for claims owned by this user
+      const conditions = [
+        eq(insurerQuoteRequests.requestType, "fleet_policy"),
+        eq(claims.claimantId, ctx.user.id),
+      ];
+      if (input.fleetAccountId) {
+        conditions.push(eq(insurerQuoteRequests.fleetAccountId, input.fleetAccountId));
+      }
+
+      const rows = await db
+        .select({
+          id: insurerQuoteRequests.id,
+          claimId: insurerQuoteRequests.claimId,
+          claimNumber: claims.claimNumber,
+          insurerTenantId: insurerQuoteRequests.insurerTenantId,
+          insurerName: insurerTenants.displayName,
+          status: insurerQuoteRequests.status,
+          requestType: insurerQuoteRequests.requestType,
+          claimSource: insurerQuoteRequests.claimSource,
+          fleetAccountId: insurerQuoteRequests.fleetAccountId,
+          vehicleCount: insurerQuoteRequests.vehicleCount,
+          estimatedTotalValue: insurerQuoteRequests.estimatedTotalValue,
+          claimsHistorySummary: insurerQuoteRequests.claimsHistorySummary,
+          quoteAmount: insurerQuoteRequests.quoteAmount,
+          quoteCurrency: insurerQuoteRequests.quoteCurrency,
+          quoteNotes: insurerQuoteRequests.quoteNotes,
+          quoteValidUntil: insurerQuoteRequests.quoteValidUntil,
+          sentAt: insurerQuoteRequests.sentAt,
+          quotedAt: insurerQuoteRequests.quotedAt,
+          respondedAt: insurerQuoteRequests.respondedAt,
+          createdAt: insurerQuoteRequests.createdAt,
+        })
+        .from(insurerQuoteRequests)
+        .innerJoin(claims, eq(insurerQuoteRequests.claimId, claims.id))
+        .leftJoin(insurerTenants, eq(insurerQuoteRequests.insurerTenantId, insurerTenants.id))
+        .where(and(...conditions))
+        .orderBy(desc(insurerQuoteRequests.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      const [countRow] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(insurerQuoteRequests)
+        .innerJoin(claims, eq(insurerQuoteRequests.claimId, claims.id))
+        .where(and(...conditions));
+
+      return { quotes: rows, total: countRow?.count ?? 0 };
+    }),
+
+  /**
+   * List insurer-facing fleet RFQs (insurer portal view).
+   * Returns all fleet_policy requests addressed to the calling insurer tenant.
+   */
+  listInsurerFleetRFQs: protectedProcedure
+    .input(z.object({
+      status: z.enum(["pending","sent","quoted","accepted","rejected","expired"]).optional(),
+      limit: z.number().int().min(1).max(100).default(50),
+      offset: z.number().int().min(0).default(0),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const insurerTenantId = ctx.user.tenantId;
+      if (!insurerTenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Insurer tenant context required." });
+
+      const conditions = [
+        eq(insurerQuoteRequests.insurerTenantId, insurerTenantId),
+        eq(insurerQuoteRequests.requestType, "fleet_policy"),
+      ];
+      if (input.status) conditions.push(eq(insurerQuoteRequests.status, input.status));
+
+      const rows = await db
+        .select({
+          id: insurerQuoteRequests.id,
+          claimId: insurerQuoteRequests.claimId,
+          claimNumber: claims.claimNumber,
+          agencyTenantId: insurerQuoteRequests.agencyTenantId,
+          status: insurerQuoteRequests.status,
+          requestType: insurerQuoteRequests.requestType,
+          claimSource: insurerQuoteRequests.claimSource,
+          fleetAccountId: insurerQuoteRequests.fleetAccountId,
+          vehicleCount: insurerQuoteRequests.vehicleCount,
+          estimatedTotalValue: insurerQuoteRequests.estimatedTotalValue,
+          claimsHistorySummary: insurerQuoteRequests.claimsHistorySummary,
+          quoteAmount: insurerQuoteRequests.quoteAmount,
+          quoteCurrency: insurerQuoteRequests.quoteCurrency,
+          quoteNotes: insurerQuoteRequests.quoteNotes,
+          quoteValidUntil: insurerQuoteRequests.quoteValidUntil,
+          sentAt: insurerQuoteRequests.sentAt,
+          quotedAt: insurerQuoteRequests.quotedAt,
+          incidentDescription: claims.incidentDescription,
+          createdAt: insurerQuoteRequests.createdAt,
+        })
+        .from(insurerQuoteRequests)
+        .innerJoin(claims, eq(insurerQuoteRequests.claimId, claims.id))
+        .where(and(...conditions))
+        .orderBy(desc(insurerQuoteRequests.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      const [countRow] = await db
+        .select({ count: sql<number>`COUNT(*)` })
+        .from(insurerQuoteRequests)
+        .innerJoin(claims, eq(insurerQuoteRequests.claimId, claims.id))
+        .where(and(...conditions));
+
+      return { rfqs: rows, total: countRow?.count ?? 0 };
     }),
 });

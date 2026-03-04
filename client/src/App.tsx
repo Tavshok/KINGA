@@ -79,6 +79,8 @@ const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
 const TenantRegistration = lazy(() => import("./pages/admin/TenantRegistration"));
 const MarketQuotesIngestion = lazy(() => import("./pages/MarketQuotesIngestion"));
 const KingaAgency = lazy(() => import("./pages/KingaAgency"));
+const AgencyFleetQuotes = lazy(() => import("./pages/AgencyFleetQuotes"));
+const InsurerFleetRFQs = lazy(() => import("./pages/InsurerFleetRFQs"));
 
 // Feature pages
 const AssessmentResults = lazy(() => import("./pages/AssessmentResults"));
@@ -382,6 +384,20 @@ function Router() {
         <Route path="/agency">
           <ProtectedRoute domain="agency">
             <KingaAgency />
+          </ProtectedRoute>
+        </Route>
+
+        {/* Fleet RFQ comparison — accessible to any authenticated fleet owner */}
+        <Route path="/agency/quotes">
+          <ProtectedRoute>
+            <AgencyFleetQuotes />
+          </ProtectedRoute>
+        </Route>
+
+        {/* Insurer portal: fleet policy RFQs from KINGA Agency */}
+        <Route path="/insurer-portal/fleet-rfqs">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <InsurerFleetRFQs />
           </ProtectedRoute>
         </Route>
         

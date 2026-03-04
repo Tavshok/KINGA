@@ -3223,6 +3223,13 @@ export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
   sentAt: timestamp("sent_at", { mode: 'string' }),
   quotedAt: timestamp("quoted_at", { mode: 'string' }),
   respondedAt: timestamp("responded_at", { mode: 'string' }),
+  // Fleet RFQ enrichment fields — populated when request_type = 'fleet_policy'
+  requestType: mysqlEnum("request_type", ['standard_claim','fleet_policy']).default('standard_claim').notNull(),
+  claimSource: varchar("claim_source", { length: 50 }).default('direct').notNull(),
+  fleetAccountId: int("fleet_account_id"),
+  vehicleCount: int("vehicle_count"),
+  estimatedTotalValue: decimal("estimated_total_value", { precision: 14, scale: 2 }),
+  claimsHistorySummary: text("claims_history_summary"),
   createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },
