@@ -2,10 +2,39 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Redirect, useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 
+/**
+ * Domain → Allowed Roles mapping (mirrors server/_core/domain-middleware.ts)
+ *
+ * /platform  → platform_super_admin
+ * /agency    → agency, admin
+ * /insurer   → insurer, admin
+ * /fleet     → fleet_admin, fleet_manager, fleet_driver, admin
+ * /marketplace → all authenticated roles
+ * /portal    → claimant, admin
+ */
+export const DOMAIN_ROLE_MAP: Record<string, string[]> = {
+  platform: ["platform_super_admin"],
+  agency: ["agency", "admin"],
+  insurer: ["insurer", "admin"],
+  fleet: ["fleet_admin", "fleet_manager", "fleet_driver", "admin"],
+  marketplace: [
+    "admin", "insurer", "assessor", "panel_beater", "agency",
+    "fleet_admin", "fleet_manager", "claimant", "user", "platform_super_admin",
+  ],
+  portal: ["claimant", "admin"],
+};
+
 interface ProtectedRouteProps {
   children: React.ReactNode;
+  /** Explicit list of allowed roles. Takes precedence over `domain`. */
   allowedRoles?: string[];
+  /** Insurer sub-role check (insurerRole field). Only applies to insurer users. */
   allowedInsurerRoles?: string[];
+  /**
+   * Domain key — automatically resolves allowedRoles from DOMAIN_ROLE_MAP.
+   * Allowed values: 'platform' | 'agency' | 'insurer' | 'fleet' | 'marketplace' | 'portal'
+   */
+  domain?: keyof typeof DOMAIN_ROLE_MAP;
 }
 
 /**
@@ -15,9 +44,8 @@ interface ProtectedRouteProps {
  * Redirects to login if user is not authenticated
  * Redirects to unauthorized page if user's role is not in allowedRoles
  */
-export default function ProtectedRoute({ children, allowedRoles, allowedInsurerRoles }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, allowedRoles, allowedInsurerRoles, domain }: ProtectedRouteProps) {
   const { user, loading, isAuthenticated } = useAuth();
-  const [, setLocation] = useLocation();
 
   // Show loading spinner while auth is being verified
   if (loading) {
@@ -36,8 +64,16 @@ export default function ProtectedRoute({ children, allowedRoles, allowedInsurerR
     return <Redirect to="/login" />;
   }
 
-  // Check if user's role is allowed (if allowedRoles is specified)
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // Resolve effective role list: explicit allowedRoles > domain > none
+  const effectiveRoles: string[] | undefined =
+    allowedRoles ?? (domain ? DOMAIN_ROLE_MAP[domain] : undefined);
+
+  // Check role against effective list
+  if (effectiveRoles && !effectiveRoles.includes(user.role)) {
+    console.warn(
+      `[ProtectedRoute] 403 — user role "${user.role}" not in [${effectiveRoles.join(", ")}]` +
+        (domain ? ` for domain "${domain}"` : "")
+    );
     return <Redirect to="/unauthorized" />;
   }
 

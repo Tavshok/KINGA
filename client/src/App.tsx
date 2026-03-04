@@ -137,13 +137,13 @@ function Router() {
         
         {/* Platform Super Admin Observability */}
         <Route path="/platform/overview">
-          <ProtectedRoute allowedRoles={["platform_super_admin"]}>
+          <ProtectedRoute domain="platform">
             <PlatformOverviewDashboard />
           </ProtectedRoute>
         </Route>
         
         <Route path="/platform/claim-trace/:claimId">
-          <ProtectedRoute allowedRoles={["platform_super_admin"]}>
+          <ProtectedRoute domain="platform">
             <PlatformClaimTrace />
           </ProtectedRoute>
         </Route>
@@ -343,7 +343,7 @@ function Router() {
         </Route>
         
         <Route path="/insurer/replay-dashboard">
-          <ProtectedRoute allowedRoles={["insurer", "admin"]} insurerRoles={["insurer_admin", "executive", "claims_manager"]}>
+          <ProtectedRoute allowedRoles={["insurer", "admin"]} allowedInsurerRoles={["insurer_admin", "executive", "claims_manager"]}>
             <ReplayDashboard />
           </ProtectedRoute>
         </Route>
@@ -355,15 +355,14 @@ function Router() {
           </ProtectedRoute>
         </Route>
 
-        {/* Standalone fleet route — any authenticated user can access */}
+        {/* Standalone fleet route — fleet roles only */}
         <Route path="/fleet">
-          <ProtectedRoute>
+          <ProtectedRoute domain="fleet">
             <FleetManagement />
           </ProtectedRoute>
         </Route>
-
         <Route path="/fleet/:rest*">
-          <ProtectedRoute>
+          <ProtectedRoute domain="fleet">
             <FleetManagement />
           </ProtectedRoute>
         </Route>
@@ -373,7 +372,7 @@ function Router() {
         </Route>
 
         <Route path="/agency">
-          <ProtectedRoute allowedRoles={["agency", "admin"]}>
+          <ProtectedRoute domain="agency">
             <KingaAgency />
           </ProtectedRoute>
         </Route>
@@ -487,14 +486,14 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
-        {/* Claimant Routes */}
+        {/* Claimant Routes — /portal domain */}
         <Route path="/claimant/dashboard">
-          <ProtectedRoute allowedRoles={["claimant", "admin"]}>
+          <ProtectedRoute domain="portal">
             <ClaimantDashboard />
           </ProtectedRoute>
         </Route>
         <Route path="/claimant/submit-claim">
-          <ProtectedRoute allowedRoles={["claimant", "admin"]}>
+          <ProtectedRoute domain="portal">
             <SubmitClaim />
           </ProtectedRoute>
         </Route>
@@ -551,7 +550,7 @@ function Router() {
         </Route>
         
         <Route path="/admin/workflow-settings">
-          <ProtectedRoute allowedRoles={["admin", "insurer"]} insurerRoles={["insurer_admin", "executive"]}>
+          <ProtectedRoute allowedRoles={["admin", "insurer"]} allowedInsurerRoles={["insurer_admin", "executive"]}>
             <WorkflowSettings />
           </ProtectedRoute>
         </Route>
