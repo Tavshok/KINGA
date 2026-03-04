@@ -348,8 +348,22 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
+        {/* Legacy fleet management route — kept for backward compatibility */}
         <Route path="/fleet-management">
           <ProtectedRoute allowedRoles={["insurer", "admin", "claimant"]}>
+            <FleetManagement />
+          </ProtectedRoute>
+        </Route>
+
+        {/* Standalone fleet route — any authenticated user can access */}
+        <Route path="/fleet">
+          <ProtectedRoute>
+            <FleetManagement />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/fleet/:rest*">
+          <ProtectedRoute>
             <FleetManagement />
           </ProtectedRoute>
         </Route>

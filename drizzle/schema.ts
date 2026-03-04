@@ -3240,3 +3240,33 @@ export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
 
 export type InsurerQuoteRequest = typeof insurerQuoteRequests.$inferSelect;
 export type InsertInsurerQuoteRequest = typeof insurerQuoteRequests.$inferInsert;
+
+// ============================================================================
+// FLEET ACCOUNTS — Standalone SaaS fleet management
+// Decoupled from insurer tenant scope.
+// Optionally linked to an insurer tenant or agency.
+// ============================================================================
+
+export const fleetAccounts = mysqlTable("fleet_accounts", {
+  id: int().autoincrement().notNull(),
+  ownerUserId: int("owner_user_id").notNull(),
+  accountName: varchar("account_name", { length: 255 }).notNull(),
+  accountCode: varchar("account_code", { length: 50 }),
+  linkedInsurerTenantId: varchar("linked_insurer_tenant_id", { length: 64 }),
+  linkedAgencyId: int("linked_agency_id"),
+  status: mysqlEnum(['active','suspended','pending']).notNull().default('active'),
+  subscriptionTier: mysqlEnum("subscription_tier", ['free','starter','professional','enterprise']).notNull().default('free'),
+  vehicleCount: int("vehicle_count").notNull().default(0),
+  notes: text(),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_fleet_accounts_owner").on(table.ownerUserId),
+  index("idx_fleet_accounts_insurer").on(table.linkedInsurerTenantId),
+  index("idx_fleet_accounts_agency").on(table.linkedAgencyId),
+  index("idx_fleet_accounts_status").on(table.status),
+]);
+
+export type FleetAccount = typeof fleetAccounts.$inferSelect;
+export type InsertFleetAccount = typeof fleetAccounts.$inferInsert;
