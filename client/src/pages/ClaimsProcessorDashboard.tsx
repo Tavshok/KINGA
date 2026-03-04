@@ -60,11 +60,19 @@ export default function ClaimsProcessorDashboard() {
 
   // Fetch all relevant claims in a single query ordered by created_at DESC (newest first)
   const { data: allClaimsData, isLoading: allClaimsLoading, refetch: refetchAll } =
-    trpc.workflowQueries.getClaimsByStatus.useQuery({  // eslint-disable-line react-hooks/rules-of-hooks
-      statuses: ["intake_pending", "quotes_pending", "assessment_complete", "closed"],
-      limit: 200,
-      offset: 0,
-    });
+    trpc.workflowQueries.getClaimsByStatus.useQuery(  // eslint-disable-line react-hooks/rules-of-hooks
+      {
+        statuses: ["intake_pending", "quotes_pending", "assessment_complete", "closed"],
+        limit: 200,
+        offset: 0,
+      },
+      {
+        // Auto-refresh every 30 seconds so dashboard reflects live claim state changes
+        // (e.g. intake_pending → assessment_complete after AI processing completes)
+        refetchInterval: 30_000,
+        refetchIntervalInBackground: false, // Only poll when tab is active
+      }
+    );
 
   const allClaims = allClaimsData?.claims || allClaimsData?.items || [];
 
@@ -235,7 +243,7 @@ export default function ClaimsProcessorDashboard() {
                     policyNumber: claim.policyNumber,
                     aiConfidenceScore: claim.aiConfidenceScore || 0,
                     fraudRiskScore: claim.fraudRiskScore || 0,
-                    status: claim.workflowState,
+                    status: claim.status,  // Use lifecycle status (intake_pending, assessment_complete, etc.)
                     createdAt: claim.createdAt,
                   }}
                   onViewDetails={handleViewDetails}
