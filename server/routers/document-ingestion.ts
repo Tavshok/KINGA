@@ -127,6 +127,34 @@ export const documentIngestionRouter = router({
               let claimNumber: string;
 
               await dbInstance.transaction(async (tx) => {
+                // 0. Application-level duplicate guard:
+                //    Check if a claim already exists for a document with the same SHA-256 hash
+                //    (catches re-uploads of identical file content before hitting the DB constraint).
+                const existingByHash = await tx
+                  .select({ id: ingestionDocuments.id, historicalClaimId: ingestionDocuments.historicalClaimId })
+                  .from(ingestionDocuments)
+                  .where(
+                    and(
+                      eq(ingestionDocuments.sha256Hash, hash),
+                      eq(ingestionDocuments.tenantId, tenantId)
+                    )
+                  )
+                  .limit(1);
+
+                if (existingByHash.length > 0 && existingByHash[0].historicalClaimId) {
+                  console.warn(
+                    `[Document Upload] Duplicate document ingestion detected. ` +
+                    `SHA-256 hash ${hash} already exists as ingestionDocument id=${existingByHash[0].id}, ` +
+                    `linked to claim id=${existingByHash[0].historicalClaimId}. Skipping claim creation.`
+                  );
+                  // Surface as a skipped (not failed) result — set outer variables so the
+                  // outer return block can report the existing claim.
+                  docDbId = existingByHash[0].id;
+                  claimDbId = existingByHash[0].historicalClaimId;
+                  claimNumber = "DUPLICATE";
+                  return; // exit transaction early — no inserts
+                }
+
                 // 1. Insert ingestion document record
                 const [docInsertResult] = await tx.insert(ingestionDocuments).values({
                   tenantId,
@@ -186,6 +214,19 @@ export const documentIngestionRouter = router({
                   .where(eq(ingestionDocuments.id, docDbId));
               });
 
+              // If this was a duplicate, report it as skipped (not failed)
+              if (claimNumber! === "DUPLICATE") {
+                return {
+                  document_id: documentId,
+                  document_db_id: docDbId!,
+                  claim_id: claimDbId!,
+                  claim_number: null,
+                  filename: doc.filename,
+                  status: "skipped_duplicate",
+                  message: "Document already ingested. Existing claim returned.",
+                };
+              }
+
               return {
                 document_id: documentId,
                 document_db_id: docDbId!,
@@ -212,19 +253,20 @@ export const documentIngestionRouter = router({
         // Update batch statistics
         const successCount = uploadedDocs.filter((d) => d.status === "uploaded").length;
         const failedCount = uploadedDocs.filter((d) => d.status === "failed").length;
+        const duplicateCount = uploadedDocs.filter((d) => d.status === "skipped_duplicate").length;
 
         await dbInstance
           .update(ingestionBatches)
           .set({
-            processedDocuments: successCount,
+            processedDocuments: successCount + duplicateCount,
             failedDocuments: failedCount,
-            status: failedCount === 0 ? "completed" : failedCount === documents.length ? "failed" : "completed",
+            status: failedCount === documents.length ? "failed" : "completed",
             completedAt: new Date(),
           })
           .where(eq(ingestionBatches.id, batchDbId));
 
         console.log(
-          `[Document Upload] Batch complete. Uploaded: ${successCount}, Failed: ${failedCount}`
+          `[Document Upload] Batch complete. Uploaded: ${successCount}, Duplicates skipped: ${duplicateCount}, Failed: ${failedCount}`
         );
 
         return {
@@ -232,6 +274,7 @@ export const documentIngestionRouter = router({
           batch_db_id: batchDbId,
           total_documents: documents.length,
           uploaded: successCount,
+          duplicates_skipped: duplicateCount,
           failed: failedCount,
           documents: uploadedDocs,
         };

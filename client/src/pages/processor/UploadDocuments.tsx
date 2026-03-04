@@ -101,9 +101,20 @@ export default function UploadDocuments() {
         }))
       );
 
-      toast.success("Upload successful", {
-        description: `Uploaded ${result.uploaded} documents in batch ${result.batch_id}`,
-      });
+      const duplicatesSkipped = (result as any).duplicates_skipped ?? 0;
+      const toastDescription = duplicatesSkipped > 0
+        ? `Uploaded ${result.uploaded} new document(s). ${duplicatesSkipped} duplicate(s) skipped — existing claim(s) retained.`
+        : `Uploaded ${result.uploaded} document(s). ${result.uploaded} new claim(s) created.`;
+
+      if (duplicatesSkipped > 0 && result.uploaded === 0) {
+        toast.warning("All duplicates detected", {
+          description: toastDescription,
+        });
+      } else {
+        toast.success("Upload successful", {
+          description: toastDescription,
+        });
+      }
 
       // Redirect to Claims Processor Dashboard after short delay
       setTimeout(() => {
