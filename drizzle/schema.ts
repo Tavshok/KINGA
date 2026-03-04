@@ -3415,3 +3415,39 @@ export const tenantIsolationViolations = mysqlTable("tenant_isolation_violations
 
 export type TenantIsolationViolation = typeof tenantIsolationViolations.$inferSelect;
 export type InsertTenantIsolationViolation = typeof tenantIsolationViolations.$inferInsert;
+
+// ─── Email Notification Events (idempotency + audit) ─────────────────────────
+/**
+ * Tracks every outbound email notification attempt.
+ * The unique idempotency_key prevents duplicate sends across restarts.
+ * Also serves as the audit log for all email activity.
+ */
+export const notificationEvents = mysqlTable("notification_events", {
+  id: int().autoincrement().primaryKey(),
+  /** Logical event type, e.g. "assessor_assignment", "quote_submitted". */
+  eventType: varchar("event_type", { length: 100 }).notNull(),
+  /** The primary entity this notification relates to (claim id, rfq id, etc.). */
+  entityId: varchar("entity_id", { length: 255 }).notNull(),
+  /** Recipient user id (integer FK to users.id). */
+  recipientUserId: int("recipient_user_id").notNull(),
+  /** Recipient email address at time of send (denormalised for audit trail). */
+  recipientEmail: varchar("recipient_email", { length: 255 }),
+  /** SHA-256 or deterministic composite key — UNIQUE enforces exactly-once delivery. */
+  idempotencyKey: varchar("idempotency_key", { length: 512 }).notNull().unique(),
+  /** Whether the email was actually dispatched (false = skipped / rate-limited). */
+  sent: tinyint("sent").notNull().default(1),
+  /** Reason the send was skipped (null when sent = 1). */
+  skipReason: varchar("skip_reason", { length: 255 }),
+  /** Tenant the notification belongs to. */
+  tenantId: varchar("tenant_id", { length: 64 }),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+},
+(table) => [
+  index("idx_ne_idempotency_key").on(table.idempotencyKey),
+  index("idx_ne_recipient").on(table.recipientUserId),
+  index("idx_ne_event_type").on(table.eventType),
+  index("idx_ne_created_at").on(table.createdAt),
+]);
+
+export type NotificationEvent = typeof notificationEvents.$inferSelect;
+export type InsertNotificationEvent = typeof notificationEvents.$inferInsert;
