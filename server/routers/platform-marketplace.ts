@@ -19,7 +19,11 @@ import { TRPCError } from "@trpc/server";
 import { eq, sql } from "drizzle-orm";
 import { router, superAdminProcedure } from "../_core/trpc";
 import { getDb } from "../db";
-import { marketplaceProfiles } from "../../drizzle/schema";
+import { marketplaceProfiles, users, superAuditSessions } from "../../drizzle/schema";
+import { verifyClaimIntegrity } from "../verify-claim-integrity";
+import { sdk } from "../_core/sdk";
+import { COOKIE_NAME, ONE_YEAR_MS } from "@shared/const";
+import { getSessionCookieOptions } from "../_core/cookies";
 
 // ─── Input schemas ────────────────────────────────────────────────────────────
 
@@ -347,5 +351,131 @@ export const platformMarketplaceRouter = router({
         suspendedCount:     Number(r.suspended_count     ?? 0),
         preferredCount:     Number(r.preferred_count     ?? 0),
       };
+    }),
+
+  /**
+   * Verify the internal consistency of a single claim.
+   * Returns a structured integrity report with all issues found.
+   * Only accessible to platform_super_admin.
+   */
+  verifyClaimIntegrity: superAdminProcedure
+    .input(z.object({ claimId: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+      return verifyClaimIntegrity(db, input.claimId);
+    }),
+
+  /**
+   * List users available for impersonation (non-super-admin users).
+   */
+  listUsersForImpersonation: superAdminProcedure
+    .input(z.object({
+      search: z.string().optional(),
+      role: z.string().optional(),
+    }))
+    .query(async ({ input, ctx }) => {
+      const rows = await ctx.db
+        .select({
+          id: users.id,
+          name: users.name,
+          email: users.email,
+          role: users.role,
+          insurerRole: users.insurerRole,
+          tenantId: users.tenantId,
+          openId: users.openId,
+        })
+        .from(users)
+        .where(sql`role != 'platform_super_admin'`)
+        .limit(100);
+
+      // Filter in JS to avoid complex SQL for the search
+      const search = input.search?.toLowerCase();
+      return rows.filter((u) => {
+        if (input.role && u.role !== input.role) return false;
+        if (search) {
+          const haystack = `${u.name ?? ''} ${u.email ?? ''} ${u.tenantId ?? ''}`.toLowerCase();
+          if (!haystack.includes(search)) return false;
+        }
+        return true;
+      });
+    }),
+
+  /**
+   * Start an impersonation session — sets a new session cookie for the target user
+   * and records a super_audit_sessions row.
+   */
+  startImpersonation: superAdminProcedure
+    .input(z.object({
+      targetUserId: z.number().int().positive(),
+      reason: z.string().min(1).max(500),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      // Fetch target user
+      const [target] = await ctx.db
+        .select()
+        .from(users)
+        .where(eq(users.id, input.targetUserId))
+        .limit(1);
+
+      if (!target) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Target user not found' });
+      }
+      if (target.role === 'platform_super_admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Cannot impersonate another super-admin' });
+      }
+
+      // Create a session token for the target user
+      const sessionToken = await sdk.createSessionToken(target.openId, {
+        expiresInMs: 60 * 60 * 1000, // 1 hour max
+        name: target.name ?? undefined,
+      });
+
+      // Record audit session
+      await ctx.db.insert(superAuditSessions).values({
+        superAdminUserId: ctx.user!.id,
+        superAdminName: ctx.user!.name ?? null,
+        auditedTenantId: target.tenantId ?? null,
+        impersonatedRole: target.role,
+        isActive: 1,
+      });
+
+      // Set cookie on the response
+      const cookieOptions = getSessionCookieOptions(ctx.req);
+      ctx.res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
+
+      return {
+        success: true,
+        targetUser: {
+          id: target.id,
+          name: target.name,
+          email: target.email,
+          role: target.role,
+          tenantId: target.tenantId,
+        },
+        reason: input.reason,
+      };
+    }),
+
+  /**
+   * End the current impersonation session — clears the cookie.
+   */
+  endImpersonation: superAdminProcedure
+    .mutation(async ({ ctx }) => {
+      // Mark all active audit sessions for this admin as ended
+      await ctx.db
+        .update(superAuditSessions)
+        .set({
+          sessionEndedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+          isActive: 0,
+        })
+        .where(
+          sql`super_admin_user_id = ${ctx.user!.id} AND is_active = 1`
+        );
+
+      // Clear the session cookie
+      ctx.res.clearCookie(COOKIE_NAME);
+
+      return { success: true };
     }),
 });

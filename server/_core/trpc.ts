@@ -3,7 +3,7 @@ import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import type { TrpcContext } from "./context";
 import { getDb } from "../db";
-import { tenantIsolationViolations } from "../../drizzle/schema";
+import { tenantIsolationViolations, systemErrors } from "../../drizzle/schema";
 
 const t = initTRPC.context<TrpcContext>().create({
   transformer: superjson,
@@ -240,5 +240,88 @@ const requireInsurerDomain = t.middleware(async opts => {
  */
 export const insurerDomainProcedure = t.procedure.use(requireInsurerDomain);
 
+// ─── Global Error Logger ─────────────────────────────────────────────────────
+
+/**
+ * Asynchronously writes an unhandled procedure error to the system_errors table.
+ * Fire-and-forget — never throws, never blocks the original exception.
+ */
+function logSystemError(params: {
+  procedureName: string | null;
+  userId: number | null;
+  tenantId: string | null;
+  errorMessage: string;
+  stackTrace: string | null;
+  errorCode: string | null;
+}): void {
+  (async () => {
+    try {
+      const db = await getDb();
+      if (!db) return;
+      await db.insert(systemErrors).values({
+        procedureName: params.procedureName ?? undefined,
+        userId: params.userId ?? undefined,
+        tenantId: params.tenantId ?? undefined,
+        errorMessage: params.errorMessage.slice(0, 500),
+        stackTrace: params.stackTrace?.slice(0, 4000) ?? undefined,
+        errorCode: params.errorCode ?? undefined,
+      });
+    } catch (err) {
+      console.error("[SystemErrorLog] Failed to write error log:", err);
+    }
+  })();
+}
+
+/**
+ * Global error logger middleware.
+ * Wraps every procedure — catches unhandled errors, logs them to system_errors,
+ * then re-throws so the caller still receives the original error.
+ *
+ * Only logs INTERNAL_SERVER_ERROR and unexpected errors.
+ * Intentionally skips expected client errors (UNAUTHORIZED, FORBIDDEN, NOT_FOUND,
+ * BAD_REQUEST, PRECONDITION_FAILED) to avoid noise in the error log.
+ */
+const SKIP_CODES = new Set([
+  "UNAUTHORIZED",
+  "FORBIDDEN",
+  "NOT_FOUND",
+  "BAD_REQUEST",
+  "PRECONDITION_FAILED",
+  "CONFLICT",
+  "UNPROCESSABLE_CONTENT",
+]);
+
+const globalErrorLogger = t.middleware(async opts => {
+  const { ctx, next } = opts;
+  try {
+    return await next();
+  } catch (err) {
+    const isTrpc = err instanceof TRPCError;
+    const code = isTrpc ? err.code : "INTERNAL_SERVER_ERROR";
+
+    if (!SKIP_CODES.has(code)) {
+      logSystemError({
+        procedureName: (opts as any).path ?? null,
+        userId: ctx.user?.id ?? null,
+        tenantId: ctx.user?.tenantId ?? null,
+        errorMessage: err instanceof Error ? err.message : String(err),
+        stackTrace: err instanceof Error ? (err.stack ?? null) : null,
+        errorCode: code,
+      });
+    }
+
+    throw err; // Always re-throw — never swallow
+  }
+});
+
+/**
+ * Base procedure with global error logging.
+ * All exported procedure builders below are derived from this.
+ */
+const loggedProcedure = t.procedure.use(globalErrorLogger);
+
+// Re-export public procedure with error logging
+export { loggedProcedure as publicProcedureWithLogging };
+
 // ─── Exported helpers (for testing) ──────────────────────────────────────────
-export { logTenantIsolationViolation, extractIp };
+export { logTenantIsolationViolation, extractIp, logSystemError };

@@ -3451,3 +3451,35 @@ export const notificationEvents = mysqlTable("notification_events", {
 
 export type NotificationEvent = typeof notificationEvents.$inferSelect;
 export type InsertNotificationEvent = typeof notificationEvents.$inferInsert;
+
+// ─── System Error Log ─────────────────────────────────────────────────────────
+/**
+ * Captures unhandled errors from tRPC procedures for ops visibility.
+ * Populated by the global error logger middleware in _core/trpc.ts.
+ */
+export const systemErrors = mysqlTable("system_errors", {
+  id: int().autoincrement().primaryKey(),
+  /** tRPC procedure path, e.g. "claims.byStatus". */
+  procedureName: varchar("procedure_name", { length: 255 }),
+  /** User id of the caller at the time of the error (null for unauthenticated). */
+  userId: int("user_id"),
+  /** Tenant id of the caller (null for unauthenticated or super-admin). */
+  tenantId: varchar("tenant_id", { length: 64 }),
+  /** Short error message (first 500 chars). */
+  errorMessage: text("error_message"),
+  /** Full stack trace (truncated to 4000 chars). */
+  stackTrace: text("stack_trace"),
+  /** HTTP-style error code from TRPCError, e.g. "INTERNAL_SERVER_ERROR". */
+  errorCode: varchar("error_code", { length: 64 }),
+  /** ISO-8601 timestamp of the error. */
+  occurredAt: timestamp("occurred_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+},
+(table) => [
+  index("idx_se_procedure").on(table.procedureName),
+  index("idx_se_user_id").on(table.userId),
+  index("idx_se_occurred_at").on(table.occurredAt),
+  index("idx_se_error_code").on(table.errorCode),
+]);
+
+export type SystemError = typeof systemErrors.$inferSelect;
+export type InsertSystemError = typeof systemErrors.$inferInsert;

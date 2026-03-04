@@ -327,6 +327,32 @@ export const appRouter = router({
           quoteInputs,
           ctx.user.id
         );
+        // ── Notify insurer(s) that AI re-optimisation is complete ────────
+        if (result) {
+          try {
+            const { sendAiOptimisationCompleteEmail } = await import("./safe-email");
+            const { getUsersByRole: _getUsers } = await import("./db");
+            const insurers = await _getUsers("insurer");
+            const tenantInsuers = insurers.filter(
+              (u) => !claim.tenantId || u.tenantId === claim.tenantId
+            );
+            for (const insurer of tenantInsuers) {
+              if (insurer.email) {
+                await sendAiOptimisationCompleteEmail({
+                  claimId: input.claimId,
+                  claimNumber: claim.claimNumber ?? String(input.claimId),
+                  recipientUserId: insurer.id,
+                  recipientEmail: insurer.email,
+                  riskScore: Number(result.riskScoreNumeric ?? 0),
+                  recommendedRepairer: result.recommendedCompanyName ?? "Unknown",
+                  tenantId: claim.tenantId ?? undefined,
+                });
+              }
+            }
+          } catch (emailErr) {
+            console.error(`[QuoteOptimisation] Retrigger email failed for claim ${input.claimId}:`, emailErr);
+          }
+        }
         return result;
       }),
   }),
@@ -2058,7 +2084,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   })
                 );
 
-                await runQuoteOptimisation(
+                const optimisationResult = await runQuoteOptimisation(
                   input.claimId,
                   {
                     vehicleMake: claim.vehicleMake ?? "Unknown",
@@ -2069,6 +2095,33 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   ctx.user.id
                 );
                 console.log(`[QuoteOptimisation] Auto-triggered for claim ${input.claimId}`);
+                // ── Notify insurer(s) that AI optimisation is complete ────────
+                if (optimisationResult) {
+                  try {
+                    const { sendAiOptimisationCompleteEmail } = await import("./safe-email");
+                    const { getUsersByRole: _getUsersByRole } = await import("./db");
+                    const insurers = await _getUsersByRole("insurer");
+                    // Filter to insurers in the same tenant as the claim
+                    const tenantInsuers = insurers.filter(
+                      (u) => !claim.tenantId || u.tenantId === claim.tenantId
+                    );
+                    for (const insurer of tenantInsuers) {
+                      if (insurer.email) {
+                        await sendAiOptimisationCompleteEmail({
+                          claimId: input.claimId,
+                          claimNumber: claim.claimNumber ?? String(input.claimId),
+                          recipientUserId: insurer.id,
+                          recipientEmail: insurer.email,
+                          riskScore: Number(optimisationResult.riskScoreNumeric ?? 0),
+                          recommendedRepairer: optimisationResult.recommendedCompanyName ?? "Unknown",
+                          tenantId: claim.tenantId ?? undefined,
+                        });
+                      }
+                    }
+                  } catch (emailErr) {
+                    console.error(`[QuoteOptimisation] Email notification failed for claim ${input.claimId}:`, emailErr);
+                  }
+                }
               } catch (err) {
                 console.error(`[QuoteOptimisation] Auto-trigger failed for claim ${input.claimId}:`, err);
               }

@@ -158,22 +158,28 @@ describe("sendEmailSafe", () => {
   });
 
   // ── Rate limiting ───────────────────────────────────────────────────────────
+  // NOTE: safe-email.ts checks dedup window (step 2) BEFORE hourly rate limit (step 3).
+  // For rate-limit tests, the dedup check must return 1 (no recent duplicate),
+  // then the rate-limit check returns 6 (over limit).
 
   it("skips send and returns rate_limited when count exceeds 5 per hour", async () => {
-    mockSelectWhere.mockResolvedValue([{ value: 6 }]);
+    // First select = dedup check (returns 1 = no recent dupe)
+    // Second select = rate limit check (returns 6 = over limit)
+    mockSelectWhere.mockResolvedValueOnce([{ value: 1 }]).mockResolvedValueOnce([{ value: 6 }]);
     const result = await sendEmailSafe(BASE_OPTS);
     expect(result).toEqual({ sent: false, reason: "rate_limited" });
     expect(notifyOwner).not.toHaveBeenCalled();
   });
 
   it("marks the row as skipped with reason 'rate_limited' in DB", async () => {
-    mockSelectWhere.mockResolvedValue([{ value: 6 }]);
+    mockSelectWhere.mockResolvedValueOnce([{ value: 1 }]).mockResolvedValueOnce([{ value: 6 }]);
     await sendEmailSafe(BASE_OPTS);
     expect(mockUpdateSet).toHaveBeenCalledWith({ sent: 0, skipReason: "rate_limited" });
   });
 
   it("allows send when count is exactly 5 per hour", async () => {
-    mockSelectWhere.mockResolvedValue([{ value: 5 }]);
+    // dedup returns 1, rate limit returns 5 (at limit, not over)
+    mockSelectWhere.mockResolvedValueOnce([{ value: 1 }]).mockResolvedValueOnce([{ value: 5 }]);
     process.env.DEV_EMAIL_OVERRIDE = "dev@test.com";
     const result = await sendEmailSafe(BASE_OPTS);
     expect(result).toEqual({ sent: true });
@@ -234,7 +240,8 @@ describe("sendEmailSafe", () => {
   });
 
   it("records an audit row in notification_events on every attempt (rate-limited)", async () => {
-    mockSelectWhere.mockResolvedValue([{ value: 6 }]);
+    // dedup check returns 1 (no recent dupe), rate limit check returns 6 (over limit)
+    mockSelectWhere.mockResolvedValueOnce([{ value: 1 }]).mockResolvedValueOnce([{ value: 6 }]);
     await sendEmailSafe(BASE_OPTS);
     // Row was inserted then updated to sent=0
     expect(mockInsert).toHaveBeenCalled();

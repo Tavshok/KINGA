@@ -52,6 +52,9 @@ const OperationalHealthDashboard = lazy(() => import("./pages/OperationalHealthD
 const PlatformOverviewDashboard = lazy(() => import("./pages/PlatformOverviewDashboard"));
 const PlatformClaimTrace = lazy(() => import("./pages/PlatformClaimTrace"));
 const PlatformMarketplace = lazy(() => import("./pages/PlatformMarketplace"));
+const PlatformImpersonate = lazy(() => import("./pages/PlatformImpersonate"));
+const PlatformClaimDebug = lazy(() => import("./pages/PlatformClaimDebug"));
+import PlatformLayout from "./components/PlatformLayout";
 
 // Assessor pages
 const AssessorDashboard = lazy(() => import("@/pages/AssessorDashboard"));
@@ -138,23 +141,36 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
-        {/* Platform Super Admin Observability */}
+         {/* ── Platform Super Admin section (all wrapped in PlatformLayout sidebar) ── */}
         <Route path="/platform/overview">
           <ProtectedRoute domain="platform">
-            <PlatformOverviewDashboard />
+            <PlatformLayout><PlatformOverviewDashboard /></PlatformLayout>
           </ProtectedRoute>
         </Route>
         
         <Route path="/platform/claim-trace/:claimId">
           <ProtectedRoute domain="platform">
-            <PlatformClaimTrace />
+            <PlatformLayout><PlatformClaimTrace /></PlatformLayout>
           </ProtectedRoute>
         </Route>
-
-        {/* Platform Marketplace Management */}
         <Route path="/platform/marketplace">
           <ProtectedRoute domain="platform">
-            <PlatformMarketplace />
+            <PlatformLayout><PlatformMarketplace /></PlatformLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/platform/impersonate">
+          <ProtectedRoute domain="platform">
+            <PlatformLayout><PlatformImpersonate /></PlatformLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/platform/claim-debug/:claimId?">
+          <ProtectedRoute domain="platform">
+            <PlatformLayout><PlatformClaimDebug /></PlatformLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/platform/system-health">
+          <ProtectedRoute domain="platform">
+            <PlatformLayout><OperationalHealthDashboard /></PlatformLayout>
           </ProtectedRoute>
         </Route>
         {/* Assessment Results */}

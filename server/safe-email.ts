@@ -1,16 +1,16 @@
 /**
  * Safe Email Helper — KINGA AutoVerify AI
  *
- * Wraps every outbound email send with four safety layers:
- *   1. Environment guard  — non-production sends are redirected to DEV_EMAIL_OVERRIDE
- *                           or suppressed entirely when DEV_EMAIL_OVERRIDE is unset.
- *   2. Idempotency check  — a unique key (event_type + entity_id + recipient_user_id)
- *                           is inserted into `notification_events` with a UNIQUE constraint;
- *                           duplicate sends are silently skipped.
- *   3. Rate limiting      — max 5 emails per recipient per hour, enforced via a DB count
- *                           query against `notification_events`.
- *   4. Audit log          — every attempt (sent or skipped) is recorded in
- *                           `notification_events` with a `skip_reason` when not sent.
+ * Wraps every outbound email send with five safety layers:
+ *   1. SYSTEM_TEST_MODE guard — when SYSTEM_TEST_MODE=true, all sends are suppressed,
+ *                               subjects prefixed with "[TEST MODE]", and logged only.
+ *   2. Environment guard      — non-production sends are redirected to DEV_EMAIL_OVERRIDE
+ *                               or suppressed entirely when DEV_EMAIL_OVERRIDE is unset.
+ *   3. Idempotency check      — a unique key (event_type + entity_id + recipient_user_id)
+ *                               is inserted into `notification_events` with a UNIQUE constraint;
+ *                               duplicate sends are silently skipped.
+ *   4. 5-minute dedup window  — same event_type + recipient within the last 5 minutes is skipped.
+ *   5. Hourly rate limit      — max 5 emails per recipient per hour.
  */
 
 import { getDb } from "./db";
@@ -23,6 +23,9 @@ import { notifyOwner } from "./_core/notification";
 
 /** Maximum emails a single recipient may receive within one hour. */
 const RATE_LIMIT_MAX_PER_HOUR = 5;
+
+/** Minimum gap between the same event_type + recipient (milliseconds). */
+const DEDUP_WINDOW_MS = 5 * 60 * 1000; // 5 minutes
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -50,7 +53,7 @@ export interface SafeEmailOptions {
 
 export type SendEmailResult =
   | { sent: true; reason?: never }
-  | { sent: false; reason: "duplicate" | "rate_limited" | "dev_suppressed" | "db_unavailable" };
+  | { sent: false; reason: "duplicate" | "rate_limited" | "dev_suppressed" | "test_mode_suppressed" | "dedup_window" | "db_unavailable" };
 
 // ─── Core helper ──────────────────────────────────────────────────────────────
 
@@ -67,10 +70,41 @@ export async function sendEmailSafe(opts: SafeEmailOptions): Promise<SendEmailRe
     recipientUserId,
     recipientEmail,
     tenantId,
-    subject,
     body,
     idempotencyKey: customKey,
   } = opts;
+
+  // ── 0. SYSTEM_TEST_MODE guard ─────────────────────────────────────────────
+  // When SAT mode is active: prefix subject, log, and suppress dispatch entirely.
+  const effectiveSubject = ENV.systemTestMode
+    ? `[TEST MODE] ${opts.subject}`
+    : opts.subject;
+
+  if (ENV.systemTestMode) {
+    console.log(
+      `[SafeEmail][TEST MODE] Suppressed — would have sent "${effectiveSubject}" to ${recipientEmail} (event: ${eventType}, entity: ${entityId})`
+    );
+    // Still record in notification_events for audit purposes (skip_reason = "test_mode_suppressed")
+    try {
+      const db = await getDb();
+      if (db) {
+        const idempotencyKey = customKey ?? `${eventType}:${entityId}:${recipientUserId}:test`;
+        await db.insert(notificationEvents).values({
+          eventType,
+          entityId: String(entityId),
+          recipientUserId,
+          recipientEmail,
+          tenantId: tenantId ?? null,
+          idempotencyKey,
+          sent: 0,
+          skipReason: "test_mode_suppressed",
+        }).onDuplicateKeyUpdate({ set: { skipReason: "test_mode_suppressed" } });
+      }
+    } catch {
+      // Best-effort audit log — never block
+    }
+    return { sent: false, reason: "test_mode_suppressed" };
+  }
 
   const idempotencyKey = customKey ?? `${eventType}:${entityId}:${recipientUserId}`;
 
@@ -110,7 +144,39 @@ export async function sendEmailSafe(opts: SafeEmailOptions): Promise<SendEmailRe
       throw err;
     }
 
-    // ── 2. Rate limit check ───────────────────────────────────────────────────
+    // ── 2. 5-minute dedup window ──────────────────────────────────────────────
+    // Prevent the same event_type + recipient within the last 5 minutes.
+    const fiveMinutesAgo = new Date(Date.now() - DEDUP_WINDOW_MS)
+      .toISOString()
+      .slice(0, 19)
+      .replace("T", " ");
+
+    const [{ value: recentCount }] = await db
+      .select({ value: count() })
+      .from(notificationEvents)
+      .where(
+        and(
+          eq(notificationEvents.recipientUserId, recipientUserId),
+          eq(notificationEvents.eventType, eventType),
+          eq(notificationEvents.sent, 1),
+          gte(notificationEvents.createdAt, fiveMinutesAgo)
+        )
+      );
+
+    // recentCount includes the row we just inserted; > 1 means a prior send exists
+    if (Number(recentCount) > 1) {
+      await db
+        .update(notificationEvents)
+        .set({ sent: 0, skipReason: "dedup_window" })
+        .where(eq(notificationEvents.idempotencyKey, idempotencyKey));
+
+      console.log(
+        `[SafeEmail] 5-min dedup window — skipping "${effectiveSubject}" for user ${recipientUserId} (event: ${eventType})`
+      );
+      return { sent: false, reason: "dedup_window" };
+    }
+
+    // ── 3. Hourly rate limit ──────────────────────────────────────────────────
     const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000)
       .toISOString()
       .slice(0, 19)
@@ -128,7 +194,6 @@ export async function sendEmailSafe(opts: SafeEmailOptions): Promise<SendEmailRe
       );
 
     if (Number(sentCount) > RATE_LIMIT_MAX_PER_HOUR) {
-      // Update the row we just inserted to mark it as skipped
       await db
         .update(notificationEvents)
         .set({ sent: 0, skipReason: "rate_limited" })
@@ -140,12 +205,12 @@ export async function sendEmailSafe(opts: SafeEmailOptions): Promise<SendEmailRe
       return { sent: false, reason: "rate_limited" };
     }
 
-    // ── 3. Environment guard ──────────────────────────────────────────────────
-    const devOverride = process.env.DEV_EMAIL_OVERRIDE;
+    // ── 4. Environment guard ──────────────────────────────────────────────────
+    // Read DEV_EMAIL_OVERRIDE dynamically so tests can set/unset it per-case.
+    const devOverride = process.env.DEV_EMAIL_OVERRIDE ?? ENV.devEmailOverride;
 
     if (!ENV.isProduction) {
       if (!devOverride) {
-        // No override configured → suppress entirely in dev/staging
         await db
           .update(notificationEvents)
           .set({ sent: 0, skipReason: "dev_suppressed" })
@@ -153,35 +218,31 @@ export async function sendEmailSafe(opts: SafeEmailOptions): Promise<SendEmailRe
 
         console.log(
           `[SafeEmail] Dev mode — email suppressed (set DEV_EMAIL_OVERRIDE to redirect). ` +
-            `Would have sent "${subject}" to ${recipientEmail}`
+            `Would have sent "${effectiveSubject}" to ${recipientEmail}`
         );
         return { sent: false, reason: "dev_suppressed" };
       }
 
-      // Redirect to override address
       console.log(
-        `[SafeEmail] Dev mode — redirecting "${subject}" from ${recipientEmail} to ${devOverride}`
+        `[SafeEmail] Dev mode — redirecting "${effectiveSubject}" from ${recipientEmail} to ${devOverride}`
       );
     }
 
-    // ── 4. Dispatch ───────────────────────────────────────────────────────────
-    const effectiveRecipient = ENV.isProduction ? recipientEmail : (devOverride as string);
+    // ── 5. Dispatch ───────────────────────────────────────────────────────────
+    const effectiveRecipient = ENV.isProduction ? recipientEmail : devOverride;
 
-    // Use the Manus built-in notification API as the delivery mechanism.
-    // Replace this block with SendGrid / AWS SES / Postmark in production.
     await notifyOwner({
-      title: `[${eventType}] ${subject} → ${effectiveRecipient}`,
+      title: `[${eventType}] ${effectiveSubject} → ${effectiveRecipient}`,
       content: body,
     });
 
     console.log(
-      `[SafeEmail] Sent "${subject}" to ${effectiveRecipient} (event: ${eventType}, entity: ${entityId})`
+      `[SafeEmail] Sent "${effectiveSubject}" to ${effectiveRecipient} (event: ${eventType}, entity: ${entityId})`
     );
 
     return { sent: true };
   } catch (err) {
     console.error("[SafeEmail] Unexpected error:", err);
-    // Best-effort: do not throw so the caller's primary logic is never blocked
     return { sent: false, reason: "db_unavailable" };
   }
 }
