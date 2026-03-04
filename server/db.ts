@@ -337,11 +337,14 @@ export async function triggerAiAssessment(claimId: number) {
   const claim = await getClaimById(claimId);
   if (!claim) throw new Error("Claim not found");
 
-  // Mark assessment as triggered
+  // Mark assessment as triggered and transition to 'parsing'
+  // This is the first visible state change — claim is now actively being processed.
   await db.update(claims).set({ 
     aiAssessmentTriggered: 1,
+    documentProcessingStatus: "parsing",
     updatedAt: new Date().toISOString() 
   }).where(eq(claims.id, claimId));
+  console.log(`[AI Assessment] Claim ${claimId} transitioned to document_processing_status='parsing'.`);
 
   // -----------------------------------------------------------------------
   // TOP-LEVEL FAILURE GUARD
