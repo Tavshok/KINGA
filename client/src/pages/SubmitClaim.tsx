@@ -132,6 +132,11 @@ export default function SubmitClaim() {
     // Photos & docs
     damagePhotos: [] as string[],
     supportingDocuments: [] as SupportingDoc[],
+    // Structured 3-choice panel beater selection (marketplace_profile UUIDs)
+    panelBeaterChoice1: "",
+    panelBeaterChoice2: "",
+    panelBeaterChoice3: "",
+    // Keep legacy array for UI toggle helper
     selectedPanelBeaterIds: [] as string[],
   });
 
@@ -155,7 +160,17 @@ export default function SubmitClaim() {
       toast.success("Claim submitted successfully!");
     },
     onError: (error) => {
-      toast.error(`Failed to submit claim: ${error.message}`);
+      // Surface exact governance rejection messages from the server
+      const msg = error.message;
+      if (
+        msg.includes("not approved by your insurer") ||
+        msg.includes("distinct repairers") ||
+        msg.includes("insurer for exception")
+      ) {
+        toast.error(msg, { duration: 8000 });
+      } else {
+        toast.error(`Failed to submit claim: ${msg}`);
+      }
     },
   });
 
@@ -351,14 +366,22 @@ export default function SubmitClaim() {
   const handlePanelBeaterToggle = (id: string) => {
     setFormData(prev => {
       const current = prev.selectedPanelBeaterIds;
+      let next: string[];
       if (current.includes(id)) {
-        return { ...prev, selectedPanelBeaterIds: current.filter(pbId => pbId !== id) };
+        next = current.filter(pbId => pbId !== id);
       } else if (current.length < 3) {
-        return { ...prev, selectedPanelBeaterIds: [...current, id] };
+        next = [...current, id];
       } else {
         toast.error("You can only select up to 3 panel beaters");
         return prev;
       }
+      return {
+        ...prev,
+        selectedPanelBeaterIds: next,
+        panelBeaterChoice1: next[0] ?? "",
+        panelBeaterChoice2: next[1] ?? "",
+        panelBeaterChoice3: next[2] ?? "",
+      };
     });
   };
 
@@ -387,6 +410,12 @@ export default function SubmitClaim() {
       toast.error("Please select exactly 3 panel beaters");
       return;
     }
+    // Client-side duplicate guard (server also validates)
+    const uniqueChoices = new Set(formData.selectedPanelBeaterIds);
+    if (uniqueChoices.size !== 3) {
+      toast.error("All three panel beater selections must be different. Please choose 3 distinct repairers.");
+      return;
+    }
     if (!formData.vehicleMake || !formData.vehicleModel || !formData.vehicleRegistration) {
       toast.error("Please fill in all required vehicle information");
       return;
@@ -406,7 +435,9 @@ export default function SubmitClaim() {
       incidentLocation: formData.incidentLocation,
       policyNumber: formData.policyNumber,
       damagePhotos: formData.damagePhotos,
-      selectedPanelBeaterIds: formData.selectedPanelBeaterIds,
+      panelBeaterChoice1: formData.panelBeaterChoice1,
+      panelBeaterChoice2: formData.panelBeaterChoice2,
+      panelBeaterChoice3: formData.panelBeaterChoice3,
     });
   };
 

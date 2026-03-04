@@ -706,7 +706,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
      * @param incidentLocation - Location where incident occurred
      * @param damagePhotos - Array of S3 URLs for damage photos
      * @param policyNumber - Insurance policy number
-     * @param selectedPanelBeaterIds - Array of exactly 3 panel beater IDs
+     * @param panelBeaterChoice1 - First insurer-approved panel beater (marketplace_profile_id UUID)
+     * @param panelBeaterChoice2 - Second insurer-approved panel beater (marketplace_profile_id UUID)
+     * @param panelBeaterChoice3 - Third insurer-approved panel beater (marketplace_profile_id UUID)
      * @returns Claim number and success status
      */
     submit: protectedProcedure
@@ -720,13 +722,49 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         incidentLocation: z.string(),
         damagePhotos: z.array(z.string()), // Array of S3 URLs
         policyNumber: z.string(),
-        selectedPanelBeaterIds: z.array(z.string()).min(0).max(3), // Allow 0-3 panel beaters (0 for external assessments); accepts marketplace profile UUIDs
+        // Structured 3-choice panel beater selection — all must be insurer-approved
+        panelBeaterChoice1: z.string().uuid(),
+        panelBeaterChoice2: z.string().uuid(),
+        panelBeaterChoice3: z.string().uuid(),
       }))
       .mutation(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        
+
+        // ── Governance validation ─────────────────────────────────────────────
+        // 1. No duplicates
+        const choices = [input.panelBeaterChoice1, input.panelBeaterChoice2, input.panelBeaterChoice3];
+        const uniqueChoices = new Set(choices);
+        if (uniqueChoices.size !== 3) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "All three panel beater selections must be different. Please choose 3 distinct repairers.",
+          });
+        }
+
+        // 2. All three must be in the insurer-approved list
+        const insurerTenantId = ctx.user.tenantId ?? "";
+        if (!insurerTenantId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Unable to determine your insurer. Please contact support.",
+          });
+        }
+
+        const { getApprovedPanelBeaterIds } = await import("./routers/marketplace");
+        const approvedIds = await getApprovedPanelBeaterIds(insurerTenantId);
+
+        for (const choice of choices) {
+          if (!approvedIds.has(choice)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Selected repairer is not approved by your insurer. Please contact insurer for exception.",
+            });
+          }
+        }
+        // ─────────────────────────────────────────────────────────────────────
+
         const claimNumber = `CLM-${nanoid(10).toUpperCase()}`;
-        
+
         await createClaim({
           claimantId: ctx.user.id,
           claimNumber,
@@ -739,7 +777,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           incidentLocation: input.incidentLocation,
           damagePhotos: JSON.stringify(input.damagePhotos),
           policyNumber: input.policyNumber,
-          selectedPanelBeaterIds: JSON.stringify(input.selectedPanelBeaterIds),
+          // Store both the legacy JSON array and the new structured FK columns
+          selectedPanelBeaterIds: JSON.stringify(choices),
+          panelBeaterChoice1: input.panelBeaterChoice1,
+          panelBeaterChoice2: input.panelBeaterChoice2,
+          panelBeaterChoice3: input.panelBeaterChoice3,
           status: "submitted",
         });
 

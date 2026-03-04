@@ -633,6 +633,10 @@ export const claims = mysqlTable("claims", {
 	assignedAssessorId: int("assigned_assessor_id"),
 	assignedPanelBeaterId: int("assigned_panel_beater_id"),
 	selectedPanelBeaterIds: text("selected_panel_beater_ids"),
+	// Structured 3-choice panel beater selection (FK → marketplace_profiles.id)
+	panelBeaterChoice1: varchar("panel_beater_choice_1", { length: 36 }),
+	panelBeaterChoice2: varchar("panel_beater_choice_2", { length: 36 }),
+	panelBeaterChoice3: varchar("panel_beater_choice_3", { length: 36 }),
 	aiAssessmentTriggered: tinyint("ai_assessment_triggered").default(0),
 	aiAssessmentCompleted: tinyint("ai_assessment_completed").default(0),
 	fraudRiskScore: int("fraud_risk_score"),

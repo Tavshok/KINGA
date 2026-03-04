@@ -83,6 +83,35 @@ const getApprovedPanelBeatersInput = z.object({
   countryId: z.string().optional(),
 });
 
+// ─── Reusable DB Helper ─────────────────────────────────────────────────────
+
+/**
+ * Returns the set of marketplace_profile IDs that are approved for a given insurer.
+ * Used by claims.submit for server-side panel beater validation.
+ */
+export async function getApprovedPanelBeaterIds(insurerTenantId: string): Promise<Set<string>> {
+  const db = await getDb();
+  if (!db) return new Set();
+
+  const rows = await db
+    .select({ profileId: marketplaceProfiles.id })
+    .from(insurerMarketplaceRelationships)
+    .innerJoin(
+      marketplaceProfiles,
+      eq(insurerMarketplaceRelationships.marketplaceProfileId, marketplaceProfiles.id)
+    )
+    .where(
+      and(
+        eq(insurerMarketplaceRelationships.insurerTenantId, insurerTenantId),
+        eq(insurerMarketplaceRelationships.relationshipStatus, "approved"),
+        eq(marketplaceProfiles.approvalStatus, "approved"),
+        eq(marketplaceProfiles.type, "panel_beater")
+      )
+    );
+
+  return new Set(rows.map(r => r.profileId));
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 export const marketplaceRouter = router({
