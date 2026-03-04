@@ -189,6 +189,7 @@ export const documentIngestionRouter = router({
                   workflowState: "intake_queue",
                   sourceDocumentId: docDbId,
                   claimSource: "document_ingestion",
+                  documentProcessingStatus: "pending",  // AI parsing not yet triggered
                   assignedProcessorId: ctx.user.id,
                   priority: "medium",
                   earlyFraudSuspicion: 0,

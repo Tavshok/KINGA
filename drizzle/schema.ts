@@ -702,6 +702,8 @@ export const claims = mysqlTable("claims", {
 	policyVersionId: int("policy_version_id"),
 	sourceDocumentId: int("source_document_id"),
 	claimSource: varchar("claim_source", { length: 50 }),
+	// Document parsing pipeline status — updated as AI extraction progresses
+	documentProcessingStatus: varchar("document_processing_status", { length: 30 }).notNull().default("pending"),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
