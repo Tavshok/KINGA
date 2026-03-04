@@ -343,6 +343,13 @@ export async function triggerAiAssessment(claimId: number) {
     updatedAt: new Date().toISOString() 
   }).where(eq(claims.id, claimId));
 
+  // -----------------------------------------------------------------------
+  // TOP-LEVEL FAILURE GUARD
+  // Any unhandled error (e.g. LLM timeout, JSON parse failure) will land here
+  // and mark the claim as failed so processors know action is needed.
+  // -----------------------------------------------------------------------
+  try {
+
   // Parse damage photos from JSON
   const damagePhotos: string[] = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   
@@ -361,9 +368,12 @@ export async function triggerAiAssessment(claimId: number) {
     
     await db.update(claims).set({ 
       aiAssessmentCompleted: 1,
+      status: "assessment_complete",
+      documentProcessingStatus: "extracted",
       updatedAt: new Date().toISOString() 
     }).where(eq(claims.id, claimId));
     
+    console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. (placeholder - no photos)`);
     return { success: true, message: "Placeholder assessment created. Please upload damage photos for full analysis." };
   }
 
@@ -861,10 +871,12 @@ Provide your response in JSON format.`;
       }
     }
     
-    // Update claim with enhanced fraud assessment
+    // Update claim with enhanced fraud assessment + lifecycle status
     // TODO: Uncomment ML fraud scores after running `pnpm db:push` to update TypeScript types
     await db.update(claims).set({ 
       aiAssessmentCompleted: 1,
+      status: "assessment_complete",
+      documentProcessingStatus: "extracted",
       fraudRiskScore: combinedFraudScore,
       fraudFlags: JSON.stringify(allFraudFlags),
       // mlFraudScore: mlFraudResult && mlFraudResult.ml_fraud_score ? String(mlFraudResult.ml_fraud_score) : null,
@@ -873,6 +885,7 @@ Provide your response in JSON format.`;
       // fraudAnalysisJson: mlFraudResult ? JSON.stringify(mlFraudResult) : null,
       updatedAt: new Date().toISOString() 
     }).where(eq(claims.id, claimId));
+    console.log(`[AI Assessment] Claim ${claimId} updated after AI completion.`);
     
     // Calculate physics deviation score for fraud detection
     const { calculatePhysicsDeviationScore, parsePhysicsAnalysis: parsePhysics } = await import("./physics-deviation-calculator");
@@ -941,13 +954,36 @@ Provide your response in JSON format.`;
     
   } catch (error) {
     console.error("Physics analysis failed:", error);
-    // Continue without physics analysis if it fails
+    // Physics failed but AI vision succeeded — still mark as assessment_complete
     await db.update(claims).set({ 
       aiAssessmentCompleted: 1,
+      status: "assessment_complete",
+      documentProcessingStatus: "extracted",
       fraudRiskScore: analysis.fraudRiskScore || 0,
       fraudFlags: JSON.stringify(analysis.fraudIndicators || []),
       updatedAt: new Date().toISOString() 
     }).where(eq(claims.id, claimId));
+    console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. (physics analysis failed - partial result)`);
+  }
+
+  // END TOP-LEVEL TRY
+  } catch (topLevelError) {
+    // LLM call, JSON parse, or other unhandled failure
+    console.error(`[AI Assessment] Fatal error for claim ${claimId}:`, topLevelError);
+    try {
+      const dbInner = await getDb();
+      if (dbInner) {
+        await dbInner.update(claims).set({
+          documentProcessingStatus: "failed",
+          status: "intake_pending",
+          updatedAt: new Date().toISOString(),
+        }).where(eq(claims.id, claimId));
+        console.log(`[AI Assessment] Claim ${claimId} marked as failed after AI error.`);
+      }
+    } catch (updateError) {
+      console.error(`[AI Assessment] Could not update failure status for claim ${claimId}:`, updateError);
+    }
+    throw topLevelError; // Re-throw so the caller's setImmediate catch logs it
   }
 }
 
