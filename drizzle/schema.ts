@@ -3230,6 +3230,7 @@ export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
   vehicleCount: int("vehicle_count"),
   estimatedTotalValue: decimal("estimated_total_value", { precision: 14, scale: 2 }),
   claimsHistorySummary: text("claims_history_summary"),
+  commissionEstimate: decimal("commission_estimate", { precision: 12, scale: 2 }),
   createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
   updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 },

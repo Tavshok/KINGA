@@ -318,7 +318,11 @@ export const agencyBrokerRouter = router({
     }),
 
   /**
-   * Insurer: respond to a quote request with a quoted amount.
+   * Insurer: respond to a fleet RFQ with a quoted amount.
+   *
+   * - Verifies the insurer owns this quote request (tenant isolation).
+   * - Prevents re-submission on already-finalised requests.
+   * - Writes an audit trail entry: "insurer_submitted_fleet_quote".
    */
   respondToQuote: protectedProcedure
     .input(respondToQuoteInput)
@@ -327,22 +331,36 @@ export const agencyBrokerRouter = router({
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const tenantId = (ctx.tenant as { id?: string } | null)?.id ?? ctx.user.tenantId;
+      if (!tenantId) throw new TRPCError({ code: "FORBIDDEN", message: "Insurer tenant context required." });
+
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
 
-      // Verify this insurer owns the quote request
+      // ── 1. Verify this insurer owns the quote request (tenant isolation) ───────
       const [qr] = await db
-        .select({ id: insurerQuoteRequests.id, status: insurerQuoteRequests.status })
+        .select({
+          id: insurerQuoteRequests.id,
+          status: insurerQuoteRequests.status,
+          claimId: insurerQuoteRequests.claimId,
+          requestType: insurerQuoteRequests.requestType,
+          fleetAccountId: insurerQuoteRequests.fleetAccountId,
+        })
         .from(insurerQuoteRequests)
         .where(and(
           eq(insurerQuoteRequests.id, input.quoteRequestId),
-          eq(insurerQuoteRequests.insurerTenantId, tenantId ?? "")
+          eq(insurerQuoteRequests.insurerTenantId, tenantId)
         ));
 
-      if (!qr) throw new TRPCError({ code: "NOT_FOUND", message: "Quote request not found." });
+      if (!qr) throw new TRPCError({ code: "NOT_FOUND", message: "Quote request not found or access denied." });
+
+      // ── 2. Prevent duplicate state transitions ───────────────────────────────
       if (qr.status === "accepted" || qr.status === "rejected") {
-        throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Quote has already been finalised." });
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Quote has already been finalised (status: ${qr.status}). Cannot re-submit.`,
+        });
       }
 
+      // ── 3. Update to quoted status ───────────────────────────────────────────
       await db
         .update(insurerQuoteRequests)
         .set({
@@ -354,34 +372,162 @@ export const agencyBrokerRouter = router({
           quotedAt: now,
           updatedAt: now,
         })
-        .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+        .where(and(
+          eq(insurerQuoteRequests.id, input.quoteRequestId),
+          eq(insurerQuoteRequests.insurerTenantId, tenantId)
+        ));
 
-      console.log(`[AgencyBroker] Quote responded: id=${input.quoteRequestId} amount=${input.quoteAmount}`);
-      return { success: true };
+      // ── 4. Audit trail: insurer_submitted_fleet_quote ────────────────────────
+      try {
+        await db.insert(auditTrail).values({
+          claimId: qr.claimId,
+          userId: ctx.user.id,
+          action: "insurer_submitted_fleet_quote",
+          entityType: qr.requestType === "fleet_policy" ? "fleet_account" : "insurer_quote_request",
+          entityId: qr.fleetAccountId ?? qr.id,
+          changeDescription: `Insurer tenant ${tenantId} submitted a quote of ${input.quoteCurrency} ${input.quoteAmount} for quote request #${input.quoteRequestId}.`,
+          createdAt: now,
+        } as any);
+      } catch {
+        console.warn(`[AgencyBroker] Audit insert failed for respondToQuote id=${input.quoteRequestId}`);
+      }
+
+      console.log(`[AgencyBroker] Quote responded: id=${input.quoteRequestId} insurer=${tenantId} amount=${input.quoteAmount}`);
+      return { success: true, status: "quoted" };
     }),
 
   /**
-   * Agency: accept or reject a specific insurer's quote.
+   * Agency / Fleet owner: accept or reject a specific insurer's quote.
+   *
+   * On ACCEPT:
+   *   - Updates the accepted request to status = "accepted".
+   *   - Records a commission estimate (5% of quote amount by default).
+   *   - Closes all other pending/sent/quoted requests for the same RFQ batch
+   *     (same fleetAccountId + claimId) by setting them to "rejected".
+   *   - Writes audit entry: "fleet_quote_accepted".
+   *
+   * On REJECT:
+   *   - Marks only this insurer's request as "rejected".
+   *   - Leaves all other requests open.
+   *   - Writes audit entry: "fleet_quote_rejected".
+   *
+   * Duplicate state transitions are prevented for both paths.
    */
   acceptOrRejectQuote: agencyProcedure
     .input(acceptRejectQuoteInput)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
 
       const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+      const COMMISSION_RATE = 0.05; // 5% placeholder commission
 
-      await db
-        .update(insurerQuoteRequests)
-        .set({
-          status: input.action,
-          respondedAt: now,
-          updatedAt: now,
+      // ── 1. Fetch the target quote request ────────────────────────────────────
+      const [qr] = await db
+        .select({
+          id: insurerQuoteRequests.id,
+          status: insurerQuoteRequests.status,
+          claimId: insurerQuoteRequests.claimId,
+          fleetAccountId: insurerQuoteRequests.fleetAccountId,
+          insurerTenantId: insurerQuoteRequests.insurerTenantId,
+          quoteAmount: insurerQuoteRequests.quoteAmount,
+          quoteCurrency: insurerQuoteRequests.quoteCurrency,
+          requestType: insurerQuoteRequests.requestType,
         })
+        .from(insurerQuoteRequests)
         .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
 
-      console.log(`[AgencyBroker] Quote ${input.action}: id=${input.quoteRequestId}`);
-      return { success: true };
+      if (!qr) throw new TRPCError({ code: "NOT_FOUND", message: "Quote request not found." });
+
+      // ── 2. Prevent duplicate state transitions ───────────────────────────────
+      if (qr.status === "accepted" || qr.status === "rejected") {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: `Quote is already in a final state (status: ${qr.status}). No further transitions allowed.`,
+        });
+      }
+
+      if (input.action === "accepted") {
+        // ── 3a. Accept: compute commission, update this row ─────────────────────
+        const quoteAmountNum = qr.quoteAmount ? parseFloat(qr.quoteAmount) : 0;
+        const commissionEstimate = Math.round(quoteAmountNum * COMMISSION_RATE * 100) / 100;
+
+        await db
+          .update(insurerQuoteRequests)
+          .set({
+            status: "accepted",
+            respondedAt: now,
+            commissionEstimate: String(commissionEstimate),
+            updatedAt: now,
+          })
+          .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+
+        // ── 3b. Close all sibling requests for this RFQ batch ──────────────────
+        // Siblings = same claimId (or fleetAccountId) that are still open
+        const siblingConditions = [
+          ne(insurerQuoteRequests.id, input.quoteRequestId),
+          inArray(insurerQuoteRequests.status, ["pending", "sent", "quoted"]),
+        ];
+        if (qr.fleetAccountId) {
+          siblingConditions.push(eq(insurerQuoteRequests.fleetAccountId, qr.fleetAccountId));
+        } else {
+          siblingConditions.push(eq(insurerQuoteRequests.claimId, qr.claimId));
+        }
+
+        const siblingResult = await db
+          .update(insurerQuoteRequests)
+          .set({ status: "rejected", respondedAt: now, updatedAt: now })
+          .where(and(...siblingConditions));
+
+        // ── 3c. Audit: fleet_quote_accepted ─────────────────────────────────────
+        try {
+          await db.insert(auditTrail).values({
+            claimId: qr.claimId,
+            userId: ctx.user.id,
+            action: "fleet_quote_accepted",
+            entityType: qr.requestType === "fleet_policy" ? "fleet_account" : "insurer_quote_request",
+            entityId: qr.fleetAccountId ?? qr.id,
+            changeDescription: `Quote #${input.quoteRequestId} accepted from insurer ${qr.insurerTenantId}. Amount: ${qr.quoteCurrency ?? "ZAR"} ${quoteAmountNum}. Commission estimate: ${qr.quoteCurrency ?? "ZAR"} ${commissionEstimate} (${COMMISSION_RATE * 100}%). ${(siblingResult as any)?.rowsAffected ?? 0} competing quote(s) closed.`,
+            createdAt: now,
+          } as any);
+        } catch {
+          console.warn(`[AgencyBroker] Audit insert failed for acceptOrRejectQuote ACCEPT id=${input.quoteRequestId}`);
+        }
+
+        console.log(`[AgencyBroker] Quote ACCEPTED: id=${input.quoteRequestId} insurer=${qr.insurerTenantId} amount=${quoteAmountNum} commission=${commissionEstimate}`);
+        return {
+          success: true,
+          status: "accepted",
+          commissionEstimate,
+          currency: qr.quoteCurrency ?? "ZAR",
+          siblingsClosed: (siblingResult as any)?.rowsAffected ?? 0,
+        };
+
+      } else {
+        // ── 4. Reject: mark only this request, leave others open ────────────────
+        await db
+          .update(insurerQuoteRequests)
+          .set({ status: "rejected", respondedAt: now, updatedAt: now })
+          .where(eq(insurerQuoteRequests.id, input.quoteRequestId));
+
+        // ── 4a. Audit: fleet_quote_rejected ─────────────────────────────────────
+        try {
+          await db.insert(auditTrail).values({
+            claimId: qr.claimId,
+            userId: ctx.user.id,
+            action: "fleet_quote_rejected",
+            entityType: qr.requestType === "fleet_policy" ? "fleet_account" : "insurer_quote_request",
+            entityId: qr.fleetAccountId ?? qr.id,
+            changeDescription: `Quote #${input.quoteRequestId} rejected from insurer ${qr.insurerTenantId}. Remaining open quotes for this RFQ are unaffected.`,
+            createdAt: now,
+          } as any);
+        } catch {
+          console.warn(`[AgencyBroker] Audit insert failed for acceptOrRejectQuote REJECT id=${input.quoteRequestId}`);
+        }
+
+        console.log(`[AgencyBroker] Quote REJECTED: id=${input.quoteRequestId} insurer=${qr.insurerTenantId}`);
+        return { success: true, status: "rejected" };
+      }
     }),
 
   // ── Fleet Policy RFQ ──────────────────────────────────────────────────────
