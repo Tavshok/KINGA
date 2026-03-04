@@ -16,6 +16,7 @@ import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport"
 import { Download } from "lucide-react";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
+import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -408,6 +409,9 @@ export default function InsurerComparisonView() {
             </CardContent>
           </Card>
         )}
+
+        {/* AI Cost Optimisation Panel */}
+        <QuoteOptimisationPanel claimId={claimId} />
 
         {/* Side-by-Side Comparison */}
         <div className="grid gap-6 lg:grid-cols-3">

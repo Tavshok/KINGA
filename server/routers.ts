@@ -139,6 +139,93 @@ export const appRouter = router({
   automationPolicies: automationPoliciesRouter,
   claimCompletion: claimCompletionRouter,
   marketplace: marketplaceRouter,
+  quoteOptimisation: router({
+    // Fetch latest AI optimisation result for a claim
+    getResult: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const { getLatestOptimisationResult } = await import("./quote-ai-optimisation");
+        return await getLatestOptimisationResult(input.claimId);
+      }),
+
+    // Insurer records their decision (accept recommendation or override)
+    recordDecision: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        accepted: z.boolean(),
+        overrideReason: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const { quoteOptimisationResults: qor } = await import("../drizzle/schema");
+        const { eq: _eq, and: _and } = await import("drizzle-orm");
+        const now = new Date().toISOString().slice(0, 19).replace("T", " ");
+        await db
+          .update(qor)
+          .set({
+            insurerAcceptedRecommendation: input.accepted ? 1 : 0,
+            insurerDecisionBy: ctx.user.id,
+            insurerDecisionAt: now,
+            insurerOverrideReason: input.overrideReason ?? null,
+            updatedAt: now,
+          })
+          .where(_and(
+            _eq(qor.claimId, input.claimId),
+            _eq(qor.status, "completed")
+          ));
+        return { success: true };
+      }),
+
+    // Manually re-trigger AI optimisation (insurer admin action)
+    retrigger: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const { getClaimById, getQuotesByClaimId } = await import("./db");
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new Error("Claim not found");
+        const allQuotes = await getQuotesByClaimId(input.claimId);
+        if (allQuotes.length < 3) throw new Error("Not all 3 quotes have been submitted yet");
+        const { runQuoteOptimisation } = await import("./quote-ai-optimisation");
+        const { marketplaceProfiles: _mp } = await import("../drizzle/schema");
+        const db = await getDb();
+        const quoteInputs = await Promise.all(
+          allQuotes.slice(0, 3).map(async (q) => {
+            let profileId = `legacy-${q.panelBeaterId}`;
+            let companyName = `Panel Beater #${q.panelBeaterId}`;
+            if (db) {
+              const { eq: _eq2 } = await import("drizzle-orm");
+              const [profile] = await db
+                .select({ id: _mp.id, companyName: _mp.companyName })
+                .from(_mp)
+                .where(_eq2(_mp.id, String(q.panelBeaterId)))
+                .limit(1);
+              if (profile) { profileId = profile.id; companyName = profile.companyName; }
+            }
+            return {
+              profileId, companyName,
+              totalAmount: q.quotedAmount,
+              partsAmount: q.partsCost ?? 0,
+              labourAmount: q.laborCost ?? 0,
+              labourHours: q.laborHours ?? 0,
+              itemizedBreakdown: q.itemizedBreakdown ?? null,
+              partsQuality: q.partsQuality ?? "aftermarket",
+            };
+          })
+        );
+        const result = await runQuoteOptimisation(
+          input.claimId,
+          { vehicleMake: claim.vehicleMake ?? "Unknown", vehicleModel: claim.vehicleModel ?? "Unknown", vehicleYear: claim.vehicleYear ?? new Date().getFullYear() },
+          quoteInputs,
+          ctx.user.id
+        );
+        return result;
+      }),
+  }),
   ml: mlRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)
@@ -1682,7 +1769,68 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (allQuotes.length >= 3) {
           // All quotes received, progress to comparison stage (legacy field only)
           await updateClaimStatus(input.claimId, "comparison", ctx.user.id, "panel_beater", claim?.tenantId || "default");
-          
+
+          // ── AI Cost Optimisation ─────────────────────────────────────────────
+          // Trigger asynchronously so quote submission returns immediately.
+          // The optimisation result is persisted to quote_optimisation_results.
+          if (claim) {
+            const quotesToAnalyse = allQuotes.slice(0, 3);
+            setImmediate(async () => {
+              try {
+                const { runQuoteOptimisation } = await import("./quote-ai-optimisation");
+                // Build QuoteInput from stored quotes + marketplace profile lookup
+                const { getDb: _getDb } = await import("./db");
+                const { marketplaceProfiles: _mp } = await import("../drizzle/schema");
+                const { eq: _eq } = await import("drizzle-orm");
+                const _db = await _getDb();
+
+                const quoteInputs = await Promise.all(
+                  quotesToAnalyse.map(async (q) => {
+                    // Try to resolve marketplace profile for this panel beater
+                    let profileId = `legacy-${q.panelBeaterId}`;
+                    let companyName = `Panel Beater #${q.panelBeaterId}`;
+                    if (_db) {
+                      const [profile] = await _db
+                        .select({ id: _mp.id, companyName: _mp.companyName })
+                        .from(_mp)
+                        .where(_eq(_mp.id, String(q.panelBeaterId)))
+                        .limit(1);
+                      if (profile) {
+                        profileId = profile.id;
+                        companyName = profile.companyName;
+                      }
+                    }
+                    return {
+                      profileId,
+                      companyName,
+                      totalAmount: q.quotedAmount,
+                      partsAmount: q.partsCost ?? 0,
+                      labourAmount: q.laborCost ?? 0,
+                      labourHours: q.laborHours ?? 0,
+                      itemizedBreakdown: q.itemizedBreakdown ?? null,
+                      partsQuality: q.partsQuality ?? "aftermarket",
+                    };
+                  })
+                );
+
+                await runQuoteOptimisation(
+                  input.claimId,
+                  {
+                    vehicleMake: claim.vehicleMake ?? "Unknown",
+                    vehicleModel: claim.vehicleModel ?? "Unknown",
+                    vehicleYear: claim.vehicleYear ?? new Date().getFullYear(),
+                  },
+                  quoteInputs,
+                  ctx.user.id
+                );
+                console.log(`[QuoteOptimisation] Auto-triggered for claim ${input.claimId}`);
+              } catch (err) {
+                console.error(`[QuoteOptimisation] Auto-trigger failed for claim ${input.claimId}:`, err);
+              }
+            });
+          }
+          // ────────────────────────────────────────────────────────────────────
+
           // Notify insurer that all quotes are ready for comparison
           if (claim) {
             const insurers = await getUsersByRole("insurer");
@@ -1691,8 +1839,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             for (const insurer of insurers) {
               await createNotification({
                 userId: insurer.id,
-                title: "All Quotes Received",
-                message: `All panel beater quotes received for claim ${claim.claimNumber}. Ready for comparison and fraud detection.`,
+                title: "All Quotes Received — AI Analysis Running",
+                message: `All panel beater quotes received for claim ${claim.claimNumber}. AI cost optimisation has been triggered.`,
                 type: "quote_submitted",
                 claimId: input.claimId,
                 entityType: "quote",

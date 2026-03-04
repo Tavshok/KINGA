@@ -3304,3 +3304,50 @@ export const insurerMarketplaceRelationships = mysqlTable("insurer_marketplace_r
 
 export type InsurerMarketplaceRelationship = typeof insurerMarketplaceRelationships.$inferSelect;
 export type InsertInsurerMarketplaceRelationship = typeof insurerMarketplaceRelationships.$inferInsert;
+
+// ─── Quote Optimisation Results ───────────────────────────────────────────────
+// Stores AI cost-optimisation output for the 3-quote comparison workflow.
+// AI assists; insurer makes the final decision.
+
+export const quoteOptimisationResults = mysqlTable("quote_optimisation_results", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").notNull(),
+  triggeredAt: timestamp("triggered_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  triggeredBy: int("triggered_by"),
+  status: mysqlEnum("status", ["pending", "processing", "completed", "failed"]).default("pending").notNull(),
+
+  // Per-quote analysis JSON array
+  quoteAnalysis: json("quote_analysis"),
+
+  // Aggregate AI output
+  recommendedProfileId: varchar("recommended_profile_id", { length: 36 }),
+  recommendedCompanyName: varchar("recommended_company_name", { length: 255 }),
+  overallRiskScore: mysqlEnum("overall_risk_score", ["low", "medium", "high", "critical"]),
+  riskScoreNumeric: decimal("risk_score_numeric", { precision: 5, scale: 2 }),
+
+  // Flags
+  overpricingDetected: tinyint("overpricing_detected").default(0).notNull(),
+  partsInflationDetected: tinyint("parts_inflation_detected").default(0).notNull(),
+  labourInflationDetected: tinyint("labour_inflation_detected").default(0).notNull(),
+
+  // AI narrative
+  optimisationSummary: text("optimisation_summary"),
+  rawLlmResponse: json("raw_llm_response"),
+
+  // Insurer decision
+  insurerAcceptedRecommendation: tinyint("insurer_accepted_recommendation"),
+  insurerDecisionBy: int("insurer_decision_by"),
+  insurerDecisionAt: timestamp("insurer_decision_at", { mode: "string" }),
+  insurerOverrideReason: text("insurer_override_reason"),
+
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_qor_claim_id").on(table.claimId),
+  index("idx_qor_status").on(table.status),
+  index("idx_qor_risk").on(table.overallRiskScore),
+]);
+
+export type QuoteOptimisationResult = typeof quoteOptimisationResults.$inferSelect;
+export type InsertQuoteOptimisationResult = typeof quoteOptimisationResults.$inferInsert;
