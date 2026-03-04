@@ -3380,3 +3380,37 @@ export const ASSESSOR_TIER_CAPS = {
   free: { maxClaimsPerMonth: 10, label: "Free" },
   pro:  { maxClaimsPerMonth: 9999, label: "Pro" },
 } as const;
+
+// ─── Tenant Isolation Violation Log ──────────────────────────────────────────
+// Records every FORBIDDEN event thrown by insurerDomainProcedure middleware.
+// Written asynchronously (fire-and-forget) so logging failure never blocks the
+// exception propagation to the caller.
+
+export const tenantIsolationViolations = mysqlTable("tenant_isolation_violations", {
+  id: int().autoincrement().primaryKey().notNull(),
+  /** ID of the user who triggered the violation (null if unauthenticated, but
+   *  this table is only written on FORBIDDEN — i.e. user is always present). */
+  userId: int("user_id"),
+  /** The tenantId on the user's session at the time of the violation. */
+  userTenantId: varchar("user_tenant_id", { length: 64 }),
+  /** The target tenantId the user was attempting to access (if resolvable from
+   *  the procedure input; null when not determinable at middleware level). */
+  targetTenantId: varchar("target_tenant_id", { length: 64 }),
+  /** tRPC procedure path that raised the violation, e.g. "claims.byStatus". */
+  procedureName: varchar("procedure_name", { length: 255 }),
+  /** Client IP address extracted from req.ip or X-Forwarded-For. */
+  ipAddress: varchar("ip_address", { length: 45 }),
+  /** User-Agent header from the request. */
+  userAgent: text("user_agent"),
+  /** ISO-8601 timestamp of the violation. */
+  occurredAt: timestamp("occurred_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+},
+(table) => [
+  index("idx_tiv_user_id").on(table.userId),
+  index("idx_tiv_user_tenant").on(table.userTenantId),
+  index("idx_tiv_occurred_at").on(table.occurredAt),
+  index("idx_tiv_procedure").on(table.procedureName),
+]);
+
+export type TenantIsolationViolation = typeof tenantIsolationViolations.$inferSelect;
+export type InsertTenantIsolationViolation = typeof tenantIsolationViolations.$inferInsert;
