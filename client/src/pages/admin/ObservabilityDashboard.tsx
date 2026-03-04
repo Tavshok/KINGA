@@ -50,7 +50,7 @@ export default function ObservabilityDashboard() {
       refetch();
       alert("Metrics collected successfully!");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       alert(`Failed to collect metrics: ${error.message}`);
     },
   });

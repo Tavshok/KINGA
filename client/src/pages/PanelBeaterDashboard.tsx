@@ -121,7 +121,7 @@ export default function PanelBeaterDashboard() {
               </div>
             ) : (
               <div className="space-y-3">
-                {myQuoteRequests.map((claim) => (
+                {myQuoteRequests.map((claim: any) => (
                   <div
                     key={claim.id}
                     className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors"

@@ -12,13 +12,13 @@ import { claims, routingHistory } from "../../drizzle/schema";
 import { eq } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
-const db = await getDb();
+
 
 /**
  * Generate immutable routing event ID
  */
-function generateRoutingId(timestamp: Date): string {
-  const ts = timestamp.getTime();
+function generateRoutingId(timestamp: Date | string): string {
+  const ts = typeof timestamp === 'string' ? new Date(timestamp).getTime() : timestamp.getTime();
   const random = randomBytes(8).toString("hex");
   return `routing_${ts}_${random}`;
 }
@@ -89,6 +89,7 @@ function generateConfidenceComponents(score: number): string {
  * Main migration function
  */
 async function migrateRoutingHistory() {
+  const db = await getDb();
   if (!db) {
     throw new Error("Database connection not available");
   }
@@ -144,7 +145,9 @@ async function migrateRoutingHistory() {
         decidedBy: "AI",
         decidedByUserId: null,
         justification: "Migrated from existing claim data",
-        timestamp,
+        timestamp: typeof timestamp === 'string' ? timestamp : (timestamp as Date).toISOString().slice(0, 19).replace('T', ' '),
+        routingVersion: 1,
+        thresholdSnapshot: JSON.stringify({ high: 0.8, medium: 0.5, low: 0.0 }),
       });
       
       console.log(`Migrated claim ${claim.id} (${claim.claimNumber}) - Category: ${category}, Decision: ${decision}`);

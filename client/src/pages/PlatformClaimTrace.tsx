@@ -293,7 +293,7 @@ export default function PlatformClaimTrace() {
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-medium">{entry.audit.action}</span>
                       <span className="text-sm text-muted-foreground">
-                        {new Date(entry.audit.timestamp).toLocaleString()}
+                        {new Date(entry.audit.createdAt).toLocaleString()}
                       </span>
                     </div>
                     
@@ -301,10 +301,10 @@ export default function PlatformClaimTrace() {
                       By: {entry.user?.name || "System"} ({entry.user?.role || "N/A"})
                     </div>
                     
-                    {entry.audit.metadata && (
+                    {entry.audit.changeDescription && (
                       <div className="mt-2 text-sm">
                         <pre className="bg-background p-2 rounded text-xs overflow-x-auto">
-                          {JSON.stringify(JSON.parse(entry.audit.metadata as string), null, 2)}
+                          {JSON.stringify(JSON.parse(entry.audit.changeDescription as string), null, 2)}
                         </pre>
                       </div>
                     )}
@@ -336,7 +336,7 @@ export default function PlatformClaimTrace() {
                       <Badge variant="outline">{entry.user?.insurerRole || entry.user?.role}</Badge>
                     </div>
                     <span className="text-sm text-muted-foreground">
-                      {new Date(entry.log.timestamp).toLocaleString()}
+                      {new Date(entry.log.createdAt).toLocaleString()}
                     </span>
                   </div>
                   

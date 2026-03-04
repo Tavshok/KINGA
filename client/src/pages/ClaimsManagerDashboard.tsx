@@ -85,7 +85,7 @@ export default function ClaimsManagerDashboard() {
   // These are claims in financial_decision state OR completed assessments
   const { data: reviewQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
     trpc.claims.byStatus.useQuery({ status: "financial_decision" });;
-  const reviewQueue = reviewQueueData?.items || [];
+  const reviewQueue = reviewQueueData || [];
 
   // Also fetch claims with completed status (comparison stage - assessed and ready for review)
   const { data: assessedClaims, isLoading: assessedLoading, refetch: refetchAssessed } = 
@@ -112,11 +112,11 @@ export default function ClaimsManagerDashboard() {
     // Risk filter
     if (riskFilter !== "all") {
       if (riskFilter === "high") {
-        filtered = filtered.filter(c => c.fraudRiskScore >= 70);
+        filtered = filtered.filter(c => (c.fraudRiskScore ?? 0) >= 70);
       } else if (riskFilter === "medium") {
-        filtered = filtered.filter(c => c.fraudRiskScore >= 40 && c.fraudRiskScore < 70);
+        filtered = filtered.filter(c => (c.fraudRiskScore ?? 0) >= 40 && (c.fraudRiskScore ?? 0) < 70);
       } else if (riskFilter === "low") {
-        filtered = filtered.filter(c => c.fraudRiskScore < 40);
+        filtered = filtered.filter(c => (c.fraudRiskScore ?? 0) < 40);
       } else if (riskFilter === "not_assessed") {
         filtered = filtered.filter(c => !c.fraudRiskScore);
       }
@@ -138,7 +138,7 @@ export default function ClaimsManagerDashboard() {
     // Cost filter
     if (costFilter !== "all") {
       filtered = filtered.filter(c => {
-        const cost = c.estimatedCost || c.approvedAmount || 0;
+        const cost = c.approvedAmount || c.approvedAmount || 0;
         if (costFilter === "low") return cost < 50000; // < $500
         if (costFilter === "medium") return cost >= 50000 && cost < 200000; // $500-$2000
         if (costFilter === "high") return cost >= 200000; // > $2000
@@ -224,11 +224,7 @@ export default function ClaimsManagerDashboard() {
       });
     }
 
-    closeForProcessing.mutate({
-      claimId: selectedClaim.id,
-      approvedAmount: selectedClaim.estimatedCost || selectedClaim.approvedAmount || 0,
-      approvalNotes: `[${closureAction}] ${closureNotes}`,
-    });
+    closeForProcessing.mutate({ claimId: selectedClaim.id, selectedQuoteId: 0 });
   };
 
   const handleSubmitSendBack = async () => {
@@ -243,14 +239,11 @@ export default function ClaimsManagerDashboard() {
       content: `SENT BACK BY CLAIMS MANAGER: ${sendBackComments}`,
     });
 
-    sendBackClaim.mutate({
-      claimId: selectedClaim.id,
-      newState: sendBackTarget === "risk_manager" ? "technical_approval" : "created",
-    });
+    sendBackClaim.mutate({ claimId: selectedClaim.id, selectedQuoteId: 0 });
   };
 
   const totalReviewable = filteredClaims.length;
-  const highRiskCount = filteredClaims.filter((c: any) => c.fraudRiskScore && c.fraudRiskScore >= 70).length;
+  const highRiskCount = filteredClaims.filter((c: any) => c.fraudRiskScore && (c.fraudRiskScore ?? 0) >= 70).length;
   const recentlyClosed = completedClaims?.length || 0;
 
   // Export handler
@@ -260,7 +253,7 @@ export default function ClaimsManagerDashboard() {
       return;
     }
 
-    const exportData: ClaimExportData[] = filteredClaims.map((claim: any) => ({
+    const exportData = filteredClaims.map((claim: any) => ({
       claimNumber: claim.claimNumber,
       vehicleRegistration: claim.vehicleRegistration,
       vehicleMake: claim.vehicleMake,
@@ -270,9 +263,9 @@ export default function ClaimsManagerDashboard() {
       workflowState: claim.workflowState,
       fraudRiskScore: claim.fraudRiskScore,
       estimatedCost: claim.estimatedCost,
-      approvedAmount: claim.approvedAmount,
-      createdAt: claim.createdAt,
-      incidentDate: claim.incidentDate,
+      approvedAmount: claim.approvedAmount ?? null,
+      createdAt: claim.createdAt ? new Date(claim.createdAt) : null,
+      incidentDate: claim.incidentDate ? new Date(claim.incidentDate) : null,
       incidentType: claim.incidentType,
       technicalApprovalStatus: claim.technicalApprovalStatus,
     }));

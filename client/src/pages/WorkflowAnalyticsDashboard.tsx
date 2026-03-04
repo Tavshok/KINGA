@@ -110,9 +110,9 @@ export default function WorkflowAnalyticsDashboard() {
                   {slaCompliance.data?.meta?.overallCompliance || 0}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {slaCompliance.data?.meta?.overallCompliance >= 90
+                  {(slaCompliance.data?.meta?.overallCompliance ?? 0) >= 90
                     ? "Excellent performance"
-                    : slaCompliance.data?.meta?.overallCompliance >= 75
+                    : (slaCompliance.data?.meta?.overallCompliance ?? 0) >= 75
                     ? "Good performance"
                     : "Needs improvement"}
                 </p>
@@ -141,10 +141,10 @@ export default function WorkflowAnalyticsDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {processingTimes.data?.data
+                  {processingTimes.data?.data && (processingTimes.data.data as any[]).length > 0
                     ? (
-                        processingTimes.data.data.reduce((sum, d) => sum + d.avgHours, 0) /
-                        processingTimes.data.data.length
+                        (processingTimes.data.data as any[]).reduce((sum: number, d: any) => sum + d.avgHours, 0) /
+                        (processingTimes.data.data as any[]).length
                       ).toFixed(1)
                     : 0}
                   h
@@ -174,7 +174,7 @@ export default function WorkflowAnalyticsDashboard() {
               <AlertDescription>
                 <strong>{bottlenecks.data.data.length} workflow bottleneck(s) detected:</strong>
                 <ul className="mt-2 list-disc list-inside">
-                  {bottlenecks.data.data.slice(0, 3).map((b) => (
+                  {bottlenecks.data.data.slice(0, 3).map((b: any) => (
                     <li key={b.state}>
                       <strong>{b.state}</strong>: {b.avgHours.toFixed(1)}h average ({b.affectedClaims} claims)
                     </li>
@@ -253,7 +253,7 @@ export default function WorkflowAnalyticsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {userProductivity.data?.data?.slice(0, 10).map((user, index) => (
+                {userProductivity.data?.data?.slice(0, 10).map((user: any, index: number) => (
                   <div key={user.userId} className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center font-semibold">

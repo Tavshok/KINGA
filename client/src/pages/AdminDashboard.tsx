@@ -57,16 +57,16 @@ export default function AdminDashboard() {
 
   // Get system statistics using workflow states
   const { data: submittedClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "created", limit: 100, offset: 0 });
-  const submittedClaims = submittedClaimsData?.items || [];
+  const submittedClaims = submittedClaimsData?.claims || [];
   
   const { data: intakeClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "intake_verified", limit: 100, offset: 0 });
-  const triageClaims = intakeClaimsData?.items || [];
+  const triageClaims = intakeClaimsData?.claims || [];
   
   const { data: assessmentClaimsData } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "under_assessment", limit: 100, offset: 0 });
-  const assessmentClaims = assessmentClaimsData?.items || [];
+  const assessmentClaims = assessmentClaimsData?.claims || [];
   
   const { data: completedClaimsDataResponse } = trpc.workflowQueries.getClaimsByState.useQuery({ state: "completed", limit: 100, offset: 0 });
-  const completedClaimsData = completedClaimsDataResponse?.items || [];
+  const completedClaimsData = completedClaimsDataResponse?.claims || [];
 
   // Historical claims analytics (admin only)
   const { data: analyticsData } = trpc.historicalClaims.getAnalyticsSummary.useQuery(

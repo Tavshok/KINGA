@@ -13,7 +13,7 @@ export default function AssessorPerformance() {
 
   // Get assessor performance metrics
   const { data: metrics, isLoading } = trpc.assessors.getPerformanceMetrics.useQuery(
-    { assessorId: user!.id },
+    { assessorId: Number(user!.id) },
     { enabled: !!user }
   );
 

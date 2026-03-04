@@ -41,7 +41,7 @@ export function IncidentReportForm({ driverId, fleetId, onComplete }: IncidentRe
   const [gpsLocation, setGpsLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [isCapturingLocation, setIsCapturingLocation] = useState(false);
 
-  const submitIncident = trpc.fleet.submitServiceRequest.useMutation({
+  const submitIncident = trpc.fleet.createServiceRequest.useMutation({
     onSuccess: () => {
       toast.success("Incident report submitted successfully", {
         description: "Your report has been sent for manager review.",
@@ -52,7 +52,7 @@ export function IncidentReportForm({ driverId, fleetId, onComplete }: IncidentRe
         setLocation("/fleet-management");
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Failed to submit incident report", {
         description: error.message,
       });
@@ -135,17 +135,16 @@ export function IncidentReportForm({ driverId, fleetId, onComplete }: IncidentRe
 
       await submitIncident.mutateAsync({
         vehicleId: formData.vehicleId,
-        requestType: "emergency",
-        serviceCategory: "bodywork",
-        title: `Incident on ${formData.incidentDate}`,
+        // requestType: "emergency",
+        // serviceCategory: "bodywork",
+        // title: `Incident on ${formData.incidentDate}`,
         description: `${formData.description}\n\nLocation: ${formData.location}${
           formData.policeReportNumber ? `\nPolice Report: ${formData.policeReportNumber}` : ""
         }${formData.witnessName ? `\nWitness: ${formData.witnessName} (${formData.witnessPhone})` : ""}${
           formData.estimatedDamage > 0 ? `\nEstimated Damage: R${formData.estimatedDamage}` : ""
         }\nVehicle Driveable: ${formData.vehicleDriveable ? "Yes" : "No"}`,
-        urgency: formData.severity === "critical" ? "critical" : formData.severity === "major" ? "high" : "medium",
-        currentMileage: undefined,
-        problemImages: problemImages.length > 0 ? problemImages : undefined,
+        serviceType: "incident_repair",
+        priority: (formData.severity === "critical" ? "urgent" : formData.severity === "major" ? "high" : "medium") as "low" | "medium" | "high" | "urgent",
       });
     } catch (error) {
       console.error("Error submitting incident report:", error);

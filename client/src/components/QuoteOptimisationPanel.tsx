@@ -58,7 +58,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
 
   const { data: result, isLoading, refetch } = trpc.quoteOptimisation.getResult.useQuery(
     { claimId },
-    { enabled: !!claimId, refetchInterval: (data) => (!data || data.status === "processing" || data.status === "pending") ? 5000 : false }
+    { enabled: !!claimId, refetchInterval: (query) => (!query.state.data || query.state.data.status === "processing" || query.state.data.status === "pending") ? 5000 : false }
   );
 
   const recordDecision = trpc.quoteOptimisation.recordDecision.useMutation({

@@ -203,11 +203,11 @@ export default function PlatformOverviewDashboard() {
                 
                 <div className="flex items-center gap-4">
                   <Badge variant={
-                    item.routing.decision === "fast_track" ? "default" :
-                    item.routing.decision === "manual_review" ? "secondary" :
+                    item.routing.routingDecision === "AI_FAST_TRACK" ? "default" :
+                    item.routing.routingDecision === "MANUAL_OVERRIDE" ? "secondary" :
                     "destructive"
                   }>
-                    {item.routing.decision?.replace(/_/g, " ")}
+                    {item.routing.routingDecision?.replace(/_/g, " ")}
                   </Badge>
                   
                   <span className="text-sm text-muted-foreground">

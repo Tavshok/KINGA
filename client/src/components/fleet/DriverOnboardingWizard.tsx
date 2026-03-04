@@ -54,7 +54,7 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
   const [isUploading, setIsUploading] = useState(false);
 
   const onboardDriver = trpc.fleet.onboardFleetDriver.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success("Driver onboarded successfully", {
         description: `${data.userName} has been added to the fleet.`,
       });
@@ -64,7 +64,7 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
         setLocation("/fleet-management");
       }
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Failed to onboard driver", {
         description: error.message,
       });
@@ -74,7 +74,7 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
   const handleNext = () => {
     // Validate current step before proceeding
     if (currentStep === 1) {
-      if (!formData.userId || !formData.hireDate) {
+      if (!formData.hireDate) {
         toast.error("Please fill in all required fields");
         return;
       }
@@ -120,7 +120,7 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
 
   const handleSubmit = async () => {
     // Validate all required fields
-    if (!formData.userId || !formData.hireDate || !formData.driverLicenseNumber || !formData.licenseExpiry) {
+    if (!formData.hireDate || !formData.driverLicenseNumber || !formData.licenseExpiry) {
       toast.error("Please fill in all required fields");
       return;
     }
@@ -134,11 +134,11 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
       // Submit onboarding request
       await onboardDriver.mutateAsync({
         fleetId,
-        userId: formData.userId,
-        driverLicenseNumber: formData.driverLicenseNumber,
-        licenseExpiry: formData.licenseExpiry,
+        userId: formData.userId ?? 0,
+        driverLicenseNumber: formData.driverLicenseNumber ?? "",
+        licenseExpiry: formData.licenseExpiry instanceof Date ? formData.licenseExpiry.toISOString().split('T')[0] : formData.licenseExpiry,
         licenseClass: formData.licenseClass,
-        hireDate: formData.hireDate,
+        hireDate: formData.hireDate instanceof Date ? formData.hireDate.toISOString().split('T')[0] : formData.hireDate,
         emergencyContactName: formData.emergencyContactName,
         emergencyContactPhone: formData.emergencyContactPhone,
       });
@@ -201,7 +201,7 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
           placeholder="Enter user ID"
           value={formData.userId || ""}
           onChange={(e) =>
-            setFormData({ ...formData, userId: parseInt(e.target.value) })
+            setFormData({ ...formData, userId: parseInt(e.target.value) || 0 })
           }
           required
         />

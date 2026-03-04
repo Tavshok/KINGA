@@ -16,11 +16,11 @@ export default function SeedData() {
   const [seedResult, setSeedResult] = useState<any>(null);
 
   const bulkSeedMutation = trpc.admin.bulkSeedClaims.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setSeedResult(data);
       setIsSeeding(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       setSeedResult({ success: false, error: error.message });
       setIsSeeding(false);
     },

@@ -48,8 +48,8 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         vehicleMake: claim.vehicleMake,
         vehicleModel: claim.vehicleModel,
         policyNumber: claim.policyNumber,
-        createdAt: claim.createdAt,
-        incidentDate: claim.incidentDate,
+        createdAt: claim.createdAt ? new Date(claim.createdAt) : null,
+        incidentDate: claim.incidentDate ? new Date(claim.incidentDate) : null,
         incidentType: claim.incidentType,
       },
       aiAssessment: aiAssessment ? {
@@ -59,7 +59,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         damageDescription: aiAssessment.damageDescription,
         detectedDamageTypes: aiAssessment.detectedDamageTypes,
       } : undefined,
-      assessorEval: assessorEval ? {
+      assessorEval: assessorEval && assessorEval.damageAssessment && assessorEval.estimatedRepairCost != null && assessorEval.estimatedDuration != null ? {
         damageAssessment: assessorEval.damageAssessment,
         estimatedRepairCost: assessorEval.estimatedRepairCost,
         laborCost: assessorEval.laborCost,
@@ -67,10 +67,18 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
         estimatedDuration: assessorEval.estimatedDuration,
         fraudRiskLevel: assessorEval.fraudRiskLevel,
         recommendations: assessorEval.recommendations,
-        disagreesWithAi: assessorEval.disagreesWithAi,
+        disagreesWithAi: assessorEval.disagreesWithAi != null ? Boolean(assessorEval.disagreesWithAi) : null,
         aiDisagreementReason: assessorEval.aiDisagreementReason,
       } : undefined,
-      quotes: quotes || [],
+      quotes: (quotes || []).map((q: any) => ({
+        id: q.id,
+        panelBeaterName: q.panelBeaterName || null,
+        amount: q.quotedAmount || 0,
+        breakdown: q.breakdown || null,
+        notes: q.notes || null,
+        status: q.status || 'pending',
+        createdAt: q.createdAt ? new Date(q.createdAt) : new Date(),
+      })),
     };
 
     exportClaimReportToPDF(reportData);
@@ -366,7 +374,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                         <div className="flex justify-between pt-2 border-t">
                           <span className="font-semibold">Total Estimate:</span>
                           <span className="font-bold text-primary">
-                            ${(assessorEval.estimatedRepairCost / 100).toFixed(2)}
+                            ${assessorEval.estimatedRepairCost != null ? (assessorEval.estimatedRepairCost / 100).toFixed(2) : "N/A"}
                           </span>
                         </div>
                       </div>

@@ -24,8 +24,8 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles } from "../drizzle/schema";
-import { eq } from "drizzle-orm";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers } from "../drizzle/schema";
+import { eq, and, desc } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
   createClaim,
@@ -98,6 +98,7 @@ import { routingPolicyVersionRouter } from "./routers/routing-policy-version";
 import { policyManagementRouter } from "./routers/policy-management";
 import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
 import { reportsRouter } from './routers/reports';
+import { executiveRouter } from './routers/executive';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -123,6 +124,7 @@ export const appRouter = router({
   policyManagement: policyManagementRouter,
   panelBeaterAnalytics: panelBeaterAnalyticsRouter,
   reports: reportsRouter,
+  executive: executiveRouter,
   intakeGate: intakeGateRouter,
   marketQuotes: marketQuotesRouter,
   agency: agencyRouter,
@@ -1038,6 +1040,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       // For now, return empty array
       return [];
     }),
+
+    // Get claims by status (for dashboards)
+    byStatus: protectedProcedure
+      .input(z.object({ status: z.string() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || undefined);
+        const conditions = [eq(claims.status, input.status as any)];
+        if (tenantId) conditions.push(eq(claims.tenantId, tenantId));
+        return await db.select().from(claims).where(and(...conditions)).orderBy(desc(claims.createdAt)).limit(200);
+      }),
 
     // Get single claim by ID
     getById: protectedProcedure
@@ -2671,73 +2686,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
   }),
 
-  // Admin operations for tier management
-  admin: router({
-    /**
-     * Update Assessor Tier (Manual Billing)
-     * 
-     * Allows admins to manually activate/deactivate Premium/Enterprise tiers
-     * for assessors after payment confirmation.
-     * 
-     * @requires Admin role
-     * @param assessorId - ID of the assessor
-     * @param tier - New tier (free/premium/enterprise)
-     * @param expiresAt - Optional expiration date for paid tiers
-     * @returns Success status
-     */
-    updateAssessorTier: protectedProcedure
-      .input(z.object({
-        assessorId: z.number(),
-        tier: z.enum(["free", "premium", "enterprise"]),
-        expiresAt: z.string().optional(), // ISO date string
-      }))
-      .mutation(async ({ input, ctx }) => {
-        if (ctx.user.role !== "admin") {
-          throw new Error("Only admins can update assessor tiers");
-        }
-
-        const { getDb } = await import("./db");
-        const { users } = await import("../drizzle/schema");
-        const { eq } = await import("drizzle-orm");
-
-        const db = await getDb();
-        if (!db) throw new Error("Database not available");
-
-        const updateData: any = {
-          assessorTier: input.tier,
-          tierActivatedAt: new Date(),
-        };
-
-        if (input.expiresAt) {
-          updateData.tierExpiresAt = new Date(input.expiresAt);
-        }
-
-        await db
-          .update(users)
-          .set(updateData)
-          .where(eq(users.id, input.assessorId));
-
-        return { success: true, message: `Assessor tier updated to ${input.tier}` };
-      }),
-
-    /**
-     * Get All Assessors with Tier Info
-     * 
-     * Returns list of all assessors with their tier status and performance metrics.
-     * 
-     * @requires Admin role
-     * @returns List of assessors
-     */
-    getAllAssessors: protectedProcedure
-      .query(async ({ ctx }) => {
-        if (ctx.user.role !== "admin") {
-          throw new Error("Only admins can view all assessors");
-        }
-
-        const assessors = await getUsersByRole("assessor");
-        return assessors;
-      }),
-  }),
+  // (admin router procedures moved to server/routers/admin.ts)
 
   // Audit trail operations
   audit: router({
@@ -3294,6 +3243,35 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     // Register a single vehicle
+    onboardFleetDriver: protectedProcedure
+      .input(z.object({
+        fleetId: z.number(),
+        userId: z.number(),
+        driverLicenseNumber: z.string(),
+        licenseExpiry: z.string().optional(),
+        licenseClass: z.string().optional(),
+        hireDate: z.string().optional(),
+        emergencyContactName: z.string().optional(),
+        emergencyContactPhone: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+        const [result] = await db.insert(fleetDrivers).values({
+          fleetId: input.fleetId,
+          userId: input.userId,
+          driverLicenseNumber: input.driverLicenseNumber,
+          licenseExpiry: input.licenseExpiry || null,
+          licenseClass: input.licenseClass || null,
+          hireDate: input.hireDate || null,
+          emergencyContactName: input.emergencyContactName || null,
+          emergencyContactPhone: input.emergencyContactPhone || null,
+          status: "active",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }).$returningId();
+        return { success: true, driverId: (result as any).id };
+      }),
     registerVehicle: protectedProcedure
       .input(z.object({
         fleetId: z.number().optional(),

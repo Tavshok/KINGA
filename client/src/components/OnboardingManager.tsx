@@ -106,7 +106,7 @@ export function OnboardingManager({ children }: OnboardingManagerProps) {
     setUserRole(mappedRole);
 
     // Check if onboarding already completed
-    const completed = hasCompletedOnboarding(user.id, user.tenantId);
+    const completed = hasCompletedOnboarding(Number(user.id), user.tenantId);
     if (completed) {
       setShowOnboarding(false);
       return;
@@ -118,14 +118,14 @@ export function OnboardingManager({ children }: OnboardingManagerProps) {
 
   const handleOnboardingComplete = () => {
     if (user && user.tenantId) {
-      markOnboardingCompleted(user.id, user.tenantId);
+      markOnboardingCompleted(Number(user.id), user.tenantId);
     }
     setShowOnboarding(false);
   };
 
   const handleOnboardingSkip = () => {
     if (user && user.tenantId) {
-      markOnboardingCompleted(user.id, user.tenantId);
+      markOnboardingCompleted(Number(user.id), user.tenantId);
     }
     setShowOnboarding(false);
   };

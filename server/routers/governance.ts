@@ -240,4 +240,53 @@ export const governanceRouter = router({
       });
     }
   }),
+
+  /** Get executive override decisions for the current tenant */
+  getExecutiveOverrides: protectedProcedure
+    .input(z.object({ limit: z.number().default(20) }).optional())
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user?.tenantId) return [];
+      const db = await getDb();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return await db
+        .select()
+        .from(workflowAuditTrail)
+        .innerJoin(claims, eq(workflowAuditTrail.claimId, claims.id))
+        .where(
+          and(
+            eq(claims.tenantId, ctx.user.tenantId),
+            eq(workflowAuditTrail.executiveOverride, 1),
+            gte(workflowAuditTrail.createdAt, thirtyDaysAgo)
+          )
+        )
+        .limit(input?.limit ?? 20);
+    }),
+
+  /** Get segregation of duties violations for the current tenant */
+  getSegregationViolations: protectedProcedure
+    .input(z.object({ limit: z.number().default(20) }).optional())
+    .query(async ({ ctx, input }) => {
+      if (!ctx.user?.tenantId) return [];
+      const db = await getDb();
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      return await db
+        .select({
+          claimId: claimInvolvementTracking.claimId,
+          userId: claimInvolvementTracking.userId,
+          stageCount: sql<number>`count(distinct ${claimInvolvementTracking.workflowStage})`,
+        })
+        .from(claimInvolvementTracking)
+        .innerJoin(claims, eq(claimInvolvementTracking.claimId, claims.id))
+        .where(
+          and(
+            eq(claims.tenantId, ctx.user.tenantId),
+            gte(claimInvolvementTracking.createdAt, thirtyDaysAgo)
+          )
+        )
+        .groupBy(sql`${claimInvolvementTracking.claimId}, ${claimInvolvementTracking.userId}`)
+        .having(sql`count(distinct ${claimInvolvementTracking.workflowStage}) > 1`)
+        .limit(input?.limit ?? 20);
+    }),
 });

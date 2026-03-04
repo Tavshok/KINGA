@@ -30,6 +30,14 @@ export default function AdminSeedData() {
     },
   });
 
+  const seedEcosystemMutation = trpc.admin.seedProductionEcosystem.useMutation({
+    onSuccess: (data) => {
+      alert(`Success! Created:\n- ${data.claimsAssigned} claims assigned\n- ${data.panelBeatersCreated} panel beaters\n- ${data.quotesCreated} quotes\n- ${data.claimsUpdated} claims updated`);
+    },
+    onError: (error: any) => {
+      alert(`Error: ${error.message}`);
+    },
+  });
   const bulkAiGenMutation = trpc.admin.bulkGenerateAiAssessments.useMutation({
     onSuccess: (data) => {
       setAiGenReport(data);
@@ -193,14 +201,7 @@ export default function AdminSeedData() {
               <Button
                 onClick={() => {
                   if (confirm("This will create assessors, panel beaters, and quotes for 5 claims. Continue?")) {
-                    trpc.admin.seedProductionEcosystem.mutate(undefined, {
-                      onSuccess: (data) => {
-                        alert(`Success! Created:\n- ${data.claimsAssigned} claims assigned\n- ${data.panelBeatersCreated} panel beaters\n- ${data.quotesCreated} quotes\n- ${data.claimsUpdated} claims updated`);
-                      },
-                      onError: (error) => {
-                        alert(`Error: ${error.message}`);
-                      },
-                    });
+                    seedEcosystemMutation.mutate(undefined);
                   }
                 }}
                 size="lg"

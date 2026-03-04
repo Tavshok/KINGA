@@ -50,7 +50,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
       setReanalysisReason("");
       refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("AI Re-Analysis Failed", {
         description: error.message,
       });
@@ -97,8 +97,8 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
   }
 
   const versions = versionHistory?.versions || [];
-  const originalVersion = versions.find((v) => !v.isReanalysis);
-  const reanalyses = versions.filter((v) => v.isReanalysis);
+  const originalVersion = versions.find((v: any) => !v.isReanalysis);
+  const reanalyses = versions.filter((v: any) => v.isReanalysis);
 
   return (
     <>
@@ -210,7 +210,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
             {reanalyses.length > 0 && (
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground">Re-Analysis History</h4>
-                {reanalyses.map((version, index) => (
+                {reanalyses.map((version: any, index: number) => (
                   <div key={version.id} className="border-l-4 border-l-green-500 pl-4 py-2 bg-slate-50 rounded-r-md">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">

@@ -491,7 +491,7 @@ function calculateFraudStatistics(claims: any[]) {
   // Calculate fraud cost impact (sum of high-risk claim amounts)
   const fraudCostImpact = claims
     .filter(c => (c.fraudRiskScore || 0) > 70)
-    .reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100; // Convert from cents
+    .reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100; // Convert from cents
   
   // Detection rate (percentage of claims with AI assessment completed)
   const assessedClaims = claims.filter(c => c.aiAssessmentCompleted).length;
@@ -532,9 +532,9 @@ function calculateFraudStatistics(claims: any[]) {
   ];
 
   // Cost impact data for bar chart
-  const highRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 70).reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100;
-  const mediumRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 40 && (c.fraudRiskScore || 0) <= 70).reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100;
-  const lowRiskCost = claims.filter(c => (c.fraudRiskScore || 0) <= 40).reduce((sum, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  const highRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 70).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  const mediumRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 40 && (c.fraudRiskScore || 0) <= 70).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  const lowRiskCost = claims.filter(c => (c.fraudRiskScore || 0) <= 40).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100;
   
   const costImpactData = [
     { category: "High Risk", amount: highRiskCost },

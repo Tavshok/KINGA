@@ -25,9 +25,10 @@ export async function generatePolicyNumber(): Promise<string> {
   const todayEnd = new Date(todayStart);
   todayEnd.setDate(todayEnd.getDate() + 1);
   
+  const todayStr = todayStart.toISOString().slice(0, 19).replace('T', ' ');
   const todayPolicies = await db.select()
     .from(insurancePolicies)
-    .where(eq(insurancePolicies.createdAt, todayStart));
+    .where(eq(insurancePolicies.createdAt, todayStr));
   
   const sequence = (todayPolicies.length + 1).toString().padStart(6, '0');
   
@@ -81,8 +82,8 @@ export async function issuePolicyFromQuote(quoteId: number) {
     premiumFrequency: quoteData.premiumFrequency,
     excessAmount: quoteData.excessAmount,
     coverageLimits: quoteData.coverageLimits,
-    coverageStartDate: startDate,
-    coverageEndDate: endDate,
+    coverageStartDate: startDate.toISOString().slice(0, 19).replace('T', ' '),
+    coverageEndDate: endDate.toISOString().slice(0, 19).replace('T', ' '),
     status: 'active',
     tenantId: quoteData.tenantId,
   });

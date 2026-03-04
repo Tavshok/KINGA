@@ -28,11 +28,11 @@ const ROLE_ROUTES: Record<string, string> = {
 };
 
 export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) {
-  const { user, isLoading } = useAuth();
+  const { user, loading } = useAuth();
   const [location, setLocation] = useLocation();
 
   useEffect(() => {
-    if (isLoading || !user) return;
+    if (loading || !user) return;
 
     const userRole = user.insurerRole;
     
@@ -49,10 +49,10 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
         setLocation(correctRoute);
       }
     }
-  }, [user, isLoading, allowedRoles, location, setLocation]);
+  }, [user, loading, allowedRoles, location, setLocation]);
 
   // Loading state
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <Card className="max-w-md">

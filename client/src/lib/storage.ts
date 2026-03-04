@@ -20,7 +20,7 @@ export async function storagePut(
   contentType: string
 ): Promise<{ url: string }> {
   // Convert Uint8Array to base64 for transmission
-  const base64 = btoa(String.fromCharCode(...data));
+  const base64 = btoa(String.fromCharCode(...Array.from(data)));
   
   // Call backend storage API
   const response = await fetch("/api/storage/upload", {

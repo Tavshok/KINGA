@@ -24,21 +24,21 @@ export function ReplayTriggerForm() {
   
   // tRPC mutations
   const replaySingle = trpc.claimReplay.replayHistoricalClaim.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success(data.message);
       setSingleClaimId("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
   
   const replayBatch = trpc.claimReplay.batchReplayHistoricalClaims.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success(`Batch replay complete: ${data.successCount}/${data.totalProcessed} succeeded`);
       setBatchClaimIds("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -79,7 +79,7 @@ export function ReplayTriggerForm() {
     replayBatch.mutate({ historicalClaimIds: ids });
   };
   
-  const filteredClaims = eligibleClaims?.filter(claim =>
+  const filteredClaims = eligibleClaims?.filter((claim: any) =>
     claim.claimReference?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     claim.id.toString().includes(searchTerm)
   );
@@ -162,7 +162,7 @@ export function ReplayTriggerForm() {
               </div>
             ) : filteredClaims && filteredClaims.length > 0 ? (
               <div className="space-y-2 max-h-96 overflow-y-auto">
-                {filteredClaims.map((claim) => (
+                {filteredClaims.map((claim: any) => (
                   <div
                     key={claim.id}
                     className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer"

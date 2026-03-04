@@ -13,17 +13,19 @@ import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
 import { Users, DollarSign, TrendingUp, Shield } from "lucide-react";
 
+type Tier = "free" | "premium" | "enterprise";
+
 export default function AdminTierManagement() {
   const { user } = useAuth();
   const [selectedAssessor, setSelectedAssessor] = useState<number | null>(null);
-  const [newTier, setNewTier] = useState<"free" | "premium" | "enterprise">("free");
+  const [newTier, setNewTier] = useState<Tier>("free");
   const [expiryMonths, setExpiryMonths] = useState<number>(1);
 
   // Fetch all assessors
   const { data: assessors, isLoading, refetch } = trpc.assessors.list.useQuery();
 
   // Update tier mutation
-  const updateTierMutation = trpc.admin.updateAssessorTier.useMutation({
+  const updateTierMutation = trpc.assessorSubscription.adminSetTier.useMutation({
     onSuccess: () => {
       toast.success("Assessor tier updated successfully");
       refetch();
@@ -42,7 +44,7 @@ export default function AdminTierManagement() {
 
     updateTierMutation.mutate({
       assessorId: selectedAssessor,
-      tier: newTier,
+      tier: newTier === "premium" ? "pro" : newTier === "enterprise" ? "pro" : "free",
       expiresAt: expiresAt.toISOString(),
     });
   };
@@ -61,8 +63,8 @@ export default function AdminTierManagement() {
   const calculateRevenue = () => {
     if (!assessors) return { monthly: 0, annual: 0, premium: 0, enterprise: 0 };
 
-    const premiumCount = assessors.filter((a) => a.assessorTier === "premium").length;
-    const enterpriseCount = assessors.filter((a) => a.assessorTier === "enterprise").length;
+    const premiumCount = assessors.filter((a) => (a as any).assessorTier === "premium").length;
+    const enterpriseCount = assessors.filter((a) => (a as any).assessorTier === "enterprise").length;
 
     const monthly = premiumCount * 50 + enterpriseCount * 150;
     const annual = monthly * 12;
@@ -209,7 +211,11 @@ export default function AdminTierManagement() {
                             size="sm"
                             onClick={() => {
                               setSelectedAssessor(assessor.id);
-                              setNewTier(assessor.assessorTier || "free");
+                              const currentTier = (assessor.assessorTier as string);
+                              setNewTier(
+                                currentTier === "premium" ? "premium" :
+                                currentTier === "enterprise" ? "enterprise" : "free"
+                              );
                             }}
                           >
                             Manage
@@ -228,9 +234,7 @@ export default function AdminTierManagement() {
                               <Label htmlFor="tier">New Tier</Label>
                               <Select
                                 value={newTier}
-                                onValueChange={(value: "free" | "premium" | "enterprise") =>
-                                  setNewTier(value)
-                                }
+                                onValueChange={(value: Tier) => setNewTier(value)}
                               >
                                 <SelectTrigger id="tier">
                                   <SelectValue placeholder="Select tier" />
@@ -238,9 +242,7 @@ export default function AdminTierManagement() {
                                 <SelectContent>
                                   <SelectItem value="free">Free</SelectItem>
                                   <SelectItem value="premium">Premium ($50/month)</SelectItem>
-                                  <SelectItem value="enterprise">
-                                    Enterprise ($150/month)
-                                  </SelectItem>
+                                  <SelectItem value="enterprise">Enterprise ($150/month)</SelectItem>
                                 </SelectContent>
                               </Select>
                             </div>

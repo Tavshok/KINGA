@@ -17,7 +17,7 @@ export default function AssessorDashboard() {
 
   // Get assigned claims
   const { data: claims = [] } = trpc.claims.byAssessor.useQuery(
-    { assessorId: user?.id || 0 },
+    { assessorId: Number(user?.id) || 0 },
     { enabled: !!user?.id }
   );
 
@@ -99,7 +99,7 @@ export default function AssessorDashboard() {
               <ClipboardCheck className="h-6 w-6 text-white" />
             </CardHeader>
             <CardContent>
-              <div className="text-3xl font-bold">{claims.filter(c => c.workflowState === 'completed').length}</div>
+              <div className="text-3xl font-bold">{claims.filter(c => c.status === 'closed' || c.workflowState === 'payment_authorized').length}</div>
               <p className="text-xs text-green-100">Assessments completed</p>
             </CardContent>
           </Card>

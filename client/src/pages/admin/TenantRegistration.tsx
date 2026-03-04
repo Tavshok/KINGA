@@ -32,13 +32,13 @@ export default function TenantRegistration() {
   });
 
   const createTenant = trpc.admin.createTenant.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success("Tenant created successfully", {
         description: `${data.displayName} has been registered with ID: ${data.id}`,
       });
       setLocation("/admin/tenants");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Failed to create tenant", {
         description: error.message,
       });

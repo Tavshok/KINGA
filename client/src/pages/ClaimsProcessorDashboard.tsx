@@ -221,7 +221,7 @@ export default function ClaimsProcessorDashboard() {
                 variant="outline" 
                 size="sm" 
                 className="mt-4"
-                onClick={refetchAll}
+                onClick={() => refetchAll()}
               >
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Refresh
@@ -284,7 +284,7 @@ export default function ClaimsProcessorDashboard() {
             <Button 
               variant="outline" 
               className="border-white/30 text-white hover:bg-white/10"
-              onClick={refetchAll}
+              onClick={() => refetchAll()}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
               Refresh All

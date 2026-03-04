@@ -1,6 +1,6 @@
 /**
  * Workflow Audit Trail Utilities
- * 
+ *
  * Provides atomic workflow transition logging to ensure
  * every claim state change is recorded in the audit trail.
  */
@@ -42,26 +42,26 @@ export interface WorkflowTransitionInput {
   confidenceScore?: number;
   executiveOverride?: boolean;
   overrideReason?: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
+}
+
+function nowStr(): string {
+  return new Date().toISOString().slice(0, 19).replace("T", " ");
 }
 
 /**
- * Log a workflow transition to the audit trail
- * 
- * This function should be called atomically with state updates
- * to ensure audit trail consistency.
- * 
- * @param input - Workflow transition details
- * @returns The created audit trail record
+ * Log a workflow transition to the audit trail.
+ * MySQL/Drizzle does not support .returning() — use $returningId() or re-select.
  */
 export async function logWorkflowTransition(input: WorkflowTransitionInput) {
   const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
 
-  const auditRecord = await db.insert(workflowAuditTrail).values({
+  const result = await db.insert(workflowAuditTrail).values({
     claimId: input.claimId,
     userId: input.userId,
     userRole: input.userRole,
-    previousState: input.previousState,
+    previousState: input.previousState ?? undefined,
     newState: input.newState,
     comments: input.comments,
     decisionValue: input.decisionValue,
@@ -70,25 +70,19 @@ export async function logWorkflowTransition(input: WorkflowTransitionInput) {
     executiveOverride: input.executiveOverride ? 1 : 0,
     overrideReason: input.overrideReason,
     metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-    createdAt: new Date(),
-  }).returning();
+    createdAt: nowStr(),
+  }).$returningId();
 
-  return auditRecord[0];
+  return result[0] ?? null;
 }
 
 /**
- * Update claim workflow state and log the transition atomically
- * 
- * This function ensures that state updates and audit logging
- * happen in a single transaction.
- * 
- * @param input - Workflow transition details
- * @returns Object containing updated claim and audit record
+ * Update claim workflow state and log the transition atomically.
  */
 export async function updateClaimStateWithAudit(input: WorkflowTransitionInput) {
   const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
 
-  // Start transaction
   return await db.transaction(async (tx) => {
     // Get current state
     const [currentClaim] = await tx
@@ -101,22 +95,28 @@ export async function updateClaimStateWithAudit(input: WorkflowTransitionInput) 
       throw new Error(`Claim ${input.claimId} not found`);
     }
 
-    // Update claim state
-    const [updatedClaim] = await tx
+    // Update claim state (no .returning() in MySQL Drizzle)
+    await tx
       .update(claims)
       .set({
         workflowState: input.newState,
-        updatedAt: new Date(),
+        updatedAt: nowStr(),
       })
+      .where(eq(claims.id, input.claimId));
+
+    // Re-fetch updated claim
+    const [updatedClaim] = await tx
+      .select()
+      .from(claims)
       .where(eq(claims.id, input.claimId))
-      .returning();
+      .limit(1);
 
     // Log transition
-    const [auditRecord] = await tx.insert(workflowAuditTrail).values({
+    const auditResult = await tx.insert(workflowAuditTrail).values({
       claimId: input.claimId,
       userId: input.userId,
       userRole: input.userRole,
-      previousState: input.previousState || (currentClaim.workflowState as WorkflowState),
+      previousState: input.previousState ?? (currentClaim.workflowState as WorkflowState) ?? undefined,
       newState: input.newState,
       comments: input.comments,
       decisionValue: input.decisionValue,
@@ -125,24 +125,22 @@ export async function updateClaimStateWithAudit(input: WorkflowTransitionInput) 
       executiveOverride: input.executiveOverride ? 1 : 0,
       overrideReason: input.overrideReason,
       metadata: input.metadata ? JSON.stringify(input.metadata) : null,
-      createdAt: new Date(),
-    }).returning();
+      createdAt: nowStr(),
+    }).$returningId();
 
     return {
       claim: updatedClaim,
-      auditRecord,
+      auditRecordId: auditResult[0] ?? null,
     };
   });
 }
 
 /**
- * Get workflow transition history for a claim
- * 
- * @param claimId - The claim ID
- * @returns Array of audit trail records
+ * Get workflow transition history for a claim.
  */
 export async function getClaimWorkflowHistory(claimId: number) {
   const db = await getDb();
+  if (!db) return [];
 
   return await db
     .select()

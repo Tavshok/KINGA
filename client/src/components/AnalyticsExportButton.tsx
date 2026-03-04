@@ -45,11 +45,11 @@ export function AnalyticsExportButton({
     new Date(new Date().getFullYear(), new Date().getMonth(), 1) // Start of current month
   );
   const [endDate, setEndDate] = useState<Date | undefined>(new Date()); // Today
-  const [format, setFormat] = useState<"pdf" | "csv">("pdf");
+  const [exportFormat, setExportFormat] = useState<"pdf" | "csv">("pdf");
   // Using sonner toast (imported above)
 
   const exportPDF = trpc.analytics.exportFastTrackPDF.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       // Convert base64 to blob and trigger download
       const byteCharacters = atob(data.data);
       const byteNumbers = new Array(byteCharacters.length);
@@ -67,23 +67,16 @@ export function AnalyticsExportButton({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast({
-        title: "Export successful",
-        description: `PDF report downloaded as ${data.filename}`,
-      });
+      toast.success("Export successful: " + `PDF report downloaded as ${data.filename}`);
       setOpen(false);
     },
     onError: (error) => {
-      toast({
-        title: "Export failed",
-        description: error.message || "Failed to generate PDF report",
-        variant: "destructive",
-      });
+      toast.error("Export failed: " + error.message || "Failed to generate PDF report");
     },
   });
 
   const exportCSV = trpc.analytics.exportFastTrackCSV.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       // Create blob and trigger download
       const blob = new Blob([data.data], { type: data.mimeType });
       const url = window.URL.createObjectURL(blob);
@@ -95,47 +88,32 @@ export function AnalyticsExportButton({
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      toast({
-        title: "Export successful",
-        description: `CSV report downloaded as ${data.filename}`,
-      });
+      toast.success("Export successful: " + `CSV report downloaded as ${data.filename}`);
       setOpen(false);
     },
     onError: (error) => {
-      toast({
-        title: "Export failed",
-        description: error.message || "Failed to generate CSV report",
-        variant: "destructive",
-      });
+      toast.error("Export failed: " + error.message || "Failed to generate CSV report");
     },
   });
 
   const handleExport = () => {
     if (!startDate || !endDate) {
-      toast({
-        title: "Invalid date range",
-        description: "Please select both start and end dates",
-        variant: "destructive",
-      });
+      toast.error("Invalid date range: " + "Please select both start and end dates");
       return;
     }
 
     if (startDate > endDate) {
-      toast({
-        title: "Invalid date range",
-        description: "Start date must be before end date",
-        variant: "destructive",
-      });
+      toast.error("Invalid date range: " + "Start date must be before end date");
       return;
     }
 
     const params = {
       tenantId,
-      startDate,
-      endDate,
+      startDate: startDate instanceof Date ? startDate.toISOString().split("T")[0] : String(startDate),
+      endDate: endDate instanceof Date ? endDate.toISOString().split("T")[0] : String(endDate),
     };
 
-    if (format === "pdf") {
+    if (exportFormat === "pdf") {
       exportPDF.mutate(params);
     } else {
       exportCSV.mutate(params);
@@ -232,8 +210,8 @@ export function AnalyticsExportButton({
             <div className="grid grid-cols-2 gap-4">
               <Button
                 type="button"
-                variant={format === "pdf" ? "default" : "outline"}
-                onClick={() => setFormat("pdf")}
+                variant={exportFormat === "pdf" ? "default" : "outline"}
+                onClick={() => setExportFormat("pdf")}
                 className="justify-start"
               >
                 <FileText className="mr-2 h-4 w-4" />
@@ -241,8 +219,8 @@ export function AnalyticsExportButton({
               </Button>
               <Button
                 type="button"
-                variant={format === "csv" ? "default" : "outline"}
-                onClick={() => setFormat("csv")}
+                variant={exportFormat === "csv" ? "default" : "outline"}
+                onClick={() => setExportFormat("csv")}
                 className="justify-start"
               >
                 <FileSpreadsheet className="mr-2 h-4 w-4" />
@@ -250,7 +228,7 @@ export function AnalyticsExportButton({
               </Button>
             </div>
             <p className="text-sm text-muted-foreground mt-1">
-              {format === "pdf"
+              {exportFormat === "pdf"
                 ? "Professional PDF report with tables and formatting"
                 : "Raw data in CSV format for further analysis"}
             </p>

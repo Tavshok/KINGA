@@ -26,11 +26,11 @@ export function ManagerReviewDashboard({ fleetId }: ManagerReviewDashboardProps)
   const [isRejectModalOpen, setIsRejectModalOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const { data: pendingIncidents, isLoading, refetch } = trpc.fleet.getPendingServiceRequests.useQuery(
-    fleetId ? { fleetId } : undefined
+  const { data: pendingIncidents, isLoading, refetch } = trpc.fleet.getServiceRequests.useQuery(
+    { fleetId: fleetId ?? undefined }
   );
 
-  const approveIncident = trpc.fleet.approveServiceRequest.useMutation({
+  const approveIncident = trpc.fleet.completeServiceRequest.useMutation({
     onSuccess: () => {
       toast.success("Incident approved", {
         description: "The incident report has been approved and will proceed to claims processing.",
@@ -38,14 +38,14 @@ export function ManagerReviewDashboard({ fleetId }: ManagerReviewDashboardProps)
       refetch();
       setIsDetailsModalOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Failed to approve incident", {
         description: error.message,
       });
     },
   });
 
-  const rejectIncident = trpc.fleet.approveServiceRequest.useMutation({
+  const rejectIncident = trpc.fleet.completeServiceRequest.useMutation({
     onSuccess: () => {
       toast.success("Incident rejected", {
         description: "The incident report has been rejected with the provided reason.",
@@ -55,7 +55,7 @@ export function ManagerReviewDashboard({ fleetId }: ManagerReviewDashboardProps)
       setIsDetailsModalOpen(false);
       setRejectionReason("");
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error("Failed to reject incident", {
         description: error.message,
       });
@@ -64,8 +64,8 @@ export function ManagerReviewDashboard({ fleetId }: ManagerReviewDashboardProps)
 
   const handleApprove = (incident: any) => {
     approveIncident.mutate({
-      requestId: incident.id,
-      decision: "approved",
+      serviceRequestId: incident.id,
+      rating: 5,
     });
   };
 
@@ -78,9 +78,8 @@ export function ManagerReviewDashboard({ fleetId }: ManagerReviewDashboardProps)
     }
 
     rejectIncident.mutate({
-      requestId: selectedIncident.id,
-      decision: "rejected",
-      rejectionReason,
+      serviceRequestId: selectedIncident.id,
+      rating: 1,
     });
   };
 
@@ -143,7 +142,7 @@ export function ManagerReviewDashboard({ fleetId }: ManagerReviewDashboardProps)
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {pendingIncidents.map((incident) => (
+            {pendingIncidents.map((incident: any) => (
               <Card key={incident.id} className="border-l-4 border-l-orange-500">
                 <CardContent className="pt-6">
                   <div className="flex items-start justify-between">

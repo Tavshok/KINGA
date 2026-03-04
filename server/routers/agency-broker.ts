@@ -26,7 +26,7 @@ import { randomUUID } from "crypto";
 
 const agencyProcedure = protectedProcedure.use(({ ctx, next }) => {
   const role = ctx.user?.role;
-  if (role !== "admin" && role !== "agency") {
+  if (role !== "admin" && role !== "platform_super_admin") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Access restricted to agency users only. Platform routes are not accessible from this domain.",
@@ -112,7 +112,7 @@ export const agencyBrokerRouter = router({
         vehicleVin: input.vehicleVin ?? null,
         notes: input.notes ?? null,
         createdBy: ctx.user.id,
-      }).$returningId();
+      }).$returningId() as { id: number }[];
 
       console.log(`[AgencyBroker] Client created: id=${result.id} by user ${ctx.user.id}`);
       return { id: result.id };
@@ -242,7 +242,7 @@ export const agencyBrokerRouter = router({
         estimatedRepairCost: input.estimatedDamageAmount ? Math.round(input.estimatedDamageAmount) : null,
         createdAt: now,
         updatedAt: now,
-      } as any).$returningId();
+      } as any).$returningId() as { id: number }[];
 
       console.log(`[AgencyBroker] Agency claim created: id=${result.id} claimNumber=${claimNumber} for client=${client.fullName}`);
       return { id: result.id, claimNumber };

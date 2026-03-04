@@ -18,7 +18,7 @@ export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/assessor/claims/:id");
-  const claimId = params?.id ? parseInt(params.id) : 0;
+  const claimId = Number(params?.id ? parseInt(params.id) : 0);
 
   // Form state for evaluation
   const [evaluation, setEvaluation] = useState({
@@ -64,7 +64,7 @@ export default function AssessorClaimDetails() {
 
     submitEvaluation.mutate({
       claimId,
-      assessorId: user!.id,
+      assessorId: Number(user!.id),
       estimatedRepairCost: Math.round(estimatedCost * 100), // Convert to cents
       laborCost: evaluation.laborCost ? Math.round(parseFloat(evaluation.laborCost) * 100) : undefined,
       partsCost: evaluation.partsCost ? Math.round(parseFloat(evaluation.partsCost) * 100) : undefined,

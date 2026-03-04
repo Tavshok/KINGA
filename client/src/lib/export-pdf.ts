@@ -109,10 +109,9 @@ export function exportClaimReportToPDF(data: ClaimReportData) {
     doc.setFont('helvetica', 'normal');
 
     const aiInfo = [
-      ['Fraud Risk Score:', data.aiAssessment.fraudRiskScore !== null ? `${data.aiAssessment.fraudRiskScore}/100` : 'Not Assessed'],
-      ['Risk Level:', data.aiAssessment.fraudRiskScore !== null 
-        ? (data.aiAssessment.fraudRiskScore >= 70 ? 'HIGH' : data.aiAssessment.fraudRiskScore >= 40 ? 'MEDIUM' : 'LOW')
-        : 'N/A'],
+      ['Fraud Risk Level:', data.aiAssessment.fraudRiskLevel ?? 'Not Assessed'],
+      ['Fraud Indicators:', data.aiAssessment.fraudIndicators ?? 'None'],
+      ['Damage Types:', data.aiAssessment.detectedDamageTypes ?? 'N/A'],
       ['AI Estimated Cost:', data.aiAssessment.estimatedCost ? `$${(data.aiAssessment.estimatedCost / 100).toFixed(2)}` : 'N/A'],
     ];
 
@@ -130,24 +129,12 @@ export function exportClaimReportToPDF(data: ClaimReportData) {
 
     yPos = (doc as any).lastAutoTable.finalY + 5;
 
-    if (data.aiAssessment.fraudFlags && data.aiAssessment.fraudFlags.length > 0) {
+    if (data.aiAssessment.damageDescription) {
       doc.setFont('helvetica', 'bold');
-      doc.text('Fraud Indicators:', 14, yPos);
+      doc.text('Damage Description:', 14, yPos);
       yPos += 5;
       doc.setFont('helvetica', 'normal');
-      data.aiAssessment.fraudFlags.forEach((flag: string) => {
-        yPos = addText(`• ${flag}`, 18, yPos, pageWidth - 30, 9);
-        yPos += 2;
-      });
-      yPos += 3;
-    }
-
-    if (data.aiAssessment.damageAnalysis) {
-      doc.setFont('helvetica', 'bold');
-      doc.text('Damage Analysis:', 14, yPos);
-      yPos += 5;
-      doc.setFont('helvetica', 'normal');
-      yPos = addText(data.aiAssessment.damageAnalysis, 14, yPos, pageWidth - 28, 9);
+      yPos = addText(data.aiAssessment.damageDescription, 14, yPos, pageWidth - 28, 9);
       yPos += 5;
     }
   }

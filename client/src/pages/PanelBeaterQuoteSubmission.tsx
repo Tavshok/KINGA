@@ -127,7 +127,7 @@ export default function PanelBeaterQuoteSubmission() {
 
     submitQuote.mutate({
       claimId,
-      panelBeaterId: user!.id,
+      panelBeaterId: Number(user!.id),
       quotedAmount: Math.round(total * 100), // Convert to cents
       laborCost: laborCost ? Math.round(parseFloat(laborCost) * 100) : undefined,
       partsCost: partsCost ? Math.round(parseFloat(partsCost) * 100) : undefined,

@@ -20,7 +20,7 @@ export default function RiskManagerDashboard() {
   // Fetch claims pending technical approval
   const { data: approvalQueueData, isLoading: queueLoading, refetch: refetchQueue } = 
     trpc.claims.byStatus.useQuery({ status: "technical_approval" });
-  const approvalQueue = approvalQueueData?.items;
+  const approvalQueue = approvalQueueData;
 
   // Fetch high-value claims
   // High value claims - using byStatus as fallback
@@ -63,7 +63,7 @@ export default function RiskManagerDashboard() {
     if (approvalAction === "approve") {
       approveTechnical.mutate({
         claimId: selectedClaim.id,
-        approvalNotes: approvalNotes || undefined,
+        selectedQuoteId: 0, // placeholder - full quote selection happens in comparison view
       });
     } else {
       // Reject logic (transition to disputed state)

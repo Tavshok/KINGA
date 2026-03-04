@@ -58,13 +58,13 @@ export async function calculateComplianceScore(vehicleId: number): Promise<Compl
 
   // Check each schedule for compliance
   for (const schedule of schedules) {
-    if (schedule.nextDueDate && schedule.nextDueDate < now) {
+    if (schedule.nextDueDate && new Date(schedule.nextDueDate) < now) {
       overdueServices++;
-      const daysOverdue = Math.floor((now.getTime() - schedule.nextDueDate.getTime()) / (1000 * 60 * 60 * 24));
+      const daysOverdue = Math.floor((now.getTime() - new Date(schedule.nextDueDate).getTime()) / (1000 * 60 * 60 * 24));
       // Deduct points based on how overdue (max 20 points per overdue service)
       totalScore -= Math.min(20, daysOverdue / 7 * 5);
     } else if (schedule.nextDueDate) {
-      const daysUntilDue = Math.floor((schedule.nextDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const daysUntilDue = Math.floor((new Date(schedule.nextDueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
       if (daysUntilDue <= 30) {
         upcomingServices++;
       }
@@ -77,7 +77,7 @@ export async function calculateComplianceScore(vehicleId: number): Promise<Compl
     const intervals: number[] = [];
     for (let i = 0; i < records.length - 1; i++) {
       const days = Math.floor(
-        (records[i].serviceDate.getTime() - records[i + 1].serviceDate.getTime()) / (1000 * 60 * 60 * 24)
+        (new Date(records[i].serviceDate).getTime() - new Date(records[i + 1].serviceDate).getTime()) / (1000 * 60 * 60 * 24)
       );
       intervals.push(days);
     }
@@ -86,7 +86,7 @@ export async function calculateComplianceScore(vehicleId: number): Promise<Compl
 
   // Bonus points for regular maintenance
   if (records.length > 0) {
-    const lastServiceDays = Math.floor((now.getTime() - records[0].serviceDate.getTime()) / (1000 * 60 * 60 * 24));
+    const lastServiceDays = Math.floor((now.getTime() - new Date(records[0].serviceDate).getTime()) / (1000 * 60 * 60 * 24));
     if (lastServiceDays < averageInterval) {
       totalScore += 5; // Bonus for recent service
     }
@@ -97,7 +97,7 @@ export async function calculateComplianceScore(vehicleId: number): Promise<Compl
     score: Math.max(0, Math.min(100, Math.round(totalScore))),
     overdueServices,
     upcomingServices,
-    lastServiceDate: records.length > 0 ? records[0].serviceDate : null,
+    lastServiceDate: records.length > 0 ? new Date(records[0].serviceDate) : null,
     averageServiceInterval: averageInterval,
   };
 }
@@ -140,7 +140,7 @@ export async function getMaintenanceAlerts(
     if (!schedule.nextDueDate) continue;
 
     const daysUntilDue = Math.floor(
-      (schedule.nextDueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+      (new Date(schedule.nextDueDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     let alertType: "overdue" | "due_soon" | "upcoming";
@@ -166,7 +166,7 @@ export async function getMaintenanceAlerts(
       model: vehicle.model,
       alertType,
       serviceType: schedule.maintenanceType as string,
-      dueDate: schedule.nextDueDate,
+      dueDate: new Date(schedule.nextDueDate),
       dueMileage: schedule.nextDueMileage,
       currentMileage: 0, // Will be populated from vehicle_mileage_logs if needed
       daysOverdue: daysUntilDue < 0 ? Math.abs(daysUntilDue) : undefined,
@@ -181,7 +181,7 @@ export async function getMaintenanceAlerts(
       return priorityOrder[a.priority] - priorityOrder[b.priority];
     }
     if (a.dueDate && b.dueDate) {
-      return a.dueDate.getTime() - b.dueDate.getTime();
+      return new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime();
     }
     return 0;
   });
@@ -212,9 +212,9 @@ export async function createMaintenanceSchedule(data: {
     intervalType: "both",
     mileageInterval: data.intervalMileage || null,
     timeInterval: data.intervalDays || null,
-    lastServiceDate: data.lastServiceDate || null,
+    lastServiceDate: data.lastServiceDate ? data.lastServiceDate.toISOString().slice(0, 19).replace('T', ' ') : null,
     lastServiceMileage: data.lastServiceMileage || null,
-    nextDueDate: data.nextDueDate || null,
+    nextDueDate: data.nextDueDate ? data.nextDueDate.toISOString().slice(0, 19).replace('T', ' ') : null,
     nextDueMileage: data.nextDueMileage || null,
     isActive: 1,
     tenantId: data.tenantId,
@@ -245,7 +245,7 @@ export async function recordMaintenanceService(data: {
   const result = await db.insert(maintenanceRecords).values({
     vehicleId: data.vehicleId,
     serviceType: data.serviceType,
-    serviceDate: data.serviceDate,
+    serviceDate: data.serviceDate.toISOString().slice(0, 19).replace('T', ' '),
     serviceMileage: data.mileageAtService,
     serviceProvider: data.serviceProvider,
     totalCost: data.cost,
@@ -258,9 +258,9 @@ export async function recordMaintenanceService(data: {
     await db
       .update(maintenanceSchedules)
       .set({
-        lastServiceDate: data.serviceDate,
+        lastServiceDate: data.serviceDate.toISOString().slice(0, 19).replace('T', ' '),
         lastServiceMileage: data.mileageAtService,
-        nextDueDate: data.nextServiceDue,
+        nextDueDate: data.nextServiceDue ? data.nextServiceDue.toISOString().slice(0, 19).replace('T', ' ') : null,
         nextDueMileage: data.mileageAtService
           ? data.mileageAtService + (await getIntervalMileage(data.vehicleId, data.serviceType))
           : null,

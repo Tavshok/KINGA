@@ -26,7 +26,7 @@ export function IntakeQueueTab() {
 
   // Assignment mutation
   const assignToProcessor = trpc.intakeGate.assignToProcessor.useMutation({
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       toast.success(data.message);
       refetch();
       // Clear assignment state for this claim
@@ -36,7 +36,7 @@ export function IntakeQueueTab() {
         return newState;
       });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast.error(error.message);
     },
   });
@@ -107,7 +107,7 @@ export function IntakeQueueTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {intakeClaims.filter(c => c.priority === "high").length}
+              {intakeClaims.filter((c: any) => c.priority === "high").length}
             </div>
           </CardContent>
         </Card>
@@ -117,7 +117,7 @@ export function IntakeQueueTab() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {intakeClaims.filter(c => c.aiPreliminaryScore !== null).length}
+              {intakeClaims.filter((c: any) => c.aiPreliminaryScore !== null).length}
             </div>
           </CardContent>
         </Card>
@@ -143,7 +143,7 @@ export function IntakeQueueTab() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {intakeClaims.map((claim) => {
+            {intakeClaims.map((claim: any) => {
               const state = assignmentState[claim.id] || {};
               
               return (
@@ -209,7 +209,7 @@ export function IntakeQueueTab() {
                           <SelectValue placeholder="Select processor" />
                         </SelectTrigger>
                         <SelectContent>
-                          {processors?.map((processor) => (
+                          {processors?.map((processor: any) => (
                             <SelectItem key={processor.id} value={processor.id.toString()}>
                               {processor.name} ({processor.assignedClaimsCount} active)
                             </SelectItem>

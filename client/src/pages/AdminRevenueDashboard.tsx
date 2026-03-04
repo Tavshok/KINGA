@@ -62,22 +62,17 @@ export function AdminRevenueDashboard() {
   }
 
   // Queries
-  const tenantRanking = trpc.monetisation.getTenantUsageRanking.useQuery({
+  const tenantRanking = trpc.monetization.getTenantUsageRanking.useQuery({
     startDate,
     endDate,
-    limit: 50,
+    // limit: 50,
   });
 
-  const revenueSimulation = trpc.monetisation.getMonthlyRevenueSimulation.useQuery({
-    month: selectedMonth,
-  });
+  const revenueSimulation = trpc.monetization.getMonthlyRevenueSimulation.useQuery({ startDate, endDate });
 
-  const highGrowthTenants = trpc.monetisation.getHighGrowthTenants.useQuery({
-    lookbackMonths: 3,
-    growthThreshold: 50,
-  });
+  const highGrowthTenants = trpc.monetization.getHighGrowthTenants.useQuery({ startDate, endDate });
 
-  const costComputeRatio = trpc.monetisation.getCostComputeRatio.useQuery({
+  const costComputeRatio = trpc.monetization.getCostComputeRatio.useQuery({
     startDate,
     endDate,
   });
@@ -140,7 +135,7 @@ export function AdminRevenueDashboard() {
               <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               <div className="text-2xl font-bold">
-                {revenueSimulation.data?.data.totalTenants || 0}
+                {revenueSimulation.data?.tenantCount || 0}
               </div>
             )}
           </CardContent>
@@ -156,7 +151,7 @@ export function AdminRevenueDashboard() {
               <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               <div className="text-2xl font-bold text-green-600">
-                ${((revenueSimulation.data?.data.totalEstimatedRevenue || 0) / 100).toLocaleString()}
+                ${((revenueSimulation.data?.totalEstimatedRevenue || 0) / 100).toLocaleString()}
               </div>
             )}
           </CardContent>
@@ -174,7 +169,7 @@ export function AdminRevenueDashboard() {
               <div className="text-2xl font-bold text-blue-600">
                 $
                 {(
-                  (revenueSimulation.data?.data.averageRevenuePerTenant || 0) / 100
+                  (revenueSimulation.data?.averageRevenuePerTenant || 0) / 100
                 ).toLocaleString()}
               </div>
             )}
@@ -191,7 +186,7 @@ export function AdminRevenueDashboard() {
               <Loader2 className="h-6 w-6 animate-spin" />
             ) : (
               <div className="text-2xl font-bold text-orange-600">
-                {highGrowthTenants.data?.data.totalHighGrowth || 0}
+                {highGrowthTenants.data?.totalHighGrowth || 0}
               </div>
             )}
           </CardContent>
@@ -221,7 +216,7 @@ export function AdminRevenueDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tenantRanking.data?.data.map((tenant, index) => (
+                {tenantRanking.data?.map((tenant: any, index: number) => (
                   <TableRow key={tenant.tenantId}>
                     <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell className="font-mono text-sm">{tenant.tenantId}</TableCell>
@@ -265,7 +260,7 @@ export function AdminRevenueDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {revenueSimulation.data?.data.tenantClassifications.map((tenant) => (
+                {revenueSimulation.data?.tenantClassifications.map((tenant: any) => (
                   <TableRow key={tenant.tenantId}>
                     <TableCell className="font-mono text-sm">{tenant.tenantId}</TableCell>
                     <TableCell>{tenant.claimsProcessed}</TableCell>
@@ -322,7 +317,7 @@ export function AdminRevenueDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {highGrowthTenants.data?.data.highGrowthTenants.map((tenant) => (
+                {highGrowthTenants.data?.highGrowthTenants.map((tenant: any) => (
                   <TableRow key={tenant.tenantId}>
                     <TableCell className="font-mono text-sm">{tenant.tenantId}</TableCell>
                     <TableCell className="text-right">{tenant.currentEvents}</TableCell>
@@ -356,7 +351,7 @@ export function AdminRevenueDashboard() {
               <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                 <p className="text-sm text-gray-600">Platform Average Cost per Compute Unit</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  ${costComputeRatio.data?.data.platformAverageCostPerUnit}
+                  ${costComputeRatio.data?.platformAverageCostPerUnit}
                 </p>
               </div>
               <Table>
@@ -371,7 +366,7 @@ export function AdminRevenueDashboard() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {costComputeRatio.data?.data.tenantMetrics.map((tenant) => (
+                  {costComputeRatio.data?.tenantMetrics.map((tenant: any) => (
                     <TableRow key={tenant.tenantId}>
                       <TableCell className="font-mono text-sm">{tenant.tenantId}</TableCell>
                       <TableCell className="text-right">{tenant.totalEvents}</TableCell>

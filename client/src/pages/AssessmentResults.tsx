@@ -613,7 +613,9 @@ export default function AssessmentResults() {
       incidentLocation: dataToUse.accidentLocation || "Unknown",
       policyNumber: dataToUse.claimNumber || `POL-${Date.now()}`,
       damagePhotos: dataToUse.damagePhotos || [],
-      selectedPanelBeaterIds: [],
+      panelBeaterChoice1: '',
+      panelBeaterChoice2: '',
+      panelBeaterChoice3: '',
     });
   };
 

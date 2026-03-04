@@ -36,7 +36,7 @@ export default function ExecutiveAnalyticsCharts() {
   // Transform volume data for recharts
   const volumeChartData = useMemo(() => {
     if (!volumeData) return [];
-    return volumeData.map((d) => ({
+    return (volumeData?.data || []).map((d: any) => ({
       date: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       total: d.total,
       fraudDetected: d.fraudDetected,
@@ -46,7 +46,7 @@ export default function ExecutiveAnalyticsCharts() {
   // Transform fraud trends for recharts
   const fraudRateData = useMemo(() => {
     if (!fraudTrends) return [];
-    return fraudTrends.map((d) => ({
+    return (fraudTrends?.data || []).map((d: any) => ({
       date: new Date(d.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
       fraudRate: d.fraudRate,
       avgScore: d.avgScore,
@@ -56,7 +56,7 @@ export default function ExecutiveAnalyticsCharts() {
   // Transform cost breakdown for recharts
   const costData = useMemo(() => {
     if (!costBreakdown) return [];
-    return costBreakdown.map((d) => ({
+    return (costBreakdown?.data || []).map((d: any) => ({
       status: d.status.replace(/_/g, " ").toUpperCase(),
       estimatedCost: d.totalEstimatedCost / 100,
       approvedAmount: d.totalApprovedAmount / 100,
@@ -67,10 +67,10 @@ export default function ExecutiveAnalyticsCharts() {
   const processingData = useMemo(() => {
     if (!processingTime) return [];
     return [
-      { stage: "Completed", days: processingTime.completed, fill: COLORS.green },
-      { stage: "Pending Triage", days: processingTime.pendingTriage, fill: COLORS.orange },
-      { stage: "Under Assessment", days: processingTime.underAssessment, fill: COLORS.blue },
-      { stage: "Awaiting Approval", days: processingTime.awaitingApproval, fill: COLORS.purple },
+      { stage: "Completed", days: (processingTime?.data as any)?.avg_days || 0, fill: COLORS.green },
+      { stage: "Pending Triage", days: 0, fill: COLORS.orange },
+      { stage: "Under Assessment", days: 0, fill: COLORS.blue },
+      { stage: "Awaiting Approval", days: 0, fill: COLORS.purple },
     ];
   }, [processingTime]);
 
@@ -78,9 +78,9 @@ export default function ExecutiveAnalyticsCharts() {
   const fraudDistData = useMemo(() => {
     if (!fraudDistribution) return [];
     return [
-      { name: "Low Risk (<30)", value: fraudDistribution.lowRisk, fill: COLORS.green },
-      { name: "Medium Risk (30-70)", value: fraudDistribution.mediumRisk, fill: COLORS.orange },
-      { name: "High Risk (>70)", value: fraudDistribution.highRisk, fill: COLORS.red },
+      { name: "Low Risk", value: (fraudDistribution?.data || []).find((d: any) => d.level === "low")?.count || 0, fill: COLORS.green },
+      { name: "Medium Risk", value: (fraudDistribution?.data || []).find((d: any) => d.level === "medium")?.count || 0, fill: COLORS.orange },
+      { name: "High Risk", value: (fraudDistribution?.data || []).find((d: any) => d.level === "high")?.count || 0, fill: COLORS.red },
     ];
   }, [fraudDistribution]);
 

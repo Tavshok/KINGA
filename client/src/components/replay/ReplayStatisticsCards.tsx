@@ -54,7 +54,7 @@ export function ReplayStatisticsCards() {
         <CardContent>
           <div className="text-2xl font-bold">{stats.decisionMatchRate.toFixed(1)}%</div>
           <p className="text-xs text-muted-foreground">
-            {stats.matchingDecisions} of {stats.totalReplays} matched
+            {Math.round((stats.decisionMatchRate / 100) * stats.totalReplays)} of {stats.totalReplays} matched
           </p>
         </CardContent>
       </Card>
@@ -67,10 +67,10 @@ export function ReplayStatisticsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {formatCurrency(Math.abs(stats.avgPayoutVariance))}
+            {formatCurrency(Math.abs(stats.averagePayoutVariancePercentage))}
           </div>
           <p className="text-xs text-muted-foreground">
-            {stats.avgPayoutVariance < 0 ? 'Savings' : 'Cost increase'} ({stats.avgPayoutVariancePercent.toFixed(1)}%)
+            {stats.averagePayoutVariancePercentage < 0 ? 'Savings' : 'Cost increase'} ({stats.averagePayoutVariancePercentage.toFixed(1)}%)
           </p>
         </CardContent>
       </Card>
@@ -83,15 +83,15 @@ export function ReplayStatisticsCards() {
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">
-            {stats.avgProcessingTimeDelta !== null 
-              ? `${stats.avgProcessingTimeDelta.toFixed(1)}h`
+            {stats.averageProcessingTimeDeltaPercentage !== null 
+              ? `${stats.averageProcessingTimeDeltaPercentage.toFixed(1)}%`
               : 'N/A'
             }
           </div>
           <p className="text-xs text-muted-foreground">
-            {stats.avgProcessingTimeDelta !== null && stats.avgProcessingTimeDelta < 0
+            {stats.averageProcessingTimeDeltaPercentage !== null && stats.averageProcessingTimeDeltaPercentage < 0
               ? 'Faster processing'
-              : stats.avgProcessingTimeDelta !== null && stats.avgProcessingTimeDelta > 0
+              : stats.averageProcessingTimeDeltaPercentage !== null && stats.averageProcessingTimeDeltaPercentage > 0
               ? 'Slower processing'
               : 'No data'
             }

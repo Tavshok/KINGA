@@ -227,7 +227,7 @@ export default function AssessorLeaderboard() {
       </Card>
 
       {/* Upgrade CTA for Free Tier Users */}
-      {user?.role === "assessor" && user?.assessorTier === "free" && (
+      {user?.role === "assessor" && (user as any)?.assessorTier === "free" && (
         <Card className="border-primary/80 bg-primary/5">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">

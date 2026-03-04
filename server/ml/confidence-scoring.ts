@@ -634,7 +634,7 @@ export async function saveConfidenceScore(result: ConfidenceScoreResult, tenantI
   const dbInstance = await getDb();
   if (!dbInstance) throw new Error("Database not available");
 
-  const [inserted] = await dbInstance
+  const [inserted] = (await dbInstance
     .insert(trainingDataScores)
     .values({
       tenantId,
@@ -651,7 +651,7 @@ export async function saveConfidenceScore(result: ConfidenceScoreResult, tenantI
       competingQuotesScore: result.components.competingQuotesScore.toString(),
       scoringAlgorithmVersion: "1.0.0",
     })
-    .$returningId();
+    .$returningId()) as { id: number }[];
 
   return inserted.id;
 }

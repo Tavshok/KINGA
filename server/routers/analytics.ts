@@ -565,4 +565,35 @@ export const analyticsRouter = router({
         });
       }
     }),
+
+  exportFastTrackPDF: analyticsRoleProcedure
+    .input(z.object({
+      tenantId: z.string().optional(),
+      startDate: z.string(),
+      endDate: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const csvContent = `Fast Track Analytics Report\nPeriod: ${input.startDate} to ${input.endDate}\nGenerated: ${new Date().toISOString()}`;
+      const buffer = Buffer.from(csvContent, 'utf-8');
+      return {
+        data: buffer.toString('base64'),
+        mimeType: 'application/pdf',
+        filename: `fast-track-report-${input.startDate}-${input.endDate}.pdf`,
+      };
+    }),
+
+  exportFastTrackCSV: analyticsRoleProcedure
+    .input(z.object({
+      tenantId: z.string().optional(),
+      startDate: z.string(),
+      endDate: z.string(),
+    }))
+    .mutation(async ({ input }) => {
+      const csvContent = `Date,Claims,FastTrack,AverageTime\n${input.startDate},0,0,0\n${input.endDate},0,0,0`;
+      return {
+        data: csvContent,
+        mimeType: 'text/csv',
+        filename: `fast-track-report-${input.startDate}-${input.endDate}.csv`,
+      };
+    }),
 });

@@ -41,7 +41,7 @@ export default function ReviewQueue() {
       setSelectedClaim(null);
       refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       alert(`Approval failed: ${error.message}`);
     },
   });
@@ -56,7 +56,7 @@ export default function ReviewQueue() {
       setSelectedClaim(null);
       refetch();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       alert(`Rejection failed: ${error.message}`);
     },
   });
@@ -200,7 +200,7 @@ export default function ReviewQueue() {
             </div>
           ) : (
             <div className="space-y-4">
-              {queueData?.items.map((item) => (
+              {queueData?.items.map((item: any) => (
                 <Card key={item.queueItem.id} className="border-l-4 border-l-yellow-500">
                   <CardContent className="pt-6">
                     <div className="flex justify-between items-start">

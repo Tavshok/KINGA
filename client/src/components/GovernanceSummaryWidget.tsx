@@ -39,11 +39,11 @@ export function GovernanceSummaryWidget() {
   useEffect(() => {
     if (overrideData && segregationData) {
       // Calculate metrics
-      const totalOverrides = overrideData.overrides?.length || 0;
+      const totalOverrides = Array.isArray(overrideData) ? overrideData.length : 0;
       const totalDecisions = 1000; // Placeholder - should come from backend
       const overrideRate = totalDecisions > 0 ? (totalOverrides / totalDecisions) * 100 : 0;
       
-      const segregationViolations = segregationData.violations?.length || 0;
+      const segregationViolations = Array.isArray(segregationData) ? segregationData.length : 0;
       
       // Routing accuracy (inverse of override rate, simplified)
       const routingAccuracy = 100 - overrideRate;

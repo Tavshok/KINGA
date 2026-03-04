@@ -107,10 +107,9 @@ export interface ExtractedClaimData {
 export async function createIngestionBatch(config: BatchUploadConfig) {
   const dbInstance = await getDb();
   if (!dbInstance) throw new Error("Database connection failed");
-  const [batch] = await dbInstance.insert(ingestionBatches).values({
+  const [batch] = (await dbInstance.insert(ingestionBatches).values({
     tenantId: config.tenantId,
-    batchId: generateBatchId(),
-    batchName: config.batchName,
+    batchName: config.batchName || generateBatchId(),
     ingestionSource: "bulk_batch",
     ingestionChannel: "web_ui",
     uploadedByUserId: config.uploadedBy,
@@ -118,7 +117,7 @@ export async function createIngestionBatch(config: BatchUploadConfig) {
     processedDocuments: 0,
     failedDocuments: 0,
     status: "pending",
-  }).$returningId();
+  }).$returningId()) as { id: number }[];
   
   return batch.id;
 }
@@ -140,7 +139,7 @@ export async function processBatchUpload(
   await dbInstance.update(ingestionBatches)
     .set({ 
       status: "processing",
-      startedAt: new Date(),
+      startedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
       totalDocuments: claimFolders.reduce((sum, folder) => sum + folder.documents.length, 0)
     })
     .where(eq(ingestionBatches.id, batchId));
@@ -159,7 +158,7 @@ export async function processBatchUpload(
   await dbInstance.update(ingestionBatches)
     .set({ 
       status: "completed",
-      completedAt: new Date(),
+      completedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
       processedDocuments: successCount,
       failedDocuments: failedCount
     })
@@ -183,13 +182,13 @@ export async function processClaimFolder(
   // 1. Create historical claim record
   const dbInstance = await getDb();
   if (!dbInstance) throw new Error("Database connection failed");
-  const [claim] = await dbInstance.insert(historicalClaims).values({
+  const [claim] = (await dbInstance.insert(historicalClaims).values({
     tenantId,
     batchId,
     claimReference: folder.claimReference,
     pipelineStatus: "documents_uploaded",
     totalDocuments: folder.documents.length,
-  }).$returningId();
+  }).$returningId()) as { id: number }[];
   
   const claimId = claim.id;
   
@@ -233,7 +232,7 @@ async function processDocument(
   // 3. Create ingestion document record
   const dbInstance = await getDb();
   if (!dbInstance) throw new Error("Database connection failed");
-  const [document] = await dbInstance.insert(ingestionDocuments).values({
+  const [document] = (await dbInstance.insert(ingestionDocuments).values({
     tenantId,
     batchId: claimId, // Link to historical claim
     documentId: generateDocumentId(),
@@ -245,7 +244,7 @@ async function processDocument(
     s3Url,
     sha256Hash: hash,
     documentType: doc.documentType || "unknown",
-  }).$returningId();
+  }).$returningId()) as { id: number }[];
   
   return document.id;
 }
@@ -378,7 +377,7 @@ async function updateHistoricalClaimWithExtractedData(
     vehicleYear: data.vehicleYear,
     vehicleRegistration: data.vehicleRegistration,
     vehicleVin: data.vehicleVin,
-    incidentDate: data.incidentDate,
+    incidentDate: data.incidentDate ? (data.incidentDate instanceof Date ? data.incidentDate.toISOString().slice(0, 19).replace('T', ' ') : data.incidentDate) : undefined,
     incidentLocation: data.incidentLocation,
     incidentDescription: data.incidentDescription,
     accidentType: data.accidentType,

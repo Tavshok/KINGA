@@ -16,7 +16,7 @@ export type DevRole =
   | "assessor_external"
   | "panel_beater";
 
-export type InsurerRole = "insurer_admin" | "risk_manager" | "claims_manager" | "executive";
+export type InsurerRole = "insurer_admin" | "risk_manager" | "claims_manager" | "executive" | "claims_processor" | "assessor_internal" | "assessor_external";
 
 export interface MockUser {
   id: string;

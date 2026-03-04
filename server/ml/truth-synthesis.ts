@@ -23,9 +23,11 @@ import {
   similarClaimsClusters,
   fraudIndicators,
   multiReferenceTruth,
-  type InsertMultiReferenceTruth,
 } from "../../drizzle/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, type InferInsertModel } from "drizzle-orm";
+
+type InsertMultiReferenceTruth = InferInsertModel<typeof multiReferenceTruth>;
+
 import { invokeLLM } from "../_core/llm";
 
 /**

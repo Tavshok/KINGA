@@ -3,11 +3,12 @@ import {
   serviceRequests, 
   serviceQuotes, 
   serviceProviders,
-  type ServiceRequest,
-  type ServiceQuote as DbServiceQuote,
-  type ServiceProvider as DbServiceProvider
 } from "../../drizzle/schema";
+import type { InferSelectModel } from "drizzle-orm";
 import { eq, and, desc } from "drizzle-orm";
+
+type DbServiceProvider = InferSelectModel<typeof serviceProviders>;
+type DbServiceQuote = InferSelectModel<typeof serviceQuotes>;
 
 /**
  * Service Quote Marketplace
@@ -17,6 +18,7 @@ import { eq, and, desc } from "drizzle-orm";
 // Use Drizzle-inferred types directly
 export type ServiceProvider = DbServiceProvider;
 export type ServiceQuote = DbServiceQuote;
+export type ServiceRequest = InferSelectModel<typeof serviceRequests>;
 
 /**
  * Create a service request
@@ -39,6 +41,7 @@ export async function createServiceRequest(data: {
   const result = await db.insert(serviceRequests).values({
     vehicleId: data.vehicleId,
     ownerId: data.ownerId,
+    submittedBy: data.ownerId,
     requestType: data.requestType || "maintenance",
     serviceCategory: data.serviceType as any,
     urgency: data.priority === "urgent" ? "critical" : data.priority as any,

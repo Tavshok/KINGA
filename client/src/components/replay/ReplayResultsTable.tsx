@@ -77,7 +77,7 @@ export function ReplayResultsTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {results.map((result) => (
+              {results.map((result: any) => (
                 <>
                   <TableRow
                     key={result.id}
