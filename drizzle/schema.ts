@@ -628,7 +628,7 @@ export const claims = mysqlTable("claims", {
 	damagePhotos: text("damage_photos"),
 	policyNumber: varchar("policy_number", { length: 100 }),
 	policyVerified: tinyint("policy_verified"),
-	status: mysqlEnum(['submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected']).default('submitted').notNull(),
+	status: mysqlEnum(['submitted','triage','assessment_pending','assessment_in_progress','quotes_pending','comparison','repair_assigned','repair_in_progress','completed','rejected','intake_pending','assessment_complete','closed']).default('submitted').notNull(),
 	workflowState: mysqlEnum("workflow_state", ['created','intake_queue','intake_verified','assigned','under_assessment','internal_review','technical_approval','financial_decision','payment_authorized','closed','disputed']),
 	assignedAssessorId: int("assigned_assessor_id"),
 	assignedPanelBeaterId: int("assigned_panel_beater_id"),
