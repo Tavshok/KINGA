@@ -79,6 +79,7 @@ import { agencyRouter } from "./routers/agency";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
+import { marketplaceRouter } from "./routers/marketplace";
 import { reviewQueueRouter } from "./routers/review-queue";
 import { monetizationRouter } from "./routers/monetization";
 import { operationalHealthRouter } from "./routers/operational-health";
@@ -133,6 +134,7 @@ export const appRouter = router({
   claimReplay: claimReplayRouter,
   automationPolicies: automationPoliciesRouter,
   claimCompletion: claimCompletionRouter,
+  marketplace: marketplaceRouter,
   ml: mlRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)

@@ -2917,6 +2917,7 @@ export const users = mysqlTable("users", {
 	averageVarianceFromFinal: int("average_variance_from_final"),
 	accuracyScore: decimal("accuracy_score", { precision: 5, scale: 2 }).default('0.00'),
 	avgCompletionTime: decimal("avg_completion_time", { precision: 6, scale: 2 }).default('0.00'),
+	marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }),
 },
 (table) => [
 		index("users_openId_unique").on(table.openId),
@@ -3126,3 +3127,56 @@ export const workflowStates = mysqlTable("workflow_states", {
 	index("idx_claim_id").on(table.claimId),
 	index("idx_tenant_id").on(table.tenantId),
 ]);
+
+// ============================================================================
+// MARKETPLACE ENTITIES
+// Assessors and panel beaters as cross-tenant marketplace actors.
+// Only approved profiles are visible to insurers.
+// ============================================================================
+
+export const marketplaceProfiles = mysqlTable("marketplace_profiles", {
+  id: varchar({ length: 36 }).notNull(),
+  type: mysqlEnum(['assessor','panel_beater']).notNull(),
+  companyName: varchar("company_name", { length: 255 }).notNull(),
+  countryId: varchar("country_id", { length: 10 }).notNull().default('ZA'),
+  contactEmail: varchar("contact_email", { length: 320 }),
+  contactPhone: varchar("contact_phone", { length: 50 }),
+  address: text(),
+  licenseNumber: varchar("license_number", { length: 100 }),
+  specializations: json(),
+  approvalStatus: mysqlEnum("approval_status", ['pending','approved','rejected']).notNull().default('pending'),
+  rejectionReason: text("rejection_reason"),
+  approvedBy: int("approved_by"),
+  approvedAt: timestamp("approved_at", { mode: 'string' }),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_marketplace_profiles_type").on(table.type),
+  index("idx_marketplace_profiles_approval_status").on(table.approvalStatus),
+  index("idx_marketplace_profiles_country_id").on(table.countryId),
+]);
+
+export type MarketplaceProfile = typeof marketplaceProfiles.$inferSelect;
+export type InsertMarketplaceProfile = typeof marketplaceProfiles.$inferInsert;
+
+export const insurerMarketplaceLinks = mysqlTable("insurer_marketplace_links", {
+  id: int().autoincrement().notNull(),
+  insurerTenantId: varchar("insurer_tenant_id", { length: 64 }).notNull(),
+  marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
+  status: mysqlEnum(['active','suspended']).notNull().default('active'),
+  linkedBy: int("linked_by"),
+  linkedAt: timestamp("linked_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  suspendedAt: timestamp("suspended_at", { mode: 'string' }),
+  suspensionReason: text("suspension_reason"),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("unique_insurer_marketplace_link").on(table.insurerTenantId, table.marketplaceProfileId),
+  index("idx_insurer_marketplace_links_tenant").on(table.insurerTenantId),
+  index("idx_insurer_marketplace_links_profile").on(table.marketplaceProfileId),
+]);
+
+export type InsurerMarketplaceLink = typeof insurerMarketplaceLinks.$inferSelect;
+export type InsertInsurerMarketplaceLink = typeof insurerMarketplaceLinks.$inferInsert;

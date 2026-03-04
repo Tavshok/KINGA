@@ -1,0 +1,8 @@
+{
+  "query": "\nALTER TABLE users ADD COLUMN IF NOT EXISTS marketplace_profile_id VARCHAR(36) NULL DEFAULT NULL;\nALTER TABLE users ADD INDEX idx_users_marketplace_profile_id (marketplace_profile_id);\nALTER TABLE users ADD CONSTRAINT fk_users_marketplace_profile FOREIGN KEY (marketplace_profile_id) REFERENCES marketplace_profiles(id) ON DELETE SET NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nALTER TABLE users ADD COLUMN IF NOT EXISTS marketplace_profile_id VARCHAR(36) NULL DEFAULT NULL;\nALTER TABLE users ADD INDEX idx_users_marketplace_profile_id (marketplace_profile_id);\nALTER TABLE users ADD CONSTRAINT fk_users_marketplace_profile FOREIGN KEY (marketplace_profile_id) REFERENCES marketplace_profiles(id) ON DELETE SET NULL;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1061 (42000) at line 3: Duplicate key name 'idx_users_marketplace_profile_id'"
+  ]
+}
