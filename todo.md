@@ -9480,3 +9480,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Render "No AI optimisation performed." when no result exists
 - [x] Register exportClaimPDF in claims router in routers.ts
 - [x] Verify TypeScript 0 errors
+
+## Executive Analytics — Real Optimisation & Override Data
+- [x] Implement getOverrideRate() in server/routers/executive.ts with tenant isolation
+- [x] Implement getMostOverriddenRepairers() grouped by marketplace_profile_id with tenant isolation
+- [x] Implement getAverageCostDeltaOnOverride() computing override vs recommended cost delta
+- [x] Implement getTotalAISavings() summing savings from accepted AI recommendations
+- [x] Update ExecutiveAnalyticsCharts.tsx with override rate KPI, most overridden repairers bar chart, avg cost delta KPI, total AI savings KPI
+- [x] Handle zero-data states gracefully in all four new sections
+- [x] Write 33 unit tests for all four procedures (server/routers/executive.test.ts)
+- [x] Verify TypeScript 0 errors
