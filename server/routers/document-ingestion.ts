@@ -119,19 +119,25 @@ export const documentIngestionRouter = router({
               console.log("[Document Upload] Uploaded to S3:", s3Key);
 
               // ---------------------------------------------------------------
-              // TRANSACTIONAL BLOCK: insert ingestionDocument + create claim
-              // If claim creation fails, the document insert is also rolled back.
+              // ATOMIC TRANSACTION: BEGIN
+              //   Step 1 — Duplicate guard (SELECT inside tx)
+              //   Step 2 — INSERT ingestionDocuments
+              //   Step 3 — INSERT claims (linked via source_document_id)
+              //   Step 4 — UPDATE ingestionDocuments.historicalClaimId back-link
+              // If any step throws, the driver issues ROLLBACK automatically.
               // ---------------------------------------------------------------
-              let docDbId: number;
-              let claimDbId: number;
-              let claimNumber: string;
+              type TxResult =
+                | { kind: "duplicate"; docDbId: number; claimDbId: number }
+                | { kind: "created"; docDbId: number; claimDbId: number; claimNumber: string };
 
-              await dbInstance.transaction(async (tx) => {
-                // 0. Application-level duplicate guard:
-                //    Check if a claim already exists for a document with the same SHA-256 hash
-                //    (catches re-uploads of identical file content before hitting the DB constraint).
+              const txResult: TxResult = await dbInstance.transaction(async (tx) => {
+                // Step 1 — Application-level duplicate guard (runs inside the tx so the
+                //           SELECT is part of the same serialisable unit as the INSERTs).
                 const existingByHash = await tx
-                  .select({ id: ingestionDocuments.id, historicalClaimId: ingestionDocuments.historicalClaimId })
+                  .select({
+                    id: ingestionDocuments.id,
+                    historicalClaimId: ingestionDocuments.historicalClaimId,
+                  })
                   .from(ingestionDocuments)
                   .where(
                     and(
@@ -145,17 +151,17 @@ export const documentIngestionRouter = router({
                   console.warn(
                     `[Document Upload] Duplicate document ingestion detected. ` +
                     `SHA-256 hash ${hash} already exists as ingestionDocument id=${existingByHash[0].id}, ` +
-                    `linked to claim id=${existingByHash[0].historicalClaimId}. Skipping claim creation.`
+                    `linked to claim id=${existingByHash[0].historicalClaimId}. Skipping.`
                   );
-                  // Surface as a skipped (not failed) result — set outer variables so the
-                  // outer return block can report the existing claim.
-                  docDbId = existingByHash[0].id;
-                  claimDbId = existingByHash[0].historicalClaimId;
-                  claimNumber = "DUPLICATE";
-                  return; // exit transaction early — no inserts
+                  // Return early — no inserts, transaction commits a no-op read
+                  return {
+                    kind: "duplicate" as const,
+                    docDbId: existingByHash[0].id,
+                    claimDbId: existingByHash[0].historicalClaimId,
+                  };
                 }
 
-                // 1. Insert ingestion document record
+                // Step 2 — INSERT ingestionDocuments
                 const [docInsertResult] = await tx.insert(ingestionDocuments).values({
                   tenantId,
                   batchId: batchDbId,
@@ -172,20 +178,22 @@ export const documentIngestionRouter = router({
                   validationStatus: "pending",
                 });
 
-                docDbId = Number(
+                const docDbId = Number(
                   (docInsertResult as unknown as { insertId: string | number }).insertId
                 );
 
-                console.log("[Document Upload] Inserted ingestionDocument, DB id:", docDbId);
+                console.log("[Document Upload] [TX] Inserted ingestionDocument, DB id:", docDbId);
 
-                // 2. Create linked claim record (status = submitted, source = document_ingestion)
-                claimNumber = generateClaimNumber();
+                // Step 3 — INSERT claims (status = intake_pending, source = document_ingestion)
+                //   If this insert fails (e.g. UNIQUE constraint on source_document_id),
+                //   the driver rolls back the ingestionDocuments insert above automatically.
+                const claimNumber = generateClaimNumber();
 
                 const [claimInsertResult] = await tx.insert(claims).values({
-                  claimantId: 0,          // Placeholder: no claimant identified yet
+                  claimantId: 0,           // Placeholder: no claimant identified yet
                   claimNumber,
                   tenantId,
-                  status: "submitted",
+                  status: "intake_pending",  // Matches Claims Processor Dashboard filter
                   workflowState: "intake_queue",
                   sourceDocumentId: docDbId,
                   claimSource: "document_ingestion",
@@ -197,30 +205,41 @@ export const documentIngestionRouter = router({
                   aiAssessmentCompleted: 0,
                 });
 
-                claimDbId = Number(
+                const claimDbId = Number(
                   (claimInsertResult as unknown as { insertId: string | number }).insertId
                 );
 
                 console.log(
-                  "[Document Upload] Created claim record, DB id:",
+                  "[Document Upload] [TX] Created claim record, DB id:",
                   claimDbId,
                   "claim_number:",
                   claimNumber
                 );
 
-                // 3. Link ingestionDocument back to the new claim (historicalClaimId)
+                // Step 4 — Back-link ingestionDocument → claim (also inside tx, rolled back on failure)
                 await tx
                   .update(ingestionDocuments)
                   .set({ historicalClaimId: claimDbId })
                   .where(eq(ingestionDocuments.id, docDbId));
-              });
 
-              // If this was a duplicate, report it as skipped (not failed)
-              if (claimNumber! === "DUPLICATE") {
+                console.log("[Document Upload] [TX] COMMIT — document and claim created atomically.");
+
+                return {
+                  kind: "created" as const,
+                  docDbId,
+                  claimDbId,
+                  claimNumber,
+                };
+              });
+              // ---------------------------------------------------------------
+              // ATOMIC TRANSACTION: END
+              // ---------------------------------------------------------------
+
+              if (txResult.kind === "duplicate") {
                 return {
                   document_id: documentId,
-                  document_db_id: docDbId!,
-                  claim_id: claimDbId!,
+                  document_db_id: txResult.docDbId,
+                  claim_id: txResult.claimDbId,
                   claim_number: null,
                   filename: doc.filename,
                   status: "skipped_duplicate",
@@ -230,9 +249,9 @@ export const documentIngestionRouter = router({
 
               return {
                 document_id: documentId,
-                document_db_id: docDbId!,
-                claim_id: claimDbId!,
-                claim_number: claimNumber!,
+                document_db_id: txResult.docDbId,
+                claim_id: txResult.claimDbId,
+                claim_number: txResult.claimNumber,
                 filename: doc.filename,
                 status: "uploaded",
               };
