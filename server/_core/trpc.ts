@@ -82,3 +82,46 @@ const requireExecutive = t.middleware(async opts => {
 });
 
 export const executiveOnlyProcedure = t.procedure.use(requireExecutive)
+
+/**
+ * Insurer Domain Procedure middleware
+ *
+ * Enforces backend-level tenant isolation for all insurer-facing procedures:
+ * - Requires authenticated user
+ * - Requires ctx.user.tenantId to be non-null (the insurer's tenant ID)
+ * - Injects ctx.insurerTenantId for downstream query filtering
+ * - Any attempt to access data outside this tenant must throw FORBIDDEN
+ */
+const requireInsurerDomain = t.middleware(async opts => {
+  const { ctx, next } = opts;
+
+  if (!ctx.user) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'Authentication required',
+    });
+  }
+
+  const tenantId = ctx.user.tenantId;
+  if (!tenantId) {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: 'User is not associated with an insurer tenant. Access denied.',
+    });
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      user: ctx.user,
+      insurerTenantId: tenantId,
+    },
+  });
+});
+
+/**
+ * Use this procedure for ALL insurer-facing endpoints.
+ * It guarantees ctx.insurerTenantId is always a non-null string,
+ * so every query MUST filter by this value to prevent cross-tenant leakage.
+ */
+export const insurerDomainProcedure = t.procedure.use(requireInsurerDomain);

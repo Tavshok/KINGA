@@ -1,18 +1,18 @@
 // @ts-nocheck
 /**
  * Workflow Query Router
- * 
+ *
  * Centralized procedures for querying claims by workflow state with:
- * - Tenant isolation
+ * - Tenant isolation via insurerDomainProcedure (ctx.insurerTenantId always set)
  * - Role-based access control
  * - Pagination support
  * - Total count tracking
  */
 
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, insurerDomainProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { claims } from "../../drizzle/schema";
-import { eq, and, count, or, isNull, inArray, desc } from "drizzle-orm";
+import { eq, and, count, inArray, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { InsurerRole, WorkflowState } from "../rbac";
 import { getDb } from "../db";
@@ -60,9 +60,6 @@ const ROLE_STATE_ACCESS: Record<InsurerRole, readonly string[]> = {
   ],
 };
 
-/**
- * Check if a role has access to a specific workflow state
- */
 function canAccessState(role: InsurerRole, state: WorkflowState): boolean {
   const allowedStates = ROLE_STATE_ACCESS[role];
   return allowedStates.includes(state);
@@ -70,9 +67,10 @@ function canAccessState(role: InsurerRole, state: WorkflowState): boolean {
 
 export const workflowQueriesRouter = router({
   /**
-   * Get claims by workflow state with pagination and role-based filtering
+   * Get claims by workflow state with pagination and role-based filtering.
+   * Strictly isolated to ctx.insurerTenantId — no cross-tenant leakage possible.
    */
-  getClaimsByState: protectedProcedure
+  getClaimsByState: insurerDomainProcedure
     .input(
       z.object({
         state: z.string(),
@@ -84,46 +82,26 @@ export const workflowQueriesRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      // Allow admin users to bypass role checks (for testing)
+      // ctx.insurerTenantId is guaranteed non-null by insurerDomainProcedure
+      const { insurerTenantId } = ctx;
+
+      // Role-based state access (admin users bypass role check)
       const isAdmin = ctx.user.role === "admin";
-
-      // Only insurer users (or admins) can query claims by state
-      if (!isAdmin && ctx.user.role !== "insurer") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only insurer tenant members can query claims by workflow state",
-        });
-      }
-
-      if (!isAdmin && !ctx.user.insurerRole) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Insurer role not found for user",
-        });
-      }
-
-      // Validate state access for user's role (skip for admin)
-      const state = input.state as WorkflowState;
-      if (!isAdmin && !canAccessState(ctx.user.insurerRole, state)) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: `Your role (${ctx.user.insurerRole}) does not have access to claims in state '${state}'`,
-        });
-      }
-
-      // Build query with tenant isolation
-      // Admin users default to "demo-insurance" tenant for testing
-      const effectiveTenantId = ctx.user.tenantId || (isAdmin ? "demo-insurance" : null);
-      if (!effectiveTenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Tenant not found" });
+      if (!isAdmin && ctx.user.insurerRole) {
+        const state = input.state as WorkflowState;
+        if (!canAccessState(ctx.user.insurerRole, state)) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: `Your role (${ctx.user.insurerRole}) does not have access to claims in state '${state}'`,
+          });
+        }
       }
 
       const whereConditions = and(
-        eq(claims.workflowState, state),
-        eq(claims.tenantId, effectiveTenantId)
+        eq(claims.workflowState, input.state),
+        eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 
-      // Get total count
       const [countResult] = await db
         .select({ count: count() })
         .from(claims)
@@ -131,7 +109,6 @@ export const workflowQueriesRouter = router({
 
       const total = countResult?.count || 0;
 
-      // Get paginated results
       const claimsList = await db
         .select()
         .from(claims)
@@ -142,7 +119,7 @@ export const workflowQueriesRouter = router({
 
       return {
         claims: claimsList,
-        items: claimsList,  // alias for backward compatibility with dashboard
+        items: claimsList,
         total,
         limit: input.limit,
         offset: input.offset,
@@ -151,14 +128,10 @@ export const workflowQueriesRouter = router({
     }),
 
   /**
-   * Get accessible states for current user's role
+   * Get claims by status values with pagination.
+   * Strictly isolated to ctx.insurerTenantId.
    */
-  /**
-   * Get claims by status values (not workflowState) with pagination.
-   * Used by Claims Processor Dashboard to show intake_pending, quotes_pending, etc.
-   * Results are ordered by created_at DESC so newest claims appear first.
-   */
-  getClaimsByStatus: protectedProcedure
+  getClaimsByStatus: insurerDomainProcedure
     .input(
       z.object({
         statuses: z.array(z.string()).min(1).max(20),
@@ -170,26 +143,13 @@ export const workflowQueriesRouter = router({
       const db = await getDb();
       if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
 
-      const isAdmin = ctx.user.role === "admin";
-
-      if (!isAdmin && ctx.user.role !== "insurer") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only insurer tenant members can query claims by status",
-        });
-      }
-
-      const effectiveTenantId = ctx.user.tenantId || (isAdmin ? "demo-insurance" : null);
-      if (!effectiveTenantId) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Tenant not found" });
-      }
+      const { insurerTenantId } = ctx;
 
       const whereConditions = and(
         inArray(claims.status, input.statuses),
-        eq(claims.tenantId, effectiveTenantId)
+        eq(claims.tenantId, insurerTenantId)   // ← strict tenant isolation
       );
 
-      // Total count
       const [countResult] = await db
         .select({ count: count() })
         .from(claims)
@@ -197,7 +157,6 @@ export const workflowQueriesRouter = router({
 
       const total = countResult?.count || 0;
 
-      // Paginated results — newest first
       const claimsList = await db
         .select()
         .from(claims)
@@ -216,25 +175,16 @@ export const workflowQueriesRouter = router({
       };
     }),
 
-  getAccessibleStates: protectedProcedure.query(async ({ ctx }) => {
-    const isAdmin = ctx.user.role === "admin";
-    if (!isAdmin && ctx.user.role !== "insurer") {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Only insurer tenant members can query accessible states",
-      });
+  /**
+   * Get accessible workflow states for the current user's insurer role.
+   */
+  getAccessibleStates: insurerDomainProcedure.query(async ({ ctx }) => {
+    if (!ctx.user.insurerRole) {
+      return { role: null, accessibleStates: [] };
     }
-
-    if (!isAdmin && !ctx.user.insurerRole) {
-      throw new TRPCError({
-        code: "FORBIDDEN",
-        message: "Insurer role not found for user",
-      });
-    }
-
     return {
       role: ctx.user.insurerRole,
-      accessibleStates: ROLE_STATE_ACCESS[ctx.user.insurerRole],
+      accessibleStates: ROLE_STATE_ACCESS[ctx.user.insurerRole as InsurerRole] ?? [],
     };
   }),
 });

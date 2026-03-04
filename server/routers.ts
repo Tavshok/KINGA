@@ -12,7 +12,7 @@
 import { COOKIE_NAME } from "@shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { publicProcedure, protectedProcedure, router } from "./_core/trpc";
+import { publicProcedure, protectedProcedure, router, insurerDomainProcedure } from "./_core/trpc";
 import { tenantRouter } from "./routers/tenant";
 import { analyticsRouter } from "./routers/analytics";
 import { simulationRouter } from "./routers/simulation";
@@ -235,25 +235,31 @@ export const appRouter = router({
 
   quoteOptimisation: router({
     // Fetch latest AI optimisation result for a claim
-    getResult: protectedProcedure
+    // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null
+    getResult: insurerDomainProcedure
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
+        // Verify claim belongs to insurer's tenant before returning optimisation result
+        const claim = await getClaimById(input.claimId, ctx.insurerTenantId);
+        if (!claim) throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
         const { getLatestOptimisationResult } = await import("./quote-ai-optimisation");
         return await getLatestOptimisationResult(input.claimId);
       }),
 
     // Insurer records their decision (accept recommendation or override)
-    recordDecision: protectedProcedure
+    // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null
+    recordDecision: insurerDomainProcedure
       .input(z.object({
         claimId: z.number(),
         accepted: z.boolean(),
         overrideReason: z.string().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
+        // Cross-tenant guard: verify claim belongs to insurer's tenant
+        const claim = await getClaimById(input.claimId, ctx.insurerTenantId);
+        if (!claim) throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
         const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
         const { quoteOptimisationResults: qor } = await import("../drizzle/schema");
         const { eq: _eq, and: _and } = await import("drizzle-orm");
         const now = new Date().toISOString().slice(0, 19).replace("T", " ");
@@ -274,12 +280,13 @@ export const appRouter = router({
       }),
 
     // Manually re-trigger AI optimisation (insurer admin action)
-    retrigger: protectedProcedure
+    // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null
+    retrigger: insurerDomainProcedure
       .input(z.object({ claimId: z.number() }))
       .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
         const { getClaimById, getQuotesByClaimId } = await import("./db");
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        // Cross-tenant guard: only fetch claim if it belongs to insurer's tenant
+        const tenantId = ctx.insurerTenantId;
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
         const allQuotes = await getQuotesByClaimId(input.claimId);
@@ -1042,16 +1049,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     }),
 
     // Get claims by status (for dashboards)
-    byStatus: protectedProcedure
+    // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null, preventing cross-tenant leakage
+    byStatus: insurerDomainProcedure
       .input(z.object({ status: z.string() }))
       .query(async ({ ctx, input }) => {
-        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || undefined);
-        const conditions = [eq(claims.status, input.status as any)];
-        if (tenantId) conditions.push(eq(claims.tenantId, tenantId));
-        return await db.select().from(claims).where(and(...conditions)).orderBy(desc(claims.createdAt)).limit(200);
+        // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
+        return await db
+          .select()
+          .from(claims)
+          .where(and(
+            eq(claims.status, input.status as any),
+            eq(claims.tenantId, ctx.insurerTenantId)   // ← strict tenant isolation
+          ))
+          .orderBy(desc(claims.createdAt))
+          .limit(200);
       }),
 
     // Get single claim by ID
@@ -1089,18 +1102,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
      * @param assessorId - ID of the assessor to assign to
      * @returns Success status
      */
-    assignToAssessor: protectedProcedure
+    // Uses insurerDomainProcedure: ctx.insurerTenantId is always non-null, preventing cross-tenant leakage
+    assignToAssessor: insurerDomainProcedure
       .input(z.object({
         claimId: z.number(),
         assessorId: z.number(),
       }))
       .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
+        const tenantId = ctx.insurerTenantId;
         
-        // Verify claim belongs to user's tenant before assignment
+        // Verify claim belongs to insurer's tenant before assignment (cross-tenant guard)
         const claim = await getClaimById(input.claimId, tenantId);
-        if (!claim) throw new Error("Claim not found or access denied");
+        if (!claim) throw new TRPCError({ code: "FORBIDDEN", message: "Claim not found or access denied" });
 
         // ── Assessor subscription cap enforcement ──────────────────────────
         // Throws TRPCError(FORBIDDEN) if free-tier monthly cap is reached.

@@ -1,15 +1,21 @@
-import { router, protectedProcedure } from "../_core/trpc";
+import { router, insurerDomainProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import { claims, aiAssessments } from "../../drizzle/schema";
-import { eq, sql, desc } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
-const executiveProcedure = protectedProcedure.use(async ({ ctx, next }) => {
-  if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Authentication required" });
-  }
-  const allowedRoles = ["admin", "executive", "risk_manager", "claims_manager", "platform_super_admin"];
+/**
+ * Executive Router
+ *
+ * All procedures use insurerDomainProcedure which guarantees:
+ * - ctx.insurerTenantId is always a non-null string
+ * - Every SQL query filters by this tenant ID
+ * - Cross-tenant access is structurally impossible
+ */
+
+// Additional role guard for executive-level access within the insurer tenant
+const executiveProcedure = insurerDomainProcedure.use(async ({ ctx, next }) => {
+  const allowedRoles = ["admin", "executive", "risk_manager", "claims_manager", "insurer_admin", "platform_super_admin"];
   const userRole = (ctx.user as any).insurerRole || ctx.user.role;
   if (!allowedRoles.includes(userRole)) {
     throw new TRPCError({ code: "FORBIDDEN", message: "Executive access required" });
@@ -24,14 +30,14 @@ export const executiveRouter = router({
       try {
         const db = await getDb();
         if (!db) return { data: [], success: false };
-        const tenantId = (ctx.user as any).tenantId;
+        const { insurerTenantId } = ctx;  // guaranteed non-null
         const since = new Date();
         since.setDate(since.getDate() - input.days);
         const rows = await (db.execute(sql`
           SELECT DATE(created_at) as date, COUNT(*) as count
           FROM claims
           WHERE created_at >= ${since.toISOString()}
-          ${tenantId ? sql`AND tenant_id = ${tenantId}` : sql``}
+            AND tenant_id = ${insurerTenantId}
           GROUP BY DATE(created_at)
           ORDER BY date ASC
         `) as any);
@@ -47,7 +53,7 @@ export const executiveRouter = router({
       try {
         const db = await getDb();
         if (!db) return { data: [], success: false };
-        const tenantId = (ctx.user as any).tenantId;
+        const { insurerTenantId } = ctx;
         const since = new Date();
         since.setDate(since.getDate() - input.days);
         const rows = await (db.execute(sql`
@@ -58,7 +64,7 @@ export const executiveRouter = router({
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
           WHERE c.created_at >= ${since.toISOString()}
-          ${tenantId ? sql`AND c.tenant_id = ${tenantId}` : sql``}
+            AND c.tenant_id = ${insurerTenantId}
           GROUP BY DATE(c.created_at)
           ORDER BY date ASC
         `) as any);
@@ -73,13 +79,13 @@ export const executiveRouter = router({
       try {
         const db = await getDb();
         if (!db) return { data: [], success: false };
-        const tenantId = (ctx.user as any).tenantId;
+        const { insurerTenantId } = ctx;
         const rows = await (db.execute(sql`
           SELECT status, COUNT(*) as count,
             AVG(approved_amount) as avg_amount,
             SUM(approved_amount) as total_amount
           FROM claims
-          ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
+          WHERE tenant_id = ${insurerTenantId}
           GROUP BY status
         `) as any);
         return { data: rows.rows as any[], success: true };
@@ -93,7 +99,7 @@ export const executiveRouter = router({
       try {
         const db = await getDb();
         if (!db) return { data: null, success: false };
-        const tenantId = (ctx.user as any).tenantId;
+        const { insurerTenantId } = ctx;
         const rows = await (db.execute(sql`
           SELECT
             AVG(CASE WHEN status = 'completed' AND closed_at IS NOT NULL
@@ -101,7 +107,7 @@ export const executiveRouter = router({
             AVG(CASE WHEN status = 'completed' AND closed_at IS NOT NULL
               THEN TIMESTAMPDIFF(DAY, created_at, closed_at) ELSE NULL END) as avg_days
           FROM claims
-          ${tenantId ? sql`WHERE tenant_id = ${tenantId}` : sql``}
+          WHERE tenant_id = ${insurerTenantId}
         `) as any);
         return { data: (rows.rows[0] as any) || null, success: true };
       } catch (e) {
@@ -114,13 +120,13 @@ export const executiveRouter = router({
       try {
         const db = await getDb();
         if (!db) return { data: [], success: false };
-        const tenantId = (ctx.user as any).tenantId;
+        const { insurerTenantId } = ctx;
         const rows = await (db.execute(sql`
           SELECT ai.fraud_risk_level as level, COUNT(*) as count
           FROM claims c
           LEFT JOIN ai_assessments ai ON c.id = ai.claim_id
           WHERE ai.fraud_risk_level IS NOT NULL
-          ${tenantId ? sql`AND c.tenant_id = ${tenantId}` : sql``}
+            AND c.tenant_id = ${insurerTenantId}
           GROUP BY ai.fraud_risk_level
         `) as any);
         return { data: rows.rows as any[], success: true };
