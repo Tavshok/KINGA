@@ -58,23 +58,26 @@ export default function ClaimsProcessorDashboard() {
     );
   }
 
-  // Fetch claims by different states
-  const { data: pendingData, isLoading: pendingLoading, refetch: refetchPending } = 
-    trpc.workflowQueries.getClaimsByState.useQuery({ state: "intake_queue", limit: 100, offset: 0 });
-  
-  const { data: inReviewData, isLoading: inReviewLoading, refetch: refetchInReview } = 
-    trpc.workflowQueries.getClaimsByState.useQuery({ state: "assigned", limit: 100, offset: 0 });
-  
-  const { data: aiFlaggedData, isLoading: aiFlaggedLoading, refetch: refetchAIFlagged } = 
-    trpc.workflowQueries.getClaimsByState.useQuery({ state: "disputed", limit: 100, offset: 0 });
-  
-  const { data: completedData, isLoading: completedLoading, refetch: refetchCompleted } = 
-    trpc.workflowQueries.getClaimsByState.useQuery({ state: "closed", limit: 100, offset: 0 });
+  // Fetch all relevant claims in a single query ordered by created_at DESC (newest first)
+  const { data: allClaimsData, isLoading: allClaimsLoading, refetch: refetchAll } =
+    trpc.workflowQueries.getClaimsByStatus.useQuery({  // eslint-disable-line react-hooks/rules-of-hooks
+      statuses: ["intake_pending", "quotes_pending", "assessment_complete", "closed"],
+      limit: 200,
+      offset: 0,
+    });
 
-  const pendingClaims = pendingData?.claims || pendingData?.items || [];
-  const inReviewClaims = inReviewData?.claims || inReviewData?.items || [];
-  const aiFlaggedClaims = aiFlaggedData?.claims || aiFlaggedData?.items || [];
-  const completedClaims = completedData?.claims || completedData?.items || [];
+  const allClaims = allClaimsData?.claims || allClaimsData?.items || [];
+
+  // Partition into dashboard sections
+  const pendingClaims = allClaims.filter((c: any) => c.status === "intake_pending");
+  const inReviewClaims = allClaims.filter((c: any) => c.status === "quotes_pending");
+  const aiFlaggedClaims = allClaims.filter((c: any) => c.status === "assessment_complete");
+  const completedClaims = allClaims.filter((c: any) => c.status === "closed");
+
+  const pendingLoading = allClaimsLoading;
+  const inReviewLoading = allClaimsLoading;
+  const aiFlaggedLoading = allClaimsLoading;
+  const completedLoading = allClaimsLoading;
 
   // Upload document mutation
   const uploadDocument = trpc.documents.upload.useMutation({
@@ -84,7 +87,7 @@ export default function ClaimsProcessorDashboard() {
       });
       setUploadDialogOpen(false);
       setSelectedClaimId(null);
-      refetchAll();
+      refetchAll(); // refetchAll is the refetch from getClaimsByStatus
     },
     onError: (error: any) => {
       toast.error("Upload Error", {
@@ -94,12 +97,8 @@ export default function ClaimsProcessorDashboard() {
     },
   });
 
-  const refetchAll = () => {
-    refetchPending();
-    refetchInReview();
-    refetchAIFlagged();
-    refetchCompleted();
-  };
+  // Single refetch for the unified status query
+  // (refetchAll is already the refetch from getClaimsByStatus above)
 
   const handleFileUpload = async (file: File) => {
     if (!selectedClaimId) return;

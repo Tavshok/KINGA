@@ -12,7 +12,7 @@
 import { router, protectedProcedure } from "../_core/trpc";
 import { z } from "zod";
 import { claims } from "../../drizzle/schema";
-import { eq, and, count, or, isNull } from "drizzle-orm";
+import { eq, and, count, or, isNull, inArray, desc } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 import type { InsurerRole, WorkflowState } from "../rbac";
 import { getDb } from "../db";
@@ -153,6 +153,69 @@ export const workflowQueriesRouter = router({
   /**
    * Get accessible states for current user's role
    */
+  /**
+   * Get claims by status values (not workflowState) with pagination.
+   * Used by Claims Processor Dashboard to show intake_pending, quotes_pending, etc.
+   * Results are ordered by created_at DESC so newest claims appear first.
+   */
+  getClaimsByStatus: protectedProcedure
+    .input(
+      z.object({
+        statuses: z.array(z.string()).min(1).max(20),
+        limit: z.number().min(1).max(200).default(100),
+        offset: z.number().min(0).default(0),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+
+      const isAdmin = ctx.user.role === "admin";
+
+      if (!isAdmin && ctx.user.role !== "insurer") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Only insurer tenant members can query claims by status",
+        });
+      }
+
+      const effectiveTenantId = ctx.user.tenantId || (isAdmin ? "demo-insurance" : null);
+      if (!effectiveTenantId) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Tenant not found" });
+      }
+
+      const whereConditions = and(
+        inArray(claims.status, input.statuses),
+        eq(claims.tenantId, effectiveTenantId)
+      );
+
+      // Total count
+      const [countResult] = await db
+        .select({ count: count() })
+        .from(claims)
+        .where(whereConditions);
+
+      const total = countResult?.count || 0;
+
+      // Paginated results — newest first
+      const claimsList = await db
+        .select()
+        .from(claims)
+        .where(whereConditions)
+        .orderBy(desc(claims.createdAt))
+        .limit(input.limit)
+        .offset(input.offset);
+
+      return {
+        claims: claimsList,
+        items: claimsList,
+        total,
+        limit: input.limit,
+        offset: input.offset,
+        hasMore: input.offset + claimsList.length < total,
+      };
+    }),
+
   getAccessibleStates: protectedProcedure.query(async ({ ctx }) => {
     const isAdmin = ctx.user.role === "admin";
     if (!isAdmin && ctx.user.role !== "insurer") {

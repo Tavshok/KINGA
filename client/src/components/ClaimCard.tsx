@@ -9,7 +9,8 @@ import {
   Eye, 
   TrendingUp,
   Brain,
-  UserPlus
+  UserPlus,
+  Clock
 } from "lucide-react";
 
 interface ClaimCardProps {
@@ -90,6 +91,11 @@ export function ClaimCard({
       created: { variant: "outline", color: "text-slate-700" },
       assigned: { variant: "secondary", color: "text-blue-700" },
       disputed: { variant: "destructive", color: "text-orange-700" },
+      // Document-ingestion statuses
+      intake_pending: { variant: "outline", color: "text-amber-700" },
+      quotes_pending: { variant: "secondary", color: "text-blue-700" },
+      assessment_complete: { variant: "default", color: "text-teal-700" },
+      closed: { variant: "default", color: "text-green-700" },
     };
 
     const config = statusConfig[status] || { variant: "outline" as const, color: "text-slate-700" };
@@ -97,6 +103,20 @@ export function ClaimCard({
     return (
       <Badge variant={config.variant} className={config.color}>
         {status.replace(/_/g, " ").toUpperCase()}
+      </Badge>
+    );
+  };
+
+  /** Returns an "Awaiting Processing" badge for intake_pending claims */
+  const getAwaitingProcessingBadge = (status?: string) => {
+    if (status !== "intake_pending") return null;
+    return (
+      <Badge
+        variant="outline"
+        className="border-amber-400 bg-amber-50 text-amber-800 font-semibold flex items-center gap-1"
+      >
+        <Clock className="h-3 w-3" />
+        Awaiting Processing
       </Badge>
     );
   };
@@ -111,6 +131,7 @@ export function ClaimCard({
             <div className="flex items-center gap-3 flex-wrap">
               <h3 className="font-bold text-lg text-primary">{claim.claimNumber}</h3>
               {getStatusBadge(claim.status || claim.workflowState)}
+              {getAwaitingProcessingBadge(claim.status)}
               {getConfidenceBadge(claim.aiConfidenceScore)}
               {getFraudRiskBadge(claim.fraudRiskScore)}
             </div>
