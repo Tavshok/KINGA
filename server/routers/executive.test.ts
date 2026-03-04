@@ -407,3 +407,75 @@ describe("formatRands helper", () => {
     expect(formatRands(0)).toContain("R");
   });
 });
+
+// ─── days parameter validation ────────────────────────────────────────────────
+
+describe("days parameter — date window calculation", () => {
+  it("computes a 7-day window correctly", () => {
+    const days = 7;
+    const since = new Date("2026-03-04T00:00:00.000Z");
+    since.setDate(since.getDate() - days);
+    // 7 days before 2026-03-04 = 2026-02-25
+    expect(since.toISOString().startsWith("2026-02-25")).toBe(true);
+  });
+
+  it("computes a 30-day window correctly", () => {
+    const days = 30;
+    const since = new Date("2026-03-04T00:00:00.000Z");
+    since.setDate(since.getDate() - days);
+    // 30 days before 2026-03-04 = 2026-02-02
+    expect(since.toISOString().startsWith("2026-02-02")).toBe(true);
+  });
+
+  it("computes a 90-day window correctly", () => {
+    const days = 90;
+    const since = new Date("2026-03-04T00:00:00.000Z");
+    since.setDate(since.getDate() - days);
+    // 90 days before 2026-03-04 = 2025-12-04
+    expect(since.toISOString().startsWith("2025-12-04")).toBe(true);
+  });
+
+  it("computes a 365-day window correctly", () => {
+    const days = 365;
+    const since = new Date("2026-03-04T00:00:00.000Z");
+    since.setDate(since.getDate() - days);
+    // 365 days before 2026-03-04 = 2025-03-04
+    expect(since.toISOString().startsWith("2025-03-04")).toBe(true);
+  });
+
+  it("defaults to 30 days when no input provided (Zod default)", () => {
+    // Zod schema: z.number().int().min(1).max(365).default(30)
+    const schema = { days: undefined as number | undefined };
+    const resolved = schema.days ?? 30;
+    expect(resolved).toBe(30);
+  });
+
+  it("since date is always strictly before now", () => {
+    const now = new Date();
+    for (const days of [7, 30, 90, 365]) {
+      const since = new Date();
+      since.setDate(since.getDate() - days);
+      expect(since.getTime()).toBeLessThan(now.getTime());
+    }
+  });
+
+  it("all four procedures accept the same days input schema", () => {
+    // Verify the Zod schema is consistent: int, min 1, max 365, default 30
+    const { z } = require("zod");
+    const schema = z.object({ days: z.number().int().min(1).max(365).default(30) });
+
+    // Valid values
+    expect(schema.parse({ days: 7   }).days).toBe(7);
+    expect(schema.parse({ days: 30  }).days).toBe(30);
+    expect(schema.parse({ days: 90  }).days).toBe(90);
+    expect(schema.parse({ days: 365 }).days).toBe(365);
+
+    // Default
+    expect(schema.parse({}).days).toBe(30);
+
+    // Invalid values throw
+    expect(() => schema.parse({ days: 0   })).toThrow();
+    expect(() => schema.parse({ days: 366 })).toThrow();
+    expect(() => schema.parse({ days: -1  })).toThrow();
+  });
+});

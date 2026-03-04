@@ -158,7 +158,8 @@ export const executiveRouter = router({
    * }
    */
   getOverrideRate: executiveProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+    .query(async ({ input, ctx }) => {
       try {
         const db = await getDb();
         if (!db) return {
@@ -166,6 +167,9 @@ export const executiveRouter = router({
           total_overrides: 0, override_percentage: 0, success: false,
         };
         const { insurerTenantId } = ctx;
+        const since = new Date();
+        since.setDate(since.getDate() - input.days);
+        const sinceISO = since.toISOString();
 
         const rows = await (db.execute(sql`
           SELECT
@@ -178,6 +182,7 @@ export const executiveRouter = router({
           INNER JOIN claims c ON c.id = qor.claim_id
           WHERE qor.status = 'completed'
             AND c.tenant_id = ${insurerTenantId}
+            AND qor.created_at >= ${sinceISO}
         `) as any);
 
         const row = rows.rows[0] as any;
@@ -225,11 +230,15 @@ export const executiveRouter = router({
    * }
    */
   getMostOverriddenRepairers: executiveProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+    .query(async ({ input, ctx }) => {
       try {
         const db = await getDb();
         if (!db) return { data: [], success: false };
         const { insurerTenantId } = ctx;
+        const since = new Date();
+        since.setDate(since.getDate() - input.days);
+        const sinceISO = since.toISOString();
 
         const rows = await (db.execute(sql`
           SELECT
@@ -248,6 +257,7 @@ export const executiveRouter = router({
           WHERE qor.status = 'completed'
             AND qor.insurer_accepted_recommendation IS NOT NULL
             AND c.tenant_id = ${insurerTenantId}
+            AND qor.created_at >= ${sinceISO}
           GROUP BY qor.recommended_profile_id, company_name
           ORDER BY total_overrides DESC
           LIMIT 10
@@ -292,7 +302,8 @@ export const executiveRouter = router({
    * }
    */
   getAverageCostDeltaOnOverride: executiveProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+    .query(async ({ input, ctx }) => {
       try {
         const db = await getDb();
         if (!db) return {
@@ -300,6 +311,9 @@ export const executiveRouter = router({
           override_count: 0, success: false,
         };
         const { insurerTenantId } = ctx;
+        const since = new Date();
+        since.setDate(since.getDate() - input.days);
+        const sinceISO = since.toISOString();
 
         // We compute:
         //   accepted_cost  = MIN(quoted_amount) WHERE status = 'accepted' for the claim
@@ -329,6 +343,7 @@ export const executiveRouter = router({
           WHERE qor.status                          = 'completed'
             AND qor.insurer_accepted_recommendation = 0
             AND c.tenant_id                         = ${insurerTenantId}
+            AND qor.created_at                      >= ${sinceISO}
         `) as any);
 
         const row = rows.rows[0] as any;
@@ -374,7 +389,8 @@ export const executiveRouter = router({
    * }
    */
   getTotalAISavings: executiveProcedure
-    .query(async ({ ctx }) => {
+    .input(z.object({ days: z.number().int().min(1).max(365).default(30) }))
+    .query(async ({ input, ctx }) => {
       try {
         const db = await getDb();
         if (!db) return {
@@ -384,6 +400,9 @@ export const executiveRouter = router({
           success: false,
         };
         const { insurerTenantId } = ctx;
+        const since = new Date();
+        since.setDate(since.getDate() - input.days);
+        const sinceISO = since.toISOString();
 
         // For each accepted-recommendation claim:
         //   saving = (min quote for claim that is NOT the accepted quote) - accepted_quote
@@ -422,6 +441,7 @@ export const executiveRouter = router({
           WHERE qor.status                          = 'completed'
             AND qor.insurer_accepted_recommendation = 1
             AND c.tenant_id                         = ${insurerTenantId}
+            AND qor.created_at                      >= ${sinceISO}
         `) as any);
 
         const row = rows.rows[0] as any;

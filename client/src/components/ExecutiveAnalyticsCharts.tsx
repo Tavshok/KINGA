@@ -123,10 +123,10 @@ export default function ExecutiveAnalyticsCharts() {
   const { data: fraudDistribution, isLoading: distLoading }     = trpc.executive.getFraudRiskDistribution.useQuery();
 
   // ── New queries ─────────────────────────────────────────────────────────────
-  const { data: overrideRateData,     isLoading: overrideRateLoading }     = trpc.executive.getOverrideRate.useQuery();
-  const { data: overridedRepairers,   isLoading: overridedRepairersLoading } = trpc.executive.getMostOverriddenRepairers.useQuery();
-  const { data: costDeltaData,        isLoading: costDeltaLoading }         = trpc.executive.getAverageCostDeltaOnOverride.useQuery();
-  const { data: aiSavingsData,        isLoading: aiSavingsLoading }         = trpc.executive.getTotalAISavings.useQuery();
+  const { data: overrideRateData,     isLoading: overrideRateLoading }     = trpc.executive.getOverrideRate.useQuery({ days: timeRange });
+  const { data: overridedRepairers,   isLoading: overridedRepairersLoading } = trpc.executive.getMostOverriddenRepairers.useQuery({ days: timeRange });
+  const { data: costDeltaData,        isLoading: costDeltaLoading }         = trpc.executive.getAverageCostDeltaOnOverride.useQuery({ days: timeRange });
+  const { data: aiSavingsData,        isLoading: aiSavingsLoading }         = trpc.executive.getTotalAISavings.useQuery({ days: timeRange });
 
   // ── Transform: volume ───────────────────────────────────────────────────────
   const volumeChartData = useMemo(() => {
