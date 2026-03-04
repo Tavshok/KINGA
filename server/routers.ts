@@ -139,6 +139,98 @@ export const appRouter = router({
   automationPolicies: automationPoliciesRouter,
   claimCompletion: claimCompletionRouter,
   marketplace: marketplaceRouter,
+  // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
+  assessorSubscription: router({
+    /**
+     * Get the current assessor's subscription status and monthly usage.
+     * Assessors call this to see their tier, cap, and remaining assignments.
+     */
+    getMyStatus: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Not authenticated");
+      const { getOrCreateSubscription, getMonthlyAssignmentCount } = await import("./assessor-subscription");
+      const sub = await getOrCreateSubscription(ctx.user.id);
+      const used = await getMonthlyAssignmentCount(ctx.user.id);
+      const now = new Date();
+      const isExpired = sub.tier === "pro" && sub.expiresAt !== null && new Date(sub.expiresAt) < now;
+      const effectiveTier = isExpired ? "free" : sub.tier;
+      const cap = isExpired ? 10 : sub.maxClaimsPerMonth;
+      return {
+        tier: effectiveTier as "free" | "pro",
+        maxClaimsPerMonth: cap,
+        usedThisMonth: used,
+        remaining: Math.max(0, cap - used),
+        expiresAt: sub.expiresAt,
+        isExpired,
+        upgradeAvailable: effectiveTier === "free",
+      };
+    }),
+
+    /**
+     * Get subscription status for a specific assessor (insurer/admin use).
+     */
+    getStatusByAssessorId: protectedProcedure
+      .input(z.object({ assessorId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const { getOrCreateSubscription, getMonthlyAssignmentCount } = await import("./assessor-subscription");
+        const sub = await getOrCreateSubscription(input.assessorId);
+        const used = await getMonthlyAssignmentCount(input.assessorId);
+        const now = new Date();
+        const isExpired = sub.tier === "pro" && sub.expiresAt !== null && new Date(sub.expiresAt) < now;
+        const effectiveTier = isExpired ? "free" : sub.tier;
+        const cap = isExpired ? 10 : sub.maxClaimsPerMonth;
+        return {
+          tier: effectiveTier as "free" | "pro",
+          maxClaimsPerMonth: cap,
+          usedThisMonth: used,
+          remaining: Math.max(0, cap - used),
+          expiresAt: sub.expiresAt,
+          isExpired,
+          upgradeAvailable: effectiveTier === "free",
+        };
+      }),
+
+    /**
+     * ADMIN: Upgrade or downgrade an assessor's tier.
+     * Pro tier sets cap to 9999 (unlimited). Free resets to 10.
+     */
+    adminSetTier: protectedProcedure
+      .input(z.object({
+        assessorId: z.number(),
+        tier: z.enum(["free", "pro"]),
+        expiresAt: z.string().optional(),
+        marketplaceProfileId: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required." });
+        }
+        const { upsertSubscription } = await import("./assessor-subscription");
+        const result = await upsertSubscription(
+          input.assessorId,
+          input.marketplaceProfileId ?? `auto-${input.assessorId}`,
+          input.tier,
+          input.expiresAt ?? null
+        );
+        return { success: true, subscription: result };
+      }),
+
+    /**
+     * ADMIN: List all assessor subscriptions with usage.
+     */
+    adminListAll: protectedProcedure.query(async ({ ctx }) => {
+      if (!ctx.user) throw new Error("Not authenticated");
+      if (ctx.user.role !== "admin" && ctx.user.role !== "platform_super_admin") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Admin access required." });
+      }
+      const db = await getDb();
+      if (!db) return [];
+      const { assessorSubscriptions: asSubs } = await import("../drizzle/schema");
+      return await db.select().from(asSubs).orderBy(asSubs.tier);
+    }),
+  }),
+
   quoteOptimisation: router({
     // Fetch latest AI optimisation result for a claim
     getResult: protectedProcedure
@@ -994,7 +1086,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Verify claim belongs to user's tenant before assignment
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found or access denied");
-        
+
+        // ── Assessor subscription cap enforcement ──────────────────────────
+        // Throws TRPCError(FORBIDDEN) if free-tier monthly cap is reached.
+        const { checkAssignmentCap } = await import("./assessor-subscription");
+        await checkAssignmentCap(input.assessorId);
+        // ──────────────────────────────────────────────────────────────────
+
         await assignClaimToAssessor(input.claimId, input.assessorId);
         
         // Automatically progress workflow state using WorkflowEngine

@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS assessor_subscriptions (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  marketplace_profile_id VARCHAR(36) NOT NULL,\n  user_id INT NOT NULL,\n  tier ENUM('free','pro') NOT NULL DEFAULT 'free',\n  max_claims_per_month INT NOT NULL DEFAULT 10,\n  expires_at TIMESTAMP NULL DEFAULT NULL,\n  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  UNIQUE KEY uq_assessor_sub_profile (marketplace_profile_id),\n  UNIQUE KEY uq_assessor_sub_user (user_id),\n  INDEX idx_assessor_sub_tier (tier),\n  INDEX idx_assessor_sub_expires (expires_at)\n);\n\n-- Tier caps: free = 10 claims/month, pro = unlimited (9999)\n-- Default is enforced at insert time via application logic",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS assessor_subscriptions (\n  id INT AUTO_INCREMENT PRIMARY KEY,\n  marketplace_profile_id VARCHAR(36) NOT NULL,\n  user_id INT NOT NULL,\n  tier ENUM('free','pro') NOT NULL DEFAULT 'free',\n  max_claims_per_month INT NOT NULL DEFAULT 10,\n  expires_at TIMESTAMP NULL DEFAULT NULL,\n  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,\n  UNIQUE KEY uq_assessor_sub_profile (marketplace_profile_id),\n  UNIQUE KEY uq_assessor_sub_user (user_id),\n  INDEX idx_assessor_sub_tier (tier),\n  INDEX idx_assessor_sub_expires (expires_at)\n);\n\n-- Tier caps: free = 10 claims/month, pro = unlimited (9999)\n-- Default is enforced at insert time via application logic",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 603
+}

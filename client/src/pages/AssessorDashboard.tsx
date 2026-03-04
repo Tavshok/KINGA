@@ -9,6 +9,7 @@ import { useLocation } from "wouter";
 import { NotificationBell } from "@/components/NotificationBell";
 import RoleSwitcher from "@/components/RoleSwitcher";
 import { getLoginUrl } from "@/const";
+import { AssessorSubscriptionBanner } from "@/components/AssessorSubscriptionBanner";
 
 export default function AssessorDashboard() {
   const { user, logout } = useAuth();
@@ -55,6 +56,9 @@ export default function AssessorDashboard() {
 
       {/* Main Content */}
       <main className="container mx-auto px-4 py-8">
+        {/* Subscription tier banner — shows free/pro status and upgrade CTA */}
+        <AssessorSubscriptionBanner />
+
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4 mb-8">
           <Card className="bg-gradient-to-br from-primary to-secondary text-white shadow-lg hover:shadow-xl transition-shadow">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">

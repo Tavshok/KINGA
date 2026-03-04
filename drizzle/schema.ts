@@ -3351,3 +3351,33 @@ export const quoteOptimisationResults = mysqlTable("quote_optimisation_results",
 
 export type QuoteOptimisationResult = typeof quoteOptimisationResults.$inferSelect;
 export type InsertQuoteOptimisationResult = typeof quoteOptimisationResults.$inferInsert;
+
+// ─── Assessor Subscription (Free / Pro Tier) ─────────────────────────────────
+// One row per assessor. Defaults to 'free' with a 10-claim/month cap.
+// Pro tier sets max_claims_per_month = 9999 (effectively unlimited).
+// Linked to marketplace_profile_id (UUID) AND user_id for fast lookups.
+
+export const assessorSubscriptions = mysqlTable("assessor_subscriptions", {
+  id: int("id").autoincrement().primaryKey().notNull(),
+  marketplaceProfileId: varchar("marketplace_profile_id", { length: 36 }).notNull(),
+  userId: int("user_id").notNull(),
+  tier: mysqlEnum("tier", ["free", "pro"]).notNull().default("free"),
+  maxClaimsPerMonth: int("max_claims_per_month").notNull().default(10),
+  expiresAt: timestamp("expires_at", { mode: "string" }),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_asub_profile").on(table.marketplaceProfileId),
+  index("idx_asub_user").on(table.userId),
+  index("idx_asub_tier").on(table.tier),
+]);
+
+export type AssessorSubscription = typeof assessorSubscriptions.$inferSelect;
+export type InsertAssessorSubscription = typeof assessorSubscriptions.$inferInsert;
+
+/** Tier capability constants */
+export const ASSESSOR_TIER_CAPS = {
+  free: { maxClaimsPerMonth: 10, label: "Free" },
+  pro:  { maxClaimsPerMonth: 9999, label: "Pro" },
+} as const;
