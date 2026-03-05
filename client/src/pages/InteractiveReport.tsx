@@ -22,17 +22,17 @@ export default function InteractiveReport() {
   const [activeTab, setActiveTab] = useState("overview");
   
   // Fetch snapshot data
-  const { data: snapshot, isLoading } = trpc.reports.getInteractiveReport.useQuery({
+  const { data: snapshot, isLoading } = trpc.claimReports.getInteractiveReport.useQuery({
     snapshotId,
   });
   
   // Download PDF mutation
-  const downloadPdf = trpc.reports.generatePdfFromSnapshot.useMutation({
-    onSuccess: (data) => {
+  const downloadPdf = trpc.claimReports.generatePdfFromSnapshot.useMutation({
+    onSuccess: (data: { s3Url: string }) => {
       window.open(data.s3Url, "_blank");
       toast.success("PDF report opened in new tab");
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       toast.error(`Failed to download PDF: ${error.message}`);
     },
   });

@@ -34,14 +34,14 @@ export function ReportGenerationDialog({ claimId, claimNumber }: ReportGeneratio
   const [includeSupportingEvidence, setIncludeSupportingEvidence] = useState(true);
 
   // Validation query
-  const { data: validation, isLoading: isValidating } = trpc.reports.validate.useQuery(
+  const { data: validation, isLoading: isValidating } = trpc.claimReports.validate.useQuery(
     { claimId, role },
     { enabled: open }
   );
 
   // Generate report mutation
-  const generateReport = trpc.reports.generate.useMutation({
-    onSuccess: (data) => {
+  const generateReport = trpc.claimReports.generate.useMutation({
+    onSuccess: (data: { pdf: string; filename: string }) => {
       // Convert base64 to blob and download
       const byteCharacters = atob(data.pdf);
       const byteNumbers = new Array(byteCharacters.length);
@@ -65,7 +65,7 @@ export function ReportGenerationDialog({ claimId, claimNumber }: ReportGeneratio
 
       setOpen(false);
     },
-    onError: (error) => {
+    onError: (error: { message: string }) => {
       toast.error(`Report generation failed: ${error.message}`);
     },
   });
@@ -197,7 +197,7 @@ export function ReportGenerationDialog({ claimId, claimNumber }: ReportGeneratio
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-red-600">Errors:</p>
                   <ul className="list-disc list-inside text-sm text-red-600 space-y-1">
-                    {validation.dataValidation.errors.map((error, index) => (
+                    {validation.dataValidation.errors.map((error: string, index: number) => (
                       <li key={index}>{error}</li>
                     ))}
                   </ul>
@@ -209,7 +209,7 @@ export function ReportGenerationDialog({ claimId, claimNumber }: ReportGeneratio
                 <div className="space-y-1">
                   <p className="text-sm font-medium text-amber-600">Warnings:</p>
                   <ul className="list-disc list-inside text-sm text-amber-600 space-y-1">
-                    {validation.dataValidation.warnings.map((warning, index) => (
+                    {validation.dataValidation.warnings.map((warning: string, index: number) => (
                       <li key={index}>{warning}</li>
                     ))}
                   </ul>
