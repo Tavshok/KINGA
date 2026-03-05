@@ -127,10 +127,11 @@ export default function InsurerComparisonView() {
 
   // Handler for exporting damage report PDF
   const handleExportDamageReport = (aiAssessment: any, claim: any) => {
-    // Parse damaged components
-    const damagedComponents = aiAssessment.damagedComponentsJson 
+    // Parse damaged components — may be strings or objects {name, severity, location, damageType}
+    const rawComponents = aiAssessment.damagedComponentsJson 
       ? JSON.parse(aiAssessment.damagedComponentsJson) 
       : [];
+    const damagedComponents: string[] = rawComponents.map(getCompName).filter(Boolean);
 
     // Component categories for categorization
     const componentCategories = {
@@ -1078,12 +1079,21 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 }
 
 
+// Helper: extract component name whether it's a string or an object {name, severity, ...}
+function getCompName(comp: any): string {
+  if (!comp) return '';
+  if (typeof comp === 'string') return comp;
+  if (typeof comp === 'object') return comp.name || comp.component || comp.description || String(comp);
+  return String(comp);
+}
+
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
-  // Parse damaged components
-  const damagedComponents = aiAssessment.damagedComponentsJson 
+  // Parse damaged components — may be strings or objects {name, severity, location, damageType}
+  const rawComponents = aiAssessment.damagedComponentsJson 
     ? JSON.parse(aiAssessment.damagedComponentsJson) 
     : [];
+  const damagedComponents: string[] = rawComponents.map(getCompName).filter(Boolean);
 
   // Parse damage description to extract inferred hidden damage
   const damageDescription = aiAssessment.damageDescription || "";
