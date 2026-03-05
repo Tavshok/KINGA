@@ -1,169 +1,558 @@
-import { useState } from "react";
-import { trpc } from "@/lib/trpc";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "sonner";
-import { UserCog, RefreshCw, CheckCircle } from "lucide-react";
-
 /**
- * Role Setup Page
- * 
- * Quick configuration page for setting up user roles.
- * Allows users to set themselves as insurer with a specific insurerRole.
+ * RoleSetup page  (/role-setup)
+ *
+ * Three views depending on the authenticated user's role:
+ *
+ *  1. role === "user"  →  Informational dead-end prevention page.
+ *     Shows the user their current role, explains available roles,
+ *     and tells them to contact their administrator.
+ *
+ *  2. role === "admin" | "platform_super_admin"  →  Lightweight user role
+ *     manager table. Lists all users and lets the admin assign
+ *     claimant / insurer / admin roles with a confirmation dialog.
+ *
+ *  3. Any other role (insurer, claimant, etc.)  →  Shows current role info
+ *     and a link back to the portal hub.
+ *
+ * Non-goals: does NOT modify the auth system, schema, or portal routing.
  */
-export default function RoleSetup() {
-  const [selectedRole, setSelectedRole] = useState<string>("");
-  
-  const { data: currentUser, refetch: refetchUser } = trpc.auth.me.useQuery();
-  
-  const logout = trpc.auth.logout.useMutation();
-  
-  const setInsurerRole = trpc.auth.setInsurerRole.useMutation({
-    onSuccess: async (data) => {
-      toast.success("Role Updated", {
-        description: "Logging out to refresh authentication. Please log in again.",
-        duration: 3000,
-      });
-      
-      // Wait a moment for the toast to be visible
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Logout to clear JWT token
-      try {
-        await logout.mutateAsync();
-      } catch (e) {
-        console.error("Logout error:", e);
-      }
-      
-      // Redirect to login with return path to portal hub
-      window.location.href = '/login?returnTo=/portal-hub';
-    },
-    onError: (error) => {
-      toast.error("Error", {
-        description: error.message,
-      });
-    },
-  });
-  
-  const handleSetRole = () => {
-    if (!selectedRole) {
-      toast.error("No Role Selected", {
-        description: "Please select an insurer role before continuing.",
-      });
-      return;
-    }
-    
-    setInsurerRole.mutate({
-      insurerRole: selectedRole as any,
-    });
-  };
-  
-  const roleDescriptions: Record<string, string> = {
-    claims_processor: "Process claims, upload documents, and assign assessors",
-    assessor_internal: "Internal assessor - evaluate claims and provide technical assessments",
-    assessor_external: "External assessor - evaluate claims independently",
-    risk_manager: "Analyze fraud risk and technical validation",
-    claims_manager: "Manage claims workflow and make financial decisions",
-    executive: "Executive oversight with full dashboard access",
-    insurer_admin: "Administrator with full system access",
-  };
-  
+import { useState } from "react";
+import { useLocation } from "wouter";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/_core/hooks/useAuth";
+import { trpc } from "@/lib/trpc";
+import {
+  UserCog,
+  ArrowLeft,
+  ShieldCheck,
+  Users,
+  Loader2,
+  AlertCircle,
+  CheckCircle,
+} from "lucide-react";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type AssignableRole = "claimant" | "insurer" | "admin";
+type InsurerRole =
+  | "claims_processor"
+  | "internal_assessor"
+  | "risk_manager"
+  | "claims_manager"
+  | "executive";
+
+interface PendingAssignment {
+  userId: number;
+  userEmail: string | null;
+  role: AssignableRole;
+  insurerRole?: InsurerRole;
+}
+
+// ─── Role descriptions (for the informational view) ──────────────────────────
+const ROLE_DESCRIPTIONS: Record<string, { label: string; description: string }> = {
+  claimant: {
+    label: "Claimant",
+    description: "Submit and track your own insurance claims.",
+  },
+  insurer: {
+    label: "Insurer / Claims Processor",
+    description:
+      "Review, assess, and manage claims on behalf of an insurance organisation.",
+  },
+  admin: {
+    label: "Administrator",
+    description:
+      "Manage users, assign roles, and oversee platform configuration.",
+  },
+};
+
+// ─── Helper: role badge colour ────────────────────────────────────────────────
+function roleBadgeVariant(
+  role: string
+): "default" | "secondary" | "destructive" | "outline" {
+  switch (role) {
+    case "admin":
+    case "platform_super_admin":
+      return "destructive";
+    case "insurer":
+    case "claims_processor":
+      return "default";
+    case "claimant":
+      return "secondary";
+    default:
+      return "outline";
+  }
+}
+
+// ─── Informational view (role === "user") ─────────────────────────────────────
+function UnassignedUserView({ currentRole }: { currentRole: string }) {
+  const [, setLocation] = useLocation();
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex items-center justify-center p-6">
-      <Card className="w-full max-w-2xl shadow-xl">
-        <CardHeader className="bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-t-lg">
-          <div className="flex items-center gap-3">
-            <UserCog className="h-8 w-8" />
-            <div>
-              <CardTitle className="text-2xl">Role Setup</CardTitle>
-              <CardDescription className="text-teal-100">
-                Configure your user role to access the appropriate dashboard
-              </CardDescription>
-            </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
+      <Card className="w-full max-w-2xl shadow-lg">
+        <CardHeader className="text-center pb-4">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+            <AlertCircle className="h-8 w-8 text-amber-600" />
           </div>
+          <CardTitle className="text-2xl text-slate-800">
+            Account Not Yet Activated
+          </CardTitle>
+          <CardDescription className="text-base mt-1">
+            Your account has not yet been assigned a platform role.
+          </CardDescription>
         </CardHeader>
-        
-        <CardContent className="space-y-6 pt-6">
-          {/* Current User Info */}
-          {currentUser && (
-            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-              <h3 className="font-semibold text-sm text-slate-600 mb-2">Current User</h3>
-              <div className="space-y-1 text-sm">
-                <div><span className="font-medium">Name:</span> {currentUser.name}</div>
-                <div><span className="font-medium">Email:</span> {currentUser.email}</div>
-                <div><span className="font-medium">Current Role:</span> {currentUser.role || "Not set"}</div>
-                <div><span className="font-medium">Insurer Role:</span> {currentUser.insurerRole || "Not set"}</div>
-              </div>
+
+        <CardContent className="space-y-6">
+          {/* Current role */}
+          <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <UserCog className="h-5 w-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-amber-900">Your current role</p>
+              <Badge variant="outline" className="mt-1 font-mono text-xs">
+                {currentRole}
+              </Badge>
             </div>
-          )}
-          
-          {/* Role Selection */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-slate-700">
-              Select Insurer Role
-            </label>
-            <Select value={selectedRole} onValueChange={setSelectedRole}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose a role..." />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="claims_processor">Claims Processor</SelectItem>
-                <SelectItem value="assessor_internal">Internal Assessor</SelectItem>
-                <SelectItem value="assessor_external">External Assessor</SelectItem>
-                <SelectItem value="risk_manager">Risk Manager</SelectItem>
-                <SelectItem value="claims_manager">Claims Manager</SelectItem>
-                <SelectItem value="executive">Executive</SelectItem>
-                <SelectItem value="insurer_admin">Insurer Admin</SelectItem>
-              </SelectContent>
-            </Select>
-            
-            {selectedRole && (
-              <p className="text-sm text-slate-600 bg-blue-50 p-3 rounded border border-blue-200">
-                <CheckCircle className="h-4 w-4 inline mr-2 text-blue-600" />
-                {roleDescriptions[selectedRole]}
-              </p>
-            )}
           </div>
-          
-          {/* Action Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              onClick={handleSetRole}
-              disabled={!selectedRole || setInsurerRole.isPending}
-              className="flex-1"
-            >
-              {setInsurerRole.isPending ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <UserCog className="h-4 w-4 mr-2" />
-                  Set Role & Re-login
-                </>
-              )}
-            </Button>
-            
+
+          {/* Available roles */}
+          <div>
+            <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4" />
+              Available platform roles
+            </h3>
+            <div className="grid gap-3">
+              {Object.entries(ROLE_DESCRIPTIONS).map(([key, { label, description }]) => (
+                <div
+                  key={key}
+                  className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg bg-white"
+                >
+                  <Badge variant={roleBadgeVariant(key)} className="mt-0.5 shrink-0">
+                    {label}
+                  </Badge>
+                  <p className="text-sm text-slate-600">{description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Contact message */}
+          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
+            <p className="text-sm text-blue-800 font-medium">
+              Please contact your platform administrator to activate your account.
+            </p>
+            <p className="text-xs text-blue-600 mt-1">
+              Once your role is assigned you will be redirected to your portal automatically.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-center gap-3 pt-2">
             <Button
               variant="outline"
-              onClick={() => window.location.href = '/portal-hub'}
+              onClick={() => setLocation("/portal-hub")}
+              className="gap-2"
             >
-              Back to Portal Hub
+              <ArrowLeft className="h-4 w-4" />
+              Return to Portal Hub
             </Button>
-          </div>
-          
-          {/* Help Text */}
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-            <p className="text-sm text-amber-800">
-              <strong>Note:</strong> After setting your role, you will be logged out and redirected to the login page.
-              This ensures your authentication token is refreshed with the new role. After logging back in,
-              you can access the appropriate dashboard from the Portal Hub.
-            </p>
           </div>
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ─── Already-assigned view (role is set but not admin) ────────────────────────
+function AssignedUserView({ currentRole, insurerRole }: { currentRole: string; insurerRole?: string | null }) {
+  const [, setLocation] = useLocation();
+  const info = ROLE_DESCRIPTIONS[currentRole];
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
+      <Card className="w-full max-w-lg shadow-lg">
+        <CardHeader className="text-center pb-4">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+            <CheckCircle className="h-8 w-8 text-green-600" />
+          </div>
+          <CardTitle className="text-2xl text-slate-800">Role Assigned</CardTitle>
+          <CardDescription className="text-base mt-1">
+            Your account is active and ready to use.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+            <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
+            <div>
+              <p className="text-sm font-medium text-green-900">Your role</p>
+              <div className="flex items-center gap-2 mt-1">
+                <Badge variant={roleBadgeVariant(currentRole)}>{currentRole}</Badge>
+                {insurerRole && (
+                  <Badge variant="outline" className="text-xs">{insurerRole}</Badge>
+                )}
+              </div>
+              {info && (
+                <p className="text-xs text-green-700 mt-1">{info.description}</p>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-center pt-2">
+            <Button onClick={() => setLocation("/portal-hub")} className="gap-2">
+              <ArrowLeft className="h-4 w-4" />
+              Go to Portal Hub
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Admin view ───────────────────────────────────────────────────────────────
+function AdminRoleManagerView() {
+  const { toast } = useToast();
+  const utils = trpc.useUtils();
+
+  const { data: userList, isLoading, error } = trpc.platform.listAllUsers.useQuery();
+
+  const assignRole = trpc.platform.assignUserRole.useMutation({
+    onSuccess: (result) => {
+      toast({
+        title: "Role assigned",
+        description: `User updated to ${result.newRole}${result.newInsurerRole ? ` / ${result.newInsurerRole}` : ""}.`,
+      });
+      void utils.platform.listAllUsers.invalidate();
+      setPending(null);
+    },
+    onError: (err) => {
+      toast({
+        title: "Assignment failed",
+        description: err.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const [pending, setPending] = useState<PendingAssignment | null>(null);
+  const [selectedRoles, setSelectedRoles] = useState<
+    Record<number, { role: AssignableRole; insurerRole?: InsurerRole }>
+  >({});
+
+  function getSelected(userId: number) {
+    return selectedRoles[userId] ?? { role: "claimant" as AssignableRole };
+  }
+
+  function handleQuickAssign(
+    userId: number,
+    userEmail: string | null,
+    role: AssignableRole,
+    insurerRole?: InsurerRole
+  ) {
+    setPending({ userId, userEmail, role, insurerRole });
+  }
+
+  function confirmAssign() {
+    if (!pending) return;
+    assignRole.mutate({
+      userId: pending.userId,
+      role: pending.role,
+      insurerRole: pending.insurerRole,
+    });
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 text-center text-red-600">
+        Failed to load users: {error.message}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+          <Users className="h-5 w-5 text-blue-600" />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-slate-800">User Role Manager</h2>
+          <p className="text-sm text-slate-500">
+            Assign roles to users. Changes take effect immediately.
+          </p>
+        </div>
+      </div>
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Email</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Current Role</TableHead>
+                <TableHead>Insurer Role</TableHead>
+                <TableHead>Assign Role</TableHead>
+                <TableHead>Quick Assign</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {(userList ?? []).map((u) => {
+                const sel = getSelected(u.id);
+                return (
+                  <TableRow key={u.id}>
+                    <TableCell className="font-mono text-xs text-slate-600">
+                      {u.email ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-sm">{u.name ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge variant={roleBadgeVariant(u.role)}>{u.role}</Badge>
+                    </TableCell>
+                    <TableCell className="text-xs text-slate-500">
+                      {u.insurerRole ?? "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Select
+                          value={sel.role}
+                          onValueChange={(v) =>
+                            setSelectedRoles((prev) => ({
+                              ...prev,
+                              [u.id]: { ...prev[u.id], role: v as AssignableRole },
+                            }))
+                          }
+                        >
+                          <SelectTrigger className="w-32 h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="claimant">Claimant</SelectItem>
+                            <SelectItem value="insurer">Insurer</SelectItem>
+                            <SelectItem value="admin">Admin</SelectItem>
+                          </SelectContent>
+                        </Select>
+
+                        {sel.role === "insurer" && (
+                          <Select
+                            value={sel.insurerRole ?? "claims_processor"}
+                            onValueChange={(v) =>
+                              setSelectedRoles((prev) => ({
+                                ...prev,
+                                [u.id]: {
+                                  ...prev[u.id],
+                                  insurerRole: v as InsurerRole,
+                                },
+                              }))
+                            }
+                          >
+                            <SelectTrigger className="w-40 h-8 text-xs">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="claims_processor">Claims Processor</SelectItem>
+                              <SelectItem value="internal_assessor">Assessor</SelectItem>
+                              <SelectItem value="risk_manager">Risk Manager</SelectItem>
+                              <SelectItem value="claims_manager">Claims Manager</SelectItem>
+                              <SelectItem value="executive">Executive</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        )}
+
+                        <Button
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() =>
+                            handleQuickAssign(
+                              u.id,
+                              u.email,
+                              sel.role,
+                              sel.role === "insurer"
+                                ? (sel.insurerRole ?? "claims_processor")
+                                : undefined
+                            )
+                          }
+                        >
+                          Assign
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2"
+                          onClick={() => handleQuickAssign(u.id, u.email, "claimant")}
+                        >
+                          Claimant
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2"
+                          onClick={() =>
+                            handleQuickAssign(u.id, u.email, "insurer", "claims_processor")
+                          }
+                        >
+                          CP
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs px-2"
+                          onClick={() => handleQuickAssign(u.id, u.email, "admin")}
+                        >
+                          Admin
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Confirmation dialog */}
+      <Dialog open={!!pending} onOpenChange={(open) => !open && setPending(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Confirm Role Assignment</DialogTitle>
+            <DialogDescription>
+              Assign role{" "}
+              <strong>{pending?.role}</strong>
+              {pending?.insurerRole && (
+                <>
+                  {" "}/ <strong>{pending.insurerRole}</strong>
+                </>
+              )}{" "}
+              to{" "}
+              <strong>{pending?.userEmail ?? `user #${pending?.userId}`}</strong>?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPending(null)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={confirmAssign}
+              disabled={assignRole.isPending}
+              className="gap-2"
+            >
+              {assignRole.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ─── Page root ────────────────────────────────────────────────────────────────
+export default function RoleSetup() {
+  const { user, loading } = useAuth();
+
+  const [, setLocation] = useLocation();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    setLocation("/login");
+    return null;
+  }
+
+  // Admin / super-admin → role manager table
+  if (user.role === "admin" || user.role === "platform_super_admin") {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+        <div className="max-w-6xl mx-auto space-y-6">
+          {/* Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setLocation("/portal-hub")}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Portal Hub
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-slate-800">Role Setup</h1>
+                <p className="text-sm text-slate-500">
+                  Manage user role assignments across the platform.
+                </p>
+              </div>
+            </div>
+            <Badge variant="destructive" className="gap-1">
+              <ShieldCheck className="h-3 w-3" />
+              {user.role}
+            </Badge>
+          </div>
+
+          <AdminRoleManagerView />
+        </div>
+      </div>
+    );
+  }
+
+  // Unassigned (role === "user") → informational dead-end prevention
+  if (user.role === "user") {
+    return <UnassignedUserView currentRole={user.role} />;
+  }
+
+  // Any other assigned role → confirmation view with portal link
+  return (
+    <AssignedUserView
+      currentRole={user.role ?? "unknown"}
+      insurerRole={(user as { insurerRole?: string | null }).insurerRole}
+    />
   );
 }
