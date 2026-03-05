@@ -435,8 +435,30 @@ export async function triggerAiAssessment(claimId: number) {
   // Import LLM helper for vision analysis
   const { invokeLLM } = await import("./_core/llm");
 
+  // Determine if we are analysing actual damage photos or rendered PDF document pages.
+  // PDF page renders look like document pages (text, tables, diagrams) rather than
+  // physical damage photos, so we need a different prompt to extract the right data.
+  const hasPdfPageRenders = damagePhotos.length > 0 && claim.sourceDocumentId != null;
+
   // Analyze damage photos with AI vision
-  const analysisPrompt = `You are an expert auto insurance damage assessor with expertise in accident reconstruction physics. Analyze these vehicle damage photos and provide:
+  const analysisPrompt = hasPdfPageRenders
+    ? `You are an expert auto insurance claims analyst. The images provided are pages from an insurance assessment document (assessor report, repair quotation, or police report). Extract all damage and vehicle information visible in these document pages.
+
+For each document page, extract:
+1. Vehicle details (make, model, year, registration)
+2. All damaged components listed (e.g. front bumper, bonnet, left door, windscreen)
+3. Damage descriptions for each component
+4. Repair cost estimates (parts, labour, total)
+5. Accident description or incident details
+6. Assessor or repairer name
+7. Any fraud indicators (inconsistencies, unusual patterns, missing information)
+
+Based on the document content, provide a comprehensive damage assessment as if you were the original assessor. If the document shows a repair quotation or assessment report, extract all line items and map them to vehicle components.
+
+IMPORTANT: Even though these are document pages rather than physical damage photos, you must still populate ALL required fields in the JSON response. Use the document text and tables to derive values for physical measurements (use typical values for the damage type described if exact measurements are not in the document).
+
+Provide your response in JSON format.`
+    : `You are an expert auto insurance damage assessor with expertise in accident reconstruction physics. Analyze these vehicle damage photos and provide:
 
 **DAMAGE ASSESSMENT:**
 1. Detailed damage description
@@ -505,7 +527,7 @@ Provide your response in JSON format.`;
   
   // Download and base64-encode images with proper MIME types for Bedrock/Claude
   const imageContents = await Promise.all(
-    damagePhotos.slice(0, 3).map(async (urlOrText) => {
+    damagePhotos.slice(0, 6).map(async (urlOrText) => {
       try {
         // Extract actual CDN URL from manus-upload-file output if needed
         let url = urlOrText;

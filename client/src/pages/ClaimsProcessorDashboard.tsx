@@ -370,6 +370,28 @@ export default function ClaimsProcessorDashboard() {
                 )}
               </div>
 
+              {/* Data Source Badge */}
+              {claim.sourceDocumentId && (
+                <div className="flex items-center gap-1.5">
+                  <Badge variant="outline" className="text-xs text-blue-700 border-blue-300 bg-blue-50 flex items-center gap-1">
+                    <FileText className="h-3 w-3" />
+                    PDF Document Ingestion
+                  </Badge>
+                  {claim.documentProcessingStatus === "parsing" && (
+                    <Badge variant="outline" className="text-xs text-purple-700 border-purple-300 bg-purple-50 flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Extracting...
+                    </Badge>
+                  )}
+                  {claim.documentProcessingStatus === "extracted" && (
+                    <Badge variant="outline" className="text-xs text-green-700 border-green-300 bg-green-50 flex items-center gap-1">
+                      <CheckCircle className="h-3 w-3" />
+                      Extracted
+                    </Badge>
+                  )}
+                </div>
+              )}
+
               {/* Claim Details Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
                 <div>
