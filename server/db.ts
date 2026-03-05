@@ -354,120 +354,83 @@ export async function triggerAiAssessment(claimId: number) {
   // -----------------------------------------------------------------------
   try {
 
-  // Parse damage photos from JSON.
-  // If this claim came from a PDF document, always reset damagePhotos so we re-extract fresh
-  // images using the updated extraction pipeline (fixes stale/empty photos from old runs).
-  let damagePhotos: string[];
+  // -----------------------------------------------------------------------
+  // DETERMINE ANALYSIS MODE: Direct PDF vs. Damage Photos
+  // -----------------------------------------------------------------------
+  // If this claim was created from a PDF document, we send the PDF directly
+  // to the LLM via file_url (no image extraction needed — works in production
+  // without pdftoppm/pdfimages system binaries).
+  // If the claim has user-uploaded damage photos, we use those instead.
+  // -----------------------------------------------------------------------
+  let pdfUrl: string | null = null;
+  let damagePhotos: string[] = [];
+
   if (claim.sourceDocumentId) {
-    // Force fresh PDF extraction by ignoring any previously stored photos
-    damagePhotos = [];
-    console.log(`[AI Assessment] Claim ${claimId}: PDF-sourced claim — resetting damagePhotos for fresh extraction.`);
-    await db.update(claims).set({ damagePhotos: JSON.stringify([]), updatedAt: new Date().toISOString() }).where(eq(claims.id, claimId));
-  } else {
+    // PDF-sourced claim: look up the source document URL
+    try {
+      const [sourceDoc] = await db.select().from(ingestionDocuments)
+        .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
+      if (sourceDoc && sourceDoc.s3Url) {
+        pdfUrl = sourceDoc.s3Url;
+        console.log(`[AI Assessment] Claim ${claimId}: PDF-sourced claim. Will send PDF directly to LLM: ${sourceDoc.originalFilename}`);
+      } else {
+        console.warn(`[AI Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
+      }
+    } catch (docErr: any) {
+      console.warn(`[AI Assessment] Claim ${claimId}: Failed to look up source document: ${docErr.message}`);
+    }
+  }
+
+  // If no PDF URL, fall back to user-uploaded damage photos
+  if (!pdfUrl) {
     damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   }
-  
-  if (damagePhotos.length === 0) {
-    // No user-uploaded photos — attempt to extract images from linked source PDF document
-    console.log(`[AI Assessment] Claim ${claimId}: No user-uploaded photos. Checking for linked source document...`);
-    
-    let extractedFromPdf = false;
-    if (claim.sourceDocumentId) {
-      try {
-        // Look up the ingestion document to get the S3 URL
-        const [sourceDoc] = await db.select().from(ingestionDocuments)
-          .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
-        
-        if (sourceDoc && sourceDoc.s3Url) {
-          console.log(`[AI Assessment] Found linked PDF: ${sourceDoc.originalFilename} (${sourceDoc.s3Url})`);
-          
-          // Download the PDF from S3
-          const pdfResponse = await fetch(sourceDoc.s3Url);
-          if (pdfResponse.ok) {
-            const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
-            
-            // Extract images from the PDF
-            const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
-            const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, sourceDoc.originalFilename || 'source.pdf');
-            
-            if (extractedImages.length > 0) {
-              console.log(`[AI Assessment] Extracted ${extractedImages.length} images from linked PDF`);
-              const extractedUrls = extractedImages.map(img => img.url);
-              
-              // Store extracted photos back to the claim record
-              await db.update(claims).set({
-                damagePhotos: JSON.stringify(extractedUrls),
-                updatedAt: new Date().toISOString(),
-              }).where(eq(claims.id, claimId));
-              
-              // Use these extracted photos for the AI assessment
-              damagePhotos.push(...extractedUrls);
-              extractedFromPdf = true;
-              console.log(`[AI Assessment] Stored ${extractedUrls.length} extracted photos to claim ${claimId}`);
-            } else {
-              console.log(`[AI Assessment] No images found in linked PDF for claim ${claimId}`);
-            }
-          } else {
-            console.warn(`[AI Assessment] Failed to download PDF from S3: ${pdfResponse.status}`);
-          }
-        }
-      } catch (pdfExtractError: any) {
-        console.warn(`[AI Assessment] PDF image extraction failed for claim ${claimId}: ${pdfExtractError.message}`);
-      }
-    }
-    
-    // If still no photos after PDF extraction attempt, create placeholder
-    if (!extractedFromPdf) {
-      // Clear any existing assessment before inserting placeholder
-      await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
-      await db.insert(aiAssessments).values({
-        claimId,
-        tenantId: claim.tenantId ?? null,
-        damageDescription: "Assessment pending - No damage photos uploaded yet. Please upload vehicle damage photos to proceed with AI analysis.",
-        damagedComponentsJson: JSON.stringify([]),
-        estimatedCost: 0,
-        fraudIndicators: JSON.stringify(["No photos available for analysis"]),
-        fraudRiskLevel: "low",
-        totalLossIndicated: 0,
-        structuralDamageSeverity: "none"
-      });
-      
-      await db.update(claims).set({ 
-        aiAssessmentCompleted: 1,
-        status: "assessment_complete",
-        documentProcessingStatus: "extracted",
-        updatedAt: new Date().toISOString() 
-      }).where(eq(claims.id, claimId));
-      
-      console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. (placeholder - no photos)`);
-      return { success: true, message: "Placeholder assessment created. Please upload damage photos for full analysis." };
-    }
+
+  // If we have neither a PDF nor photos, create a placeholder and return
+  if (!pdfUrl && damagePhotos.length === 0) {
+    console.log(`[AI Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);
+    await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
+    await db.insert(aiAssessments).values({
+      claimId,
+      tenantId: claim.tenantId ?? null,
+      damageDescription: "Assessment pending - No damage photos or documents uploaded yet.",
+      damagedComponentsJson: JSON.stringify([]),
+      estimatedCost: 0,
+      fraudIndicators: JSON.stringify(["No photos or documents available for analysis"]),
+      fraudRiskLevel: "low",
+      totalLossIndicated: 0,
+      structuralDamageSeverity: "none"
+    });
+    await db.update(claims).set({ 
+      aiAssessmentCompleted: 1,
+      status: "assessment_complete",
+      documentProcessingStatus: "extracted",
+      updatedAt: new Date().toISOString() 
+    }).where(eq(claims.id, claimId));
+    return { success: true, message: "Placeholder assessment created. Please upload damage photos or documents for full analysis." };
   }
 
   // Import LLM helper for vision analysis
   const { invokeLLM } = await import("./_core/llm");
 
-  // Determine if we are analysing actual damage photos or rendered PDF document pages.
-  // PDF page renders look like document pages (text, tables, diagrams) rather than
-  // physical damage photos, so we need a different prompt to extract the right data.
-  const hasPdfPageRenders = damagePhotos.length > 0 && claim.sourceDocumentId != null;
+  // -----------------------------------------------------------------------
+  // BUILD LLM PROMPT & CONTENT based on analysis mode (PDF vs. photos)
+  // -----------------------------------------------------------------------
+  const isPdfMode = !!pdfUrl;
 
-  // Analyze damage photos with AI vision
-  const analysisPrompt = hasPdfPageRenders
-    ? `You are an expert auto insurance claims analyst. The images provided are pages from an insurance assessment document (assessor report, repair quotation, or police report). Extract all damage and vehicle information visible in these document pages.
+  const analysisPrompt = isPdfMode
+    ? `You are an expert auto insurance claims analyst. You are being given a PDF document that is an insurance assessment report, repair quotation, or police report for a vehicle damage claim.
 
-For each document page, extract:
-1. Vehicle details (make, model, year, registration)
-2. All damaged components listed (e.g. front bumper, bonnet, left door, windscreen)
-3. Damage descriptions for each component
-4. Repair cost estimates (parts, labour, total)
+Analyze the ENTIRE document thoroughly and extract:
+1. Vehicle details (make, model, year, registration number)
+2. ALL damaged components listed (e.g. front bumper, bonnet, left door, windscreen, headlights, etc.)
+3. Damage descriptions and severity for each component
+4. Repair cost estimates (parts, labour, total) — extract exact amounts from the document
 5. Accident description or incident details
-6. Assessor or repairer name
-7. Any fraud indicators (inconsistencies, unusual patterns, missing information)
+6. Assessor or repairer name and details
+7. Any fraud indicators (inconsistencies, unusual patterns, missing information, inflated costs)
 
-Based on the document content, provide a comprehensive damage assessment as if you were the original assessor. If the document shows a repair quotation or assessment report, extract all line items and map them to vehicle components.
-
-IMPORTANT: Even though these are document pages rather than physical damage photos, you must still populate ALL required fields in the JSON response. Use the document text and tables to derive values for physical measurements (use typical values for the damage type described if exact measurements are not in the document).
+IMPORTANT: You MUST populate ALL required fields in the JSON response. Use the document text, tables, and line items to derive values. For physical measurements not explicitly stated in the document, use typical values for the damage type described. For cost estimates, use the exact figures from the document.
 
 Provide your response in JSON format.`
     : `You are an expert auto insurance damage assessor with expertise in accident reconstruction physics. Analyze these vehicle damage photos and provide:
@@ -535,57 +498,59 @@ Provide your response in JSON format.`
 
 Provide your response in JSON format.`;
 
-  console.log(`[AI Assessment] Analyzing ${damagePhotos.length} photos for claim ${claimId}...`);
-  
-  // Download and base64-encode images with proper MIME types for Bedrock/Claude
-  const imageContents = await Promise.all(
-    damagePhotos.slice(0, 6).map(async (urlOrText) => {
-      try {
-        // Extract actual CDN URL from manus-upload-file output if needed
-        let url = urlOrText;
-        if (urlOrText.includes('CDN URL:')) {
-          const match = urlOrText.match(/CDN URL:\s*(.+?)$/m);
-          if (match) {
-            url = match[1].trim();
-          }
-        }
-        
-        console.log(`[AI Assessment] Fetching image: ${url}`);
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch image: ${response.statusText}`);
-        }
-        const buffer = await response.arrayBuffer();
-        const base64 = Buffer.from(buffer).toString('base64');
-        
-        // Determine MIME type from URL extension
-        let mimeType = 'image/jpeg'; // default
-        if (url.toLowerCase().endsWith('.png')) mimeType = 'image/png';
-        else if (url.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
-        else if (url.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
-        
-        return {
-          type: "image_url" as const,
-          image_url: {
-            url: `data:${mimeType};base64,${base64}`,
-            detail: "high" as const
-          }
-        };
-      } catch (error) {
-        console.error(`Failed to process image ${urlOrText}:`, error);
-        throw error;
+  // -----------------------------------------------------------------------
+  // BUILD LLM CONTENT: PDF file_url OR image base64
+  // -----------------------------------------------------------------------
+  let llmContentParts: any[] = [{ type: "text", text: analysisPrompt }];
+
+  if (isPdfMode && pdfUrl) {
+    // DIRECT PDF MODE: Send the PDF URL to the LLM as a file_url
+    console.log(`[AI Assessment] Sending PDF directly to LLM for claim ${claimId}: ${pdfUrl}`);
+    llmContentParts.push({
+      type: "file_url" as const,
+      file_url: {
+        url: pdfUrl,
+        mime_type: "application/pdf" as const
       }
-    })
-  );
-  
+    });
+  } else {
+    // PHOTO MODE: Download and base64-encode damage photos
+    console.log(`[AI Assessment] Analyzing ${damagePhotos.length} photos for claim ${claimId}...`);
+    const imageContents = await Promise.all(
+      damagePhotos.slice(0, 6).map(async (urlOrText) => {
+        try {
+          let url = urlOrText;
+          if (urlOrText.includes('CDN URL:')) {
+            const match = urlOrText.match(/CDN URL:\s*(.+?)$/m);
+            if (match) url = match[1].trim();
+          }
+          console.log(`[AI Assessment] Fetching image: ${url}`);
+          const resp = await fetch(url);
+          if (!resp.ok) throw new Error(`Failed to fetch image: ${resp.statusText}`);
+          const buffer = await resp.arrayBuffer();
+          const base64 = Buffer.from(buffer).toString('base64');
+          let mimeType = 'image/jpeg';
+          if (url.toLowerCase().endsWith('.png')) mimeType = 'image/png';
+          else if (url.toLowerCase().endsWith('.gif')) mimeType = 'image/gif';
+          else if (url.toLowerCase().endsWith('.webp')) mimeType = 'image/webp';
+          return {
+            type: "image_url" as const,
+            image_url: { url: `data:${mimeType};base64,${base64}`, detail: "high" as const }
+          };
+        } catch (error) {
+          console.error(`Failed to process image ${urlOrText}:`, error);
+          throw error;
+        }
+      })
+    );
+    llmContentParts.push(...imageContents);
+  }
+
   const response = await invokeLLM({
     messages: [
       {
         role: "user",
-        content: [
-          { type: "text", text: analysisPrompt },
-          ...imageContents
-        ]
+        content: llmContentParts
       }
     ],
     response_format: {
