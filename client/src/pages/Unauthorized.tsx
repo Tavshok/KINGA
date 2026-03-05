@@ -70,11 +70,17 @@ export default function Unauthorized() {
         <CardContent className="space-y-4">
           <div className="text-sm text-center text-muted-foreground space-y-2">
             <p>{message.description}</p>
+            <p className="text-amber-700 font-medium">
+              You attempted to access a portal that your account role does not permit.
+            </p>
             {user && (
               <p className="font-medium">
-                Your current role: <span className="text-foreground capitalize">{user.role?.replace('_', ' ') || 'Not set'}</span>
+                Current Role:{" "}
+                <span className="text-foreground capitalize font-semibold">
+                  {user.role?.replace(/_/g, ' ') || 'unknown'}
+                </span>
                 {user.insurerRole && (
-                  <> ({user.insurerRole.replace('_', ' ')})</>
+                  <> &mdash; {user.insurerRole.replace(/_/g, ' ')}</>
                 )}
               </p>
             )}

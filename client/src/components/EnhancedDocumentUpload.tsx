@@ -194,8 +194,21 @@ export function EnhancedDocumentUpload({
         } as UploadError;
       }
 
-      const data = await response.json();
-      
+      // Guard against non-JSON responses (e.g. HTML 413 from body-parser)
+      const contentType = response.headers.get("content-type");
+      let data: any;
+      if (contentType && contentType.includes("application/json")) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        throw {
+          type: "server",
+          message: "Unexpected response from server",
+          details: text.slice(0, 200),
+          retryable: false,
+        } as UploadError;
+      }
+
       // Check if extraction was successful
       if (!data || typeof data !== 'object') {
         throw {

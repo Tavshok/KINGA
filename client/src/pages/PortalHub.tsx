@@ -24,12 +24,12 @@ export default function PortalHub() {
   const [, setLocation] = useLocation();
   const roleDashboardRoute = useRoleDashboardRoute();
 
-  // Auto-redirect disabled - let users choose their portal
-  // useEffect(() => {
-  //   if (user?.role === "insurer" && user?.insurerRole && roleDashboardRoute !== "/portal-hub") {
-  //     setLocation(roleDashboardRoute);
-  //   }
-  // }, [user, roleDashboardRoute, setLocation]);
+  // Fix Group 4: re-enable auto-redirect for insurer users who have an insurerRole set
+  useEffect(() => {
+    if (user?.insurerRole && roleDashboardRoute !== "/portal-hub") {
+      setLocation(roleDashboardRoute);
+    }
+  }, [user, roleDashboardRoute, setLocation]);
 
   const portals = [
     {
@@ -189,6 +189,31 @@ export default function PortalHub() {
               </Button>
             </div>
           </div>
+
+          {/* Fix Group 3: empty-state for users with no portal role assigned */}
+          {accessiblePortals.length === 0 && (
+            <div className="max-w-lg mx-auto mb-10">
+              <Card className="border-amber-200 bg-amber-50">
+                <CardContent className="pt-6 text-center">
+                  <UserCog className="h-10 w-10 text-amber-600 mx-auto mb-3" />
+                  <h3 className="font-semibold text-amber-900 text-lg mb-2">No Portal Assigned</h3>
+                  <p className="text-sm text-amber-800 mb-1">
+                    Your account role is: <code className="font-mono bg-amber-100 px-1 rounded">{user?.role ?? "unknown"}</code>
+                  </p>
+                  <p className="text-sm text-amber-800 mb-4">
+                    Contact your administrator or complete role setup to access the platform.
+                  </p>
+                  <Button
+                    onClick={() => setLocation("/role-setup")}
+                    className="bg-amber-600 hover:bg-amber-700 text-white"
+                  >
+                    <UserCog className="h-4 w-4 mr-2" />
+                    Complete Role Setup
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Portal Cards with KINGA brand styling */}
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

@@ -57,14 +57,15 @@ async function startServer() {
     message: { error: 'Too many authentication attempts.' },
   });
 
-  // Configure body parser with size limits
-  app.use(express.json({ limit: "1mb" })); // Default 1MB
-  app.use(express.urlencoded({ limit: "1mb", extended: true }));
-  
-  // Override for upload endpoints
+  // Configure body parser with size limits.
+  // IMPORTANT: per-route overrides must be registered BEFORE the global 1 MB parser
+  // because Express applies the first matching body-parser and stops.
+  app.use("/api/trpc/documentIngestion.uploadDocuments", express.json({ limit: "50mb" }));
   app.use("/api/upload", express.json({ limit: "15mb" }));
   app.use("/api/trpc/documents.upload", express.json({ limit: "15mb" }));
   app.use("/api/trpc/claims.uploadImage", express.json({ limit: "15mb" }));
+  app.use(express.json({ limit: "1mb" })); // Default 1MB — must come AFTER per-route overrides
+  app.use(express.urlencoded({ limit: "1mb", extended: true }));
   // Apply rate limiters
   app.use('/api/trpc', globalLimiter);
   app.use('/api/oauth', authLimiter);
@@ -90,6 +91,18 @@ async function startServer() {
     serveStatic(app);
   }
 
+  // Global error handler — converts body-parser PayloadTooLargeError to JSON
+  // so the frontend never receives an HTML 413 response.
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err && err.type === "entity.too.large") {
+      return res.status(413).json({
+        error: "PAYLOAD_TOO_LARGE",
+        message: "Uploaded document exceeds the allowed size limit.",
+      });
+    }
+    next(err);
+  });
+
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await findAvailablePort(preferredPort);
 
@@ -114,3 +127,4 @@ async function startServer() {
 }
 
 startServer().catch(console.error);
+
