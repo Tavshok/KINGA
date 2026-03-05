@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
+import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
@@ -14,7 +14,6 @@ import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
-import { Download } from "lucide-react";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
@@ -228,6 +227,39 @@ export default function InsurerComparisonView() {
       partsCost: aiAssessment.partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
       laborCost: aiAssessment.laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
       damageDescription: aiAssessment.damageDescription || "",
+      // Physics analysis from AI assessment
+      physicsAnalysis: (() => {
+        if (!aiAssessment?.physicsAnalysis) return undefined;
+        try {
+          const p = typeof aiAssessment.physicsAnalysis === 'string'
+            ? JSON.parse(aiAssessment.physicsAnalysis)
+            : aiAssessment.physicsAnalysis;
+          return {
+            impactForce: p.impactForce ?? 0,
+            estimatedSpeed: p.estimatedSpeed ?? 0,
+            impactAngle: p.impactAngle ?? 0,
+            damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
+            physicsDeviationScore: p.physicsDeviationScore ?? 0,
+          };
+        } catch { return undefined; }
+      })(),
+      // Forensic analysis from AI assessment
+      forensicAnalysis: (() => {
+        if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
+        try {
+          const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
+            ? JSON.parse((aiAssessment as any).forensicAnalysis)
+            : (aiAssessment as any).forensicAnalysis;
+          return {
+            overallFraudScore: f.overallFraudScore ?? 0,
+            paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
+            bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
+            glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
+            tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
+            fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
+          };
+        } catch { return undefined; }
+      })(),
     });
 
     toast.success("Damage report exported successfully!");
@@ -429,7 +461,46 @@ export default function InsurerComparisonView() {
                         repairComplexity,
                         confidenceScore: aiAssessment?.confidenceScore ?? 0,
                       };
-                    })()
+                    })(),
+                    // Physics analysis from AI assessment
+                    physicsAnalysis: (() => {
+                      if (!aiAssessment?.physicsAnalysis) return undefined;
+                      try {
+                        const p = typeof aiAssessment.physicsAnalysis === 'string'
+                          ? JSON.parse(aiAssessment.physicsAnalysis)
+                          : aiAssessment.physicsAnalysis;
+                        return {
+                          impactForce: p.impactForce ?? 0,
+                          estimatedSpeed: p.estimatedSpeed ?? 0,
+                          impactAngle: p.impactAngle ?? 0,
+                          damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
+                          fraudIndicators: {
+                            impossibleDamagePatterns: p.fraudIndicators?.impossibleDamagePatterns ?? [],
+                            unrelatedDamage: p.fraudIndicators?.unrelatedDamage ?? [],
+                            stagedAccidentIndicators: p.fraudIndicators?.stagedAccidentIndicators ?? [],
+                            severityMismatch: p.fraudIndicators?.severityMismatch ?? false,
+                          },
+                          physicsDeviationScore: p.physicsDeviationScore ?? 0,
+                        };
+                      } catch { return undefined; }
+                    })(),
+                    // Forensic analysis from AI assessment
+                    forensicAnalysis: (() => {
+                      if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
+                      try {
+                        const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
+                          ? JSON.parse((aiAssessment as any).forensicAnalysis)
+                          : (aiAssessment as any).forensicAnalysis;
+                        return {
+                          overallFraudScore: f.overallFraudScore ?? 0,
+                          paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
+                          bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
+                          glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
+                          tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
+                          fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
+                        };
+                      } catch { return undefined; }
+                    })(),
                   };
                   
                   generateComparisonPDF(pdfData);
@@ -1489,6 +1560,64 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         </div>
       )}
       
+      {/* Forensic Analysis */}
+      {(() => {
+        let forensic: any = null;
+        try {
+          const raw = (aiAssessment as any)?.forensicAnalysis;
+          if (raw) forensic = typeof raw === 'string' ? JSON.parse(raw) : raw;
+        } catch { /* ignore */ }
+        if (!forensic) return null;
+        const sections = [
+          { key: 'paintAnalysis', label: 'Paint Analysis', icon: '🎨' },
+          { key: 'bodyworkAnalysis', label: 'Bodywork Analysis', icon: '🔧' },
+          { key: 'glassAnalysis', label: 'Glass Analysis', icon: '🪟' },
+          { key: 'tireAnalysis', label: 'Tire Analysis', icon: '🛞' },
+          { key: 'fluidAnalysis', label: 'Fluid Leak Analysis', icon: '💧' },
+        ];
+        return (
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <Shield className="h-4 w-4 text-blue-600" />
+              Forensic Analysis
+              <Badge variant={forensic.overallFraudScore > 60 ? 'destructive' : forensic.overallFraudScore > 30 ? 'default' : 'secondary'} className="ml-2 text-xs">
+                Fraud Score: {forensic.overallFraudScore ?? 0}/100
+              </Badge>
+            </h4>
+            <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+              {sections.map(({ key, label, icon }) => {
+                const s = forensic[key];
+                if (!s) return null;
+                const score = s.score ?? s.fraudScore ?? 0;
+                const findings: string[] = Array.isArray(s.findings) ? s.findings : [];
+                return (
+                  <div key={key} className="p-3 bg-white rounded-lg border">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-sm font-medium">{icon} {label}</span>
+                      <Badge variant={score > 60 ? 'destructive' : score > 30 ? 'default' : 'secondary'} className="text-xs">
+                        {score}/100
+                      </Badge>
+                    </div>
+                    {findings.length > 0 ? (
+                      <ul className="text-xs space-y-1 text-slate-600">
+                        {findings.slice(0, 3).map((f: string, i: number) => (
+                          <li key={i}>• {f}</li>
+                        ))}
+                        {findings.length > 3 && (
+                          <li className="text-slate-400">+{findings.length - 3} more</li>
+                        )}
+                      </ul>
+                    ) : (
+                      <p className="text-xs text-slate-400">No anomalies detected</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Quote Validation Summary */}
       <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
         <h4 className="font-semibold text-secondary mb-3">Quote Validation Summary</h4>

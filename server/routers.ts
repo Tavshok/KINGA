@@ -1307,78 +1307,90 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         }
         
+        // Capture user context for the async callback (request scope ends after return)
+        const asyncUserId = ctx.user.id;
+        const asyncUserEmail = ctx.user.email || "";
+        const asyncUserName = ctx.user.name || "Insurer";
+        const asyncUserRole = ctx.user.role;
+        const asyncTenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+
         // Fire-and-forget: run the AI assessment asynchronously so the HTTP
         // mutation response returns immediately (avoids 15-45 s LLM timeout).
         // The frontend polls aiAssessments.byClaim every 5 s until a result
         // appears (see InsurerComparisonView / ClaimRiskIndicators).
-        triggerAiAssessment(input.claimId).catch((err: unknown) => {
-          console.error(`[AI] Background assessment failed for claim ${input.claimId}:`, err);
-        });
+        // IMPORTANT: Notifications are sent INSIDE the async callback so they
+        // only fire AFTER the AI job has actually completed (not before).
+        triggerAiAssessment(input.claimId)
+          .then(async () => {
+            try {
+              // Now the AI assessment record exists — safe to read and notify
+              const claim = await getClaimById(input.claimId, asyncTenantId);
+              const aiAssessment = await getAiAssessmentByClaimId(input.claimId, asyncTenantId);
+
+              if (claim && aiAssessment) {
+                // Send email notification about AI assessment completion
+                await notifyAiAssessmentComplete({
+                  claimId: input.claimId,
+                  recipientEmail: asyncUserEmail,
+                  recipientName: asyncUserName,
+                  claimNumber: claim.claimNumber,
+                  estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
+                  fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
+                  confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
+                });
+
+                // Create in-app notification
+                const { createNotification } = await import("./db");
+                if (aiAssessment.fraudRiskLevel === "high") {
+                  await createNotification({
+                    userId: asyncUserId,
+                    title: "\u26a0\ufe0f High Fraud Risk Detected",
+                    message: `AI assessment flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
+                    type: "fraud_detected",
+                    claimId: input.claimId,
+                    entityType: "ai_assessment",
+                    entityId: aiAssessment.id,
+                    actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+                    priority: "urgent",
+                  });
+                } else {
+                  await createNotification({
+                    userId: asyncUserId,
+                    title: "AI Assessment Complete",
+                    message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}`,
+                    type: "assessment_completed",
+                    claimId: input.claimId,
+                    entityType: "ai_assessment",
+                    actionUrl: `/insurer/claims/${input.claimId}/comparison`,
+                    priority: "medium",
+                  });
+                }
+              }
+
+              // Audit entry for completion
+              await createAuditEntry({
+                claimId: input.claimId,
+                userId: asyncUserId,
+                action: "ai_assessment_completed",
+                entityType: "claim",
+                entityId: input.claimId,
+                changeDescription: "AI damage assessment completed successfully",
+              });
+            } catch (notifyErr) {
+              console.error(`[AI] Post-assessment notification failed for claim ${input.claimId}:`, notifyErr);
+            }
+          })
+          .catch((err: unknown) => {
+            console.error(`[AI] Background assessment failed for claim ${input.claimId}:`, err);
+          });
         
-        // Create audit entry for manual AI assessment trigger
+        // Create audit entry for manual AI assessment trigger (immediate — before async job)
         await createAuditEntry({
           claimId: input.claimId,
           userId: ctx.user.id,
           action: "ai_assessment_triggered",
           entityType: "ai_assessment",
           changeDescription: `AI assessment manually triggered by ${ctx.user.role}${input.reason ? `: ${input.reason}` : ''}`,
-        });
-
-        // Get claim and AI assessment details for notification
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        const claim = await getClaimById(input.claimId, tenantId);
-        const aiAssessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
-
-        // Send email notification about AI assessment completion
-        if (claim && aiAssessment) {
-          await notifyAiAssessmentComplete({
-            claimId: input.claimId,
-            recipientEmail: ctx.user.email || "",
-            recipientName: ctx.user.name || "Insurer",
-            claimNumber: claim.claimNumber,
-            estimatedCost: (aiAssessment.estimatedCost || 0).toString(),
-            fraudRiskLevel: aiAssessment.fraudRiskLevel || "low",
-            confidenceScore: (aiAssessment.confidenceScore || 0).toString(),
-          });
-          
-          // Create in-app notification for high fraud risk
-          if (aiAssessment.fraudRiskLevel === "high") {
-            const { createNotification } = await import("./db");
-            await createNotification({
-              userId: ctx.user.id,
-              title: "⚠️ High Fraud Risk Detected",
-              message: `AI assessment flagged claim ${claim.claimNumber} as high fraud risk. Immediate review recommended.`,
-              type: "fraud_detected",
-              claimId: input.claimId,
-              entityType: "ai_assessment",
-              entityId: aiAssessment.id,
-              actionUrl: `/insurer/claims/${input.claimId}/comparison`,
-              priority: "urgent",
-            });
-          } else {
-            // Regular assessment completion notification
-            const { createNotification } = await import("./db");
-            await createNotification({
-              userId: ctx.user.id,
-              title: "AI Assessment Complete",
-              message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}`,
-              type: "assessment_completed",
-              claimId: input.claimId,
-              entityType: "ai_assessment",
-              actionUrl: `/insurer/claims/${input.claimId}/comparison`,
-              priority: "medium",
-            });
-          }
-        }
-
-        // Create audit entry
-        await createAuditEntry({
-          claimId: input.claimId,
-          userId: ctx.user.id,
-          action: "ai_assessment_triggered",
-          entityType: "claim",
-          entityId: input.claimId,
-          changeDescription: "AI damage assessment triggered and completed",
         });
 
         return { success: true };

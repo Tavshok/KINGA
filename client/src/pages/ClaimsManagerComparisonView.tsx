@@ -38,6 +38,7 @@ import {
   History
 } from "lucide-react";
 import { GovernanceIndicators } from "@/components/GovernanceIndicators";
+import { AiStatusBadge } from "@/components/AiStatusBadge";
 import { GovernanceSummaryWidget } from "@/components/GovernanceSummaryWidget";
 import { QMSCompliancePanel } from "@/components/QMSCompliancePanel";
 
@@ -204,8 +205,9 @@ export default function ClaimsManagerComparisonView() {
                 <h1 className="text-3xl font-bold text-slate-900">
                   {isRiskManager ? "Risk Analysis" : "Assessment Comparison"}
                 </h1>
-                <p className="text-slate-600 mt-1">
+                <p className="text-slate-600 mt-1 flex items-center gap-2">
                   {claim.claimNumber} • {claim.vehicleMake} {claim.vehicleModel} {claim.vehicleYear}
+                  <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
                 </p>
               </div>
             </div>

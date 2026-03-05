@@ -165,19 +165,76 @@ export default function AIAssessmentPanel({
             </div>
 
             {/* Physics Analysis */}
-            {aiAssessment.physicsAnalysis && (
-              <div className="bg-white rounded-lg p-4">
-                <h3 className="font-semibold text-sm text-slate-700 mb-2 flex items-center gap-2">
-                  <Activity className="h-4 w-4" />
-                  Physics-Based Validation
-                </h3>
-                <p className="text-sm text-slate-600">
-                  {typeof aiAssessment.physicsAnalysis === 'string' 
-                    ? aiAssessment.physicsAnalysis 
-                    : JSON.stringify(aiAssessment.physicsAnalysis, null, 2)}
-                </p>
-              </div>
-            )}
+            {aiAssessment.physicsAnalysis && (() => {
+              let phys: any = null;
+              try {
+                phys = typeof aiAssessment.physicsAnalysis === 'string'
+                  ? JSON.parse(aiAssessment.physicsAnalysis)
+                  : aiAssessment.physicsAnalysis;
+              } catch { /* ignore */ }
+              if (!phys) return null;
+              const propagation: any[] = Array.isArray(phys.damagePropagation) ? phys.damagePropagation : [];
+              const fi = phys.fraudIndicators || {};
+              const hasFlags = (fi.impossibleDamagePatterns?.length > 0) || (fi.unrelatedDamage?.length > 0) || (fi.stagedAccidentIndicators?.length > 0) || fi.severityMismatch;
+              return (
+                <div className="bg-white rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                    <Activity className="h-4 w-4" />
+                    Physics-Based Validation
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                    <div>
+                      <span className="text-slate-500 block text-xs">Impact Force</span>
+                      <span className="font-semibold">{(phys.impactForce ?? 0).toFixed(1)} kN</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Est. Speed</span>
+                      <span className="font-semibold">{(phys.estimatedSpeed ?? 0).toFixed(0)} km/h</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Impact Angle</span>
+                      <span className="font-semibold">{(phys.impactAngle ?? 0).toFixed(0)}&deg;</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500 block text-xs">Deviation Score</span>
+                      <span className="font-semibold">{phys.physicsDeviationScore ?? 'N/A'}</span>
+                    </div>
+                  </div>
+                  {propagation.length > 0 && (
+                    <div>
+                      <span className="text-xs font-medium text-slate-500">Damage Propagation Path</span>
+                      <div className="mt-1 space-y-1">
+                        {propagation.slice(0, 5).map((dp: any, i: number) => (
+                          <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
+                            <span className="font-medium">{dp.component}</span>
+                            <span className="text-slate-400">&mdash;</span>
+                            <span>{(dp.force ?? 0).toFixed(1)} kN at {(dp.distance ?? 0).toFixed(2)}m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {hasFlags && (
+                    <div className="bg-red-50 border border-red-200 rounded p-2 space-y-1">
+                      <span className="text-xs font-semibold text-red-700">Physics Fraud Indicators</span>
+                      {fi.impossibleDamagePatterns?.map((p: string, i: number) => (
+                        <p key={`imp-${i}`} className="text-xs text-red-600">&bull; Impossible: {p}</p>
+                      ))}
+                      {fi.unrelatedDamage?.map((d: any, i: number) => (
+                        <p key={`unr-${i}`} className="text-xs text-red-600">&bull; Unrelated: {d.component} ({(d.distanceFromImpact ?? 0).toFixed(1)}m from impact)</p>
+                      ))}
+                      {fi.stagedAccidentIndicators?.map((s: string, i: number) => (
+                        <p key={`stg-${i}`} className="text-xs text-red-600">&bull; Staged: {s}</p>
+                      ))}
+                      {fi.severityMismatch && (
+                        <p className="text-xs text-red-600">&bull; Severity mismatch between reported and physics-estimated damage</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Total Loss Indicator */}
             {aiAssessment.totalLossIndicated === 1 && (

@@ -905,10 +905,11 @@ Provide your response in JSON format.`;
     
     console.log(`[Physics Deviation] Claim ${claimId}: Score = ${physicsDeviationScore}, Risk = ${physicsDeviationScore && physicsDeviationScore >= 70 ? 'HIGH' : physicsDeviationScore && physicsDeviationScore >= 40 ? 'MEDIUM' : 'LOW'}`);
     
-    // Update AI assessment with combined fraud level, physics analysis, and deviation score
+    // Update AI assessment with combined fraud level, physics analysis, forensic analysis, and deviation score
     await db.update(aiAssessments).set({
       fraudRiskLevel: combinedFraudLevel,
       physicsAnalysis: JSON.stringify(physicsAnalysis),
+      forensicAnalysis: forensicAnalysis ? JSON.stringify(forensicAnalysis) : null,
       physicsDeviationScore,
       updatedAt: new Date().toISOString(),
     }).where(eq(aiAssessments.claimId, claimId));

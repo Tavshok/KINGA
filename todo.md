@@ -9553,3 +9553,28 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] RepairIntelligencePanel upgraded with full AI Repair Intelligence UI
 - [x] Unit tests for all new intelligence layers (83 test files / 1386 passed / 2 skipped)
 - [x] TypeScript: 0 errors
+
+## Pre-Demo Critical Audit (March 2026)
+- [ ] Fix routing: all roles land on correct page from root
+- [ ] Fix AI assessment: byClaim query returns data after assessment completes
+- [ ] Fix AI assessment: claim status transitions so UI shows results (not stuck on polling)
+- [ ] Fix AI assessment: AiIntelligenceSummaryCard renders when data exists
+- [ ] Fix AI assessment: PDF export receives and renders AI data
+- [ ] Fix claim workflow: processor can push claim to assessor
+- [ ] Fix claim workflow: assessor can complete and push claim forward
+- [ ] Verify end-to-end: submission → docs → AI assessment → quotes → approval
+- [ ] Audit physics engine: accidentPhysics output stored correctly in ai_assessments.physicsAnalysis
+- [ ] Audit physics engine: forensicAnalysis output stored and accessible
+- [ ] Audit physics UI: ClaimRiskIndicators renders physics vectors and scores
+- [ ] Audit physics UI: InsurerComparisonView physics panels display correctly
+- [ ] Audit physics PDF: damage report includes physics reconstruction data
+- [ ] Audit physics PDF: comparison PDF includes physics sections
+- [ ] Fix race condition: triggerAiAssessment notification fires before async AI job completes
+
+## Backend-to-Frontend Pipeline Gaps (Mar 2026)
+- [x] Fix 1: Store forensicAnalysis JSON in DB (add forensic_analysis column to ai_assessments)
+- [x] Fix 2: Fix notification race condition — move notification into triggerAiAssessment after AI completes
+- [x] Fix 3: Add physics analysis section to generateComparisonPDF
+- [x] Fix 4: Add physics analysis section to generateDamageReportPDF
+- [x] Fix 5: Add AiStatusBadge to ClaimsManagerComparisonView + forensic analysis section in Physics tab
+- [ ] Fix 6: Remove orphan PhysicsAnalysisChart or wire it into a view (deferred — no demo impact)

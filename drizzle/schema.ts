@@ -58,6 +58,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	reanalysisReason: text("reanalysis_reason"),
 	versionNumber: int("version_number").default(1).notNull(),
 	physicsDeviationScore: int("physics_deviation_score"),
+	forensicAnalysis: text("forensic_analysis"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
