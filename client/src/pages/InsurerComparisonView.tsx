@@ -363,7 +363,73 @@ export default function InsurerComparisonView() {
                       discrepancyCount: 4, // From comparison analysis
                       averageQuote: quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length,
                       missingItems: [] // Can be enhanced later
-                    } : undefined
+                    } : undefined,
+                    // AI Intelligence Summary — derived from existing AI assessment record and quotes
+                    aiIntelligence: (() => {
+                      const amounts: number[] = quotes.map((q: any) => q.quotedAmount || 0);
+                      if (amounts.length === 0) return undefined;
+                      const sorted = [...amounts].sort((a: number, b: number) => a - b);
+                      const mid = Math.floor(sorted.length / 2);
+                      const medianQuote = sorted.length % 2 !== 0
+                        ? sorted[mid]
+                        : (sorted[mid - 1] + sorted[mid]) / 2;
+                      const lowestQuote = sorted[0];
+                      const highestQuote = sorted[sorted.length - 1];
+                      const spreadPercent = highestQuote > 0
+                        ? Math.round(((highestQuote - lowestQuote) / highestQuote) * 100)
+                        : 0;
+
+                      // Parse damaged components from AI assessment
+                      let detectedComponents: string[] = [];
+                      if (aiAssessment?.damagedComponentsJson) {
+                        try {
+                          const parsed = JSON.parse(aiAssessment.damagedComponentsJson);
+                          detectedComponents = Array.isArray(parsed)
+                            ? parsed.map((c: any) => (typeof c === 'string' ? c : c?.name || c?.component || String(c)))
+                            : [];
+                        } catch { /* ignore parse errors */ }
+                      }
+
+                      // Parse risk indicators from AI assessment
+                      let fraudRisk = 'low';
+                      let repairComplexity = 'medium';
+                      if (aiAssessment?.fraudRiskLevel) {
+                        fraudRisk = aiAssessment.fraudRiskLevel.toLowerCase();
+                      } else if (assessorEval?.fraudRiskLevel) {
+                        fraudRisk = assessorEval.fraudRiskLevel.toLowerCase();
+                      }
+                      // Derive repair complexity from structural damage severity
+                      if (aiAssessment?.structuralDamageSeverity) {
+                        const sev = aiAssessment.structuralDamageSeverity;
+                        if (sev === 'severe' || sev === 'catastrophic') repairComplexity = 'high';
+                        else if (sev === 'moderate') repairComplexity = 'medium';
+                        else repairComplexity = 'low';
+                      }
+
+                      // Recommended repairer — lowest quote if AI assessment is complete
+                      let recommendedRepairer: string | undefined;
+                      let recommendationReason: string | undefined;
+                      if (aiAssessment && amounts.length > 0) {
+                        const lowestIdx = amounts.indexOf(lowestQuote);
+                        if (lowestIdx >= 0 && quotes[lowestIdx]) {
+                          recommendedRepairer = `Panel Beater #${(quotes[lowestIdx] as any).panelBeaterId}`;
+                          recommendationReason = 'Lowest quote within AI-assessed fair cost range';
+                        }
+                      }
+
+                      return {
+                        detectedComponents,
+                        lowestQuote,
+                        medianQuote,
+                        highestQuote,
+                        spreadPercent,
+                        recommendedRepairer,
+                        recommendationReason,
+                        fraudRisk,
+                        repairComplexity,
+                        confidenceScore: aiAssessment?.confidenceScore ?? 0,
+                      };
+                    })()
                   };
                   
                   generateComparisonPDF(pdfData);

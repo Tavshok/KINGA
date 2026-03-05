@@ -65,6 +65,29 @@ interface ClaimData {
       missingIn: string[];
     }>;
   };
+  /** AI Intelligence Summary — derived from existing claim quotes and AI assessment record */
+  aiIntelligence?: {
+    /** Damaged component names parsed from damagedComponentsJson */
+    detectedComponents: string[];
+    /** Lowest quoted amount in cents */
+    lowestQuote: number;
+    /** Median quoted amount in cents */
+    medianQuote: number;
+    /** Highest quoted amount in cents */
+    highestQuote: number;
+    /** Percentage spread between lowest and highest: ((max-min)/max)*100 */
+    spreadPercent: number;
+    /** Name of the recommended repairer, if available */
+    recommendedRepairer?: string;
+    /** Reason for the recommendation, if available */
+    recommendationReason?: string;
+    /** Fraud risk level: low | medium | high */
+    fraudRisk: string;
+    /** Repair complexity: low | medium | high */
+    repairComplexity: string;
+    /** AI confidence score 0-100 */
+    confidenceScore: number;
+  };
 }
 
 /**
@@ -109,6 +132,125 @@ export async function generateComparisonPDF(data: ClaimData): Promise<void> {
   yPos += 5;
   doc.text(`Incident Date: ${data.incidentDate}`, 20, yPos);
   yPos += 10;
+
+  // ─── AI Damage Intelligence Section ──────────────────────────────────────────
+  if (data.aiIntelligence) {
+    // Check if we need a new page
+    if (yPos > 240) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    const ai = data.aiIntelligence;
+
+    // Section heading with teal background bar
+    doc.setFillColor(15, 118, 110); // teal-700
+    doc.rect(20, yPos - 1, 170, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('AI Damage Intelligence', 23, yPos + 5);
+    doc.setTextColor(0, 0, 0);
+    yPos += 13;
+
+    // ── 1. Detected Components ────────────────────────────────────────────────
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Detected Components:', 20, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    if (ai.detectedComponents.length > 0) {
+      ai.detectedComponents.slice(0, 6).forEach((comp) => {
+        doc.text(`\u2022  ${comp}`, 26, yPos);
+        yPos += 4;
+      });
+      if (ai.detectedComponents.length > 6) {
+        doc.setTextColor(100, 100, 100);
+        doc.text(`  ... and ${ai.detectedComponents.length - 6} more`, 26, yPos);
+        doc.setTextColor(0, 0, 0);
+        yPos += 4;
+      }
+    } else {
+      doc.setTextColor(120, 120, 120);
+      doc.text('No component data available', 26, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 4;
+    }
+    yPos += 3;
+
+    // ── 2. Repair Cost Intelligence ───────────────────────────────────────────
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Repair Cost Intelligence:', 20, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`Lowest Quote:   $${(ai.lowestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+    yPos += 4;
+    doc.text(`Median Quote:   $${(ai.medianQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+    yPos += 4;
+    doc.text(`Highest Quote:  $${(ai.highestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+    yPos += 4;
+    doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
+    yPos += 7;
+
+    // ── 3. AI Recommendation ─────────────────────────────────────────────────
+    if (ai.recommendedRepairer) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('AI Recommendation:', 20, yPos);
+      yPos += 5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.text(`Recommended Repairer: ${ai.recommendedRepairer}`, 26, yPos);
+      yPos += 4;
+      if (ai.recommendationReason) {
+        const reasonLines = doc.splitTextToSize(`Reason: ${ai.recommendationReason}`, 160);
+        doc.text(reasonLines, 26, yPos);
+        yPos += reasonLines.length * 4;
+      }
+      yPos += 3;
+    }
+
+    // ── 4. Risk Indicators ────────────────────────────────────────────────────
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Risk Indicators:', 20, yPos);
+    yPos += 5;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+
+    // Fraud risk — colour-coded
+    const fraudRiskUpper = ai.fraudRisk.toUpperCase();
+    if (fraudRiskUpper === 'HIGH') {
+      doc.setTextColor(185, 28, 28); // red-700
+    } else if (fraudRiskUpper === 'MEDIUM') {
+      doc.setTextColor(180, 83, 9); // amber-700
+    } else {
+      doc.setTextColor(4, 120, 87); // emerald-700
+    }
+    doc.text(`Fraud Risk:          ${fraudRiskUpper}`, 26, yPos);
+    doc.setTextColor(0, 0, 0);
+    yPos += 4;
+
+    doc.text(`Repair Complexity:   ${ai.repairComplexity.toUpperCase()}`, 26, yPos);
+    yPos += 7;
+
+    // ── 5. Confidence Score ───────────────────────────────────────────────────
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text(`AI Confidence Score: ${ai.confidenceScore}%`, 20, yPos);
+    yPos += 10;
+
+    // Thin divider line
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, yPos - 4, 190, yPos - 4);
+  }
 
   // Police Report Section
   if (data.policeReport) {
