@@ -20,6 +20,7 @@ import VehicleDamageVisualization from "@/components/VehicleDamageVisualization"
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
+import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -376,6 +377,12 @@ export default function InsurerComparisonView() {
             </CardHeader>
           </Card>
         )}
+
+        {/* AI Intelligence Summary — compact overview of AI signals */}
+        <AiIntelligenceSummaryCard
+          aiAssessment={aiAssessment ?? null}
+          quotes={quotes as any[]}
+        />
 
         {/* Claim Summary */}
         <Card className="mb-6">
