@@ -29,7 +29,7 @@ export default function Login() {
     switch (userRole) {
       case "insurer":
       case "admin":
-        return "/insurer/dashboard";
+        return "/insurer-portal";
       case "assessor":
         return "/assessor/dashboard";
       case "panel_beater":

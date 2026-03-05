@@ -1,6 +1,6 @@
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Route, Switch } from "wouter";
+import { Route, Switch, useLocation } from "wouter";
 import ErrorBoundary from "./components/ErrorBoundary";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import { OnboardingManager } from "./components/OnboardingManager";
@@ -8,6 +8,17 @@ import DevRoleBadge from "./components/DevRoleBadge";
 import { lazy, Suspense } from "react";
 import ProtectedRoute from "./components/ProtectedRoute";
 import { RoleGuard } from "./components/RoleGuard";
+
+/**
+ * Simple redirect component used for legacy route aliases.
+ * Immediately navigates to `to` when rendered.
+ */
+function RedirectToPortal({ to }: { to: string }) {
+  const [, setLocation] = useLocation();
+  // Redirect immediately on render (replace so the legacy URL is not in history)
+  setLocation(to, { replace: true });
+  return null;
+}
 
 // Loading fallback component
 function PageLoader() {
@@ -302,16 +313,14 @@ function Router() {
           </ProtectedRoute>
         </Route>
         
+        {/* Legacy redirects — these paths were superseded by the portal architecture.
+            Keep them so bookmarked links and back-button history still resolve. */}
         <Route path="/insurer/dashboard">
-          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InsurerDashboard />
-          </ProtectedRoute>
+          <RedirectToPortal to="/insurer-portal" />
         </Route>
         
         <Route path="/insurer/claims/triage">
-          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
-            <InsurerClaimsTriage />
-          </ProtectedRoute>
+          <RedirectToPortal to="/insurer-portal/claims-processor" />
         </Route>
         
         <Route path="/insurer/claims/:id/comparison">

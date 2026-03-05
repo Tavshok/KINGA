@@ -899,13 +899,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           changeDescription: `Claim ${claimNumber} created by processor on behalf of ${input.claimantName}`,
         });
         
-        // Trigger AI assessment if requested
+        // Fire-and-forget: trigger AI assessment without blocking the HTTP response
         if (input.triggerAI && input.damagePhotos.length > 0) {
-          try {
-            await triggerAiAssessment(newClaim.id);
-          } catch (error) {
-            console.error(`Failed to trigger AI assessment:`, error);
-          }
+          triggerAiAssessment(newClaim.id).catch((err: unknown) => {
+            console.error(`[AI] Background assessment failed for claim ${newClaim.id}:`, err);
+          });
         }
         
         return { success: true, claimNumber, claimId: newClaim.id };
@@ -1036,15 +1034,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           userRole: ctx.user.role,
         });
 
-        // Automatically trigger AI assessment if damage photos are provided
+        // Fire-and-forget: trigger AI assessment without blocking the HTTP response
         if (input.damagePhotos && input.damagePhotos.length > 0) {
-          try {
-            await triggerAiAssessment(newClaim.id);
-            console.log(`AI assessment automatically triggered for claim ${claimNumber}`);
-          } catch (error) {
-            console.error(`Failed to trigger AI assessment for claim ${claimNumber}:`, error);
-            // Don't fail the claim submission if AI assessment fails
-          }
+          triggerAiAssessment(newClaim.id).catch((err: unknown) => {
+            console.error(`[AI] Background assessment failed for claim ${newClaim.id}:`, err);
+          });
         }
 
         return { success: true, claimNumber };
@@ -1311,7 +1305,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         }
         
-        await triggerAiAssessment(input.claimId);
+        // Fire-and-forget: run the AI assessment asynchronously so the HTTP
+        // mutation response returns immediately (avoids 15-45 s LLM timeout).
+        // The frontend polls aiAssessments.byClaim every 5 s until a result
+        // appears (see InsurerComparisonView / ClaimRiskIndicators).
+        triggerAiAssessment(input.claimId).catch((err: unknown) => {
+          console.error(`[AI] Background assessment failed for claim ${input.claimId}:`, err);
+        });
         
         // Create audit entry for manual AI assessment trigger
         await createAuditEntry({

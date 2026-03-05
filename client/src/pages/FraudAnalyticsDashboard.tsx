@@ -46,7 +46,7 @@ export default function FraudAnalyticsDashboard() {
         {/* Back Button */}
         <Button
           variant="ghost"
-          onClick={() => setLocation("/insurer/dashboard")}
+          onClick={() => setLocation("/insurer-portal")}
           className="mb-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />

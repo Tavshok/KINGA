@@ -77,7 +77,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
         navigate("/assessor/dashboard");
         break;
       case "insurer":
-        navigate("/insurer/dashboard");
+        navigate("/insurer-portal");
         break;
       case "panel_beater":
         navigate("/panel-beater/dashboard");

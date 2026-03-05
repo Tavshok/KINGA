@@ -39,7 +39,7 @@ export default function Unauthorized() {
     switch (user.role) {
       case "insurer":
       case "admin":
-        setLocation("/insurer/dashboard");
+        setLocation("/insurer-portal");
         break;
       case "assessor":
         setLocation("/assessor/dashboard");

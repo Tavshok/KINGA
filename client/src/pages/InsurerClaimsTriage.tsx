@@ -202,7 +202,7 @@ export default function InsurerClaimsTriage() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setLocation("/insurer/dashboard")}
+                onClick={() => setLocation("/insurer-portal")}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Back to Dashboard

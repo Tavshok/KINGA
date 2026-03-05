@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLocation, useParams } from "wouter";
+import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { trpc } from "@/lib/trpc";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -29,7 +30,7 @@ export default function AssignAssessor() {
   const assignMutation = trpc.claims.assignToAssessor.useMutation({
     onSuccess: () => {
       alert(`Assessor successfully assigned to claim!`);
-      setLocation("/insurer/claims/triage");
+      setLocation(INSURER_CLAIMS_LIST_PATH);
     },
     onError: (error) => {
       alert(`Failed to assign assessor: ${error.message}`);
@@ -155,7 +156,7 @@ export default function AssignAssessor() {
         <Card>
           <CardContent className="py-12 text-center">
             <p className="text-muted-foreground">Invalid claim ID</p>
-            <Button onClick={() => setLocation("/insurer/claims/triage")} className="mt-4">
+            <Button onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)} className="mt-4">
               Back to Claims
             </Button>
           </CardContent>

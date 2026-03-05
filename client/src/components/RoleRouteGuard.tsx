@@ -4,28 +4,21 @@ import { useAuth } from "@/_core/hooks/useAuth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Shield, AlertTriangle } from "lucide-react";
+import { INSURER_ROLE_PORTAL_MAP, getRoleDashboardPath } from "@/lib/roleRouting";
 
 /**
  * Role Route Guard Component
- * 
+ *
  * Enforces role-based access control for insurer portal dashboards.
  * Automatically redirects users to their correct dashboard based on insurerRole.
+ * Route mapping is sourced from the shared @/lib/roleRouting helper so there
+ * is a single source of truth across the whole application.
  */
 
 interface RoleRouteGuardProps {
   allowedRoles: string[];
   children: React.ReactNode;
 }
-
-// Role to route mapping (matches existing App.tsx routes)
-const ROLE_ROUTES: Record<string, string> = {
-  claims_processor: "/insurer-portal/claims-processor",
-  assessor_internal: "/insurer-portal/internal-assessor",
-  risk_manager: "/insurer-portal/risk-manager",
-  claims_manager: "/insurer-portal/claims-manager",
-  executive: "/insurer-portal/executive",
-  insurer_admin: "/insurer-portal/executive", // Admin sees executive dashboard
-};
 
 export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) {
   const { user, loading } = useAuth();
@@ -35,7 +28,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
     if (loading || !user) return;
 
     const userRole = user.insurerRole;
-    
+
     // If user has no insurer role, redirect to portal hub
     if (!userRole) {
       setLocation("/portal-hub");
@@ -44,7 +37,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
 
     // If user's role is not in allowed roles, redirect to their correct dashboard
     if (!allowedRoles.includes(userRole)) {
-      const correctRoute = ROLE_ROUTES[userRole];
+      const correctRoute = INSURER_ROLE_PORTAL_MAP[userRole];
       if (correctRoute && correctRoute !== location) {
         setLocation(correctRoute);
       }
@@ -137,14 +130,11 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
 }
 
 /**
- * Hook to get the correct dashboard route for the current user
+ * Hook to get the correct dashboard route for the current user.
+ * Uses the shared getRoleDashboardPath helper so the mapping is maintained
+ * in a single place (client/src/lib/roleRouting.ts).
  */
 export function useRoleDashboardRoute() {
   const { user } = useAuth();
-  
-  if (!user?.insurerRole) {
-    return "/portal-hub";
-  }
-  
-  return ROLE_ROUTES[user.insurerRole] || "/portal-hub";
+  return getRoleDashboardPath(user?.role, user?.insurerRole);
 }

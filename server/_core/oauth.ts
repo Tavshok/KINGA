@@ -9,6 +9,44 @@ function getQueryParam(req: Request, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
+/**
+ * Decode the OAuth `state` parameter.
+ *
+ * Legacy format: base64(redirectUri)          → returns { redirectUri, returnPath: undefined }
+ * New format:    base64(JSON{ redirectUri, returnPath? }) → returns both fields
+ *
+ * Both formats are supported so existing sessions and bookmarked login links
+ * continue to work after the upgrade.
+ */
+function parseState(state: string): { redirectUri: string; returnPath?: string } {
+  try {
+    const decoded = Buffer.from(state, "base64").toString("utf-8");
+    // New format: JSON object
+    if (decoded.trimStart().startsWith("{")) {
+      const parsed = JSON.parse(decoded) as { redirectUri?: string; returnPath?: string };
+      if (parsed.redirectUri) {
+        return { redirectUri: parsed.redirectUri, returnPath: parsed.returnPath };
+      }
+    }
+    // Legacy format: plain redirectUri string
+    return { redirectUri: decoded };
+  } catch {
+    return { redirectUri: "/portal-hub" };
+  }
+}
+
+/**
+ * Validate that a returnPath is safe to redirect to:
+ * - Must start with "/" (relative path only, no open redirects)
+ * - Must not be /login or /portal-hub (would cause redirect loops)
+ */
+function isSafeReturnPath(path: string | undefined): path is string {
+  if (!path) return false;
+  if (!path.startsWith("/")) return false;
+  if (path === "/login" || path === "/portal-hub") return false;
+  return true;
+}
+
 export function registerOAuthRoutes(app: Express) {
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
@@ -44,8 +82,11 @@ export function registerOAuthRoutes(app: Express) {
       const cookieOptions = getSessionCookieOptions(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
-      // Redirect to portal hub for role selection
-      res.redirect(302, "/portal-hub");
+      // Redirect to the page the user was on before login, or fall back to
+      // /portal-hub for role selection.
+      const { returnPath } = parseState(state);
+      const destination = isSafeReturnPath(returnPath) ? returnPath : "/portal-hub";
+      res.redirect(302, destination);
     } catch (error) {
       console.error("[OAuth] Callback failed", error);
       res.status(500).json({ error: "OAuth callback failed" });

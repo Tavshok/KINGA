@@ -7,7 +7,8 @@ import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
@@ -31,11 +32,28 @@ export default function InsurerComparisonView() {
   // Get claim details
   const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery({ id: claimId });
 
-  // Get AI assessment
+  // Get AI assessment — poll every 5 s while the claim is in assessment_in_progress
+  // so the panel refreshes automatically after the fire-and-forget job completes.
+  const [aiPollInterval, setAiPollInterval] = useState<number | false>(false);
   const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
     { claimId },
-    { enabled: !!claimId }
+    {
+      enabled: !!claimId,
+      refetchInterval: aiPollInterval,
+    }
   );
+
+  // Start polling when the claim enters assessment_in_progress; stop once we
+  // have a result (aiAssessment is populated).
+  useEffect(() => {
+    if (!claim) return;
+    const inProgress = claim.status === "assessment_in_progress" || claim.status === "assessment_pending";
+    if (inProgress && !aiAssessment) {
+      setAiPollInterval(5000);
+    } else {
+      setAiPollInterval(false);
+    }
+  }, [claim?.status, aiAssessment]);
 
   // Get assessor evaluation
   const { data: assessorEval, isLoading: assessorLoading } = trpc.assessorEvaluations.byClaim.useQuery(
@@ -178,8 +196,8 @@ export default function InsurerComparisonView() {
             <CardDescription>The requested claim could not be found</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setLocation("/insurer/dashboard")}>
-              Back to Dashboard
+            <Button onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}>
+              Back to Claims
             </Button>
           </CardContent>
         </Card>
@@ -301,10 +319,10 @@ export default function InsurerComparisonView() {
               <Button 
                 variant="outline" 
                 size="sm"
-                onClick={() => setLocation("/insurer/claims/triage")}
+                onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Back to Triage
+                Back to Claims
               </Button>
             </div>
           </div>

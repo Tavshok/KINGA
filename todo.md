@@ -9519,3 +9519,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Status badges: Approved, Pending, Rejected, Suspended, Blacklisted by X insurers, Preferred by X insurers
 - [x] Write 31 unit tests in server/routers/platform-marketplace.test.ts
 - [x] Verify TypeScript 0 errors
+
+## Role & Workflow Integrity Audit (2026-03-05)
+- [ ] Scan schema for all role definitions and produce role table
+- [ ] Audit PortalHub portal visibility logic
+- [ ] Audit ProtectedRoute and Unauthorized pages
+- [ ] Build canonical route map from App.tsx
+- [ ] Create shared getRoleDashboardRoute helper (client/src/lib/roleRouting.ts)
+- [ ] Replace all hardcoded /insurer/claims/triage navigation
+- [ ] Replace all other hardcoded role-specific paths in components
+- [ ] Fix OAuth returnPath encoding in client/src/const.ts
+- [ ] Fix OAuth returnPath decoding in server/_core/oauth.ts
+- [ ] Convert triggerAiAssessment to fire-and-forget
+- [ ] Add refetchInterval to aiAssessments.byClaim query
+- [ ] Invalidate aiAssessments.byClaim in trigger onSuccess handlers
+- [ ] Add PortalHub empty-state for role=user
+- [ ] Add <Redirect> from /insurer/claims/triage to /insurer-portal/claims-processor
+- [ ] npx tsc --noEmit → 0 errors
+- [ ] Full test suite → 0 regressions
+- [ ] Save checkpoint
+- [ ] Produce final integrity report
