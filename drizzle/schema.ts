@@ -699,6 +699,7 @@ export const claims = mysqlTable("claims", {
 	policyVersionId: int("policy_version_id"),
 	sourceDocumentId: int("source_document_id"),
 	claimSource: varchar("claim_source", { length: 50 }),
+	isSimulated: tinyint("is_simulated").default(0).notNull(),
 	// Document parsing pipeline status — updated as AI extraction progresses
 	documentProcessingStatus: varchar("document_processing_status", { length: 30 }).notNull().default("pending"),
 },

@@ -15,6 +15,7 @@ import {
   ChevronRight,
   Shield,
   Users,
+  FlaskConical,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -54,6 +55,12 @@ const navItems = [
     href: "/platform/user-role-manager",
     icon: Users,
     description: "Assign user roles",
+  },
+  {
+    label: "Claim Simulator",
+    href: "/platform/claim-simulator",
+    icon: FlaskConical,
+    description: "Synthetic claim testing",
   },
 ];
 

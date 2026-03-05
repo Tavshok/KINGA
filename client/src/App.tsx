@@ -66,6 +66,7 @@ const PlatformMarketplace = lazy(() => import("./pages/PlatformMarketplace"));
 const PlatformImpersonate = lazy(() => import("./pages/PlatformImpersonate"));
 const PlatformClaimDebug = lazy(() => import("./pages/PlatformClaimDebug"));
 const PlatformUserRoleManager = lazy(() => import("./pages/PlatformUserRoleManager"));
+const ClaimSimulator = lazy(() => import("./pages/platform/ClaimSimulator"));
 import PlatformLayout from "./components/PlatformLayout";
 
 // Assessor pages
@@ -188,6 +189,11 @@ function Router() {
         <Route path="/platform/user-role-manager">
           <ProtectedRoute domain="platform">
             <PlatformLayout><PlatformUserRoleManager /></PlatformLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/platform/claim-simulator">
+          <ProtectedRoute domain="platform">
+            <PlatformLayout><ClaimSimulator /></PlatformLayout>
           </ProtectedRoute>
         </Route>
         {/* Assessment Results */}
