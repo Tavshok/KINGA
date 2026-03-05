@@ -9613,3 +9613,4 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 
 - [x] Fix workflow transition error: intake_queue → under_assessment not recognized
 - [x] Build proper assessor assignment dialog with searchable assessor list
+
