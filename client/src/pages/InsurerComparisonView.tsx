@@ -1327,17 +1327,58 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 
 // Transform physics analysis to validation format
 function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) {
-  // Calculate confidence scores based on physics results
-  const speedConsistency = physicsAnalysis.estimatedSpeed?.confidence ?? physicsAnalysis.damageConsistency?.score ?? 75;
-  const damagePropagation = physicsAnalysis.damageConsistency?.score ?? physicsAnalysis.damagePropagation?.consistency ?? 80;
-  const impactForceAnalysis = physicsAnalysis.impactForce?.confidence ?? 85;
-  const geometricAlignment = physicsAnalysis.geometricConsistency ? 90 : (physicsAnalysis.damageConsistency?.score ?? 60);
-  
+  // ── Normalised contract fields (new format stored by backend) ──────────────
+  // New records have: { consistencyScore, damagePropagationScore, fraudRiskScore,
+  //   fraudIndicators: [{ component, confidence }], _raw }
+  // Legacy records have the raw PhysicsAnalysisResult shape.
+  const isNormalised = typeof physicsAnalysis.consistencyScore === "number" &&
+    Array.isArray(physicsAnalysis.fraudIndicators) &&
+    (physicsAnalysis.fraudIndicators.length === 0 ||
+      typeof physicsAnalysis.fraudIndicators[0] === "object");
+
+  // Resolve scalar scores with backward-compat fallbacks
+  const consistencyScore: number = isNormalised
+    ? physicsAnalysis.consistencyScore
+    : (physicsAnalysis.damageConsistency?.score ?? physicsAnalysis.consistencyScore ?? physicsAnalysis.overallConsistency ?? 70);
+
+  const damagePropagationScore: number = isNormalised
+    ? physicsAnalysis.damagePropagationScore
+    : (physicsAnalysis.damageConsistency?.score ?? 70);
+
+  // Resolve structured fraud indicators with backward-compat fallbacks
+  const resolveIndicators = (raw: any): Array<{ component: string; confidence: number }> => {
+    if (isNormalised) {
+      // Already structured objects
+      return (raw.fraudIndicators || []).map((item: any) =>
+        typeof item === "string" ? { component: item, confidence: 75 } : item
+      );
+    }
+    // Legacy: convert string arrays
+    const toObj = (items: string[], conf: number) =>
+      (items || []).map((s: string) => ({ component: s, confidence: conf }));
+    return [
+      ...toObj(raw.fraudIndicators?.impossibleDamagePatterns ?? [], 90),
+      ...toObj(raw.fraudIndicators?.unrelatedDamage ?? [], 70),
+      ...toObj(raw.fraudIndicators?.stagedAccidentIndicators ?? [], 85),
+      ...(raw.fraudIndicators?.severityMismatch
+        ? [{ component: "Severity mismatch: reported damage inconsistent with impact forces", confidence: 75 }]
+        : []),
+    ];
+  };
+
+  const structuredIndicators = resolveIndicators(physicsAnalysis);
+
+  // Calculate confidence scores
+  const speedConsistency = physicsAnalysis._raw?.estimatedSpeed?.confidence ?? consistencyScore;
+  const damagePropagation = damagePropagationScore;
+  const impactForceAnalysis = physicsAnalysis._raw?.impactForce?.confidence ?? 85;
+  const geometricAlignment = physicsAnalysis._raw?.geometricConsistency ? 90 : consistencyScore;
+
   const overallConfidence = Math.round(
     (speedConsistency + damagePropagation + impactForceAnalysis + geometricAlignment) / 4
   );
 
-  // Build anomalies list from fraud indicators
+  // Build anomalies list from structured fraud indicators
   const anomalies: Array<{
     type: "info" | "warning" | "error";
     title: string;
@@ -1345,39 +1386,34 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
     riskLevel: "low" | "medium" | "high";
   }> = [];
 
-  if (physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0) {
+  // Group indicators by type for display
+  const impossiblePatterns = structuredIndicators.filter(i => i.confidence >= 85);
+  const unrelatedDamage = structuredIndicators.filter(i => i.confidence >= 65 && i.confidence < 85);
+  const severityItems = structuredIndicators.filter(i => i.component.toLowerCase().includes("severity"));
+
+  if (impossiblePatterns.length > 0) {
     anomalies.push({
       type: "error",
       title: "Impossible Damage Patterns",
-      description: physicsAnalysis.fraudIndicators.impossibleDamagePatterns.join("; "),
+      description: impossiblePatterns.map(i => i.component).join("; "),
       riskLevel: "high",
     });
   }
 
-  const unrelatedDamageItems: any[] = physicsAnalysis.fraudIndicators?.unrelatedDamage || [];
-  if (unrelatedDamageItems.length > 0) {
+  if (unrelatedDamage.length > 0) {
     anomalies.push({
       type: "warning",
       title: "Unrelated Damage Detected",
-      description: `${unrelatedDamageItems.length} components show damage inconsistent with impact point`,
+      description: `${unrelatedDamage.length} component(s) show damage inconsistent with impact point`,
       riskLevel: "medium",
     });
   }
 
-  if (physicsAnalysis.fraudIndicators?.stagedAccidentIndicators?.length > 0) {
-    anomalies.push({
-      type: "error",
-      title: "Staged Accident Indicators",
-      description: physicsAnalysis.fraudIndicators.stagedAccidentIndicators.join("; "),
-      riskLevel: "high",
-    });
-  }
-
-  if (physicsAnalysis.fraudIndicators?.severityMismatch) {
+  if (severityItems.length > 0) {
     anomalies.push({
       type: "warning",
       title: "Severity Mismatch",
-      description: "Reported damage severity doesn't match estimated impact speed and forces",
+      description: "Reported damage severity does not match estimated impact speed and forces",
       riskLevel: "medium",
     });
   }

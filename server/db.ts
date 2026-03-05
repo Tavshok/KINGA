@@ -1000,10 +1000,56 @@ Provide your response in JSON format.`;
     
     console.log(`[AI Assessment] Enhanced confidence for claim ${claimId}: vision=${visionConfidence}, physics=${physicsConsistencyScore}, forensic=${forensicConfidenceBoost}, deviation_penalty=${deviationPenalty.toFixed(1)}, final=${enhancedConfidenceScore}`);
     
+    // Normalise physics analysis to the standardised frontend contract before persisting.
+    // This ensures all stored records share the same shape regardless of engine version.
+    const normalisePhysicsAnalysis = (raw: any): {
+      consistencyScore: number;
+      damagePropagationScore: number;
+      fraudRiskScore: number;
+      fraudIndicators: Array<{ component: string; confidence: number }>;
+      // Preserve full raw data for advanced consumers
+      _raw: any;
+    } => {
+      // Derive scalar scores
+      const consistencyScore: number = raw.damageConsistency?.score ?? raw.consistencyScore ?? raw.overallConsistency ?? 70;
+      const damagePropagationScore: number = raw.damageConsistency?.score ?? raw.damagePropagationScore ?? 70;
+
+      // Compute fraud risk score from indicator counts (0-100)
+      const impossibleCount: number = (raw.fraudIndicators?.impossibleDamagePatterns?.length ?? 0);
+      const unrelatedCount: number = (raw.fraudIndicators?.unrelatedDamage?.length ?? 0);
+      const stagedCount: number = (raw.fraudIndicators?.stagedAccidentIndicators?.length ?? 0);
+      const severityMismatch: boolean = raw.fraudIndicators?.severityMismatch ?? false;
+      const fraudRiskScore: number = Math.min(100,
+        impossibleCount * 20 +
+        unrelatedCount * 15 +
+        stagedCount * 20 +
+        (severityMismatch ? 25 : 0)
+      );
+
+      // Convert all string[] fraud indicator arrays to structured objects
+      const toStructured = (items: any[], defaultConfidence: number): Array<{ component: string; confidence: number }> =>
+        (items || []).map((item: any) => {
+          if (typeof item === "string") return { component: item, confidence: defaultConfidence };
+          if (item && typeof item === "object" && typeof item.component === "string") return { component: item.component, confidence: item.confidence ?? defaultConfidence };
+          return { component: String(item), confidence: defaultConfidence };
+        });
+
+      const fraudIndicators: Array<{ component: string; confidence: number }> = [
+        ...toStructured(raw.fraudIndicators?.impossibleDamagePatterns ?? [], 90),
+        ...toStructured(raw.fraudIndicators?.unrelatedDamage ?? [], 70),
+        ...toStructured(raw.fraudIndicators?.stagedAccidentIndicators ?? [], 85),
+        ...(severityMismatch ? [{ component: "Severity mismatch: reported damage inconsistent with impact forces", confidence: 75 }] : []),
+      ];
+
+      return { consistencyScore, damagePropagationScore, fraudRiskScore, fraudIndicators, _raw: raw };
+    };
+
+    const normalisedPhysicsAnalysis = normalisePhysicsAnalysis(physicsAnalysis);
+
     // Update AI assessment with combined fraud level, physics analysis, forensic analysis, deviation score, and enhanced confidence
     await db.update(aiAssessments).set({
       fraudRiskLevel: combinedFraudLevel,
-      physicsAnalysis: JSON.stringify(physicsAnalysis),
+      physicsAnalysis: JSON.stringify(normalisedPhysicsAnalysis),
       forensicAnalysis: forensicAnalysis ? JSON.stringify(forensicAnalysis) : null,
       physicsDeviationScore,
       confidenceScore: enhancedConfidenceScore,
