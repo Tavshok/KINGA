@@ -9610,3 +9610,6 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Rewrite ClaimsProcessorDashboard with 4 clear sections: Pending, In Review, AI Complete, Completed
 - [x] Add search bar, quick stats, context-dependent action buttons per section
 - [x] Add real-time polling (5s when AI running, 30s otherwise) with auto-detection of AI completion
+
+- [x] Fix workflow transition error: intake_queue → under_assessment not recognized
+- [x] Build proper assessor assignment dialog with searchable assessor list

@@ -23,6 +23,7 @@ export type InsurerRole =
   | "insurer_admin";
 
 export type WorkflowState =
+  | "intake_queue"
   | "created"
   | "assigned"
   | "under_assessment"
@@ -155,6 +156,7 @@ export const PERMISSIONS = {
  * Workflow state machine - defines valid transitions
  */
 export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
+  intake_queue: ["created", "assigned", "under_assessment"],
   created: ["assigned", "under_assessment", "disputed"],
   assigned: ["under_assessment", "disputed"],
   under_assessment: ["internal_review", "disputed"],

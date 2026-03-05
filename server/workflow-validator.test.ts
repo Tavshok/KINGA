@@ -22,13 +22,16 @@ describe("Workflow Validator", () => {
       const expectedStatuses: ClaimStatus[] = [
         "submitted",
         "triage",
+        "intake_pending",
         "assessment_pending",
         "assessment_in_progress",
+        "assessment_complete",
         "quotes_pending",
         "comparison",
         "repair_assigned",
         "repair_in_progress",
         "completed",
+        "closed",
         "rejected"
       ];
       
@@ -39,14 +42,17 @@ describe("Workflow Validator", () => {
     it("should have terminal states with no outgoing transitions", () => {
       expect(ALLOWED_TRANSITIONS.completed).toEqual([]);
       expect(ALLOWED_TRANSITIONS.rejected).toEqual([]);
+      expect(ALLOWED_TRANSITIONS.closed).toEqual([]);
     });
     
     it("should allow rejection from any non-terminal state", () => {
       const nonTerminalStatuses: ClaimStatus[] = [
         "submitted",
         "triage",
+        "intake_pending",
         "assessment_pending",
         "assessment_in_progress",
+        "assessment_complete",
         "quotes_pending",
         "comparison",
         "repair_assigned",

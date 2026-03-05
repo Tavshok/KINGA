@@ -32,7 +32,7 @@ export type LegacyStatus =
 export const STATUS_TO_WORKFLOW_STATE: Record<LegacyStatus, WorkflowState> = {
   submitted: "created",
   triage: "created",
-  intake_pending: "created",
+  intake_pending: "intake_queue",
   assessment_pending: "assigned",
   assessment_in_progress: "under_assessment",
   assessment_complete: "internal_review",
@@ -49,6 +49,7 @@ export const STATUS_TO_WORKFLOW_STATE: Record<LegacyStatus, WorkflowState> = {
  * Reverse mapping from workflowState to legacy status (for backward compatibility)
  */
 export const WORKFLOW_STATE_TO_STATUS: Record<WorkflowState, LegacyStatus> = {
+  intake_queue: "intake_pending",
   created: "submitted",
   assigned: "assessment_pending",
   under_assessment: "assessment_in_progress",

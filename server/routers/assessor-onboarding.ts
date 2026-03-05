@@ -346,10 +346,11 @@ export const assessorOnboardingRouter = router({
    * List Insurer's Assessors
    */
   listInsurerAssessors: protectedProcedure.query(async ({ ctx }) => {
+    // Allow insurer users (including claims_processor role) and admins
     if (ctx.user.role !== "insurer" && ctx.user.role !== "admin") {
       throw new TRPCError({
         code: "FORBIDDEN",
-        message: "Only insurer admins can list assessors",
+        message: "Only insurer users can list assessors",
       });
     }
 

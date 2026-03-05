@@ -16,14 +16,17 @@ import { TRPCError } from "@trpc/server";
 export type ClaimStatus = 
   | "submitted"
   | "triage"
+  | "intake_pending"
   | "assessment_pending"
   | "assessment_in_progress"
+  | "assessment_complete"
   | "quotes_pending"
   | "comparison"
   | "repair_assigned"
   | "repair_in_progress"
   | "completed"
-  | "rejected";
+  | "rejected"  
+  | "closed";
 
 /**
  * Map of allowed state transitions
@@ -38,11 +41,18 @@ export const ALLOWED_TRANSITIONS: Record<ClaimStatus, ClaimStatus[]> = {
   // Triage can route to assessment or rejection
   triage: ["assessment_pending", "rejected"],
   
+  // Intake pending (from document ingestion) — can go to assessment_pending (assign assessor),
+  // assessment_in_progress (AI triggered), or rejected
+  intake_pending: ["assessment_pending", "assessment_in_progress", "rejected"],
+  
   // Assessment pending can start assessment or be rejected
   assessment_pending: ["assessment_in_progress", "rejected"],
   
-  // Assessment in progress can complete to quotes or be rejected
-  assessment_in_progress: ["quotes_pending", "rejected"],
+  // Assessment in progress can complete to assessment_complete, quotes_pending, or be rejected
+  assessment_in_progress: ["assessment_complete", "quotes_pending", "rejected"],
+  
+  // Assessment complete can move to quotes_pending, comparison, or be rejected
+  assessment_complete: ["quotes_pending", "comparison", "rejected"],
   
   // Quotes pending can move to comparison or be rejected
   quotes_pending: ["comparison", "rejected"],
@@ -59,6 +69,7 @@ export const ALLOWED_TRANSITIONS: Record<ClaimStatus, ClaimStatus[]> = {
   // Terminal states - no transitions allowed
   completed: [],
   rejected: [],
+  closed: [],
 };
 
 /**

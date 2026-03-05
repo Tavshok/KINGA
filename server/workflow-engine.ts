@@ -60,6 +60,7 @@ export interface TransitionResult {
  * Maps workflow states to critical stages defined in schema
  */
 const STATE_TO_STAGE_MAP: Record<WorkflowState, "assessment" | "technical_approval" | "financial_decision" | "payment_authorization" | null> = {
+  intake_queue: null, // Not a critical stage — initial intake from document ingestion
   created: null, // Not a critical stage
   assigned: null, // Not a critical stage
   under_assessment: "assessment",
@@ -76,6 +77,9 @@ const STATE_TO_STAGE_MAP: Record<WorkflowState, "assessment" | "technical_approv
  * Defines which roles can perform which state transitions
  */
 const ROLE_TRANSITION_PERMISSIONS: Record<string, InsurerRole[]> = {
+  "intake_queue → created": ["claims_processor"],
+  "intake_queue → assigned": ["claims_processor"],
+  "intake_queue → under_assessment": ["claims_processor"],
   "created → assigned": ["claims_processor"],
   "created → under_assessment": ["claims_processor"],
   "assigned → under_assessment": ["assessor_internal", "claims_processor"],

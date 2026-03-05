@@ -44,6 +44,8 @@ export default function ClaimsProcessorDashboard() {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
   const [assignClaimId, setAssignClaimId] = useState<number | null>(null);
+  const [assessorSearchQuery, setAssessorSearchQuery] = useState("");
+  const [selectedAssessorId, setSelectedAssessorId] = useState<number | null>(null);
   const [aiProcessingClaimIds, setAiProcessingClaimIds] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -248,10 +250,64 @@ export default function ClaimsProcessorDashboard() {
     });
   };
 
+  // Fetch enriched assessors list (with specializations, ratings) for assignment dialog
+  const { data: enrichedAssessors, isLoading: enrichedLoading } = trpc.assessorOnboarding.listInsurerAssessors.useQuery( // eslint-disable-line react-hooks/rules-of-hooks
+    undefined,
+    { enabled: assignDialogOpen }
+  );
+  // Fallback to basic assessor list if no onboarded assessors found
+  const { data: basicAssessors, isLoading: basicLoading } = trpc.assessors.list.useQuery( // eslint-disable-line react-hooks/rules-of-hooks
+    undefined,
+    { enabled: assignDialogOpen && !enrichedLoading && (!enrichedAssessors || enrichedAssessors.length === 0) }
+  );
+  const assessorsList = (enrichedAssessors && enrichedAssessors.length > 0) ? enrichedAssessors : basicAssessors;
+  const assessorsLoading = enrichedLoading || basicLoading;
+
+  // Assign to assessor mutation
+  const assignToAssessorMutation = trpc.claims.assignToAssessor.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
+    onSuccess: () => {
+      toast.success("Assessor Assigned", {
+        description: "The claim has been assigned to the selected assessor. They will be notified.",
+      });
+      setAssignDialogOpen(false);
+      setAssignClaimId(null);
+      setSelectedAssessorId(null);
+      setAssessorSearchQuery("");
+      refetchAll();
+    },
+    onError: (error: any) => {
+      toast.error("Assignment Failed", {
+        description: error.message || "Could not assign assessor. Please try again.",
+      });
+    },
+  });
+
   const handleAssignAssessor = (claimId: number) => {
     setAssignClaimId(claimId);
+    setSelectedAssessorId(null);
+    setAssessorSearchQuery("");
     setAssignDialogOpen(true);
   };
+
+  const handleConfirmAssignment = () => {
+    if (!assignClaimId || !selectedAssessorId) return;
+    assignToAssessorMutation.mutate({
+      claimId: assignClaimId,
+      assessorId: selectedAssessorId,
+    });
+  };
+
+  const filteredAssessors = (assessorsList || []).filter((a: any) => {
+    if (!assessorSearchQuery.trim()) return true;
+    const q = assessorSearchQuery.toLowerCase();
+    return (
+      (a.userName || a.name || "").toLowerCase().includes(q) ||
+      (a.userEmail || a.email || "").toLowerCase().includes(q) ||
+      (a.insurerRole || "").toLowerCase().includes(q) ||
+      (a.specializations || []).some((s: string) => s.toLowerCase().includes(q)) ||
+      (a.serviceRegions || []).some((r: string) => r.toLowerCase().includes(q))
+    );
+  });
 
   // Claim Card component inline for better control
   const ClaimCardInline = ({ claim, section }: { claim: any; section: "pending" | "in_review" | "ai_flagged" | "completed" }) => {
@@ -713,47 +769,145 @@ export default function ClaimsProcessorDashboard() {
       </Dialog>
 
       {/* Assign Human Assessor Dialog */}
-      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
-        <DialogContent>
+      <Dialog open={assignDialogOpen} onOpenChange={(open) => {
+        setAssignDialogOpen(open);
+        if (!open) {
+          setSelectedAssessorId(null);
+          setAssessorSearchQuery("");
+        }
+      }}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <UserPlus className="h-5 w-5 text-blue-600" />
               Assign Human Assessor
             </DialogTitle>
             <DialogDescription>
-              Assign this claim to a human assessor for manual inspection and evaluation.
+              Search and select an assessor to assign this claim for manual inspection.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 pt-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-sm text-blue-800">
-                <strong>Note:</strong> Human assessor assignment is being configured for your organization. 
-                In the meantime, you can use the AI assessment to get an initial evaluation, 
-                then escalate to a senior reviewer if needed.
-              </p>
+          <div className="space-y-4 pt-2">
+            {/* Assessor Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Input
+                placeholder="Search assessors by name or email..."
+                value={assessorSearchQuery}
+                onChange={(e) => setAssessorSearchQuery(e.target.value)}
+                className="pl-10"
+              />
             </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="default"
-                className="flex-1 bg-purple-600 hover:bg-purple-700"
-                onClick={() => {
-                  if (assignClaimId) {
-                    handleTriggerAI(assignClaimId);
-                  }
-                  setAssignDialogOpen(false);
-                }}
-              >
-                <Brain className="h-4 w-4 mr-2" />
-                Run AI Assessment Instead
-              </Button>
-              <Button 
-                variant="outline"
-                onClick={() => setAssignDialogOpen(false)}
-              >
-                Cancel
-              </Button>
+
+            {/* Assessor List */}
+            <div className="max-h-[300px] overflow-y-auto border rounded-lg divide-y">
+              {assessorsLoading ? (
+                <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Loading assessors...</span>
+                </div>
+              ) : filteredAssessors.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <UserPlus className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm">
+                    {assessorSearchQuery ? "No assessors match your search" : "No assessors available"}
+                  </p>
+                </div>
+              ) : (
+                filteredAssessors.map((assessor: any) => {
+                  const isSelected = selectedAssessorId === assessor.id;
+                  return (
+                    <button
+                      key={assessor.id}
+                      onClick={() => setSelectedAssessorId(isSelected ? null : assessor.id)}
+                      className={`w-full text-left p-3 hover:bg-blue-50 transition-colors flex items-center gap-3 ${
+                        isSelected ? "bg-blue-100 border-l-4 border-l-blue-600" : ""
+                      }`}
+                    >
+                      <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                        isSelected ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+                      }`}>
+                        {(assessor.name || "A").charAt(0).toUpperCase()}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-sm text-slate-900 truncate">
+                          {assessor.userName || assessor.name || "Unnamed Assessor"}
+                        </p>
+                        <p className="text-xs text-slate-500 truncate">
+                          {assessor.userEmail || assessor.email || "No email"}
+                        </p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {assessor.specializations && assessor.specializations.length > 0 && (
+                            assessor.specializations.slice(0, 2).map((spec: string, i: number) => (
+                              <Badge key={i} variant="outline" className="text-xs bg-slate-50">
+                                {spec}
+                              </Badge>
+                            ))
+                          )}
+                          {assessor.performanceRating && (
+                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                              ★ {Number(assessor.performanceRating).toFixed(1)}
+                            </Badge>
+                          )}
+                          {assessor.totalAssignmentsCompleted > 0 && (
+                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                              {assessor.totalAssignmentsCompleted} completed
+                            </Badge>
+                          )}
+                          {assessor.insurerRole && !assessor.specializations && (
+                            <Badge variant="outline" className="text-xs">
+                              {assessor.insurerRole.replace(/_/g, " ")}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      {isSelected && (
+                        <CheckCircle className="h-5 w-5 text-blue-600 flex-shrink-0" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
+
+            {/* Selected Assessor Confirmation */}
+            {selectedAssessorId && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                <p className="text-sm text-blue-800">
+                  <strong>Selected:</strong>{" "}
+                  {(() => { const a: any = filteredAssessors.find((a: any) => a.id === selectedAssessorId); return a?.userName || a?.name || "Assessor"; })()}
+                </p>
+              </div>
+            )}
           </div>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                if (assignClaimId) {
+                  handleTriggerAI(assignClaimId);
+                }
+                setAssignDialogOpen(false);
+              }}
+              className="border-purple-300 text-purple-700 hover:bg-purple-50"
+            >
+              <Brain className="h-4 w-4 mr-2" />
+              Run AI Instead
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleConfirmAssignment}
+              disabled={!selectedAssessorId || assignToAssessorMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {assignToAssessorMutation.isPending ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="h-4 w-4 mr-2" />
+              )}
+              Assign Assessor
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
