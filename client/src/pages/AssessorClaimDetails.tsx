@@ -14,6 +14,7 @@ import { useState } from "react";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
+import { AiStatusBadge } from "@/components/AiStatusBadge";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
@@ -116,7 +117,10 @@ export default function AssessorClaimDetails() {
               <ClipboardCheck className="h-8 w-8 text-primary" />
               <div>
                 <h1 className="text-2xl font-bold">Claim Assessment</h1>
-                <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
+                  <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-4">

@@ -21,6 +21,7 @@ import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
+import { AiStatusBadge } from "@/components/AiStatusBadge";
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
@@ -281,7 +282,10 @@ export default function InsurerComparisonView() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Fraud Detection & Comparison</h1>
-              <p className="text-sm text-muted-foreground font-mono mt-1">{claim.claimNumber}</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
+                <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
+              </div>
             </div>
             <div className="flex gap-2">
               <Button 
