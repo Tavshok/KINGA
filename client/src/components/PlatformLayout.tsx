@@ -14,6 +14,7 @@ import {
   Activity,
   ChevronRight,
   Shield,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +48,12 @@ const navItems = [
     href: "/platform/system-health",
     icon: Activity,
     description: "Green/Amber/Red status",
+  },
+  {
+    label: "Role Manager",
+    href: "/platform/user-role-manager",
+    icon: Users,
+    description: "Assign user roles",
   },
 ];
 
