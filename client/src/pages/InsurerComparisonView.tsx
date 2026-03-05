@@ -7,7 +7,7 @@ import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
@@ -54,6 +54,19 @@ export default function InsurerComparisonView() {
       setAiPollInterval(false);
     }
   }, [claim?.status, aiAssessment]);
+
+  // Fire a one-shot toast the first time aiAssessment transitions from
+  // undefined/null → populated. The ref ensures repeated polling ticks never
+  // trigger a second notification for the same claim session.
+  const assessmentToastShown = useRef(false);
+  useEffect(() => {
+    if (aiAssessment && !assessmentToastShown.current) {
+      assessmentToastShown.current = true;
+      toast.success("AI assessment ready", {
+        description: "The AI damage assessment for this claim is now available.",
+      });
+    }
+  }, [aiAssessment]);
 
   // Get assessor evaluation
   const { data: assessorEval, isLoading: assessorLoading } = trpc.assessorEvaluations.byClaim.useQuery(
