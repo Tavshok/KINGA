@@ -3484,3 +3484,25 @@ export const systemErrors = mysqlTable("system_errors", {
 
 export type SystemError = typeof systemErrors.$inferSelect;
 export type InsertSystemError = typeof systemErrors.$inferInsert;
+
+// ─── Country Repair Index ─────────────────────────────────────────────────────
+// Repair cost context per country: VAT, import duty, labour rates.
+// Used by the Repair Quote Intelligence layer for cost normalisation.
+// Append-only: new rows supersede old ones (ordered by effective_from DESC).
+export const countryRepairIndex = mysqlTable("country_repair_index", {
+  id: int().autoincrement().notNull(),
+  countryCode: varchar("country_code", { length: 10 }).notNull(),
+  countryName: varchar("country_name", { length: 100 }).notNull(),
+  vatRate: decimal("vat_rate", { precision: 5, scale: 4 }).notNull(),
+  importDutyRate: decimal("import_duty_rate", { precision: 5, scale: 4 }).notNull(),
+  avgLabourRatePerHour: int("avg_labour_rate_per_hour").notNull(), // ZAR cents
+  currencyCode: varchar("currency_code", { length: 10 }).notNull(),
+  effectiveFrom: varchar("effective_from", { length: 10 }).notNull(), // ISO date string
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+},
+(table) => [
+  index("idx_cri_country").on(table.countryCode),
+  index("idx_cri_effective").on(table.effectiveFrom),
+]);
+export type CountryRepairIndex = typeof countryRepairIndex.$inferSelect;
+export type InsertCountryRepairIndex = typeof countryRepairIndex.$inferInsert;

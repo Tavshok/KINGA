@@ -102,6 +102,7 @@ import { policyManagementRouter } from "./routers/policy-management";
 import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
 import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
+import { quoteIntelligenceRouter } from './repair-intelligence/router';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -146,6 +147,7 @@ export const appRouter = router({
   marketplace: marketplaceRouter,
   platformMarketplace: platformMarketplaceRouter,
   platformUserRoles: platformUserRolesRouter,
+  quoteIntelligence: quoteIntelligenceRouter,
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
   assessorSubscription: router({
     /**

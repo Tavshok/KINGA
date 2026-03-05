@@ -17,6 +17,7 @@ import { Download } from "lucide-react";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
+import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 
 export default function InsurerComparisonView() {
@@ -416,6 +417,8 @@ export default function InsurerComparisonView() {
 
         {/* AI Cost Optimisation Panel */}
         <QuoteOptimisationPanel claimId={claimId} />
+        {/* Repair Quote Intelligence — advisory panel */}
+        <RepairIntelligencePanel claimId={claimId} />
 
         {/* Side-by-Side Comparison */}
         <div className="grid gap-6 lg:grid-cols-3">
