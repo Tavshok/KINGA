@@ -9696,3 +9696,36 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix server/routers/agency-broker.ts: default quoteCurrency to USD
 - [x] Add insurerTenants to routers.ts schema imports
 - [x] Write vitest tests for currency utilities (31 tests, all passing)
+
+## Per-Claim Currency Selector (Claims Manager/Processor)
+- [ ] Add claims.updateCurrency tRPC procedure (protectedProcedure, claims_manager/processor roles)
+- [ ] Build ClaimCurrencySelector component (USD / ZIG / ZAR dropdown with save button)
+- [ ] Integrate ClaimCurrencySelector into ClaimsManagerDashboard claim detail panel
+- [ ] Integrate ClaimCurrencySelector into InsurerComparisonView claim header
+- [ ] Propagate currency change to ai_assessments and panel_beater_quotes for the same claim
+- [ ] Show currency badge next to claim number in all claim list views
+- [ ] Write vitest test for claims.updateCurrency procedure
+
+## Per-Claim Currency Selector (Claims Manager/Processor)
+
+- [x] Add `claims.updateCurrency` tRPC procedure (roles: claims_manager, claims_processor, insurer, admin)
+- [x] Propagate currency change to ai_assessments and panel_beater_quotes on update
+- [x] Audit trail entry created on each currency update
+- [x] Build `ClaimCurrencySelector` component (compact + full modes; USD/ZIG/ZAR)
+- [x] Integrate compact selector on every claim card in ClaimsManagerDashboard queue
+- [x] Integrate compact selector in InsurerComparisonView claim header
+- [x] Integrate full selector in "Close for Processing" dialog
+- [x] Write 17 vitest tests for updateCurrency procedure (all pass)
+- [x] TypeScript: zero errors
+
+## Per-Claim Currency Selector (Claims Manager/Processor)
+
+- [x] Add claims.updateCurrency tRPC procedure (roles: claims_manager, claims_processor, insurer, admin)
+- [x] Propagate currency change to ai_assessments and panel_beater_quotes on update
+- [x] Audit trail entry created on each currency update
+- [x] Build ClaimCurrencySelector component (compact + full modes; USD/ZIG/ZAR)
+- [x] Integrate compact selector on every claim card in ClaimsManagerDashboard queue
+- [x] Integrate compact selector in InsurerComparisonView claim header
+- [x] Integrate full selector in Close for Processing dialog
+- [x] Write 17 vitest tests for updateCurrency procedure (all pass)
+- [x] TypeScript: zero errors

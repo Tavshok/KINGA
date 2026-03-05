@@ -1737,9 +1737,74 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         return { choices, assignedProfileId };
       }),
-  }),
 
-  // Assessor operations
+    /**
+     * Update Claim Currency
+     *
+     * Allows a claims manager or processor to set the currency for a specific claim
+     * based on the policy insured. Also propagates the currency to all related
+     * AI assessments and panel beater quotes for that claim.
+     *
+     * Supported codes: USD, ZIG, ZAR (ISO 4217)
+     *
+     * @requires Authentication (claims_manager, claims_processor, insurer, or admin role)
+     * @param claimId - ID of the claim to update
+     * @param currencyCode - ISO 4217 currency code (e.g. "USD", "ZIG", "ZAR")
+     * @returns { success, currencyCode }
+     */
+    updateCurrency: protectedProcedure
+      .input(z.object({
+        claimId: z.number().int().positive(),
+        currencyCode: z.enum(["USD", "ZIG", "ZAR"]),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const allowedRoles = ["claims_manager", "claims_processor", "insurer", "admin"];
+        if (!allowedRoles.includes(ctx.user.role)) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Only claims managers and processors can update claim currency" });
+        }
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || ctx.user.insurerTenantId || "default");
+        // Verify claim exists and belongs to tenant
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found or access denied" });
+
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+
+        const { aiAssessments: aiAssessmentsTable, panelBeaterQuotes: panelBeaterQuotesTable } = await import("../drizzle/schema");
+
+        // 1. Update the claim itself
+        await db
+          .update(claims)
+          .set({ currencyCode: input.currencyCode })
+          .where(eq(claims.id, input.claimId));
+
+        // 2. Propagate to all AI assessments for this claim
+        await db
+          .update(aiAssessmentsTable)
+          .set({ currencyCode: input.currencyCode })
+          .where(eq(aiAssessmentsTable.claimId, input.claimId));
+
+        // 3. Propagate to all panel beater quotes for this claim
+        await db
+          .update(panelBeaterQuotesTable)
+          .set({ currencyCode: input.currencyCode })
+          .where(eq(panelBeaterQuotesTable.claimId, input.claimId));
+
+        // 4. Audit trail
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_currency_updated",
+          entityType: "claim",
+          entityId: input.claimId,
+          changeDescription: `Claim currency updated to ${input.currencyCode} by ${ctx.user.role}`,
+        });
+
+        return { success: true, currencyCode: input.currencyCode };
+      }),
+  }),
+  // Assessor operationss
   assessors: router({
     list: protectedProcedure.query(async () => {
       return await getUsersByRole("assessor");

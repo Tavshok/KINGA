@@ -22,8 +22,8 @@ import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
-
-// ─── Currency helper is initialised inside the component via useTenantCurrency ──
+import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
+// ─── Currency helper is initialised inside the component via useTenantCurrency ───
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -358,9 +358,15 @@ export default function InsurerComparisonView() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Fraud Detection & Comparison</h1>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-2 mt-1 flex-wrap">
                 <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
                 <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
+                {/* Per-claim currency selector — claims manager sets currency per policy insured */}
+                <ClaimCurrencySelector
+                  claimId={claim.id}
+                  currentCurrency={(claim as any).currencyCode ?? "USD"}
+                  compact
+                />
               </div>
             </div>
             <div className="flex gap-2">

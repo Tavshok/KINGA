@@ -20,6 +20,7 @@ import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
+import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
 
 export default function ClaimsManagerDashboard() {
   const { fmt } = useTenantCurrency();
@@ -475,6 +476,17 @@ export default function ClaimsManagerDashboard() {
                           </div>
                         </div>
 
+                        {/* Per-claim currency selector — claims manager sets currency per policy insured */}
+                        <div className="mt-2 flex items-center gap-2">
+                          <span className="text-xs text-slate-400">Policy currency:</span>
+                          <ClaimCurrencySelector
+                            claimId={claim.id}
+                            currentCurrency={claim.currencyCode ?? "USD"}
+                            compact
+                            onSuccess={() => { refetchQueue(); refetchAssessed(); }}
+                          />
+                        </div>
+
                         {/* Fraud Warning */}
                         {claim.fraudRiskScore && claim.fraudRiskScore >= 70 && (
                           <div className="mt-2 flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
@@ -676,6 +688,15 @@ export default function ClaimsManagerDashboard() {
                   </Link>
                 </div>
               )}
+
+              {/* Policy Currency — set before closing */}
+              <div className="space-y-2">
+                <ClaimCurrencySelector
+                  claimId={selectedClaim?.id}
+                  currentCurrency={selectedClaim?.currencyCode ?? "USD"}
+                  onSuccess={(code) => setSelectedClaim((prev: any) => prev ? { ...prev, currencyCode: code } : prev)}
+                />
+              </div>
 
               {/* Closure Action */}
               <div className="space-y-2">
