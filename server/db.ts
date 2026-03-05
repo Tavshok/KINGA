@@ -354,8 +354,18 @@ export async function triggerAiAssessment(claimId: number) {
   // -----------------------------------------------------------------------
   try {
 
-  // Parse damage photos from JSON
-  const damagePhotos: string[] = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
+  // Parse damage photos from JSON.
+  // If this claim came from a PDF document, always reset damagePhotos so we re-extract fresh
+  // images using the updated extraction pipeline (fixes stale/empty photos from old runs).
+  let damagePhotos: string[];
+  if (claim.sourceDocumentId) {
+    // Force fresh PDF extraction by ignoring any previously stored photos
+    damagePhotos = [];
+    console.log(`[AI Assessment] Claim ${claimId}: PDF-sourced claim — resetting damagePhotos for fresh extraction.`);
+    await db.update(claims).set({ damagePhotos: JSON.stringify([]), updatedAt: new Date().toISOString() }).where(eq(claims.id, claimId));
+  } else {
+    damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
+  }
   
   if (damagePhotos.length === 0) {
     // No user-uploaded photos — attempt to extract images from linked source PDF document
@@ -408,6 +418,8 @@ export async function triggerAiAssessment(claimId: number) {
     
     // If still no photos after PDF extraction attempt, create placeholder
     if (!extractedFromPdf) {
+      // Clear any existing assessment before inserting placeholder
+      await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
       await db.insert(aiAssessments).values({
         claimId,
         tenantId: claim.tenantId ?? null,
@@ -798,6 +810,15 @@ Provide your response in JSON format.`;
   }
 
   // Create AI assessment record with total loss detection
+  // Delete any existing assessment records for this claim before creating a fresh one.
+  // This handles re-runs and ensures the UI always shows the latest result.
+  try {
+    await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId));
+    console.log(`[AI Assessment] Cleared existing assessment records for claim ${claimId} before re-insert.`);
+  } catch (deleteErr: any) {
+    console.warn(`[AI Assessment] Could not clear old assessment for claim ${claimId}: ${deleteErr.message}`);
+  }
+
   await createAiAssessment({
     claimId,
     tenantId: claim.tenantId ?? null,
@@ -1126,15 +1147,19 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
 
   let rawAssessment;
   if (tenantId) {
-    // Join with claims to enforce tenant filtering
+    // Join with claims to enforce tenant filtering — return the most recent assessment
     const result = await db.select({ assessment: aiAssessments })
       .from(aiAssessments)
       .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
       .where(and(eq(aiAssessments.claimId, claimId), eq(claims.tenantId, tenantId)))
+      .orderBy(desc(aiAssessments.id))
       .limit(1);
     rawAssessment = result.length > 0 ? result[0].assessment : null;
   } else {
-    const result = await db.select().from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
+    const result = await db.select().from(aiAssessments)
+      .where(eq(aiAssessments.claimId, claimId))
+      .orderBy(desc(aiAssessments.id))
+      .limit(1);
     rawAssessment = result.length > 0 ? result[0] : null;
   }
   

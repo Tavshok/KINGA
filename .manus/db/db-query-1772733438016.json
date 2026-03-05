@@ -1,0 +1,110 @@
+{
+  "query": "SELECT id, claim_number, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, source_document_id, LEFT(damage_photos, 100) as damage_photos_preview FROM claims ORDER BY created_at DESC LIMIT 10;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_number, status, document_processing_status, ai_assessment_triggered, ai_assessment_completed, source_document_id, LEFT(damage_photos, 100) as damage_photos_preview FROM claims ORDER BY created_at DESC LIMIT 10;",
+  "rows": [
+    {
+      "id": "1591202",
+      "claim_number": "DOC-20260305-E45EC094",
+      "status": "assessment_complete",
+      "document_processing_status": "extracted",
+      "ai_assessment_triggered": "1",
+      "ai_assessment_completed": "1",
+      "source_document_id": "150005",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591201",
+      "claim_number": "TEST-NOTIF-1772732676284",
+      "status": "submitted",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591200",
+      "claim_number": "CLM-TEST-1772732672924",
+      "status": "repair_assigned",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "[\"https://example.com/photo1.jpg\"]"
+    },
+    {
+      "id": "1591197",
+      "claim_number": "CLM-DATASET-1772732666388",
+      "status": "submitted",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591196",
+      "claim_number": "CLM-DATASET-1772732666238",
+      "status": "completed",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591195",
+      "claim_number": "CLM-DATASET-1772732666064",
+      "status": "completed",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591194",
+      "claim_number": "CLM-DATASET-1772732665888",
+      "status": "completed",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591193",
+      "claim_number": "TEST-DOC-1772732663544",
+      "status": "submitted",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591175",
+      "claim_number": "CLM-HIGH-1772732651253",
+      "status": "comparison",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    },
+    {
+      "id": "1591173",
+      "claim_number": "CLM-HIGH-1772732651124",
+      "status": "repair_assigned",
+      "document_processing_status": "pending",
+      "ai_assessment_triggered": "0",
+      "ai_assessment_completed": "0",
+      "source_document_id": "NULL",
+      "damage_photos_preview": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tstatus\tdocument_processing_status\tai_assessment_triggered\tai_assessment_completed\tsource_document_id\tdamage_photos_preview\n1591202\tDOC-20260305-E45EC094\tassessment_complete\textracted\t1\t1\t150005\tNULL\n1591201\tTEST-NOTIF-1772732676284\tsubmitted\tpending\t0\t0\tNULL\tNULL\n1591200\tCLM-TEST-1772732672924\trepair_assigned\tpending\t0\t0\tNULL\t[\"https://example.com/photo1.jpg\"]\n1591197\tCLM-DATASET-1772732666388\tsubmitted\tpending\t0\t0\tNULL\tNULL\n1591196\tCLM-DATASET-1772732666238\tcompleted\tpending\t0\t0\tNULL\tNULL\n1591195\tCLM-DATASET-1772732666064\tcompleted\tpending\t0\t0\tNULL\tNULL\n1591194\tCLM-DATASET-1772732665888\tcompleted\tpending\t0\t0\tNULL\tNULL\n1591193\tTEST-DOC-1772732663544\tsubmitted\tpending\t0\t0\tNULL\tNULL\n1591175\tCLM-HIGH-1772732651253\tcomparison\tpending\t0\t0\tNULL\tNULL\n1591173\tCLM-HIGH-1772732651124\trepair_assigned\tpending\t0\t0\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}
