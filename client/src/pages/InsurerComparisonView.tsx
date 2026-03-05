@@ -23,6 +23,45 @@ import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 
+// ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
+
+type CostBand = "FAIR" | "HIGH" | "LOW";
+
+function computeMedian(amounts: number[]): number {
+  if (amounts.length === 0) return 0;
+  const sorted = [...amounts].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 !== 0
+    ? sorted[mid]
+    : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
+function getCostBand(amount: number, median: number): CostBand {
+  if (median === 0) return "FAIR";
+  const deviation = (amount - median) / median;
+  if (deviation > 0.2) return "HIGH";
+  if (deviation < -0.2) return "LOW";
+  return "FAIR";
+}
+
+const BAND_CONFIG: Record<CostBand, { label: string; containerClass: string; dotClass: string }> = {
+  FAIR: {
+    label: "FAIR",
+    containerClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    dotClass: "bg-emerald-500",
+  },
+  HIGH: {
+    label: "HIGH",
+    containerClass: "bg-red-50 text-red-700 border-red-200",
+    dotClass: "bg-red-500",
+  },
+  LOW: {
+    label: "LOW",
+    containerClass: "bg-amber-50 text-amber-700 border-amber-200",
+    dotClass: "bg-amber-500",
+  },
+};
+
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
   const [, setLocation] = useLocation();
@@ -659,15 +698,40 @@ export default function InsurerComparisonView() {
             <CardContent>
               {quotes.length > 0 ? (
                 <div className="space-y-4">
-                  {quotes.map((quote, index) => (
+                  {(() => {
+                    // Compute relative stats once across all quotes in this claim
+                    const amounts = quotes.map((q) => q.quotedAmount || 0);
+                    const median = computeMedian(amounts);
+                    return quotes.map((quote, index) => {
+                      const band = getCostBand(quote.quotedAmount || 0, median);
+                      const { label, containerClass, dotClass } = BAND_CONFIG[band];
+                      const deviationPct = median > 0
+                        ? Math.round((((quote.quotedAmount || 0) - median) / median) * 100)
+                        : 0;
+                      return (
                     <div key={quote.id}>
                       {index > 0 && <Separator className="my-4" />}
                       <div className="space-y-3">
-                        <div>
-                          <p className="text-sm text-muted-foreground">Quote {index + 1}</p>
-                          <p className="text-xl font-bold text-primary">
-                            ${((quote.quotedAmount || 0) / 100).toFixed(2)}
-                          </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm text-muted-foreground">Quote {index + 1}</p>
+                            <p className="text-xl font-bold text-primary">
+                              ${((quote.quotedAmount || 0) / 100).toFixed(2)}
+                            </p>
+                          </div>
+                          {/* Cost Intelligence Indicator */}
+                          <div className="flex flex-col items-end gap-1">
+                            <span
+                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold select-none ${containerClass}`}
+                              title={`Cost Intelligence: ${label} — ${deviationPct > 0 ? '+' : ''}${deviationPct}% vs median`}
+                            >
+                              <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+                              {label}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                              {deviationPct > 0 ? '+' : ''}{deviationPct}% vs median
+                            </span>
+                          </div>
                         </div>
                         <div className="grid grid-cols-2 gap-2">
                           <div>
@@ -701,10 +765,37 @@ export default function InsurerComparisonView() {
                         )}
                       </div>
                     </div>
-                  ))}
-                  
+                      );
+                    });
+                  })()}
+
                   <Separator className="my-4" />
-                  
+
+                  {/* Quote spread summary */}
+                  {(() => {
+                    const amounts = quotes.map((q) => q.quotedAmount || 0);
+                    const median = computeMedian(amounts);
+                    const minCost = Math.min(...amounts);
+                    const maxCost = Math.max(...amounts);
+                    const spreadPercent = maxCost > 0 ? Math.round(((maxCost - minCost) / maxCost) * 100) : 0;
+                    return (
+                      <div className="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 p-3">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Median Quote</p>
+                          <p className="text-sm font-semibold">${(median / 100).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Lowest Quote</p>
+                          <p className="text-sm font-semibold text-emerald-700">${(minCost / 100).toFixed(2)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Quote Spread</p>
+                          <p className="text-sm font-semibold text-red-600">{spreadPercent}%</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   <div>
                     <p className="text-sm text-muted-foreground">Average Quote</p>
                     <p className="text-lg font-bold">
