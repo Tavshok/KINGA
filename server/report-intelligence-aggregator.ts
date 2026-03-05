@@ -176,10 +176,15 @@ export async function aggregateClaimIntelligence(
   };
 
   // Aggregate physics validation data
+  // physicsAnalysis is stored as a JSON string in the DB column 'physics_analysis'
+  const parsedPhysics = aiAssessment?.physicsAnalysis
+    ? (typeof aiAssessment.physicsAnalysis === 'string' ? JSON.parse(aiAssessment.physicsAnalysis) : aiAssessment.physicsAnalysis)
+    : null;
   const physicsValidation = {
-    impactAnalysis: (aiAssessment as any)?.impactPhysicsAnalysis || null,
-    damageConsistency: (aiAssessment as any)?.damagePatternConsistency || null,
-    validationConfidence: (aiAssessment as any)?.physicsValidationConfidence || 0,
+    impactAnalysis: parsedPhysics?.impactForce || parsedPhysics?.impactAnalysis || null,
+    damageConsistency: parsedPhysics?.damageConsistency || parsedPhysics?.is_valid || null,
+    validationConfidence: parsedPhysics?.confidence || parsedPhysics?.physicsScore || 0,
+    rawPhysicsData: parsedPhysics,
   };
 
   // Aggregate supporting evidence
@@ -210,8 +215,10 @@ export function extractDamageAssessmentData(intelligence: ClaimIntelligence) {
     aiEstimate: intelligence.aiAssessment?.estimatedCost || 0,
     assessorEstimate: intelligence.assessorEvaluation?.estimatedRepairCost || null,
     quoteEstimates: intelligence.panelBeaterQuotes.map((q: any) => q.totalCost),
-    damagedComponents: intelligence.aiAssessment?.detectedDamageTypes 
-      ? JSON.parse(intelligence.aiAssessment.detectedDamageTypes) 
+    damagedComponents: intelligence.aiAssessment?.damagedComponentsJson 
+      ? (typeof intelligence.aiAssessment.damagedComponentsJson === 'string' 
+        ? JSON.parse(intelligence.aiAssessment.damagedComponentsJson) 
+        : intelligence.aiAssessment.damagedComponentsJson)
       : [],
     damageAnalysis: intelligence.aiAssessment?.damageDescription || "",
   };

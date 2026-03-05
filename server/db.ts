@@ -44,7 +44,8 @@ import {
   assessors,
   assessorInsurerRelationships,
   claimEvents,
-  InsertClaimEvent
+  InsertClaimEvent,
+  ingestionDocuments
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -357,28 +358,78 @@ export async function triggerAiAssessment(claimId: number) {
   const damagePhotos: string[] = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   
   if (damagePhotos.length === 0) {
-    // Create placeholder assessment when no photos available
-    await db.insert(aiAssessments).values({
-      claimId,
-      tenantId: claim.tenantId ?? null,
-      damageDescription: "Assessment pending - No damage photos uploaded yet. Please upload vehicle damage photos to proceed with AI analysis.",
-      damagedComponentsJson: JSON.stringify([]),
-      estimatedCost: 0,
-      fraudIndicators: JSON.stringify(["No photos available for analysis"]),
-      fraudRiskLevel: "low",
-      totalLossIndicated: 0,
-      structuralDamageSeverity: "none"
-    });
+    // No user-uploaded photos — attempt to extract images from linked source PDF document
+    console.log(`[AI Assessment] Claim ${claimId}: No user-uploaded photos. Checking for linked source document...`);
     
-    await db.update(claims).set({ 
-      aiAssessmentCompleted: 1,
-      status: "assessment_complete",
-      documentProcessingStatus: "extracted",
-      updatedAt: new Date().toISOString() 
-    }).where(eq(claims.id, claimId));
+    let extractedFromPdf = false;
+    if (claim.sourceDocumentId) {
+      try {
+        // Look up the ingestion document to get the S3 URL
+        const [sourceDoc] = await db.select().from(ingestionDocuments)
+          .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
+        
+        if (sourceDoc && sourceDoc.s3Url) {
+          console.log(`[AI Assessment] Found linked PDF: ${sourceDoc.originalFilename} (${sourceDoc.s3Url})`);
+          
+          // Download the PDF from S3
+          const pdfResponse = await fetch(sourceDoc.s3Url);
+          if (pdfResponse.ok) {
+            const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+            
+            // Extract images from the PDF
+            const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
+            const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, sourceDoc.originalFilename || 'source.pdf');
+            
+            if (extractedImages.length > 0) {
+              console.log(`[AI Assessment] Extracted ${extractedImages.length} images from linked PDF`);
+              const extractedUrls = extractedImages.map(img => img.url);
+              
+              // Store extracted photos back to the claim record
+              await db.update(claims).set({
+                damagePhotos: JSON.stringify(extractedUrls),
+                updatedAt: new Date().toISOString(),
+              }).where(eq(claims.id, claimId));
+              
+              // Use these extracted photos for the AI assessment
+              damagePhotos.push(...extractedUrls);
+              extractedFromPdf = true;
+              console.log(`[AI Assessment] Stored ${extractedUrls.length} extracted photos to claim ${claimId}`);
+            } else {
+              console.log(`[AI Assessment] No images found in linked PDF for claim ${claimId}`);
+            }
+          } else {
+            console.warn(`[AI Assessment] Failed to download PDF from S3: ${pdfResponse.status}`);
+          }
+        }
+      } catch (pdfExtractError: any) {
+        console.warn(`[AI Assessment] PDF image extraction failed for claim ${claimId}: ${pdfExtractError.message}`);
+      }
+    }
     
-    console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. (placeholder - no photos)`);
-    return { success: true, message: "Placeholder assessment created. Please upload damage photos for full analysis." };
+    // If still no photos after PDF extraction attempt, create placeholder
+    if (!extractedFromPdf) {
+      await db.insert(aiAssessments).values({
+        claimId,
+        tenantId: claim.tenantId ?? null,
+        damageDescription: "Assessment pending - No damage photos uploaded yet. Please upload vehicle damage photos to proceed with AI analysis.",
+        damagedComponentsJson: JSON.stringify([]),
+        estimatedCost: 0,
+        fraudIndicators: JSON.stringify(["No photos available for analysis"]),
+        fraudRiskLevel: "low",
+        totalLossIndicated: 0,
+        structuralDamageSeverity: "none"
+      });
+      
+      await db.update(claims).set({ 
+        aiAssessmentCompleted: 1,
+        status: "assessment_complete",
+        documentProcessingStatus: "extracted",
+        updatedAt: new Date().toISOString() 
+      }).where(eq(claims.id, claimId));
+      
+      console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. (placeholder - no photos)`);
+      return { success: true, message: "Placeholder assessment created. Please upload damage photos for full analysis." };
+    }
   }
 
   // Import LLM helper for vision analysis
@@ -732,7 +783,13 @@ Provide your response in JSON format.`;
     estimatedCost: estimatedRepairCost,
     fraudIndicators: JSON.stringify(analysis.fraudIndicators || []),
     fraudRiskLevel: analysis.fraudRiskScore > 70 ? "high" : analysis.fraudRiskScore > 40 ? "medium" : "low",
-    confidenceScore: 85, // Default confidence score
+    confidenceScore: Math.min(100, Math.max(10, Math.round(
+      (imageQuality.score || 50) * 0.30 +
+      (imageQuality.crushDepthConfidence || 50) * 0.25 +
+      (imageQuality.scaleConfidence || 50) * 0.15 +
+      (analysis.photoAnglesAvailable?.length >= 3 ? 80 : analysis.photoAnglesAvailable?.length >= 2 ? 60 : 40) * 0.15 +
+      (analysis.damagedComponents?.length > 0 ? 80 : 30) * 0.15
+    ))), // Weighted confidence: image quality (30%) + crush depth (25%) + scale (15%) + angles (15%) + components (15%)
     modelVersion: "gpt-4-vision-v1",
     totalLossIndicated: totalLossIndicated ? 1 : 0,
     structuralDamageSeverity,
@@ -905,12 +962,40 @@ Provide your response in JSON format.`;
     
     console.log(`[Physics Deviation] Claim ${claimId}: Score = ${physicsDeviationScore}, Risk = ${physicsDeviationScore && physicsDeviationScore >= 70 ? 'HIGH' : physicsDeviationScore && physicsDeviationScore >= 40 ? 'MEDIUM' : 'LOW'}`);
     
-    // Update AI assessment with combined fraud level, physics analysis, forensic analysis, and deviation score
+    // Recalculate confidence score incorporating physics and forensic analysis quality
+    // Physics consistency score (0-100): higher = more consistent physics analysis
+    const physicsConsistencyScore = physicsAnalysis.consistencyScore ?? physicsAnalysis.overallConsistency ?? 70;
+    // Forensic confidence (0-100): lower fraud score = higher confidence in legitimacy
+    const forensicConfidenceBoost = forensicAnalysis ? Math.max(0, 100 - (forensicAnalysis.overallFraudScore || 0)) : 50;
+    // Physics deviation penalty: high deviation = lower confidence
+    const deviationPenalty = physicsDeviationScore ? Math.min(15, physicsDeviationScore * 0.15) : 0;
+    
+    // Recalculate: original vision confidence (60%) + physics consistency (20%) + forensic confidence (20%) - deviation penalty
+    const visionConfidence = Math.min(100, Math.max(10,
+      (imageQuality.score || 50) * 0.30 +
+      (imageQuality.crushDepthConfidence || 50) * 0.25 +
+      (imageQuality.scaleConfidence || 50) * 0.15 +
+      (analysis.photoAnglesAvailable?.length >= 3 ? 80 : analysis.photoAnglesAvailable?.length >= 2 ? 60 : 40) * 0.15 +
+      (analysis.damagedComponents?.length > 0 ? 80 : 30) * 0.15
+    ));
+    const enhancedConfidenceScore = Math.round(
+      Math.min(100, Math.max(10,
+        visionConfidence * 0.60 +
+        physicsConsistencyScore * 0.20 +
+        forensicConfidenceBoost * 0.20 -
+        deviationPenalty
+      ))
+    );
+    
+    console.log(`[AI Assessment] Enhanced confidence for claim ${claimId}: vision=${visionConfidence}, physics=${physicsConsistencyScore}, forensic=${forensicConfidenceBoost}, deviation_penalty=${deviationPenalty.toFixed(1)}, final=${enhancedConfidenceScore}`);
+    
+    // Update AI assessment with combined fraud level, physics analysis, forensic analysis, deviation score, and enhanced confidence
     await db.update(aiAssessments).set({
       fraudRiskLevel: combinedFraudLevel,
       physicsAnalysis: JSON.stringify(physicsAnalysis),
       forensicAnalysis: forensicAnalysis ? JSON.stringify(forensicAnalysis) : null,
       physicsDeviationScore,
+      confidenceScore: enhancedConfidenceScore,
       updatedAt: new Date().toISOString(),
     }).where(eq(aiAssessments.claimId, claimId));
     

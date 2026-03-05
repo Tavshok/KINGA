@@ -359,6 +359,40 @@ export default function ClaimsManagerComparisonView() {
         </div>
       )}
 
+      {/* Damage Photo Gallery */}
+      {(() => {
+        const photos: string[] = claim.damagePhotos ? (typeof claim.damagePhotos === 'string' ? JSON.parse(claim.damagePhotos) : claim.damagePhotos) : [];
+        if (photos.length === 0) return null;
+        return (
+          <div className="max-w-[1800px] mx-auto px-8 pt-6">
+            <Card className="border-0 shadow-lg">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <ImageIcon className="h-5 w-5 text-blue-600" />
+                  Damage Photos ({photos.length})
+                </CardTitle>
+                <CardDescription>Vehicle damage images used for AI analysis</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                  {photos.map((url: string, idx: number) => (
+                    <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="group">
+                      <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 group-hover:border-blue-400 transition-colors">
+                        <img
+                          src={url}
+                          alt={`Damage photo ${idx + 1}`}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
+                        />
+                      </div>
+                    </a>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        );
+      })()}
+
       {/* Three-Column Comparison Layout */}
       <div className="max-w-[1800px] mx-auto px-8 py-8">
         <div className="grid grid-cols-3 gap-6">

@@ -9578,3 +9578,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix 4: Add physics analysis section to generateDamageReportPDF
 - [x] Fix 5: Add AiStatusBadge to ClaimsManagerComparisonView + forensic analysis section in Physics tab
 - [ ] Fix 6: Remove orphan PhysicsAnalysisChart or wire it into a view (deferred — no demo impact)
+
+
+## Pre-Demo Critical Fixes (March 2026)
+- [x] Fix confidence score: replace hardcoded 85% with weighted formula (vision 60% + physics 20% + forensic 20% - deviation penalty)
+- [x] Fix report consistency: correct field name mappings in report-intelligence-aggregator.ts (physicsAnalysis JSON field, damagedComponentsJson field)
+- [x] Add damage photo gallery to ClaimsManagerComparisonView (was already in InsurerComparisonView)
+- [x] Add damage photo rendering to both Comparison PDF and Damage Report PDF exports
+- [x] Fix PDF image extraction pipeline: triggerAiAssessment now extracts images from linked source PDFs when no user photos exist
+- [x] Store extracted PDF images back to claim.damagePhotos for persistence and UI/report display
+- [x] All 1386 tests passing (83 test files, 0 failures)

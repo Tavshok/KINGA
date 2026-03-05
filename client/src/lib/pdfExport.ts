@@ -111,6 +111,8 @@ interface ClaimData {
     tireAnalysis: { score: number; findings: string[] };
     fluidAnalysis: { score: number; findings: string[] };
   };
+  /** Damage photo URLs for inclusion in the report */
+  damagePhotos?: string[];
 }
 
 /**
@@ -155,6 +157,60 @@ export async function generateComparisonPDF(data: ClaimData): Promise<void> {
   yPos += 5;
   doc.text(`Incident Date: ${data.incidentDate}`, 20, yPos);
   yPos += 10;
+
+  // ─── Damage Photos Section ──────────────────────────────────────────────────
+  if (data.damagePhotos && data.damagePhotos.length > 0) {
+    if (yPos > 200) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFillColor(37, 99, 235); // blue-600
+    doc.rect(20, yPos - 1, 170, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(`Damage Photos (${data.damagePhotos.length})`, 23, yPos + 5);
+    doc.setTextColor(0, 0, 0);
+    yPos += 13;
+
+    // Render up to 6 photo thumbnails in a 3x2 grid
+    const maxPhotos = Math.min(data.damagePhotos.length, 6);
+    const thumbW = 50;
+    const thumbH = 38;
+    const gap = 5;
+    const cols = 3;
+
+    for (let i = 0; i < maxPhotos; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = 20 + col * (thumbW + gap);
+      const y = yPos + row * (thumbH + gap);
+
+      try {
+        doc.addImage(data.damagePhotos[i], 'JPEG', x, y, thumbW, thumbH);
+      } catch {
+        // If image fails to load, draw a placeholder
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(x, y, thumbW, thumbH);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Photo ${i + 1}`, x + 15, y + 20);
+        doc.setTextColor(0, 0, 0);
+      }
+    }
+
+    const totalRows = Math.ceil(maxPhotos / cols);
+    yPos += totalRows * (thumbH + gap) + 5;
+
+    if (data.damagePhotos.length > 6) {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`+ ${data.damagePhotos.length - 6} additional photos not shown`, 20, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 8;
+    }
+  }
 
   // ─── AI Damage Intelligence Section ──────────────────────────────────────────
   if (data.aiIntelligence) {
@@ -741,6 +797,7 @@ export async function generateDamageReportPDF(data: {
     tireAnalysis: { score: number; findings: string[] };
     fluidAnalysis: { score: number; findings: string[] };
   };
+  damagePhotos?: string[];
 }): Promise<void> {
   const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF();
@@ -782,6 +839,58 @@ export async function generateDamageReportPDF(data: {
   yPos += 5;
   doc.text(`Accident Type: ${data.accidentType.replace('_', ' ').toUpperCase()}`, 20, yPos);
   yPos += 10;
+
+  // ─── Damage Photos Section ──────────────────────────────────────────────────
+  if (data.damagePhotos && data.damagePhotos.length > 0) {
+    if (yPos > 200) {
+      doc.addPage();
+      yPos = 20;
+    }
+
+    doc.setFillColor(37, 99, 235);
+    doc.rect(20, yPos - 1, 170, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text(`Damage Photos (${data.damagePhotos.length})`, 23, yPos + 5);
+    doc.setTextColor(0, 0, 0);
+    yPos += 13;
+
+    const maxPhotos = Math.min(data.damagePhotos.length, 6);
+    const thumbW = 50;
+    const thumbH = 38;
+    const gap = 5;
+    const cols = 3;
+
+    for (let i = 0; i < maxPhotos; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = 20 + col * (thumbW + gap);
+      const y = yPos + row * (thumbH + gap);
+
+      try {
+        doc.addImage(data.damagePhotos[i], 'JPEG', x, y, thumbW, thumbH);
+      } catch {
+        doc.setDrawColor(200, 200, 200);
+        doc.rect(x, y, thumbW, thumbH);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`Photo ${i + 1}`, x + 15, y + 20);
+        doc.setTextColor(0, 0, 0);
+      }
+    }
+
+    const totalRows = Math.ceil(maxPhotos / cols);
+    yPos += totalRows * (thumbH + gap) + 5;
+
+    if (data.damagePhotos.length > 6) {
+      doc.setFontSize(8);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`+ ${data.damagePhotos.length - 6} additional photos not shown`, 20, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 8;
+    }
+  }
 
   // Summary Statistics
   doc.setFont('helvetica', 'bold');
