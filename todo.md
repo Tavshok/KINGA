@@ -9539,3 +9539,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Full test suite → 0 regressions
 - [ ] Save checkpoint
 - [ ] Produce final integrity report
+
+## Repair Cost Optimisation Engine Upgrade
+- [x] Layer 1: Quote Comparison Statistics — median, min, max, spread, outlier detection (threshold = median × 1.35)
+- [x] Layer 2: Repair-to-Vehicle Value Ratio — minor/moderate/major/near-write-off classification
+- [x] Layer 3: repair_cost_intelligence table — populated only from completed real claims, never seeded
+- [x] Layer 4: country_repair_index — used for normalisation only, not price estimation
+- [x] Layer 5: Parts Certainty Score — OEM/aftermarket/unknown classification, reduces confidence when unknown
+- [x] Layer 6: AI Recommendation Output — confidence score (0–100), fair range, garage comparison with outlier flags
+- [x] Layer 7: Safety Guardrails — confidence reduced when data is limited, no fabricated prices
+- [x] Layer 8: Data Learning Loop — updateRepairCostIntelligence() triggered on claim → closed transition
+- [x] vehicle_market_value column added to claims table
+- [x] RepairIntelligencePanel upgraded with full AI Repair Intelligence UI
+- [x] Unit tests for all new intelligence layers (83 test files / 1386 passed / 2 skipped)
+- [x] TypeScript: 0 errors

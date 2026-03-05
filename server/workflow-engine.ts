@@ -271,6 +271,22 @@ export async function transition(request: TransitionRequest): Promise<Transition
   }
 
   // ============================================
+  // DATA LEARNING LOOP: Update Repair Intelligence
+  // ============================================
+  // When a claim transitions to "closed", fire-and-forget the learning loop
+  // to update repair_cost_intelligence with real claim data.
+  // Simulated claims are automatically skipped inside the learning loop.
+  if (toState === "closed") {
+    import("./repair-intelligence/learning-loop")
+      .then(({ updateRepairCostIntelligence }) =>
+        updateRepairCostIntelligence(claimId)
+      )
+      .catch((err) =>
+        console.error("[WorkflowEngine] Learning loop error:", err)
+      );
+  }
+
+  // ============================================
   // RETURN RESULT
   // ============================================
   

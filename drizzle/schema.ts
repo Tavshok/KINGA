@@ -700,6 +700,7 @@ export const claims = mysqlTable("claims", {
 	sourceDocumentId: int("source_document_id"),
 	claimSource: varchar("claim_source", { length: 50 }),
 	isSimulated: tinyint("is_simulated").default(0).notNull(),
+	vehicleMarketValue: int("vehicle_market_value"), // ZAR cents — used for repair ratio calculation
 	// Document parsing pipeline status — updated as AI extraction progresses
 	documentProcessingStatus: varchar("document_processing_status", { length: 30 }).notNull().default("pending"),
 },
@@ -3507,3 +3508,31 @@ export const countryRepairIndex = mysqlTable("country_repair_index", {
 ]);
 export type CountryRepairIndex = typeof countryRepairIndex.$inferSelect;
 export type InsertCountryRepairIndex = typeof countryRepairIndex.$inferInsert;
+
+// ─── Repair Cost Intelligence ─────────────────────────────────────────────────
+// Populated ONLY from completed claims via the data learning loop.
+// Never seeded with artificial data.
+// intelligence_confidence = "low" when claim_count < 10.
+export const repairCostIntelligence = mysqlTable("repair_cost_intelligence", {
+  id: int().autoincrement().notNull(),
+  vehicleMake: varchar("vehicle_make", { length: 100 }).notNull(),
+  vehicleModel: varchar("vehicle_model", { length: 100 }).notNull(),
+  vehicleYear: int("vehicle_year"),
+  damageCategory: varchar("damage_category", { length: 100 }).notNull(),
+  country: varchar("country", { length: 10 }).notNull().default("ZA"),
+  medianRepairCost: int("median_repair_cost").notNull(),   // ZAR cents
+  minRepairCost: int("min_repair_cost").notNull(),         // ZAR cents
+  maxRepairCost: int("max_repair_cost").notNull(),         // ZAR cents
+  claimCount: int("claim_count").notNull().default(0),
+  intelligenceConfidence: mysqlEnum("intelligence_confidence", ["low", "medium", "high"]).notNull().default("low"),
+  lastUpdated: timestamp("last_updated", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+},
+(table) => [
+  index("idx_rci_make_model").on(table.vehicleMake, table.vehicleModel),
+  index("idx_rci_damage_category").on(table.damageCategory),
+  index("idx_rci_country").on(table.country),
+  uniqueIndex("idx_rci_unique").on(table.vehicleMake, table.vehicleModel, table.damageCategory, table.country),
+]);
+export type RepairCostIntelligence = typeof repairCostIntelligence.$inferSelect;
+export type InsertRepairCostIntelligence = typeof repairCostIntelligence.$inferInsert;

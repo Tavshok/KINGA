@@ -1,28 +1,53 @@
 /**
  * RepairIntelligencePanel
  *
- * Displays the Repair Quote Intelligence summary for a claim.
+ * Displays the enhanced AI Repair Intelligence summary for a claim.
  * Advisory only — does not modify any claim data.
  *
  * Sections:
- *   1. Risk classification badge + factors
- *   2. Part reconciliation (detected vs quoted, missing, extra)
- *   3. Historical cost deviation
- *   4. Country repair context
+ *   1. AI Repair Intelligence header (confidence score, risk badge)
+ *   2. Garage Comparison (quote amounts, outlier flags)
+ *   3. Quote Statistics (median, fair range, spread)
+ *   4. Repair-to-Vehicle Value Ratio
+ *   5. Confidence Factors
+ *   6. Part Reconciliation (detected vs quoted)
+ *   7. Historical Cost Comparison
+ *   8. Country Repair Context
  */
 
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { AlertTriangle, CheckCircle, Info, ShieldAlert, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Info,
+  ShieldAlert,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  BarChart2,
+  Car,
+  Gauge,
+} from "lucide-react";
 
 interface Props {
   claimId: number;
   countryCode?: string;
 }
 
-// ─── Risk Badge ───────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+function formatRands(cents: number | null | undefined): string {
+  if (cents == null) return "—";
+  return `R ${(cents / 100).toLocaleString("en-ZA", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function RiskBadge({ level }: { level: "low" | "medium" | "high" }) {
   if (level === "high") {
@@ -49,7 +74,18 @@ function RiskBadge({ level }: { level: "low" | "medium" | "high" }) {
   );
 }
 
-// ─── Coverage Bar ─────────────────────────────────────────────────────────────
+function ConfidenceBadge({ level }: { level: "high" | "medium" | "low" }) {
+  const styles = {
+    high: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+    medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+    low: "bg-muted text-muted-foreground",
+  };
+  return (
+    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[level]}`}>
+      {level} confidence
+    </span>
+  );
+}
 
 function CoverageBar({ score }: { score: number }) {
   const pct = Math.round(score * 100);
@@ -65,7 +101,18 @@ function CoverageBar({ score }: { score: number }) {
   );
 }
 
-// ─── Deviation Indicator ──────────────────────────────────────────────────────
+function ConfidenceBar({ score }: { score: number }) {
+  const colour =
+    score >= 70 ? "bg-emerald-500" : score >= 45 ? "bg-amber-500" : "bg-red-500";
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
+        <div className={`h-full rounded-full ${colour}`} style={{ width: `${score}%` }} />
+      </div>
+      <span className="text-sm font-bold tabular-nums w-10 text-right">{score}%</span>
+    </div>
+  );
+}
 
 function DeviationIndicator({ pct }: { pct: number | null }) {
   if (pct === null) return <span className="text-muted-foreground text-sm">—</span>;
@@ -93,20 +140,13 @@ function DeviationIndicator({ pct }: { pct: number | null }) {
   );
 }
 
-// ─── Confidence Badge ─────────────────────────────────────────────────────────
-
-function ConfidenceBadge({ level }: { level: "high" | "medium" | "low" }) {
-  const styles = {
-    high: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-    medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
-    low: "bg-muted text-muted-foreground",
-  };
-  return (
-    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${styles[level]}`}>
-      {level} confidence
-    </span>
-  );
-}
+const RATIO_CATEGORY_LABELS: Record<string, { label: string; colour: string }> = {
+  minor: { label: "Minor repair (<20% of vehicle value)", colour: "text-emerald-600" },
+  moderate: { label: "Moderate repair (20–40% of vehicle value)", colour: "text-amber-600" },
+  major: { label: "Major repair (40–60% of vehicle value)", colour: "text-orange-600" },
+  near_write_off: { label: "Near economic write-off (>60% of vehicle value)", colour: "text-red-600" },
+  unknown: { label: "Vehicle value not provided", colour: "text-muted-foreground" },
+};
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -122,12 +162,12 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Info className="h-4 w-4 text-primary" />
-            Repair Intelligence Summary
+            AI Repair Intelligence
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3 animate-pulse">
-            {[1, 2, 3].map((i) => (
+            {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-4 bg-muted rounded w-3/4" />
             ))}
           </div>
@@ -142,7 +182,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Info className="h-4 w-4 text-muted-foreground" />
-            Repair Intelligence Summary
+            AI Repair Intelligence
           </CardTitle>
           <CardDescription>
             {error?.message ?? "No intelligence data available for this claim."}
@@ -152,36 +192,164 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
     );
   }
 
-  const { reconciliation, historicalDeviation, countryContext, riskLevel, riskFactors, detectedParts, quotedParts } = data;
+  const {
+    reconciliation,
+    historicalDeviation,
+    countryContext,
+    riskLevel,
+    riskFactors,
+    // Enhanced layers
+    quoteComparison,
+    garageQuotes,
+    repairRatio,
+    repairCostBenchmark,
+    partsCertainty,
+    confidence,
+    aiRecommendation,
+  } = data as any;
 
-  const formatCents = (cents: number | null) => {
-    if (cents === null) return "—";
-    return `R ${(cents / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  const hasEnhancedData = !!quoteComparison;
 
   return (
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Info className="h-4 w-4 text-primary" />
-            Repair Intelligence Summary
+            <BarChart2 className="h-4 w-4 text-primary" />
+            AI Repair Intelligence
           </CardTitle>
           <RiskBadge level={riskLevel} />
         </div>
         <CardDescription className="text-xs text-muted-foreground mt-1">
-          Advisory only — does not affect the claim workflow
+          Advisory only — the claims processor remains the final decision maker
         </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-5">
-        {/* Risk Factors */}
+
+        {/* ── Confidence Score ─────────────────────────────────────────────── */}
+        {hasEnhancedData && (
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Confidence Score
+                </p>
+                <span className="text-xs text-muted-foreground">
+                  {confidence.score}%
+                </span>
+              </div>
+              <ConfidenceBar score={confidence.score} />
+              <ul className="mt-2 space-y-1">
+                {confidence.factors.map((f: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <span className="mt-0.5 shrink-0">•</span>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* ── Garage Comparison ────────────────────────────────────────────── */}
+        {hasEnhancedData && garageQuotes?.length > 0 && (
+          <>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+                Garage Comparison ({aiRecommendation.quotesAnalysed} quotes)
+              </p>
+              <div className="space-y-2">
+                {garageQuotes.map((g: any) => (
+                  <div key={g.garageName} className="flex items-center justify-between text-sm">
+                    <span className="font-medium">{g.garageName}</span>
+                    <div className="flex items-center gap-2">
+                      <span className={g.isOutlier ? "text-amber-600 font-semibold" : "font-medium"}>
+                        {formatRands(g.totalAmount)}
+                      </span>
+                      {g.isOutlier && (
+                        <Badge className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300">
+                          <AlertTriangle className="h-3 w-3 mr-1" />
+                          Potential cost outlier
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+                <div className="text-muted-foreground">Median repair cost</div>
+                <div className="font-semibold">{formatRands(quoteComparison.medianQuote)}</div>
+                <div className="text-muted-foreground">Recommended fair range</div>
+                <div className="font-medium text-emerald-700 dark:text-emerald-400">
+                  {formatRands(quoteComparison.fairRangeLow)} – {formatRands(quoteComparison.fairRangeHigh)}
+                </div>
+                <div className="text-muted-foreground">Quote spread</div>
+                <div className="font-medium">{quoteComparison.spreadPercentage?.toFixed(1)}%</div>
+              </div>
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* ── Repair-to-Vehicle Ratio ──────────────────────────────────────── */}
+        {hasEnhancedData && repairRatio && (
+          <>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3 flex items-center gap-1">
+                <Car className="h-3.5 w-3.5" />
+                Repair-to-Vehicle Value Ratio
+              </p>
+              {repairRatio.ratio !== null ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-2.5 bg-muted rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full ${
+                          repairRatio.category === "minor"
+                            ? "bg-emerald-500"
+                            : repairRatio.category === "moderate"
+                            ? "bg-amber-500"
+                            : repairRatio.category === "major"
+                            ? "bg-orange-500"
+                            : "bg-red-500"
+                        }`}
+                        style={{ width: `${Math.min(100, repairRatio.ratioPercentage ?? 0)}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-bold tabular-nums w-12 text-right">
+                      {repairRatio.ratioPercentage?.toFixed(1)}%
+                    </span>
+                  </div>
+                  <p className={`text-sm font-medium ${RATIO_CATEGORY_LABELS[repairRatio.category]?.colour}`}>
+                    {RATIO_CATEGORY_LABELS[repairRatio.category]?.label}
+                  </p>
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-sm mt-1">
+                    <div className="text-muted-foreground">Vehicle market value</div>
+                    <div className="font-medium">{formatRands(repairRatio.vehicleMarketValue)}</div>
+                    <div className="text-muted-foreground">Repair cost (median)</div>
+                    <div className="font-medium">{formatRands(repairRatio.repairCost)}</div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Vehicle market value not provided — ratio unavailable
+                </p>
+              )}
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* ── Risk Factors ─────────────────────────────────────────────────── */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Risk Factors
           </p>
           <ul className="space-y-1">
-            {riskFactors.map((factor, i) => (
+            {riskFactors.map((factor: string, i: number) => (
               <li key={i} className="flex items-start gap-2 text-sm">
                 <span className="mt-0.5 shrink-0">
                   {riskLevel === "high" ? (
@@ -200,7 +368,28 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
 
         <Separator />
 
-        {/* Part Reconciliation */}
+        {/* ── Parts Certainty ──────────────────────────────────────────────── */}
+        {hasEnhancedData && partsCertainty && (
+          <>
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Parts Certainty
+                </p>
+                <ConfidenceBadge level={partsCertainty.level} />
+              </div>
+              <p className="text-sm text-muted-foreground">{partsCertainty.summary}</p>
+              {partsCertainty.level === "low" && (
+                <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  Parts classification unknown — confidence score reduced
+                </p>
+              )}
+            </div>
+            <Separator />
+          </>
+        )}
+
+        {/* ── Part Reconciliation ──────────────────────────────────────────── */}
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
             Part Reconciliation
@@ -225,7 +414,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
                 Missing parts ({reconciliation.missingParts.length})
               </p>
               <div className="flex flex-wrap gap-1">
-                {reconciliation.missingParts.map((p) => (
+                {reconciliation.missingParts.map((p: string) => (
                   <Badge key={p} variant="outline" className="text-xs border-red-300 text-red-700 dark:text-red-300">
                     {p}
                   </Badge>
@@ -240,7 +429,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
                 Extra parts ({reconciliation.extraParts.length})
               </p>
               <div className="flex flex-wrap gap-1">
-                {reconciliation.extraParts.map((p) => (
+                {reconciliation.extraParts.map((p: string) => (
                   <Badge key={p} variant="outline" className="text-xs border-amber-300 text-amber-700 dark:text-amber-300">
                     {p}
                   </Badge>
@@ -252,7 +441,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
 
         <Separator />
 
-        {/* Historical Cost Deviation */}
+        {/* ── Historical Cost Comparison ───────────────────────────────────── */}
         <div>
           <div className="flex items-center justify-between mb-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
@@ -263,9 +452,9 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
 
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
             <div className="text-muted-foreground">Historical median</div>
-            <div className="font-medium">{formatCents(historicalDeviation.medianCost)}</div>
+            <div className="font-medium">{formatRands(historicalDeviation.medianCost)}</div>
             <div className="text-muted-foreground">Historical average</div>
-            <div className="font-medium">{formatCents(historicalDeviation.averageCost)}</div>
+            <div className="font-medium">{formatRands(historicalDeviation.averageCost)}</div>
             <div className="text-muted-foreground">Sample size</div>
             <div className="font-medium">{historicalDeviation.sampleSize} claims</div>
             <div className="text-muted-foreground">Deviation</div>
@@ -273,9 +462,31 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
               <DeviationIndicator pct={historicalDeviation.deviationPct} />
             </div>
           </div>
+
+          {/* Repair Cost Intelligence Benchmark */}
+          {repairCostBenchmark && (
+            <div className="mt-3 p-3 bg-muted/40 rounded-md">
+              <p className="text-xs font-medium text-muted-foreground mb-2">
+                Repair Cost Intelligence — {repairCostBenchmark.vehicleMake} {repairCostBenchmark.vehicleModel}
+              </p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                <div className="text-muted-foreground">Benchmark median</div>
+                <div className="font-medium">{formatRands(repairCostBenchmark.medianRepairCost)}</div>
+                <div className="text-muted-foreground">Benchmark range</div>
+                <div className="font-medium">
+                  {formatRands(repairCostBenchmark.minRepairCost)} – {formatRands(repairCostBenchmark.maxRepairCost)}
+                </div>
+                <div className="text-muted-foreground">Based on</div>
+                <div className="font-medium">{repairCostBenchmark.claimCount} completed claims</div>
+              </div>
+              <div className="mt-1">
+                <ConfidenceBadge level={repairCostBenchmark.intelligenceConfidence} />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Country Context */}
+        {/* ── Country Context ──────────────────────────────────────────────── */}
         {countryContext && (
           <>
             <Separator />
@@ -297,8 +508,8 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
           </>
         )}
 
-        <p className="text-xs text-muted-foreground pt-1">
-          Generated {new Date(data.generatedAt).toLocaleString()}
+        <p className="text-xs text-muted-foreground pt-1 border-t border-muted">
+          Generated {new Date(data.generatedAt).toLocaleString()} · Advisory only
         </p>
       </CardContent>
     </Card>
