@@ -7,6 +7,7 @@
 
 import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -80,6 +81,7 @@ interface ExecutiveKPICardsProps {
 }
 
 export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) {
+  const { currencySymbol } = useTenantCurrency();
   const [selectedKPI, setSelectedKPI] = useState<"claims" | "time" | "fraud" | "savings" | null>(null);
 
   // Mock KPI data (will be replaced with tRPC queries)
@@ -124,7 +126,7 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
         flagged: 52,
         confirmed: 31,
         falsePositives: 21,
-        savedAmount: "$1.2M",
+        savedAmount: `${currencySymbol}1.2M`,
         topIndicators: [
           "Duplicate claims",
           "Inflated repair costs",
@@ -133,13 +135,13 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
       }
     },
     costSavings: {
-      value: "$2.4M",
+      value: `${currencySymbol}2.4M`,
       change: 22.1,
       details: {
-        aiAssessmentSavings: "$1.1M",
-        fraudPrevention: "$1.2M",
-        processOptimization: "$100K",
-        avgSavingPerClaim: "$1,925"
+        aiAssessmentSavings: `${currencySymbol}1.1M`,
+        fraudPrevention: `${currencySymbol}1.2M`,
+        processOptimization: `${currencySymbol}100K`,
+        avgSavingPerClaim: `${currencySymbol}1,925`
       }
     }
   };

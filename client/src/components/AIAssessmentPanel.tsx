@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Loader2, AlertTriangle, DollarSign, Shield, Activity } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface AIAssessmentPanelProps {
   claimId: number;
@@ -39,6 +40,7 @@ export default function AIAssessmentPanel({
   showTriggerButton = true,
   variant = "full",
 }: AIAssessmentPanelProps) {
+  const { fmt } = useTenantCurrency();
   
   if (isLoading) {
     return (
@@ -107,13 +109,13 @@ export default function AIAssessmentPanel({
             <div className="bg-slate-50 rounded p-3">
               <p className="text-xs text-slate-600">AI Estimated Cost</p>
               <p className="text-lg font-bold text-slate-900">
-                ${((aiAssessment.estimatedCost || 0) / 100).toLocaleString()}
+                {fmt(aiAssessment.estimatedCost || 0)}
               </p>
             </div>
             <div className="bg-slate-50 rounded p-3">
               <p className="text-xs text-slate-600">Market Range</p>
               <p className="text-lg font-bold text-slate-900">
-                ${(((aiAssessment.estimatedCost || 0) * 0.9) / 100).toLocaleString()} - ${(((aiAssessment.estimatedCost || 0) * 1.1) / 100).toLocaleString()}
+                {fmt(Math.round((aiAssessment.estimatedCost || 0) * 0.9))} - {fmt(Math.round((aiAssessment.estimatedCost || 0) * 1.1))}
               </p>
               <p className="text-xs text-slate-500">±10% variance</p>
             </div>

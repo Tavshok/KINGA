@@ -3,6 +3,7 @@ import { Upload, FileText, Loader2, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 // Toast notifications will be handled by parent component
 
 interface ExtractedQuoteData {
@@ -25,6 +26,7 @@ interface PdfQuoteUploadProps {
 }
 
 export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
+  const { fmt } = useTenantCurrency();
   const [uploading, setUploading] = useState(false);
   const [extracting, setExtracting] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
@@ -177,11 +179,11 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Labor Cost</p>
-                <p className="font-medium">${(extractedData.laborCost / 100).toFixed(2)}</p>
+                <p className="font-medium">{fmt(extractedData.laborCost)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Parts Cost</p>
-                <p className="font-medium">${(extractedData.partsCost / 100).toFixed(2)}</p>
+                <p className="font-medium">{fmt(extractedData.partsCost)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Labor Hours</p>
@@ -202,7 +204,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
                   <div key={idx} className="text-xs bg-white rounded px-2 py-1 flex justify-between">
                     <span>{comp.name}</span>
                     <span className="text-muted-foreground">
-                      ${((comp.partCost + comp.laborCost) / 100).toFixed(2)}
+                      {fmt(comp.partCost + comp.laborCost)}
                     </span>
                   </div>
                 ))}

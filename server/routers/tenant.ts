@@ -15,7 +15,8 @@ import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { insurerTenants } from "../../drizzle/schema";
+import { insurerTenants, tenants } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 import { 
   getTenantConfig,
   createTenantConfig,
@@ -281,5 +282,55 @@ export const tenantRouter = router({
       const updated = await updateTenantSlaConfig(tenantId, slaConfig);
 
       return updated;
+    }),
+
+  /**
+   * Get the current user's tenant (includes currency settings)
+   */
+  getCurrent: protectedProcedure
+    .query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) return null;
+
+      const tenantId = ctx.user.tenantId;
+      if (!tenantId) return null;
+
+      const rows = await db
+        .select({
+          id: tenants.id,
+          name: tenants.name,
+          displayName: tenants.displayName,
+          currencyCode: tenants.currencyCode,
+          currencySymbol: tenants.currencySymbol,
+        })
+        .from(tenants)
+        .where(eq(tenants.id, tenantId))
+        .limit(1);
+
+      return rows[0] ?? null;
+    }),
+
+  /**
+   * Update currency settings for a tenant (admin only)
+   */
+  updateCurrency: protectedProcedure
+    .input(z.object({
+      tenantId: z.string(),
+      currencyCode: z.string().min(1).max(10),
+      currencySymbol: z.string().min(1).max(10),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can update currency settings' });
+      }
+      const db = await getDb();
+      if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'DB unavailable' });
+
+      await db
+        .update(tenants)
+        .set({ currencyCode: input.currencyCode, currencySymbol: input.currencySymbol })
+        .where(eq(tenants.id, input.tenantId));
+
+      return { success: true };
     })
 });

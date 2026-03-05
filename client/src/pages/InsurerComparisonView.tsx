@@ -8,6 +8,7 @@ import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { useState, useEffect, useRef } from "react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
@@ -21,6 +22,8 @@ import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
+
+// ─── Currency helper is initialised inside the component via useTenantCurrency ──
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -63,6 +66,7 @@ const BAND_CONFIG: Record<CostBand, { label: string; containerClass: string; dot
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
+  const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [, params1] = useRoute("/insurer/claims/:id/comparison");
   const [, params2] = useRoute("/insurer/comparison/:id");
@@ -672,8 +676,8 @@ export default function InsurerComparisonView() {
                       )}
                       {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
                         <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
-                          <p>Repair Cost: ${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}</p>
-                          <p>Vehicle Value: ${((aiAssessment.estimatedVehicleValue || 0) / 100).toFixed(2)}</p>
+                          <p>Repair Cost: {fmt(aiAssessment.estimatedCost)}</p>
+                           <p>Vehicle Value: {fmt(aiAssessment.estimatedVehicleValue)}</p>
                           <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
                         </div>
                       )}
@@ -683,7 +687,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Cost</p>
                     <p className="text-2xl font-bold text-primary">
-                      ${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}
+                      {fmt(aiAssessment.estimatedCost)}
                     </p>
                   </div>
                   <Separator />
@@ -772,7 +776,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Cost</p>
                     <p className="text-2xl font-bold text-primary">
-                      ${((assessorEval.estimatedRepairCost || 0) / 100).toFixed(2)}
+                      {fmt(assessorEval.estimatedRepairCost)}
                     </p>
                   </div>
                   <Separator />
@@ -780,13 +784,13 @@ export default function InsurerComparisonView() {
                     <div>
                       <p className="text-xs text-muted-foreground">Labor</p>
                       <p className="font-medium">
-                        ${((assessorEval.laborCost || 0) / 100).toFixed(2)}
+                        {fmt(assessorEval.laborCost)}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Parts</p>
                       <p className="font-medium">
-                        ${((assessorEval.partsCost || 0) / 100).toFixed(2)}
+                        {fmt(assessorEval.partsCost)}
                       </p>
                     </div>
                   </div>
@@ -993,6 +997,7 @@ export default function InsurerComparisonView() {
 
 // Claim Approval Component
 function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: any[] }) {
+  const { fmt } = useTenantCurrency();
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null);
   const utils = trpc.useUtils();
   
@@ -1038,7 +1043,7 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
                   <div>
                     <p className="font-medium">Panel Beater #{quote.panelBeaterId}</p>
                     <p className="text-sm text-muted-foreground">
-                      Quote: ${((quote.quotedAmount || 0) / 100).toFixed(2)} • {quote.estimatedDuration} days
+                      Quote: {fmt(quote.quotedAmount)} • {quote.estimatedDuration} days
                     </p>
                   </div>
                   {selectedQuoteId === quote.id && (
@@ -1089,6 +1094,7 @@ function getCompName(comp: any): string {
 
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
+  const { fmt } = useTenantCurrency();
   // Parse damaged components — may be strings or objects {name, severity, location, damageType}
   const rawComponents = aiAssessment.damagedComponentsJson 
     ? JSON.parse(aiAssessment.damagedComponentsJson) 
@@ -1453,6 +1459,7 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
 
 // Physics Validation Component
 function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessment: any; quotes: any[]; claim: any }) {
+  const { fmt } = useTenantCurrency();
   // Parse physics analysis from AI assessment
   const physicsAnalysis = aiAssessment.physicsAnalysis ? JSON.parse(aiAssessment.physicsAnalysis) : null;
   

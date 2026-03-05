@@ -1,6 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface QuoteItem {
   description: string;
@@ -28,7 +29,9 @@ interface QuoteComparisonProps {
   quotes: Quote[];
 }
 
+
 export function QuoteComparison({ quotes }: QuoteComparisonProps) {
+  const { fmt } = useTenantCurrency();
   if (quotes.length < 2) {
     return (
       <Card className="p-6">
@@ -145,7 +148,7 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
             return (
               <div key={quote.id} className="border rounded-lg p-4">
                 <div className="text-sm font-medium text-muted-foreground">{getPanelBeaterName(quote)}</div>
-                <div className="text-2xl font-bold mt-1">${(quote.quotedAmount / 100).toFixed(2)}</div>
+                <div className="text-2xl font-bold mt-1">{fmt(quote.quotedAmount)}</div>
                 {(isHigher || isLower) && (
                   <Badge
                     variant={isHigher ? "destructive" : "default"}

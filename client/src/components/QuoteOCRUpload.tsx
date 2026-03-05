@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Upload, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface ExtractedLineItem {
   description: string;
@@ -21,6 +22,7 @@ interface QuoteOCRUploadProps {
 }
 
 export default function QuoteOCRUpload({ claimId, onSuccess }: QuoteOCRUploadProps) {
+  const { currencySymbol } = useTenantCurrency();
   const [uploading, setUploading] = useState(false);
   const [extractedItems, setExtractedItems] = useState<ExtractedLineItem[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -139,9 +141,9 @@ export default function QuoteOCRUpload({ claimId, onSuccess }: QuoteOCRUploadPro
                         )}
                       </td>
                       <td className="p-3 text-sm text-right">{item.quantity}</td>
-                      <td className="p-3 text-sm text-right">${item.unitPrice.toFixed(2)}</td>
+                      <td className="p-3 text-sm text-right">{currencySymbol}{item.unitPrice.toFixed(2)}</td>
                       <td className="p-3 text-sm text-right font-medium">
-                        ${item.lineTotal.toFixed(2)}
+                        {currencySymbol}{item.lineTotal.toFixed(2)}
                       </td>
                     </tr>
                   ))}

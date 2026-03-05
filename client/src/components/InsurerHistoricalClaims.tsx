@@ -1,6 +1,7 @@
 import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +40,7 @@ const statusColors: Record<string, string> = {
 // ============================================================
 
 export default function InsurerHistoricalClaims() {
+  const { currencySymbol } = useTenantCurrency();
   const [activeTab, setActiveTab] = useState("upload");
 
   return (
@@ -307,6 +309,7 @@ function BulkUploadSection() {
 // ============================================================
 
 function ClaimsListSection() {
+  const { currencySymbol } = useTenantCurrency();
   const [page, setPage] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -385,12 +388,12 @@ function ClaimsListSection() {
                       <TableCell>{claim.claimantName || "—"}</TableCell>
                       <TableCell>
                         {claim.totalPanelBeaterQuote
-                          ? `$ ${parseFloat(claim.totalPanelBeaterQuote).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                          ? `${currencySymbol} ${parseFloat(claim.totalPanelBeaterQuote).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                           : "—"}
                       </TableCell>
                       <TableCell>
                         {claim.totalAssessorEstimate
-                          ? `$ ${parseFloat(claim.totalAssessorEstimate).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
+                          ? `${currencySymbol} ${parseFloat(claim.totalAssessorEstimate).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                           : "—"}
                       </TableCell>
                       <TableCell>

@@ -2753,6 +2753,8 @@ export const tenants = mysqlTable("tenants", {
 	intakeEscalationEnabled: tinyint("intake_escalation_enabled").default(0).notNull(),
 	intakeEscalationMode: mysqlEnum("intake_escalation_mode", ['auto_assign','escalate_only']).default('escalate_only'),
 	aiRerunLimitPerHour: int("ai_rerun_limit_per_hour").default(10).notNull(),
+	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
+	currencySymbol: varchar("currency_symbol", { length: 10 }).default('$'),
 },
 (table) => [
 	index("idx_tenants_name").on(table.name),

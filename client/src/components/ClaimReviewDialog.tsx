@@ -7,6 +7,7 @@ import { AlertTriangle, CheckCircle, Clock, DollarSign, FileText, TrendingUp, Us
 import { trpc } from "@/lib/trpc";
 import { exportClaimReportToPDF, type ClaimReportData } from "@/lib/export-pdf";
 import { toast } from "sonner";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface ClaimReviewDialogProps {
   claimId: number | null;
@@ -15,6 +16,7 @@ interface ClaimReviewDialogProps {
 }
 
 export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDialogProps) {
+  const { fmt } = useTenantCurrency();
   const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery(
     { id: claimId! },
     { enabled: !!claimId }
@@ -218,25 +220,19 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">AI Estimate:</span>
                       <span className="font-medium">
-                        ${aiAssessment?.estimatedCost ? (aiAssessment.estimatedCost / 100).toFixed(2) : "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Assessor Estimate:</span>
-                      <span className="font-medium">
-                        ${assessorEval?.estimatedRepairCost ? (assessorEval.estimatedRepairCost / 100).toFixed(2) : "N/A"}
+                        {aiAssessment?.estimatedCost ? fmt(aiAssessment.estimatedCost) : "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Lowest Quote:</span>
                       <span className="font-medium">
-                        ${quotes && quotes.length > 0 ? Math.min(...quotes.map((q: any) => q.amount / 100)).toFixed(2) : "N/A"}
+                        {quotes && quotes.length > 0 ? fmt(Math.min(...quotes.map((q: any) => q.amount))) : "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between pt-2 border-t">
                       <span className="font-semibold">Recommended Amount:</span>
                       <span className="font-bold text-primary">
-                        ${assessorEval?.estimatedRepairCost ? (assessorEval.estimatedRepairCost / 100).toFixed(2) : "N/A"}
+                        {assessorEval?.estimatedRepairCost ? fmt(assessorEval.estimatedRepairCost) : "N/A"}
                       </span>
                     </div>
                   </div>
@@ -362,19 +358,19 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Labor Cost:</span>
                           <span className="font-medium">
-                            ${assessorEval.laborCost ? (assessorEval.laborCost / 100).toFixed(2) : "N/A"}
+                            {assessorEval.laborCost ? fmt(assessorEval.laborCost) : "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Parts Cost:</span>
                           <span className="font-medium">
-                            ${assessorEval.partsCost ? (assessorEval.partsCost / 100).toFixed(2) : "N/A"}
+                            {assessorEval.partsCost ? fmt(assessorEval.partsCost) : "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between pt-2 border-t">
                           <span className="font-semibold">Total Estimate:</span>
                           <span className="font-bold text-primary">
-                            ${assessorEval.estimatedRepairCost != null ? (assessorEval.estimatedRepairCost / 100).toFixed(2) : "N/A"}
+                            {assessorEval.estimatedRepairCost != null ? fmt(assessorEval.estimatedRepairCost) : "N/A"}
                           </span>
                         </div>
                       </div>
@@ -442,7 +438,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-primary">${(quote.amount / 100).toFixed(2)}</p>
+                          <p className="text-2xl font-bold text-primary">{fmt(quote.amount)}</p>
                           <Badge variant={quote.status === "accepted" ? "default" : "outline"}>
                             {quote.status}
                           </Badge>

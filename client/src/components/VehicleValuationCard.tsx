@@ -8,12 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { AlertTriangle, DollarSign, Loader2, TrendingUp, AlertCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface VehicleValuationCardProps {
   claimId: number;
 }
 
 export default function VehicleValuationCard({ claimId }: VehicleValuationCardProps) {
+  const { fmt } = useTenantCurrency();
   const [mileage, setMileage] = useState("");
   const [condition, setCondition] = useState<"excellent" | "good" | "fair" | "poor">("good");
 
@@ -97,15 +99,15 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
               <div className="grid grid-cols-3 gap-2 mt-2">
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-muted-foreground">Min</p>
-                  <p className="font-medium">${(priceRange.min / 100).toFixed(2)}</p>
+                  <p className="font-medium">{fmt(priceRange.min)}</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-muted-foreground">Median</p>
-                  <p className="font-medium">${(priceRange.median / 100).toFixed(2)}</p>
+                  <p className="font-medium">{fmt(priceRange.median)}</p>
                 </div>
                 <div className="text-center p-2 bg-gray-50 rounded">
                   <p className="text-xs text-muted-foreground">Max</p>
-                  <p className="font-medium">${(priceRange.max / 100).toFixed(2)}</p>
+                  <p className="font-medium">{fmt(priceRange.max)}</p>
                 </div>
               </div>
             </div>

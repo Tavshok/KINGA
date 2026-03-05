@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { Plus, Trash2, Loader2, Upload, Edit } from "lucide-react";
 import { toast } from "sonner";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 interface LineItem {
@@ -27,6 +28,7 @@ interface PanelBeaterQuoteFormProps {
 }
 
 export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess }: PanelBeaterQuoteFormProps) {
+  const { currencySymbol } = useTenantCurrency();
   const [lineItems, setLineItems] = useState<LineItem[]>([
     {
       description: "",
@@ -351,16 +353,16 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">Subtotal</span>
-              <span className="font-medium">${calculateSubtotal().toFixed(2)}</span>
+              <span className="font-medium">{currencySymbol}{calculateSubtotal().toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
               <span className="text-muted-foreground">VAT (15%)</span>
-              <span className="font-medium">${calculateVAT().toFixed(2)}</span>
+              <span className="font-medium">{currencySymbol}{calculateVAT().toFixed(2)}</span>
             </div>
             <Separator />
             <div className="flex justify-between text-lg font-bold">
               <span>Total Quote</span>
-              <span className="text-primary">${calculateTotal().toFixed(2)}</span>
+              <span className="text-primary">{currencySymbol}{calculateTotal().toFixed(2)}</span>
             </div>
           </div>
 

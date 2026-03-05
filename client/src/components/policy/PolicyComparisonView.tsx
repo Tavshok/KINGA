@@ -15,12 +15,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowRight, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface PolicyComparisonViewProps {
   policies: any[]; // AutomationPolicy[]
 }
 
 export function PolicyComparisonView({ policies }: PolicyComparisonViewProps) {
+  const { currencySymbol } = useTenantCurrency();
   const [policy1Id, setPolicy1Id] = useState<string>("");
   const [policy2Id, setPolicy2Id] = useState<string>("");
 
@@ -148,19 +150,19 @@ export function PolicyComparisonView({ policies }: PolicyComparisonViewProps) {
                 "AI-Only Limit",
                 policy1.maxAiOnlyApprovalAmount,
                 policy2.maxAiOnlyApprovalAmount,
-                (v) => `$${(Number(v) / 100).toLocaleString()}`
+                (v) => `${currencySymbol}${(Number(v) / 100).toLocaleString()}`
               )}
               {renderComparison(
                 "Hybrid Limit",
                 policy1.maxHybridApprovalAmount,
                 policy2.maxHybridApprovalAmount,
-                (v) => `$${(Number(v) / 100).toLocaleString()}`
+                (v) => `${currencySymbol}${(Number(v) / 100).toLocaleString()}`
               )}
               {renderComparison(
                 "Manager Approval",
                 policy1.requireManagerApprovalAbove,
                 policy2.requireManagerApprovalAbove,
-                (v) => `$${(Number(v) / 100).toLocaleString()}`
+                (v) => `${currencySymbol}${(Number(v) / 100).toLocaleString()}`
               )}
             </div>
 

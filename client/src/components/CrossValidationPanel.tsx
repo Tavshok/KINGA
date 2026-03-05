@@ -4,6 +4,7 @@ import {
   CheckCircle2, XCircle, AlertTriangle, Eye, EyeOff, Shield,
   HelpCircle, ArrowRight, DollarSign, Wrench
 } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface CrossValidationItem {
   partName: string;
@@ -93,6 +94,7 @@ const riskLevelColor = (level: string) => {
 };
 
 export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
+  const { fmt } = useTenantCurrency();
   const { summary, items, fraudIndicators, recommendations } = data;
 
   const confirmed = items.filter(i => i.category === 'confirmed');
@@ -170,7 +172,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-4">
-                  {item.quotedCost && <p className="text-sm font-semibold text-red-600">${item.quotedCost.toLocaleString()}</p>}
+                  {item.quotedCost && <p className="text-sm font-semibold text-red-600">{fmt(item.quotedCost * 100)}</p>}
                   {item.quotedAction && <p className="text-xs text-gray-500 capitalize">{item.quotedAction}</p>}
                 </div>
               </div>
@@ -198,7 +200,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {item.quotedCost && <span className="text-sm font-medium text-green-600">${item.quotedCost.toLocaleString()}</span>}
+                  {item.quotedCost && <span className="text-sm font-medium text-green-600">{fmt(item.quotedCost * 100)}</span>}
                   <Badge className="bg-green-100 text-green-700 text-xs">{Math.round(item.confidence * 100)}%</Badge>
                 </div>
               </div>
@@ -226,7 +228,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {item.quotedCost && <span className="text-sm font-medium text-gray-600">${item.quotedCost.toLocaleString()}</span>}
+                  {item.quotedCost && <span className="text-sm font-medium text-gray-600">{fmt(item.quotedCost * 100)}</span>}
                   <Badge variant="outline" className="text-xs">Internal</Badge>
                 </div>
               </div>
