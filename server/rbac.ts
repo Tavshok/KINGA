@@ -155,7 +155,7 @@ export const PERMISSIONS = {
  * Workflow state machine - defines valid transitions
  */
 export const WORKFLOW_TRANSITIONS: Record<WorkflowState, WorkflowState[]> = {
-  created: ["assigned", "disputed"],
+  created: ["assigned", "under_assessment", "disputed"],
   assigned: ["under_assessment", "disputed"],
   under_assessment: ["internal_review", "disputed"],
   internal_review: ["technical_approval", "under_assessment", "disputed"], // Can send back

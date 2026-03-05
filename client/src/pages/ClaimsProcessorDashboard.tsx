@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { 
   FileText, 
@@ -14,9 +15,17 @@ import {
   RefreshCw, 
   CheckCircle,
   Brain,
-  Shield
+  Shield,
+  Eye,
+  Download,
+  AlertTriangle,
+  UserPlus,
+  TrendingUp,
+  Loader2,
+  ArrowRight,
+  ExternalLink,
+  Search
 } from "lucide-react";
-import { ClaimCard } from "@/components/ClaimCard";
 import { useAuth } from "@/_core/hooks/useAuth";
 
 /**
@@ -24,8 +33,8 @@ import { useAuth } from "@/_core/hooks/useAuth";
  * 
  * Organized into 4 sections:
  * 1. Pending Claims - Newly submitted, awaiting initial review
- * 2. In Review - Currently being processed
- * 3. AI Flagged - Flagged by AI for attention
+ * 2. In Review - Currently being processed / AI running
+ * 3. AI Flagged - AI assessment complete, ready for review
  * 4. Completed - Processed and closed
  */
 export default function ClaimsProcessorDashboard() {
@@ -33,6 +42,10 @@ export default function ClaimsProcessorDashboard() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedClaimId, setSelectedClaimId] = useState<number | null>(null);
   const [uploadingFile, setUploadingFile] = useState(false);
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignClaimId, setAssignClaimId] = useState<number | null>(null);
+  const [aiProcessingClaimIds, setAiProcessingClaimIds] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Role validation — allow admin users to bypass for testing
   if (user?.role !== "admin" && user?.insurerRole !== "claims_processor") {
@@ -62,40 +75,98 @@ export default function ClaimsProcessorDashboard() {
   const { data: allClaimsData, isLoading: allClaimsLoading, refetch: refetchAll } =
     trpc.workflowQueries.getClaimsByStatus.useQuery(  // eslint-disable-line react-hooks/rules-of-hooks
       {
-        statuses: ["intake_pending", "quotes_pending", "assessment_complete", "closed"],
+        statuses: ["intake_pending", "assessment_in_progress", "quotes_pending", "assessment_complete", "closed"],
         limit: 200,
         offset: 0,
       },
       {
-        // Auto-refresh every 30 seconds so dashboard reflects live claim state changes
-        // (e.g. intake_pending → assessment_complete after AI processing completes)
-        refetchInterval: 30_000,
-        refetchIntervalInBackground: false, // Only poll when tab is active
+        refetchInterval: aiProcessingClaimIds.size > 0 ? 5_000 : 30_000, // Poll faster when AI is running
+        refetchIntervalInBackground: false,
       }
     );
 
   const allClaims = allClaimsData?.claims || allClaimsData?.items || [];
 
-  // Partition into dashboard sections
-  const pendingClaims = allClaims.filter((c: any) => c.status === "intake_pending");
-  const inReviewClaims = allClaims.filter((c: any) => c.status === "quotes_pending");
-  const aiFlaggedClaims = allClaims.filter((c: any) => c.status === "assessment_complete");
-  const completedClaims = allClaims.filter((c: any) => c.status === "closed");
+  // Filter by search query
+  const filteredClaims = searchQuery.trim() 
+    ? allClaims.filter((c: any) => {
+        const q = searchQuery.toLowerCase();
+        return (
+          (c.claimNumber || "").toLowerCase().includes(q) ||
+          (c.claimantName || c.policyholderName || "").toLowerCase().includes(q) ||
+          (c.vehicleRegistration || "").toLowerCase().includes(q) ||
+          (c.policyNumber || "").toLowerCase().includes(q)
+        );
+      })
+    : allClaims;
 
-  const pendingLoading = allClaimsLoading;
-  const inReviewLoading = allClaimsLoading;
-  const aiFlaggedLoading = allClaimsLoading;
-  const completedLoading = allClaimsLoading;
+  // Partition into dashboard sections
+  const pendingClaims = filteredClaims.filter((c: any) => c.status === "intake_pending");
+  const inReviewClaims = filteredClaims.filter((c: any) => 
+    c.status === "assessment_in_progress" || c.status === "quotes_pending"
+  );
+  const aiFlaggedClaims = filteredClaims.filter((c: any) => c.status === "assessment_complete");
+  const completedClaims = filteredClaims.filter((c: any) => c.status === "closed");
+
+  // Detect when AI processing completes (claim moves from in_review to ai_flagged)
+  useEffect(() => { // eslint-disable-line react-hooks/rules-of-hooks
+    if (aiProcessingClaimIds.size === 0) return;
+    
+    const completedIds = new Set<number>();
+    aiProcessingClaimIds.forEach(id => {
+      const claim = allClaims.find((c: any) => c.id === id);
+      if (claim && claim.status === "assessment_complete") {
+        completedIds.add(id);
+      }
+    });
+
+    if (completedIds.size > 0) {
+      setAiProcessingClaimIds(prev => {
+        const next = new Set(prev);
+        completedIds.forEach(id => next.delete(id));
+        return next;
+      });
+      
+      completedIds.forEach(id => {
+        const claim = allClaims.find((c: any) => c.id === id);
+        toast.success("AI Assessment Complete", {
+          description: `Assessment ready for ${claim?.claimNumber || `Claim #${id}`}`,
+          action: {
+            label: "View Report",
+            onClick: () => window.location.href = `/insurer/claims/${id}/comparison`,
+          },
+          duration: 10000,
+        });
+      });
+    }
+  }, [allClaims, aiProcessingClaimIds]);
+
+  // Trigger AI Assessment mutation
+  const triggerAiMutation = trpc.claims.triggerAiAssessment.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
+    onSuccess: (_data, variables) => {
+      setAiProcessingClaimIds(prev => new Set(prev).add(variables.claimId));
+      toast.info("AI Assessment Started", {
+        description: "The AI is analyzing this claim. You'll be notified when it's complete. The claim has moved to 'In Review'.",
+        duration: 6000,
+      });
+      refetchAll();
+    },
+    onError: (error: any) => {
+      toast.error("AI Assessment Failed", {
+        description: error.message || "Could not trigger AI assessment. Please try again.",
+      });
+    },
+  });
 
   // Upload document mutation
-  const uploadDocument = trpc.documents.upload.useMutation({
+  const uploadDocument = trpc.documents.upload.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
     onSuccess: () => {
       toast.success("Evidence Uploaded", {
         description: "Additional evidence has been successfully attached to the claim.",
       });
       setUploadDialogOpen(false);
       setSelectedClaimId(null);
-      refetchAll(); // refetchAll is the refetch from getClaimsByStatus
+      refetchAll();
     },
     onError: (error: any) => {
       toast.error("Upload Error", {
@@ -104,9 +175,6 @@ export default function ClaimsProcessorDashboard() {
       setUploadingFile(false);
     },
   });
-
-  // Single refetch for the unified status query
-  // (refetchAll is already the refetch from getClaimsByStatus above)
 
   const handleFileUpload = async (file: File) => {
     if (!selectedClaimId) return;
@@ -153,14 +221,13 @@ export default function ClaimsProcessorDashboard() {
   };
 
   const handleViewDetails = (claimId: number) => {
-    window.location.href = `/insurer/claims/${claimId}`;
+    // Navigate to the comparison view which shows full AI assessment details
+    window.location.href = `/insurer/claims/${claimId}/comparison`;
   };
 
   const handleDownloadReport = async (claimId: number) => {
-    toast.info("Generating Report", {
-      description: "AI assessment report is being generated...",
-    });
-    // TODO: Implement PDF download
+    // Navigate to comparison view where the PDF download button exists
+    window.location.href = `/insurer/claims/${claimId}/comparison`;
   };
 
   const handleUploadEvidence = (claimId: number) => {
@@ -172,47 +239,286 @@ export default function ClaimsProcessorDashboard() {
     toast.info("Escalation", {
       description: "Escalation workflow will be implemented in the next update.",
     });
-    // TODO: Implement escalation to underwriter
   };
 
   const handleTriggerAI = (claimId: number) => {
-    toast.info("AI Assessment", {
-      description: "Triggering AI assessment for this claim...",
+    triggerAiMutation.mutate({ 
+      claimId, 
+      reason: "Manually triggered from Claims Processor Dashboard" 
     });
-    // TODO: Implement AI assessment trigger via tRPC
   };
 
   const handleAssignAssessor = (claimId: number) => {
-    toast.info("Assign Assessor", {
-      description: "Assessor assignment workflow will be implemented in the next update.",
-    });
-    // TODO: Implement assessor assignment dialog
+    setAssignClaimId(claimId);
+    setAssignDialogOpen(true);
+  };
+
+  // Claim Card component inline for better control
+  const ClaimCardInline = ({ claim, section }: { claim: any; section: "pending" | "in_review" | "ai_flagged" | "completed" }) => {
+    const isProcessing = aiProcessingClaimIds.has(claim.id);
+    
+    const getStatusBadge = () => {
+      if (isProcessing) {
+        return (
+          <Badge className="bg-purple-100 text-purple-800 border-purple-300 flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            AI Processing...
+          </Badge>
+        );
+      }
+      
+      const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
+        intake_pending: { bg: "bg-amber-100", text: "text-amber-800", label: "PENDING REVIEW" },
+        assessment_in_progress: { bg: "bg-purple-100", text: "text-purple-800", label: "AI IN PROGRESS" },
+        quotes_pending: { bg: "bg-blue-100", text: "text-blue-800", label: "QUOTES PENDING" },
+        assessment_complete: { bg: "bg-teal-100", text: "text-teal-800", label: "ASSESSMENT COMPLETE" },
+        closed: { bg: "bg-green-100", text: "text-green-800", label: "COMPLETED" },
+      };
+      
+      const config = statusConfig[claim.status] || { bg: "bg-slate-100", text: "text-slate-800", label: claim.status?.replace(/_/g, " ").toUpperCase() };
+      
+      return (
+        <Badge className={`${config.bg} ${config.text} border-0`}>
+          {config.label}
+        </Badge>
+      );
+    };
+
+    return (
+      <Card className={`hover:shadow-md transition-shadow ${
+        isProcessing ? "border-l-4 border-l-purple-500 bg-purple-50/30" :
+        section === "pending" ? "border-l-4 border-l-amber-400" :
+        section === "in_review" ? "border-l-4 border-l-blue-400" :
+        section === "ai_flagged" ? "border-l-4 border-l-teal-500" :
+        "border-l-4 border-l-green-400"
+      }`}>
+        <CardContent className="p-4">
+          <div className="flex items-start justify-between gap-4">
+            {/* Left: Claim Information */}
+            <div className="flex-1 space-y-3">
+              {/* Header Row */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <h3 className="font-bold text-lg text-primary">{claim.claimNumber}</h3>
+                {getStatusBadge()}
+                {claim.aiConfidenceScore > 0 && (
+                  <Badge variant="outline" className="text-emerald-700 border-emerald-300 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    AI: {claim.aiConfidenceScore}%
+                  </Badge>
+                )}
+                {claim.fraudRiskScore > 0 && (
+                  <Badge variant={claim.fraudRiskScore >= 70 ? "destructive" : "outline"} className="flex items-center gap-1">
+                    <AlertTriangle className="h-3 w-3" />
+                    {claim.fraudRiskScore >= 70 ? "High Risk" : claim.fraudRiskScore >= 40 ? "Medium Risk" : "Low Risk"} ({claim.fraudRiskScore}%)
+                  </Badge>
+                )}
+              </div>
+
+              {/* Claim Details Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
+                <div>
+                  <span className="font-medium text-slate-600">Policyholder:</span>
+                  <p className="text-slate-900">{claim.claimantName || claim.policyholderName || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-600">Claim Type:</span>
+                  <p className="text-slate-900">Motor Vehicle</p>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-600">Vehicle:</span>
+                  <p className="text-slate-900">
+                    {claim.vehicleRegistration || "N/A"}
+                    {claim.vehicleMake && ` (${claim.vehicleMake} ${claim.vehicleModel || ""})`}
+                  </p>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-600">Policy Number:</span>
+                  <p className="text-slate-900">{claim.policyNumber || "N/A"}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-slate-600">Submitted:</span>
+                  <p className="text-slate-900">
+                    {claim.createdAt 
+                      ? new Date(claim.createdAt).toLocaleDateString() 
+                      : "N/A"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Action Buttons — context-dependent */}
+            <div className="flex flex-col gap-2 min-w-[200px]">
+              {/* PENDING CLAIMS: Trigger AI or Assign Assessor */}
+              {section === "pending" && (
+                <>
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={() => handleTriggerAI(claim.id)}
+                    disabled={triggerAiMutation.isPending || isProcessing}
+                    className="w-full justify-start bg-purple-600 hover:bg-purple-700"
+                  >
+                    {triggerAiMutation.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Brain className="h-4 w-4 mr-2" />
+                    )}
+                    Run AI Assessment
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleAssignAssessor(claim.id)}
+                    className="w-full justify-start border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign Human Assessor
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleUploadEvidence(claim.id)}
+                    className="w-full justify-start"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Evidence
+                  </Button>
+                </>
+              )}
+
+              {/* IN REVIEW: Show processing status */}
+              {section === "in_review" && (
+                <>
+                  {isProcessing ? (
+                    <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 rounded-md p-3">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>AI is analyzing this claim...</span>
+                    </div>
+                  ) : (
+                    <Button 
+                      size="sm" 
+                      variant="default"
+                      onClick={() => handleViewDetails(claim.id)}
+                      className="w-full justify-start"
+                    >
+                      <Eye className="h-4 w-4 mr-2" />
+                      View Details
+                    </Button>
+                  )}
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleUploadEvidence(claim.id)}
+                    className="w-full justify-start"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Upload Evidence
+                  </Button>
+                </>
+              )}
+
+              {/* AI FLAGGED: View Report, Download, Escalate */}
+              {section === "ai_flagged" && (
+                <>
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={() => handleViewDetails(claim.id)}
+                    className="w-full justify-start bg-teal-600 hover:bg-teal-700"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View AI Report
+                    <ArrowRight className="h-3 w-3 ml-auto" />
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleAssignAssessor(claim.id)}
+                    className="w-full justify-start border-blue-300 text-blue-700 hover:bg-blue-50"
+                  >
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Assign Human Assessor
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleTriggerAI(claim.id)}
+                    disabled={triggerAiMutation.isPending}
+                    className="w-full justify-start border-purple-300 text-purple-700 hover:bg-purple-50"
+                  >
+                    <Brain className="h-4 w-4 mr-2" />
+                    Re-run AI Assessment
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleEscalate(claim.id)}
+                    className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50"
+                  >
+                    <AlertTriangle className="h-4 w-4 mr-2" />
+                    Escalate
+                  </Button>
+                </>
+              )}
+
+              {/* COMPLETED: View only */}
+              {section === "completed" && (
+                <>
+                  <Button 
+                    size="sm" 
+                    variant="default"
+                    onClick={() => handleViewDetails(claim.id)}
+                    className="w-full justify-start"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Details
+                  </Button>
+                  <Button 
+                    size="sm" 
+                    variant="outline"
+                    onClick={() => handleDownloadReport(claim.id)}
+                    className="w-full justify-start"
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Report
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
   };
 
   const renderSection = (
     title: string,
     icon: any,
     claims: any[],
-    isLoading: boolean,
+    section: "pending" | "in_review" | "ai_flagged" | "completed",
     emptyMessage: string,
-    borderColor: string
+    borderColor: string,
+    headerBg: string
   ) => {
     const Icon = icon;
 
     return (
-      <Card className={`shadow-lg border-l-4 ${borderColor}`}>
-        <CardHeader>
+      <Card className={`shadow-lg border-t-4 ${borderColor}`}>
+        <CardHeader className={`${headerBg} rounded-t-lg`}>
           <CardTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
             {title}
-            <span className="ml-auto text-sm font-normal text-slate-500">
-              ({claims.length})
+            <span className="ml-auto text-sm font-normal text-slate-500 bg-white/80 rounded-full px-3 py-1">
+              {claims.length}
             </span>
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <p className="text-center text-slate-500 py-8">Loading claims...</p>
+        <CardContent className="pt-4">
+          {allClaimsLoading ? (
+            <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>Loading claims...</span>
+            </div>
           ) : claims.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
               <Icon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
@@ -230,31 +536,7 @@ export default function ClaimsProcessorDashboard() {
           ) : (
             <div className="space-y-3">
               {claims.map((claim: any) => (
-                <ClaimCard
-                  key={claim.id}
-                  claim={{
-                    id: claim.id,
-                    claimNumber: claim.claimNumber,
-                    policyholderName: claim.claimantName || claim.policyholderName,
-                    claimType: "Motor Vehicle",
-                    vehicleRegistration: claim.vehicleRegistration,
-                    vehicleMake: claim.vehicleMake,
-                    vehicleModel: claim.vehicleModel,
-                    policyNumber: claim.policyNumber,
-                    aiConfidenceScore: claim.aiConfidenceScore || 0,
-                    fraudRiskScore: claim.fraudRiskScore || 0,
-                    status: claim.status,  // Use lifecycle status (intake_pending, assessment_complete, etc.)
-                    createdAt: claim.createdAt,
-                  }}
-                  onViewDetails={handleViewDetails}
-                  onDownloadReport={handleDownloadReport}
-                  onUploadEvidence={handleUploadEvidence}
-                  onEscalate={handleEscalate}
-                  onTriggerAI={handleTriggerAI}
-                  onAssignAssessor={handleAssignAssessor}
-                  showAITrigger={!claim.aiConfidenceScore || claim.aiConfidenceScore === 0}
-                  showAssignAssessor={claim.workflowState === "created" || claim.workflowState === "pending"}
-                />
+                <ClaimCardInline key={claim.id} claim={claim} section={section} />
               ))}
             </div>
           )}
@@ -301,44 +583,87 @@ export default function ClaimsProcessorDashboard() {
       </header>
 
       <div className="max-w-7xl mx-auto space-y-6 p-6">
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Input
+            placeholder="Search by claim number, policyholder, vehicle registration, or policy number..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-white"
+          />
+        </div>
+
+        {/* Quick Stats */}
+        <div className="grid grid-cols-4 gap-4">
+          <Card className="bg-amber-50 border-amber-200">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-amber-700">{pendingClaims.length}</p>
+              <p className="text-xs text-amber-600 font-medium">Pending Review</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-blue-50 border-blue-200">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-blue-700">{inReviewClaims.length}</p>
+              <p className="text-xs text-blue-600 font-medium">In Review</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-teal-50 border-teal-200">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-teal-700">{aiFlaggedClaims.length}</p>
+              <p className="text-xs text-teal-600 font-medium">AI Complete</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-green-50 border-green-200">
+            <CardContent className="p-4 text-center">
+              <p className="text-2xl font-bold text-green-700">{completedClaims.length}</p>
+              <p className="text-xs text-green-600 font-medium">Completed</p>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Pending Claims */}
         {renderSection(
           "Pending Claims",
           Clock,
           pendingClaims,
-          pendingLoading,
-          "No pending claims assigned to you",
-          "border-l-slate-400"
+          "pending",
+          "No pending claims. Upload a new claim document to get started.",
+          "border-t-amber-400",
+          "bg-amber-50/50"
         )}
 
         {/* In Review */}
         {renderSection(
           "In Review",
-          FileText,
+          Brain,
           inReviewClaims,
-          inReviewLoading,
+          "in_review",
           "No claims currently in review",
-          "border-l-blue-400"
+          "border-t-blue-400",
+          "bg-blue-50/50"
         )}
 
-        {/* AI Flagged */}
+        {/* AI Flagged / Assessment Complete */}
         {renderSection(
-          "AI Flagged",
-          Brain,
+          "AI Assessment Complete",
+          CheckCircle,
           aiFlaggedClaims,
-          aiFlaggedLoading,
-          "No claims flagged by AI",
-          "border-l-orange-500"
+          "ai_flagged",
+          "No claims with completed AI assessment",
+          "border-t-teal-500",
+          "bg-teal-50/50"
         )}
 
         {/* Completed */}
         {renderSection(
           "Completed",
-          CheckCircle,
+          FileText,
           completedClaims,
-          completedLoading,
+          "completed",
           "No completed claims",
-          "border-l-green-500"
+          "border-t-green-500",
+          "bg-green-50/50"
         )}
       </div>
 
@@ -378,10 +703,56 @@ export default function ClaimsProcessorDashboard() {
               </p>
             </div>
             {uploadingFile && (
-              <p className="text-center text-sm text-primary">
+              <div className="flex items-center justify-center gap-2 text-sm text-primary">
+                <Loader2 className="h-4 w-4 animate-spin" />
                 Uploading evidence...
-              </p>
+              </div>
             )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Human Assessor Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserPlus className="h-5 w-5 text-blue-600" />
+              Assign Human Assessor
+            </DialogTitle>
+            <DialogDescription>
+              Assign this claim to a human assessor for manual inspection and evaluation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <p className="text-sm text-blue-800">
+                <strong>Note:</strong> Human assessor assignment is being configured for your organization. 
+                In the meantime, you can use the AI assessment to get an initial evaluation, 
+                then escalate to a senior reviewer if needed.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button 
+                variant="default"
+                className="flex-1 bg-purple-600 hover:bg-purple-700"
+                onClick={() => {
+                  if (assignClaimId) {
+                    handleTriggerAI(assignClaimId);
+                  }
+                  setAssignDialogOpen(false);
+                }}
+              >
+                <Brain className="h-4 w-4 mr-2" />
+                Run AI Assessment Instead
+              </Button>
+              <Button 
+                variant="outline"
+                onClick={() => setAssignDialogOpen(false)}
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

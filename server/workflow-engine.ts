@@ -77,6 +77,7 @@ const STATE_TO_STAGE_MAP: Record<WorkflowState, "assessment" | "technical_approv
  */
 const ROLE_TRANSITION_PERMISSIONS: Record<string, InsurerRole[]> = {
   "created → assigned": ["claims_processor"],
+  "created → under_assessment": ["claims_processor"],
   "assigned → under_assessment": ["assessor_internal", "claims_processor"],
   "under_assessment → internal_review": ["assessor_internal"],
   "internal_review → technical_approval": ["risk_manager", "executive"],

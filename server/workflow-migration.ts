@@ -16,12 +16,15 @@ export type LegacyStatus =
   | "triage"
   | "assessment_pending"
   | "assessment_in_progress"
+  | "intake_pending"
+  | "assessment_complete"
   | "quotes_pending"
   | "comparison"
   | "repair_assigned"
   | "repair_in_progress"
   | "completed"
-  | "rejected";
+  | "rejected"  
+  | "closed";
 
 /**
  * Mapping from legacy status to governance workflowState
@@ -29,14 +32,17 @@ export type LegacyStatus =
 export const STATUS_TO_WORKFLOW_STATE: Record<LegacyStatus, WorkflowState> = {
   submitted: "created",
   triage: "created",
+  intake_pending: "created",
   assessment_pending: "assigned",
   assessment_in_progress: "under_assessment",
+  assessment_complete: "internal_review",
   quotes_pending: "internal_review",
   comparison: "technical_approval",
   repair_assigned: "financial_decision",
   repair_in_progress: "payment_authorized",
   completed: "closed",
   rejected: "closed",
+  closed: "closed",
 };
 
 /**

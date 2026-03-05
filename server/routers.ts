@@ -1288,10 +1288,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const currentClaim = await getClaimById(input.claimId, tenantIdForStatus);
         if (!currentClaim) throw new Error("Claim not found");
         
-        // Progress through required intermediate states to reach assessment_in_progress (legacy field only)
+        // Progress through required intermediate states to reach assessment_in_progress
         const claimTenantId = currentClaim.tenantId || "default";
         const currentStatus = currentClaim.status;
-        if (currentStatus === "submitted") {
+        if (currentStatus === "intake_pending") {
+          // Document-ingestion claims: intake_pending → assessment_in_progress
+          await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
+        } else if (currentStatus === "submitted") {
           await updateClaimStatus(input.claimId, "triage", ctx.user.id, "claims_processor", claimTenantId);
           await updateClaimStatus(input.claimId, "assessment_pending", ctx.user.id, "claims_processor", claimTenantId);
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
@@ -1300,8 +1303,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         } else if (currentStatus === "assessment_pending") {
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
-        } else if (currentStatus === "assessment_in_progress") {
-          // Already in progress, just re-run the assessment
+        } else if (currentStatus === "assessment_in_progress" || currentStatus === "assessment_complete") {
+          // Already in progress or complete — just re-run the assessment
         } else {
           // For other states, try direct transition (will throw if invalid)
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);

@@ -24,12 +24,8 @@ export default function PortalHub() {
   const [, setLocation] = useLocation();
   const roleDashboardRoute = useRoleDashboardRoute();
 
-  // Fix Group 4: re-enable auto-redirect for insurer users who have an insurerRole set
-  useEffect(() => {
-    if (user?.insurerRole && roleDashboardRoute !== "/portal-hub") {
-      setLocation(roleDashboardRoute);
-    }
-  }, [user, roleDashboardRoute, setLocation]);
+  // Auto-redirect removed: users should always see the portal hub first
+  // to choose their role. They can navigate to their dashboard from here.
 
   const portals = [
     {

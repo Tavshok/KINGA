@@ -9588,3 +9588,25 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix PDF image extraction pipeline: triggerAiAssessment now extracts images from linked source PDFs when no user photos exist
 - [x] Store extracted PDF images back to claim.damagePhotos for persistence and UI/report display
 - [x] All 1386 tests passing (83 test files, 0 failures)
+
+
+## Claims Processor Usability Fixes (March 2026)
+- [ ] Fix claim categorization: new ingested claims should appear in "Pending Claims" first, not jump to "AI Flagged"
+- [ ] Add "Assign to Human Assessor" workflow from claims processor view
+- [ ] Fix "Trigger AI Assessment" to navigate to AI report after completion instead of just showing toast
+- [ ] Fix "View Details" to show full assessment data instead of empty page
+- [ ] Fix default landing page to not auto-redirect to claims processor role on first visit
+- [ ] Improve overall claims processor UX for seamless workflow
+
+
+## Claims Processor Usability Fixes (March 2026)
+- [x] Fix claims going straight to AI Flagged — removed auto-trigger of AI assessment during document ingestion, claims now stay in intake_pending (Pending Claims)
+- [x] Fix Trigger AI Assessment — now fires actual tRPC mutation, shows processing state, polls for completion, and shows toast with "View Report" link when done
+- [x] Fix View Details — now navigates to /insurer/claims/:id/comparison which shows full AI assessment data
+- [x] Add Assign Human Assessor dialog — placeholder with option to run AI assessment instead
+- [x] Fix default landing page — removed auto-redirect from PortalHub, users now see portal selection first
+- [x] Add intake_pending and assessment_complete to LegacyStatus type and workflow mappings
+- [x] Add created → under_assessment workflow transition for claims_processor role
+- [x] Rewrite ClaimsProcessorDashboard with 4 clear sections: Pending, In Review, AI Complete, Completed
+- [x] Add search bar, quick stats, context-dependent action buttons per section
+- [x] Add real-time polling (5s when AI running, 30s otherwise) with auto-detection of AI completion

@@ -248,29 +248,16 @@ export const documentIngestionRouter = router({
               }
 
               // ---------------------------------------------------------------
-              // AI PROCESSING TRIGGER
-              // Fires AFTER the transaction commits — non-blocking so a slow LLM
-              // call never delays the upload response.
-              // At this stage the claim has no damage photos, so triggerAiAssessment
-              // will create a placeholder assessment (status: pending photos).
-              // Full AI analysis runs once the processor uploads damage photos.
+              // AI PROCESSING — DEFERRED TO MANUAL TRIGGER
+              // Claims now stay in intake_pending so the processor can review
+              // the claim in the Pending Claims section first, then manually
+              // trigger AI assessment or assign a human assessor.
+              // The processor triggers AI assessment via the dashboard button.
               // ---------------------------------------------------------------
-              const triggeredClaimId = txResult.claimDbId;
-              setImmediate(async () => {
-                try {
-                  await triggerAiAssessment(triggeredClaimId);
-                  console.log(
-                    `[Document Upload] AI processing triggered successfully for claim ${triggeredClaimId}`
-                  );
-                } catch (aiError) {
-                  console.error(
-                    `[Document Upload] AI processing trigger failed for claim ${triggeredClaimId}:`,
-                    aiError instanceof Error ? aiError.message : aiError
-                  );
-                  // Non-fatal: claim and document are already committed.
-                  // Processor can manually trigger AI assessment from the dashboard.
-                }
-              });
+              console.log(
+                `[Document Upload] Claim ${txResult.claimDbId} created in intake_pending. ` +
+                `AI assessment deferred — processor will trigger manually from dashboard.`
+              );
 
               return {
                 document_id: documentId,
