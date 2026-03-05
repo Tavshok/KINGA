@@ -42,8 +42,11 @@ export const quoteIntelligenceRouter = router({
         });
       }
 
-      const tenantId = user.tenantId;
-      if (!tenantId) {
+      // Admin and platform_super_admin have no tenantId — they can view any claim.
+      // All other roles must belong to a tenant.
+      const isSuperUser = user.role === "admin" || user.role === "platform_super_admin";
+      const tenantId = isSuperUser ? null : user.tenantId;
+      if (!tenantId && !isSuperUser) {
         throw new TRPCError({
           code: "FORBIDDEN",
           message: "User must belong to a tenant",
@@ -52,7 +55,8 @@ export const quoteIntelligenceRouter = router({
 
       const report = await generateIntelligenceReport(
         input.claimId,
-        tenantId,
+        // Pass a sentinel for admin so generateIntelligenceReport skips tenant filtering
+        tenantId ?? "__admin__",
         input.countryCode ?? "ZA"
       );
 

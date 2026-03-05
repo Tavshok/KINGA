@@ -360,6 +360,7 @@ export async function triggerAiAssessment(claimId: number) {
     // Create placeholder assessment when no photos available
     await db.insert(aiAssessments).values({
       claimId,
+      tenantId: claim.tenantId ?? null,
       damageDescription: "Assessment pending - No damage photos uploaded yet. Please upload vehicle damage photos to proceed with AI analysis.",
       damagedComponentsJson: JSON.stringify([]),
       estimatedCost: 0,
@@ -726,6 +727,7 @@ Provide your response in JSON format.`;
   // Create AI assessment record with total loss detection
   await createAiAssessment({
     claimId,
+    tenantId: claim.tenantId ?? null,
     damageDescription: analysis.damageDescription || "AI analysis completed",
     estimatedCost: estimatedRepairCost,
     fraudIndicators: JSON.stringify(analysis.fraudIndicators || []),

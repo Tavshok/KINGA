@@ -232,7 +232,7 @@ function Router() {
         
         {/* Portal Hub - Role Selection */}
         <Route path="/portal-hub">
-          <ProtectedRoute allowedRoles={["insurer", "assessor", "panel_beater", "claimant", "admin"]}>
+          <ProtectedRoute allowedRoles={["insurer", "assessor", "panel_beater", "claimant", "admin", "platform_super_admin", "fleet_admin", "fleet_manager", "fleet_driver"]}>
             <PortalHub />
           </ProtectedRoute>
         </Route>

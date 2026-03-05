@@ -88,8 +88,8 @@ export default function InsurerComparisonView() {
   // Handler for exporting damage report PDF
   const handleExportDamageReport = (aiAssessment: any, claim: any) => {
     // Parse damaged components
-    const damagedComponents = aiAssessment.detectedDamageTypes 
-      ? JSON.parse(aiAssessment.detectedDamageTypes) 
+    const damagedComponents = aiAssessment.damagedComponentsJson 
+      ? JSON.parse(aiAssessment.damagedComponentsJson) 
       : [];
 
     // Component categories for categorization
@@ -842,8 +842,8 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
   // Parse damaged components
-  const damagedComponents = aiAssessment.detectedDamageTypes 
-    ? JSON.parse(aiAssessment.detectedDamageTypes) 
+  const damagedComponents = aiAssessment.damagedComponentsJson 
+    ? JSON.parse(aiAssessment.damagedComponentsJson) 
     : [];
 
   // Parse damage description to extract inferred hidden damage
