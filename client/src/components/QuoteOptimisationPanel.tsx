@@ -15,6 +15,7 @@
 
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +52,7 @@ const RISK_BORDER: Record<string, string> = {
 };
 
 export function QuoteOptimisationPanel({ claimId }: Props) {
+  const { fmt } = useTenantCurrency();
   const [showOverrideInput, setShowOverrideInput] = useState(false);
   const [overrideReason, setOverrideReason] = useState("");
 
@@ -238,7 +240,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
                           )}
                         </td>
                         <td className="px-3 py-2 text-right text-xs">
-                          R{(q.totalAmount / 100).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
+                          {fmt(q.totalAmount)}
                         </td>
                         <td className="px-3 py-2 text-right text-xs">
                           <span className={`flex items-center justify-end gap-1 font-semibold ${dev > 0 ? "text-red-600" : dev < 0 ? "text-green-600" : "text-muted-foreground"}`}>

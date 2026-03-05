@@ -7,8 +7,10 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, PlayCircle, CheckCircle2, TrendingDown, Clock } from "lucide-react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 export function ReplayStatisticsCards() {
+  const { fmt: formatCurrency } = useTenantCurrency();
   const { data: stats, isLoading } = trpc.claimReplay.getReplayStatistics.useQuery();
   
   if (isLoading) {
@@ -26,8 +28,6 @@ export function ReplayStatisticsCards() {
       </div>
     );
   }
-  
-  const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
   
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

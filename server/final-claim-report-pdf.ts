@@ -65,6 +65,9 @@ export interface FinalClaimReportData {
   segregationCompliant: boolean;
   segregationViolations: string[];
   
+  // Currency
+  currencyCode?: string; // e.g. "USD", "ZIG", "ZAR" — defaults to "USD"
+
   // Insurer Branding
   insurerLogo?: string; // URL or base64 data URL
   insurerName: string;
@@ -130,8 +133,10 @@ export async function generateFinalClaimReportPDF(
  * Generate HTML content for the final claim report
  */
 function generateFinalReportHTML(data: FinalClaimReportData): string {
+  const currencyCode = data.currencyCode ?? 'USD';
+  const currencySymbol = currencyCode === 'ZAR' ? 'R' : currencyCode === 'ZIG' ? 'ZIG ' : 'US$';
   const formatCurrency = (cents: number) => {
-    return `R ${(cents / 100).toLocaleString('en-ZA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${currencySymbol}${(cents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
   
   const formatDate = (date: Date) => {

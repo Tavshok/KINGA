@@ -25,7 +25,8 @@ export interface ClaimExportData {
 
 export function exportClaimsToExcel(
   claims: ClaimExportData[],
-  filename: string = 'claims-export'
+  filename: string = 'claims-export',
+  currencySymbol: string = 'US$'
 ) {
   // Transform data for Excel
   const excelData = claims.map(claim => ({
@@ -41,11 +42,11 @@ export function exportClaimsToExcel(
     'Risk Level': claim.fraudRiskScore !== null && claim.fraudRiskScore !== undefined
       ? claim.fraudRiskScore >= 70 ? 'HIGH' : claim.fraudRiskScore >= 40 ? 'MEDIUM' : 'LOW'
       : 'N/A',
-    'Estimated Cost (USD)': claim.estimatedCost 
-      ? `$${(claim.estimatedCost / 100).toFixed(2)}` 
+    [`Estimated Cost (${currencySymbol})`]: claim.estimatedCost 
+      ? `${currencySymbol}${(claim.estimatedCost / 100).toFixed(2)}` 
       : 'Pending',
-    'Approved Amount (USD)': claim.approvedAmount 
-      ? `$${(claim.approvedAmount / 100).toFixed(2)}` 
+    [`Approved Amount (${currencySymbol})`]: claim.approvedAmount 
+      ? `${currencySymbol}${(claim.approvedAmount / 100).toFixed(2)}` 
       : 'Pending',
     'Incident Type': claim.incidentType || 'N/A',
     'Incident Date': claim.incidentDate 

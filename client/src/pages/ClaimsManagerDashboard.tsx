@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +22,7 @@ import { IntakeQueueTab } from "@/components/IntakeQueueTab";
 import { AutoAssignmentBadge } from "@/components/AutoAssignmentBadge";
 
 export default function ClaimsManagerDashboard() {
+  const { fmt } = useTenantCurrency();
   const [selectedClaim, setSelectedClaim] = useState<any>(null);
   const [showCloseDialog, setShowCloseDialog] = useState(false);
   const [showSendBackDialog, setShowSendBackDialog] = useState(false);
@@ -464,8 +466,8 @@ export default function ClaimsManagerDashboard() {
                           </div>
                           <div>
                             <span className="font-medium">Est. Cost:</span>{" "}
-                            {claim.estimatedCost ? `$${(claim.estimatedCost / 100).toLocaleString()}` : 
-                             claim.approvedAmount ? `$${(claim.approvedAmount / 100).toLocaleString()}` : "Pending"}
+                            {claim.estimatedCost ? fmt(claim.estimatedCost) : 
+                             claim.approvedAmount ? fmt(claim.approvedAmount) : "Pending"}
                           </div>
                           <div>
                             <span className="font-medium">Submitted:</span>{" "}
@@ -635,13 +637,13 @@ export default function ClaimsManagerDashboard() {
                     <div className="bg-white rounded p-2">
                       <p className="text-xs text-slate-500">AI Estimate</p>
                       <p className="text-lg font-bold text-teal-700">
-                        {comparisonData.aiCost ? `$${comparisonData.aiCost.toLocaleString()}` : "N/A"}
+                        {comparisonData.aiCost ? fmt(comparisonData.aiCost * 100) : "N/A"}
                       </p>
                     </div>
                     <div className="bg-white rounded p-2">
                       <p className="text-xs text-slate-500">Assessor</p>
                       <p className="text-lg font-bold text-green-700">
-                        {comparisonData.assessorCost ? `$${comparisonData.assessorCost.toLocaleString()}` : "N/A"}
+                        {comparisonData.assessorCost ? fmt(comparisonData.assessorCost * 100) : "N/A"}
                       </p>
                       {comparisonData.aiVsAssessor !== null && (
                         <p className={`text-xs ${Math.abs(comparisonData.aiVsAssessor) > 15 ? "text-red-600 font-semibold" : "text-green-600"}`}>
@@ -652,7 +654,7 @@ export default function ClaimsManagerDashboard() {
                     <div className="bg-white rounded p-2">
                       <p className="text-xs text-slate-500">Avg Quote ({comparisonData.quoteCount})</p>
                       <p className="text-lg font-bold text-purple-700">
-                        {comparisonData.avgQuoteCost ? `$${comparisonData.avgQuoteCost.toLocaleString()}` : "N/A"}
+                        {comparisonData.avgQuoteCost ? fmt(comparisonData.avgQuoteCost * 100) : "N/A"}
                       </p>
                     </div>
                   </div>

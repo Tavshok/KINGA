@@ -15,6 +15,7 @@
 
 import { useMemo, useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
@@ -42,11 +43,7 @@ const COLORS = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatRands(rands: number): string {
-  if (rands >= 1_000_000) return `R ${(rands / 1_000_000).toFixed(2)}M`;
-  if (rands >= 1_000)     return `R ${(rands / 1_000).toFixed(1)}K`;
-  return `R ${rands.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
+// formatRands replaced by useTenantCurrency hook in component body
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -113,6 +110,9 @@ function MiniKPI({ title, value, subtitle, icon: Icon, color, loading }: MiniKPI
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export default function ExecutiveAnalyticsCharts() {
+  const { fmt, currencySymbol } = useTenantCurrency();
+  // formatRands: takes already-divided value (rands, not cents), compact notation
+  const formatRands = (rands: number) => fmt(Math.round(rands * 100), { compact: true });
   const [timeRange, setTimeRange] = useState<number>(30);
 
   // ── Existing queries ────────────────────────────────────────────────────────
@@ -414,10 +414,10 @@ export default function ExecutiveAnalyticsCharts() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="status" fontSize={9} />
                       <YAxis fontSize={11} />
-                      <Tooltip formatter={(v: any) => [`R ${Number(v).toLocaleString("en-ZA")}`, ""]} />
+                      <Tooltip formatter={(v: any) => [`${currencySymbol}${Number(v).toLocaleString("en-US")}`, ""]} />
                       <Legend />
-                      <Bar dataKey="avg_amount"   name="Avg Approved (R)" fill={COLORS.blue}  />
-                      <Bar dataKey="total_amount" name="Total Approved (R)" fill={COLORS.green} />
+                      <Bar dataKey="avg_amount"   name={`Avg Approved (${currencySymbol})`}   fill={COLORS.blue}  />
+                      <Bar dataKey="total_amount" name={`Total Approved (${currencySymbol})`} fill={COLORS.green} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : <EmptyPlaceholder />}

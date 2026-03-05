@@ -8,6 +8,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { getCurrencySymbolForCode } from "../../../shared/currency";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -65,6 +67,7 @@ function statusBadge(status: string) {
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function InsurerFleetRFQs() {
+  const { currencySymbol } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [respondDialog, setRespondDialog] = useState<RFQRow | null>(null);
   const [quoteAmount, setQuoteAmount] = useState("");
@@ -218,7 +221,7 @@ export default function InsurerFleetRFQs() {
                       <TableCell>{statusBadge(rfq.status)}</TableCell>
                       <TableCell className="text-right font-mono text-sm">
                         {rfq.quoteAmount
-                          ? `${rfq.quoteCurrency ?? "ZAR"} ${parseFloat(rfq.quoteAmount).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                          ? `${getCurrencySymbolForCode(rfq.quoteCurrency ?? currencySymbol)}${parseFloat(rfq.quoteAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                           : <span className="text-gray-400 text-xs">Not submitted</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">

@@ -24,7 +24,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants } from "../drizzle/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -1107,8 +1107,27 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Extend response with parsed physics validation data (forensic-grade quantitative physics)
         if (claim) {
           const aiAssessment = await getAiAssessmentByClaimId(claim.id, tenantId);
+
+          // ── Currency fallback chain ──────────────────────────────────────────
+          // Priority: claim.currencyCode → insurer_tenant.primaryCurrency → "USD"
+          let resolvedCurrencyCode = claim.currencyCode ?? null;
+          if (!resolvedCurrencyCode && claim.tenantId) {
+            const db = await getDb();
+            if (db) {
+              const [insurerRow] = await db
+                .select({ primaryCurrency: insurerTenants.primaryCurrency })
+                .from(insurerTenants)
+                .where(eq(insurerTenants.id, claim.tenantId))
+                .limit(1);
+              resolvedCurrencyCode = insurerRow?.primaryCurrency ?? null;
+            }
+          }
+          resolvedCurrencyCode = resolvedCurrencyCode ?? "USD";
+          // ────────────────────────────────────────────────────────────────────
+
           return {
             ...claim,
+            currencyCode: resolvedCurrencyCode,
             // Parse physics analysis JSON into typed PhysicsValidation object
             // Maintains backward compatibility - returns null if missing
             physicsValidation: aiAssessment?.physicsAnalysis 

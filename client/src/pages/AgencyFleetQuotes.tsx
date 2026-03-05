@@ -8,6 +8,8 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { getCurrencySymbolForCode } from "../../../shared/currency";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -77,16 +79,17 @@ function lowestQuote(quotes: QuoteRow[]): QuoteRow | null {
   );
 }
 
-function commissionEstimate(quoteAmount: string | null): string {
+function commissionEstimate(quoteAmount: string | null, sym: string): string {
   if (!quoteAmount) return "—";
   const base = parseFloat(quoteAmount);
   const commission = base * 0.10; // 10% placeholder
-  return `ZAR ${commission.toLocaleString("en-ZA", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  return `${sym}${commission.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function AgencyFleetQuotes() {
+  const { currencySymbol } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [confirmDialog, setConfirmDialog] = useState<{ quoteId: number; action: "accepted" | "rejected"; insurerName: string } | null>(null);
 
@@ -188,7 +191,7 @@ export default function AgencyFleetQuotes() {
                       {best && (
                         <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1 justify-end mt-1">
                           <TrendingDown className="h-3.5 w-3.5" />
-                          Best: {best.quoteCurrency ?? "ZAR"} {parseFloat(best.quoteAmount!).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}
+                          Best: {getCurrencySymbolForCode(best.quoteCurrency ?? currencySymbol)}{parseFloat(best.quoteAmount!).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </p>
                       )}
                     </div>
@@ -222,11 +225,11 @@ export default function AgencyFleetQuotes() {
                             <TableCell>{statusBadge(q.status)}</TableCell>
                             <TableCell className="text-right font-mono text-sm">
                               {q.quoteAmount
-                                ? `${q.quoteCurrency ?? "ZAR"} ${parseFloat(q.quoteAmount).toLocaleString("en-ZA", { minimumFractionDigits: 2 })}`
+                                ? `${getCurrencySymbolForCode(q.quoteCurrency ?? currencySymbol)}${parseFloat(q.quoteAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
                                 : <span className="text-gray-400 text-xs">Awaiting</span>}
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm text-muted-foreground">
-                              {commissionEstimate(q.quoteAmount)}
+                              {commissionEstimate(q.quoteAmount, currencySymbol)}
                             </TableCell>
                             <TableCell className="text-xs text-muted-foreground">
                               {q.quoteValidUntil

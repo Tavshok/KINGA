@@ -11,6 +11,7 @@ import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { toast } from "sonner";
 import { useState } from "react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import PoliceReportForm from "@/components/PoliceReportForm";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
@@ -18,6 +19,7 @@ import { AiStatusBadge } from "@/components/AiStatusBadge";
 
 export default function AssessorClaimDetails() {
   const { user, logout } = useAuth();
+  const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [, params] = useRoute("/assessor/claims/:id");
   const claimId = Number(params?.id ? parseInt(params.id) : 0);
@@ -569,7 +571,7 @@ export default function AssessorClaimDetails() {
                     <Label className="text-muted-foreground">Estimated Cost</Label>
                     <p className="font-medium">
                       {existingEvaluation.estimatedRepairCost 
-                        ? `$${(existingEvaluation.estimatedRepairCost / 100).toFixed(2)}`
+                        ? fmt(existingEvaluation.estimatedRepairCost)
                         : "N/A"}
                     </p>
                   </div>

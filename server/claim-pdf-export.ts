@@ -69,12 +69,34 @@ interface PanelBeaterChoice {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function formatCurrency(cents: number | null | undefined): string {
+/**
+ * Resolve the display symbol for a currency code.
+ * Rules: USD → "US$", ZIG → "ZIG", ZAR → "R", others → code itself.
+ */
+function resolveCurrencySymbol(code: string | null | undefined): string {
+  const upper = (code ?? "USD").toUpperCase();
+  switch (upper) {
+    case "USD": return "US$";
+    case "ZIG": return "ZIG";
+    case "ZAR": return "R";
+    default: return upper;
+  }
+}
+
+/**
+ * Format cents as a currency string using the resolved symbol.
+ */
+function formatCurrencyWithSymbol(cents: number | null | undefined, symbol: string): string {
   if (cents == null) return "N/A";
-  return `R ${(cents / 100).toLocaleString("en-ZA", {
+  return `${symbol}${(cents / 100).toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+// Fallback formatter — used before claim currency is resolved
+function formatCurrency(cents: number | null | undefined): string {
+  return formatCurrencyWithSymbol(cents, "US$");
 }
 
 function formatDate(d: string | Date | null | undefined): string {
@@ -152,6 +174,8 @@ interface ClaimPDFData {
   decisionUser: { name: string | null } | null;
   panelBeaterChoices: PanelBeaterChoice[];
   assignedRepairerName: string | null;
+  /** Resolved currency symbol for all monetary values in this PDF */
+  currencySymbol?: string;
 }
 
 function generateClaimPDFHTML(data: ClaimPDFData): string {
@@ -163,7 +187,12 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     decisionUser,
     panelBeaterChoices,
     assignedRepairerName,
+    currencySymbol: injectedSymbol,
   } = data;
+  // Resolve currency symbol: injected > claim.currencyCode > USD fallback
+  const sym = injectedSymbol ?? resolveCurrencySymbol((claim as any).currencyCode ?? "USD");
+  // Bind a per-claim formatter that uses the resolved symbol
+  const fmt = (cents: number | null | undefined) => formatCurrencyWithSymbol(cents, sym);
 
   // ── Parse per-quote analysis ──────────────────────────────────────────────
   let perQuoteAnalysis: PerQuoteAnalysis[] = [];
@@ -206,9 +235,9 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     return `
       <tr>
         <td><strong>${pqa.companyName ?? `Panel Beater #${q.panelBeaterId}`}</strong></td>
-        <td>${formatCurrency(q.quotedAmount)}</td>
-        <td>${formatCurrency(q.laborCost)}</td>
-        <td>${formatCurrency(q.partsCost)}</td>
+        <td>${fmt(q.quotedAmount)}</td>
+        <td>${fmt(q.laborCost)}</td>
+        <td>${fmt(q.partsCost)}</td>
         <td>${devStr}</td>
         <td>${flagStr}</td>
       </tr>`;
@@ -344,9 +373,9 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
             return `
             <tr>
               <td><strong>${pqa.companyName ?? "Unknown"}</strong></td>
-              <td>${pqa.totalAmount != null ? formatCurrency(pqa.totalAmount) : "—"}</td>
-              <td>${pqa.labourAmount != null ? formatCurrency(pqa.labourAmount) : "—"}</td>
-              <td>${pqa.partsAmount != null ? formatCurrency(pqa.partsAmount) : "—"}</td>
+              <td>${pqa.totalAmount != null ? fmt(pqa.totalAmount) : "—"}</td>
+              <td>${pqa.labourAmount != null ? fmt(pqa.labourAmount) : "—"}</td>
+              <td>${pqa.partsAmount != null ? fmt(pqa.partsAmount) : "—"}</td>
               <td>${devStr}</td>
               <td>${flagStr}</td>
             </tr>`;
@@ -714,7 +743,7 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
     <div class="ai-card">
       <div>
         <div class="ai-card-item-label">Estimated Cost</div>
-        <div class="ai-card-item-value">${formatCurrency(aiAssessment.estimatedCost)}</div>
+        <div class="ai-card-item-value">${fmt(aiAssessment.estimatedCost)}</div>
       </div>
       <div>
         <div class="ai-card-item-label">Fraud Risk</div>

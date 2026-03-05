@@ -61,6 +61,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	forensicAnalysis: text("forensic_analysis"),
 	estimatedPartsCost: int("estimated_parts_cost"),
 	estimatedLaborCost: int("estimated_labor_cost"),
+	// Currency inherited from the parent claim (ISO 4217). Defaults to USD for Zimbabwe deployment.
+	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
@@ -703,9 +705,11 @@ export const claims = mysqlTable("claims", {
 	sourceDocumentId: int("source_document_id"),
 	claimSource: varchar("claim_source", { length: 50 }),
 	isSimulated: tinyint("is_simulated").default(0).notNull(),
-	vehicleMarketValue: int("vehicle_market_value"), // ZAR cents — used for repair ratio calculation
+	vehicleMarketValue: int("vehicle_market_value"), // stored in cents — used for repair ratio calculation
 	// Document parsing pipeline status — updated as AI extraction progresses
 	documentProcessingStatus: varchar("document_processing_status", { length: 30 }).notNull().default("pending"),
+	// Currency for all monetary values on this claim (ISO 4217). Defaults to USD for Zimbabwe deployment.
+	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
@@ -1968,6 +1972,8 @@ export const panelBeaterQuotes = mysqlTable("panel_beater_quotes", {
 	partsQuality: mysqlEnum("parts_quality", ['aftermarket','oem','genuine','used']).default('aftermarket'),
 	warrantyMonths: int("warranty_months").default(12),
 	tenantId: varchar("tenant_id", { length: 255 }),
+	// Currency for this quote (ISO 4217). Defaults to USD for Zimbabwe deployment.
+	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
 },
 (table) => [
 	index("idx_quotes_claim_id").on(table.claimId),
@@ -3225,7 +3231,7 @@ export const insurerQuoteRequests = mysqlTable("insurer_quote_requests", {
   agencyTenantId: varchar("agency_tenant_id", { length: 64 }).notNull(),
   status: mysqlEnum(['pending','sent','quoted','accepted','rejected','expired']).notNull().default('pending'),
   quoteAmount: decimal("quote_amount", { precision: 12, scale: 2 }),
-  quoteCurrency: varchar("quote_currency", { length: 10 }).default('ZAR'),
+  quoteCurrency: varchar("quote_currency", { length: 10 }).default('USD'),
   quoteNotes: text("quote_notes"),
   quoteValidUntil: timestamp("quote_valid_until", { mode: 'string' }),
   sentAt: timestamp("sent_at", { mode: 'string' }),

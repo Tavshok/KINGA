@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 
 export function IntakeQueueTab() {
+  const { fmt } = useTenantCurrency();
   const [assignmentState, setAssignmentState] = useState<Record<number, {
     processorId?: number;
     priority?: "low" | "medium" | "high";
@@ -175,7 +177,7 @@ export function IntakeQueueTab() {
                       <div className="flex items-center gap-1">
                         <DollarSign className="h-3 w-3 text-muted-foreground" />
                         <p className="font-semibold">
-                          {claim.estimatedValue ? `R ${(claim.estimatedValue / 100).toLocaleString()}` : "N/A"}
+                          {claim.estimatedValue ? fmt(claim.estimatedValue) : "N/A"}
                         </p>
                       </div>
                     </div>

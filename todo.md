@@ -9622,3 +9622,77 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 
 - [ ] Fix AI assessment empty results: PDF images not being extracted and stored before AI analysis runs
 - [ ] Ensure triggerAiAssessment reads sourceDocumentId and extracts images before running vision analysis
+
+## Multi-Currency Support (Zimbabwe USD Deployment)
+
+### Schema & Migration
+- [ ] Add `currency_code` VARCHAR(10) DEFAULT 'USD' to `claims` table
+- [ ] Add `currency_code` VARCHAR(10) DEFAULT 'USD' to `ai_assessments` table
+- [ ] Change `panel_beater_quotes.quoteCurrency` default from 'ZAR' to 'USD'
+- [ ] Run `pnpm db:push` to apply schema changes
+- [ ] Run data migration: set currency_code='USD' on all existing records
+
+### Server-Side Logic
+- [ ] Update `claim-pdf-export.ts` formatCurrency to accept currencyCode param
+- [ ] Update `exportClaimPDF` procedure to pass claim.currencyCode
+- [ ] Add fallback logic: claim.currencyCode → insurer.currencyCode → tenant.currencyCode
+- [ ] Update `getClaimById` in db.ts to return currencyCode
+- [ ] Update cost optimisation to be currency-agnostic (compare only same-currency quotes)
+
+### Frontend Currency Formatting
+- [ ] Update `shared/currency.ts` to use Intl.NumberFormat with currency code
+- [ ] Add `getCurrencySymbolForCode(code)` helper (USD→US$, ZIG→ZIG, ZAR→R)
+- [ ] Fix `RepairIntelligencePanel.tsx` — remove hardcoded `R ${...}` en-ZA
+- [ ] Fix `QuoteOptimisationPanel.tsx` — remove hardcoded `R${...}` en-ZA
+- [ ] Fix `InsurerComparisonView.tsx` — remove all `R ${...}` en-ZA references
+- [ ] Fix `AgencyFleetQuotes.tsx` — replace ZAR hardcoded references
+- [ ] Fix `replay/ReplayComparisonView.tsx` — replace `$${...}` with useTenantCurrency
+- [ ] Fix `replay/ReplayResultsTable.tsx` — replace `$${...}` with useTenantCurrency
+- [ ] Fix `replay/ReplayStatisticsCards.tsx` — replace `$${...}` with useTenantCurrency
+- [ ] Fix `PanelBeaterQuoteForm.tsx` — change "Unit Price (USD)" label to dynamic
+
+### Reports
+- [ ] PDF export: dynamic currency from claim.currencyCode with fallback chain
+- [ ] Cost Optimisation Report: currency-agnostic comparisons
+
+### Testing & Delivery
+- [ ] Write vitest tests for getCurrencySymbolForCode (USD→US$, ZIG→ZIG, ZAR→R)
+- [ ] Write vitest tests for formatCurrency with Intl.NumberFormat
+- [ ] Checkpoint and deliver
+
+
+## Multi-Currency Support (Zimbabwe USD Deployment)
+- [x] Add currency_code column to claims table (default: USD)
+- [x] Add currency_code column to ai_assessments table (default: USD)
+- [x] Add currency_code column to panel_beater_quotes table (default: USD)
+- [x] Data migration: set all existing records to USD (51 claims, 800 assessments, 5358 quotes)
+- [x] Update Drizzle schema to reflect new currency_code columns
+- [x] Implement shared/currency.ts with getCurrencySymbolForCode, formatCurrency, formatCurrencyByCode, formatCurrencyRaw, formatCurrencyRawByCode
+- [x] Update useTenantCurrency hook to use getCurrencySymbolForCode (USD → "US$", ZIG → "ZIG", ZAR → "R")
+- [x] Currency fallback chain in claims.getById: claim.currencyCode → insurer_tenant.primaryCurrency → "USD"
+- [x] Fix server/claim-pdf-export.ts: dynamic currency symbol from claim.currencyCode
+- [x] Fix server/final-claim-report-pdf.ts: dynamic currency symbol from data.currencyCode
+- [x] Fix client/src/components/AiIntelligenceSummaryCard.tsx: use useTenantCurrency
+- [x] Fix client/src/components/RepairIntelligencePanel.tsx: use useTenantCurrency
+- [x] Fix client/src/components/QuoteOptimisationPanel.tsx: use useTenantCurrency
+- [x] Fix client/src/components/ExecutiveAnalyticsCharts.tsx: use useTenantCurrency
+- [x] Fix client/src/components/IntakeQueueTab.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/InsurerComparisonView.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/AgencyFleetQuotes.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/InsurerFleetRFQs.tsx: use useTenantCurrency
+- [x] Fix client/src/components/replay/ReplayComparisonView.tsx: use useTenantCurrency
+- [x] Fix client/src/components/replay/ReplayResultsTable.tsx: use useTenantCurrency
+- [x] Fix client/src/components/replay/ReplayStatisticsCards.tsx: use useTenantCurrency
+- [x] Fix client/src/components/replay/ReplayTriggerForm.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/AssessorClaimDetails.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/ClaimsManagerComparisonView.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/ClaimsManagerDashboard.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/ExecutiveDashboard.tsx: use useTenantCurrency
+- [x] Fix client/src/pages/FraudAnalyticsDashboard.tsx: use useTenantCurrency
+- [x] Fix client/src/lib/exportUtils.ts: currencySymbol parameter on all export functions
+- [x] Fix client/src/lib/export-excel.ts: currencySymbol parameter
+- [x] Fix client/src/lib/export-pdf.ts: currencySymbol parameter
+- [x] Fix client/src/lib/pdfExport.ts: currencySymbol parameter
+- [x] Fix server/routers/agency-broker.ts: default quoteCurrency to USD
+- [x] Add insurerTenants to routers.ts schema imports
+- [x] Write vitest tests for currency utilities (31 tests, all passing)

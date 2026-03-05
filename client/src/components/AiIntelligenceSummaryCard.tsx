@@ -27,6 +27,7 @@ import {
   Brain,
   AlertCircle,
 } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,13 +57,15 @@ interface AiAssessment {
 interface Props {
   aiAssessment: AiAssessment | null | undefined;
   quotes: Quote[];
+  /** Optional override — if omitted, falls back to tenant currency */
+  currencySymbol?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatRands(cents: number | null | undefined): string {
+function formatCents(cents: number | null | undefined, sym: string): string {
   if (cents == null || isNaN(cents)) return "—";
-  return `R ${(cents / 100).toLocaleString("en-ZA", {
+  return `${sym}${(cents / 100).toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   })}`;
@@ -165,7 +168,12 @@ function ConfidenceBar({ score }: { score: number | null | undefined }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
+export function AiIntelligenceSummaryCard({ aiAssessment, quotes, currencySymbol: injectedSym }: Props) {
+  const { currencySymbol: tenantSym, fmt: tenantFmt } = useTenantCurrency();
+  const sym = injectedSym ?? tenantSym;
+  const fmt = injectedSym
+    ? (cents: number | null | undefined) => formatCents(cents, sym)
+    : tenantFmt;
   // ── Derived values ──────────────────────────────────────────────────────────
   const components = parseComponents(aiAssessment?.damagedComponentsJson);
   const top3 = components.slice(0, 3);
@@ -263,7 +271,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Median cost</span>
-                <span className="font-semibold">{formatRands(medianQuote)}</span>
+                <span className="font-semibold">{fmt(medianQuote)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Recommended</span>

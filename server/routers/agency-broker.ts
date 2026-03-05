@@ -74,7 +74,7 @@ const requestQuotesInput = z.object({
 const respondToQuoteInput = z.object({
   quoteRequestId: z.number().int().positive(),
   quoteAmount: z.number().positive(),
-  quoteCurrency: z.string().max(10).default("ZAR"),
+  quoteCurrency: z.string().max(10).default("USD"),
   quoteNotes: z.string().optional(),
   quoteValidUntil: z.string().optional(), // ISO date string
 });

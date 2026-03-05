@@ -16,8 +16,10 @@ import { Badge } from "@/components/ui/badge";
 import { PlayCircle, Search, Loader2, CheckCircle2, XCircle } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 export function ReplayTriggerForm() {
+  const { fmt } = useTenantCurrency();
   const [singleClaimId, setSingleClaimId] = useState("");
   const [batchClaimIds, setBatchClaimIds] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
@@ -172,7 +174,7 @@ export function ReplayTriggerForm() {
                       <div className="font-medium">{claim.claimReference || `Claim #${claim.id}`}</div>
                       <div className="text-sm text-muted-foreground">
                         ID: {claim.id} | Decision: {claim.repairDecision || "N/A"} | 
-                        Payout: ${((Number(claim.finalApprovedCost) || 0) / 100).toFixed(2)}
+                        Payout: {fmt(Number(claim.finalApprovedCost) || 0)}
                       </div>
                     </div>
                     <div className="flex items-center gap-2">

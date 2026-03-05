@@ -71,7 +71,7 @@ export async function exportToExcel(
 /**
  * Export KPIs as PDF
  */
-export async function exportKPIsToPDF(kpis: any) {
+export async function exportKPIsToPDF(kpis: any, currencySymbol: string = 'US$') {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
   
@@ -91,7 +91,7 @@ export async function exportKPIsToPDF(kpis: any) {
     ["Active Claims", kpis.activeClaims],
     ["Completed Claims", kpis.completedClaims],
     ["Completion Rate", `${kpis.completionRate}%`],
-    ["Total Savings", `$${kpis.totalSavings.toLocaleString()}`],
+    ["Total Savings", `${currencySymbol}${kpis.totalSavings.toLocaleString()}`],
     ["Fraud Detected", kpis.fraudDetected],
     ["High-Value Claims", kpis.highValueClaims],
     ["Avg Processing Time", `${kpis.avgProcessingTime} days`],
@@ -111,7 +111,7 @@ export async function exportKPIsToPDF(kpis: any) {
 /**
  * Export Critical Alerts as PDF
  */
-export async function exportAlertsToPDF(alerts: any) {
+export async function exportAlertsToPDF(alerts: any, currencySymbol: string = 'US$') {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
   
@@ -136,7 +136,7 @@ export async function exportAlertsToPDF(alerts: any) {
       body: alerts.highValuePending.map((claim: any) => [
         claim.claimNumber,
         claim.vehicleRegistration,
-        `$${((claim.estimatedCost || 0) / 100).toLocaleString()}`,
+        `${currencySymbol}${((claim.estimatedCost || 0) / 100).toLocaleString()}`,
       ]),
       theme: "grid",
       headStyles: { fillColor: [234, 179, 8] },
@@ -189,11 +189,11 @@ export async function exportAssessorPerformanceToExcel(assessors: any[]) {
 /**
  * Export Panel Beater Analytics as Excel
  */
-export async function exportPanelBeaterAnalyticsToExcel(beaters: any[]) {
+export async function exportPanelBeaterAnalyticsToExcel(beaters: any[], currencySymbol: string = 'US$') {
   const data = beaters.map(b => ({
     "Business Name": b.name,
     "Total Quotes": b.totalQuotes,
-    "Avg Quote Amount": `$${b.avgQuoteAmount.toLocaleString()}`,
+    "Avg Quote Amount": `${currencySymbol}${b.avgQuoteAmount.toLocaleString()}`,
     "Accepted Quotes": b.acceptedQuotes,
     "Acceptance Rate": `${b.acceptanceRate}%`,
   }));
@@ -204,12 +204,12 @@ export async function exportPanelBeaterAnalyticsToExcel(beaters: any[]) {
 /**
  * Export Cost Savings Trends as Excel
  */
-export async function exportCostSavingsTrendsToExcel(trends: any[]) {
+export async function exportCostSavingsTrendsToExcel(trends: any[], currencySymbol: string = 'US$') {
   const data = trends.map(t => ({
     Month: t.month,
-    "Total Savings": `$${t.savings.toLocaleString()}`,
+    "Total Savings": `${currencySymbol}${t.savings.toLocaleString()}`,
     "Claim Count": t.claimCount,
-    "Avg Savings Per Claim": `$${t.avgSavingsPerClaim.toLocaleString()}`,
+    "Avg Savings Per Claim": `${currencySymbol}${t.avgSavingsPerClaim.toLocaleString()}`,
   }));
   
   await exportToExcel(data, "Cost Savings Trends", "KINGA_Cost_Savings_Trends.xlsx");
@@ -218,7 +218,7 @@ export async function exportCostSavingsTrendsToExcel(trends: any[]) {
 /**
  * Export Financial Overview as PDF
  */
-export async function exportFinancialOverviewToPDF(financials: any) {
+export async function exportFinancialOverviewToPDF(financials: any, currencySymbol: string = 'US$') {
   const { default: jsPDF } = await import("jspdf");
   const { default: autoTable } = await import("jspdf-autotable");
   
@@ -234,10 +234,10 @@ export async function exportFinancialOverviewToPDF(financials: any) {
   doc.text("Financial Metrics", 14, 45);
   
   const financialData = [
-    ["Total Payouts", `$${financials.totalPayouts.toLocaleString()}`],
-    ["Total Reserves", `$${financials.totalReserves.toLocaleString()}`],
-    ["Fraud Prevented", `$${financials.fraudPrevented.toLocaleString()}`],
-    ["Net Exposure", `$${financials.netExposure.toLocaleString()}`],
+    ["Total Payouts", `${currencySymbol}${financials.totalPayouts.toLocaleString()}`],
+    ["Total Reserves", `${currencySymbol}${financials.totalReserves.toLocaleString()}`],
+    ["Fraud Prevented", `${currencySymbol}${financials.fraudPrevented.toLocaleString()}`],
+    ["Net Exposure", `${currencySymbol}${financials.netExposure.toLocaleString()}`],
   ];
   
   autoTable(doc, {

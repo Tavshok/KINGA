@@ -6,10 +6,12 @@ import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { LineChart, Line, PieChart, Pie, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
 
 export default function FraudAnalyticsDashboard() {
   const { user, logout } = useAuth();
+  const { currencySymbol } = useTenantCurrency();
   const [, setLocation] = useLocation();
 
   // Get all claims for fraud analysis (get submitted claims as proxy for all)
@@ -288,7 +290,7 @@ export default function FraudAnalyticsDashboard() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="category" />
                   <YAxis />
-                  <Tooltip formatter={(value) => `$${Number(value).toLocaleString()}`} />
+                  <Tooltip formatter={(value) => `${currencySymbol}${Number(value).toLocaleString()}`} />
                   <Legend />
                   <Bar dataKey="amount" fill="#f97316" name="Fraud Cost" />
                 </BarChart>

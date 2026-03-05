@@ -9,6 +9,7 @@
 import { useParams, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -134,6 +135,7 @@ export default function ClaimsManagerComparisonView() {
   const [, navigate] = useLocation();
   const claimId = parseInt(params.id || "0");
   const { user } = useAuth();
+  const { fmt } = useTenantCurrency();
 
   // Determine role-based view
   const isRiskManager = user?.role === "risk_manager";
@@ -412,7 +414,7 @@ export default function ClaimsManagerComparisonView() {
               }`}>
                 <p className="text-sm text-slate-600 mb-2">Estimated Cost</p>
                 <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-blue-900`}>
-                  {aiCost ? `$${aiCost.toLocaleString()}` : "N/A"}
+                  {aiCost ? fmt(aiCost * 100) : "N/A"}
                 </p>
               </div>
 
@@ -560,7 +562,7 @@ export default function ClaimsManagerComparisonView() {
                   }`}>
                     <p className="text-sm text-slate-600 mb-2">Assessed Cost</p>
                     <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-green-900`}>
-                      {assessorCost ? `$${assessorCost.toLocaleString()}` : "N/A"}
+                      {assessorCost ? fmt(assessorCost * 100) : "N/A"}
                     </p>
                   </div>
 

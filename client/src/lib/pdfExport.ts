@@ -118,7 +118,7 @@ interface ClaimData {
 /**
  * Generate PDF report for claim comparison
  */
-export async function generateComparisonPDF(data: ClaimData): Promise<void> {
+export async function generateComparisonPDF(data: ClaimData, currencySymbol: string = 'US$'): Promise<void> {
   const { jsPDF, autoTable } = await loadPdfLibs();
   const doc = new jsPDF();
   let yPos = 20;
@@ -446,7 +446,7 @@ export async function generateComparisonPDF(data: ClaimData): Promise<void> {
     const tableData = data.quotes.map((quote, index) => [
       `Quote ${index + 1}`,
       quote.panelBeaterName,
-      `$${quote.totalCost.toLocaleString()}`,
+      `${currencySymbol}${quote.totalCost.toLocaleString()}`,
       `${quote.estimatedDuration} days`,
       quote.notes || 'N/A'
     ]);

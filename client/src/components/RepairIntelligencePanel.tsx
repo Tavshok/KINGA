@@ -16,6 +16,7 @@
  */
 
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -39,13 +40,7 @@ interface Props {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatRands(cents: number | null | undefined): string {
-  if (cents == null) return "—";
-  return `R ${(cents / 100).toLocaleString("en-ZA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-}
+// formatRands replaced by useTenantCurrency hook in component body
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -151,6 +146,7 @@ const RATIO_CATEGORY_LABELS: Record<string, { label: string; colour: string }> =
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) {
+  const { fmt: formatRands } = useTenantCurrency();
   const { data, isLoading, error } = trpc.quoteIntelligence.getReport.useQuery(
     { claimId, countryCode },
     { retry: false }

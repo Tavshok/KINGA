@@ -12,6 +12,7 @@ import {
   CheckCircle2, XCircle, TrendingUp, TrendingDown, Clock, 
   DollarSign, AlertTriangle, ThumbsUp, ThumbsDown 
 } from "lucide-react";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface ReplayResult {
   id: number;
@@ -53,7 +54,7 @@ interface ReplayComparisonViewProps {
 }
 
 export function ReplayComparisonView({ result }: ReplayComparisonViewProps) {
-  const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+  const { fmt: formatCurrency } = useTenantCurrency();
   const formatTime = (hours: number | null) => hours ? `${hours.toFixed(1)}h` : "N/A";
   
   return (

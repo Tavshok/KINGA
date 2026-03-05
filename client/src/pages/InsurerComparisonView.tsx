@@ -858,7 +858,7 @@ export default function InsurerComparisonView() {
                           <div>
                             <p className="text-sm text-muted-foreground">Quote {index + 1}</p>
                             <p className="text-xl font-bold text-primary">
-                              R {((quote.quotedAmount || 0) / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                              {fmt(quote.quotedAmount || 0, { decimals: 0 })}
                             </p>
                           </div>
                           {/* Cost Intelligence Indicator */}
@@ -879,13 +879,13 @@ export default function InsurerComparisonView() {
                           <div>
                             <p className="text-xs text-muted-foreground">Labor Cost</p>
                             <p className="text-sm font-medium">
-                              R {((quote.laborCost || 0) / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                              {fmt(quote.laborCost || 0, { decimals: 0 })}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Parts Cost</p>
                             <p className="text-sm font-medium">
-                              R {((quote.partsCost || 0) / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                              {fmt(quote.partsCost || 0, { decimals: 0 })}
                             </p>
                           </div>
                         </div>
@@ -924,11 +924,11 @@ export default function InsurerComparisonView() {
                       <div className="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 p-3">
                         <div>
                           <p className="text-xs text-muted-foreground">Median Quote</p>
-                          <p className="text-sm font-semibold">R {(median / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
+                          <p className="text-sm font-semibold">{fmt(median, { decimals: 0 })}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Lowest Quote</p>
-                          <p className="text-sm font-semibold text-emerald-700">R {(minCost / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
+                          <p className="text-sm font-semibold text-emerald-700">{fmt(minCost, { decimals: 0 })}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Quote Spread</p>
@@ -941,7 +941,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Average Quote</p>
                     <p className="text-lg font-bold">
-                      R {(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
+                      {fmt(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length, { decimals: 0 })}
                     </p>
                   </div>
                 </div>
@@ -1206,11 +1206,11 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-primary">R {(partsCost / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
+          <p className="text-2xl font-bold text-primary">{fmt(partsCost, { decimals: 0 })}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
-          <p className="text-2xl font-bold text-green-600">R {(laborCost / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
+          <p className="text-2xl font-bold text-green-600">{fmt(laborCost, { decimals: 0 })}</p>
         </div>
       </div>
 

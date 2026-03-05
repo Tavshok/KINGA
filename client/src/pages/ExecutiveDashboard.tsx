@@ -8,6 +8,7 @@
 
 import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -167,6 +168,7 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
 }
 
 export default function ExecutiveDashboard() {
+  const { fmt, currencySymbol } = useTenantCurrency();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState("overview");
   
@@ -404,7 +406,7 @@ export default function ExecutiveDashboard() {
             }} className="cursor-pointer hover:opacity-90 transition-opacity">
             <LargeKPICard
               title="Fraud Risk Exposure"
-              value={`$${(kpis?.fraudRiskAmount || 0).toLocaleString()}`}
+              value={fmt((kpis?.fraudRiskAmount || 0) * 100)}
               subtitle={`${kpis?.highRiskClaimsCount || 0} high-risk claims`}
               icon={AlertTriangle}
               trend={{ value: -22.1, label: "reduction" }}

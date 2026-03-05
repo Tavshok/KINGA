@@ -16,18 +16,18 @@ import {
 } from "lucide-react";
 import { trpc } from "@/lib/trpc";
 import { ReplayComparisonView } from "./ReplayComparisonView";
+import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 export function ReplayResultsTable() {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [page, setPage] = useState(0);
   const limit = 10;
+  const { fmt: formatCurrency } = useTenantCurrency();
   
   const { data: results, isLoading } = trpc.claimReplay.getAllReplayResults.useQuery({
     limit,
     offset: page * limit,
   });
-  
-  const formatCurrency = (cents: number) => `$${(cents / 100).toFixed(2)}`;
   
   if (isLoading) {
     return (
