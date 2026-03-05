@@ -59,6 +59,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	versionNumber: int("version_number").default(1).notNull(),
 	physicsDeviationScore: int("physics_deviation_score"),
 	forensicAnalysis: text("forensic_analysis"),
+	estimatedPartsCost: int("estimated_parts_cost"),
+	estimatedLaborCost: int("estimated_labor_cost"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

@@ -805,6 +805,9 @@ Provide your response in JSON format.`;
     repairToValueRatio,
     totalLossReasoning: totalLossReasoning || null,
     damagedComponentsJson: JSON.stringify(damagedComponents),
+    // AI-returned cost breakdown stored in cents for future repair intelligence analytics
+    estimatedPartsCost: analysis.partsCost ? Math.round(analysis.partsCost) : null,
+    estimatedLaborCost: analysis.laborCost ? Math.round(analysis.laborCost) : null,
   });
 
   // ========== PHYSICS-BASED ACCIDENT RECONSTRUCTION ==========

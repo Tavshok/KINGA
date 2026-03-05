@@ -225,8 +225,8 @@ export default function InsurerComparisonView() {
       structuralDamage: !!claim.structuralDamage,
       airbagDeployment: !!claim.airbagDeployment,
       estimatedCost: aiAssessment.estimatedCost || 0,
-      partsCost: aiAssessment.partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
-      laborCost: aiAssessment.laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
+      partsCost: aiAssessment.estimatedPartsCost ?? Math.round((aiAssessment.estimatedCost || 0) * 0.6),
+      laborCost: aiAssessment.estimatedLaborCost ?? Math.round((aiAssessment.estimatedCost || 0) * 0.4),
       damageDescription: aiAssessment.damageDescription || "",
       // Physics analysis from AI assessment
       physicsAnalysis: (() => {
@@ -1181,10 +1181,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
     });
   }
 
-  // Cost breakdown — use stored values if available, else estimate from total
+  // Cost breakdown — use AI-persisted values if available, else estimate from total
   const estimatedCost = aiAssessment.estimatedCost || 0;
-  const partsCost = aiAssessment.partsCost ?? Math.round(estimatedCost * 0.6);
-  const laborCost = aiAssessment.laborCost ?? Math.round(estimatedCost * 0.4);
+  const partsCost = aiAssessment.estimatedPartsCost ?? Math.round(estimatedCost * 0.6);
+  const laborCost = aiAssessment.estimatedLaborCost ?? Math.round(estimatedCost * 0.4);
 
   return (
     <div className="space-y-6">
