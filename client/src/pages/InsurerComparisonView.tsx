@@ -159,7 +159,7 @@ export default function InsurerComparisonView() {
     const damageDescription = aiAssessment.damageDescription || "";
     
     if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
-      if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+      if (claim.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
         inferredHiddenDamage.push({
           component: "Radiator / AC Condenser",
           reason: "Front-end impact typically damages cooling system components",
@@ -173,7 +173,7 @@ export default function InsurerComparisonView() {
       }
     }
 
-    if (aiAssessment.accidentType?.includes("side")) {
+    if (claim.accidentType?.includes("side")) {
       inferredHiddenDamage.push({
         component: "Door Intrusion Beam",
         reason: "Side impact typically damages internal door reinforcement",
@@ -188,7 +188,7 @@ export default function InsurerComparisonView() {
       }
     }
 
-    if (aiAssessment.accidentType === "rollover") {
+    if (claim.accidentType === "rollover") {
       inferredHiddenDamage.push({
         component: "Roof Structure / Pillars",
         reason: "Rollover accidents cause structural deformation",
@@ -196,7 +196,7 @@ export default function InsurerComparisonView() {
       });
     }
 
-    if (aiAssessment.structuralDamage) {
+    if (claim.structuralDamage) {
       inferredHiddenDamage.push({
         component: "Frame / Unibody Structure",
         reason: "AI detected structural damage indicators",
@@ -204,7 +204,7 @@ export default function InsurerComparisonView() {
       });
     }
 
-    if (aiAssessment.airbagDeployment) {
+    if (claim.airbagDeployment) {
       inferredHiddenDamage.push({
         component: "Airbag Control Module / Sensors",
         reason: "Airbag deployment requires system replacement",
@@ -218,12 +218,12 @@ export default function InsurerComparisonView() {
       vehicle: `${claim.vehicleMake} ${claim.vehicleModel} (${claim.vehicleYear})`,
       registration: claim.vehicleRegistration,
       incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
-      accidentType: aiAssessment.accidentType || "unknown",
+      accidentType: claim.accidentType || "unknown",
       damagedComponents,
       categorizedDamage,
       inferredHiddenDamage,
-      structuralDamage: aiAssessment.structuralDamage || false,
-      airbagDeployment: aiAssessment.airbagDeployment || false,
+      structuralDamage: !!claim.structuralDamage,
+      airbagDeployment: !!claim.airbagDeployment,
       estimatedCost: aiAssessment.estimatedCost || 0,
       partsCost: aiAssessment.partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
       laborCost: aiAssessment.laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
@@ -854,7 +854,7 @@ export default function InsurerComparisonView() {
                           <div>
                             <p className="text-sm text-muted-foreground">Quote {index + 1}</p>
                             <p className="text-xl font-bold text-primary">
-                              ${((quote.quotedAmount || 0) / 100).toFixed(2)}
+                              R {((quote.quotedAmount || 0) / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                             </p>
                           </div>
                           {/* Cost Intelligence Indicator */}
@@ -875,13 +875,13 @@ export default function InsurerComparisonView() {
                           <div>
                             <p className="text-xs text-muted-foreground">Labor Cost</p>
                             <p className="text-sm font-medium">
-                              ${((quote.laborCost || 0) / 100).toFixed(2)}
+                              R {((quote.laborCost || 0) / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Parts Cost</p>
                             <p className="text-sm font-medium">
-                              ${((quote.partsCost || 0) / 100).toFixed(2)}
+                              R {((quote.partsCost || 0) / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                             </p>
                           </div>
                         </div>
@@ -920,11 +920,11 @@ export default function InsurerComparisonView() {
                       <div className="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 p-3">
                         <div>
                           <p className="text-xs text-muted-foreground">Median Quote</p>
-                          <p className="text-sm font-semibold">${(median / 100).toFixed(2)}</p>
+                          <p className="text-sm font-semibold">R {(median / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Lowest Quote</p>
-                          <p className="text-sm font-semibold text-emerald-700">${(minCost / 100).toFixed(2)}</p>
+                          <p className="text-sm font-semibold text-emerald-700">R {(minCost / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Quote Spread</p>
@@ -937,7 +937,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Average Quote</p>
                     <p className="text-lg font-bold">
-                      ${(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length / 100).toFixed(2)}
+                      R {(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}
                     </p>
                   </div>
                 </div>
@@ -1181,10 +1181,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
     });
   }
 
-  // Cost breakdown by category (estimated)
+  // Cost breakdown — use stored values if available, else estimate from total
   const estimatedCost = aiAssessment.estimatedCost || 0;
-  const partsCost = aiAssessment.partsCost || estimatedCost * 0.6;
-  const laborCost = aiAssessment.laborCost || estimatedCost * 0.4;
+  const partsCost = aiAssessment.partsCost ?? Math.round(estimatedCost * 0.6);
+  const laborCost = aiAssessment.laborCost ?? Math.round(estimatedCost * 0.4);
 
   return (
     <div className="space-y-6">
@@ -1200,11 +1200,11 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-primary">${(partsCost / 100).toFixed(2)}</p>
+          <p className="text-2xl font-bold text-primary">R {(partsCost / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
-          <p className="text-2xl font-bold text-green-600">${(laborCost / 100).toFixed(2)}</p>
+          <p className="text-2xl font-bold text-green-600">R {(laborCost / 100).toLocaleString('en-ZA', {minimumFractionDigits: 0, maximumFractionDigits: 0})}</p>
         </div>
       </div>
 
@@ -1216,10 +1216,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </h4>
         <VehicleDamageVisualization 
           damagedComponents={damagedComponents} 
-          accidentType={aiAssessment.accidentType}
+          accidentType={claim.accidentType}
           estimatedCost={aiAssessment.estimatedCost || 0}
-          structuralDamage={aiAssessment.structuralDamage || false}
-          airbagDeployment={aiAssessment.airbagDeployment || false}
+          structuralDamage={!!claim.structuralDamage}
+          airbagDeployment={!!claim.airbagDeployment}
         />
       </div>
 
@@ -1301,7 +1301,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
       )}
 
       {/* Structural Damage Warning */}
-      {aiAssessment.structuralDamage && (
+      {claim.structuralDamage && (
         <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 text-red-600" />
@@ -1328,10 +1328,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 // Transform physics analysis to validation format
 function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) {
   // Calculate confidence scores based on physics results
-  const speedConsistency = physicsAnalysis.estimatedSpeed?.confidence || 75;
-  const damagePropagation = physicsAnalysis.damagePropagation?.consistency || 80;
-  const impactForceAnalysis = physicsAnalysis.impactForce?.confidence || 85;
-  const geometricAlignment = physicsAnalysis.geometricConsistency ? 90 : 60;
+  const speedConsistency = physicsAnalysis.estimatedSpeed?.confidence ?? physicsAnalysis.damageConsistency?.score ?? 75;
+  const damagePropagation = physicsAnalysis.damageConsistency?.score ?? physicsAnalysis.damagePropagation?.consistency ?? 80;
+  const impactForceAnalysis = physicsAnalysis.impactForce?.confidence ?? 85;
+  const geometricAlignment = physicsAnalysis.geometricConsistency ? 90 : (physicsAnalysis.damageConsistency?.score ?? 60);
   
   const overallConfidence = Math.round(
     (speedConsistency + damagePropagation + impactForceAnalysis + geometricAlignment) / 4
@@ -1354,11 +1354,12 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
     });
   }
 
-  if (physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0) {
+  const unrelatedDamageItems: any[] = physicsAnalysis.fraudIndicators?.unrelatedDamage || [];
+  if (unrelatedDamageItems.length > 0) {
     anomalies.push({
       type: "warning",
       title: "Unrelated Damage Detected",
-      description: `${physicsAnalysis.fraudIndicators.unrelatedDamage.length} components show damage inconsistent with impact point`,
+      description: `${unrelatedDamageItems.length} components show damage inconsistent with impact point`,
       riskLevel: "medium",
     });
   }
@@ -1537,9 +1538,9 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
             <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
               <ul className="text-xs space-y-1 text-yellow-800">
-                {physicsAnalysis.fraudIndicators.unrelatedDamage.map((damage: any, idx: number) => (
+                {(physicsAnalysis.fraudIndicators.unrelatedDamage as any[]).map((damage: any, idx: number) => (
                   <li key={idx}>
-                    • {damage.component} ({(damage.distanceFromImpact || 0).toFixed(1)}m from impact point)
+                    • {typeof damage === 'string' ? damage : (damage.component || String(damage))}{typeof damage === 'object' && damage.distanceFromImpact ? ` (${(damage.distanceFromImpact).toFixed(1)}m from impact)` : ''}
                   </li>
                 ))}
               </ul>
