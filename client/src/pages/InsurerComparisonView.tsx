@@ -232,38 +232,31 @@ export default function InsurerComparisonView() {
       partsCost: aiAssessment.estimatedPartsCost ?? Math.round((aiAssessment.estimatedCost || 0) * 0.6),
       laborCost: aiAssessment.estimatedLaborCost ?? Math.round((aiAssessment.estimatedCost || 0) * 0.4),
       damageDescription: aiAssessment.damageDescription || "",
-      // Physics analysis from AI assessment
+      // Physics analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
       physicsAnalysis: (() => {
         if (!aiAssessment?.physicsAnalysis) return undefined;
         try {
-          const p = typeof aiAssessment.physicsAnalysis === 'string'
+          return typeof aiAssessment.physicsAnalysis === 'string'
             ? JSON.parse(aiAssessment.physicsAnalysis)
             : aiAssessment.physicsAnalysis;
-          return {
-            impactForce: p.impactForce ?? 0,
-            estimatedSpeed: p.estimatedSpeed ?? 0,
-            impactAngle: p.impactAngle ?? 0,
-            damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
-            physicsDeviationScore: p.physicsDeviationScore ?? 0,
-          };
         } catch { return undefined; }
       })(),
-      // Forensic analysis from AI assessment
+      // Forensic analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
       forensicAnalysis: (() => {
         if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
         try {
-          const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
+          return typeof (aiAssessment as any).forensicAnalysis === 'string'
             ? JSON.parse((aiAssessment as any).forensicAnalysis)
             : (aiAssessment as any).forensicAnalysis;
-          return {
-            overallFraudScore: f.overallFraudScore ?? 0,
-            paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
-            bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
-            glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
-            tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
-            fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
-          };
         } catch { return undefined; }
+      })(),
+      // Damage photos — parse JSON string if needed
+      damagePhotos: (() => {
+        const dp = (claim as any).damagePhotos;
+        if (!dp) return undefined;
+        if (Array.isArray(dp)) return dp;
+        try { const parsed = JSON.parse(dp); return Array.isArray(parsed) ? parsed : undefined; }
+        catch { return undefined; }
       })(),
     });
 
@@ -473,60 +466,44 @@ export default function InsurerComparisonView() {
                         confidenceScore: aiAssessment?.confidenceScore ?? 0,
                       };
                     })(),
-                    // Physics analysis from AI assessment
+                    // Accident circumstances from claim record
+                    accidentCircumstances: {
+                      incidentDescription: claim.incidentDescription || undefined,
+                      incidentLocation: claim.incidentLocation || undefined,
+                      incidentType: (claim as any).incidentType || undefined,
+                      accidentType: (aiAssessment as any)?.accidentType || undefined,
+                    },
+                    // Physics analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
                     physicsAnalysis: (() => {
                       if (!aiAssessment?.physicsAnalysis) return undefined;
                       try {
-                        const p = typeof aiAssessment.physicsAnalysis === 'string'
+                        return typeof aiAssessment.physicsAnalysis === 'string'
                           ? JSON.parse(aiAssessment.physicsAnalysis)
                           : aiAssessment.physicsAnalysis;
-                        return {
-                          impactForce: p.impactForce ?? 0,
-                          estimatedSpeed: p.estimatedSpeed ?? 0,
-                          impactAngle: p.impactAngle ?? 0,
-                          damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
-                          fraudIndicators: (() => {
-                            const fi = p.fraudIndicators;
-                            if (!fi) return { impossibleDamagePatterns: [], unrelatedDamage: [], stagedAccidentIndicators: [], severityMismatch: false };
-                            if (Array.isArray(fi)) {
-                              return {
-                                impossibleDamagePatterns: fi.filter((i: any) => i.confidence >= 85).map((i: any) => i.component),
-                                unrelatedDamage: fi.filter((i: any) => i.confidence >= 65 && i.confidence < 85).map((i: any) => i.component),
-                                stagedAccidentIndicators: fi.filter((i: any) => i.component.toLowerCase().includes('staged')).map((i: any) => i.component),
-                                severityMismatch: fi.some((i: any) => i.component.toLowerCase().includes('severity')),
-                              };
-                            }
-                            return {
-                              impossibleDamagePatterns: fi.impossibleDamagePatterns ?? [],
-                              unrelatedDamage: fi.unrelatedDamage ?? [],
-                              stagedAccidentIndicators: fi.stagedAccidentIndicators ?? [],
-                              severityMismatch: fi.severityMismatch ?? false,
-                            };
-                          })(),
-                          physicsDeviationScore: p.physicsDeviationScore ?? 0,
-                        };
                       } catch { return undefined; }
                     })(),
-                    // Forensic analysis from AI assessment
+                    // Forensic analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
                     forensicAnalysis: (() => {
                       if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
                       try {
-                        const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
+                        return typeof (aiAssessment as any).forensicAnalysis === 'string'
                           ? JSON.parse((aiAssessment as any).forensicAnalysis)
                           : (aiAssessment as any).forensicAnalysis;
-                        return {
-                          overallFraudScore: f.overallFraudScore ?? 0,
-                          paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
-                          bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
-                          glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
-                          tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
-                          fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
-                        };
                       } catch { return undefined; }
                     })(),
+                    // Damage photos — parse JSON string if needed
+                    damagePhotos: (() => {
+                      const dp = (claim as any).damagePhotos;
+                      if (!dp) return undefined;
+                      if (Array.isArray(dp)) return dp;
+                      try { const parsed = JSON.parse(dp); return Array.isArray(parsed) ? parsed : undefined; }
+                      catch { return undefined; }
+                    })(),
                   };
-                  
-                  generateComparisonPDF(pdfData);
+
+                  const currencyCode = (claim as any).currencyCode || 'USD';
+                  const currencySymbol = currencyCode === 'ZAR' ? 'R' : currencyCode === 'GBP' ? '£' : currencyCode === 'EUR' ? '€' : 'US$';
+                  generateComparisonPDF(pdfData, currencySymbol);
                   toast.success("PDF report downloaded successfully");
                 }}
               >

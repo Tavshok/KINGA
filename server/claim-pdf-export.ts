@@ -84,11 +84,12 @@ function resolveCurrencySymbol(code: string | null | undefined): string {
 }
 
 /**
- * Format cents as a currency string using the resolved symbol.
+ * Format a whole-number currency amount (e.g. 900 = US$900.00) using the resolved symbol.
+ * Note: costs in the DB are stored as whole numbers, NOT cents.
  */
-function formatCurrencyWithSymbol(cents: number | null | undefined, symbol: string): string {
-  if (cents == null) return "N/A";
-  return `${symbol}${(cents / 100).toLocaleString("en-US", {
+function formatCurrencyWithSymbol(amount: number | null | undefined, symbol: string): string {
+  if (amount == null) return "N/A";
+  return `${symbol}${amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
@@ -735,6 +736,17 @@ function generateClaimPDFHTML(data: ClaimPDFData): string {
       <div class="generated-at">Generated: ${formatDateTime(new Date())}</div>
     </div>
   </div>
+
+  <!-- ── Accident Circumstances ──────────────────────────────────────────── -->
+  ${claim.incidentDescription ? `
+  <div class="section no-break">
+    <h2 class="section-title">Accident Circumstances</h2>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:8px;">
+      ${(claim as any).incidentType ? `<div style="font-size:9pt;"><strong>Incident Type:</strong> ${((claim as any).incidentType ?? '').replace(/_/g,' ').toUpperCase()}</div>` : ''}
+      ${claim.incidentLocation ? `<div style="font-size:9pt;"><strong>Location:</strong> ${claim.incidentLocation}</div>` : ''}
+    </div>
+    <p style="font-size:9pt;color:#374151;line-height:1.6;margin:0;">${claim.incidentDescription}</p>
+  </div>` : ''}
 
   <!-- ── AI Assessment Summary ──────────────────────────────────────────── -->
   <div class="section no-break">

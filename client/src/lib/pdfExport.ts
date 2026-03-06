@@ -65,6 +65,13 @@ interface ClaimData {
       missingIn: string[];
     }>;
   };
+  /** Accident circumstances from the claim record */
+  accidentCircumstances?: {
+    incidentDescription?: string;
+    incidentLocation?: string;
+    incidentType?: string;
+    accidentType?: string;
+  };
   /** AI Intelligence Summary — derived from existing claim quotes and AI assessment record */
   aiIntelligence?: {
     /** Damaged component names parsed from damagedComponentsJson */
@@ -88,29 +95,16 @@ interface ClaimData {
     /** AI confidence score 0-100 */
     confidenceScore: number;
   };
-  /** Physics analysis data from accident reconstruction engine */
-  physicsAnalysis?: {
-    impactForce: number;
-    estimatedSpeed: number;
-    impactAngle: number;
-    damagePropagation: Array<{ component: string; force: number; distance: number }>;
-    fraudIndicators: {
-      impossibleDamagePatterns: string[];
-      unrelatedDamage: Array<{ component: string; distanceFromImpact: number }>;
-      stagedAccidentIndicators: string[];
-      severityMismatch: boolean;
-    };
-    physicsDeviationScore: number;
-  };
-  /** Forensic analysis data from image forensics engine */
-  forensicAnalysis?: {
-    overallFraudScore: number;
-    paintAnalysis: { score: number; findings: string[] };
-    bodyworkAnalysis: { score: number; findings: string[] };
-    glassAnalysis: { score: number; findings: string[] };
-    tireAnalysis: { score: number; findings: string[] };
-    fluidAnalysis: { score: number; findings: string[] };
-  };
+  /**
+   * Physics analysis — accepts both normalised DB format ({consistencyScore, _raw: {...}}) and
+   * legacy flat format ({impactForce, estimatedSpeed, impactAngle, ...}).
+   */
+  physicsAnalysis?: Record<string, unknown>;
+  /**
+   * Forensic analysis — accepts both DB format ({paint, bodywork, tires, fluidLeaks, glass}) and
+   * legacy format ({paintAnalysis, bodyworkAnalysis, ...}).
+   */
+  forensicAnalysis?: Record<string, unknown>;
   /** Damage photo URLs for inclusion in the report */
   damagePhotos?: string[];
 }
@@ -157,6 +151,57 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
   yPos += 5;
   doc.text(`Incident Date: ${data.incidentDate}`, 20, yPos);
   yPos += 10;
+
+  // ─── Accident Circumstances Section ──────────────────────────────────────────
+  const ac = data.accidentCircumstances;
+  if (ac && (ac.incidentDescription || ac.incidentLocation || ac.incidentType || ac.accidentType)) {
+    if (yPos > 230) { doc.addPage(); yPos = 20; }
+
+    doc.setFillColor(22, 101, 52); // green-800
+    doc.rect(20, yPos - 1, 170, 8, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('Accident Circumstances', 23, yPos + 5);
+    doc.setTextColor(0, 0, 0);
+    yPos += 13;
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+
+    if (ac.incidentType || ac.accidentType) {
+      const typeLabel = (ac.incidentType || ac.accidentType || '').replace(/_/g, ' ').toUpperCase();
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Incident Type: `, 26, yPos);
+      doc.setFont('helvetica', 'normal');
+      doc.text(typeLabel, 26 + doc.getTextWidth('Incident Type: '), yPos);
+      yPos += 5;
+    }
+
+    if (ac.incidentLocation) {
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Location: `, 26, yPos);
+      doc.setFont('helvetica', 'normal');
+      const locLines = doc.splitTextToSize(ac.incidentLocation, 145);
+      doc.text(locLines, 26 + doc.getTextWidth('Location: '), yPos);
+      yPos += locLines.length * 4 + 2;
+    }
+
+    if (ac.incidentDescription) {
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9);
+      doc.text('Description:', 26, yPos);
+      yPos += 5;
+      doc.setFont('helvetica', 'normal');
+      const descLines = doc.splitTextToSize(ac.incidentDescription, 158);
+      doc.text(descLines, 26, yPos);
+      yPos += descLines.length * 4 + 3;
+    }
+
+    doc.setDrawColor(200, 200, 200);
+    doc.line(20, yPos, 190, yPos);
+    yPos += 8;
+  }
 
   // ─── Damage Photos Section ──────────────────────────────────────────────────
   if (data.damagePhotos && data.damagePhotos.length > 0) {
@@ -267,11 +312,11 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Lowest Quote:   $${(ai.lowestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+    doc.text(`Lowest Quote:   ${currencySymbol}${ai.lowestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
     yPos += 4;
-    doc.text(`Median Quote:   $${(ai.medianQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+    doc.text(`Median Quote:   ${currencySymbol}${ai.medianQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
     yPos += 4;
-    doc.text(`Highest Quote:  $${(ai.highestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+    doc.text(`Highest Quote:  ${currencySymbol}${ai.highestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
     yPos += 4;
     doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
     yPos += 7;
@@ -472,10 +517,47 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
   // ─── Physics Reconstruction Section ──────────────────────────────────────────
   if (data.physicsAnalysis) {
     if (yPos > 220) { doc.addPage(); yPos = 20; }
+    const phys = data.physicsAnalysis as any;
+    const raw = phys._raw;
 
-    const phys = data.physicsAnalysis;
+    // Resolve values from normalised format (_raw) or legacy flat format
+    const impactForceKN = raw?.impactForce?.magnitude != null
+      ? (raw.impactForce.magnitude / 1000)
+      : (typeof phys.impactForce === 'number' ? phys.impactForce : 0);
+    const speedKmh = raw?.estimatedSpeed?.value != null
+      ? raw.estimatedSpeed.value
+      : (typeof phys.estimatedSpeed === 'number' ? phys.estimatedSpeed : 0);
+    const impactAngle = raw?.impactAngle != null
+      ? raw.impactAngle
+      : (typeof phys.impactAngle === 'number' ? phys.impactAngle : 0);
+    const consistencyScore = phys.consistencyScore ?? (raw?.damageConsistency?.score ?? 0);
+    const accidentSeverity = raw?.accidentSeverity ?? '';
+    const collisionType = raw?.collisionType ?? '';
 
-    // Section heading with dark blue bar
+    // Resolve fraud indicators — normalised array or legacy object
+    const fraudIndicatorsList: string[] = [];
+    if (Array.isArray(phys.fraudIndicators)) {
+      phys.fraudIndicators.forEach((fi: any) => {
+        if (fi.component) fraudIndicatorsList.push(`${fi.component} (confidence: ${fi.confidence ?? '?'}%)`);
+      });
+    } else if (raw?.fraudIndicators) {
+      // Fall back to _raw.fraudIndicators (legacy object format)
+      const rfi = raw.fraudIndicators;
+      (rfi.impossibleDamagePatterns ?? []).forEach((p: string) => fraudIndicatorsList.push(`Impossible pattern: ${p}`));
+      (rfi.unrelatedDamage ?? []).forEach((d: string) => fraudIndicatorsList.push(`Unrelated damage: ${d}`));
+      (rfi.stagedAccidentIndicators ?? []).forEach((s: string) => fraudIndicatorsList.push(`Staged indicator: ${s}`));
+      if (rfi.severityMismatch) fraudIndicatorsList.push('Severity mismatch between reported and physics-estimated damage');
+    } else if (phys.fraudIndicators && !Array.isArray(phys.fraudIndicators)) {
+      const fi = phys.fraudIndicators as any;
+      (fi.impossibleDamagePatterns ?? []).forEach((p: string) => fraudIndicatorsList.push(`Impossible pattern: ${p}`));
+      (fi.unrelatedDamage ?? []).forEach((d: any) => {
+        const label = typeof d === 'string' ? d : d?.component ?? String(d);
+        fraudIndicatorsList.push(`Unrelated damage: ${label}`);
+      });
+      (fi.stagedAccidentIndicators ?? []).forEach((s: string) => fraudIndicatorsList.push(`Staged indicator: ${s}`));
+      if (fi.severityMismatch) fraudIndicatorsList.push('Severity mismatch between reported and physics-estimated damage');
+    }
+
     doc.setFillColor(30, 58, 138); // blue-900
     doc.rect(20, yPos - 1, 170, 8, 'F');
     doc.setTextColor(255, 255, 255);
@@ -487,29 +569,33 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Estimated Impact Force: ${phys.impactForce.toFixed(1)} kN`, 26, yPos); yPos += 4;
-    doc.text(`Estimated Speed at Impact: ${phys.estimatedSpeed.toFixed(0)} km/h`, 26, yPos); yPos += 4;
-    doc.text(`Impact Angle: ${phys.impactAngle.toFixed(0)}\u00b0`, 26, yPos); yPos += 4;
-    doc.text(`Physics Deviation Score: ${phys.physicsDeviationScore}`, 26, yPos); yPos += 6;
+    if (impactForceKN > 0) { doc.text(`Estimated Impact Force: ${impactForceKN.toFixed(1)} kN`, 26, yPos); yPos += 4; }
+    if (speedKmh > 0) { doc.text(`Estimated Speed at Impact: ${speedKmh.toFixed(0)} km/h`, 26, yPos); yPos += 4; }
+    if (impactAngle > 0) { doc.text(`Impact Angle: ${impactAngle.toFixed(0)}\u00b0`, 26, yPos); yPos += 4; }
+    if (consistencyScore > 0) { doc.text(`Physics Consistency Score: ${consistencyScore}/100`, 26, yPos); yPos += 4; }
+    if (accidentSeverity) { doc.text(`Accident Severity: ${accidentSeverity.toUpperCase()}`, 26, yPos); yPos += 4; }
+    if (collisionType) { doc.text(`Collision Type: ${collisionType.replace(/_/g, ' ').toUpperCase()}`, 26, yPos); yPos += 4; }
+    yPos += 2;
 
     // Damage propagation
-    if (phys.damagePropagation.length > 0) {
+    const propagation = raw?.damagePropagation ?? phys.damagePropagation ?? [];
+    if (Array.isArray(propagation) && propagation.length > 0) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text('Damage Propagation Path:', 20, yPos); yPos += 5;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      phys.damagePropagation.slice(0, 5).forEach((dp) => {
-        doc.text(`\u2022  ${dp.component} \u2014 ${dp.force.toFixed(1)} kN at ${dp.distance.toFixed(2)}m from impact`, 26, yPos);
+      propagation.slice(0, 5).forEach((dp: any) => {
+        const force = typeof dp.force === 'number' ? dp.force.toFixed(1) : '?';
+        const dist = typeof dp.distance === 'number' ? dp.distance.toFixed(2) : '?';
+        doc.text(`\u2022  ${dp.component} \u2014 ${force} kN at ${dist}m from impact`, 26, yPos);
         yPos += 4;
       });
       yPos += 3;
     }
 
     // Physics fraud indicators
-    const fi = phys.fraudIndicators;
-    const hasPhysicsFraud = fi.impossibleDamagePatterns.length > 0 || fi.unrelatedDamage.length > 0 || fi.stagedAccidentIndicators.length > 0 || fi.severityMismatch;
-    if (hasPhysicsFraud) {
+    if (fraudIndicatorsList.length > 0) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.setTextColor(185, 28, 28);
@@ -518,10 +604,11 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
       yPos += 5;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      fi.impossibleDamagePatterns.forEach((p) => { doc.text(`\u2022  Impossible: ${p}`, 26, yPos); yPos += 4; });
-      fi.unrelatedDamage.forEach((d) => { doc.text(`\u2022  Unrelated: ${d.component} (${d.distanceFromImpact.toFixed(1)}m from impact)`, 26, yPos); yPos += 4; });
-      fi.stagedAccidentIndicators.forEach((s) => { doc.text(`\u2022  Staged: ${s}`, 26, yPos); yPos += 4; });
-      if (fi.severityMismatch) { doc.text('\u2022  Severity mismatch between reported and physics-estimated damage', 26, yPos); yPos += 4; }
+      fraudIndicatorsList.slice(0, 6).forEach((indicator) => {
+        const lines = doc.splitTextToSize(`\u2022  ${indicator}`, 158);
+        doc.text(lines, 26, yPos);
+        yPos += lines.length * 4;
+      });
       yPos += 3;
     }
 
@@ -533,8 +620,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
   // ─── Forensic Analysis Section ──────────────────────────────────────────
   if (data.forensicAnalysis) {
     if (yPos > 220) { doc.addPage(); yPos = 20; }
-
-    const fa = data.forensicAnalysis;
+    const fa = data.forensicAnalysis as any;
 
     doc.setFillColor(88, 28, 135); // purple-900
     doc.rect(20, yPos - 1, 170, 8, 'F');
@@ -547,26 +633,48 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Overall Forensic Fraud Score: ${fa.overallFraudScore}/100`, 26, yPos); yPos += 6;
+    doc.text(`Overall Forensic Fraud Score: ${fa.overallFraudScore ?? 0}/100`, 26, yPos); yPos += 6;
+
+    // Helper: normalise a forensic section to {score, findings} regardless of DB vs legacy format
+    const normaliseSection = (dbSection: any, legacySection: any): { score: number; findings: string[] } | null => {
+      if (legacySection) return legacySection;
+      if (!dbSection) return null;
+      const score = dbSection.fraudRiskScore ?? 0;
+      const findings: string[] = [];
+      if (Array.isArray(dbSection.paintInconsistencies)) findings.push(...dbSection.paintInconsistencies);
+      if (Array.isArray(dbSection.fraudIndicators)) findings.push(...dbSection.fraudIndicators);
+      if (Array.isArray(dbSection.findings)) findings.push(...dbSection.findings);
+      if (dbSection.hasPreviousRepairs) findings.push('Previous repair work detected');
+      if (dbSection.oversprayDetected) findings.push('Overspray detected');
+      if (dbSection.dentRepairEvidence) findings.push('Evidence of previous dent repair');
+      if (dbSection.panelReplacementEvidence) findings.push('Panel replacement evidence found');
+      return { score, findings };
+    };
 
     const analyses = [
-      { name: 'Paint Analysis', data: fa.paintAnalysis },
-      { name: 'Bodywork Analysis', data: fa.bodyworkAnalysis },
-      { name: 'Glass Analysis', data: fa.glassAnalysis },
-      { name: 'Tire Analysis', data: fa.tireAnalysis },
-      { name: 'Fluid Leak Analysis', data: fa.fluidAnalysis },
+      { name: 'Paint Analysis', section: normaliseSection(fa.paint, fa.paintAnalysis) },
+      { name: 'Bodywork Analysis', section: normaliseSection(fa.bodywork, fa.bodyworkAnalysis) },
+      { name: 'Glass Analysis', section: normaliseSection(fa.glass, fa.glassAnalysis) },
+      { name: 'Tire Analysis', section: normaliseSection(fa.tires, fa.tireAnalysis) },
+      { name: 'Fluid Leak Analysis', section: normaliseSection(fa.fluidLeaks, fa.fluidAnalysis) },
     ];
-    analyses.forEach(({ name, data: analysis }) => {
-      if (!analysis) return;
+    analyses.forEach(({ name, section }) => {
+      if (!section) return;
       if (yPos > 260) { doc.addPage(); yPos = 20; }
       doc.setFont('helvetica', 'bold');
-      doc.text(`${name} (Score: ${analysis.score}/100):`, 26, yPos); yPos += 4;
+      doc.text(`${name} (Score: ${section.score}/100):`, 26, yPos); yPos += 4;
       doc.setFont('helvetica', 'normal');
-      analysis.findings.slice(0, 3).forEach((f) => {
-        const lines = doc.splitTextToSize(`\u2022  ${f}`, 155);
-        doc.text(lines, 30, yPos);
-        yPos += lines.length * 4;
-      });
+      if (section.findings.length > 0) {
+        section.findings.slice(0, 3).forEach((f) => {
+          const lines = doc.splitTextToSize(`\u2022  ${f}`, 155);
+          doc.text(lines, 30, yPos);
+          yPos += lines.length * 4;
+        });
+      } else {
+        doc.setTextColor(120, 120, 120);
+        doc.text('No anomalies detected', 30, yPos); yPos += 4;
+        doc.setTextColor(0, 0, 0);
+      }
       yPos += 2;
     });
 
@@ -782,21 +890,10 @@ export async function generateDamageReportPDF(data: {
   partsCost: number;
   laborCost: number;
   damageDescription: string;
-  physicsAnalysis?: {
-    impactForce: number;
-    estimatedSpeed: number;
-    impactAngle: number;
-    damagePropagation: Array<{ component: string; force: number; distance: number }>;
-    physicsDeviationScore: number;
-  };
-  forensicAnalysis?: {
-    overallFraudScore: number;
-    paintAnalysis: { score: number; findings: string[] };
-    bodyworkAnalysis: { score: number; findings: string[] };
-    glassAnalysis: { score: number; findings: string[] };
-    tireAnalysis: { score: number; findings: string[] };
-    fluidAnalysis: { score: number; findings: string[] };
-  };
+  /** Physics analysis — accepts both normalised format ({_raw, consistencyScore, ...}) and legacy flat format */
+  physicsAnalysis?: Record<string, unknown>;
+  /** Forensic analysis — accepts both DB format ({paint, bodywork, ...}) and legacy format ({paintAnalysis, ...}) */
+  forensicAnalysis?: Record<string, unknown>;
   damagePhotos?: string[];
 }): Promise<void> {
   const { jsPDF, autoTable } = await loadPdfLibs();
@@ -904,11 +1001,11 @@ export async function generateDamageReportPDF(data: {
   yPos += 5;
   doc.text(`Inferred Hidden Damage: ${data.inferredHiddenDamage.length}`, 20, yPos);
   yPos += 5;
-  doc.text(`Estimated Total Cost: $${(data.estimatedCost / 100).toFixed(2)}`, 20, yPos);
+  doc.text(`Estimated Total Cost: $${data.estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
   yPos += 5;
-  doc.text(`Parts Cost: $${(data.partsCost / 100).toFixed(2)}`, 20, yPos);
+  doc.text(`Parts Cost: $${data.partsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
   yPos += 5;
-  doc.text(`Labor Cost: $${(data.laborCost / 100).toFixed(2)}`, 20, yPos);
+  doc.text(`Labor Cost: $${data.laborCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
   yPos += 5;
   doc.text(`Structural Damage: ${data.structuralDamage ? 'YES ⚠' : 'NO'}`, 20, yPos);
   yPos += 5;
@@ -1064,7 +1161,20 @@ export async function generateDamageReportPDF(data: {
   // ─── Physics Reconstruction Section ──────────────────────────────────────────
   if (data.physicsAnalysis) {
     if (yPos > 220) { doc.addPage(); yPos = 20; }
-    const phys = data.physicsAnalysis;
+    const phys2 = data.physicsAnalysis as any;
+    const raw2 = phys2._raw;
+    const impactForceKN2 = raw2?.impactForce?.magnitude != null
+      ? (raw2.impactForce.magnitude / 1000)
+      : (typeof phys2.impactForce === 'number' ? phys2.impactForce : 0);
+    const speedKmh2 = raw2?.estimatedSpeed?.value != null
+      ? raw2.estimatedSpeed.value
+      : (typeof phys2.estimatedSpeed === 'number' ? phys2.estimatedSpeed : 0);
+    const impactAngle2 = raw2?.impactAngle != null
+      ? raw2.impactAngle
+      : (typeof phys2.impactAngle === 'number' ? phys2.impactAngle : 0);
+    const consistencyScore2 = phys2.consistencyScore ?? (raw2?.damageConsistency?.score ?? 0);
+    const accidentSeverity2 = raw2?.accidentSeverity ?? '';
+
     doc.setFillColor(30, 58, 138);
     doc.rect(20, yPos - 1, 170, 8, 'F');
     doc.setTextColor(255, 255, 255);
@@ -1075,18 +1185,23 @@ export async function generateDamageReportPDF(data: {
     yPos += 13;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Estimated Impact Force: ${phys.impactForce.toFixed(1)} kN`, 26, yPos); yPos += 4;
-    doc.text(`Estimated Speed at Impact: ${phys.estimatedSpeed.toFixed(0)} km/h`, 26, yPos); yPos += 4;
-    doc.text(`Impact Angle: ${phys.impactAngle.toFixed(0)}\u00b0`, 26, yPos); yPos += 4;
-    doc.text(`Physics Deviation Score: ${phys.physicsDeviationScore}`, 26, yPos); yPos += 6;
-    if (phys.damagePropagation.length > 0) {
+    if (impactForceKN2 > 0) { doc.text(`Estimated Impact Force: ${impactForceKN2.toFixed(1)} kN`, 26, yPos); yPos += 4; }
+    if (speedKmh2 > 0) { doc.text(`Estimated Speed at Impact: ${speedKmh2.toFixed(0)} km/h`, 26, yPos); yPos += 4; }
+    if (impactAngle2 > 0) { doc.text(`Impact Angle: ${impactAngle2.toFixed(0)}\u00b0`, 26, yPos); yPos += 4; }
+    if (consistencyScore2 > 0) { doc.text(`Physics Consistency Score: ${consistencyScore2}/100`, 26, yPos); yPos += 4; }
+    if (accidentSeverity2) { doc.text(`Accident Severity: ${accidentSeverity2.toUpperCase()}`, 26, yPos); yPos += 4; }
+    yPos += 2;
+    const propagation2 = raw2?.damagePropagation ?? phys2.damagePropagation ?? [];
+    if (Array.isArray(propagation2) && propagation2.length > 0) {
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(10);
       doc.text('Damage Propagation Path:', 20, yPos); yPos += 5;
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      phys.damagePropagation.slice(0, 5).forEach((dp) => {
-        doc.text(`\u2022  ${dp.component} \u2014 ${dp.force.toFixed(1)} kN at ${dp.distance.toFixed(2)}m`, 26, yPos);
+      propagation2.slice(0, 5).forEach((dp: any) => {
+        const force = typeof dp.force === 'number' ? dp.force.toFixed(1) : '?';
+        const dist = typeof dp.distance === 'number' ? dp.distance.toFixed(2) : '?';
+        doc.text(`\u2022  ${dp.component} \u2014 ${force} kN at ${dist}m`, 26, yPos);
         yPos += 4;
       });
       yPos += 3;
@@ -1099,7 +1214,7 @@ export async function generateDamageReportPDF(data: {
   // ─── Forensic Analysis Section ──────────────────────────────────────────
   if (data.forensicAnalysis) {
     if (yPos > 220) { doc.addPage(); yPos = 20; }
-    const fa = data.forensicAnalysis;
+    const fa2 = data.forensicAnalysis as any;
     doc.setFillColor(88, 28, 135);
     doc.rect(20, yPos - 1, 170, 8, 'F');
     doc.setTextColor(255, 255, 255);
@@ -1110,25 +1225,45 @@ export async function generateDamageReportPDF(data: {
     yPos += 13;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Overall Forensic Fraud Score: ${fa.overallFraudScore}/100`, 26, yPos); yPos += 6;
-    const analyses = [
-      { name: 'Paint Analysis', data: fa.paintAnalysis },
-      { name: 'Bodywork Analysis', data: fa.bodyworkAnalysis },
-      { name: 'Glass Analysis', data: fa.glassAnalysis },
-      { name: 'Tire Analysis', data: fa.tireAnalysis },
-      { name: 'Fluid Leak Analysis', data: fa.fluidAnalysis },
+    doc.text(`Overall Forensic Fraud Score: ${fa2.overallFraudScore ?? 0}/100`, 26, yPos); yPos += 6;
+    const normaliseSection2 = (dbSection: any, legacySection: any): { score: number; findings: string[] } | null => {
+      if (legacySection) return legacySection;
+      if (!dbSection) return null;
+      const score = dbSection.fraudRiskScore ?? 0;
+      const findings: string[] = [];
+      if (Array.isArray(dbSection.paintInconsistencies)) findings.push(...dbSection.paintInconsistencies);
+      if (Array.isArray(dbSection.fraudIndicators)) findings.push(...dbSection.fraudIndicators);
+      if (Array.isArray(dbSection.findings)) findings.push(...dbSection.findings);
+      if (dbSection.hasPreviousRepairs) findings.push('Previous repair work detected');
+      if (dbSection.oversprayDetected) findings.push('Overspray detected');
+      if (dbSection.dentRepairEvidence) findings.push('Evidence of previous dent repair');
+      if (dbSection.panelReplacementEvidence) findings.push('Panel replacement evidence found');
+      return { score, findings };
+    };
+    const analyses2 = [
+      { name: 'Paint Analysis', section: normaliseSection2(fa2.paint, fa2.paintAnalysis) },
+      { name: 'Bodywork Analysis', section: normaliseSection2(fa2.bodywork, fa2.bodyworkAnalysis) },
+      { name: 'Glass Analysis', section: normaliseSection2(fa2.glass, fa2.glassAnalysis) },
+      { name: 'Tire Analysis', section: normaliseSection2(fa2.tires, fa2.tireAnalysis) },
+      { name: 'Fluid Leak Analysis', section: normaliseSection2(fa2.fluidLeaks, fa2.fluidAnalysis) },
     ];
-    analyses.forEach(({ name, data: analysis }) => {
-      if (!analysis) return;
+    analyses2.forEach(({ name, section }) => {
+      if (!section) return;
       if (yPos > 260) { doc.addPage(); yPos = 20; }
       doc.setFont('helvetica', 'bold');
-      doc.text(`${name} (Score: ${analysis.score}/100):`, 26, yPos); yPos += 4;
+      doc.text(`${name} (Score: ${section.score}/100):`, 26, yPos); yPos += 4;
       doc.setFont('helvetica', 'normal');
-      analysis.findings.slice(0, 3).forEach((f) => {
-        const lines = doc.splitTextToSize(`\u2022  ${f}`, 155);
-        doc.text(lines, 30, yPos);
-        yPos += lines.length * 4;
-      });
+      if (section.findings.length > 0) {
+        section.findings.slice(0, 3).forEach((f) => {
+          const lines = doc.splitTextToSize(`\u2022  ${f}`, 155);
+          doc.text(lines, 30, yPos);
+          yPos += lines.length * 4;
+        });
+      } else {
+        doc.setTextColor(120, 120, 120);
+        doc.text('No anomalies detected', 30, yPos); yPos += 4;
+        doc.setTextColor(0, 0, 0);
+      }
       yPos += 2;
     });
     doc.setDrawColor(200, 200, 200);
