@@ -723,9 +723,12 @@ export const claims = mysqlTable("claims", {
 	documentProcessingStatus: varchar("document_processing_status", { length: 30 }).notNull().default("pending"),
 	// Currency for all monetary values on this claim (ISO 4217). Defaults to USD for Zimbabwe deployment.
 	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
+	// FK → vehicleRegistry.id — set after pipeline upserts the vehicle record
+	vehicleRegistryId: int("vehicle_registry_id"),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
+	index("idx_claims_vehicle_registry_id").on(table.vehicleRegistryId),
 	uniqueIndex("idx_claims_source_document_id").on(table.sourceDocumentId),
 	index("idx_claims_claimant_id").on(table.claimantId),
 	index("").on(table.claimantId),
@@ -3560,3 +3563,71 @@ export const repairCostIntelligence = mysqlTable("repair_cost_intelligence", {
 ]);
 export type RepairCostIntelligence = typeof repairCostIntelligence.$inferSelect;
 export type InsertRepairCostIntelligence = typeof repairCostIntelligence.$inferInsert;
+
+// ============================================================================
+// VEHICLE INTELLIGENCE REGISTRY
+// Persistent vehicle records linked to claims via vehicleRegistryId FK.
+// Matched by VIN (primary) or normalised registration number (fallback).
+// Tracks damage history, risk signals, and inferred technical attributes.
+// ============================================================================
+export const vehicleRegistry = mysqlTable("vehicle_registry", {
+  id: int().autoincrement().notNull(),
+  // ── Identity ──────────────────────────────────────────────────────────────
+  // VIN stored uppercase, spaces stripped. Unique but nullable (pre-2000 vehicles).
+  vin: varchar({ length: 17 }).unique(),
+  // Normalised registration: uppercase, spaces removed (e.g. "ABC1234" not "ABC 1234").
+  registrationNumber: varchar("registration_number", { length: 30 }),
+  make: varchar({ length: 100 }),
+  model: varchar({ length: 100 }),
+  year: int(),
+  color: varchar({ length: 50 }),
+  engineNumber: varchar("engine_number", { length: 100 }),
+  // ── Technical attributes ──────────────────────────────────────────────────
+  vehicleType: mysqlEnum("vehicle_type", ['sedan','suv','pickup','van','hatchback','coupe','bus','truck','motorcycle','other']),
+  engineCapacity: varchar("engine_capacity", { length: 20 }),
+  fuelType: mysqlEnum("fuel_type", ['petrol','diesel','electric','hybrid','lpg','other']),
+  powertrainType: mysqlEnum("powertrain_type", ['ICE','HEV','BEV','other']),
+  // Cached inferred mass (kg) from the vehicle mass inference engine.
+  // Avoids re-inference on every claim. Updated when a better source is available.
+  vehicleMassKg: int("vehicle_mass_kg"),
+  // Source of mass: explicit (from document) > inferred_model > inferred_class > not_available
+  vehicleMassSource: mysqlEnum("vehicle_mass_source", ['explicit','inferred_model','inferred_class','not_available']).default('not_available'),
+  // ── Ownership ─────────────────────────────────────────────────────────────
+  currentOwnerName: varchar("current_owner_name", { length: 255 }),
+  firstRegistrationDate: varchar("first_registration_date", { length: 20 }),
+  licenceExpiryDate: varchar("licence_expiry_date", { length: 20 }),
+  // ── Claim history aggregates ──────────────────────────────────────────────
+  totalClaimsCount: int("total_claims_count").default(0).notNull(),
+  totalRepairCostCents: int("total_repair_cost_cents").default(0).notNull(),
+  lastClaimDate: timestamp("last_claim_date", { mode: 'string' }),
+  // JSON array of claim IDs for fast history lookup: [1, 5, 12, ...]
+  claimIdsJson: text("claim_ids_json"),
+  // ── Damage pattern tracking ───────────────────────────────────────────────
+  // JSON: { "front": 2, "rear": 1, "left": 0, "right": 1, "roof": 0 }
+  damageZoneCountsJson: text("damage_zone_counts_json"),
+  // Flags set when the same zone is claimed 2+ times (strong fraud signal)
+  hasSuspiciousDamagePattern: tinyint("has_suspicious_damage_pattern").default(0).notNull(),
+  // ── Risk flags ────────────────────────────────────────────────────────────
+  isRepeatClaimer: tinyint("is_repeat_claimer").default(0).notNull(),   // ≥3 claims
+  isSalvageTitle: tinyint("is_salvage_title").default(0).notNull(),
+  isStolen: tinyint("is_stolen").default(0).notNull(),
+  isWrittenOff: tinyint("is_written_off").default(0).notNull(),
+  // Composite risk score 0–100 computed from claim frequency, damage patterns, flags
+  vehicleRiskScore: int("vehicle_risk_score").default(0).notNull(),
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  tenantId: varchar("tenant_id", { length: 255 }),
+  firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  lastSeenAt: timestamp("last_seen_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("idx_vehicle_registry_vin").on(table.vin),
+  index("idx_vehicle_registry_registration").on(table.registrationNumber),
+  index("idx_vehicle_registry_make_model").on(table.make, table.model),
+  index("idx_vehicle_registry_tenant").on(table.tenantId),
+  index("idx_vehicle_registry_risk_score").on(table.vehicleRiskScore),
+  index("idx_vehicle_registry_repeat_claimer").on(table.isRepeatClaimer),
+]);
+export type VehicleRegistry = typeof vehicleRegistry.$inferSelect;
+export type InsertVehicleRegistry = typeof vehicleRegistry.$inferInsert;

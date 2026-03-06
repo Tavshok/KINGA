@@ -67,6 +67,7 @@ const PlatformImpersonate = lazy(() => import("./pages/PlatformImpersonate"));
 const PlatformClaimDebug = lazy(() => import("./pages/PlatformClaimDebug"));
 const PlatformUserRoleManager = lazy(() => import("./pages/PlatformUserRoleManager"));
 const ClaimSimulator = lazy(() => import("./pages/platform/ClaimSimulator"));
+const VehicleRegistry = lazy(() => import("./pages/VehicleRegistry"));
 import PlatformLayout from "./components/PlatformLayout";
 
 // Assessor pages
@@ -392,6 +393,17 @@ function Router() {
         <Route path="/insurer/replay-dashboard">
           <ProtectedRoute allowedRoles={["insurer", "admin"]} allowedInsurerRoles={["insurer_admin", "executive", "claims_manager"]}>
             <ReplayDashboard />
+          </ProtectedRoute>
+        </Route>
+
+        <Route path="/insurer/vehicle-registry/:id">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <VehicleRegistry />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/insurer/vehicle-registry">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <VehicleRegistry />
           </ProtectedRoute>
         </Route>
         

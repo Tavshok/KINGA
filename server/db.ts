@@ -1990,8 +1990,56 @@ Provide your response in JSON format.`;
       updatedAt: new Date().toISOString() 
     }).where(eq(claims.id, claimId));
     console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. Vehicle fields extracted: ${Object.keys(vehicleUpdateFields).join(', ')}`);
-
-    // ========== CREATE PANEL BEATER QUOTE FROM PDF EXTRACTED DATA ==========
+    // ========== VEHICLE INTELLIGENCE REGISTRY UPSERT ==========
+    // Run after the claim update so all extracted vehicle fields are available.
+    // Failures are silently caught — the claim pipeline must never be blocked.
+    try {
+      const { upsertVehicleRegistry } = await import('./vehicle-registry');
+      const effectiveVin = extractedVin || claim.vehicleVin || null;
+      const effectiveReg = extractedReg || claim.vehicleRegistration || null;
+      if (effectiveVin || effectiveReg) {
+        const registryResult = await upsertVehicleRegistry({
+          vin: effectiveVin,
+          registrationNumber: effectiveReg,
+          make: extractedMake || claim.vehicleMake || null,
+          model: extractedModel || claim.vehicleModel || null,
+          year: extractedYear || claim.vehicleYear || null,
+          color: extractedColour || claim.vehicleColor || null,
+          engineNumber: extractedEngineNumber || claim.vehicleEngineNumber || null,
+          vehicleType: inferredVehicleType || null,
+          engineCapacity: claim.vehicleEngineCapacity || null,
+          fuelType: claim.vehicleFuelType as any || null,
+          powertrainType: inferredPowertrain === 'ice' ? 'ICE' : inferredPowertrain === 'bev' ? 'BEV' : inferredPowertrain === 'hev' ? 'HEV' : 'other',
+          vehicleMassKg: vehicleMass || null,
+          vehicleMassSource: vehicleMassSource,
+          currentOwnerName: (extractedOwnerName as string) || claim.vehicleOwnerName || null,
+          firstRegistrationDate: claim.vehicleFirstRegistrationDate || null,
+          licenceExpiryDate: claim.vehicleLicenceExpiryDate || null,
+          claimId,
+          repairCostCents: estimatedRepairCost || 0,
+          impactZone: analysis.impactPoint?.primaryImpactZone || null,
+          tenantId: claim.tenantId || null,
+        });
+        if (registryResult) {
+          // Link the claim to its vehicle registry record
+          await db.update(claims).set({
+            vehicleRegistryId: registryResult.vehicleRegistryId,
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId));
+          console.log(`[VehicleRegistry] Claim ${claimId} linked to vehicle registry id=${registryResult.vehicleRegistryId} (totalClaims=${registryResult.totalClaimsCount}, riskScore=${registryResult.vehicleRiskScore})`);
+          // If the vehicle is a repeat claimer, add a fraud signal
+          if (registryResult.isRepeatClaimer) {
+            allFraudFlags.push(`Vehicle ${effectiveReg || effectiveVin} has ${registryResult.totalClaimsCount} claims on record`);
+          }
+          if (registryResult.hasSuspiciousDamagePattern) {
+            allFraudFlags.push(`Vehicle shows suspicious repeat damage pattern in same impact zone`);
+          }
+        }
+      }
+    } catch (registryErr: any) {
+      console.warn(`[VehicleRegistry] Upsert failed (non-fatal): ${registryErr.message}`);
+    }
+    // ========== CREATE PANEL BEATER QUOTE FROM PDF EXTRACTED DATA ===========
     // If the PDF contained a quote/invoice, create a panel_beater_quotes record
     if (isPdfMode && (extractedQuoteLineItems.length > 0 || analysis.estimatedCost > 0)) {
       try {

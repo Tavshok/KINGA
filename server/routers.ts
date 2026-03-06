@@ -79,6 +79,7 @@ import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
 import { agencyBrokerRouter } from "./routers/agency-broker";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
+import { vehicleRegistryRouter } from "./routers/vehicle-registry";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
@@ -108,6 +109,7 @@ import { quoteIntelligenceRouter } from './repair-intelligence/router';
 
 export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
+  vehicleRegistry: vehicleRegistryRouter,
   system: systemRouter,
   tenant: tenantRouter,
   analytics: analyticsRouter,
