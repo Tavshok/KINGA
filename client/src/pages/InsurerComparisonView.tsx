@@ -1300,19 +1300,35 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
     }
   });
 
-  // Infer hidden damage based on visible damage
-  const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
+  // Prefer server-computed inferred hidden damages from Stage 5 pipeline output
+  // Fall back to local computation if not available (e.g. old assessments)
+  const serverInferredHiddenDamages: Array<{ component: string; reason: string; confidence: string }> | null = (() => {
+    if (!aiAssessment.inferredHiddenDamagesJson) return null;
+    try {
+      const parsed = JSON.parse(aiAssessment.inferredHiddenDamagesJson);
+      if (!Array.isArray(parsed) || parsed.length === 0) return null;
+      // Map from server InferredHiddenDamage shape to frontend shape
+      return parsed.map((h: any) => ({
+        component: h.component || h.name || String(h),
+        reason: h.reason || h.description || 'Inferred from impact physics',
+        confidence: h.confidence || h.confidenceLevel || 'Medium',
+      }));
+    } catch { return null; }
+  })();
+
+  // Infer hidden damage based on visible damage (local fallback)
+  const localInferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
   
   // Front-end collision → infer hidden structural and cooling damage
   // Physics: force propagation sequence is Bumper → Crash Bar/Subframe → Radiator/Condenser
   if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
     if (accidentType === "frontal" || accidentType.includes("front") || damageDescription.toLowerCase().includes("front")) {
-      inferredHiddenDamage.push({
+      localInferredHiddenDamage.push({
         component: "Front Subframe / Crash Bar",
         reason: "Primary energy-absorbing structural member in frontal collisions — damaged before force reaches cooling components",
         confidence: "High"
       });
-      inferredHiddenDamage.push({
+      localInferredHiddenDamage.push({
         component: "Radiator / AC Condenser",
         reason: "Cooling components sit behind the subframe — damaged only if impact force exceeds subframe absorption capacity",
         confidence: "Medium"
@@ -1322,13 +1338,13 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 
   // Side impact → potential door intrusion beam, B-pillar damage
   if (accidentType?.includes("side")) {
-    inferredHiddenDamage.push({
+    localInferredHiddenDamage.push({
       component: "Door Intrusion Beam",
       reason: "Side impact typically damages internal door reinforcement",
       confidence: "High"
     });
     if (damagedComponents.some((c: string) => c.toLowerCase().includes("door"))) {
-      inferredHiddenDamage.push({
+      localInferredHiddenDamage.push({
         component: "B-Pillar / Side Structure",
         reason: "Severe door damage may indicate pillar deformation",
         confidence: "Medium"
@@ -1338,7 +1354,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 
   // Rollover → roof structure, pillars
   if (accidentType === "rollover") {
-    inferredHiddenDamage.push({
+    localInferredHiddenDamage.push({
       component: "Roof Structure / Pillars",
       reason: "Rollover accidents cause structural deformation",
       confidence: "High"
@@ -1347,7 +1363,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 
   // Structural damage flag → frame/unibody damage
   if (hasStructuralDamage) {
-    inferredHiddenDamage.push({
+    localInferredHiddenDamage.push({
       component: "Frame / Unibody Structure",
       reason: "AI detected structural damage indicators",
       confidence: "High"
@@ -1356,12 +1372,15 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 
   // Airbag deployment → steering column, sensors
   if (hasAirbagDeployment) {
-    inferredHiddenDamage.push({
+    localInferredHiddenDamage.push({
       component: "Airbag Control Module / Sensors",
       reason: "Airbag deployment requires system replacement",
       confidence: "High"
     });
   }
+
+  // Use server-computed hidden damages if available, otherwise fall back to local computation
+  const inferredHiddenDamage = serverInferredHiddenDamages ?? localInferredHiddenDamage;
 
   // Cost breakdown by category (estimated) — use correct schema fields
   const estimatedCost = aiAssessment.estimatedCost || 0;

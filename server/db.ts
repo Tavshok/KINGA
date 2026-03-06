@@ -707,35 +707,15 @@ Provide your response in JSON format.`;
   
   const analysis = typeof messageContent === 'string' ? JSON.parse(messageContent) : {};
 
-  // ========== TOTAL LOSS DETECTION LOGIC ==========
-  const damagedComponents = analysis.damagedComponents || [];
-  
-  // Check for total loss indicators
-  const hasComponentMarkedTotalLoss = damagedComponents.some((c: any) => c.severity === 'total_loss');
-  const structuralComponents = damagedComponents.filter((c: any) => c.damageType === 'structural');
-  const severeStructuralDamage = structuralComponents.some((c: any) => c.severity === 'severe' || c.severity === 'total_loss');
-  const catastrophicStructuralDamage = structuralComponents.filter((c: any) => c.severity === 'total_loss').length > 0;
-  const extensiveDamage = damagedComponents.length >= 7; // 7+ components damaged
-  const multipleCriticalSystems = damagedComponents.filter((c: any) => 
-    c.damageType === 'structural' || c.damageType === 'mechanical'
-  ).length >= 3;
-  
-  // Determine structural damage severity
-  let structuralDamageSeverity: 'none' | 'minor' | 'moderate' | 'severe' | 'catastrophic' = 'none';
-  if (catastrophicStructuralDamage) {
-    structuralDamageSeverity = 'catastrophic';
-  } else if (severeStructuralDamage) {
-    structuralDamageSeverity = 'severe';
-  } else if (structuralComponents.length > 0) {
-    const maxSeverity = Math.max(...structuralComponents.map((c: any) => 
-      c.severity === 'severe' ? 3 : c.severity === 'moderate' ? 2 : 1
-    ));
-    structuralDamageSeverity = maxSeverity === 3 ? 'severe' : maxSeverity === 2 ? 'moderate' : 'minor';
-  }
-  
-  // Estimate vehicle value based on make/model/year (Zimbabwean market)
-  // ========== EXTRACT VEHICLE & INCIDENT DATA FROM PDF (PDF mode) ==========
-  // In PDF mode, the LLM extracts vehicle details directly from the document
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 1 — CLAIM CONTEXT ANALYSIS
+  // Confirm or extract: incidentType, incidentDescription, incidentDate,
+  // incidentLocation, vehicle details (make/model/year/registration/VIN)
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 1] Claim context analysis for claim ${claimId}`);
+
+  // In PDF mode the LLM extracts vehicle and incident details from the document.
+  // In photo mode these fields come from the claim record itself.
   const extractedMake = analysis.extractedVehicleMake || '';
   const extractedModel = analysis.extractedVehicleModel || '';
   const extractedYear = analysis.extractedVehicleYear || null;
@@ -754,53 +734,397 @@ Provide your response in JSON format.`;
   const extractedThirdPartyRegistration = analysis.extractedThirdPartyRegistration || '';
   const extractedQuoteLineItems: Array<{description: string; partNumber?: string; quantity: number; unitPrice: number; lineTotal: number; category: string}> = analysis.extractedQuoteLineItems || [];
 
-  // Use extracted vehicle data (from PDF) or fall back to existing claim data
+  // Resolve effective claim context (PDF extraction takes precedence over existing claim fields)
   const effectiveMake = extractedMake || claim.vehicleMake || '';
   const effectiveModel = extractedModel || claim.vehicleModel || '';
   const effectiveYear = extractedYear || claim.vehicleYear || null;
+  const effectiveIncidentDescription = extractedIncidentDescription || claim.incidentDescription || '';
+  const effectiveIncidentLocation = extractedIncidentLocation || claim.incidentLocation || '';
 
+  console.log(`[Pipeline Stage 1] Vehicle context: ${effectiveMake} ${effectiveModel} (${effectiveYear || 'year unknown'})`);
+  console.log(`[Pipeline Stage 1] Incident context: type=${extractedIncidentType}, location=${effectiveIncidentLocation || 'unknown'}`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 2 — INCIDENT CLASSIFICATION
+  // Normalise incidentType to a canonical set used by all downstream stages.
+  // Canonical values: collision | theft | vandalism | flood | fire | unknown
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 2] Incident classification`);
+
+  type CanonicalIncidentType = 'collision' | 'theft' | 'vandalism' | 'flood' | 'fire' | 'unknown';
+
+  const classifyIncident = (raw: string): CanonicalIncidentType => {
+    const r = (raw || '').toLowerCase();
+    if (r === 'collision' || r === 'frontal' || r === 'rear' || r === 'side' ||
+        r === 'side_driver' || r === 'side_passenger' || r === 'rollover' ||
+        r === 'multi_impact' || r === 'accident') return 'collision';
+    if (r === 'theft' || r === 'hijacking' || r === 'stolen') return 'theft';
+    if (r === 'vandalism' || r === 'malicious') return 'vandalism';
+    if (r === 'flood' || r === 'water' || r === 'hail') return 'flood';
+    if (r === 'fire' || r === 'burn') return 'fire';
+    return 'unknown';
+  };
+
+  // Derive from extracted PDF type first; fall back to claim's existing incidentType
+  const rawIncidentType = extractedIncidentType || (claim as any).incidentType || 'unknown';
+  // Also check the LLM accidentType (photo mode gives a collision sub-type)
+  const llmAccidentType = analysis.accidentType || '';
+  const isCollisionAccidentType = ['frontal','rear','side_driver','side_passenger','rollover','multi_impact'].includes(llmAccidentType);
+  const classifiedIncidentType: CanonicalIncidentType =
+    isCollisionAccidentType ? 'collision' : classifyIncident(rawIncidentType);
+
+  console.log(`[Pipeline Stage 2] Classified incident type: ${classifiedIncidentType} (raw: ${rawIncidentType}, llmAccidentType: ${llmAccidentType})`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 3 — PHYSICS ENGINE GATE
+  // Physics analysis (impact force, vectors, energy transfer) is only valid
+  // for collision incidents. For theft, vandalism, flood, fire — skip physics.
+  // ═══════════════════════════════════════════════════════════════════════════
+  const runPhysicsEngine = classifiedIncidentType === 'collision';
+  console.log(`[Pipeline Stage 3] Physics engine gate: ${runPhysicsEngine ? 'OPEN (collision)' : `CLOSED (${classifiedIncidentType} — physics not applicable)`}`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 4 — DAMAGE DETECTION
+  // Structured list of damaged components from LLM vision / PDF extraction.
+  // Each component carries: name, location, damageType, severity.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 4] Damage detection`);
+
+  const damagedComponents = analysis.damagedComponents || [];
+  const structuralComponents = damagedComponents.filter((c: any) => c.damageType === 'structural');
+  const catastrophicStructuralDamage = structuralComponents.filter((c: any) => c.severity === 'total_loss').length > 0;
+  const severeStructuralDamage = structuralComponents.some((c: any) => c.severity === 'severe' || c.severity === 'total_loss');
+  const hasComponentMarkedTotalLoss = damagedComponents.some((c: any) => c.severity === 'total_loss');
+  const extensiveDamage = damagedComponents.length >= 7;
+  const multipleCriticalSystems = damagedComponents.filter((c: any) =>
+    c.damageType === 'structural' || c.damageType === 'mechanical'
+  ).length >= 3;
+
+  let structuralDamageSeverity: 'none' | 'minor' | 'moderate' | 'severe' | 'catastrophic' = 'none';
+  if (catastrophicStructuralDamage) {
+    structuralDamageSeverity = 'catastrophic';
+  } else if (severeStructuralDamage) {
+    structuralDamageSeverity = 'severe';
+  } else if (structuralComponents.length > 0) {
+    const maxSev = Math.max(...structuralComponents.map((c: any) =>
+      c.severity === 'severe' ? 3 : c.severity === 'moderate' ? 2 : 1
+    ));
+    structuralDamageSeverity = maxSev === 3 ? 'severe' : maxSev === 2 ? 'moderate' : 'minor';
+  }
+
+  console.log(`[Pipeline Stage 4] Detected ${damagedComponents.length} damaged components; structural severity: ${structuralDamageSeverity}`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 5 — DAMAGE PROPAGATION
+  // Infer hidden / secondary damages using impact location, structural layout,
+  // and engineering rules. Only relevant for collision incidents.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 5] Damage propagation inference`);
+
+  interface InferredHiddenDamage {
+    component: string;
+    reason: string;
+    probability: number; // 0-100
+    estimatedCostUsd: number;
+  }
+
+  const inferHiddenDamages = (
+    components: any[],
+    impactPoint: string,
+    incidentType: CanonicalIncidentType
+  ): InferredHiddenDamage[] => {
+    if (incidentType !== 'collision') return [];
+
+    const hidden: InferredHiddenDamage[] = [];
+    const detectedNames = components.map((c: any) => (c.name || '').toLowerCase());
+    const impact = (impactPoint || '').toLowerCase();
+    const hasFrontDamage = impact.includes('front') || detectedNames.some(n => n.includes('bumper') || n.includes('bonnet') || n.includes('hood') || n.includes('grille'));
+    const hasRearDamage = impact.includes('rear') || detectedNames.some(n => n.includes('boot') || n.includes('trunk') || n.includes('rear bumper'));
+    const hasSideDamage = impact.includes('side') || detectedNames.some(n => n.includes('door') || n.includes('sill') || n.includes('quarter panel'));
+    const hasStructuralDamage = components.some((c: any) => c.damageType === 'structural');
+    const hasSevereDamage = components.some((c: any) => c.severity === 'severe' || c.severity === 'total_loss');
+
+    // Front impact propagation
+    if (hasFrontDamage) {
+      if (!detectedNames.some(n => n.includes('subframe') || n.includes('crash bar'))) {
+        hidden.push({ component: 'Front subframe / crash bar', reason: 'Front impact forces typically transfer to subframe even when not visually apparent', probability: 75, estimatedCostUsd: 350 });
+      }
+      if (!detectedNames.some(n => n.includes('radiator') || n.includes('condenser'))) {
+        hidden.push({ component: 'Radiator / AC condenser', reason: 'Located directly behind front bumper; vulnerable to front impact energy transfer', probability: 65, estimatedCostUsd: 280 });
+      }
+      if (hasSevereDamage && !detectedNames.some(n => n.includes('steering') || n.includes('rack'))) {
+        hidden.push({ component: 'Steering rack / column', reason: 'Severe front impact can displace steering geometry without visible external damage', probability: 55, estimatedCostUsd: 450 });
+      }
+      if (hasStructuralDamage && !detectedNames.some(n => n.includes('engine mount'))) {
+        hidden.push({ component: 'Engine mounts', reason: 'Structural front impact loads are absorbed by engine mounts; micro-fractures common', probability: 60, estimatedCostUsd: 220 });
+      }
+    }
+
+    // Rear impact propagation
+    if (hasRearDamage) {
+      if (!detectedNames.some(n => n.includes('fuel') || n.includes('tank'))) {
+        hidden.push({ component: 'Fuel tank / filler neck', reason: 'Rear impact can deform fuel tank mounting brackets and filler neck', probability: 50, estimatedCostUsd: 300 });
+      }
+      if (hasSevereDamage && !detectedNames.some(n => n.includes('spare wheel') || n.includes('differential'))) {
+        hidden.push({ component: 'Rear differential / axle', reason: 'High-energy rear impacts can misalign rear axle geometry', probability: 45, estimatedCostUsd: 500 });
+      }
+    }
+
+    // Side impact propagation
+    if (hasSideDamage) {
+      if (!detectedNames.some(n => n.includes('door intrusion') || n.includes('side impact beam'))) {
+        hidden.push({ component: 'Door intrusion beam', reason: 'Side impact beams absorb lateral crash energy; deformation may not be externally visible', probability: 70, estimatedCostUsd: 180 });
+      }
+      if (hasSevereDamage && !detectedNames.some(n => n.includes('b-pillar') || n.includes('a-pillar'))) {
+        hidden.push({ component: 'B-pillar / A-pillar reinforcement', reason: 'Severe side impacts transfer loads to pillar structures; hidden deformation possible', probability: 60, estimatedCostUsd: 600 });
+      }
+    }
+
+    // General high-energy collision propagation
+    if (hasSevereDamage || hasStructuralDamage) {
+      if (!detectedNames.some(n => n.includes('wiring') || n.includes('harness'))) {
+        hidden.push({ component: 'Wiring harness (impact zone)', reason: 'High-energy impacts can pinch or sever wiring harnesses routed through damaged panels', probability: 55, estimatedCostUsd: 200 });
+      }
+      if (!detectedNames.some(n => n.includes('wheel alignment') || n.includes('suspension geometry'))) {
+        hidden.push({ component: 'Wheel alignment / suspension geometry', reason: 'Structural deformation almost always affects suspension geometry; alignment check mandatory', probability: 85, estimatedCostUsd: 120 });
+      }
+    }
+
+    return hidden;
+  };
+
+  const inferredHiddenDamages = inferHiddenDamages(
+    damagedComponents,
+    analysis.impactPoint || '',
+    classifiedIncidentType
+  );
+
+  console.log(`[Pipeline Stage 5] Inferred ${inferredHiddenDamages.length} hidden damage(s)`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 6 — PHYSICS ANALYSIS  (collision only)
+  // Calculates: impact force, vector direction, energy transfer, crush depth.
+  // Inputs: vehicle data (mass, make, model), accident data, damage assessment.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // (Physics engine is invoked later in the try/catch block below, gated by
+  //  runPhysicsEngine. Inputs are prepared here so they are available.)
+
+  // Vehicle value estimation (Zimbabwean market, in cents)
   const vehicleAge = effectiveYear ? new Date().getFullYear() - effectiveYear : 10;
-  let estimatedVehicleValue = 500000; // Default $5000 in cents
-  
-  // Zimbabwean market vehicle valuations (rough estimates in cents)
+  let estimatedVehicleValue = 500000; // Default $5,000 in cents
   const vehicleKey = `${effectiveMake.toLowerCase()} ${effectiveModel.toLowerCase()}`;
   const vehicleValues: Record<string, number> = {
-    'honda fit': 350000, // $3500
-    'toyota hilux': 1500000, // $15000
-    'nissan np300': 800000, // $8000
-    'toyota camry': 600000, // $6000
-    'mercedes benz': 1200000, // $12000
+    'honda fit': 350000,    // $3,500
+    'honda jazz': 350000,
+    'honda civic': 600000,  // $6,000
+    'toyota vitz': 300000,  // $3,000
+    'toyota yaris': 350000,
+    'toyota corolla': 700000, // $7,000
+    'toyota hilux': 1500000,  // $15,000
+    'toyota fortuner': 2000000, // $20,000
+    'toyota land cruiser': 3500000, // $35,000
+    'toyota prado': 2500000,
+    'isuzu d-max': 1200000,  // $12,000
+    'isuzu d-teq': 1200000,
+    'isuzu kb': 1000000,
+    'isuzu mu-x': 1800000,
+    'mazda 3': 600000,
+    'mazda cx-5': 1400000,
+    'ford ranger': 1400000,
+    'ford everest': 1800000,
+    'volkswagen polo': 700000,
+    'volkswagen golf': 900000,
+    'nissan np200': 500000,
+    'nissan np300': 800000,
+    'nissan navara': 1200000,
+    'nissan x-trail': 1200000,
+    'mitsubishi triton': 1200000,
+    'suzuki swift': 350000,
+    'hyundai i10': 250000,
+    'hyundai i20': 350000,
+    'hyundai tucson': 1200000,
+    'kia picanto': 250000,
+    'kia rio': 350000,
+    'kia sportage': 1200000,
+    'bmw 3 series': 1500000,
+    'mercedes c-class': 1800000,
+    'mercedes e-class': 2200000,
   };
-  
   for (const [key, value] of Object.entries(vehicleValues)) {
-    if (vehicleKey.includes(key)) {
-      estimatedVehicleValue = value;
-      break;
-    }
+    if (vehicleKey.includes(key)) { estimatedVehicleValue = value; break; }
   }
-  
-  // Apply depreciation (10% per year, max 80% depreciation)
   const depreciationFactor = Math.max(0.2, 1 - (vehicleAge * 0.1));
   estimatedVehicleValue = Math.round(estimatedVehicleValue * depreciationFactor);
-  
-  // Calculate repair-to-value ratio
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 7 — FRAUD ANALYSIS
+  // Evaluates: damage consistency, unrelated damage, physics mismatch,
+  // repair inflation. Physics outputs feed into fraud scoring for collisions.
+  // (Fraud analysis runs inside the physics try/catch block below.)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 8 — REPAIR INTELLIGENCE
+  // Classify each detected component as: repair | replace | inspect.
+  // Uses damage severity + component type as primary inputs.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 8] Repair intelligence classification`);
+
+  interface RepairAction {
+    component: string;
+    location: string;
+    damageType: string;
+    severity: string;
+    action: 'repair' | 'replace' | 'inspect' | 'total_loss';
+    rationale: string;
+    estimatedLaborHours: number;
+  }
+
+  const classifyRepairAction = (comp: any): RepairAction => {
+    const sev = (comp.severity || '').toLowerCase();
+    const type = (comp.damageType || '').toLowerCase();
+    const name = (comp.name || '').toLowerCase();
+
+    // Total loss components
+    if (sev === 'total_loss') {
+      return { ...comp, action: 'total_loss', rationale: 'Component damage exceeds economic repair threshold', estimatedLaborHours: 0 };
+    }
+    // Structural components — replace if severe, inspect if moderate
+    if (type === 'structural') {
+      if (sev === 'severe') return { ...comp, action: 'replace', rationale: 'Severe structural damage compromises vehicle safety; replacement mandatory', estimatedLaborHours: 8 };
+      if (sev === 'moderate') return { ...comp, action: 'inspect', rationale: 'Moderate structural damage requires specialist inspection before repair decision', estimatedLaborHours: 2 };
+      return { ...comp, action: 'repair', rationale: 'Minor structural damage — panel straightening and reinforcement', estimatedLaborHours: 4 };
+    }
+    // Mechanical components
+    if (type === 'mechanical') {
+      if (sev === 'severe') return { ...comp, action: 'replace', rationale: 'Severe mechanical damage — component integrity compromised', estimatedLaborHours: 6 };
+      return { ...comp, action: 'inspect', rationale: 'Mechanical component requires diagnostic inspection', estimatedLaborHours: 1.5 };
+    }
+    // Electrical components
+    if (type === 'electrical') {
+      if (sev === 'severe') return { ...comp, action: 'replace', rationale: 'Severe electrical damage — wiring/module replacement required', estimatedLaborHours: 4 };
+      return { ...comp, action: 'inspect', rationale: 'Electrical fault diagnosis required', estimatedLaborHours: 1 };
+    }
+    // Cosmetic / body panels
+    if (sev === 'severe') return { ...comp, action: 'replace', rationale: 'Severe cosmetic damage — panel replacement more economical than repair', estimatedLaborHours: 3 };
+    if (sev === 'moderate') return { ...comp, action: 'repair', rationale: 'Moderate cosmetic damage — panel beating and refinishing', estimatedLaborHours: 2 };
+    return { ...comp, action: 'repair', rationale: 'Minor cosmetic damage — PDR or spot repair', estimatedLaborHours: 1 };
+  };
+
+  const repairIntelligence: RepairAction[] = damagedComponents.map(classifyRepairAction);
+  const replaceCount = repairIntelligence.filter(r => r.action === 'replace' || r.action === 'total_loss').length;
+  const repairCount = repairIntelligence.filter(r => r.action === 'repair').length;
+  const inspectCount = repairIntelligence.filter(r => r.action === 'inspect').length;
+  const totalEstimatedLaborHours = repairIntelligence.reduce((sum, r) => sum + r.estimatedLaborHours, 0);
+
+  console.log(`[Pipeline Stage 8] Repair intelligence: ${repairCount} repair, ${replaceCount} replace, ${inspectCount} inspect; est. ${totalEstimatedLaborHours}h labour`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 9 — PARTS RECONCILIATION
+  // Compare detected damages vs. panel beater quote vs. inferred hidden damages.
+  // Identifies: over-quoted items, missing items, price anomalies.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 9] Parts reconciliation`);
+
+  interface ReconciliationItem {
+    component: string;
+    status: 'matched' | 'detected_not_quoted' | 'quoted_not_detected' | 'hidden_damage';
+    detectedSeverity?: string;
+    quotedCost?: number;
+    note: string;
+  }
+
+  const reconcileComponents = (
+    detected: any[],
+    quoted: Array<{description: string; lineTotal: number; category: string}>,
+    hidden: InferredHiddenDamage[]
+  ): ReconciliationItem[] => {
+    const items: ReconciliationItem[] = [];
+    const quotedNames = quoted.map(q => (q.description || '').toLowerCase());
+
+    // Check each detected component against the quote
+    for (const comp of detected) {
+      const compName = (comp.name || '').toLowerCase();
+      const matchedQuote = quoted.find(q => {
+        const qName = (q.description || '').toLowerCase();
+        return qName.includes(compName) || compName.includes(qName) ||
+               qName.split(' ').some((w: string) => w.length > 3 && compName.includes(w));
+      });
+      if (matchedQuote) {
+        items.push({ component: comp.name, status: 'matched', detectedSeverity: comp.severity, quotedCost: matchedQuote.lineTotal, note: `Detected and quoted: $${matchedQuote.lineTotal}` });
+      } else {
+        items.push({ component: comp.name, status: 'detected_not_quoted', detectedSeverity: comp.severity, note: 'Detected by AI but not included in panel beater quote — may be under-quoted' });
+      }
+    }
+
+    // Check each quoted item against detected components
+    for (const q of quoted) {
+      if (q.category === 'labor' || q.category === 'labour') continue; // skip labour lines
+      const qName = (q.description || '').toLowerCase();
+      const alreadyMatched = items.some(i => i.component.toLowerCase() === qName || qName.includes(i.component.toLowerCase()));
+      if (!alreadyMatched) {
+        items.push({ component: q.description, status: 'quoted_not_detected', quotedCost: q.lineTotal, note: 'In quote but not detected by AI vision — verify necessity' });
+      }
+    }
+
+    // Add hidden damages as reconciliation items
+    for (const h of hidden) {
+      items.push({ component: h.component, status: 'hidden_damage', note: `${h.reason} (probability: ${h.probability}%, est. $${h.estimatedCostUsd})` });
+    }
+
+    return items;
+  };
+
+  const partsReconciliation = reconcileComponents(
+    damagedComponents,
+    extractedQuoteLineItems,
+    inferredHiddenDamages
+  );
+
+  const matchedCount = partsReconciliation.filter(r => r.status === 'matched').length;
+  const missingFromQuoteCount = partsReconciliation.filter(r => r.status === 'detected_not_quoted').length;
+  const extraInQuoteCount = partsReconciliation.filter(r => r.status === 'quoted_not_detected').length;
+
+  console.log(`[Pipeline Stage 9] Parts reconciliation: ${matchedCount} matched, ${missingFromQuoteCount} missing from quote, ${extraInQuoteCount} extra in quote, ${inferredHiddenDamages.length} hidden damages`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 10 — COST INTELLIGENCE
+  // Calculates: repair cost ranges, labour estimates, reconciliation differences.
+  // Inputs: repair intelligence (Stage 8) + parts reconciliation (Stage 9) +
+  //         vehicle value (Stage 6 prep) + quote line items (Stage 1).
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 10] Cost intelligence`);
+
   const estimatedRepairCost = Math.round(analysis.estimatedCost || 0);
-  const repairToValueRatio = estimatedVehicleValue > 0 
+  const estimatedLaborCost = Math.round(analysis.laborCost || 0);
+  const estimatedPartsCost = Math.round(analysis.partsCost || 0);
+
+  // Labour rate estimate (USD/hour) — Zimbabwean market
+  const laborRateUsdPerHour = 15;
+  const laborCostFromIntelligence = Math.round(totalEstimatedLaborHours * laborRateUsdPerHour * 100); // in cents
+
+  // Hidden damage cost estimate
+  const hiddenDamageTotalUsd = inferredHiddenDamages.reduce((sum, h) => sum + h.estimatedCostUsd, 0);
+  const hiddenDamageCostCents = hiddenDamageTotalUsd * 100;
+
+  // Reconciliation cost gap (detected but not quoted)
+  const missingFromQuoteItems = partsReconciliation.filter(r => r.status === 'detected_not_quoted');
+  const extraInQuoteItems = partsReconciliation.filter(r => r.status === 'quoted_not_detected');
+  const extraInQuoteCost = extraInQuoteItems.reduce((sum, r) => sum + (r.quotedCost || 0), 0);
+
+  // Repair-to-value ratio
+  const repairToValueRatio = estimatedVehicleValue > 0
     ? Math.round((estimatedRepairCost / estimatedVehicleValue) * 100)
     : 0;
-  
-  // Determine if total loss
-  // NOTE: Total loss should only be indicated when repair cost genuinely exceeds vehicle value threshold,
-  // or when structural damage is catastrophic/severe. Extensive moderate-severity components alone
-  // should NOT trigger total loss — the repair-to-value ratio is the primary determinant.
+
+  // Total loss determination
   const totalLossThreshold = 70; // 70% of vehicle value
-  const totalLossIndicated = 
+  const totalLossIndicated =
     hasComponentMarkedTotalLoss ||
     structuralDamageSeverity === 'catastrophic' ||
     (structuralDamageSeverity === 'severe' && repairToValueRatio > 40) ||
     repairToValueRatio > totalLossThreshold;
-  
-  // Generate total loss reasoning
+
   let totalLossReasoning = '';
   if (totalLossIndicated) {
     const reasons = [];
@@ -808,14 +1132,17 @@ Provide your response in JSON format.`;
     if (structuralDamageSeverity === 'catastrophic') reasons.push('Catastrophic structural damage detected');
     if (structuralDamageSeverity === 'severe') reasons.push('Severe structural damage to chassis/frame');
     if (repairToValueRatio > totalLossThreshold) reasons.push(`Repair cost (${repairToValueRatio}%) exceeds ${totalLossThreshold}% of vehicle value`);
-    if (extensiveDamage && multipleCriticalSystems) reasons.push(`Extensive damage: ${damagedComponents.length} components affected across multiple critical systems`);
+    if (extensiveDamage && multipleCriticalSystems) reasons.push(`Extensive damage: ${damagedComponents.length} components across multiple critical systems`);
     if (analysis.airbagDeployment) reasons.push('Airbag deployment detected');
-    
     totalLossReasoning = reasons.join('; ');
   }
 
-  // ========== IMAGE QUALITY VALIDATION ==========
-  // Check if photos are sufficient for accurate measurement
+  console.log(`[Pipeline Stage 10] Cost intelligence: repair=$${(estimatedRepairCost/100).toFixed(2)}, vehicle value=$${(estimatedVehicleValue/100).toFixed(2)}, ratio=${repairToValueRatio}%, total_loss=${totalLossIndicated}`);
+  console.log(`[Pipeline Stage 10] Hidden damage estimate: $${hiddenDamageTotalUsd}, extra in quote: $${extraInQuoteCost}`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // IMAGE QUALITY VALIDATION
+  // ═══════════════════════════════════════════════════════════════════════════
   const imageQuality = {
     score: analysis.imageQualityScore || 0,
     scaleConfidence: analysis.scaleCalibrationConfidence || 0,
@@ -824,8 +1151,6 @@ Provide your response in JSON format.`;
     recommendResubmission: analysis.recommendResubmission || false,
     crushDepthConfidence: analysis.crushDepthConfidence || 0,
   };
-
-  // Flag low-quality photos for re-submission
   if (imageQuality.recommendResubmission || imageQuality.score < 60) {
     console.warn(`[AI Assessment] Low-quality photos detected for claim ${claimId}:`, {
       imageQualityScore: imageQuality.score,
@@ -834,12 +1159,12 @@ Provide your response in JSON format.`;
       referenceObjects: imageQuality.referenceObjects.length,
       photoAngles: imageQuality.photoAngles.length,
     });
-    // TODO: Send notification to claimant requesting better photos
   }
 
-  // Create AI assessment record with total loss detection
-  // Delete any existing assessment records for this claim before creating a fresh one.
-  // This handles re-runs and ensures the UI always shows the latest result.
+  // ═══════════════════════════════════════════════════════════════════════════
+  // PERSIST INITIAL AI ASSESSMENT RECORD
+  // Stages 6 (physics) and 7 (fraud) will update this record once complete.
+  // ═══════════════════════════════════════════════════════════════════════════
   try {
     await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId));
     console.log(`[AI Assessment] Cleared existing assessment records for claim ${claimId} before re-insert.`);
@@ -860,7 +1185,7 @@ Provide your response in JSON format.`;
       (imageQuality.scaleConfidence || 50) * 0.15 +
       (analysis.photoAnglesAvailable?.length >= 3 ? 80 : analysis.photoAnglesAvailable?.length >= 2 ? 60 : 40) * 0.15 +
       (analysis.damagedComponents?.length > 0 ? 80 : 30) * 0.15
-    ))), // Weighted confidence: image quality (30%) + crush depth (25%) + scale (15%) + angles (15%) + components (15%)
+    ))),
     modelVersion: "gpt-4-vision-v1",
     totalLossIndicated: totalLossIndicated ? 1 : 0,
     structuralDamageSeverity,
@@ -868,12 +1193,17 @@ Provide your response in JSON format.`;
     repairToValueRatio,
     totalLossReasoning: totalLossReasoning || null,
     damagedComponentsJson: JSON.stringify(damagedComponents),
-    // AI-returned cost breakdown stored in cents for future repair intelligence analytics
-    estimatedPartsCost: analysis.partsCost ? Math.round(analysis.partsCost) : null,
-    estimatedLaborCost: analysis.laborCost ? Math.round(analysis.laborCost) : null,
+    estimatedPartsCost: estimatedPartsCost || null,
+    estimatedLaborCost: estimatedLaborCost || null,
   });
 
-  // ========== PHYSICS-BASED ACCIDENT RECONSTRUCTION ==========
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 6 — PHYSICS ANALYSIS + STAGE 7 — FRAUD ANALYSIS
+  // Physics engine is GATED: only runs when classifiedIncidentType === 'collision'.
+  // Fraud analysis runs in all cases but uses physics outputs when available.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 6] Physics analysis — gate: ${runPhysicsEngine ? 'OPEN' : 'CLOSED'}`);
+
   // Import physics engine and forensic analysis
   const { analyzeAccidentPhysics, validateQuoteAgainstPhysics } = await import("./accidentPhysics");
   const { performForensicAnalysis } = await import("./forensicAnalysis");
@@ -944,13 +1274,29 @@ Provide your response in JSON format.`;
     airbagDeployment: analysis.airbagDeployment || false,
   };
   
-  // Run physics analysis and forensic analysis
+  // Run physics analysis and forensic analysis (collision only)
   let physicsAnalysis;
   let forensicAnalysis;
   try {
-    physicsAnalysis = await analyzeAccidentPhysics(vehicleData, accidentData, damageAssessment);
+    if (!runPhysicsEngine) {
+      // Non-collision incident — skip physics, use neutral placeholder values
+      console.log(`[Pipeline Stage 6] Skipping physics engine for ${classifiedIncidentType} incident`);
+      physicsAnalysis = {
+        impactForce: { magnitude: 0, direction: 0 },
+        speedEstimate: { estimatedSpeedKmh: 0, confidence: 0 },
+        consistencyScore: 50,
+        overallConsistency: 50,
+        damagePropagationScore: 50,
+        fraudIndicators: { impossibleDamagePatterns: [], unrelatedDamage: [], stagedAccidentIndicators: [], severityMismatch: false },
+        _skipped: true,
+        _reason: `Physics not applicable for ${classifiedIncidentType} incidents`,
+      };
+    } else {
+      physicsAnalysis = await analyzeAccidentPhysics(vehicleData, accidentData, damageAssessment);
+    }
     
-    // Run forensic analysis
+    // Run forensic analysis (always runs — evaluates damage consistency regardless of incident type)
+    console.log(`[Pipeline Stage 7] Fraud analysis`);
     const currentYear = new Date().getFullYear();
     const vehicleAge = claim.vehicleYear ? currentYear - claim.vehicleYear : 5;
     
@@ -1039,7 +1385,6 @@ Provide your response in JSON format.`;
     }
     
     // Update claim with enhanced fraud assessment + lifecycle status
-    // TODO: Uncomment ML fraud scores after running `pnpm db:push` to update TypeScript types
     // Build vehicle/incident update fields from PDF extraction (only set if extracted data is non-empty)
     const vehicleUpdateFields: Record<string, any> = {};
     if (isPdfMode) {
@@ -1063,6 +1408,8 @@ Provide your response in JSON format.`;
       if (extractedThirdPartyVehicle) vehicleUpdateFields.thirdPartyVehicle = extractedThirdPartyVehicle;
       if (extractedThirdPartyRegistration) vehicleUpdateFields.thirdPartyRegistration = extractedThirdPartyRegistration;
     }
+    // Always persist the canonical incident type derived by Stage 2
+    vehicleUpdateFields.incidentType = classifiedIncidentType as any;
 
     await db.update(claims).set({ 
       aiAssessmentCompleted: 1,
@@ -1259,12 +1606,37 @@ Provide your response in JSON format.`;
     const normalisedPhysicsAnalysis = normalisePhysicsAnalysis(physicsAnalysis);
 
     // Update AI assessment with combined fraud level, physics analysis, forensic analysis, deviation score, and enhanced confidence
+    // Also persist pipeline outputs: repair intelligence, parts reconciliation, inferred hidden damages
     await db.update(aiAssessments).set({
       fraudRiskLevel: combinedFraudLevel,
       physicsAnalysis: JSON.stringify(normalisedPhysicsAnalysis),
       forensicAnalysis: forensicAnalysis ? JSON.stringify(forensicAnalysis) : null,
       physicsDeviationScore,
       confidenceScore: enhancedConfidenceScore,
+      // Stage 5 output: inferred hidden damages
+      inferredHiddenDamagesJson: JSON.stringify(inferredHiddenDamages),
+      // Stage 8 output: repair intelligence (repair/replace/inspect per component)
+      repairIntelligenceJson: JSON.stringify(repairIntelligence),
+      // Stage 9 output: parts reconciliation (detected vs quoted vs hidden)
+      partsReconciliationJson: JSON.stringify(partsReconciliation),
+      // Stage 10 output: cost intelligence summary
+      costIntelligenceJson: JSON.stringify({
+        estimatedRepairCost,
+        estimatedLaborCost,
+        estimatedPartsCost,
+        estimatedVehicleValue,
+        repairToValueRatio,
+        hiddenDamageTotalUsd,
+        extraInQuoteCost,
+        laborRateUsdPerHour,
+        totalEstimatedLaborHours,
+        repairCount,
+        replaceCount,
+        inspectCount,
+        matchedCount,
+        missingFromQuoteCount,
+        extraInQuoteCount,
+      }),
       updatedAt: new Date().toISOString(),
     }).where(eq(aiAssessments.claimId, claimId));
     

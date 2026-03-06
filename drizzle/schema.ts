@@ -63,6 +63,14 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	estimatedLaborCost: int("estimated_labor_cost"),
 	// Currency inherited from the parent claim (ISO 4217). Defaults to USD for Zimbabwe deployment.
 	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
+	// Stage 5 output: inferred hidden damages (JSON array of InferredHiddenDamage)
+	inferredHiddenDamagesJson: text("inferred_hidden_damages_json"),
+	// Stage 8 output: repair intelligence (JSON array of RepairAction per component)
+	repairIntelligenceJson: text("repair_intelligence_json"),
+	// Stage 9 output: parts reconciliation (JSON array of ReconciliationItem)
+	partsReconciliationJson: text("parts_reconciliation_json"),
+	// Stage 10 output: cost intelligence summary (JSON object)
+	costIntelligenceJson: text("cost_intelligence_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
