@@ -109,7 +109,17 @@ export function formatCurrencyRaw(
   options: { decimals?: number; compact?: boolean } = {}
 ): string {
   if (value == null || isNaN(value)) return `${currencySymbol}0.00`;
-  return formatCurrency(Math.round(value * 100), currencySymbol, options);
+  const { decimals = 2, compact = false } = options;
+  if (compact && Math.abs(value) >= 1_000_000) {
+    return `${currencySymbol}${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (compact && Math.abs(value) >= 1_000) {
+    return `${currencySymbol}${(value / 1_000).toFixed(1)}K`;
+  }
+  return `${currencySymbol}${value.toLocaleString("en-US", {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  })}`;
 }
 
 /**

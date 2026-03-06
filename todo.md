@@ -9743,3 +9743,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Issue 10: Physics analysis exists but impact forces/vectors not visualised
 - [ ] Issue 11: Physics analysis section not rendering well
 - [ ] Issue 12: Damage images extracted from PDF not stored/displayed
+
+## Bug Fixes & Improvements (Mar 6 2026)
+
+- [ ] Fix cost divide-by-100 bug (costs showing as US$2.76 instead of $276)
+- [ ] Fix garage name extraction — show actual panel beater name not "Garage A"
+- [ ] Fix hidden damage inference severity gate — do not infer structural damage for minor scratches/reversals
+- [ ] Fix physics/impact analysis display — "Physics analysis not available" even when data exists
+- [ ] Fix physics module not rendering results
+- [ ] Fix impact force diagram not rendering
+- [ ] Fix vehicle damage map precision — shows entire front zone instead of specific corner/component
+- [ ] Add driver name to claim summary header
+- [ ] Build world-class downloadable PDF report (server-side generation)

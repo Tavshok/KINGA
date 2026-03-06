@@ -113,7 +113,7 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                       </div>
                       <div>
                         <p className="text-xs text-slate-500">Amount</p>
-                        <p className="font-medium">R {claim.amount.toLocaleString()}</p>
+                        <p className="font-medium">R {claim.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                       <div>
                         <p className="text-xs text-slate-500">Fraud Risk</p>

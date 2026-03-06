@@ -475,7 +475,7 @@ export default function InsurerComparisonView() {
                       if (aiAssessment && amounts.length > 0) {
                         const lowestIdx = amounts.indexOf(lowestQuote);
                         if (lowestIdx >= 0 && quotes[lowestIdx]) {
-                          recommendedRepairer = `Panel Beater #${(quotes[lowestIdx] as any).panelBeaterId}`;
+                          recommendedRepairer = (quotes[lowestIdx] as any).panelBeaterName || `Panel Beater #${(quotes[lowestIdx] as any).panelBeaterId}`;
                           recommendationReason = 'Lowest quote within AI-assessed fair cost range';
                         }
                       }
@@ -833,13 +833,13 @@ export default function InsurerComparisonView() {
                 <div className="space-y-4">
                   {quotes.map((quote, idx) => (
                     <div key={quote.id} className="p-4 bg-white rounded-lg border">
-                      <p className="font-semibold mb-2">Quote {idx + 1} — ${(quote.quotedAmount || 0).toLocaleString()}</p>
+                      <p className="font-semibold mb-2">{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       {quote.lineItems && quote.lineItems.length > 0 ? (
                         <div className="space-y-2">
                           {quote.lineItems.map((item: any, i: number) => (
                             <div key={i} className="flex justify-between text-sm border-b pb-1">
                               <span className="capitalize">{item.description}</span>
-                              <span className="font-medium">${Number(item.lineTotal || 0).toLocaleString()}</span>
+                              <span className="font-medium">US${Number(item.lineTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
                           ))}
                         </div>
@@ -925,8 +925,8 @@ export default function InsurerComparisonView() {
                     )}
                     {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
                       <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
-                        <p>Repair Cost: ${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
-                        <p>Vehicle Value: ${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</p>
+                        <p>Repair Cost: US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                        <p>Vehicle Value: US${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                         <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
                       </div>
                     )}
@@ -954,12 +954,12 @@ export default function InsurerComparisonView() {
                   </div>
                   <div className="p-4 rounded-lg border bg-white">
                     <p className="text-sm text-muted-foreground mb-1">Estimated Repair Cost</p>
-                    <p className="text-2xl font-bold text-primary">${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-primary">US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     {aiAssessment.estimatedVehicleValue ? (
                       <div className="mt-2 space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Est. Vehicle Value</span>
-                          <span className="font-medium">${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</span>
+                          <span className="font-medium">US${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Repair/Value Ratio</span>
@@ -1093,9 +1093,9 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="font-medium">Panel Beater #{quote.panelBeaterId}</p>
+                    <p className="font-medium">{(quote as any).panelBeaterName || `Panel Beater #${quote.panelBeaterId}`}</p>
                     <p className="text-sm text-muted-foreground">
-                      Quote: ${(quote.quotedAmount || 0).toLocaleString()} • {quote.estimatedDuration} days
+                      Quote: US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} • {quote.estimatedDuration} days
                     </p>
                   </div>
                   {selectedQuoteId === quote.id && (
@@ -1251,9 +1251,13 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
   const inferredHiddenDamage = serverInferredHiddenDamages ?? localInferredHiddenDamage;
 
   // Cost breakdown by category (estimated) — use correct schema fields
-  const estimatedCost = aiAssessment.estimatedCost || 0;
-  const partsCost = aiAssessment.estimatedPartsCost || estimatedCost * 0.6;
-  const laborCost = aiAssessment.estimatedLaborCost || estimatedCost * 0.4;
+  // All cost values are stored in cents — divide by 100 for display
+  const estimatedCostCents = aiAssessment.estimatedCost || 0;
+  const partsCostCents = aiAssessment.estimatedPartsCost || estimatedCostCents * 0.6;
+  const laborCostCents = aiAssessment.estimatedLaborCost || estimatedCostCents * 0.4;
+  const estimatedCost = estimatedCostCents / 100;
+  const partsCost = partsCostCents / 100;
+  const laborCost = laborCostCents / 100;
 
   // Render only the requested sub-section
   if (section === 'damage-map') {
@@ -1281,15 +1285,15 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           </div>
           <div className="p-4 bg-white rounded-lg border">
             <p className="text-sm text-muted-foreground">Parts Cost</p>
-            <p className="text-2xl font-bold text-primary">${partsCost.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-primary">US${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
           <div className="p-4 bg-white rounded-lg border">
             <p className="text-sm text-muted-foreground">Labor Cost</p>
-            <p className="text-2xl font-bold text-green-600">${laborCost.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-green-600">US${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
           <div className="p-4 bg-white rounded-lg border">
             <p className="text-sm text-muted-foreground">Total Estimated</p>
-            <p className="text-2xl font-bold text-secondary">${estimatedCost.toLocaleString()}</p>
+            <p className="text-2xl font-bold text-secondary">US${estimatedCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
         </div>
         {/* Detected Components */}
@@ -1407,11 +1411,11 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-primary">${partsCost.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-primary">US${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
-          <p className="text-2xl font-bold text-green-600">${laborCost.toLocaleString()}</p>
+          <p className="text-2xl font-bold text-green-600">US${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
 
@@ -2078,7 +2082,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                              physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0;
             return (
               <div key={quote.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                <span className="text-sm">Panel Beater #{quote.panelBeaterId}</span>
+                <span className="text-sm">{(quote as any).panelBeaterName || `Panel Beater #${quote.panelBeaterId}`}</span>
                 {hasIssues ? (
                   <Badge variant="destructive" className="text-xs">
                     <AlertTriangle className="h-3 w-3 mr-1" />

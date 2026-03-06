@@ -71,9 +71,11 @@ interface Props {
 
 function formatAmount(amount: number | null | undefined, sym: string = "US$"): string {
   if (amount == null || isNaN(amount)) return "—";
-  return `${sym}${amount.toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
+  // All monetary values are stored in cents — divide by 100 for display
+  const value = amount / 100;
+  return `${sym}${value.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
   })}`;
 }
 

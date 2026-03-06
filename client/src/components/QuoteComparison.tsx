@@ -21,6 +21,7 @@ interface Quote {
   id: number;
   panelBeaterId: number;
   panelBeater?: PanelBeater;
+  panelBeaterName?: string | null;
   quotedAmount: number;
   lineItems?: QuoteItem[];
 }
@@ -103,7 +104,7 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
 
   // Get panel beater names
   const getPanelBeaterName = (quote: Quote) => {
-    return quote.panelBeater?.name || `Panel Beater #${quote.panelBeaterId}`;
+    return quote.panelBeaterName || quote.panelBeater?.name || `Panel Beater #${quote.panelBeaterId}`;
   };
 
   return (

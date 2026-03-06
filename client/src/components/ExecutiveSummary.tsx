@@ -253,7 +253,7 @@ export function ExecutiveSummary({
           <p className="text-xs text-gray-500 mt-1">
             {componentCount} component(s) · {damagePhotoCount} photo(s)
             {savings && savings > 0 && (
-              <span className="text-green-600 font-medium"> · {symbol}{savings.toLocaleString()} saved</span>
+              <span className="text-green-600 font-medium"> · {symbol}{savings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} saved</span>
             )}
           </p>
         </div>
@@ -377,7 +377,7 @@ export function ExecutiveSummary({
             <strong>Cost:</strong>{' '}
             Total repair cost of {symbol}{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })} across {componentCount} component(s).
             {originalQuote && agreedCost && originalQuote > agreedCost
-              ? ` Negotiated down from ${symbol}${originalQuote.toLocaleString()} (${Math.round(((originalQuote - agreedCost) / originalQuote) * 100)}% reduction).`
+              ? ` Negotiated down from ${symbol}${originalQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} (${Math.round(((originalQuote - agreedCost) / originalQuote) * 100)}% reduction).`
               : ''
             }
             {' '}Data completeness: {dataCompleteness}%.

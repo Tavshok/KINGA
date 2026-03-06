@@ -315,11 +315,11 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     if (ai.lowestQuote > 0) {
-      doc.text(`Lowest Quote:   ${currencySymbol}${ai.lowestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      doc.text(`Lowest Quote:   ${currencySymbol}${(ai.lowestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       yPos += 4;
-      doc.text(`Median Quote:   ${currencySymbol}${ai.medianQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      doc.text(`Median Quote:   ${currencySymbol}${(ai.medianQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       yPos += 4;
-      doc.text(`Highest Quote:  ${currencySymbol}${ai.highestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      doc.text(`Highest Quote:  ${currencySymbol}${(ai.highestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       yPos += 4;
       doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
     } else {
@@ -329,7 +329,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
       doc.setTextColor(0, 0, 0);
       yPos += 4;
       if (ai.aiEstimatedCost && ai.aiEstimatedCost > 0) {
-        doc.text(`AI Estimated Cost: ${currencySymbol}${ai.aiEstimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+        doc.text(`AI Estimated Cost: ${currencySymbol}${(ai.aiEstimatedCost / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       }
     }
     yPos += 7;
@@ -441,11 +441,11 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Estimated Market Value: $${data.vehicleValuation.estimatedValue.toLocaleString()}`, 20, yPos);
+    doc.text(`Estimated Market Value: $${data.vehicleValuation.estimatedValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
     yPos += 5;
-    doc.text(`Final Adjusted Value: $${data.vehicleValuation.finalValue.toLocaleString()}`, 20, yPos);
+    doc.text(`Final Adjusted Value: $${data.vehicleValuation.finalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
     yPos += 5;
-    doc.text(`Price Range: $${data.vehicleValuation.minPrice.toLocaleString()} - $${data.vehicleValuation.maxPrice.toLocaleString()}`, 20, yPos);
+    doc.text(`Price Range: $${data.vehicleValuation.minPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - $${data.vehicleValuation.maxPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
     yPos += 5;
     doc.text(`Valuation Method: ${data.vehicleValuation.valuationMethod}`, 20, yPos);
     yPos += 5;
@@ -485,7 +485,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Estimated Cost: $${data.assessorEvaluation.estimatedCost.toLocaleString()}`, 20, yPos);
+    doc.text(`Estimated Cost: ${currencySymbol}${(data.assessorEvaluation.estimatedCost / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
     yPos += 5;
     doc.text(`Duration: ${data.assessorEvaluation.estimatedDuration} days`, 20, yPos);
     yPos += 5;
@@ -504,7 +504,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
     const tableData = data.quotes.map((quote, index) => [
       `Quote ${index + 1}`,
       quote.panelBeaterName,
-      `${currencySymbol}${quote.totalCost.toLocaleString()}`,
+      `${currencySymbol}${(quote.totalCost / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       `${quote.estimatedDuration} days`,
       quote.notes || 'N/A'
     ]);
@@ -707,7 +707,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
     doc.setFontSize(10);
     doc.text(`Discrepancies Found: ${data.quoteComparison.discrepancyCount}`, 20, yPos);
     yPos += 5;
-    doc.text(`Average Quote: $${data.quoteComparison.averageQuote.toLocaleString()}`, 20, yPos);
+    doc.text(`Average Quote: $${data.quoteComparison.averageQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
     yPos += 10;
 
     if (data.quoteComparison.missingItems && data.quoteComparison.missingItems.length > 0) {
@@ -803,9 +803,9 @@ export async function generateFraudAnalyticsPDF(data: {
   yPos += 5;
   doc.text(`Fraud Detection Rate: ${data.fraudRate.toFixed(1)}%`, 20, yPos);
   yPos += 5;
-  doc.text(`Average Claim Value: $${data.avgClaimValue.toLocaleString()}`, 20, yPos);
+  doc.text(`Average Claim Value: $${data.avgClaimValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
   yPos += 5;
-  doc.text(`Total Savings from Fraud Prevention: $${data.totalSavings.toLocaleString()}`, 20, yPos);
+  doc.text(`Total Savings from Fraud Prevention: $${data.totalSavings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
   yPos += 15;
 
   // Top Fraud Indicators

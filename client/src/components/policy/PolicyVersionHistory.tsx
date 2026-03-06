@@ -189,7 +189,7 @@ export function PolicyVersionHistory({
                                 <span>AI Limit</span>
                               </div>
                               <p className="text-sm font-medium">
-                                ${(Number(policy.maxAiOnlyApprovalAmount) / 100).toLocaleString()}
+                                ${(Number(policy.maxAiOnlyApprovalAmount) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
                             </div>
                             <div className="space-y-1">

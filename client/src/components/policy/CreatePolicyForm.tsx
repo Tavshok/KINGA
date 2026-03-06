@@ -115,7 +115,7 @@ export function CreatePolicyForm({ profiles, onPolicyCreated }: CreatePolicyForm
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">AI Approval Limit</p>
             <p className="text-lg font-bold">
-              ${(selectedProfile.maxAiOnlyApprovalAmount / 100).toLocaleString()}
+              ${(selectedProfile.maxAiOnlyApprovalAmount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="space-y-1">

@@ -2384,13 +2384,24 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const quotes = await getQuotesByClaimId(input.claimId, tenantId);
         
+        // Fetch panel beater details for name resolution
+        const panelBeaterIds = [...new Set(quotes.map(q => q.panelBeaterId))];
+        const { panelBeaters: pbTable } = await import("../drizzle/schema");
+        const db = await getDb();
+        const pbRows = db ? await db.select({ id: pbTable.id, businessName: pbTable.businessName, name: pbTable.name })
+          .from(pbTable)
+          .where(inArray(pbTable.id, panelBeaterIds.length > 0 ? panelBeaterIds : [-1])) : [];
+        const pbMap = new Map(pbRows.map(pb => [pb.id, pb]));
+        
         // Fetch line items for each quote
         const quotesWithItems = await Promise.all(
           quotes.map(async (quote) => {
             const lineItems = await getQuoteLineItemsByQuoteId(quote.id);
+            const pb = pbMap.get(quote.panelBeaterId);
             return {
               ...quote,
               lineItems,
+              panelBeaterName: pb?.businessName || pb?.name || null,
             };
           })
         );

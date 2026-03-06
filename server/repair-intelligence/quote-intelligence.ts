@@ -26,6 +26,7 @@ import { getDb } from "../db";
 import {
   aiAssessments,
   panelBeaterQuotes,
+  panelBeaters,
   claims,
   repairCostIntelligence,
 } from "../../drizzle/schema";
@@ -198,8 +199,12 @@ export async function generateIntelligenceReport(
         status: panelBeaterQuotes.status,
         notes: panelBeaterQuotes.notes,
         id: panelBeaterQuotes.id,
+        panelBeaterId: panelBeaterQuotes.panelBeaterId,
+        businessName: panelBeaters.businessName,
+        panelBeaterName: panelBeaters.name,
       })
       .from(panelBeaterQuotes)
+      .leftJoin(panelBeaters, eq(panelBeaterQuotes.panelBeaterId, panelBeaters.id))
       .where(eq(panelBeaterQuotes.claimId, claimId));
 
     // Use submitted/accepted/modified quotes; fall back to all if none
@@ -210,7 +215,8 @@ export async function generateIntelligenceReport(
 
     // Build QuoteEntry list for comparison stats
     quoteEntries = relevantQuotes.map((q, idx) => ({
-      garageName: `Garage ${String.fromCharCode(65 + idx)}`, // A, B, C…
+      // businessName (NOT NULL) → name → fallback Garage A/B/C
+      garageName: q.businessName || q.panelBeaterName || `Garage ${String.fromCharCode(65 + idx)}`,
       totalAmount: q.quotedAmount ?? 0,
       laborCost: q.laborCost,
       partsCost: q.partsCost,

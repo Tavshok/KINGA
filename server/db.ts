@@ -1023,6 +1023,22 @@ Provide your response in JSON format.`;
   ): InferredHiddenDamage[] => {
     if (incidentType !== 'collision') return [];
 
+    // ── Severity gate: suppress structural chain inferences for cosmetic/minor damage ──
+    // If the accident severity is minor/cosmetic OR impact force is negligible,
+    // only cosmetic inferences are allowed (no crash bars, radiator supports, etc.)
+    const isCosmeticOnly = (
+      accidentSev === 'none' ||
+      accidentSev === 'cosmetic' ||
+      accidentSev === 'scratch' ||
+      accidentSev === 'reversal' ||
+      (impactForceKn > 0 && impactForceKn < 5) // < 5 kN = parking bump / scratch
+    );
+    // Also suppress if only 1 component detected and it's purely cosmetic
+    const cosmeticOnlyComponents = ['scratch', 'scuff', 'dent', 'paint', 'bumper cover', 'trim'];
+    const allCosmetic = components.length <= 1 &&
+      components.every((c: any) => cosmeticOnlyComponents.some(kw => (c.name || '').toLowerCase().includes(kw)));
+    if (isCosmeticOnly || allCosmetic) return []; // No hidden damage for cosmetic incidents
+
     const hidden: InferredHiddenDamage[] = [];
     const detected = components.map((c: any) => (c.name || '').toLowerCase());
     const impact   = (impactPoint || '').toLowerCase();
