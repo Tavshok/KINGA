@@ -106,38 +106,57 @@
 }
 
 .dark {
-  --primary: var(--color-blue-700);
-  --primary-foreground: var(--color-blue-50);
-  --sidebar-primary: var(--color-blue-500);
-  --sidebar-primary-foreground: var(--color-blue-50);
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.85 0.005 65);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.85 0.005 65);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.85 0.005 65);
-  --secondary: oklch(0.24 0.006 286.033);
-  --secondary-foreground: oklch(0.7 0.005 65);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground:  oklch(0.92 0.005 65);
-  --destructive: oklch(0.704 0.191 22.216);
-  --destructive-foreground: oklch(0.985 0 0);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.488 0.243 264.376);
-  --chart-1: var(--color-blue-300);
-  --chart-2: var(--color-blue-500);
-  --chart-3: var(--color-blue-600);
-  --chart-4: var(--color-blue-700);
-  --chart-5: var(--color-blue-800);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.85 0.005 65);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground:  oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.488 0.243 264.376);
+  /* KINGA BI Dark Theme — Bloomberg/McKinsey grade */
+  --primary: oklch(0.62 0.18 155);          /* Emerald green — KINGA brand */
+  --primary-foreground: oklch(0.99 0 0);
+  --secondary: oklch(0.22 0.025 250);        /* Deep navy */
+  --secondary-foreground: oklch(0.82 0.01 250);
+  --accent: oklch(0.28 0.025 250);           /* Slightly lighter navy for hover */
+  --accent-foreground: oklch(0.92 0.01 250);
+  
+  /* Backgrounds — deep navy-slate */
+  --background: oklch(0.11 0.018 250);       /* Near-black navy */
+  --foreground: oklch(0.88 0.008 250);       /* Crisp white-blue text */
+  --card: oklch(0.155 0.018 250);            /* Card surface */
+  --card-foreground: oklch(0.88 0.008 250);
+  --popover: oklch(0.18 0.018 250);
+  --popover-foreground: oklch(0.88 0.008 250);
+  
+  /* Muted / subtle */
+  --muted: oklch(0.20 0.018 250);
+  --muted-foreground: oklch(0.52 0.015 250);
+  
+  /* Semantic */
+  --destructive: oklch(0.62 0.22 25);
+  --destructive-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.72 0.18 60);
+  --warning-foreground: oklch(0.15 0.02 60);
+  --success: oklch(0.62 0.18 155);
+  --success-foreground: oklch(0.99 0 0);
+  --info: oklch(0.60 0.18 230);
+  --info-foreground: oklch(0.99 0 0);
+  
+  /* Borders and inputs */
+  --border: oklch(0.26 0.022 250);
+  --input: oklch(0.22 0.022 250);
+  --ring: oklch(0.62 0.18 155);
+  
+  /* Chart colors — BI data palette */
+  --chart-1: oklch(0.62 0.18 155);   /* Emerald */
+  --chart-2: oklch(0.60 0.18 230);   /* Blue */
+  --chart-3: oklch(0.72 0.18 60);    /* Amber */
+  --chart-4: oklch(0.62 0.22 25);    /* Red */
+  --chart-5: oklch(0.65 0.18 290);   /* Purple */
+  
+  /* Sidebar */
+  --sidebar: oklch(0.13 0.018 250);
+  --sidebar-foreground: oklch(0.82 0.008 250);
+  --sidebar-primary: oklch(0.62 0.18 155);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.20 0.022 250);
+  --sidebar-accent-foreground: oklch(0.88 0.008 250);
+  --sidebar-border: oklch(0.22 0.022 250);
+  --sidebar-ring: oklch(0.62 0.18 155);
 }
 
 @layer base {
@@ -301,5 +320,430 @@
   
   .border-info {
     border-color: var(--info);
+  }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * KINGA BI DESIGN SYSTEM — World-class Business Intelligence UI
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* ── BI Hero Header ─────────────────────────────────────────── */
+  .bi-hero {
+    background: linear-gradient(135deg,
+      oklch(0.14 0.025 250) 0%,
+      oklch(0.18 0.03 220) 50%,
+      oklch(0.16 0.04 185) 100%);
+    border-bottom: 1px solid oklch(0.68 0.10 185 / 0.25);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bi-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 20% 50%, oklch(0.68 0.10 185 / 0.08) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, oklch(0.40 0.08 250 / 0.10) 0%, transparent 50%);
+    pointer-events: none;
+  }
+
+  .bi-hero-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(oklch(0.68 0.10 185 / 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, oklch(0.68 0.10 185 / 0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── KPI Metric Cards ───────────────────────────────────────── */
+  .kpi-card {
+    background: oklch(0.17 0.015 250);
+    border: 1px solid oklch(0.28 0.02 250);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.2s ease;
+  }
+
+  .kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, oklch(0.68 0.10 185), oklch(0.40 0.08 250));
+  }
+
+  .kpi-card:hover {
+    border-color: oklch(0.68 0.10 185 / 0.4);
+    box-shadow: 0 0 20px oklch(0.68 0.10 185 / 0.08);
+  }
+
+  .kpi-card-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    line-height: 1;
+    color: oklch(0.92 0.005 65);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+
+  .kpi-card-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: oklch(0.55 0.015 250);
+    margin-bottom: 0.5rem;
+  }
+
+  .kpi-card-delta {
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+  }
+
+  .kpi-card-delta.positive {
+    background: oklch(0.55 0.14 165 / 0.15);
+    color: oklch(0.72 0.14 165);
+  }
+
+  .kpi-card-delta.negative {
+    background: oklch(0.45 0.18 25 / 0.15);
+    color: oklch(0.72 0.18 25);
+  }
+
+  .kpi-card-delta.neutral {
+    background: oklch(0.55 0.015 250 / 0.15);
+    color: oklch(0.65 0.015 250);
+  }
+
+  /* ── BI Section Panels ──────────────────────────────────────── */
+  .comparison-section {
+    background: oklch(0.155 0.012 250);
+    border: 1px solid oklch(0.25 0.02 250);
+    border-radius: 0.875rem;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    transition: box-shadow 0.2s ease;
+  }
+
+  .comparison-section:hover {
+    box-shadow: 0 4px 24px oklch(0.68 0.10 185 / 0.06);
+  }
+
+  .comparison-section-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+    padding: 1rem 1.25rem;
+    background: oklch(0.19 0.015 250);
+    border-bottom: 1px solid oklch(0.25 0.02 250);
+  }
+
+  .comparison-section-body {
+    padding: 1.25rem;
+  }
+
+  .section-icon {
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: oklch(0.68 0.10 185 / 0.12);
+    border: 1px solid oklch(0.68 0.10 185 / 0.25);
+    color: oklch(0.68 0.10 185);
+  }
+
+  .section-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    background: oklch(0.68 0.10 185);
+    color: white;
+    flex-shrink: 0;
+  }
+
+  /* ── BI Data Table ──────────────────────────────────────────── */
+  .bi-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 0.8125rem;
+  }
+
+  .bi-table thead tr {
+    background: oklch(0.19 0.015 250);
+  }
+
+  .bi-table thead th {
+    padding: 0.625rem 0.875rem;
+    text-align: left;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: oklch(0.55 0.015 250);
+    border-bottom: 1px solid oklch(0.25 0.02 250);
+    white-space: nowrap;
+  }
+
+  .bi-table thead th:first-child { border-radius: 0.5rem 0 0 0; }
+  .bi-table thead th:last-child { border-radius: 0 0.5rem 0 0; }
+
+  .bi-table tbody tr {
+    border-bottom: 1px solid oklch(0.22 0.015 250);
+    transition: background 0.15s ease;
+  }
+
+  .bi-table tbody tr:hover {
+    background: oklch(0.68 0.10 185 / 0.04);
+  }
+
+  .bi-table tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .bi-table tbody td {
+    padding: 0.75rem 0.875rem;
+    color: oklch(0.82 0.008 250);
+    vertical-align: middle;
+  }
+
+  .bi-table .numeric {
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    font-weight: 500;
+  }
+
+  .bi-table .highlight-row {
+    background: oklch(0.68 0.10 185 / 0.06);
+  }
+
+  .bi-table .highlight-row td {
+    color: oklch(0.88 0.008 185);
+  }
+
+  /* ── BI Stat Row ────────────────────────────────────────────── */
+  .bi-stat-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.625rem 0;
+    border-bottom: 1px solid oklch(0.22 0.015 250);
+  }
+
+  .bi-stat-row:last-child {
+    border-bottom: none;
+  }
+
+  .bi-stat-label {
+    font-size: 0.8125rem;
+    color: oklch(0.60 0.015 250);
+  }
+
+  .bi-stat-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: oklch(0.88 0.008 250);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── BI Chart Container ─────────────────────────────────────── */
+  .bi-chart-container {
+    background: oklch(0.155 0.012 250);
+    border: 1px solid oklch(0.25 0.02 250);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    overflow: hidden;
+  }
+
+  .bi-chart-title {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: oklch(0.75 0.015 250);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-bottom: 1rem;
+  }
+
+  /* ── BI Status Chips ────────────────────────────────────────── */
+  .bi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .bi-chip-dot {
+    width: 0.375rem;
+    height: 0.375rem;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .bi-chip.success {
+    background: oklch(0.55 0.14 165 / 0.15);
+    color: oklch(0.72 0.14 165);
+    border: 1px solid oklch(0.55 0.14 165 / 0.3);
+  }
+
+  .bi-chip.success .bi-chip-dot { background: oklch(0.72 0.14 165); }
+
+  .bi-chip.warning {
+    background: oklch(0.65 0.18 60 / 0.15);
+    color: oklch(0.80 0.15 60);
+    border: 1px solid oklch(0.65 0.18 60 / 0.3);
+  }
+
+  .bi-chip.warning .bi-chip-dot { background: oklch(0.80 0.15 60); }
+
+  .bi-chip.danger {
+    background: oklch(0.45 0.18 25 / 0.15);
+    color: oklch(0.72 0.18 25);
+    border: 1px solid oklch(0.45 0.18 25 / 0.3);
+  }
+
+  .bi-chip.danger .bi-chip-dot { background: oklch(0.72 0.18 25); }
+
+  .bi-chip.neutral {
+    background: oklch(0.28 0.02 250 / 0.5);
+    color: oklch(0.65 0.015 250);
+    border: 1px solid oklch(0.35 0.02 250);
+  }
+
+  .bi-chip.neutral .bi-chip-dot { background: oklch(0.55 0.015 250); }
+
+  .bi-chip.primary {
+    background: oklch(0.68 0.10 185 / 0.15);
+    color: oklch(0.78 0.10 185);
+    border: 1px solid oklch(0.68 0.10 185 / 0.3);
+  }
+
+  .bi-chip.primary .bi-chip-dot { background: oklch(0.78 0.10 185); }
+
+  /* ── BI Data Field ──────────────────────────────────────────── */
+  .bi-field {
+    padding: 0.875rem;
+    background: oklch(0.18 0.015 250);
+    border: 1px solid oklch(0.26 0.02 250);
+    border-radius: 0.625rem;
+  }
+
+  .bi-field-label {
+    font-size: 0.6875rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: oklch(0.52 0.015 250);
+    margin-bottom: 0.375rem;
+  }
+
+  .bi-field-value {
+    font-size: 0.9375rem;
+    font-weight: 600;
+    color: oklch(0.88 0.008 250);
+  }
+
+  /* ── BI Divider ─────────────────────────────────────────────── */
+  .bi-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, oklch(0.30 0.02 250), transparent);
+    margin: 1rem 0;
+  }
+
+  /* ── BI Alert Boxes ─────────────────────────────────────────── */
+  .bi-alert-danger {
+    background: oklch(0.18 0.04 25 / 0.5);
+    border: 1px solid oklch(0.45 0.18 25 / 0.4);
+    border-left: 3px solid oklch(0.60 0.22 25);
+    border-radius: 0.625rem;
+    padding: 1rem;
+  }
+
+  .bi-alert-warning {
+    background: oklch(0.18 0.04 60 / 0.4);
+    border: 1px solid oklch(0.55 0.18 60 / 0.3);
+    border-left: 3px solid oklch(0.70 0.18 60);
+    border-radius: 0.625rem;
+    padding: 1rem;
+  }
+
+  .bi-alert-success {
+    background: oklch(0.18 0.04 165 / 0.4);
+    border: 1px solid oklch(0.55 0.14 165 / 0.3);
+    border-left: 3px solid oklch(0.62 0.15 165);
+    border-radius: 0.625rem;
+    padding: 1rem;
+  }
+
+  .bi-alert-info {
+    background: oklch(0.18 0.04 220 / 0.4);
+    border: 1px solid oklch(0.45 0.12 220 / 0.3);
+    border-left: 3px solid oklch(0.60 0.15 220);
+    border-radius: 0.625rem;
+    padding: 1rem;
+  }
+
+  /* ── BI Progress Bar ────────────────────────────────────────── */
+  .bi-progress {
+    height: 6px;
+    background: oklch(0.25 0.02 250);
+    border-radius: 9999px;
+    overflow: hidden;
+  }
+
+  .bi-progress-fill {
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(90deg, oklch(0.68 0.10 185), oklch(0.55 0.14 165));
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* ── BI Scrollable Table Wrapper ────────────────────────────── */
+  .bi-table-wrapper {
+    overflow-x: auto;
+    border-radius: 0.625rem;
+    border: 1px solid oklch(0.25 0.02 250);
+  }
+
+  /* ── BI Section Number Badge ────────────────────────────────── */
+  .bi-section-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.5rem;
+    height: 1.5rem;
+    padding: 0 0.375rem;
+    border-radius: 0.375rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    background: oklch(0.68 0.10 185 / 0.2);
+    color: oklch(0.78 0.10 185);
+    border: 1px solid oklch(0.68 0.10 185 / 0.3);
+    flex-shrink: 0;
   }
 }

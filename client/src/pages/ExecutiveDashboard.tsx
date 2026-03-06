@@ -71,7 +71,7 @@ function ConfidenceGauge({ score }: { score: number }) {
             cx="64"
             cy="64"
             r="45"
-            stroke="#e5e7eb"
+            stroke="rgba(255,255,255,0.08)"
             strokeWidth="12"
             fill="none"
           />
@@ -114,7 +114,7 @@ function ConfidenceGauge({ score }: { score: number }) {
   );
 }
 
-// Large KPI Card Component
+// Large KPI Card Component — World-class dark BI design
 interface KPICardProps {
   title: string;
   value: string | number;
@@ -124,46 +124,66 @@ interface KPICardProps {
   color: "blue" | "green" | "purple" | "red" | "amber" | "slate";
 }
 
+const BI_COLORS: Record<string, { icon: string; accent: string; glow: string }> = {
+  blue:   { icon: 'oklch(0.60 0.20 250)', accent: 'oklch(0.60 0.20 250 / 0.15)', glow: 'oklch(0.60 0.20 250 / 0.08)' },
+  green:  { icon: 'oklch(0.65 0.18 145)', accent: 'oklch(0.65 0.18 145 / 0.15)', glow: 'oklch(0.65 0.18 145 / 0.08)' },
+  purple: { icon: 'oklch(0.65 0.20 295)', accent: 'oklch(0.65 0.20 295 / 0.15)', glow: 'oklch(0.65 0.20 295 / 0.08)' },
+  red:    { icon: 'oklch(0.62 0.22 25)',  accent: 'oklch(0.62 0.22 25 / 0.15)',  glow: 'oklch(0.62 0.22 25 / 0.08)'  },
+  amber:  { icon: 'oklch(0.75 0.18 70)',  accent: 'oklch(0.75 0.18 70 / 0.15)',  glow: 'oklch(0.75 0.18 70 / 0.08)'  },
+  slate:  { icon: 'oklch(0.62 0.015 250)', accent: 'oklch(0.62 0.015 250 / 0.15)', glow: 'oklch(0.62 0.015 250 / 0.08)' },
+};
+
 function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPICardProps) {
-  const colorClasses = {
-    blue: "from-blue-500 to-blue-600",
-    green: "from-green-500 to-green-600",
-    purple: "from-purple-500 to-purple-600",
-    red: "from-red-500 to-red-600",
-    amber: "from-amber-500 to-amber-600",
-    slate: "from-slate-500 to-slate-600",
-  };
+  const c = BI_COLORS[color] || BI_COLORS.slate;
+  const isPositiveTrend = trend && trend.value >= 0;
 
   return (
-    <Card className="relative overflow-hidden hover:shadow-xl transition-all duration-300 border-0">
-      <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[color]} opacity-5`}></div>
-      <CardContent className="p-6 relative">
+    <div
+      className="relative overflow-hidden rounded-xl p-5"
+      style={{
+        background: `linear-gradient(135deg, oklch(0.14 0.018 250) 0%, oklch(0.12 0.015 250) 100%)`,
+        border: '1px solid oklch(0.22 0.02 250)',
+        boxShadow: `0 0 20px ${c.glow}`,
+      }}
+    >
+      {/* Accent glow top-right */}
+      <div
+        className="absolute top-0 right-0 w-24 h-24 rounded-full blur-2xl"
+        style={{ background: c.accent, transform: 'translate(30%, -30%)' }}
+      />
+      <div className="relative">
         <div className="flex items-start justify-between mb-4">
-          <div className={`p-3 rounded-xl bg-gradient-to-br ${colorClasses[color]} bg-opacity-10`}>
-            <Icon className={`h-6 w-6 text-${color}-600`} />
+          <div
+            className="p-2.5 rounded-lg"
+            style={{ background: c.accent, border: `1px solid ${c.icon}40` }}
+          >
+            <Icon className="h-5 w-5" style={{ color: c.icon }} />
           </div>
           {trend && (
-            <div className={`flex items-center gap-1 text-sm font-medium ${
-              trend.value >= 0 ? "text-green-600" : "text-red-600"
-            }`}>
-              {trend.value >= 0 ? (
-                <TrendingUp className="h-4 w-4" />
-              ) : (
-                <TrendingDown className="h-4 w-4" />
-              )}
+            <div
+              className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded"
+              style={{
+                background: isPositiveTrend ? 'oklch(0.65 0.18 145 / 0.12)' : 'oklch(0.62 0.22 25 / 0.12)',
+                color: isPositiveTrend ? 'oklch(0.65 0.18 145)' : 'oklch(0.62 0.22 25)',
+              }}
+            >
+              {isPositiveTrend ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
               {Math.abs(trend.value)}%
             </div>
           )}
         </div>
         <div className="space-y-1">
-          <p className="text-sm font-medium text-slate-600">{title}</p>
-          <p className="text-4xl font-bold text-slate-900">{value}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.48 0.015 250)' }}>{title}</p>
+          <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
           {subtitle && (
-            <p className="text-sm text-slate-500">{subtitle}</p>
+            <p className="text-xs" style={{ color: 'oklch(0.52 0.015 250)' }}>{subtitle}</p>
+          )}
+          {trend && (
+            <p className="text-xs" style={{ color: 'oklch(0.42 0.015 250)' }}>{trend.label}</p>
           )}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
@@ -329,33 +349,45 @@ export default function ExecutiveDashboard() {
 
   if (kpisLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'oklch(0.10 0.015 250)' }}>
         <div className="text-center space-y-4">
-          <Activity className="h-12 w-12 animate-spin text-primary mx-auto" />
-          <p className="text-slate-600">Loading Executive Dashboard...</p>
+          <Activity className="h-12 w-12 animate-spin mx-auto" style={{ color: 'oklch(0.65 0.18 145)' }} />
+          <p style={{ color: 'oklch(0.55 0.015 250)' }}>Loading Executive Command Center...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+    <div className="min-h-screen" style={{ background: 'oklch(0.10 0.015 250)' }}>
+      {/* BI Hero Header */}
+      <div style={{ background: 'linear-gradient(135deg, oklch(0.13 0.02 250) 0%, oklch(0.11 0.018 250) 100%)', borderBottom: '1px solid oklch(0.22 0.02 250)' }}>
         <div className="max-w-[1600px] mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-slate-900">
-                Executive Command Center
-              </h1>
-              <p className="text-slate-600 mt-1">Real-time insights and decision intelligence</p>
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.45 0.15 145))' }}>
+                <BarChart3 className="h-6 w-6 text-white" />
+              </div>
+              <div>
+                <div className="flex items-center gap-3">
+                  <h1 className="text-2xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>Executive Command Center</h1>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'oklch(0.55 0.18 145)', color: 'white' }}>LIVE</span>
+                </div>
+                <p className="text-sm mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Real-time insights · Decision intelligence · AI-powered analytics</p>
+              </div>
             </div>
-            <Link href="/portal-hub">
-              <Button variant="outline" size="lg">
-                <Target className="mr-2 h-4 w-4" />
-                Switch Portal
-              </Button>
-            </Link>
+            <div className="flex items-center gap-3">
+              <div className="text-right">
+                <p className="text-xs" style={{ color: 'oklch(0.45 0.015 250)' }}>Last updated</p>
+                <p className="text-sm font-medium" style={{ color: 'oklch(0.72 0.015 250)' }}>{new Date().toLocaleTimeString()}</p>
+              </div>
+              <Link href="/portal-hub">
+                <Button variant="outline" size="sm" style={{ borderColor: 'oklch(0.28 0.02 250)', color: 'oklch(0.72 0.015 250)', background: 'transparent' }}>
+                  <Target className="mr-2 h-4 w-4" />
+                  Switch Portal
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>

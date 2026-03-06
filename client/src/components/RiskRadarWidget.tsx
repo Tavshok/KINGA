@@ -1,13 +1,9 @@
 /**
- * Risk Radar Widget
- * 
- * Displays color-coded executive alerts for proactive risk management.
- * Calculates alert severity (Green/Amber/Red) based on current KPI data.
+ * Risk Radar Widget — World-class dark BI design
+ * Proactive risk monitoring with real-time alert severity
  */
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, TrendingUp, Clock, DollarSign, Shield } from "lucide-react";
+import { AlertTriangle, Clock, DollarSign, Shield } from "lucide-react";
 
 export interface RiskAlert {
   id: string;
@@ -20,185 +16,214 @@ export interface RiskAlert {
 }
 
 interface RiskRadarWidgetProps {
-  kpis: any; // KPI data from analytics
+  kpis: any;
 }
 
+const SEVERITY_STYLES = {
+  green: {
+    border: 'oklch(0.65 0.18 145 / 0.35)',
+    bg: 'oklch(0.65 0.18 145 / 0.06)',
+    icon: 'oklch(0.65 0.18 145)',
+    badge: { bg: 'oklch(0.65 0.18 145 / 0.15)', color: 'oklch(0.65 0.18 145)', label: 'Low Risk' },
+    bar: 'oklch(0.65 0.18 145)',
+  },
+  amber: {
+    border: 'oklch(0.75 0.18 70 / 0.35)',
+    bg: 'oklch(0.75 0.18 70 / 0.06)',
+    icon: 'oklch(0.75 0.18 70)',
+    badge: { bg: 'oklch(0.75 0.18 70 / 0.15)', color: 'oklch(0.75 0.18 70)', label: 'Elevated' },
+    bar: 'oklch(0.75 0.18 70)',
+  },
+  red: {
+    border: 'oklch(0.62 0.22 25 / 0.35)',
+    bg: 'oklch(0.62 0.22 25 / 0.06)',
+    icon: 'oklch(0.62 0.22 25)',
+    badge: { bg: 'oklch(0.62 0.22 25 / 0.15)', color: 'oklch(0.62 0.22 25)', label: 'Critical' },
+    bar: 'oklch(0.62 0.22 25)',
+  },
+};
+
 export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
-  // Calculate alerts based on KPI data
   const alerts: RiskAlert[] = [];
 
-  // === ALERT 1: High Override Frequency ===
+  // ALERT 1: Override Frequency
   const overrideRate = kpis?.totalExecutiveOverrides || 0;
   const totalClaims = kpis?.totalClaims || 1;
   const overridePercentage = Math.round((overrideRate / totalClaims) * 100);
-  
   let overrideSeverity: 'green' | 'amber' | 'red' = 'green';
   if (overridePercentage >= 20) overrideSeverity = 'red';
   else if (overridePercentage >= 10) overrideSeverity = 'amber';
-
   alerts.push({
     id: 'override_frequency',
-    title: 'Executive Override Frequency',
-    description: overrideSeverity === 'green' 
+    title: 'Override Frequency',
+    description: overrideSeverity === 'green'
       ? 'Override rate within acceptable limits'
       : overrideSeverity === 'amber'
-      ? 'Override rate elevated - review override justifications'
-      : 'Override rate critically high - immediate review required',
+      ? 'Override rate elevated — review justifications'
+      : 'Override rate critically high — immediate review',
     severity: overrideSeverity,
     metric: overridePercentage,
     threshold: 10,
-    icon: <Shield className="h-5 w-5" />
+    icon: <Shield className="h-4 w-4" />,
   });
 
-  // === ALERT 2: Rising Fraud Variance ===
+  // ALERT 2: Fraud Variance
   const fraudScore = kpis?.avgFraudScore || 0;
-  const fraudStdDev = Math.round(fraudScore * 0.3); // Estimate variance
-  
+  const fraudStdDev = Math.round(fraudScore * 0.3);
   let fraudSeverity: 'green' | 'amber' | 'red' = 'green';
   if (fraudStdDev >= 30) fraudSeverity = 'red';
   else if (fraudStdDev >= 20) fraudSeverity = 'amber';
-
   alerts.push({
     id: 'fraud_variance',
     title: 'Fraud Risk Variance',
     description: fraudSeverity === 'green'
       ? 'Fraud risk scores consistent across claims'
       : fraudSeverity === 'amber'
-      ? 'Elevated fraud score variance detected - review high-risk claims'
-      : 'Critical fraud score variance - potential systemic risk',
+      ? 'Elevated variance detected — review high-risk claims'
+      : 'Critical variance — potential systemic risk',
     severity: fraudSeverity,
     metric: fraudStdDev,
     threshold: 20,
-    icon: <AlertTriangle className="h-5 w-5" />
+    icon: <AlertTriangle className="h-4 w-4" />,
   });
 
-  // === ALERT 3: Delayed Technical Approvals ===
+  // ALERT 3: Delayed Approvals
   const delayedClaims = kpis?.pendingClaims || 0;
   const avgProcessingTime = kpis?.avgProcessingTime || 0;
   const delayedCount = avgProcessingTime > 7 ? Math.round(delayedClaims * 0.3) : 0;
-  
   let approvalSeverity: 'green' | 'amber' | 'red' = 'green';
   if (delayedCount >= 10) approvalSeverity = 'red';
   else if (delayedCount >= 5) approvalSeverity = 'amber';
-
   alerts.push({
     id: 'delayed_approvals',
-    title: 'Delayed Technical Approvals',
+    title: 'Delayed Approvals',
     description: approvalSeverity === 'green'
-      ? 'Technical approvals processing within SLA'
+      ? 'Technical approvals within SLA'
       : approvalSeverity === 'amber'
-      ? `${delayedCount} claims delayed in technical review - consider resource allocation`
-      : `${delayedCount} claims critically delayed - immediate intervention required`,
+      ? `${delayedCount} claims delayed — consider resource allocation`
+      : `${delayedCount} claims critically delayed — intervene now`,
     severity: approvalSeverity,
     metric: delayedCount,
     threshold: 5,
-    icon: <Clock className="h-5 w-5" />
+    icon: <Clock className="h-4 w-4" />,
   });
 
-  // === ALERT 4: Quote Inflation Anomaly ===
+  // ALERT 4: Quote Inflation
   const approvalRate = kpis?.approvalRate || 100;
   const inflationRate = Math.max(0, 100 - approvalRate);
-  
   let quoteSeverity: 'green' | 'amber' | 'red' = 'green';
   if (inflationRate >= 20) quoteSeverity = 'red';
   else if (inflationRate >= 10) quoteSeverity = 'amber';
-
   alerts.push({
     id: 'quote_inflation',
-    title: 'Quote Inflation Anomaly',
+    title: 'Quote Inflation',
     description: quoteSeverity === 'green'
       ? 'Quote approval ratios within normal range'
       : quoteSeverity === 'amber'
-      ? `Moderate quote inflation detected (${inflationRate}%) - review approval patterns`
-      : `Critical quote inflation (${inflationRate}%) - potential cost control issue`,
+      ? `Moderate inflation (${inflationRate}%) — review approval patterns`
+      : `Critical inflation (${inflationRate}%) — cost control issue`,
     severity: quoteSeverity,
     metric: inflationRate,
     threshold: 10,
-    icon: <DollarSign className="h-5 w-5" />
+    icon: <DollarSign className="h-4 w-4" />,
   });
 
-  // Calculate overall risk
   const redCount = alerts.filter(a => a.severity === 'red').length;
   const amberCount = alerts.filter(a => a.severity === 'amber').length;
   const greenCount = alerts.filter(a => a.severity === 'green').length;
-  
   let overallRisk: 'green' | 'amber' | 'red' = 'green';
   if (redCount >= 2) overallRisk = 'red';
   else if (redCount >= 1 || amberCount >= 2) overallRisk = 'amber';
 
-  const getSeverityColor = (severity: 'green' | 'amber' | 'red') => {
-    switch (severity) {
-      case 'green': return 'bg-green-100 text-green-800 border-green-200';
-      case 'amber': return 'bg-amber-100 text-amber-800 border-amber-200';
-      case 'red': return 'bg-red-100 text-red-800 border-red-200';
-    }
-  };
-
-  const getSeverityBadge = (severity: 'green' | 'amber' | 'red') => {
-    switch (severity) {
-      case 'green': return <Badge className="bg-green-500">Low Risk</Badge>;
-      case 'amber': return <Badge className="bg-amber-500">Medium Risk</Badge>;
-      case 'red': return <Badge className="bg-red-500">High Risk</Badge>;
-    }
-  };
+  const os = SEVERITY_STYLES[overallRisk];
 
   return (
-    <Card className="col-span-full">
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-6 w-6" />
-              Risk Radar
-            </CardTitle>
-            <CardDescription>
-              Proactive risk monitoring with real-time alert severity
-            </CardDescription>
+    <div
+      className="rounded-xl overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, oklch(0.14 0.018 250) 0%, oklch(0.12 0.015 250) 100%)',
+        border: '1px solid oklch(0.22 0.02 250)',
+      }}
+    >
+      {/* Header */}
+      <div
+        className="px-6 py-4 flex items-center justify-between"
+        style={{ borderBottom: '1px solid oklch(0.20 0.018 250)' }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="p-2 rounded-lg"
+            style={{ background: os.bg, border: `1px solid ${os.border}` }}
+          >
+            <Shield className="h-4 w-4" style={{ color: os.icon }} />
           </div>
-          <div className="flex items-center gap-4">
-            {getSeverityBadge(overallRisk)}
-            <div className="text-sm text-slate-600">
-              <span className="font-semibold text-red-600">{redCount}</span> Critical •{' '}
-              <span className="font-semibold text-amber-600">{amberCount}</span> Elevated •{' '}
-              <span className="font-semibold text-green-600">{greenCount}</span> Normal
-            </div>
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Risk Radar</h3>
+            <p className="text-xs" style={{ color: 'oklch(0.48 0.015 250)' }}>Proactive risk monitoring · Real-time severity</p>
           </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {alerts.map((alert) => (
+        <div className="flex items-center gap-4">
+          <div className="text-xs" style={{ color: 'oklch(0.52 0.015 250)' }}>
+            <span className="font-bold" style={{ color: 'oklch(0.62 0.22 25)' }}>{redCount}</span> Critical ·{' '}
+            <span className="font-bold" style={{ color: 'oklch(0.75 0.18 70)' }}>{amberCount}</span> Elevated ·{' '}
+            <span className="font-bold" style={{ color: 'oklch(0.65 0.18 145)' }}>{greenCount}</span> Normal
+          </div>
+          <span
+            className="px-2.5 py-1 rounded text-xs font-semibold"
+            style={{ background: os.badge.bg, color: os.badge.color }}
+          >
+            {os.badge.label}
+          </span>
+        </div>
+      </div>
+
+      {/* Alert Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0">
+        {alerts.map((alert, i) => {
+          const s = SEVERITY_STYLES[alert.severity];
+          const pct = Math.min(100, (alert.metric / (alert.threshold * 2)) * 100);
+          return (
             <div
               key={alert.id}
-              className={`p-4 rounded-lg border-2 ${getSeverityColor(alert.severity)}`}
+              className="p-5"
+              style={{
+                borderRight: i < 3 ? '1px solid oklch(0.20 0.018 250)' : 'none',
+                background: s.bg,
+              }}
             >
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex items-center gap-2">
-                  {alert.icon}
-                  <h3 className="font-semibold text-sm">{alert.title}</h3>
-                </div>
-                {getSeverityBadge(alert.severity)}
-              </div>
-              <p className="text-sm mb-3">{alert.description}</p>
-              <div className="flex items-center justify-between text-xs">
-                <span className="font-medium">Current: {alert.metric}</span>
-                <span className="text-slate-600">Threshold: {alert.threshold}</span>
-              </div>
-              {/* Progress bar */}
-              <div className="mt-2 h-2 bg-white/50 rounded-full overflow-hidden">
+              <div className="flex items-start justify-between mb-3">
                 <div
-                  className={`h-full ${
-                    alert.severity === 'red' ? 'bg-red-500' :
-                    alert.severity === 'amber' ? 'bg-amber-500' :
-                    'bg-green-500'
-                  }`}
-                  style={{ width: `${Math.min(100, (alert.metric / (alert.threshold * 2)) * 100)}%` }}
+                  className="p-2 rounded-lg"
+                  style={{ background: `${s.icon}20`, color: s.icon }}
+                >
+                  {alert.icon}
+                </div>
+                <span
+                  className="px-2 py-0.5 rounded text-xs font-semibold"
+                  style={{ background: s.badge.bg, color: s.badge.color }}
+                >
+                  {s.badge.label}
+                </span>
+              </div>
+              <h4 className="text-sm font-semibold mb-1" style={{ color: 'oklch(0.82 0.008 250)' }}>{alert.title}</h4>
+              <p className="text-xs leading-relaxed mb-3" style={{ color: 'oklch(0.52 0.015 250)' }}>{alert.description}</p>
+              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: 'oklch(0.48 0.015 250)' }}>
+                <span>Current: <span className="font-bold" style={{ color: 'oklch(0.72 0.015 250)' }}>{alert.metric}</span></span>
+                <span>Threshold: {alert.threshold}</span>
+              </div>
+              <div
+                className="h-1.5 rounded-full overflow-hidden"
+                style={{ background: 'oklch(0.22 0.02 250)' }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${pct}%`, background: s.bar }}
                 />
               </div>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 }

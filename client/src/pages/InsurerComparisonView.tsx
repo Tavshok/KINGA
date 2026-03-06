@@ -23,6 +23,7 @@ import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCar
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -356,34 +357,110 @@ export default function InsurerComparisonView() {
 
   const fraudDetected = hasFraudIndicators();
 
+  // Derive key metrics for the hero header
+  const aiCostCents = aiAssessment?.estimatedCost || 0;
+  const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
+  const quotedAmounts = quotes.map((q: any) => q.quotedAmount || 0);
+  const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0;
+  const fraudLevel = aiAssessment?.fraudRiskLevel || assessorEval?.fraudRiskLevel || 'unknown';
+  const confidenceScore = aiAssessment?.confidenceScore || 0;
+
+  const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'very_high' ? 'danger' :
+    fraudLevel === 'moderate' ? 'warning' : fraudLevel === 'low' ? 'success' : 'neutral';
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
-      {/* Header */}
-        <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4">
-          {/* Top row: Logo and user info */}
-          <div className="flex items-center justify-between mb-3">
-            <KingaLogo />
+    <div className="min-h-screen" style={{ background: 'oklch(0.12 0.015 250)' }}>
+      {/* BI Hero Header */}
+      <header className="bi-hero">
+        <div className="bi-hero-grid" />
+        <div className="container mx-auto px-4 py-5 relative z-10">
+          {/* Top bar: Logo + user */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <KingaLogo />
+              <div className="h-5 w-px" style={{ background: 'oklch(0.68 0.10 185 / 0.3)' }} />
+              <span className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'oklch(0.68 0.10 185)' }}>AutoVerify AI</span>
+            </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-sm font-medium">{user?.name}</p>
-                <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>
+                <p className="text-sm font-medium" style={{ color: 'oklch(0.88 0.005 250)' }}>{user?.name}</p>
+                <p className="text-xs capitalize" style={{ color: 'oklch(0.55 0.015 250)' }}>{user?.role}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => logout()}>
+              <Button variant="outline" size="sm" onClick={() => logout()}
+                style={{ borderColor: 'oklch(0.35 0.02 250)', color: 'oklch(0.75 0.01 250)', background: 'transparent' }}>
                 Sign Out
               </Button>
             </div>
           </div>
-          
-          {/* Bottom row: Title and navigation */}
-          <div className="flex items-center justify-between">
+
+          {/* Main hero content */}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Fraud Detection & Comparison</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
+              <div className="flex items-center gap-2 mb-2">
+                <Button variant="ghost" size="sm" onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}
+                  className="gap-1.5 px-2 h-7" style={{ color: 'oklch(0.65 0.015 250)' }}>
+                  <ArrowLeft className="h-3.5 w-3.5" /> Claims
+                </Button>
+                <span style={{ color: 'oklch(0.40 0.02 250)' }}>/</span>
+                <span className="text-xs font-mono" style={{ color: 'oklch(0.65 0.015 250)' }}>{claim.claimNumber}</span>
+              </div>
+              <h1 className="text-2xl font-bold mb-1" style={{ color: 'oklch(0.95 0.005 65)' }}>
+                {claim.vehicleMake && claim.vehicleModel
+                  ? `${claim.vehicleMake} ${claim.vehicleModel}${claim.vehicleYear ? ` · ${claim.vehicleYear}` : ''}`
+                  : 'AI Intelligence Report'}
+              </h1>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-mono" style={{ color: 'oklch(0.60 0.015 250)' }}>{claim.claimNumber}</span>
+                {claim.vehicleRegistration && (
+                  <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'oklch(0.22 0.02 250)', color: 'oklch(0.70 0.015 250)', border: '1px solid oklch(0.30 0.02 250)' }}>
+                    {claim.vehicleRegistration}
+                  </span>
+                )}
                 <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
+                <span className={`bi-chip ${fraudChipClass}`}>
+                  <span className="bi-chip-dot" />
+                  Fraud: {fraudLevel.replace('_', ' ').toUpperCase()}
+                </span>
               </div>
             </div>
+
+            {/* Hero KPI strip */}
+            <div className="flex flex-wrap gap-3">
+              {aiCostCents > 0 && (
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>AI Estimate</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.78 0.10 185)' }}>
+                    US${(aiCostCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+              {assessorCostCents > 0 && (
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>Assessor</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.80 0.08 250)' }}>
+                    US${(assessorCostCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+              {lowestQuoteCents > 0 && (
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>Best Quote</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.82 0.14 165)' }}>
+                    US${(lowestQuoteCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              )}
+              {confidenceScore > 0 && (
+                <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
+                  <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>AI Confidence</p>
+                  <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.85 0.10 60)' }}>{confidenceScore}%</p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Action bar */}
+          <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid oklch(0.25 0.02 250)' }}>
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
@@ -582,15 +659,13 @@ export default function InsurerComparisonView() {
       <main className="container mx-auto px-4 py-8">
 
         {/* ── SECTION 1: CLAIM SUMMARY ─────────────────────────────────── */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-start justify-between gap-4">
+        <div className="comparison-section mb-5">
+          <div className="comparison-section-header">
+            <span className="bi-section-num">1</span>
+            <div className="flex-1 flex items-start justify-between gap-4">
               <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5 text-primary" />
-                  Claim Summary
-                </CardTitle>
-                <CardDescription>Key claim and vehicle details extracted from the submitted document</CardDescription>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Claim Summary</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Key claim and vehicle details extracted from the submitted document</p>
               </div>
               {(!claim.vehicleMake || !claim.vehicleModel) && (
                 <Button
@@ -608,9 +683,9 @@ export default function InsurerComparisonView() {
                 </Button>
               )}
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          </div>
+          <div className="comparison-section-body">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" style={{ color: 'oklch(0.82 0.008 250)' }}>
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vehicle</p>
                 <p className="font-semibold text-base">
@@ -676,8 +751,8 @@ export default function InsurerComparisonView() {
                 <p className="text-sm leading-relaxed">{(claim as any).incidentDescription}</p>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* ── SECTION 2: AI INTELLIGENCE SUMMARY ───────────────────────── */}
         <AiIntelligenceSummaryCard
@@ -685,92 +760,90 @@ export default function InsurerComparisonView() {
           quotes={quotes as any[]}
         />
 
-        {/* ── SECTION 3: DAMAGE ANALYSIS ───────────────────────────────── */}
+        {/* ── SECTION 3: DAMAGE ANALYSIS ─────────────────────────────────── */}
         {aiAssessment && (
-          <Card className="mb-6 border-2 border-purple-200 bg-purple-50/30">
-            <CardHeader>
-              <div className="flex items-center justify-between">
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">3</span>
+              <div className="flex-1 flex items-start justify-between gap-4">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Badge className="bg-purple-600">3</Badge>
-                    Damage Analysis
-                  </CardTitle>
-                  <CardDescription>AI-detected damaged components with severity, location, and damage classification</CardDescription>
+                  <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Damage Analysis</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>AI-detected damaged components with severity, location, and damage classification</p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => handleExportDamageReport(aiAssessment, claim)} className="gap-2">
-                  <Download className="h-4 w-4" />
-                  Export PDF
+                <Button variant="outline" size="sm" onClick={() => handleExportDamageReport(aiAssessment, claim)} className="gap-2"
+                  style={{ borderColor: 'oklch(0.35 0.02 250)', color: 'oklch(0.70 0.015 250)', background: 'transparent' }}>
+                  <Download className="h-4 w-4" /> Export PDF
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
+            </div>
+            <div className="comparison-section-body">
               <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-analysis" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* ── SECTION 4: VEHICLE DAMAGE MAP ────────────────────────────── */}
+        {/* ── SECTION 4: VEHICLE DAMAGE MAP ────────────────────────────────── */}
         {aiAssessment && (
-          <Card className="mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-blue-600">4</Badge>
-                Vehicle Damage Map
-              </CardTitle>
-              <CardDescription>Graphical representation of damage locations on the vehicle</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">4</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Vehicle Damage Map</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Graphical representation of damage locations on the vehicle</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-map" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* ── SECTION 5: IMPACT ANALYSIS (collision only) ──────────────── */}
+        {/* ── SECTION 5: IMPACT ANALYSIS (collision only) ────────────────── */}
         {aiAssessment && (claim as any).incidentType === 'collision' && (
-          <Card className="mb-6 border-2 border-orange-200 bg-orange-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-orange-600">5</Badge>
-                Impact Analysis
-              </CardTitle>
-              <CardDescription>Impact force, force vectors, direction of impact, and energy distribution (collision incidents only)</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">5</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Impact Analysis</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Impact force, force vectors, direction of impact, and energy distribution (collision incidents only)</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="impact" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
-        {/* ── SECTION 6: PHYSICS VALIDATION ────────────────────────────── */}
+        {/* ── SECTION 6: PHYSICS VALIDATION ────────────────────────────────── */}
         {aiAssessment && (claim as any).incidentType === 'collision' && (
-          <Card className="mb-6 border-2 border-primary/20 bg-primary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-primary">6</Badge>
-                Physics Validation
-              </CardTitle>
-              <CardDescription>Damage consistency score, impact propagation logic, and structural damage analysis</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">6</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Physics Validation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Damage consistency score, impact propagation logic, and structural damage analysis</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="physics" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* ── SECTION 7: HIDDEN DAMAGE INFERENCE ───────────────────────── */}
         {aiAssessment && (
-          <Card className="mb-6 border-2 border-amber-200 bg-amber-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-amber-600">7</Badge>
-                Hidden Damage Inference
-              </CardTitle>
-              <CardDescription>Inferred hidden components based on impact physics, structural layout, and engineering rules</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">7</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Hidden Damage Inference</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Inferred hidden components based on impact physics, structural layout, and engineering rules</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="hidden-damage" />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* ── SECTION 8: DAMAGE IMAGES ─────────────────────────────────── */}
@@ -784,55 +857,55 @@ export default function InsurerComparisonView() {
           })();
           if (!hasPhotos) return null;
           return (
-            <Card className="mb-6 border-2 border-indigo-200 bg-indigo-50/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Badge className="bg-indigo-600">8</Badge>
-                  Damage Images
-                </CardTitle>
-                <CardDescription>AI-classified damage photographs extracted from PDF documents and uploaded photos — with impact zone overlays and detected component labels</CardDescription>
-              </CardHeader>
-              <CardContent>
+            <div className="comparison-section mb-5">
+              <div className="comparison-section-header">
+                <span className="bi-section-num">8</span>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Damage Images</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>AI-classified damage photographs with impact zone overlays and detected component labels</p>
+                </div>
+              </div>
+              <div className="comparison-section-body">
                 <DamageImagesPanel
                   damagePhotosJson={damagePhotosJson}
                   rawDamagePhotos={rawDamagePhotos}
                 />
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           );
         })()}
 
         {/* ── SECTION 9: REPAIR INTELLIGENCE ───────────────────────────── */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Badge className="bg-teal-600">9</Badge>
-              Repair Intelligence
-            </CardTitle>
-            <CardDescription>Recommended repair actions, repair sequence, and complexity level per component</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="comparison-section mb-5">
+          <div className="comparison-section-header">
+            <span className="bi-section-num">9</span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Repair Intelligence</p>
+              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Recommended repair actions, repair sequence, and complexity level per component</p>
+            </div>
+          </div>
+          <div className="comparison-section-body">
             <RepairIntelligencePanel claimId={claimId} />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* ── SECTION 10: PARTS RECONCILIATION ─────────────────────────── */}
         {quotes.length > 0 && aiAssessment && (
-          <Card className="mb-6 border-2 border-cyan-200 bg-cyan-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-cyan-700">10</Badge>
-                Parts Reconciliation
-              </CardTitle>
-              <CardDescription>Detected components vs quoted parts vs inferred hidden damages — highlights missing, inflated, or unrelated parts</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">10</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Parts Reconciliation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Detected components vs quoted parts vs inferred hidden damages — highlights missing, inflated, or unrelated parts</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               {quotes.length >= 2 && quotes.some(q => q.lineItems && q.lineItems.length > 0) ? (
                 <QuoteComparison quotes={quotes} />
               ) : (
                 <div className="space-y-4">
                   {quotes.map((quote, idx) => (
-                    <div key={quote.id} className="p-4 bg-white rounded-lg border">
+                    <div key={quote.id} className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid oklch(0.28 0.02 250)' }}>
                       <p className="font-semibold mb-2">{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       {quote.lineItems && quote.lineItems.length > 0 ? (
                         <div className="space-y-2">
@@ -850,65 +923,104 @@ export default function InsurerComparisonView() {
                   ))}
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* ── SECTION 11: PANEL BEATER QUOTES ──────────────────────────── */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Badge className="bg-violet-600">11</Badge>
-              Panel Beater Quotes
-            </CardTitle>
-            <CardDescription>Submitted repair estimates from panel beaters</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="comparison-section mb-5">
+          <div className="comparison-section-header">
+            <span className="bi-section-num">11</span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Panel Beater Quotes</p>
+              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Submitted repair estimates from panel beaters — visual cost comparison</p>
+            </div>
+          </div>
+          <div className="comparison-section-body">
+            {/* BI Quote Comparison Bar Chart */}
+            {quotes.length > 0 && (() => {
+              const chartData = quotes.map((q, i) => ({
+                name: (q as any).panelBeaterName || `Quote ${i + 1}`,
+                amount: (q.quotedAmount || 0) / 100,
+                id: q.id,
+              }));
+              const median = computeMedian(quotes.map(q => (q.quotedAmount || 0) / 100));
+              const COLORS = [
+                'oklch(0.62 0.18 155)',
+                'oklch(0.60 0.18 230)',
+                'oklch(0.72 0.18 60)',
+                'oklch(0.62 0.22 25)',
+                'oklch(0.65 0.18 290)',
+              ];
+              return (
+                <div className="mb-6 p-4 rounded-lg" style={{ background: 'oklch(0.16 0.018 250)', border: '1px solid oklch(0.24 0.02 250)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'oklch(0.52 0.015 250)' }}>Quote Cost Comparison (USD)</p>
+                  <ResponsiveContainer width="100%" height={220}>
+                    <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.24 0.02 250)" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: 'oklch(0.55 0.015 250)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'oklch(0.55 0.015 250)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v.toLocaleString()}`} />
+                      <Tooltip
+                        contentStyle={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', borderRadius: '8px', color: 'oklch(0.88 0.008 250)' }}
+                        formatter={(value: number) => [`US$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Quote Amount']}
+                      />
+                      <ReferenceLine y={median} stroke="oklch(0.72 0.18 60)" strokeDasharray="4 4" label={{ value: `Median $${median.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, fill: 'oklch(0.72 0.18 60)', fontSize: 10, position: 'right' }} />
+                      <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                        {chartData.map((_, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                  <p className="text-xs mt-2" style={{ color: 'oklch(0.45 0.015 250)' }}>Dashed line = median quote value. Bars above median may warrant further scrutiny.</p>
+                </div>
+              );
+            })()}
             <PanelBeaterChoicesCard claimId={claimId} />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* ── SECTION 12: COST OPTIMISATION ────────────────────────────── */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Badge className="bg-emerald-600">12</Badge>
-              Cost Optimisation
-            </CardTitle>
-            <CardDescription>Cost differences, repair vs replace logic, and recommended repair cost range</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="comparison-section mb-5">
+          <div className="comparison-section-header">
+            <span className="bi-section-num">12</span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Cost Optimisation</p>
+              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Cost differences, repair vs replace logic, and recommended repair cost range</p>
+            </div>
+          </div>
+          <div className="comparison-section-body">
             <QuoteOptimisationPanel claimId={claimId} />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* ── SECTION 13: FRAUD RISK ANALYSIS ──────────────────────────── */}
         {aiAssessment && (
-          <Card className="mb-6 border-2 border-red-200 bg-red-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-red-600">13</Badge>
-                Fraud Risk Analysis
-              </CardTitle>
-              <CardDescription>10-indicator fraud scoring engine: physics mismatch, claimant risk, staged accident, panel beater patterns, assessor integrity, collusion network, document integrity, cost anomalies, vehicle ownership, and claim timing</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">13</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Fraud Risk Analysis</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>10-indicator fraud scoring engine: physics mismatch, claimant risk, staged accident, panel beater patterns, assessor integrity, collusion network, document integrity, cost anomalies, vehicle ownership, and claim timing</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               <FraudScorePanel aiAssessment={aiAssessment} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* ── SECTION 14: FINAL AI RECOMMENDATION ──────────────────────── */}
         {aiAssessment && (
-          <Card className="mb-6 border-2 border-secondary/30 bg-secondary/5">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-secondary">14</Badge>
-                Final AI Recommendation
-              </CardTitle>
-              <CardDescription>AI-generated recommendation: proceed with repair, request investigation, possible fraud, or total loss</CardDescription>
-            </CardHeader>
-            <CardContent>
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num">14</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Final AI Recommendation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>AI-generated recommendation: proceed with repair, request investigation, possible fraud, or total loss</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
               <div className="space-y-4">
                 {/* Total Loss Warning */}
                 {aiAssessment.totalLossIndicated === 1 && (
@@ -934,8 +1046,8 @@ export default function InsurerComparisonView() {
                 )}
                 {/* Recommendation based on fraud risk and damage */}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 rounded-lg border bg-white">
-                    <p className="text-sm text-muted-foreground mb-1">Recommended Action</p>
+                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid oklch(0.28 0.02 250)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'oklch(0.52 0.015 250)' }}>Recommended Action</p>
                     <p className="font-semibold text-lg">
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss — Do Not Repair' :
                        (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'Request Investigation' :
@@ -952,8 +1064,8 @@ export default function InsurerComparisonView() {
                        aiAssessment.fraudRiskLevel === 'moderate' ? 'Review Required' : 'Approved'}
                     </Badge>
                   </div>
-                  <div className="p-4 rounded-lg border bg-white">
-                    <p className="text-sm text-muted-foreground mb-1">Estimated Repair Cost</p>
+                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid oklch(0.28 0.02 250)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'oklch(0.52 0.015 250)' }}>Estimated Repair Cost</p>
                     <p className="text-2xl font-bold text-primary">US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     {aiAssessment.estimatedVehicleValue ? (
                       <div className="mt-2 space-y-1">
@@ -974,8 +1086,8 @@ export default function InsurerComparisonView() {
                 </div>
                 {/* Damage description */}
                 {aiAssessment.damageDescription && (
-                  <div className="p-4 bg-muted/30 rounded-lg border">
-                    <p className="text-sm text-muted-foreground mb-1">AI Damage Assessment</p>
+                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.14 0.01 250)', border: '1px solid oklch(0.25 0.018 250)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'oklch(0.52 0.015 250)' }}>AI Damage Assessment</p>
                     <p className="text-sm leading-relaxed">{aiAssessment.damageDescription}</p>
                   </div>
                 )}
@@ -1011,24 +1123,36 @@ export default function InsurerComparisonView() {
                   return null;
                 })()}
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* ── CLAIM APPROVAL (always last) ──────────────────────────────── */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Claim Approval & Panel Beater Selection</CardTitle>
-            <CardDescription>Select the winning quote and approve the claim for repair</CardDescription>
-          </CardHeader>
-          <CardContent>
+        <div className="comparison-section mb-5">
+          <div className="comparison-section-header">
+            <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.45 0.15 145))' }}>✓</span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Claim Approval & Panel Beater Selection</p>
+              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Select the winning quote and approve the claim for repair</p>
+            </div>
+          </div>
+          <div className="comparison-section-body">
             <ClaimApprovalSection claimId={claimId} quotes={quotes} />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Vehicle Valuation — reference panel for market value context */}
-        <div className="mb-6">
-          <VehicleValuationCard claimId={claimId} />
+        <div className="comparison-section mb-5">
+          <div className="comparison-section-header">
+            <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.50 0.15 250), oklch(0.40 0.12 250))' }}>$</span>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Vehicle Valuation</p>
+              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Market value reference for total loss assessment</p>
+            </div>
+          </div>
+          <div className="comparison-section-body">
+            <VehicleValuationCard claimId={claimId} />
+          </div>
         </div>
 
         {/* REMOVED SECTIONS (now rendered above in correct order): */}

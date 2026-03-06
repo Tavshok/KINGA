@@ -1,11 +1,7 @@
 /**
- * Governance Summary Card Component
- * 
- * Displays governance metrics with 30-day trend indicators and "View Details" action.
- * Used in Executive Dashboard governance section.
+ * Governance Summary Card Component — World-class dark BI design
  */
 
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { TrendingUp, TrendingDown, Minus, Eye } from "lucide-react";
 import { LucideIcon } from "lucide-react";
@@ -21,6 +17,16 @@ interface GovernanceSummaryCardProps {
   onViewDetails?: () => void;
 }
 
+const GOV_COLORS: Record<string, { icon: string; accent: string; glow: string }> = {
+  blue:   { icon: 'oklch(0.60 0.20 250)', accent: 'oklch(0.60 0.20 250 / 0.15)', glow: 'oklch(0.60 0.20 250 / 0.06)' },
+  green:  { icon: 'oklch(0.65 0.18 145)', accent: 'oklch(0.65 0.18 145 / 0.15)', glow: 'oklch(0.65 0.18 145 / 0.06)' },
+  purple: { icon: 'oklch(0.65 0.20 295)', accent: 'oklch(0.65 0.20 295 / 0.15)', glow: 'oklch(0.65 0.20 295 / 0.06)' },
+  red:    { icon: 'oklch(0.62 0.22 25)',  accent: 'oklch(0.62 0.22 25 / 0.15)',  glow: 'oklch(0.62 0.22 25 / 0.06)'  },
+  amber:  { icon: 'oklch(0.75 0.18 70)',  accent: 'oklch(0.75 0.18 70 / 0.15)',  glow: 'oklch(0.75 0.18 70 / 0.06)'  },
+  slate:  { icon: 'oklch(0.62 0.015 250)', accent: 'oklch(0.62 0.015 250 / 0.15)', glow: 'oklch(0.62 0.015 250 / 0.06)' },
+  orange: { icon: 'oklch(0.70 0.20 50)',  accent: 'oklch(0.70 0.20 50 / 0.15)',  glow: 'oklch(0.70 0.20 50 / 0.06)'  },
+};
+
 export function GovernanceSummaryCard({
   title,
   value,
@@ -31,115 +37,78 @@ export function GovernanceSummaryCard({
   color,
   onViewDetails,
 }: GovernanceSummaryCardProps) {
-  const colorClasses = {
-    blue: {
-      gradient: "from-blue-500 to-blue-600",
-      icon: "text-blue-600",
-      bg: "bg-blue-50",
-    },
-    green: {
-      gradient: "from-green-500 to-green-600",
-      icon: "text-green-600",
-      bg: "bg-green-50",
-    },
-    purple: {
-      gradient: "from-purple-500 to-purple-600",
-      icon: "text-purple-600",
-      bg: "bg-purple-50",
-    },
-    red: {
-      gradient: "from-red-500 to-red-600",
-      icon: "text-red-600",
-      bg: "bg-red-50",
-    },
-    amber: {
-      gradient: "from-amber-500 to-amber-600",
-      icon: "text-amber-600",
-      bg: "bg-amber-50",
-    },
-    slate: {
-      gradient: "from-slate-500 to-slate-600",
-      icon: "text-slate-600",
-      bg: "bg-slate-50",
-    },
-    orange: {
-      gradient: "from-orange-500 to-orange-600",
-      icon: "text-orange-600",
-      bg: "bg-orange-50",
-    },
-  };
+  const c = GOV_COLORS[color] || GOV_COLORS.slate;
 
   const getTrendIcon = () => {
     switch (trend) {
-      case "up":
-        return <TrendingUp className="h-4 w-4" />;
-      case "down":
-        return <TrendingDown className="h-4 w-4" />;
-      case "stable":
-        return <Minus className="h-4 w-4" />;
+      case "up": return <TrendingUp className="h-3 w-3" />;
+      case "down": return <TrendingDown className="h-3 w-3" />;
+      case "stable": return <Minus className="h-3 w-3" />;
     }
   };
 
-  const getTrendColor = () => {
-    // For governance metrics, "down" is usually good (fewer violations/overrides)
-    // "up" is usually concerning
+  const getTrendStyle = () => {
     switch (trend) {
-      case "down":
-        return "text-green-600 bg-green-50";
-      case "up":
-        return "text-red-600 bg-red-50";
-      case "stable":
-        return "text-slate-600 bg-slate-50";
+      case "down": return { background: 'oklch(0.65 0.18 145 / 0.12)', color: 'oklch(0.65 0.18 145)' };
+      case "up":   return { background: 'oklch(0.62 0.22 25 / 0.12)',  color: 'oklch(0.62 0.22 25)'  };
+      case "stable": return { background: 'oklch(0.45 0.015 250 / 0.12)', color: 'oklch(0.55 0.015 250)' };
     }
   };
 
   const getTrendLabel = () => {
-    if (trend === "stable") return "No change";
+    if (trend === "stable") return "Stable";
     if (!previousValue) return trend === "up" ? "Increasing" : "Decreasing";
-    
     const current = typeof value === "string" ? parseFloat(value) : value;
     const change = Math.abs(current - previousValue);
     const changePercent = previousValue > 0 ? ((change / previousValue) * 100).toFixed(0) : "0";
-    
-    return `${trend === "up" ? "+" : "-"}${changePercent}% vs last 30 days`;
+    return `${trend === "up" ? "+" : "-"}${changePercent}% vs 30d`;
   };
 
   return (
-    <Card className="relative overflow-hidden hover:shadow-lg transition-all duration-300 border-0">
-      <div className={`absolute inset-0 bg-gradient-to-br ${colorClasses[color].gradient} opacity-5`}></div>
-      <CardContent className="p-6 relative">
-        <div className="flex items-start justify-between mb-4">
-          <div className={`p-3 rounded-xl ${colorClasses[color].bg}`}>
-            <Icon className={`h-6 w-6 ${colorClasses[color].icon}`} />
-          </div>
-          <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${getTrendColor()}`}>
-            {getTrendIcon()}
-            <span className="ml-1">{getTrendLabel()}</span>
-          </div>
+    <div
+      className="relative overflow-hidden rounded-xl p-5"
+      style={{
+        background: 'linear-gradient(135deg, oklch(0.14 0.018 250) 0%, oklch(0.12 0.015 250) 100%)',
+        border: '1px solid oklch(0.22 0.02 250)',
+        boxShadow: `0 0 16px ${c.glow}`,
+      }}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div
+          className="p-2.5 rounded-lg"
+          style={{ background: c.accent, border: `1px solid ${c.icon}40` }}
+        >
+          <Icon className="h-4 w-4" style={{ color: c.icon }} />
         </div>
-        
-        <div className="space-y-2">
-          <p className="text-sm font-medium text-slate-600">{title}</p>
-          <p className="text-4xl font-bold text-slate-900">{value}</p>
-          {subtitle && (
-            <p className="text-sm text-slate-500">{subtitle}</p>
-          )}
+        <div
+          className="flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+          style={getTrendStyle()}
+        >
+          {getTrendIcon()}
+          <span className="ml-0.5">{getTrendLabel()}</span>
         </div>
+      </div>
 
-        {onViewDetails && (
-          <div className="mt-4 pt-4 border-t border-slate-100">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-slate-600 hover:text-slate-900 hover:bg-slate-50"
-              onClick={onViewDetails}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              View Details
-            </Button>
-          </div>
+      <div className="space-y-1">
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.48 0.015 250)' }}>{title}</p>
+        <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
+        {subtitle && (
+          <p className="text-xs" style={{ color: 'oklch(0.52 0.015 250)' }}>{subtitle}</p>
         )}
-      </CardContent>
-    </Card>
+      </div>
+
+      {onViewDetails && (
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid oklch(0.22 0.02 250)' }}>
+          <button
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded"
+            style={{ color: 'oklch(0.55 0.015 250)', background: 'oklch(0.18 0.015 250)' }}
+            onClick={onViewDetails}
+          >
+            <Eye className="h-3 w-3" />
+            View Details
+          </button>
+        </div>
+      )}
+    </div>
   );
 }

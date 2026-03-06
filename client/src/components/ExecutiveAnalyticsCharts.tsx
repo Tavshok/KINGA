@@ -28,17 +28,25 @@ import {
   RotateCcw, Wrench, TrendingDown, Banknote,
 } from "lucide-react";
 
-// ─── Colour palette ───────────────────────────────────────────────────────────
+/// ─── Colour palette — KINGA BI Dark Theme ─────────────────────────────────────────
 
 const COLORS = {
-  blue:   "#3b82f6",
-  red:    "#ef4444",
-  green:  "#22c55e",
-  orange: "#fb923c",
-  purple: "#a855f7",
-  amber:  "#f59e0b",
-  teal:   "#14b8a6",
-  slate:  "#64748b",
+  blue:   "#5ba3f5",  // Bright blue for dark bg
+  red:    "#f87171",  // Soft red
+  green:  "#4ade80",  // Emerald green — KINGA primary
+  orange: "#fb923c",  // Amber
+  purple: "#c084fc",  // Soft purple
+  amber:  "#fbbf24",  // Gold amber
+  teal:   "#2dd4bf",  // Teal
+  slate:  "#94a3b8",  // Slate grey
+};
+
+// Chart grid and axis colors for dark theme
+const CHART_GRID = "rgba(255,255,255,0.06)";
+const CHART_AXIS = "rgba(255,255,255,0.35)";
+const TOOLTIP_STYLE = {
+  contentStyle: { background: '#0f1929', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '8px', color: '#e2e8f0' },
+  labelStyle: { color: '#94a3b8', fontSize: 11 },
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -76,20 +84,20 @@ interface MiniKPIProps {
 }
 
 function MiniKPI({ title, value, subtitle, icon: Icon, color, loading }: MiniKPIProps) {
-  const bg: Record<MiniKPIProps["color"], string> = {
-    blue:   "bg-blue-50   text-blue-600",
-    green:  "bg-green-50  text-green-600",
-    red:    "bg-red-50    text-red-600",
-    amber:  "bg-amber-50  text-amber-600",
-    purple: "bg-purple-50 text-purple-600",
-    teal:   "bg-teal-50   text-teal-600",
+  const iconStyle: Record<MiniKPIProps["color"], React.CSSProperties> = {
+    blue:   { background: 'rgba(91,163,245,0.12)', color: '#5ba3f5' },
+    green:  { background: 'rgba(74,222,128,0.12)', color: '#4ade80' },
+    red:    { background: 'rgba(248,113,113,0.12)', color: '#f87171' },
+    amber:  { background: 'rgba(251,191,36,0.12)',  color: '#fbbf24' },
+    purple: { background: 'rgba(192,132,252,0.12)', color: '#c084fc' },
+    teal:   { background: 'rgba(45,212,191,0.12)',  color: '#2dd4bf' },
   };
 
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
-        <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${bg[color]}`}>
+        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg" style={iconStyle[color]}>
           <Icon className="h-4 w-4" />
         </div>
       </CardHeader>
@@ -98,7 +106,7 @@ function MiniKPI({ title, value, subtitle, icon: Icon, color, loading }: MiniKPI
           <div className="h-8 w-24 animate-pulse rounded bg-muted" />
         ) : (
           <>
-            <div className="text-3xl font-bold">{value}</div>
+            <div className="text-2xl font-bold tracking-tight">{value}</div>
             {subtitle && <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>}
           </>
         )}
@@ -291,16 +299,19 @@ export default function ExecutiveAnalyticsCharts() {
                   layout="vertical"
                   margin={{ top: 4, right: 60, left: 10, bottom: 4 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                  <XAxis type="number" fontSize={11} allowDecimals={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} horizontal={false} />
+                  <XAxis type="number" fontSize={11} allowDecimals={false} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
                   <YAxis
                     type="category"
                     dataKey="name"
                     fontSize={11}
                     width={130}
-                    tick={{ fill: "#374151" }}
+                    tick={{ fill: CHART_AXIS }}
+                    axisLine={false}
+                    tickLine={false}
                   />
                   <Tooltip
+                    {...TOOLTIP_STYLE}
                     formatter={(value: any, name: string) => {
                       if (name === "overrides")   return [value, "Overrides"];
                       if (name === "recommended") return [value, "Times Recommended"];
@@ -355,12 +366,12 @@ export default function ExecutiveAnalyticsCharts() {
                 {volumeLoading ? <LoadingPlaceholder /> : volumeChartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={volumeChartData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" fontSize={11} />
-                      <YAxis fontSize={11} allowDecimals={false} />
-                      <Tooltip />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} />
+                      <XAxis dataKey="date" fontSize={11} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <YAxis fontSize={11} allowDecimals={false} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <Tooltip {...TOOLTIP_STYLE} />
                       <Legend />
-                      <Area type="monotone" dataKey="total" name="Total Claims" stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.1} />
+                      <Area type="monotone" dataKey="total" name="Total Claims" stroke={COLORS.blue} fill={COLORS.blue} fillOpacity={0.15} />
                     </AreaChart>
                   </ResponsiveContainer>
                 ) : <EmptyPlaceholder />}
@@ -382,14 +393,14 @@ export default function ExecutiveAnalyticsCharts() {
                 {fraudLoading ? <LoadingPlaceholder /> : fraudRateData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={fraudRateData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" fontSize={11} />
-                      <YAxis fontSize={11} allowDecimals={false} />
-                      <Tooltip />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+                      <XAxis dataKey="date" fontSize={11} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <YAxis fontSize={11} allowDecimals={false} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <Tooltip {...TOOLTIP_STYLE} />
                       <Legend />
-                      <Bar dataKey="high"   name="High Risk"   fill={COLORS.red}    stackId="a" />
+                      <Bar dataKey="high"   name="High Risk"   fill={COLORS.red}    stackId="a" radius={[0,0,0,0]} />
                       <Bar dataKey="medium" name="Medium Risk" fill={COLORS.orange} stackId="a" />
-                      <Bar dataKey="low"    name="Low Risk"    fill={COLORS.green}  stackId="a" />
+                      <Bar dataKey="low"    name="Low Risk"    fill={COLORS.green}  stackId="a" radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : <EmptyPlaceholder />}
@@ -411,13 +422,13 @@ export default function ExecutiveAnalyticsCharts() {
                 {costLoading ? <LoadingPlaceholder /> : costData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={costData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="status" fontSize={9} />
-                      <YAxis fontSize={11} />
-                      <Tooltip formatter={(v: any) => [`${currencySymbol}${Number(v).toLocaleString("en-US")}`, ""]} />
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+                      <XAxis dataKey="status" fontSize={9} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <YAxis fontSize={11} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <Tooltip {...TOOLTIP_STYLE} formatter={(v: any) => [`${currencySymbol}${Number(v).toLocaleString("en-US")}`, ""]} />
                       <Legend />
-                      <Bar dataKey="avg_amount"   name={`Avg Approved (${currencySymbol})`}   fill={COLORS.blue}  />
-                      <Bar dataKey="total_amount" name={`Total Approved (${currencySymbol})`} fill={COLORS.green} />
+                      <Bar dataKey="avg_amount"   name={`Avg Approved (${currencySymbol})`}   fill={COLORS.blue}  radius={[4,4,0,0]} />
+                      <Bar dataKey="total_amount" name={`Total Approved (${currencySymbol})`} fill={COLORS.green} radius={[4,4,0,0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 ) : <EmptyPlaceholder />}
@@ -439,11 +450,11 @@ export default function ExecutiveAnalyticsCharts() {
                 {timeLoading ? <LoadingPlaceholder /> : (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={processingData}>
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="stage" fontSize={10} />
-                      <YAxis fontSize={11} label={{ value: "Days", angle: -90, position: "insideLeft", fontSize: 11 }} />
-                      <Tooltip />
-                      <Bar dataKey="days" name="Average Days">
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_GRID} vertical={false} />
+                      <XAxis dataKey="stage" fontSize={10} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} />
+                      <YAxis fontSize={11} tick={{ fill: CHART_AXIS }} axisLine={false} tickLine={false} label={{ value: "Days", angle: -90, position: "insideLeft", fontSize: 11, fill: CHART_AXIS }} />
+                      <Tooltip {...TOOLTIP_STYLE} />
+                      <Bar dataKey="days" name="Average Days" radius={[4,4,0,0]}>
                         {processingData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
