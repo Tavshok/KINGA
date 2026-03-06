@@ -27,7 +27,6 @@ import {
   Brain,
   AlertCircle,
 } from "lucide-react";
-import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -57,15 +56,14 @@ interface AiAssessment {
 interface Props {
   aiAssessment: AiAssessment | null | undefined;
   quotes: Quote[];
-  /** Optional override — if omitted, falls back to tenant currency */
-  currencySymbol?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function formatCents(cents: number | null | undefined, sym: string): string {
-  if (cents == null || isNaN(cents)) return "—";
-  return `${sym}${(cents / 100).toLocaleString("en-US", {
+function formatAmount(amount: number | null | undefined, sym: string = "US$"): string {
+  if (amount == null || isNaN(amount)) return "—";
+  // Costs are stored as whole numbers (e.g. 900 = US$900), not cents
+  return `${sym}${amount.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   })}`;
@@ -168,12 +166,7 @@ function ConfidenceBar({ score }: { score: number | null | undefined }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function AiIntelligenceSummaryCard({ aiAssessment, quotes, currencySymbol: injectedSym }: Props) {
-  const { currencySymbol: tenantSym, fmt: tenantFmt } = useTenantCurrency();
-  const sym = injectedSym ?? tenantSym;
-  const fmt = injectedSym
-    ? (cents: number | null | undefined) => formatCents(cents, sym)
-    : tenantFmt;
+export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
   // ── Derived values ──────────────────────────────────────────────────────────
   const components = parseComponents(aiAssessment?.damagedComponentsJson);
   const top3 = components.slice(0, 3);
@@ -256,31 +249,50 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes, currencySymbol
             )}
           </div>
 
-          {/* ── Section 2: Repair Cost Intelligence ─────────────────────── */}
+          {/* ── Section 2: Repair Cost Intelligence ───────────────── */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
               <BarChart2 className="h-3.5 w-3.5" />
               Repair Cost Intelligence
             </p>
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Quote spread</span>
-                <span className="font-semibold">
-                  {spreadPct != null ? `${spreadPct}%` : "—"}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Median cost</span>
-                <span className="font-semibold">{fmt(medianQuote)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Recommended</span>
-                <span className="font-semibold text-primary truncate max-w-[120px] text-right">
-                  {recommendedQuote
-                    ? recommendedQuote.panelBeaterName ?? `Repairer #${recommendedQuote.panelBeaterId ?? recommendedQuote.id}`
-                    : "—"}
-                </span>
-              </div>
+              {quoteAmounts.length > 0 ? (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Quote spread</span>
+                    <span className="font-semibold">
+                      {spreadPct != null ? `${spreadPct}%` : "—"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Median cost</span>
+                    <span className="font-semibold">{formatAmount(medianQuote)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Recommended</span>
+                    <span className="font-semibold text-primary truncate max-w-[120px] text-right">
+                      {recommendedQuote
+                        ? recommendedQuote.panelBeaterName ?? `Repairer #${recommendedQuote.panelBeaterId ?? recommendedQuote.id}`
+                        : "—"}
+                    </span>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">AI Estimated Cost</span>
+                    <span className="font-semibold text-primary">{formatAmount(aiAssessment.estimatedCost)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Quote spread</span>
+                    <span className="text-xs text-muted-foreground">Awaiting quotes</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Recommended</span>
+                    <span className="text-xs text-muted-foreground">Awaiting quotes</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

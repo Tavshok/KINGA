@@ -8,7 +8,6 @@ import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
 import { useState, useEffect, useRef } from "react";
-import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
 import PoliceReportForm from "@/components/PoliceReportForm";
@@ -22,8 +21,6 @@ import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
-import { ClaimCurrencySelector } from "@/components/ClaimCurrencySelector";
-// ─── Currency helper is initialised inside the component via useTenantCurrency ───
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -66,7 +63,6 @@ const BAND_CONFIG: Record<CostBand, { label: string; containerClass: string; dot
 
 export default function InsurerComparisonView() {
   const { user, logout } = useAuth();
-  const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [, params1] = useRoute("/insurer/claims/:id/comparison");
   const [, params2] = useRoute("/insurer/comparison/:id");
@@ -131,11 +127,10 @@ export default function InsurerComparisonView() {
 
   // Handler for exporting damage report PDF
   const handleExportDamageReport = (aiAssessment: any, claim: any) => {
-    // Parse damaged components — may be strings or objects {name, severity, location, damageType}
-    const rawComponents = aiAssessment.damagedComponentsJson 
+    // Parse damaged components
+    const damagedComponents = aiAssessment.damagedComponentsJson 
       ? JSON.parse(aiAssessment.damagedComponentsJson) 
       : [];
-    const damagedComponents: string[] = rawComponents.map(getCompName).filter(Boolean);
 
     // Component categories for categorization
     const componentCategories = {
@@ -163,21 +158,22 @@ export default function InsurerComparisonView() {
     const damageDescription = aiAssessment.damageDescription || "";
     
     if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
-      if (claim.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+      if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+        // Physics: force propagation is Bumper → Crash Bar/Subframe → Radiator/Condenser
         inferredHiddenDamage.push({
-          component: "Radiator / AC Condenser",
-          reason: "Front-end impact typically damages cooling system components",
+          component: "Front Subframe / Crash Bar",
+          reason: "Primary energy-absorbing structural member in frontal collisions — damaged before force reaches cooling components",
           confidence: "High"
         });
         inferredHiddenDamage.push({
-          component: "Front Subframe / Crash Bar",
-          reason: "Significant frontal collision often affects structural supports",
+          component: "Radiator / AC Condenser",
+          reason: "Cooling components sit behind the subframe — damaged only if impact force exceeds subframe absorption capacity",
           confidence: "Medium"
         });
       }
     }
 
-    if (claim.accidentType?.includes("side")) {
+    if (aiAssessment.accidentType?.includes("side")) {
       inferredHiddenDamage.push({
         component: "Door Intrusion Beam",
         reason: "Side impact typically damages internal door reinforcement",
@@ -192,7 +188,7 @@ export default function InsurerComparisonView() {
       }
     }
 
-    if (claim.accidentType === "rollover") {
+    if (aiAssessment.accidentType === "rollover") {
       inferredHiddenDamage.push({
         component: "Roof Structure / Pillars",
         reason: "Rollover accidents cause structural deformation",
@@ -200,7 +196,7 @@ export default function InsurerComparisonView() {
       });
     }
 
-    if (claim.structuralDamage) {
+    if (aiAssessment.structuralDamage) {
       inferredHiddenDamage.push({
         component: "Frame / Unibody Structure",
         reason: "AI detected structural damage indicators",
@@ -208,7 +204,7 @@ export default function InsurerComparisonView() {
       });
     }
 
-    if (claim.airbagDeployment) {
+    if (aiAssessment.airbagDeployment) {
       inferredHiddenDamage.push({
         component: "Airbag Control Module / Sensors",
         reason: "Airbag deployment requires system replacement",
@@ -222,41 +218,48 @@ export default function InsurerComparisonView() {
       vehicle: `${claim.vehicleMake} ${claim.vehicleModel} (${claim.vehicleYear})`,
       registration: claim.vehicleRegistration,
       incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
-      accidentType: claim.accidentType || "unknown",
+      accidentType: aiAssessment.accidentType || "unknown",
       damagedComponents,
       categorizedDamage,
       inferredHiddenDamage,
-      structuralDamage: !!claim.structuralDamage,
-      airbagDeployment: !!claim.airbagDeployment,
+      structuralDamage: aiAssessment.structuralDamage || false,
+      airbagDeployment: aiAssessment.airbagDeployment || false,
       estimatedCost: aiAssessment.estimatedCost || 0,
-      partsCost: aiAssessment.estimatedPartsCost ?? Math.round((aiAssessment.estimatedCost || 0) * 0.6),
-      laborCost: aiAssessment.estimatedLaborCost ?? Math.round((aiAssessment.estimatedCost || 0) * 0.4),
+      partsCost: aiAssessment.partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
+      laborCost: aiAssessment.laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
       damageDescription: aiAssessment.damageDescription || "",
-      // Physics analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
+      // Physics analysis from AI assessment
       physicsAnalysis: (() => {
         if (!aiAssessment?.physicsAnalysis) return undefined;
         try {
-          return typeof aiAssessment.physicsAnalysis === 'string'
+          const p = typeof aiAssessment.physicsAnalysis === 'string'
             ? JSON.parse(aiAssessment.physicsAnalysis)
             : aiAssessment.physicsAnalysis;
+          return {
+            impactForce: p.impactForce ?? 0,
+            estimatedSpeed: p.estimatedSpeed ?? 0,
+            impactAngle: p.impactAngle ?? 0,
+            damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
+            physicsDeviationScore: p.physicsDeviationScore ?? 0,
+          };
         } catch { return undefined; }
       })(),
-      // Forensic analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
+      // Forensic analysis from AI assessment
       forensicAnalysis: (() => {
         if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
         try {
-          return typeof (aiAssessment as any).forensicAnalysis === 'string'
+          const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
             ? JSON.parse((aiAssessment as any).forensicAnalysis)
             : (aiAssessment as any).forensicAnalysis;
+          return {
+            overallFraudScore: f.overallFraudScore ?? 0,
+            paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
+            bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
+            glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
+            tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
+            fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
+          };
         } catch { return undefined; }
-      })(),
-      // Damage photos — parse JSON string if needed
-      damagePhotos: (() => {
-        const dp = (claim as any).damagePhotos;
-        if (!dp) return undefined;
-        if (Array.isArray(dp)) return dp;
-        try { const parsed = JSON.parse(dp); return Array.isArray(parsed) ? parsed : undefined; }
-        catch { return undefined; }
       })(),
     });
 
@@ -351,15 +354,9 @@ export default function InsurerComparisonView() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Fraud Detection & Comparison</h1>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <div className="flex items-center gap-2 mt-1">
                 <p className="text-sm text-muted-foreground font-mono">{claim.claimNumber}</p>
                 <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
-                {/* Per-claim currency selector — claims manager sets currency per policy insured */}
-                <ClaimCurrencySelector
-                  claimId={claim.id}
-                  currentCurrency={(claim as any).currencyCode ?? "USD"}
-                  compact
-                />
               </div>
             </div>
             <div className="flex gap-2">
@@ -466,44 +463,48 @@ export default function InsurerComparisonView() {
                         confidenceScore: aiAssessment?.confidenceScore ?? 0,
                       };
                     })(),
-                    // Accident circumstances from claim record
-                    accidentCircumstances: {
-                      incidentDescription: claim.incidentDescription || undefined,
-                      incidentLocation: claim.incidentLocation || undefined,
-                      incidentType: (claim as any).incidentType || undefined,
-                      accidentType: (aiAssessment as any)?.accidentType || undefined,
-                    },
-                    // Physics analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
+                    // Physics analysis from AI assessment
                     physicsAnalysis: (() => {
                       if (!aiAssessment?.physicsAnalysis) return undefined;
                       try {
-                        return typeof aiAssessment.physicsAnalysis === 'string'
+                        const p = typeof aiAssessment.physicsAnalysis === 'string'
                           ? JSON.parse(aiAssessment.physicsAnalysis)
                           : aiAssessment.physicsAnalysis;
+                        return {
+                          impactForce: p.impactForce ?? 0,
+                          estimatedSpeed: p.estimatedSpeed ?? 0,
+                          impactAngle: p.impactAngle ?? 0,
+                          damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
+                          fraudIndicators: {
+                            impossibleDamagePatterns: p.fraudIndicators?.impossibleDamagePatterns ?? [],
+                            unrelatedDamage: p.fraudIndicators?.unrelatedDamage ?? [],
+                            stagedAccidentIndicators: p.fraudIndicators?.stagedAccidentIndicators ?? [],
+                            severityMismatch: p.fraudIndicators?.severityMismatch ?? false,
+                          },
+                          physicsDeviationScore: p.physicsDeviationScore ?? 0,
+                        };
                       } catch { return undefined; }
                     })(),
-                    // Forensic analysis — pass the full parsed object; pdfExport handles both DB and legacy formats
+                    // Forensic analysis from AI assessment
                     forensicAnalysis: (() => {
                       if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
                       try {
-                        return typeof (aiAssessment as any).forensicAnalysis === 'string'
+                        const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
                           ? JSON.parse((aiAssessment as any).forensicAnalysis)
                           : (aiAssessment as any).forensicAnalysis;
+                        return {
+                          overallFraudScore: f.overallFraudScore ?? 0,
+                          paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
+                          bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
+                          glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
+                          tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
+                          fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
+                        };
                       } catch { return undefined; }
                     })(),
-                    // Damage photos — parse JSON string if needed
-                    damagePhotos: (() => {
-                      const dp = (claim as any).damagePhotos;
-                      if (!dp) return undefined;
-                      if (Array.isArray(dp)) return dp;
-                      try { const parsed = JSON.parse(dp); return Array.isArray(parsed) ? parsed : undefined; }
-                      catch { return undefined; }
-                    })(),
                   };
-
-                  const currencyCode = (claim as any).currencyCode || 'USD';
-                  const currencySymbol = currencyCode === 'ZAR' ? 'R' : currencyCode === 'GBP' ? '£' : currencyCode === 'EUR' ? '€' : 'US$';
-                  generateComparisonPDF(pdfData, currencySymbol);
+                  
+                  generateComparisonPDF(pdfData);
                   toast.success("PDF report downloaded successfully");
                 }}
               >
@@ -564,83 +565,38 @@ export default function InsurerComparisonView() {
           quotes={quotes as any[]}
         />
 
-        {/* Claim Overview */}
+        {/* Claim Summary */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Claim Overview</CardTitle>
+            <CardTitle>Claim Summary</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid gap-4 md:grid-cols-3">
-              <div>
-                <p className="text-sm text-muted-foreground">Claim Number</p>
-                <p className="font-medium font-mono text-sm">{claim.claimNumber || "—"}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Status</p>
-                <p className="font-medium capitalize">{(claim.status || "unknown").replace(/_/g, " ")}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Source</p>
-                <p className="font-medium">{claim.claimSource === "document_ingestion" ? "Document Ingestion" : (claim.claimSource || "Manual")}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Vehicle</p>
-                <p className="font-medium">
-                  {(claim.vehicleMake || claim.vehicleModel || claim.vehicleYear)
-                    ? `${claim.vehicleMake || ""} ${claim.vehicleModel || ""} ${claim.vehicleYear ? `(${claim.vehicleYear})` : ""}`.trim()
-                    : claim.claimSource === "document_ingestion" ? "Extracted from document" : "Not provided"}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Registration</p>
-                <p className="font-medium">{claim.vehicleRegistration || (claim.claimSource === "document_ingestion" ? "Extracted from document" : "Not provided")}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Incident Date</p>
-                <p className="font-medium">
-                  {claim.incidentDate
-                    ? new Date(claim.incidentDate).toLocaleDateString()
-                    : claim.claimSource === "document_ingestion" ? "Extracted from document" : "N/A"}
-                </p>
-              </div>
-              {claim.policyNumber && (
-                <div>
-                  <p className="text-sm text-muted-foreground">Policy Number</p>
-                  <p className="font-medium">{claim.policyNumber}</p>
-                </div>
-              )}
-              {claim.incidentDescription && (
-                <div className="md:col-span-3">
-                  <p className="text-sm text-muted-foreground">Incident Description</p>
-                  <p className="text-sm mt-1">{claim.incidentDescription}</p>
-                </div>
-              )}
+          <CardContent className="grid gap-4 md:grid-cols-3">
+            <div>
+              <p className="text-sm text-muted-foreground">Vehicle</p>
+              <p className="font-medium">
+                {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
+              </p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Registration</p>
+              <p className="font-medium">{claim.vehicleRegistration}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">Incident Date</p>
+              <p className="font-medium">
+                {claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A"}
+              </p>
             </div>
           </CardContent>
         </Card>
 
-        {/* Submitted Evidence — police report, driver statements, supporting documents */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Shield className="h-5 w-5 text-blue-600" />
-              Submitted Evidence
-            </CardTitle>
-            <CardDescription>
-              Police reports, driver statements, and supporting documents submitted with this claim
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <PoliceReportForm claimId={claimId} />
-          </CardContent>
-        </Card>
+        {/* Panel Beater Choices */}
+        <PanelBeaterChoicesCard claimId={claimId} />
 
         {/* Vehicle Valuation Section */}
         <div className="mb-6">
           <VehicleValuationCard claimId={claimId} />
         </div>
-        {/* Panel Beater Choices */}
-        <PanelBeaterChoicesCard claimId={claimId} />
 
         {/* Damage Component Breakdown */}
         {aiAssessment && (
@@ -711,8 +667,8 @@ export default function InsurerComparisonView() {
                       )}
                       {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
                         <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
-                          <p>Repair Cost: {fmt(aiAssessment.estimatedCost)}</p>
-                           <p>Vehicle Value: {fmt(aiAssessment.estimatedVehicleValue)}</p>
+                          <p>Repair Cost: ${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
+                          <p>Vehicle Value: ${(aiAssessment.estimatedVehicleValue || 0).toLocaleString()}</p>
                           <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
                         </div>
                       )}
@@ -722,7 +678,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Cost</p>
                     <p className="text-2xl font-bold text-primary">
-                      {fmt(aiAssessment.estimatedCost)}
+                      ${(aiAssessment.estimatedCost || 0).toLocaleString()}
                     </p>
                   </div>
                   <Separator />
@@ -811,7 +767,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Estimated Cost</p>
                     <p className="text-2xl font-bold text-primary">
-                      {fmt(assessorEval.estimatedRepairCost)}
+                      ${(assessorEval.estimatedRepairCost || 0).toLocaleString()}
                     </p>
                   </div>
                   <Separator />
@@ -819,13 +775,13 @@ export default function InsurerComparisonView() {
                     <div>
                       <p className="text-xs text-muted-foreground">Labor</p>
                       <p className="font-medium">
-                        {fmt(assessorEval.laborCost)}
+                        ${(assessorEval.laborCost || 0).toLocaleString()}
                       </p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Parts</p>
                       <p className="font-medium">
-                        {fmt(assessorEval.partsCost)}
+                        ${(assessorEval.partsCost || 0).toLocaleString()}
                       </p>
                     </div>
                   </div>
@@ -893,7 +849,7 @@ export default function InsurerComparisonView() {
                           <div>
                             <p className="text-sm text-muted-foreground">Quote {index + 1}</p>
                             <p className="text-xl font-bold text-primary">
-                              {fmt(quote.quotedAmount || 0, { decimals: 0 })}
+                              ${(quote.quotedAmount || 0).toLocaleString()}
                             </p>
                           </div>
                           {/* Cost Intelligence Indicator */}
@@ -914,13 +870,13 @@ export default function InsurerComparisonView() {
                           <div>
                             <p className="text-xs text-muted-foreground">Labor Cost</p>
                             <p className="text-sm font-medium">
-                              {fmt(quote.laborCost || 0, { decimals: 0 })}
+                              ${(quote.laborCost || 0).toLocaleString()}
                             </p>
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Parts Cost</p>
                             <p className="text-sm font-medium">
-                              {fmt(quote.partsCost || 0, { decimals: 0 })}
+                              ${(quote.partsCost || 0).toLocaleString()}
                             </p>
                           </div>
                         </div>
@@ -959,11 +915,11 @@ export default function InsurerComparisonView() {
                       <div className="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 p-3">
                         <div>
                           <p className="text-xs text-muted-foreground">Median Quote</p>
-                          <p className="text-sm font-semibold">{fmt(median, { decimals: 0 })}</p>
+                          <p className="text-sm font-semibold">${median.toLocaleString()}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Lowest Quote</p>
-                          <p className="text-sm font-semibold text-emerald-700">{fmt(minCost, { decimals: 0 })}</p>
+                          <p className="text-sm font-semibold text-emerald-700">${minCost.toLocaleString()}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Quote Spread</p>
@@ -976,7 +932,7 @@ export default function InsurerComparisonView() {
                   <div>
                     <p className="text-sm text-muted-foreground">Average Quote</p>
                     <p className="text-lg font-bold">
-                      {fmt(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length, { decimals: 0 })}
+                      ${(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length).toLocaleString()}
                     </p>
                   </div>
                 </div>
@@ -995,16 +951,16 @@ export default function InsurerComparisonView() {
           <QuoteComparison quotes={quotes} />
         )}
         
-           {/* Physics-Based Quote Validation */}
-        {aiAssessment && quotes.length > 0 && (
+           {/* Physics-Based Accident Analysis */}
+        {aiAssessment && (
           <Card className="border-2 border-primary/20 bg-primary/5/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Badge className="bg-primary">Physics Analysis</Badge>
-                Quote Validation & Fraud Detection
+                Accident Dynamics & Fraud Detection
               </CardTitle>
               <CardDescription>
-                Physics-based validation of quoted repairs against accident dynamics
+                Physics-based analysis of accident dynamics, impact forces, and repair validation
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -1032,7 +988,6 @@ export default function InsurerComparisonView() {
 
 // Claim Approval Component
 function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: any[] }) {
-  const { fmt } = useTenantCurrency();
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null);
   const utils = trpc.useUtils();
   
@@ -1078,7 +1033,7 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
                   <div>
                     <p className="font-medium">Panel Beater #{quote.panelBeaterId}</p>
                     <p className="text-sm text-muted-foreground">
-                      Quote: {fmt(quote.quotedAmount)} • {quote.estimatedDuration} days
+                      Quote: ${(quote.quotedAmount || 0).toLocaleString()} • {quote.estimatedDuration} days
                     </p>
                   </div>
                   {selectedQuoteId === quote.id && (
@@ -1119,22 +1074,12 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 }
 
 
-// Helper: extract component name whether it's a string or an object {name, severity, ...}
-function getCompName(comp: any): string {
-  if (!comp) return '';
-  if (typeof comp === 'string') return comp;
-  if (typeof comp === 'object') return comp.name || comp.component || comp.description || String(comp);
-  return String(comp);
-}
-
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
-  const { fmt } = useTenantCurrency();
-  // Parse damaged components — may be strings or objects {name, severity, location, damageType}
-  const rawComponents = aiAssessment.damagedComponentsJson 
+  // Parse damaged components
+  const damagedComponents = aiAssessment.damagedComponentsJson 
     ? JSON.parse(aiAssessment.damagedComponentsJson) 
     : [];
-  const damagedComponents: string[] = rawComponents.map(getCompName).filter(Boolean);
 
   // Parse damage description to extract inferred hidden damage
   const damageDescription = aiAssessment.damageDescription || "";
@@ -1163,17 +1108,18 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   // Infer hidden damage based on visible damage
   const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
   
-  // Front-end collision → likely radiator/AC damage
+  // Front-end collision → infer hidden structural and cooling damage
+  // Physics: force propagation sequence is Bumper → Crash Bar/Subframe → Radiator/Condenser
   if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
     if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
       inferredHiddenDamage.push({
-        component: "Radiator / AC Condenser",
-        reason: "Front-end impact typically damages cooling system components",
+        component: "Front Subframe / Crash Bar",
+        reason: "Primary energy-absorbing structural member in frontal collisions — damaged before force reaches cooling components",
         confidence: "High"
       });
       inferredHiddenDamage.push({
-        component: "Front Subframe / Crash Bar",
-        reason: "Significant frontal collision often affects structural supports",
+        component: "Radiator / AC Condenser",
+        reason: "Cooling components sit behind the subframe — damaged only if impact force exceeds subframe absorption capacity",
         confidence: "Medium"
       });
     }
@@ -1222,10 +1168,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
     });
   }
 
-  // Cost breakdown — use AI-persisted values if available, else estimate from total
+  // Cost breakdown by category (estimated)
   const estimatedCost = aiAssessment.estimatedCost || 0;
-  const partsCost = aiAssessment.estimatedPartsCost ?? Math.round(estimatedCost * 0.6);
-  const laborCost = aiAssessment.estimatedLaborCost ?? Math.round(estimatedCost * 0.4);
+  const partsCost = aiAssessment.partsCost || estimatedCost * 0.6;
+  const laborCost = aiAssessment.laborCost || estimatedCost * 0.4;
 
   return (
     <div className="space-y-6">
@@ -1241,11 +1187,11 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-primary">{fmt(partsCost, { decimals: 0 })}</p>
+          <p className="text-2xl font-bold text-primary">${partsCost.toLocaleString()}</p>
         </div>
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
-          <p className="text-2xl font-bold text-green-600">{fmt(laborCost, { decimals: 0 })}</p>
+          <p className="text-2xl font-bold text-green-600">${laborCost.toLocaleString()}</p>
         </div>
       </div>
 
@@ -1257,10 +1203,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </h4>
         <VehicleDamageVisualization 
           damagedComponents={damagedComponents} 
-          accidentType={claim.accidentType}
+          accidentType={aiAssessment.accidentType}
           estimatedCost={aiAssessment.estimatedCost || 0}
-          structuralDamage={!!claim.structuralDamage}
-          airbagDeployment={!!claim.airbagDeployment}
+          structuralDamage={aiAssessment.structuralDamage || false}
+          airbagDeployment={aiAssessment.airbagDeployment || false}
         />
       </div>
 
@@ -1342,7 +1288,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
       )}
 
       {/* Structural Damage Warning */}
-      {claim.structuralDamage && (
+      {aiAssessment.structuralDamage && (
         <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 text-red-600" />
@@ -1368,58 +1314,26 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
 
 // Transform physics analysis to validation format
 function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) {
-  // ── Normalised contract fields (new format stored by backend) ──────────────
-  // New records have: { consistencyScore, damagePropagationScore, fraudRiskScore,
-  //   fraudIndicators: [{ component, confidence }], _raw }
-  // Legacy records have the raw PhysicsAnalysisResult shape.
-  const isNormalised = typeof physicsAnalysis.consistencyScore === "number" &&
-    Array.isArray(physicsAnalysis.fraudIndicators) &&
-    (physicsAnalysis.fraudIndicators.length === 0 ||
-      typeof physicsAnalysis.fraudIndicators[0] === "object");
+  // Normalise: physics data may be at top-level OR nested under _raw
+  const raw = physicsAnalysis._raw || physicsAnalysis;
+  const fraudIndicators = physicsAnalysis.fraudIndicators ?? raw.fraudIndicators;
+  const estimatedSpeed = physicsAnalysis.estimatedSpeed ?? raw.estimatedSpeed;
 
-  // Resolve scalar scores with backward-compat fallbacks
-  const consistencyScore: number = isNormalised
-    ? physicsAnalysis.consistencyScore
-    : (physicsAnalysis.damageConsistency?.score ?? physicsAnalysis.consistencyScore ?? physicsAnalysis.overallConsistency ?? 70);
+  // Use consistencyScore if available (from normalised DB format), otherwise calculate
+  const overallConfidence = physicsAnalysis.consistencyScore ??
+    Math.round((
+      (raw.estimatedSpeed?.confidence || 75) +
+      (raw.damagePropagation?.consistency || 80) +
+      (raw.impactForce?.confidence || 85) +
+      (physicsAnalysis.geometricConsistency ? 90 : 60)
+    ) / 4);
 
-  const damagePropagationScore: number = isNormalised
-    ? physicsAnalysis.damagePropagationScore
-    : (physicsAnalysis.damageConsistency?.score ?? 70);
+  const speedConsistency = raw.estimatedSpeed?.confidence || 75;
+  const damagePropagation = raw.damagePropagation?.consistency || 80;
+  const impactForceAnalysis = raw.impactForce?.confidence || 85;
+  const geometricAlignment = physicsAnalysis.geometricConsistency ? 90 : 60;
 
-  // Resolve structured fraud indicators with backward-compat fallbacks
-  const resolveIndicators = (raw: any): Array<{ component: string; confidence: number }> => {
-    if (isNormalised) {
-      // Already structured objects
-      return (raw.fraudIndicators || []).map((item: any) =>
-        typeof item === "string" ? { component: item, confidence: 75 } : item
-      );
-    }
-    // Legacy: convert string arrays
-    const toObj = (items: string[], conf: number) =>
-      (items || []).map((s: string) => ({ component: s, confidence: conf }));
-    return [
-      ...toObj(raw.fraudIndicators?.impossibleDamagePatterns ?? [], 90),
-      ...toObj(raw.fraudIndicators?.unrelatedDamage ?? [], 70),
-      ...toObj(raw.fraudIndicators?.stagedAccidentIndicators ?? [], 85),
-      ...(raw.fraudIndicators?.severityMismatch
-        ? [{ component: "Severity mismatch: reported damage inconsistent with impact forces", confidence: 75 }]
-        : []),
-    ];
-  };
-
-  const structuredIndicators = resolveIndicators(physicsAnalysis);
-
-  // Calculate confidence scores
-  const speedConsistency = physicsAnalysis._raw?.estimatedSpeed?.confidence ?? consistencyScore;
-  const damagePropagation = damagePropagationScore;
-  const impactForceAnalysis = physicsAnalysis._raw?.impactForce?.confidence ?? 85;
-  const geometricAlignment = physicsAnalysis._raw?.geometricConsistency ? 90 : consistencyScore;
-
-  const overallConfidence = Math.round(
-    (speedConsistency + damagePropagation + impactForceAnalysis + geometricAlignment) / 4
-  );
-
-  // Build anomalies list from structured fraud indicators
+  // Build anomalies list from fraud indicators
   const anomalies: Array<{
     type: "info" | "warning" | "error";
     title: string;
@@ -1427,34 +1341,38 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
     riskLevel: "low" | "medium" | "high";
   }> = [];
 
-  // Group indicators by type for display
-  const impossiblePatterns = structuredIndicators.filter(i => i.confidence >= 85);
-  const unrelatedDamage = structuredIndicators.filter(i => i.confidence >= 65 && i.confidence < 85);
-  const severityItems = structuredIndicators.filter(i => i.component.toLowerCase().includes("severity"));
-
-  if (impossiblePatterns.length > 0) {
+  if (fraudIndicators?.impossibleDamagePatterns?.length > 0) {
     anomalies.push({
       type: "error",
       title: "Impossible Damage Patterns",
-      description: impossiblePatterns.map(i => i.component).join("; "),
+      description: fraudIndicators.impossibleDamagePatterns.join("; "),
       riskLevel: "high",
     });
   }
 
-  if (unrelatedDamage.length > 0) {
+  if (fraudIndicators?.unrelatedDamage?.length > 0) {
     anomalies.push({
       type: "warning",
       title: "Unrelated Damage Detected",
-      description: `${unrelatedDamage.length} component(s) show damage inconsistent with impact point`,
+      description: `${fraudIndicators.unrelatedDamage.length} components show damage inconsistent with impact point`,
       riskLevel: "medium",
     });
   }
 
-  if (severityItems.length > 0) {
+  if (fraudIndicators?.stagedAccidentIndicators?.length > 0) {
+    anomalies.push({
+      type: "error",
+      title: "Staged Accident Indicators",
+      description: fraudIndicators.stagedAccidentIndicators.join("; "),
+      riskLevel: "high",
+    });
+  }
+
+  if (fraudIndicators?.severityMismatch) {
     anomalies.push({
       type: "warning",
       title: "Severity Mismatch",
-      description: "Reported damage severity does not match estimated impact speed and forces",
+      description: "Reported damage severity doesn't match estimated impact speed and forces",
       riskLevel: "medium",
     });
   }
@@ -1471,8 +1389,8 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
 
   // Build narrative summary
   let narrativeSummary = `Physics analysis shows ${overallConfidence}% confidence in claim validity. `;
-  if (physicsAnalysis.estimatedSpeed) {
-    narrativeSummary += `Estimated impact speed: ${physicsAnalysis.estimatedSpeed.value} km/h. `;
+  if (estimatedSpeed?.value) {
+    narrativeSummary += `Estimated impact speed: ${estimatedSpeed.value} km/h. `;
   }
   if (anomalies.length > 0) {
     narrativeSummary += `${anomalies.length} anomalies detected requiring investigation.`;
@@ -1494,9 +1412,12 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
 
 // Physics Validation Component
 function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessment: any; quotes: any[]; claim: any }) {
-  const { fmt } = useTenantCurrency();
   // Parse physics analysis from AI assessment
-  const physicsAnalysis = aiAssessment.physicsAnalysis ? JSON.parse(aiAssessment.physicsAnalysis) : null;
+  let physicsAnalysis: any = null;
+  try {
+    const raw = aiAssessment.physicsAnalysis;
+    physicsAnalysis = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
+  } catch { /* ignore */ }
   
   if (!physicsAnalysis) {
     return (
@@ -1506,6 +1427,16 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
       </div>
     );
   }
+
+  // Normalise: physics data may be at top-level OR nested under _raw
+  const raw = physicsAnalysis._raw || physicsAnalysis;
+  const estimatedSpeed = physicsAnalysis.estimatedSpeed ?? raw.estimatedSpeed;
+  const impactForce = physicsAnalysis.impactForce ?? raw.impactForce;
+  const accidentSeverity = physicsAnalysis.accidentSeverity ?? raw.accidentSeverity;
+  const occupantInjuryRisk = physicsAnalysis.occupantInjuryRisk ?? raw.occupantInjuryRisk;
+  const fraudIndicators = physicsAnalysis.fraudIndicators ?? raw.fraudIndicators;
+  const collisionType = physicsAnalysis.collisionType ?? raw.collisionType;
+  const damageConsistency = physicsAnalysis.damageConsistency ?? raw.damageConsistency;
 
   // Transform physics analysis to validation format for PhysicsConfidenceDashboard
   const validation = transformPhysicsAnalysisToValidation(physicsAnalysis, claim);
@@ -1520,20 +1451,20 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-xs text-muted-foreground mb-1">Estimated Speed</p>
           <p className="text-2xl font-bold text-primary">
-            {physicsAnalysis.estimatedSpeed?.value || 0} km/h
+            {estimatedSpeed?.value ?? 0} km/h
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            ±{Math.abs((physicsAnalysis.estimatedSpeed?.confidenceInterval?.[1] || 0) - (physicsAnalysis.estimatedSpeed?.value || 0))} km/h
+            ±{Math.abs((estimatedSpeed?.confidenceInterval?.[1] ?? 0) - (estimatedSpeed?.value ?? 0))} km/h
           </p>
         </div>
         
         <div className="p-4 bg-white rounded-lg border">
           <p className="text-xs text-muted-foreground mb-1">Impact Force</p>
           <p className="text-2xl font-bold text-primary">
-            {((physicsAnalysis.impactForce?.magnitude || 0) / 1000).toFixed(1)} kN
+            {((impactForce?.magnitude ?? 0) / 1000).toFixed(2)} kN
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {physicsAnalysis.impactForce?.duration || 0}ms duration
+            {impactForce?.duration ?? 0}ms duration
           </p>
         </div>
         
@@ -1541,16 +1472,16 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
           <p className="text-xs text-muted-foreground mb-1">Accident Severity</p>
           <Badge 
             variant={
-              physicsAnalysis.accidentSeverity === "catastrophic" ? "destructive" :
-              physicsAnalysis.accidentSeverity === "severe" ? "destructive" :
-              physicsAnalysis.accidentSeverity === "moderate" ? "default" : "secondary"
+              accidentSeverity === "catastrophic" ? "destructive" :
+              accidentSeverity === "severe" ? "destructive" :
+              accidentSeverity === "moderate" ? "default" : "secondary"
             }
-            className="text-sm"
+            className="text-sm capitalize"
           >
-            {physicsAnalysis.accidentSeverity}
+            {accidentSeverity ?? "Unknown"}
           </Badge>
           <p className="text-xs text-muted-foreground mt-2">
-            Injury Risk: {physicsAnalysis.occupantInjuryRisk}
+            Injury Risk: {occupantInjuryRisk ?? "Unknown"}
           </p>
         </div>
       </div>
@@ -1591,77 +1522,63 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         </div>
       )}
       
-      {/* Fraud Indicators from Physics — handles both normalised [{component,confidence}] and legacy {impossibleDamagePatterns,...} formats */}
-      {physicsAnalysis.fraudIndicators && (() => {
-        const raw = physicsAnalysis.fraudIndicators;
-        // Normalised format: array of {component, confidence}
-        const isNormalisedArray = Array.isArray(raw);
-        // Legacy format: object with sub-keys
-        const isLegacyObj = !isNormalisedArray && typeof raw === 'object';
-
-        // Derive unified indicator list
-        const highConfidence: string[] = isNormalisedArray
-          ? raw.filter((i: any) => i.confidence >= 85).map((i: any) => i.component)
-          : (raw.impossibleDamagePatterns ?? []);
-        const mediumConfidence: string[] = isNormalisedArray
-          ? raw.filter((i: any) => i.confidence >= 65 && i.confidence < 85).map((i: any) => i.component)
-          : (raw.unrelatedDamage ?? []).map((d: any) => typeof d === 'string' ? d : (d.component || String(d)));
-        const stagedIndicators: string[] = isNormalisedArray
-          ? raw.filter((i: any) => i.component.toLowerCase().includes('staged')).map((i: any) => i.component)
-          : (raw.stagedAccidentIndicators ?? []);
-        const hasSeverityMismatch = isLegacyObj ? !!raw.severityMismatch
-          : raw.some((i: any) => i.component.toLowerCase().includes('severity'));
-        const totalCount = highConfidence.length + mediumConfidence.length + stagedIndicators.length + (hasSeverityMismatch ? 1 : 0);
-
-        if (totalCount === 0) return null;
-        return (
-          <div className="space-y-3">
-            <h4 className="font-semibold flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-red-600" />
-              Physics-Based Fraud Detection
-              <Badge variant="destructive" className="text-xs">{totalCount} indicator{totalCount !== 1 ? 's' : ''}</Badge>
-            </h4>
-            {highConfidence.length > 0 && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm font-medium text-red-900 mb-2">⚠️ Impossible Damage Patterns Detected</p>
-                <ul className="text-xs space-y-1 text-red-800">
-                  {highConfidence.map((pattern: string, idx: number) => (
-                    <li key={idx}>• {pattern}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {mediumConfidence.length > 0 && (
-              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
-                <ul className="text-xs space-y-1 text-yellow-800">
-                  {mediumConfidence.map((item: string, idx: number) => (
-                    <li key={idx}>• {item}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {stagedIndicators.length > 0 && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm font-medium text-red-900 mb-2">🚨 Staged Accident Indicators</p>
-                <ul className="text-xs space-y-1 text-red-800">
-                  {stagedIndicators.map((indicator: string, idx: number) => (
-                    <li key={idx}>• {indicator}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {hasSeverityMismatch && (
-              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <p className="text-sm font-medium text-orange-900">⚠️ Severity Mismatch</p>
-                <p className="text-xs text-orange-800 mt-1">
-                  Reported damage severity does not match estimated impact speed and forces
-                </p>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      {/* Fraud Indicators from Physics */}
+      {fraudIndicators && (
+        <div className="space-y-3">
+          <h4 className="font-semibold flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-red-600" />
+            Physics-Based Fraud Detection
+          </h4>
+          
+          {/* Impossible Damage Patterns */}
+          {fraudIndicators.impossibleDamagePatterns?.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm font-medium text-red-900 mb-2">⚠️ Impossible Damage Patterns Detected</p>
+              <ul className="text-xs space-y-1 text-red-800">
+                {fraudIndicators.impossibleDamagePatterns.map((pattern: string, idx: number) => (
+                  <li key={idx}>• {pattern}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Unrelated Damage */}
+          {fraudIndicators.unrelatedDamage?.length > 0 && (
+            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
+              <ul className="text-xs space-y-1 text-yellow-800">
+                {fraudIndicators.unrelatedDamage.map((damage: any, idx: number) => (
+                  <li key={idx}>
+                    • {damage.component} ({(damage.distanceFromImpact || 0).toFixed(1)}m from impact point)
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Staged Accident Indicators */}
+          {fraudIndicators.stagedAccidentIndicators?.length > 0 && (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm font-medium text-red-900 mb-2">🚨 Staged Accident Indicators</p>
+              <ul className="text-xs space-y-1 text-red-800">
+                {fraudIndicators.stagedAccidentIndicators.map((indicator: string, idx: number) => (
+                  <li key={idx}>• {indicator}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+          
+          {/* Severity Mismatch */}
+          {fraudIndicators.severityMismatch && (
+            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <p className="text-sm font-medium text-orange-900">⚠️ Severity Mismatch</p>
+              <p className="text-xs text-orange-800 mt-1">
+                Reported damage severity doesn't match estimated impact speed and forces
+              </p>
+            </div>
+          )}
+        </div>
+      )}
       
       {/* Forensic Analysis */}
       {(() => {
@@ -1672,11 +1589,11 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         } catch { /* ignore */ }
         if (!forensic) return null;
         const sections = [
-          { key: 'paintAnalysis', label: 'Paint Analysis', icon: '🎨' },
-          { key: 'bodyworkAnalysis', label: 'Bodywork Analysis', icon: '🔧' },
-          { key: 'glassAnalysis', label: 'Glass Analysis', icon: '🪟' },
-          { key: 'tireAnalysis', label: 'Tire Analysis', icon: '🛞' },
-          { key: 'fluidAnalysis', label: 'Fluid Leak Analysis', icon: '💧' },
+          { key: 'paint', fallbackKey: 'paintAnalysis', label: 'Paint Analysis', icon: '🎨' },
+          { key: 'bodywork', fallbackKey: 'bodyworkAnalysis', label: 'Bodywork Analysis', icon: '🔧' },
+          { key: 'glass', fallbackKey: 'glassAnalysis', label: 'Glass Analysis', icon: '🪟' },
+          { key: 'tires', fallbackKey: 'tireAnalysis', label: 'Tire Analysis', icon: '🛵' },
+          { key: 'fluidLeaks', fallbackKey: 'fluidAnalysis', label: 'Fluid Leak Analysis', icon: '💧' },
         ];
         return (
           <div className="space-y-3">
@@ -1688,8 +1605,8 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
               </Badge>
             </h4>
             <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-              {sections.map(({ key, label, icon }) => {
-                const s = forensic[key];
+              {sections.map(({ key, fallbackKey, label, icon }) => {
+                const s = forensic[key] ?? forensic[fallbackKey];
                 if (!s) return null;
                 const score = s.score ?? s.fraudScore ?? 0;
                 const findings: string[] = Array.isArray(s.findings) ? s.findings : [];
@@ -1726,10 +1643,8 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         <h4 className="font-semibold text-secondary mb-3">Quote Validation Summary</h4>
         <div className="space-y-2">
           {quotes.map((quote, idx) => {
-            const fi = physicsAnalysis.fraudIndicators;
-            const hasIssues = Array.isArray(fi)
-              ? fi.some((i: any) => i.confidence >= 65)
-              : !!(fi?.unrelatedDamage?.length > 0 || fi?.impossibleDamagePatterns?.length > 0);
+            const hasIssues = physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0 || 
+                             physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0;
             return (
               <div key={quote.id} className="flex items-center justify-between p-2 bg-white rounded border">
                 <span className="text-sm">Panel Beater #{quote.panelBeaterId}</span>
