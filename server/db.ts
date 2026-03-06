@@ -2141,6 +2141,54 @@ Provide your response in JSON format.`;
     } catch (driverRegistryErr: any) {
       console.warn(`[DriverRegistry] Upsert failed (non-fatal): ${driverRegistryErr.message}`);
     }
+    // ========== CROSS-CLAIM INTELLIGENCE ENGINE ==========
+    // Runs all 9 fraud signal detectors after all registries have been upserted.
+    // Non-blocking: failures never interrupt the pipeline.
+    // The detected signals are persisted to cross_claim_signals and their
+    // score contributions are added back to the claim's fraud risk score.
+    try {
+      // Re-fetch the claim to get the latest vehicleRegistryId and driverRegistryId
+      // (they may have just been written by the registry upserts above)
+      const [freshClaim] = await db.select({
+        vehicleRegistryId: claims.vehicleRegistryId,
+        driverRegistryId: claims.driverRegistryId,
+        claimantId: claims.claimantId,
+        tenantId: claims.tenantId,
+        createdAt: claims.createdAt,
+        incidentDate: claims.incidentDate,
+      }).from(claims).where(eq(claims.id, claimId)).limit(1);
+
+      const { runCrossClaimIntelligence } = await import('./cross-claim-intelligence');
+      const crossClaimResult = await runCrossClaimIntelligence({
+        claimId,
+        vehicleRegistryId: freshClaim?.vehicleRegistryId ?? null,
+        driverRegistryId: freshClaim?.driverRegistryId ?? null,
+        claimantId: freshClaim?.claimantId ?? null,
+        tenantId: freshClaim?.tenantId ?? null,
+        claimCreatedAt: freshClaim?.createdAt ?? null,
+        incidentDate: freshClaim?.incidentDate ?? null,
+      });
+
+      // If cross-claim signals were detected, add their score contribution
+      // to the claim's fraud risk score and append signal labels to fraudFlags.
+      if (crossClaimResult.signals.length > 0) {
+        const updatedFraudScore = Math.min(100, combinedFraudScore + crossClaimResult.totalScoreContribution);
+        const updatedFraudFlags = [
+          ...allFraudFlags,
+          ...crossClaimResult.signals.map(s => `[CrossClaim] ${s.signalLabel}`),
+        ];
+        const updatedFraudLevel = updatedFraudScore >= 70 ? 'high' : updatedFraudScore >= 40 ? 'medium' : 'low';
+        await db.update(claims).set({
+          fraudRiskScore: updatedFraudScore,
+          fraudFlags: JSON.stringify(updatedFraudFlags),
+          fraudRiskLevel: updatedFraudLevel as any,
+          updatedAt: new Date().toISOString(),
+        }).where(eq(claims.id, claimId));
+        console.log(`[CrossClaim] Claim ${claimId} fraud score updated: ${combinedFraudScore} → ${updatedFraudScore} (+${crossClaimResult.totalScoreContribution})`);
+      }
+    } catch (crossClaimErr: any) {
+      console.warn(`[CrossClaim] Engine failed (non-fatal): ${crossClaimErr.message}`);
+    }
     // ========== CREATE PANEL BEATER QUOTE FROM PDF EXTRACTED DATA ===========
     // If the PDF contained a quote/invoice, create a panel_beater_quotes record
     if (isPdfMode && (extractedQuoteLineItems.length > 0 || analysis.estimatedCost > 0)) {

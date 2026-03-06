@@ -3915,3 +3915,60 @@ export const repairHistory = mysqlTable("repair_history", {
 ]);
 export type RepairHistory = typeof repairHistory.$inferSelect;
 export type InsertRepairHistory = typeof repairHistory.$inferInsert;
+
+// ============================================================================
+// CROSS CLAIM SIGNALS — Stores named fraud signals detected by the cross-claim
+// intelligence engine. Each row represents one signal on one claim.
+// Signals are idempotent: re-running the engine on the same claim will not
+// create duplicate rows (unique on claim_id + signal_type).
+// ============================================================================
+export const crossClaimSignals = mysqlTable("cross_claim_signals", {
+  id: int().autoincrement().notNull(),
+  // ── Foreign keys ──────────────────────────────────────────────────────────
+  // The claim this signal was detected on.
+  claimId: int("claim_id").notNull(),
+  // ── Signal identity ───────────────────────────────────────────────────────
+  // Machine-readable signal type (snake_case enum).
+  signalType: mysqlEnum("signal_type", [
+    'repeat_damage_signal',
+    'driver_repeat_claim_signal',
+    'repairer_repeat_pattern_signal',
+    'vehicle_high_claim_frequency',
+    'damage_zone_repeat_signal',
+    'staged_accident_signal',
+    'repairer_driver_collusion_signal',
+    'claim_velocity_signal',
+    'total_loss_repeat_signal',
+  ]).notNull(),
+  // Human-readable description of the signal for the assessor.
+  signalLabel: text("signal_label").notNull(),
+  // ── Evidence ─────────────────────────────────────────────────────────────
+  // JSON object with the evidence that triggered this signal.
+  // e.g. { "claimIds": [12, 34], "driverId": 5, "occurrences": 3 }
+  evidenceJson: text("evidence_json"),
+  // ── Scoring ───────────────────────────────────────────────────────────────
+  // Confidence level of this signal.
+  confidence: mysqlEnum("confidence", ['low', 'medium', 'high']).default('medium').notNull(),
+  // Score contribution of this signal to the overall fraud risk score (0–30).
+  scoreContribution: int("score_contribution").default(0).notNull(),
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  // Whether this signal has been reviewed and dismissed by an assessor.
+  isDismissed: tinyint("is_dismissed").default(0).notNull(),
+  dismissedBy: int("dismissed_by"),
+  dismissedAt: timestamp("dismissed_at", { mode: 'string' }),
+  dismissalNote: text("dismissal_note"),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  // Unique constraint: one signal type per claim (idempotent upsert)
+  uniqueIndex("idx_ccs_claim_signal_unique").on(table.claimId, table.signalType),
+  index("idx_ccs_claim_id").on(table.claimId),
+  index("idx_ccs_signal_type").on(table.signalType),
+  index("idx_ccs_confidence").on(table.confidence),
+  index("idx_ccs_dismissed").on(table.isDismissed),
+  index("idx_ccs_tenant").on(table.tenantId),
+]);
+export type CrossClaimSignal = typeof crossClaimSignals.$inferSelect;
+export type InsertCrossClaimSignal = typeof crossClaimSignals.$inferInsert;

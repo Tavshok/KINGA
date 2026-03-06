@@ -82,6 +82,7 @@ import { fleetAccountsRouter } from "./routers/fleet-accounts";
 import { vehicleRegistryRouter } from "./routers/vehicle-registry";
 import { vehicleDamageHistoryRouter } from "./routers/vehicle-damage-history";
 import { repairHistoryRouter } from "./routers/repair-history";
+import { crossClaimIntelligenceRouter } from "./routers/cross-claim-intelligence";
 import { driverRegistryRouter } from "./routers/driver-registry";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
@@ -116,6 +117,7 @@ export const appRouter = router({
   vehicleDamageHistory: vehicleDamageHistoryRouter,
   driverRegistry: driverRegistryRouter,
   repairHistory: repairHistoryRouter,
+  crossClaim: crossClaimIntelligenceRouter,
   system: systemRouter,
   tenant: tenantRouter,
   analytics: analyticsRouter,
