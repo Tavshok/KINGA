@@ -2039,6 +2039,46 @@ Provide your response in JSON format.`;
     } catch (registryErr: any) {
       console.warn(`[VehicleRegistry] Upsert failed (non-fatal): ${registryErr.message}`);
     }
+    // ========== VEHICLE DAMAGE HISTORY INSERTION ==========
+    // Insert a structured damage record for every AI assessment.
+    // Requires a vehicle_registry record — skip silently if none exists.
+    try {
+      // Re-fetch the claim to get the vehicleRegistryId that was just set
+      const updatedClaim = await db.select({ vehicleRegistryId: claims.vehicleRegistryId })
+        .from(claims).where(eq(claims.id, claimId)).limit(1);
+      const vehicleRegistryId = updatedClaim[0]?.vehicleRegistryId ?? null;
+      if (vehicleRegistryId) {
+        const { insertDamageHistory } = await import('./vehicle-damage-history');
+        // Extract speed from physics analysis
+        const physicsSpeed: number | null = (() => {
+          const sp = (physicsAnalysis as any)?.speedEstimate?.estimatedSpeedKmh
+            ?? (physicsAnalysis as any)?.estimatedSpeedKmh ?? null;
+          return typeof sp === 'number' ? sp : null;
+        })();
+        await insertDamageHistory({
+          vehicleId: vehicleRegistryId,
+          claimId,
+          damagedComponents: (analysis.damagedComponents || []).map((c: any) => ({
+            name: c.name || '',
+            severity: c.severity || null,
+            zone: c.zone || null,
+            estimatedCost: c.estimatedCost || null,
+          })),
+          impactZoneRaw: analysis.impactPoint?.primaryImpactZone || null,
+          impactDirection: (physicsAnalysis as any)?.accidentType || (physicsAnalysis as any)?.impactDirection || null,
+          impactForceKn: physicsImpactForceKn || null,
+          estimatedSpeedKmh: physicsSpeed,
+          structuralDamageSeverity: structuralDamageSeverity || null,
+          hasStructuralDamage: !!(analysis.structuralDamage),
+          airbagsDeployed: !!(analysis.airbagDeployment),
+          repairCostEstimateCents: estimatedRepairCost || 0,
+          fraudRiskScore: combinedFraudScore || 0,
+          tenantId: claim.tenantId || null,
+        });
+      }
+    } catch (damageHistoryErr: any) {
+      console.warn(`[DamageHistory] Insert failed (non-fatal): ${damageHistoryErr.message}`);
+    }
     // ========== CREATE PANEL BEATER QUOTE FROM PDF EXTRACTED DATA ===========
     // If the PDF contained a quote/invoice, create a panel_beater_quotes record
     if (isPdfMode && (extractedQuoteLineItems.length > 0 || analysis.estimatedCost > 0)) {

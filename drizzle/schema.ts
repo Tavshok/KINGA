@@ -3631,3 +3631,78 @@ export const vehicleRegistry = mysqlTable("vehicle_registry", {
 ]);
 export type VehicleRegistry = typeof vehicleRegistry.$inferSelect;
 export type InsertVehicleRegistry = typeof vehicleRegistry.$inferInsert;
+
+// ============================================================================
+// VEHICLE DAMAGE HISTORY
+// Structured per-incident damage records linked to both vehicle_registry and
+// claims. Populated automatically after every AI assessment completes.
+// Powers: repeat damage detection, repair failure alerts, accident history.
+// ============================================================================
+export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
+  id: int().autoincrement().notNull(),
+
+  // ── Foreign keys ──────────────────────────────────────────────────────────
+  // Links to vehicle_registry.id — the persistent vehicle record.
+  vehicleId: int("vehicle_id").notNull(),
+  // Links to claims.id — the claim that generated this damage record.
+  claimId: int("claim_id").notNull(),
+
+  // ── Damage classification ─────────────────────────────────────────────────
+  // Primary standardised damage zone for this incident.
+  damageZone: mysqlEnum("damage_zone", ['front','rear','left','right','roof','undercarriage','multiple','unknown']).default('unknown').notNull(),
+  // Full list of damaged components as extracted by the AI vision engine.
+  // JSON: [{ name, severity, zone, estimatedCost }]
+  damagedComponentsJson: text("damaged_components_json"),
+  // All zones affected (may be more than one). JSON array: ["front","left"]
+  affectedZonesJson: text("affected_zones_json"),
+
+  // ── Physics engine data ───────────────────────────────────────────────────
+  // Direction of impact as reported by the physics engine (e.g. "frontal", "rear", "side_driver").
+  impactDirection: varchar("impact_direction", { length: 50 }),
+  // Impact force in kilonewtons from the physics engine. Null if physics was skipped.
+  impactForceKn: decimal("impact_force_kn", { precision: 8, scale: 2 }),
+  // Estimated speed at time of impact (km/h).
+  estimatedSpeedKmh: decimal("estimated_speed_kmh", { precision: 6, scale: 1 }),
+  // Overall damage severity as classified by the AI.
+  severity: mysqlEnum("severity", ['minor','moderate','severe','total_loss','unknown']).default('unknown').notNull(),
+  // Structural damage flag from the AI assessment.
+  hasStructuralDamage: tinyint("has_structural_damage").default(0).notNull(),
+  // Airbag deployment flag.
+  airbagsDeployed: tinyint("airbags_deployed").default(0).notNull(),
+
+  // ── Cost data ─────────────────────────────────────────────────────────────
+  // AI-estimated repair cost in cents (USD).
+  repairCostEstimateCents: int("repair_cost_estimate_cents").default(0).notNull(),
+  // Actual repair cost from accepted panel beater quote (cents). Null until quote accepted.
+  actualRepairCostCents: int("actual_repair_cost_cents"),
+
+  // ── Repairer data (backfilled when panel beater is selected) ──────────────
+  // panel_beaters.id — populated when a quote is accepted.
+  repairerId: int("repairer_id"),
+  // Human-readable repairer name for quick display without a join.
+  repairerName: varchar("repairer_name", { length: 255 }),
+  // Date repair was completed (ISO date string). Null until repair is done.
+  repairDate: varchar("repair_date", { length: 20 }),
+
+  // ── Fraud signals ─────────────────────────────────────────────────────────
+  // Fraud risk score for this specific incident (0–100).
+  fraudRiskScore: int("fraud_risk_score").default(0).notNull(),
+  // Whether this damage zone was previously claimed on this vehicle.
+  isRepeatZone: tinyint("is_repeat_zone").default(0).notNull(),
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_vdh_vehicle_id").on(table.vehicleId),
+  index("idx_vdh_claim_id").on(table.claimId),
+  index("idx_vdh_damage_zone").on(table.damageZone),
+  index("idx_vdh_severity").on(table.severity),
+  index("idx_vdh_tenant").on(table.tenantId),
+  index("idx_vdh_repairer").on(table.repairerId),
+  index("idx_vdh_repeat_zone").on(table.isRepeatZone),
+]);
+export type VehicleDamageHistory = typeof vehicleDamageHistory.$inferSelect;
+export type InsertVehicleDamageHistory = typeof vehicleDamageHistory.$inferInsert;

@@ -80,6 +80,7 @@ import { agencyRouter } from "./routers/agency";
 import { agencyBrokerRouter } from "./routers/agency-broker";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
 import { vehicleRegistryRouter } from "./routers/vehicle-registry";
+import { vehicleDamageHistoryRouter } from "./routers/vehicle-damage-history";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
@@ -110,6 +111,7 @@ import { quoteIntelligenceRouter } from './repair-intelligence/router';
 export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
+  vehicleDamageHistory: vehicleDamageHistoryRouter,
   system: systemRouter,
   tenant: tenantRouter,
   analytics: analyticsRouter,
@@ -1544,6 +1546,16 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           tenantId: tenantId || 'default',
         });
         
+        // Backfill repairer info into vehicle_damage_history (non-blocking)
+        import('./vehicle-damage-history').then(({ backfillRepairer }) => {
+          backfillRepairer({
+            claimId: input.claimId,
+            repairerId: selectedQuote.panelBeaterId,
+            repairerName: panelBeater?.businessName || 'Selected Panel Beater',
+            actualRepairCostCents: approvedAmount,
+          }).catch((err: any) => console.warn('[DamageHistory] Repairer backfill failed:', err.message));
+        }).catch(() => {});
+
         // Notify panel beater of selection
         await notifyPanelBeaterSelection({
           claimId: input.claimId,
