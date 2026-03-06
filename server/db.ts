@@ -815,91 +815,282 @@ Provide your response in JSON format.`;
   console.log(`[Pipeline Stage 4] Detected ${damagedComponents.length} damaged components; structural severity: ${structuralDamageSeverity}`);
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // STAGE 5 — DAMAGE PROPAGATION
-  // Infer hidden / secondary damages using impact location, structural layout,
-  // and engineering rules. Only relevant for collision incidents.
   // ═══════════════════════════════════════════════════════════════════════════
-  console.log(`[Pipeline Stage 5] Damage propagation inference`);
+  // STAGE 5 — DAMAGE PROPAGATION  (physics-based, force-gated)
+  // Derives hidden damage from: impact location, force propagation chains,
+  // and vehicle structural layout. Probability is scored 0–100 and decays
+  // along each propagation path. Nodes beyond the 20 kN threshold are only
+  // emitted when the computed impact force exceeds that value.
+  // NOTE: This stage is defined here but EXECUTED after Stage 6 so that the
+  //       actual impactForce from the physics engine can be used.
+  // ═══════════════════════════════════════════════════════════════════════════
+  console.log(`[Pipeline Stage 5] Damage propagation inference (deferred to post-physics)`);
 
   interface InferredHiddenDamage {
     component: string;
     reason: string;
-    probability: number; // 0-100
+    probability: number;       // 0–100
+    confidenceLabel: 'High' | 'Medium' | 'Low';  // derived from probability
+    propagationStep: number;   // 1 = first node in chain, 2 = second, etc.
+    chain: 'front' | 'rear' | 'side_driver' | 'side_passenger' | 'rollover' | 'general';
     estimatedCostUsd: number;
   }
 
+  /**
+   * Physics-based hidden damage inference.
+   *
+   * @param components      - AI-detected damaged components
+   * @param impactPoint     - raw impact point string from LLM
+   * @param incidentType    - canonical incident type
+   * @param impactForceKn   - impact force in kN from physics engine (0 if unavailable)
+   * @param accidentSev     - accident severity string from physics engine
+   */
   const inferHiddenDamages = (
     components: any[],
     impactPoint: string,
-    incidentType: CanonicalIncidentType
+    incidentType: CanonicalIncidentType,
+    impactForceKn: number = 0,
+    accidentSev: string = 'unknown'
   ): InferredHiddenDamage[] => {
     if (incidentType !== 'collision') return [];
 
     const hidden: InferredHiddenDamage[] = [];
-    const detectedNames = components.map((c: any) => (c.name || '').toLowerCase());
-    const impact = (impactPoint || '').toLowerCase();
-    const hasFrontDamage = impact.includes('front') || detectedNames.some(n => n.includes('bumper') || n.includes('bonnet') || n.includes('hood') || n.includes('grille'));
-    const hasRearDamage = impact.includes('rear') || detectedNames.some(n => n.includes('boot') || n.includes('trunk') || n.includes('rear bumper'));
-    const hasSideDamage = impact.includes('side') || detectedNames.some(n => n.includes('door') || n.includes('sill') || n.includes('quarter panel'));
-    const hasStructuralDamage = components.some((c: any) => c.damageType === 'structural');
-    const hasSevereDamage = components.some((c: any) => c.severity === 'severe' || c.severity === 'total_loss');
+    const detected = components.map((c: any) => (c.name || '').toLowerCase());
+    const impact   = (impactPoint || '').toLowerCase();
 
-    // Front impact propagation
-    if (hasFrontDamage) {
-      if (!detectedNames.some(n => n.includes('subframe') || n.includes('crash bar'))) {
-        hidden.push({ component: 'Front subframe / crash bar', reason: 'Front impact forces typically transfer to subframe even when not visually apparent', probability: 75, estimatedCostUsd: 350 });
+    // ── Impact direction detection ──────────────────────────────────────────
+    const hasFront = impact.includes('front') ||
+      detected.some(n => n.includes('bumper') || n.includes('bonnet') || n.includes('hood') ||
+                         n.includes('grille') || n.includes('headlight') || n.includes('fender'));
+    const hasRear  = impact.includes('rear') ||
+      detected.some(n => n.includes('boot') || n.includes('trunk') || n.includes('rear bumper') ||
+                         n.includes('tailgate') || n.includes('tail light'));
+    const hasSideDriver    = impact.includes('side') && (impact.includes('driver') || impact.includes('left')) ||
+      detected.some(n => (n.includes('driver') || n.includes('left')) && (n.includes('door') || n.includes('sill')));
+    const hasSidePassenger = impact.includes('side') && (impact.includes('passenger') || impact.includes('right')) ||
+      detected.some(n => (n.includes('passenger') || n.includes('right')) && (n.includes('door') || n.includes('sill')));
+    const hasSide = hasSideDriver || hasSidePassenger ||
+      (impact.includes('side') && !hasFront && !hasRear) ||
+      detected.some(n => n.includes('door') || n.includes('sill') || n.includes('quarter panel'));
+    const hasRollover = impact.includes('rollover') || accidentSev === 'rollover';
+
+    // ── Force thresholds ────────────────────────────────────────────────────
+    const forceGateKn    = 20;   // deeper propagation only above this
+    const highForce      = impactForceKn >= forceGateKn;
+    const severeForce    = impactForceKn >= 40;
+    const catastrophic   = impactForceKn >= 70 || accidentSev === 'catastrophic';
+
+    // ── Helper: only add if not already detected ────────────────────────────
+    const alreadyDetected = (...keywords: string[]): boolean =>
+      keywords.some(kw => detected.some(n => n.includes(kw)));
+
+    const add = (
+      chain: InferredHiddenDamage['chain'],
+      step: number,
+      component: string,
+      reason: string,
+      probability: number,
+      estimatedCostUsd: number
+    ) => {
+      if (probability < 5) return; // prune negligible inferences
+      const confidenceLabel: InferredHiddenDamage['confidenceLabel'] =
+        probability >= 70 ? 'High' : probability >= 40 ? 'Medium' : 'Low';
+      hidden.push({ component, reason, probability, confidenceLabel, propagationStep: step, chain, estimatedCostUsd });
+    };
+
+    // ════════════════════════════════════════════════════════════════════════
+    // FRONT IMPACT PROPAGATION CHAIN
+    // front bumper → crash bar → radiator support → radiator → condenser
+    //             → engine mounts (force-gated)
+    // ════════════════════════════════════════════════════════════════════════
+    if (hasFront) {
+      // Step 1 — Crash bar / front bumper beam (always inferred for front impact)
+      if (!alreadyDetected('crash bar', 'bumper beam', 'front beam')) {
+        add('front', 1, 'Front crash bar / bumper beam',
+          'First structural energy absorber in frontal collisions; deforms before force reaches the subframe',
+          82, 280);
       }
-      if (!detectedNames.some(n => n.includes('radiator') || n.includes('condenser'))) {
-        hidden.push({ component: 'Radiator / AC condenser', reason: 'Located directly behind front bumper; vulnerable to front impact energy transfer', probability: 65, estimatedCostUsd: 280 });
+
+      // Step 2 — Radiator support / front subframe
+      if (!alreadyDetected('radiator support', 'subframe', 'front subframe')) {
+        const prob = highForce ? 78 : 62;
+        add('front', 2, 'Radiator support / front subframe',
+          `Force propagates from crash bar to radiator support${highForce ? ` (impact force ${impactForceKn.toFixed(1)} kN exceeds 20 kN deformation threshold)` : ''}`,
+          prob, 420);
       }
-      if (hasSevereDamage && !detectedNames.some(n => n.includes('steering') || n.includes('rack'))) {
-        hidden.push({ component: 'Steering rack / column', reason: 'Severe front impact can displace steering geometry without visible external damage', probability: 55, estimatedCostUsd: 450 });
+
+      // Step 3 — Radiator (behind radiator support)
+      if (!alreadyDetected('radiator')) {
+        const prob = highForce ? 72 : 55;
+        add('front', 3, 'Radiator',
+          `Cooling unit sits directly behind radiator support; vulnerable when support deforms${highForce ? ' under high-force impact' : ''}`,
+          prob, 350);
       }
-      if (hasStructuralDamage && !detectedNames.some(n => n.includes('engine mount'))) {
-        hidden.push({ component: 'Engine mounts', reason: 'Structural front impact loads are absorbed by engine mounts; micro-fractures common', probability: 60, estimatedCostUsd: 220 });
+
+      // Step 3b — AC condenser (alongside radiator)
+      if (!alreadyDetected('condenser', 'ac condenser')) {
+        const prob = highForce ? 68 : 48;
+        add('front', 3, 'AC condenser',
+          'Condenser is mounted in front of or alongside the radiator; shares the same impact exposure',
+          prob, 290);
+      }
+
+      // Step 4 — Engine mounts (force-gated at 20 kN)
+      if (highForce && !alreadyDetected('engine mount')) {
+        const prob = severeForce ? 74 : 58;
+        add('front', 4, 'Engine mounts',
+          `Impact force (${impactForceKn.toFixed(1)} kN) exceeds 20 kN threshold — engine mounts absorb residual structural loads; micro-fractures likely`,
+          prob, 320);
+      }
+
+      // Step 5 — Steering rack (severe force only)
+      if (severeForce && !alreadyDetected('steering rack', 'steering column', 'rack')) {
+        add('front', 5, 'Steering rack / column',
+          `Severe impact force (${impactForceKn.toFixed(1)} kN) can displace steering geometry without visible external damage`,
+          52, 480);
+      }
+
+      // Step 5b — Transmission / gearbox (catastrophic only)
+      if (catastrophic && !alreadyDetected('transmission', 'gearbox')) {
+        add('front', 5, 'Transmission / gearbox mounts',
+          `Catastrophic impact force may displace powertrain; transmission mount integrity compromised`,
+          45, 600);
       }
     }
 
-    // Rear impact propagation
-    if (hasRearDamage) {
-      if (!detectedNames.some(n => n.includes('fuel') || n.includes('tank'))) {
-        hidden.push({ component: 'Fuel tank / filler neck', reason: 'Rear impact can deform fuel tank mounting brackets and filler neck', probability: 50, estimatedCostUsd: 300 });
+    // ════════════════════════════════════════════════════════════════════════
+    // REAR IMPACT PROPAGATION CHAIN
+    // rear bumper → boot floor → rear chassis rails
+    //            → fuel tank (force-gated)
+    //            → rear differential / axle (severe force)
+    // ════════════════════════════════════════════════════════════════════════
+    if (hasRear) {
+      // Step 1 — Rear bumper reinforcement
+      if (!alreadyDetected('rear bumper beam', 'rear beam', 'rear reinforcement')) {
+        add('rear', 1, 'Rear bumper reinforcement bar',
+          'Rear bumper reinforcement is the first structural absorber in rear impacts',
+          80, 220);
       }
-      if (hasSevereDamage && !detectedNames.some(n => n.includes('spare wheel') || n.includes('differential'))) {
-        hidden.push({ component: 'Rear differential / axle', reason: 'High-energy rear impacts can misalign rear axle geometry', probability: 45, estimatedCostUsd: 500 });
+
+      // Step 2 — Boot floor / trunk floor
+      if (!alreadyDetected('boot floor', 'trunk floor', 'boot panel')) {
+        const prob = highForce ? 74 : 55;
+        add('rear', 2, 'Boot floor / trunk floor',
+          `Force propagates from rear bumper into boot floor structure${highForce ? ` (${impactForceKn.toFixed(1)} kN exceeds deformation threshold)` : ''}`,
+          prob, 380);
+      }
+
+      // Step 3 — Rear chassis rails
+      if (!alreadyDetected('chassis rail', 'rear rail', 'rear frame')) {
+        const prob = highForce ? 70 : 45;
+        add('rear', 3, 'Rear chassis rails',
+          `Longitudinal chassis rails absorb residual impact energy after boot floor deformation${highForce ? ' — deformation likely at this force level' : ''}`,
+          prob, 550);
+      }
+
+      // Step 4 — Fuel tank (force-gated)
+      if (highForce && !alreadyDetected('fuel tank', 'fuel', 'tank')) {
+        add('rear', 4, 'Fuel tank / filler neck',
+          `Impact force (${impactForceKn.toFixed(1)} kN) can deform fuel tank mounting brackets and filler neck`,
+          58, 420);
+      }
+
+      // Step 5 — Rear differential / axle (severe only)
+      if (severeForce && !alreadyDetected('differential', 'rear axle', 'axle')) {
+        add('rear', 5, 'Rear differential / axle geometry',
+          `High-energy rear impact (${impactForceKn.toFixed(1)} kN) can misalign rear axle geometry and differential mounts`,
+          48, 520);
       }
     }
 
-    // Side impact propagation
-    if (hasSideDamage) {
-      if (!detectedNames.some(n => n.includes('door intrusion') || n.includes('side impact beam'))) {
-        hidden.push({ component: 'Door intrusion beam', reason: 'Side impact beams absorb lateral crash energy; deformation may not be externally visible', probability: 70, estimatedCostUsd: 180 });
+    // ════════════════════════════════════════════════════════════════════════
+    // SIDE IMPACT PROPAGATION CHAIN (driver or passenger side)
+    // door → door intrusion beam → B-pillar → floor structure / sill
+    //      → A-pillar / roof rail (severe force)
+    // ════════════════════════════════════════════════════════════════════════
+    if (hasSide) {
+      const side = hasSideDriver ? 'driver' : hasSidePassenger ? 'passenger' : 'impact';
+
+      // Step 1 — Door intrusion beam
+      if (!alreadyDetected('intrusion beam', 'side impact beam', 'door beam')) {
+        add(hasSideDriver ? 'side_driver' : 'side_passenger', 1,
+          `Door intrusion beam (${side} side)`,
+          'Side impact beams are the first structural absorbers in lateral collisions; deformation is rarely visible externally',
+          78, 200);
       }
-      if (hasSevereDamage && !detectedNames.some(n => n.includes('b-pillar') || n.includes('a-pillar'))) {
-        hidden.push({ component: 'B-pillar / A-pillar reinforcement', reason: 'Severe side impacts transfer loads to pillar structures; hidden deformation possible', probability: 60, estimatedCostUsd: 600 });
+
+      // Step 2 — B-pillar
+      if (!alreadyDetected('b-pillar', 'b pillar')) {
+        const prob = highForce ? 72 : 55;
+        add(hasSideDriver ? 'side_driver' : 'side_passenger', 2,
+          `B-pillar (${side} side)`,
+          `Force propagates from door into B-pillar${highForce ? ` — ${impactForceKn.toFixed(1)} kN exceeds lateral deformation threshold` : ''}`,
+          prob, 650);
+      }
+
+      // Step 3 — Floor structure / rocker sill
+      if (!alreadyDetected('floor structure', 'rocker', 'sill beam')) {
+        const prob = highForce ? 65 : 42;
+        add(hasSideDriver ? 'side_driver' : 'side_passenger', 3,
+          'Floor structure / rocker sill',
+          `Lateral impact loads transfer to floor structure and rocker sill${highForce ? ' under high-force conditions' : ''}`,
+          prob, 480);
+      }
+
+      // Step 4 — A-pillar / roof rail (severe force)
+      if (severeForce && !alreadyDetected('a-pillar', 'a pillar', 'roof rail')) {
+        add(hasSideDriver ? 'side_driver' : 'side_passenger', 4,
+          `A-pillar / roof rail (${side} side)`,
+          `Severe lateral force (${impactForceKn.toFixed(1)} kN) may propagate to A-pillar and roof rail structure`,
+          50, 720);
       }
     }
 
-    // General high-energy collision propagation
-    if (hasSevereDamage || hasStructuralDamage) {
-      if (!detectedNames.some(n => n.includes('wiring') || n.includes('harness'))) {
-        hidden.push({ component: 'Wiring harness (impact zone)', reason: 'High-energy impacts can pinch or sever wiring harnesses routed through damaged panels', probability: 55, estimatedCostUsd: 200 });
+    // ════════════════════════════════════════════════════════════════════════
+    // ROLLOVER PROPAGATION
+    // ════════════════════════════════════════════════════════════════════════
+    if (hasRollover) {
+      if (!alreadyDetected('roof structure', 'roof panel')) {
+        add('general', 1, 'Roof structure / pillars',
+          'Rollover accidents cause compressive loading on all roof pillars and roof structure',
+          85, 900);
       }
-      if (!detectedNames.some(n => n.includes('wheel alignment') || n.includes('suspension geometry'))) {
-        hidden.push({ component: 'Wheel alignment / suspension geometry', reason: 'Structural deformation almost always affects suspension geometry; alignment check mandatory', probability: 85, estimatedCostUsd: 120 });
+      if (!alreadyDetected('windshield', 'windscreen')) {
+        add('general', 2, 'Windshield / rear glass',
+          'Glass panels are typically shattered or cracked during rollover events',
+          75, 350);
       }
     }
 
+    // ════════════════════════════════════════════════════════════════════════
+    // GENERAL HIGH-ENERGY PROPAGATION (any direction, force-gated)
+    // ════════════════════════════════════════════════════════════════════════
+    if (highForce) {
+      // Suspension geometry is almost always affected by structural deformation
+      if (!alreadyDetected('wheel alignment', 'suspension geometry', 'alignment')) {
+        add('general', 1, 'Wheel alignment / suspension geometry',
+          `Structural deformation at ${impactForceKn.toFixed(1)} kN almost always affects suspension geometry; alignment check mandatory`,
+          88, 130);
+      }
+
+      // Wiring harness routed through impact zone
+      if (!alreadyDetected('wiring harness', 'wiring', 'harness')) {
+        add('general', 2, 'Wiring harness (impact zone)',
+          `Impact force (${impactForceKn.toFixed(1)} kN) can pinch or sever wiring harnesses routed through damaged panels`,
+          58, 220);
+      }
+    }
+
+    // Sort by probability descending, then by propagation step ascending
+    hidden.sort((a, b) => b.probability - a.probability || a.propagationStep - b.propagationStep);
     return hidden;
   };
 
-  const inferredHiddenDamages = inferHiddenDamages(
-    damagedComponents,
-    analysis.impactPoint || '',
-    classifiedIncidentType
-  );
+  // NOTE: inferredHiddenDamages is populated AFTER Stage 6 (physics) so that
+  // impactForce is available. Declared here with a placeholder; overwritten below.
+  let inferredHiddenDamages: InferredHiddenDamage[] = [];
+  console.log(`[Pipeline Stage 5] Damage propagation engine ready (will execute post-physics)`);
 
-  console.log(`[Pipeline Stage 5] Inferred ${inferredHiddenDamages.length} hidden damage(s)`);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // STAGE 6 — PHYSICS ANALYSIS  (collision only)
@@ -1492,7 +1683,28 @@ Provide your response in JSON format.`;
     } else {
       physicsAnalysis = await analyzeAccidentPhysics(vehicleData, accidentData, damageAssessment);
     }
-    
+
+    // ── Stage 5 (deferred) — execute hidden damage inference now that physics is available ──
+    const physicsImpactForceKn: number = (() => {
+      const f = physicsAnalysis?.impactForce;
+      if (!f) return 0;
+      if (typeof f === 'number') return f / 1000;          // raw Newtons → kN
+      if (typeof f === 'object' && 'magnitude' in f) return (f.magnitude || 0) / 1000;
+      return 0;
+    })();
+    const physicsAccidentSeverity: string =
+      (physicsAnalysis as any)?.accidentSeverity ??
+      (physicsAnalysis as any)?.severity ??
+      'unknown';
+    inferredHiddenDamages = inferHiddenDamages(
+      damagedComponents,
+      analysis.impactPoint || '',
+      classifiedIncidentType,
+      physicsImpactForceKn,
+      physicsAccidentSeverity
+    );
+    console.log(`[Pipeline Stage 5 deferred] Inferred ${inferredHiddenDamages.length} hidden damage(s) at ${physicsImpactForceKn.toFixed(1)} kN`);
+
     // Run forensic analysis (always runs — evaluates damage consistency regardless of incident type)
     console.log(`[Pipeline Stage 7] Fraud analysis`);
     const currentYear = new Date().getFullYear();
