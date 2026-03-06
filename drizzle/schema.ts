@@ -2014,6 +2014,18 @@ export const panelBeaters = mysqlTable("panel_beaters", {
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
 	updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
 	tenantId: varchar("tenant_id", { length: 255 }),
+  // ── Repair performance aggregates (updated after each repair) ─────────────
+  totalRepairs: int("total_repairs").default(0).notNull(),
+  avgQualityScore: decimal("avg_quality_score", { precision: 5, scale: 2 }),
+  avgCostRatio: decimal("avg_cost_ratio", { precision: 6, scale: 3 }),
+  avgRepairDurationDays: decimal("avg_repair_duration_days", { precision: 6, scale: 1 }),
+  repeatDamageRatePct: decimal("repeat_damage_rate_pct", { precision: 5, scale: 2 }),
+  warrantyRepairCount: int("warranty_repair_count").default(0).notNull(),
+  fraudFlagCount: int("fraud_flag_count").default(0).notNull(),
+  // Performance tier: A (≥80), B (60–79), C (40–59), D (<40)
+  performanceTier: varchar("performance_tier", { length: 20 }),
+  lastRepairDate: varchar("last_repair_date", { length: 20 }),
+  performanceUpdatedAt: timestamp("performance_updated_at", { mode: 'string' }),
 });
 
 export const partStratification = mysqlTable("part_stratification", {
@@ -3815,3 +3827,91 @@ export const driverClaims = mysqlTable("driver_claims", {
 ]);
 export type DriverClaim = typeof driverClaims.$inferSelect;
 export type InsertDriverClaim = typeof driverClaims.$inferInsert;
+
+// ============================================================================
+// REPAIR HISTORY — Tracks the actual repair performance of panel beaters
+// across claims. Populated when a claim is approved and a panel beater is
+// selected. Feeds repairer performance analytics, fraud signals, and cost
+// benchmarking.
+// ============================================================================
+export const repairHistory = mysqlTable("repair_history", {
+  id: int().autoincrement().notNull(),
+  // ── Foreign keys ──────────────────────────────────────────────────────────
+  // panel_beaters.id — the repairer who performed the work.
+  repairerId: int("repairer_id").notNull(),
+  // vehicle_registry.id — the vehicle that was repaired. Null if no registry record.
+  vehicleId: int("vehicle_id"),
+  // claims.id — the claim this repair belongs to.
+  claimId: int("claim_id").notNull(),
+  // ── Repair scope ─────────────────────────────────────────────────────────
+  // JSON array of repaired components: [{ name, zone, partType, laborHours, partCost, laborCost }]
+  componentsRepairedJson: text("components_repaired_json"),
+  // Number of components repaired (denormalised for quick aggregation).
+  componentCount: int("component_count").default(0).notNull(),
+  // How many of the originally quoted components were actually repaired (0–100).
+  // 100 = all quoted components repaired; <100 = scope reduction; >100 = scope creep.
+  componentMatchScore: int("component_match_score").default(100).notNull(),
+  // ── Cost data ─────────────────────────────────────────────────────────────
+  // Total repair cost in cents (labour + parts + paint + sundries).
+  repairCostCents: int("repair_cost_cents").default(0).notNull(),
+  // Labour cost component in cents.
+  labourCostCents: int("labour_cost_cents").default(0).notNull(),
+  // Parts cost component in cents.
+  partsCostCents: int("parts_cost_cents").default(0).notNull(),
+  // AI-estimated repair cost in cents (from the assessment pipeline).
+  aiEstimatedCostCents: int("ai_estimated_cost_cents").default(0).notNull(),
+  // % deviation from AI estimate: ((actual - estimate) / estimate) * 100.
+  // Positive = over-estimate; negative = under-estimate.
+  costDeviationPct: decimal("cost_deviation_pct", { precision: 7, scale: 2 }),
+  // ── Timing ────────────────────────────────────────────────────────────────
+  // Date the claim was approved (ISO date string).
+  approvalDate: varchar("approval_date", { length: 20 }),
+  // Date the repair was completed (ISO date string). Null until repair is done.
+  repairDate: varchar("repair_date", { length: 20 }),
+  // Number of calendar days from approval to repair completion. Null until complete.
+  repairDurationDays: int("repair_duration_days"),
+  // ── Derived analytics ─────────────────────────────────────────────────────
+  // Whether the same component was damaged again within 12 months of this repair.
+  // Set to 1 when a subsequent claim is filed for the same component on the same vehicle.
+  repeatDamageWithin12Months: tinyint("repeat_damage_within_12_months").default(0).notNull(),
+  // Ratio of actual repair cost to AI-estimated cost. 1.0 = exact match.
+  // >1.2 = significantly over AI estimate; <0.8 = significantly under.
+  repairCostRatio: decimal("repair_cost_ratio", { precision: 6, scale: 3 }),
+  // Quality score for this repair (0–100). Computed from:
+  //   - Component match score (40%)
+  //   - Cost deviation (30%)
+  //   - Repair duration (20%)
+  //   - Repeat damage within 12 months (10%)
+  repairQualityScore: int("repair_quality_score").default(0).notNull(),
+  // ── Warranty & fraud signals ──────────────────────────────────────────────
+  // Whether this is a warranty re-repair: same component, same repairer, within 90 days.
+  isWarrantyRepair: tinyint("is_warranty_repair").default(0).notNull(),
+  // The repair_history.id of the original repair this is a warranty re-repair of.
+  originalRepairId: int("original_repair_id"),
+  // Whether this repair was flagged as a potential fraud signal.
+  isFraudFlagged: tinyint("is_fraud_flagged").default(0).notNull(),
+  // JSON array of fraud signal strings for this repair.
+  fraudSignalsJson: text("fraud_signals_json"),
+  // ── Damage history linkage ────────────────────────────────────────────────
+  // JSON array of vehicle_damage_history.id rows that this repair addresses.
+  damageHistoryIdsJson: text("damage_history_ids_json"),
+  // How many vehicle_damage_history rows were linked (audit trail).
+  damageHistoryLinkCount: int("damage_history_link_count").default(0).notNull(),
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  index("idx_rh_repairer_id").on(table.repairerId),
+  index("idx_rh_vehicle_id").on(table.vehicleId),
+  index("idx_rh_claim_id").on(table.claimId),
+  index("idx_rh_repair_date").on(table.repairDate),
+  index("idx_rh_quality_score").on(table.repairQualityScore),
+  index("idx_rh_repeat_damage").on(table.repeatDamageWithin12Months),
+  index("idx_rh_warranty_repair").on(table.isWarrantyRepair),
+  index("idx_rh_fraud_flagged").on(table.isFraudFlagged),
+  index("idx_rh_tenant").on(table.tenantId),
+]);
+export type RepairHistory = typeof repairHistory.$inferSelect;
+export type InsertRepairHistory = typeof repairHistory.$inferInsert;

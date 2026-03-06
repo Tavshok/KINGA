@@ -81,6 +81,7 @@ import { agencyBrokerRouter } from "./routers/agency-broker";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
 import { vehicleRegistryRouter } from "./routers/vehicle-registry";
 import { vehicleDamageHistoryRouter } from "./routers/vehicle-damage-history";
+import { repairHistoryRouter } from "./routers/repair-history";
 import { driverRegistryRouter } from "./routers/driver-registry";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
@@ -114,6 +115,7 @@ export const appRouter = router({
   vehicleRegistry: vehicleRegistryRouter,
   vehicleDamageHistory: vehicleDamageHistoryRouter,
   driverRegistry: driverRegistryRouter,
+  repairHistory: repairHistoryRouter,
   system: systemRouter,
   tenant: tenantRouter,
   analytics: analyticsRouter,
@@ -1556,6 +1558,41 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             repairerName: panelBeater?.businessName || 'Selected Panel Beater',
             actualRepairCostCents: approvedAmount,
           }).catch((err: any) => console.warn('[DamageHistory] Repairer backfill failed:', err.message));
+        }).catch(() => {});
+
+        // Insert repair intelligence record (non-blocking)
+        import('./repair-history').then(({ insertRepairHistory, updateRepairerAggregates }) => {
+          // Parse damaged components from the claim's AI assessment
+          let componentsRepaired: { name: string; zone?: string | null }[] = [];
+          try {
+            if (claim.damagedComponentsJson) {
+              const parsed = JSON.parse(claim.damagedComponentsJson);
+              if (Array.isArray(parsed)) componentsRepaired = parsed;
+            }
+          } catch { /* ignore parse errors */ }
+
+          insertRepairHistory({
+            repairerId: selectedQuote.panelBeaterId,
+            vehicleId: claim.vehicleRegistryId ?? undefined,
+            claimId: input.claimId,
+            componentsRepaired,
+            repairCostCents: approvedAmount,
+            labourCostCents: selectedQuote.labourCost ?? 0,
+            partsCostCents: selectedQuote.partsCost ?? 0,
+            aiEstimatedCostCents: claim.estimatedRepairCost ?? 0,
+            approvalDate: new Date().toISOString().slice(0, 10),
+            tenantId: tenantId || null,
+          }).then(({ repairHistoryId, fraudSignals }) => {
+            if (repairHistoryId) {
+              // Update repairer performance aggregates
+              updateRepairerAggregates(selectedQuote.panelBeaterId).catch(
+                (err: any) => console.warn('[RepairHistory] Aggregate update failed:', err.message)
+              );
+              if (fraudSignals.length > 0) {
+                console.warn(`[RepairHistory] Fraud signals on claim ${input.claimId}:`, fraudSignals);
+              }
+            }
+          }).catch((err: any) => console.warn('[RepairHistory] Insert failed:', err.message));
         }).catch(() => {});
 
         // Notify panel beater of selection
