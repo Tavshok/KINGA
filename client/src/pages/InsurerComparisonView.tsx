@@ -485,12 +485,24 @@ export default function InsurerComparisonView() {
                           estimatedSpeed: p.estimatedSpeed ?? 0,
                           impactAngle: p.impactAngle ?? 0,
                           damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
-                          fraudIndicators: {
-                            impossibleDamagePatterns: p.fraudIndicators?.impossibleDamagePatterns ?? [],
-                            unrelatedDamage: p.fraudIndicators?.unrelatedDamage ?? [],
-                            stagedAccidentIndicators: p.fraudIndicators?.stagedAccidentIndicators ?? [],
-                            severityMismatch: p.fraudIndicators?.severityMismatch ?? false,
-                          },
+                          fraudIndicators: (() => {
+                            const fi = p.fraudIndicators;
+                            if (!fi) return { impossibleDamagePatterns: [], unrelatedDamage: [], stagedAccidentIndicators: [], severityMismatch: false };
+                            if (Array.isArray(fi)) {
+                              return {
+                                impossibleDamagePatterns: fi.filter((i: any) => i.confidence >= 85).map((i: any) => i.component),
+                                unrelatedDamage: fi.filter((i: any) => i.confidence >= 65 && i.confidence < 85).map((i: any) => i.component),
+                                stagedAccidentIndicators: fi.filter((i: any) => i.component.toLowerCase().includes('staged')).map((i: any) => i.component),
+                                severityMismatch: fi.some((i: any) => i.component.toLowerCase().includes('severity')),
+                              };
+                            }
+                            return {
+                              impossibleDamagePatterns: fi.impossibleDamagePatterns ?? [],
+                              unrelatedDamage: fi.unrelatedDamage ?? [],
+                              stagedAccidentIndicators: fi.stagedAccidentIndicators ?? [],
+                              severityMismatch: fi.severityMismatch ?? false,
+                            };
+                          })(),
                           physicsDeviationScore: p.physicsDeviationScore ?? 0,
                         };
                       } catch { return undefined; }
@@ -575,43 +587,83 @@ export default function InsurerComparisonView() {
           quotes={quotes as any[]}
         />
 
-        {/* Claim Summary */}
+        {/* Claim Overview */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Claim Summary</CardTitle>
+            <CardTitle>Claim Overview</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Vehicle</p>
-              <p className="font-medium">
-                {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Registration</p>
-              <p className="font-medium">{claim.vehicleRegistration}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Incident Date</p>
-              <p className="font-medium">
-                {claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A"}
-              </p>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-3">
+              <div>
+                <p className="text-sm text-muted-foreground">Claim Number</p>
+                <p className="font-medium font-mono text-sm">{claim.claimNumber || "—"}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <p className="font-medium capitalize">{(claim.status || "unknown").replace(/_/g, " ")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Source</p>
+                <p className="font-medium">{claim.claimSource === "document_ingestion" ? "Document Ingestion" : (claim.claimSource || "Manual")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Vehicle</p>
+                <p className="font-medium">
+                  {(claim.vehicleMake || claim.vehicleModel || claim.vehicleYear)
+                    ? `${claim.vehicleMake || ""} ${claim.vehicleModel || ""} ${claim.vehicleYear ? `(${claim.vehicleYear})` : ""}`.trim()
+                    : claim.claimSource === "document_ingestion" ? "Extracted from document" : "Not provided"}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Registration</p>
+                <p className="font-medium">{claim.vehicleRegistration || (claim.claimSource === "document_ingestion" ? "Extracted from document" : "Not provided")}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Incident Date</p>
+                <p className="font-medium">
+                  {claim.incidentDate
+                    ? new Date(claim.incidentDate).toLocaleDateString()
+                    : claim.claimSource === "document_ingestion" ? "Extracted from document" : "N/A"}
+                </p>
+              </div>
+              {claim.policyNumber && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Policy Number</p>
+                  <p className="font-medium">{claim.policyNumber}</p>
+                </div>
+              )}
+              {claim.incidentDescription && (
+                <div className="md:col-span-3">
+                  <p className="text-sm text-muted-foreground">Incident Description</p>
+                  <p className="text-sm mt-1">{claim.incidentDescription}</p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Panel Beater Choices */}
-        <PanelBeaterChoicesCard claimId={claimId} />
-
-        {/* Police Report Section */}
-        <div className="mb-6">
-          <PoliceReportForm claimId={claimId} />
-        </div>
+        {/* Submitted Evidence — police report, driver statements, supporting documents */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5 text-blue-600" />
+              Submitted Evidence
+            </CardTitle>
+            <CardDescription>
+              Police reports, driver statements, and supporting documents submitted with this claim
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PoliceReportForm claimId={claimId} />
+          </CardContent>
+        </Card>
 
         {/* Vehicle Valuation Section */}
         <div className="mb-6">
           <VehicleValuationCard claimId={claimId} />
         </div>
+        {/* Panel Beater Choices */}
+        <PanelBeaterChoicesCard claimId={claimId} />
 
         {/* Damage Component Breakdown */}
         {aiAssessment && (
@@ -1562,63 +1614,77 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         </div>
       )}
       
-      {/* Fraud Indicators from Physics */}
-      {physicsAnalysis.fraudIndicators && (
-        <div className="space-y-3">
-          <h4 className="font-semibold flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-red-600" />
-            Physics-Based Fraud Detection
-          </h4>
-          
-          {/* Impossible Damage Patterns */}
-          {physicsAnalysis.fraudIndicators.impossibleDamagePatterns?.length > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm font-medium text-red-900 mb-2">⚠️ Impossible Damage Patterns Detected</p>
-              <ul className="text-xs space-y-1 text-red-800">
-                {physicsAnalysis.fraudIndicators.impossibleDamagePatterns.map((pattern: string, idx: number) => (
-                  <li key={idx}>• {pattern}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {/* Unrelated Damage */}
-          {physicsAnalysis.fraudIndicators.unrelatedDamage?.length > 0 && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
-              <ul className="text-xs space-y-1 text-yellow-800">
-                {(physicsAnalysis.fraudIndicators.unrelatedDamage as any[]).map((damage: any, idx: number) => (
-                  <li key={idx}>
-                    • {typeof damage === 'string' ? damage : (damage.component || String(damage))}{typeof damage === 'object' && damage.distanceFromImpact ? ` (${(damage.distanceFromImpact).toFixed(1)}m from impact)` : ''}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {/* Staged Accident Indicators */}
-          {physicsAnalysis.fraudIndicators.stagedAccidentIndicators?.length > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm font-medium text-red-900 mb-2">🚨 Staged Accident Indicators</p>
-              <ul className="text-xs space-y-1 text-red-800">
-                {physicsAnalysis.fraudIndicators.stagedAccidentIndicators.map((indicator: string, idx: number) => (
-                  <li key={idx}>• {indicator}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          
-          {/* Severity Mismatch */}
-          {physicsAnalysis.fraudIndicators.severityMismatch && (
-            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <p className="text-sm font-medium text-orange-900">⚠️ Severity Mismatch</p>
-              <p className="text-xs text-orange-800 mt-1">
-                Reported damage severity doesn't match estimated impact speed and forces
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+      {/* Fraud Indicators from Physics — handles both normalised [{component,confidence}] and legacy {impossibleDamagePatterns,...} formats */}
+      {physicsAnalysis.fraudIndicators && (() => {
+        const raw = physicsAnalysis.fraudIndicators;
+        // Normalised format: array of {component, confidence}
+        const isNormalisedArray = Array.isArray(raw);
+        // Legacy format: object with sub-keys
+        const isLegacyObj = !isNormalisedArray && typeof raw === 'object';
+
+        // Derive unified indicator list
+        const highConfidence: string[] = isNormalisedArray
+          ? raw.filter((i: any) => i.confidence >= 85).map((i: any) => i.component)
+          : (raw.impossibleDamagePatterns ?? []);
+        const mediumConfidence: string[] = isNormalisedArray
+          ? raw.filter((i: any) => i.confidence >= 65 && i.confidence < 85).map((i: any) => i.component)
+          : (raw.unrelatedDamage ?? []).map((d: any) => typeof d === 'string' ? d : (d.component || String(d)));
+        const stagedIndicators: string[] = isNormalisedArray
+          ? raw.filter((i: any) => i.component.toLowerCase().includes('staged')).map((i: any) => i.component)
+          : (raw.stagedAccidentIndicators ?? []);
+        const hasSeverityMismatch = isLegacyObj ? !!raw.severityMismatch
+          : raw.some((i: any) => i.component.toLowerCase().includes('severity'));
+        const totalCount = highConfidence.length + mediumConfidence.length + stagedIndicators.length + (hasSeverityMismatch ? 1 : 0);
+
+        if (totalCount === 0) return null;
+        return (
+          <div className="space-y-3">
+            <h4 className="font-semibold flex items-center gap-2">
+              <AlertTriangle className="h-4 w-4 text-red-600" />
+              Physics-Based Fraud Detection
+              <Badge variant="destructive" className="text-xs">{totalCount} indicator{totalCount !== 1 ? 's' : ''}</Badge>
+            </h4>
+            {highConfidence.length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm font-medium text-red-900 mb-2">⚠️ Impossible Damage Patterns Detected</p>
+                <ul className="text-xs space-y-1 text-red-800">
+                  {highConfidence.map((pattern: string, idx: number) => (
+                    <li key={idx}>• {pattern}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {mediumConfidence.length > 0 && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
+                <ul className="text-xs space-y-1 text-yellow-800">
+                  {mediumConfidence.map((item: string, idx: number) => (
+                    <li key={idx}>• {item}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {stagedIndicators.length > 0 && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm font-medium text-red-900 mb-2">🚨 Staged Accident Indicators</p>
+                <ul className="text-xs space-y-1 text-red-800">
+                  {stagedIndicators.map((indicator: string, idx: number) => (
+                    <li key={idx}>• {indicator}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {hasSeverityMismatch && (
+              <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                <p className="text-sm font-medium text-orange-900">⚠️ Severity Mismatch</p>
+                <p className="text-xs text-orange-800 mt-1">
+                  Reported damage severity does not match estimated impact speed and forces
+                </p>
+              </div>
+            )}
+          </div>
+        );
+      })()}
       
       {/* Forensic Analysis */}
       {(() => {
@@ -1683,8 +1749,10 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         <h4 className="font-semibold text-secondary mb-3">Quote Validation Summary</h4>
         <div className="space-y-2">
           {quotes.map((quote, idx) => {
-            const hasIssues = physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0 || 
-                             physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0;
+            const fi = physicsAnalysis.fraudIndicators;
+            const hasIssues = Array.isArray(fi)
+              ? fi.some((i: any) => i.confidence >= 65)
+              : !!(fi?.unrelatedDamage?.length > 0 || fi?.impossibleDamagePatterns?.length > 0);
             return (
               <div key={quote.id} className="flex items-center justify-between p-2 bg-white rounded border">
                 <span className="text-sm">Panel Beater #{quote.panelBeaterId}</span>

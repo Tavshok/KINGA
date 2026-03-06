@@ -12,7 +12,7 @@
  *   5. Confidence Factors
  *   6. Part Reconciliation (detected vs quoted)
  *   7. Historical Cost Comparison
- *   8. Country Repair Context
+ *   8. Currency — from claim/insurer (no regional VAT/duty context)
  */
 
 import { trpc } from "@/lib/trpc";
@@ -482,27 +482,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
           )}
         </div>
 
-        {/* ── Country Context ──────────────────────────────────────────────── */}
-        {countryContext && (
-          <>
-            <Separator />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-                Repair Context — {countryContext.countryName}
-              </p>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
-                <div className="text-muted-foreground">VAT rate</div>
-                <div className="font-medium">{(countryContext.vatRate * 100).toFixed(1)}%</div>
-                <div className="text-muted-foreground">Import duty</div>
-                <div className="font-medium">{(countryContext.importDutyRate * 100).toFixed(1)}%</div>
-                <div className="text-muted-foreground">Avg labour rate</div>
-                <div className="font-medium">
-                  {countryContext.currencyCode} {(countryContext.avgLabourRatePerHour / 100).toFixed(0)}/hr
-                </div>
-              </div>
-            </div>
-          </>
-        )}
+        {/* Country-specific VAT/duty/labour context removed — not applicable to Zimbabwe USD deployment */}
 
         <p className="text-xs text-muted-foreground pt-1 border-t border-muted">
           Generated {new Date(data.generatedAt).toLocaleString()} · Advisory only
