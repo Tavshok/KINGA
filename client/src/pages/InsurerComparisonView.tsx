@@ -21,6 +21,7 @@ import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
+import FraudScorePanel from "@/components/FraudScorePanel";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -896,10 +897,10 @@ export default function InsurerComparisonView() {
                 <Badge className="bg-red-600">13</Badge>
                 Fraud Risk Analysis
               </CardTitle>
-              <CardDescription>Fraud indicators from physics engine, quote comparison, and damage inconsistency analysis</CardDescription>
+              <CardDescription>10-indicator fraud scoring engine: physics mismatch, claimant risk, staged accident, panel beater patterns, assessor integrity, collusion network, document integrity, cost anomalies, vehicle ownership, and claim timing</CardDescription>
             </CardHeader>
             <CardContent>
-              <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="fraud" />
+              <FraudScorePanel aiAssessment={aiAssessment} />
             </CardContent>
           </Card>
         )}
@@ -944,18 +945,18 @@ export default function InsurerComparisonView() {
                     <p className="text-sm text-muted-foreground mb-1">Recommended Action</p>
                     <p className="font-semibold text-lg">
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss — Do Not Repair' :
-                       aiAssessment.fraudRiskLevel === 'high' ? 'Request Investigation' :
-                       aiAssessment.fraudRiskLevel === 'medium' ? 'Proceed with Caution' :
+                       (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'Request Investigation' :
+                       aiAssessment.fraudRiskLevel === 'moderate' ? 'Proceed with Caution' :
                        'Proceed with Repair'}
                     </p>
                     <Badge className={`mt-2 ${
                       aiAssessment.totalLossIndicated === 1 ? 'bg-red-600' :
-                      aiAssessment.fraudRiskLevel === 'high' ? 'bg-red-600' :
-                      aiAssessment.fraudRiskLevel === 'medium' ? 'bg-amber-600' : 'bg-green-600'
+                      (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'bg-red-600' :
+                      aiAssessment.fraudRiskLevel === 'moderate' ? 'bg-amber-600' : 'bg-green-600'
                     }`}>
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss' :
-                       aiAssessment.fraudRiskLevel === 'high' ? 'Possible Fraud' :
-                       aiAssessment.fraudRiskLevel === 'medium' ? 'Review Required' : 'Approved'}
+                       (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'Possible Fraud' :
+                       aiAssessment.fraudRiskLevel === 'moderate' ? 'Review Required' : 'Approved'}
                     </Badge>
                   </div>
                   <div className="p-4 rounded-lg border bg-white">

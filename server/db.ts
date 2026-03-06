@@ -1398,6 +1398,7 @@ Provide your response in JSON format.`;
   // Import physics engine and forensic analysis
   const { analyzeAccidentPhysics, validateQuoteAgainstPhysics } = await import("./accidentPhysics");
   const { performForensicAnalysis } = await import("./forensicAnalysis");
+  const { computeFraudScoreBreakdown, buildFraudScoringInput } = await import("./fraud-scoring");
   
   // Prepare vehicle data — use PDF-extracted fields if available, fall back to claim fields
   const physicsMake = (analysis.extractedVehicleMake || claim.vehicleMake || 'Unknown').toLowerCase();
@@ -1761,37 +1762,32 @@ Provide your response in JSON format.`;
       mlFraudResult = null;
     }
     
-    // Combine all fraud scores: AI vision, physics, forensic, and ML
-    let combinedFraudScore;
-    if (mlFraudResult) {
-      // Use ML model as primary score, weighted with other indicators
-      combinedFraudScore = Math.round(
-        mlFraudResult.fraud_probability * 40 +  // ML model (40%)
-        physicsFraudScore * 0.25 +              // Physics (25%)
-        forensicFraudScore * 0.25 +             // Forensics (25%)
-        analysis.fraudRiskScore * 0.10          // AI vision (10%)
-      );
-    } else {
-      // Fallback to original scoring if ML fails
-      combinedFraudScore = Math.min(100, Math.max(analysis.fraudRiskScore, physicsFraudScore, forensicFraudScore));
-    }
+    // ── 10-Indicator Fraud Scoring Engine ────────────────────────────────────
+    const fraudScoringInput = buildFraudScoringInput({
+      claim,
+      physicsAnalysis,
+      forensicAnalysis,
+      mlResult: mlFraudResult,
+      partsReconciliation,
+      extraInQuoteCount,
+      extraInQuoteCost,
+      estimatedRepairCost,
+      estimatedVehicleValue,
+    });
+    const fraudScoreBreakdown = computeFraudScoreBreakdown(fraudScoringInput);
+    const combinedFraudScore = fraudScoreBreakdown.totalScore;
+    const combinedFraudLevel = fraudScoreBreakdown.riskLevel;
     
-    const combinedFraudLevel = combinedFraudScore > 70 ? "high" : combinedFraudScore > 40 ? "medium" : "low";
-    
-    // Compile all fraud flags
+    // Compile all fraud flags from triggered signals
     const allFraudFlags = [
       ...analysis.fraudIndicators,
-      ...physicsAnalysis.fraudIndicators.impossibleDamagePatterns,
-      ...physicsAnalysis.fraudIndicators.unrelatedDamage,
-      ...physicsAnalysis.fraudIndicators.stagedAccidentIndicators,
+      ...fraudScoreBreakdown.triggeredSignals.map(s => s.label),
     ];
     
     if (mlFraudResult) {
-      allFraudFlags.push(...mlFraudResult.ownership_analysis.risk_factors);
-      allFraudFlags.push(...mlFraudResult.staged_accident_indicators.indicators);
-      if (mlFraudResult.top_risk_factors) {
-        allFraudFlags.push(...mlFraudResult.top_risk_factors);
-      }
+      if (mlFraudResult.ownership_analysis?.risk_factors) allFraudFlags.push(...mlFraudResult.ownership_analysis.risk_factors);
+      if (mlFraudResult.staged_accident_indicators?.indicators) allFraudFlags.push(...mlFraudResult.staged_accident_indicators.indicators);
+      if (mlFraudResult.top_risk_factors) allFraudFlags.push(...mlFraudResult.top_risk_factors);
     }
     
     // Update claim with enhanced fraud assessment + lifecycle status
@@ -2029,6 +2025,8 @@ Provide your response in JSON format.`;
       repairIntelligenceJson: JSON.stringify(repairIntelligence),
       // Stage 9 output: parts reconciliation (detected vs quoted vs hidden)
       partsReconciliationJson: JSON.stringify(partsReconciliation),
+      // Stage 7 output: 10-indicator fraud score breakdown
+      fraudScoreBreakdownJson: JSON.stringify(fraudScoreBreakdown),
       // Stage 10 output: cost intelligence summary
       costIntelligenceJson: JSON.stringify({
         estimatedRepairCost,

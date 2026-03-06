@@ -37,7 +37,9 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	detectedDamageTypes: text("detected_damage_types"),
 	confidenceScore: int("confidence_score"),
 	fraudIndicators: text("fraud_indicators"),
-	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high']),
+	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['minimal','low','moderate','high','very_high']),
+	// Stage 7 output: 10-indicator fraud score breakdown (JSON FraudScoreBreakdown)
+	fraudScoreBreakdownJson: text("fraud_score_breakdown_json"),
 	modelVersion: varchar("model_version", { length: 50 }),
 	processingTime: int("processing_time"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
