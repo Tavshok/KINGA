@@ -10,7 +10,7 @@ import { useLocation, useRoute } from "wouter";
 import { useState, useEffect, useRef } from "react";
 import { INSURER_CLAIMS_LIST_PATH } from "@/lib/roleRouting";
 import { toast } from "sonner";
-import PoliceReportForm from "@/components/PoliceReportForm";
+// PoliceReportForm removed — police reports belong in claim inputs, not AI analysis
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
@@ -156,9 +156,13 @@ export default function InsurerComparisonView() {
     // Infer hidden damage (same logic as DamageComponentBreakdown)
     const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
     const damageDescription = aiAssessment.damageDescription || "";
+    // Resolve correct fields (not deprecated)
+    const exportAccidentType = (claim as any)?.incidentType || aiAssessment.accidentType || "";
+    const exportHasStructuralDamage = aiAssessment.structuralDamageSeverity ? aiAssessment.structuralDamageSeverity !== 'none' : false;
+    const exportHasAirbagDeployment = damageDescription.toLowerCase().includes('airbag') || aiAssessment.airbagDeployment || false;
     
     if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
-      if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+      if (exportAccidentType === "frontal" || exportAccidentType.includes("front") || damageDescription.toLowerCase().includes("front")) {
         // Physics: force propagation is Bumper → Crash Bar/Subframe → Radiator/Condenser
         inferredHiddenDamage.push({
           component: "Front Subframe / Crash Bar",
@@ -173,7 +177,7 @@ export default function InsurerComparisonView() {
       }
     }
 
-    if (aiAssessment.accidentType?.includes("side")) {
+    if (exportAccidentType?.includes("side")) {
       inferredHiddenDamage.push({
         component: "Door Intrusion Beam",
         reason: "Side impact typically damages internal door reinforcement",
@@ -188,7 +192,7 @@ export default function InsurerComparisonView() {
       }
     }
 
-    if (aiAssessment.accidentType === "rollover") {
+    if (exportAccidentType === "rollover") {
       inferredHiddenDamage.push({
         component: "Roof Structure / Pillars",
         reason: "Rollover accidents cause structural deformation",
@@ -196,7 +200,7 @@ export default function InsurerComparisonView() {
       });
     }
 
-    if (aiAssessment.structuralDamage) {
+    if (exportHasStructuralDamage) {
       inferredHiddenDamage.push({
         component: "Frame / Unibody Structure",
         reason: "AI detected structural damage indicators",
@@ -204,7 +208,7 @@ export default function InsurerComparisonView() {
       });
     }
 
-    if (aiAssessment.airbagDeployment) {
+    if (exportHasAirbagDeployment) {
       inferredHiddenDamage.push({
         component: "Airbag Control Module / Sensors",
         reason: "Airbag deployment requires system replacement",
@@ -218,15 +222,15 @@ export default function InsurerComparisonView() {
       vehicle: `${claim.vehicleMake} ${claim.vehicleModel} (${claim.vehicleYear})`,
       registration: claim.vehicleRegistration,
       incidentDate: claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A",
-      accidentType: aiAssessment.accidentType || "unknown",
+      accidentType: (claim as any).incidentType || aiAssessment.accidentType || "unknown",
       damagedComponents,
       categorizedDamage,
       inferredHiddenDamage,
-      structuralDamage: aiAssessment.structuralDamage || false,
-      airbagDeployment: aiAssessment.airbagDeployment || false,
+      structuralDamage: aiAssessment.structuralDamageSeverity ? aiAssessment.structuralDamageSeverity !== 'none' : false,
+      airbagDeployment: aiAssessment.damageDescription?.toLowerCase().includes('airbag') || false,
       estimatedCost: aiAssessment.estimatedCost || 0,
-      partsCost: aiAssessment.partsCost || (aiAssessment.estimatedCost || 0) * 0.6,
-      laborCost: aiAssessment.laborCost || (aiAssessment.estimatedCost || 0) * 0.4,
+      partsCost: aiAssessment.estimatedPartsCost || (aiAssessment.estimatedCost || 0) * 0.6,
+      laborCost: aiAssessment.estimatedLaborCost || (aiAssessment.estimatedCost || 0) * 0.4,
       damageDescription: aiAssessment.damageDescription || "",
       // Physics analysis from AI assessment
       physicsAnalysis: (() => {
@@ -397,17 +401,22 @@ export default function InsurerComparisonView() {
                       averageQuote: quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length,
                       missingItems: [] // Can be enhanced later
                     } : undefined,
+                    // Accident circumstances
+                    accidentCircumstances: {
+                      incidentDescription: (claim as any).incidentDescription || undefined,
+                      incidentLocation: (claim as any).incidentLocation || undefined,
+                      incidentType: (claim as any).incidentType || undefined,
+                    },
                     // AI Intelligence Summary — derived from existing AI assessment record and quotes
                     aiIntelligence: (() => {
                       const amounts: number[] = quotes.map((q: any) => q.quotedAmount || 0);
-                      if (amounts.length === 0) return undefined;
                       const sorted = [...amounts].sort((a: number, b: number) => a - b);
                       const mid = Math.floor(sorted.length / 2);
                       const medianQuote = sorted.length % 2 !== 0
                         ? sorted[mid]
                         : (sorted[mid - 1] + sorted[mid]) / 2;
-                      const lowestQuote = sorted[0];
-                      const highestQuote = sorted[sorted.length - 1];
+                      const lowestQuote = sorted.length > 0 ? sorted[0] : 0;
+                      const highestQuote = sorted.length > 0 ? sorted[sorted.length - 1] : 0;
                       const spreadPercent = highestQuote > 0
                         ? Math.round(((highestQuote - lowestQuote) / highestQuote) * 100)
                         : 0;
@@ -461,46 +470,70 @@ export default function InsurerComparisonView() {
                         fraudRisk,
                         repairComplexity,
                         confidenceScore: aiAssessment?.confidenceScore ?? 0,
+                        // Always include AI estimated cost for display even without quotes
+                        aiEstimatedCost: aiAssessment?.estimatedCost ?? 0,
                       };
-                    })(),
-                    // Physics analysis from AI assessment
+                    })() || {
+                      // Fallback when no quotes: still show AI data
+                      detectedComponents: (() => {
+                        if (!aiAssessment?.damagedComponentsJson) return [];
+                        try { return JSON.parse(aiAssessment.damagedComponentsJson); } catch { return []; }
+                      })(),
+                      lowestQuote: 0,
+                      medianQuote: 0,
+                      highestQuote: 0,
+                      spreadPercent: 0,
+                      fraudRisk: aiAssessment?.fraudRiskLevel || 'low',
+                      repairComplexity: (() => {
+                        const sev = aiAssessment?.structuralDamageSeverity;
+                        if (sev === 'severe' || sev === 'catastrophic') return 'high';
+                        if (sev === 'moderate') return 'medium';
+                        return 'low';
+                      })(),
+                      confidenceScore: aiAssessment?.confidenceScore ?? 0,
+                      aiEstimatedCost: aiAssessment?.estimatedCost ?? 0,
+                    },
+                    // Physics analysis from AI assessment — pass full parsed object
                     physicsAnalysis: (() => {
                       if (!aiAssessment?.physicsAnalysis) return undefined;
                       try {
-                        const p = typeof aiAssessment.physicsAnalysis === 'string'
+                        return typeof aiAssessment.physicsAnalysis === 'string'
                           ? JSON.parse(aiAssessment.physicsAnalysis)
                           : aiAssessment.physicsAnalysis;
-                        return {
-                          impactForce: p.impactForce ?? 0,
-                          estimatedSpeed: p.estimatedSpeed ?? 0,
-                          impactAngle: p.impactAngle ?? 0,
-                          damagePropagation: Array.isArray(p.damagePropagation) ? p.damagePropagation : [],
-                          fraudIndicators: {
-                            impossibleDamagePatterns: p.fraudIndicators?.impossibleDamagePatterns ?? [],
-                            unrelatedDamage: p.fraudIndicators?.unrelatedDamage ?? [],
-                            stagedAccidentIndicators: p.fraudIndicators?.stagedAccidentIndicators ?? [],
-                            severityMismatch: p.fraudIndicators?.severityMismatch ?? false,
-                          },
-                          physicsDeviationScore: p.physicsDeviationScore ?? 0,
-                        };
                       } catch { return undefined; }
                     })(),
-                    // Forensic analysis from AI assessment
+                    // Forensic analysis from AI assessment — pass full parsed object with DB key support
                     forensicAnalysis: (() => {
                       if (!(aiAssessment as any)?.forensicAnalysis) return undefined;
                       try {
                         const f = typeof (aiAssessment as any).forensicAnalysis === 'string'
                           ? JSON.parse((aiAssessment as any).forensicAnalysis)
                           : (aiAssessment as any).forensicAnalysis;
+                        // Support both DB keys (paint, bodywork, tires, fluidLeaks, glass)
+                        // and legacy keys (paintAnalysis, bodyworkAnalysis, etc.)
                         return {
                           overallFraudScore: f.overallFraudScore ?? 0,
-                          paintAnalysis: f.paintAnalysis ?? { score: 0, findings: [] },
-                          bodyworkAnalysis: f.bodyworkAnalysis ?? { score: 0, findings: [] },
-                          glassAnalysis: f.glassAnalysis ?? { score: 0, findings: [] },
-                          tireAnalysis: f.tireAnalysis ?? { score: 0, findings: [] },
-                          fluidAnalysis: f.fluidAnalysis ?? { score: 0, findings: [] },
+                          paint: f.paint ?? f.paintAnalysis ?? { score: 0, findings: [] },
+                          bodywork: f.bodywork ?? f.bodyworkAnalysis ?? { score: 0, findings: [] },
+                          glass: f.glass ?? f.glassAnalysis ?? { score: 0, findings: [] },
+                          tires: f.tires ?? f.tireAnalysis ?? { score: 0, findings: [] },
+                          fluidLeaks: f.fluidLeaks ?? f.fluidAnalysis ?? { score: 0, findings: [] },
+                          // Keep legacy keys for backward compat
+                          paintAnalysis: f.paint ?? f.paintAnalysis ?? { score: 0, findings: [] },
+                          bodyworkAnalysis: f.bodywork ?? f.bodyworkAnalysis ?? { score: 0, findings: [] },
+                          glassAnalysis: f.glass ?? f.glassAnalysis ?? { score: 0, findings: [] },
+                          tireAnalysis: f.tires ?? f.tireAnalysis ?? { score: 0, findings: [] },
+                          fluidAnalysis: f.fluidLeaks ?? f.fluidAnalysis ?? { score: 0, findings: [] },
                         };
                       } catch { return undefined; }
+                    })(),
+                    // Damage photos from claim
+                    damagePhotos: (() => {
+                      if (!(claim as any)?.damagePhotos) return [];
+                      try {
+                        const p = JSON.parse((claim as any).damagePhotos);
+                        return Array.isArray(p) ? p : [];
+                      } catch { return []; }
                     })(),
                   };
                   
@@ -589,6 +622,84 @@ export default function InsurerComparisonView() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Accident Circumstances — show incident description and location */}
+        {((claim as any).incidentDescription || (claim as any).incidentLocation || (claim as any).incidentType) && (
+          <Card className="mb-6 border-2 border-blue-200 bg-blue-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-blue-600">Accident</Badge>
+                Accident Circumstances
+              </CardTitle>
+              <CardDescription>Incident details as reported by the claimant</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-4 md:grid-cols-3">
+                {(claim as any).incidentType && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Incident Type</p>
+                    <p className="font-medium capitalize">{(claim as any).incidentType}</p>
+                  </div>
+                )}
+                {(claim as any).incidentLocation && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Location</p>
+                    <p className="font-medium">{(claim as any).incidentLocation}</p>
+                  </div>
+                )}
+                {claim.incidentDate && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date &amp; Time</p>
+                    <p className="font-medium">{new Date(claim.incidentDate).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+              {(claim as any).incidentDescription && (
+                <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
+                  <p className="text-sm text-muted-foreground mb-2">Incident Description</p>
+                  <p className="text-sm leading-relaxed">{(claim as any).incidentDescription}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Damage Images Gallery */}
+        {(() => {
+          let photos: string[] = [];
+          try {
+            const raw = (claim as any).damagePhotos;
+            if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) photos = p; }
+          } catch { /* ignore */ }
+          if (photos.length === 0) return null;
+          return (
+            <Card className="mb-6 border-2 border-indigo-200 bg-indigo-50/30">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Badge className="bg-indigo-600">Photos</Badge>
+                  Damage Images ({photos.length})
+                </CardTitle>
+                <CardDescription>Uploaded damage photographs for this claim</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+                  {photos.map((url: string, idx: number) => (
+                    <div key={idx} className="relative rounded-lg overflow-hidden border border-indigo-200 bg-white">
+                      <img
+                        src={url}
+                        alt={`Damage photo ${idx + 1}`}
+                        className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                        onClick={() => window.open(url, '_blank')}
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <p className="text-xs text-center text-muted-foreground py-1">Photo {idx + 1}</p>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })()}
 
         {/* Panel Beater Choices */}
         <PanelBeaterChoicesCard claimId={claimId} />
@@ -1077,9 +1188,16 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
   // Parse damaged components
-  const damagedComponents = aiAssessment.damagedComponentsJson 
-    ? JSON.parse(aiAssessment.damagedComponentsJson) 
-    : [];
+  const damagedComponents = (() => {
+    if (!aiAssessment.damagedComponentsJson) return [];
+    try { return JSON.parse(aiAssessment.damagedComponentsJson); } catch { return []; }
+  })();
+  // Resolve accidentType from claim.incidentType (correct field) with fallback to deprecated aiAssessment.accidentType
+  const accidentType = (claim as any)?.incidentType || aiAssessment.accidentType || "";
+  // Resolve structural damage from correct field
+  const hasStructuralDamage = aiAssessment.structuralDamageSeverity ? aiAssessment.structuralDamageSeverity !== 'none' : (aiAssessment.structuralDamage || false);
+  // Resolve airbag deployment from damage description (not stored as separate field)
+  const hasAirbagDeployment = aiAssessment.damageDescription?.toLowerCase().includes('airbag') || aiAssessment.airbagDeployment || false;
 
   // Parse damage description to extract inferred hidden damage
   const damageDescription = aiAssessment.damageDescription || "";
@@ -1111,7 +1229,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   // Front-end collision → infer hidden structural and cooling damage
   // Physics: force propagation sequence is Bumper → Crash Bar/Subframe → Radiator/Condenser
   if (damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender"))) {
-    if (aiAssessment.accidentType === "frontal" || damageDescription.toLowerCase().includes("front")) {
+    if (accidentType === "frontal" || accidentType.includes("front") || damageDescription.toLowerCase().includes("front")) {
       inferredHiddenDamage.push({
         component: "Front Subframe / Crash Bar",
         reason: "Primary energy-absorbing structural member in frontal collisions — damaged before force reaches cooling components",
@@ -1126,7 +1244,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   }
 
   // Side impact → potential door intrusion beam, B-pillar damage
-  if (aiAssessment.accidentType?.includes("side")) {
+  if (accidentType?.includes("side")) {
     inferredHiddenDamage.push({
       component: "Door Intrusion Beam",
       reason: "Side impact typically damages internal door reinforcement",
@@ -1142,7 +1260,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   }
 
   // Rollover → roof structure, pillars
-  if (aiAssessment.accidentType === "rollover") {
+  if (accidentType === "rollover") {
     inferredHiddenDamage.push({
       component: "Roof Structure / Pillars",
       reason: "Rollover accidents cause structural deformation",
@@ -1151,7 +1269,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   }
 
   // Structural damage flag → frame/unibody damage
-  if (aiAssessment.structuralDamage) {
+  if (hasStructuralDamage) {
     inferredHiddenDamage.push({
       component: "Frame / Unibody Structure",
       reason: "AI detected structural damage indicators",
@@ -1160,7 +1278,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   }
 
   // Airbag deployment → steering column, sensors
-  if (aiAssessment.airbagDeployment) {
+  if (hasAirbagDeployment) {
     inferredHiddenDamage.push({
       component: "Airbag Control Module / Sensors",
       reason: "Airbag deployment requires system replacement",
@@ -1168,10 +1286,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
     });
   }
 
-  // Cost breakdown by category (estimated)
+  // Cost breakdown by category (estimated) — use correct schema fields
   const estimatedCost = aiAssessment.estimatedCost || 0;
-  const partsCost = aiAssessment.partsCost || estimatedCost * 0.6;
-  const laborCost = aiAssessment.laborCost || estimatedCost * 0.4;
+  const partsCost = aiAssessment.estimatedPartsCost || estimatedCost * 0.6;
+  const laborCost = aiAssessment.estimatedLaborCost || estimatedCost * 0.4;
 
   return (
     <div className="space-y-6">
@@ -1203,10 +1321,10 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
         </h4>
         <VehicleDamageVisualization 
           damagedComponents={damagedComponents} 
-          accidentType={aiAssessment.accidentType}
+          accidentType={accidentType}
           estimatedCost={aiAssessment.estimatedCost || 0}
-          structuralDamage={aiAssessment.structuralDamage || false}
-          airbagDeployment={aiAssessment.airbagDeployment || false}
+          structuralDamage={hasStructuralDamage}
+          airbagDeployment={hasAirbagDeployment}
         />
       </div>
 
@@ -1288,7 +1406,7 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
       )}
 
       {/* Structural Damage Warning */}
-      {aiAssessment.structuralDamage && (
+      {hasStructuralDamage && (
         <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 text-red-600" />

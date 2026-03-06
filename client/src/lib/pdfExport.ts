@@ -94,6 +94,8 @@ interface ClaimData {
     repairComplexity: string;
     /** AI confidence score 0-100 */
     confidenceScore: number;
+    /** AI estimated repair cost (whole dollars, not cents) — shown when no quotes available */
+    aiEstimatedCost?: number;
   };
   /**
    * Physics analysis — accepts both normalised DB format ({consistencyScore, _raw: {...}}) and
@@ -312,13 +314,24 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
-    doc.text(`Lowest Quote:   ${currencySymbol}${ai.lowestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
-    yPos += 4;
-    doc.text(`Median Quote:   ${currencySymbol}${ai.medianQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
-    yPos += 4;
-    doc.text(`Highest Quote:  ${currencySymbol}${ai.highestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
-    yPos += 4;
-    doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
+    if (ai.lowestQuote > 0) {
+      doc.text(`Lowest Quote:   ${currencySymbol}${ai.lowestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      yPos += 4;
+      doc.text(`Median Quote:   ${currencySymbol}${ai.medianQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      yPos += 4;
+      doc.text(`Highest Quote:  ${currencySymbol}${ai.highestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      yPos += 4;
+      doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
+    } else {
+      // No quotes yet — show AI estimated cost
+      doc.setTextColor(100, 100, 100);
+      doc.text('No panel beater quotes submitted yet', 26, yPos);
+      doc.setTextColor(0, 0, 0);
+      yPos += 4;
+      if (ai.aiEstimatedCost && ai.aiEstimatedCost > 0) {
+        doc.text(`AI Estimated Cost: ${currencySymbol}${ai.aiEstimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      }
+    }
     yPos += 7;
 
     // ── 3. AI Recommendation ─────────────────────────────────────────────────
