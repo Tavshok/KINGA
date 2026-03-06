@@ -725,6 +725,10 @@ export const claims = mysqlTable("claims", {
 	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
 	// FK → vehicleRegistry.id — set after pipeline upserts the vehicle record
 	vehicleRegistryId: int("vehicle_registry_id"),
+	// FK → drivers.id — set after pipeline upserts the insured driver record
+	driverRegistryId: int("driver_registry_id"),
+	// FK → drivers.id — set after pipeline upserts the third-party driver record
+	thirdPartyDriverRegistryId: int("third_party_driver_registry_id"),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
@@ -3706,3 +3710,108 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
 ]);
 export type VehicleDamageHistory = typeof vehicleDamageHistory.$inferSelect;
 export type InsertVehicleDamageHistory = typeof vehicleDamageHistory.$inferInsert;
+
+// ============================================================================
+// DRIVER INTELLIGENCE REGISTRY
+// Persistent driver records linked to claims via driver_claims join table.
+// Matched by normalised license_number (primary) or full_name + dob (fallback).
+//
+// Design notes:
+//   - license_expiry_date is NULLABLE — NULL means the licence does not expire
+//     (e.g. professional/lifetime licences in some jurisdictions).
+//   - license_issue_date is NULLABLE — OCR may not always capture it.
+//   - All license numbers are stored normalised: uppercase, spaces/hyphens stripped.
+//   - license_number has a unique index but is nullable (pre-digital era records).
+// ============================================================================
+export const drivers = mysqlTable("drivers", {
+  id: int().autoincrement().notNull(),
+
+  // ── Identity ──────────────────────────────────────────────────────────────
+  fullName: varchar("full_name", { length: 255 }).notNull(),
+  // Normalised: uppercase, spaces and hyphens stripped. Unique but nullable.
+  licenseNumber: varchar("license_number", { length: 50 }),
+  // ISO date string (YYYY-MM-DD) or null if OCR could not extract it.
+  licenseIssueDate: varchar("license_issue_date", { length: 20 }),
+  // NULL = licence does not expire. ISO date string otherwise.
+  licenseExpiryDate: varchar("license_expiry_date", { length: 20 }),
+  // ISO date string (YYYY-MM-DD) or null if not available.
+  dateOfBirth: varchar("date_of_birth", { length: 20 }),
+  phone: varchar({ length: 30 }),
+  email: varchar({ length: 320 }),
+  // National ID / passport number — secondary identifier.
+  nationalIdNumber: varchar("national_id_number", { length: 50 }),
+  // Country that issued the licence (ISO 3166-1 alpha-2, e.g. "ZW", "ZA").
+  licenseCountry: varchar("license_country", { length: 5 }),
+
+  // ── Risk signals (future capability) ─────────────────────────────────────
+  // Total number of claims this driver has been linked to.
+  totalClaimsCount: int("total_claims_count").default(0).notNull(),
+  // Total claims where this driver was the at-fault party.
+  atFaultClaimsCount: int("at_fault_claims_count").default(0).notNull(),
+  // Composite risk score 0–100 (repeat claims, fraud flags, at-fault ratio).
+  driverRiskScore: int("driver_risk_score").default(0).notNull(),
+  // Whether this driver has appeared in 3+ claims (strong fraud signal).
+  isRepeatClaimer: tinyint("is_repeat_claimer").default(0).notNull(),
+  // Whether this driver has been flagged in a staged accident investigation.
+  isStagedAccidentSuspect: tinyint("is_staged_accident_suspect").default(0).notNull(),
+  // JSON array of claim IDs for fast history lookup: [1, 5, 12, ...]
+  claimIdsJson: text("claim_ids_json"),
+  // Last fraud risk score seen across all linked claims.
+  lastFraudRiskScore: int("last_fraud_risk_score").default(0).notNull(),
+
+  // ── Data provenance ───────────────────────────────────────────────────────
+  // How this record was first created: 'ocr' (AI extracted), 'manual' (form entry), 'import'.
+  dataSource: mysqlEnum("data_source", ['ocr','manual','import','unknown']).default('unknown').notNull(),
+  // OCR confidence score (0–100) for the license number extraction.
+  ocrConfidenceScore: int("ocr_confidence_score"),
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
+  tenantId: varchar("tenant_id", { length: 255 }),
+  firstSeenAt: timestamp("first_seen_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  lastSeenAt: timestamp("last_seen_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+  updatedAt: timestamp("updated_at", { mode: 'string' }).defaultNow().onUpdateNow().notNull(),
+},
+(table) => [
+  uniqueIndex("idx_drivers_license_number").on(table.licenseNumber),
+  index("idx_drivers_full_name").on(table.fullName),
+  index("idx_drivers_email").on(table.email),
+  index("idx_drivers_phone").on(table.phone),
+  index("idx_drivers_national_id").on(table.nationalIdNumber),
+  index("idx_drivers_tenant").on(table.tenantId),
+  index("idx_drivers_risk_score").on(table.driverRiskScore),
+  index("idx_drivers_repeat_claimer").on(table.isRepeatClaimer),
+]);
+export type Driver = typeof drivers.$inferSelect;
+export type InsertDriver = typeof drivers.$inferInsert;
+
+// ============================================================================
+// DRIVER CLAIMS — Join table linking drivers to claims with role context.
+// A single claim may have multiple driver records (insured driver, third party,
+// passenger, witness). Each row captures one driver's role in one claim.
+// ============================================================================
+export const driverClaims = mysqlTable("driver_claims", {
+  id: int().autoincrement().notNull(),
+  driverId: int("driver_id").notNull(),
+  claimId: int("claim_id").notNull(),
+  // Role of this driver in the claim.
+  role: mysqlEnum("role", ['driver','claimant','passenger','third_party_driver','witness','unknown']).default('driver').notNull(),
+  // Whether this driver was determined to be at fault.
+  isAtFault: tinyint("is_at_fault").default(0).notNull(),
+  // Whether this driver was injured.
+  wasInjured: tinyint("was_injured").default(0).notNull(),
+  // Free-text notes about this driver's involvement.
+  notes: text("notes"),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
+},
+(table) => [
+  index("idx_dc_driver_id").on(table.driverId),
+  index("idx_dc_claim_id").on(table.claimId),
+  index("idx_dc_role").on(table.role),
+  index("idx_dc_tenant").on(table.tenantId),
+  // Prevent duplicate role entries for the same driver on the same claim.
+  uniqueIndex("idx_dc_unique").on(table.driverId, table.claimId, table.role),
+]);
+export type DriverClaim = typeof driverClaims.$inferSelect;
+export type InsertDriverClaim = typeof driverClaims.$inferInsert;

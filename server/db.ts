@@ -432,7 +432,8 @@ Analyze the ENTIRE document thoroughly and extract:
 8. Any fraud indicators (inconsistencies, unusual patterns, missing information, inflated costs)
 9. Third party vehicle details if mentioned (make, model, registration)
 10. Owner/claimant name if mentioned
-
+11. Driver identity: full name, driver's licence number, licence issue date, licence expiry date (if the licence does not expire, output 'does not expire'), date of birth, phone, email, national ID number, and the country that issued the licence
+12. Third-party driver: name and licence number if mentioned
 IMPORTANT: You MUST populate ALL required fields in the JSON response. Use the document text, tables, and line items to derive values. For physical measurements not explicitly stated in the document, use typical values for the damage type described. For cost estimates, use the exact figures from the document. Extract ALL line items from the quote table.
 
 Provide your response in JSON format.`
@@ -670,6 +671,20 @@ Provide your response in JSON format.`;
             extractedRepairerCompany: { type: "string" },
             extractedThirdPartyVehicle: { type: "string" },
             extractedThirdPartyRegistration: { type: "string" },
+            // Driver / claimant identity fields — extracted via OCR from licence scans, police reports, or claim forms
+            extractedDriverName: { type: "string" },
+            extractedDriverLicenseNumber: { type: "string" },
+            // ISO date string or descriptive text (e.g. 'does not expire', 'lifetime', 'permanent')
+            extractedDriverLicenseIssueDate: { type: "string" },
+            // NULL-equivalent values: 'does not expire', 'lifetime', 'permanent', 'no expiry'
+            extractedDriverLicenseExpiryDate: { type: "string" },
+            extractedDriverDateOfBirth: { type: "string" },
+            extractedDriverPhone: { type: "string" },
+            extractedDriverEmail: { type: "string" },
+            extractedDriverNationalId: { type: "string" },
+            extractedDriverLicenseCountry: { type: "string" },
+            extractedThirdPartyDriverName: { type: "string" },
+            extractedThirdPartyDriverLicense: { type: "string" },
             extractedQuoteLineItems: {
               type: "array",
               items: {
@@ -687,7 +702,7 @@ Provide your response in JSON format.`;
               }
             }
           },
-          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "multiVehicleData", "skidMarkData", "postCollisionMovement", "rolloverEvidence", "missingDataFlags", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators", "extractedVehicleMake", "extractedVehicleModel", "extractedVehicleYear", "extractedVehicleRegistration", "extractedVehicleVin", "extractedVehicleColour", "extractedVehicleEngineNumber", "extractedOwnerName", "extractedIncidentDate", "extractedIncidentDescription", "extractedIncidentLocation", "extractedIncidentType", "extractedRepairerName", "extractedRepairerCompany", "extractedThirdPartyVehicle", "extractedThirdPartyRegistration", "extractedQuoteLineItems"],
+          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "multiVehicleData", "skidMarkData", "postCollisionMovement", "rolloverEvidence", "missingDataFlags", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators", "extractedVehicleMake", "extractedVehicleModel", "extractedVehicleYear", "extractedVehicleRegistration", "extractedVehicleVin", "extractedVehicleColour", "extractedVehicleEngineNumber", "extractedOwnerName", "extractedIncidentDate", "extractedIncidentDescription", "extractedIncidentLocation", "extractedIncidentType", "extractedRepairerName", "extractedRepairerCompany", "extractedThirdPartyVehicle", "extractedThirdPartyRegistration", "extractedDriverName", "extractedDriverLicenseNumber", "extractedDriverLicenseIssueDate", "extractedDriverLicenseExpiryDate", "extractedDriverDateOfBirth", "extractedDriverPhone", "extractedDriverEmail", "extractedDriverNationalId", "extractedDriverLicenseCountry", "extractedThirdPartyDriverName", "extractedThirdPartyDriverLicense", "extractedQuoteLineItems"],
           additionalProperties: false
         }
       }
@@ -2078,6 +2093,53 @@ Provide your response in JSON format.`;
       }
     } catch (damageHistoryErr: any) {
       console.warn(`[DamageHistory] Insert failed (non-fatal): ${damageHistoryErr.message}`);
+    }
+    // ========== DRIVER INTELLIGENCE REGISTRY UPSERT ==========
+    // Creates independent records for:
+    //   1. The DRIVER (person operating the vehicle at the time of the incident)
+    //   2. The CLAIMANT (person who lodged the claim — may be owner, passenger, or a different person)
+    //   3. The THIRD-PARTY DRIVER (the other vehicle's driver in a collision)
+    // These are always treated as separate entities. A driver is NOT assumed to be the claimant.
+    try {
+      const { upsertDriverFromClaim } = await import('./driver-registry');
+      const driverResult = await upsertDriverFromClaim({
+        claimId,
+        // ── Insured driver (the person driving the insured vehicle) ──────────
+        // Prefer AI-extracted fields from OCR; fall back to claim form fields.
+        driverName: analysis.extractedDriverName || null,
+        driverLicenseNumber: analysis.extractedDriverLicenseNumber || null,
+        driverLicenseIssueDate: analysis.extractedDriverLicenseIssueDate || null,
+        driverLicenseExpiryDate: analysis.extractedDriverLicenseExpiryDate || null,
+        driverDateOfBirth: analysis.extractedDriverDateOfBirth || null,
+        driverPhone: analysis.extractedDriverPhone || null,
+        driverEmail: analysis.extractedDriverEmail || null,
+        driverNationalId: analysis.extractedDriverNationalId || null,
+        driverLicenseCountry: analysis.extractedDriverLicenseCountry || null,
+        // ── Claimant (person who lodged the claim — independent of the driver) ─
+        // Only used if no driver name was extracted from documents.
+        // The claimant is registered separately under the 'claimant' role.
+        claimantName: (claim as any).claimantName || (claim as any).policyHolderName || null,
+        claimantPhone: (claim as any).claimantPhone || null,
+        claimantEmail: (claim as any).claimantEmail || null,
+        claimantIdNumber: (claim as any).claimantIdNumber || null,
+        // ── Third-party driver ───────────────────────────────────────────────
+        thirdPartyDriverName: analysis.extractedThirdPartyDriverName || (claim as any).thirdPartyName || null,
+        thirdPartyDriverLicense: analysis.extractedThirdPartyDriverLicense || null,
+        // ── Context ──────────────────────────────────────────────────────────
+        fraudRiskScore: combinedFraudScore || 0,
+        dataSource: 'ocr',
+        tenantId: claim.tenantId || null,
+      });
+      // Write FK references back to the claim
+      if (driverResult.driverRegistryId || driverResult.thirdPartyDriverRegistryId) {
+        await db.update(claims).set({
+          ...(driverResult.driverRegistryId && { driverRegistryId: driverResult.driverRegistryId }),
+          ...(driverResult.thirdPartyDriverRegistryId && { thirdPartyDriverRegistryId: driverResult.thirdPartyDriverRegistryId }),
+        }).where(eq(claims.id, claimId));
+        console.log(`[DriverRegistry] Claim ${claimId} → driver=${driverResult.driverRegistryId ?? 'N/A'} thirdParty=${driverResult.thirdPartyDriverRegistryId ?? 'N/A'}`);
+      }
+    } catch (driverRegistryErr: any) {
+      console.warn(`[DriverRegistry] Upsert failed (non-fatal): ${driverRegistryErr.message}`);
     }
     // ========== CREATE PANEL BEATER QUOTE FROM PDF EXTRACTED DATA ===========
     // If the PDF contained a quote/invoice, create a panel_beater_quotes record

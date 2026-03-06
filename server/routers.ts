@@ -81,6 +81,7 @@ import { agencyBrokerRouter } from "./routers/agency-broker";
 import { fleetAccountsRouter } from "./routers/fleet-accounts";
 import { vehicleRegistryRouter } from "./routers/vehicle-registry";
 import { vehicleDamageHistoryRouter } from "./routers/vehicle-damage-history";
+import { driverRegistryRouter } from "./routers/driver-registry";
 import { workflowRouter } from "./routers/workflow";
 import { commentsRouter } from "./routers/comments";
 import { workflowQueriesRouter } from "./routers/workflow-queries";
@@ -112,6 +113,7 @@ export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
   vehicleDamageHistory: vehicleDamageHistoryRouter,
+  driverRegistry: driverRegistryRouter,
   system: systemRouter,
   tenant: tenantRouter,
   analytics: analyticsRouter,
