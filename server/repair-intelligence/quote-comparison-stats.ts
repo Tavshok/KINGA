@@ -26,7 +26,7 @@
 
 export interface QuoteEntry {
   garageName: string;
-  totalAmount: number;          // ZAR cents
+  totalAmount: number;          // currency minor units (cents)
   laborCost?: number | null;
   partsCost?: number | null;
   partsQuality?: string | null; // "oem" | "aftermarket" | "genuine" | "used" | null
@@ -35,10 +35,10 @@ export interface QuoteEntry {
 
 export interface QuoteComparisonStats {
   quoteCount: number;
-  minQuote: number;             // ZAR cents
-  maxQuote: number;             // ZAR cents
-  medianQuote: number;          // ZAR cents
-  averageQuote: number;         // ZAR cents
+  minQuote: number;             // currency minor units (cents)
+  maxQuote: number;             // currency minor units (cents)
+  medianQuote: number;          // currency minor units (cents)
+  averageQuote: number;         // currency minor units (cents)
   spreadPercentage: number;     // (max - min) / median × 100
   outlierThreshold: number;     // median × 1.35
   outliers: OutlierEntry[];
@@ -49,7 +49,7 @@ export interface QuoteComparisonStats {
 
 export interface OutlierEntry {
   garageName: string;
-  amount: number;               // ZAR cents
+  amount: number;               // currency minor units (cents)
   deviationFromMedian: number;  // percentage above median
   flag: "Potential cost outlier";
 }
@@ -65,8 +65,8 @@ export interface RepairRatioResult {
   ratio: number | null;           // 0–1 (or null if no vehicle value)
   ratioPercentage: number | null; // 0–100
   category: RepairRatioCategory;
-  vehicleMarketValue: number | null; // ZAR cents
-  repairCost: number;               // ZAR cents (median quote used)
+  vehicleMarketValue: number | null; // currency minor units (cents)
+  repairCost: number;               // currency minor units (cents) (median quote used)
 }
 
 export type PartsCertaintyLevel = "high" | "medium" | "low";

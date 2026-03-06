@@ -1684,43 +1684,83 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
       {/* IP-Protected Physics Confidence Dashboard */}
       <PhysicsConfidenceDashboard validation={validation} />
       
-      {/* Accident Physics Summary */}
-      <div className="grid gap-4 md:grid-cols-3">
+      {/* Accident Physics Summary — 5 Required Quantitative Outputs */}
+      <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
+        {/* 1. Velocity Estimate */}
         <div className="p-4 bg-white rounded-lg border">
-          <p className="text-xs text-muted-foreground mb-1">Estimated Speed</p>
+          <p className="text-xs text-muted-foreground mb-1">Velocity Estimate</p>
           <p className="text-2xl font-bold text-primary">
-            {estimatedSpeed?.value ?? 0} km/h
+            {estimatedSpeed?.value ?? 0} <span className="text-sm font-normal">km/h</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            ±{Math.abs((estimatedSpeed?.confidenceInterval?.[1] ?? 0) - (estimatedSpeed?.value ?? 0))} km/h
+            Range: {estimatedSpeed?.confidenceInterval?.[0] ?? 0}–{estimatedSpeed?.confidenceInterval?.[1] ?? 0} km/h
           </p>
+          <p className="text-xs text-muted-foreground">{estimatedSpeed?.method ?? "Campbell’s formula"}</p>
         </div>
-        
+
+        {/* 2. Impact Force */}
         <div className="p-4 bg-white rounded-lg border">
-          <p className="text-xs text-muted-foreground mb-1">Impact Force</p>
+          <p className="text-xs text-muted-foreground mb-1">Impact Force (F = Δp/Δt)</p>
           <p className="text-2xl font-bold text-primary">
-            {((impactForce?.magnitude ?? 0) / 1000).toFixed(2)} kN
+            {((impactForce?.magnitude ?? 0) / 1000).toFixed(1)} <span className="text-sm font-normal">kN</span>
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {impactForce?.duration ?? 0}ms duration
+            {Math.round(impactForce?.magnitude ?? 0).toLocaleString()} N
           </p>
+          <p className="text-xs text-muted-foreground">Δt = {impactForce?.duration ?? 0} ms</p>
         </div>
-        
+
+        {/* 3. Impact Energy */}
         <div className="p-4 bg-white rounded-lg border">
-          <p className="text-xs text-muted-foreground mb-1">Accident Severity</p>
-          <Badge 
+          <p className="text-xs text-muted-foreground mb-1">Impact Energy (E = ½mv²)</p>
+          <p className="text-2xl font-bold text-orange-600">
+            {raw?.kineticEnergy
+              ? (raw.kineticEnergy / 1000).toFixed(1)
+              : "—"}{" "}
+            <span className="text-sm font-normal">kJ</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            {raw?.kineticEnergy
+              ? `${Math.round(raw.kineticEnergy).toLocaleString()} J`
+              : "Insufficient data"}
+          </p>
+          <p className="text-xs text-muted-foreground">Kinetic energy at impact</p>
+        </div>
+
+        {/* 4. Delta-V */}
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-xs text-muted-foreground mb-1">Delta-V (Δv)</p>
+          <p className="text-2xl font-bold text-red-600">
+            {raw?.deltaV ?? 0} <span className="text-sm font-normal">km/h</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Injury risk:{" "}
+            <span className="font-medium capitalize">{occupantInjuryRisk ?? "Unknown"}</span>
+          </p>
+          <p className="text-xs text-muted-foreground">Velocity change on impact</p>
+        </div>
+
+        {/* 5. Impact Direction */}
+        <div className="p-4 bg-white rounded-lg border">
+          <p className="text-xs text-muted-foreground mb-1">Impact Direction</p>
+          <p className="text-base font-bold text-blue-700 capitalize leading-tight">
+            {(raw?.primaryImpactZone ?? raw?.collisionType ?? "Unknown").replace(/_/g, " ")}
+          </p>
+          <p className="text-xs text-muted-foreground mt-1">
+            Angle: {raw?.impactPoint?.impactAngle ?? raw?.impactAngle ?? "N/A"}°
+          </p>
+          <Badge
             variant={
-              accidentSeverity === "catastrophic" ? "destructive" :
-              accidentSeverity === "severe" ? "destructive" :
-              accidentSeverity === "moderate" ? "default" : "secondary"
+              accidentSeverity === "catastrophic" || accidentSeverity === "severe"
+                ? "destructive"
+                : accidentSeverity === "moderate"
+                ? "default"
+                : "secondary"
             }
-            className="text-sm capitalize"
+            className="text-xs capitalize mt-1"
           >
-            {accidentSeverity ?? "Unknown"}
+            {accidentSeverity ?? "Unknown"} severity
           </Badge>
-          <p className="text-xs text-muted-foreground mt-2">
-            Injury Risk: {occupantInjuryRisk ?? "Unknown"}
-          </p>
         </div>
       </div>
       

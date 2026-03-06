@@ -1213,42 +1213,227 @@ Provide your response in JSON format.`;
   const physicsModel = (analysis.extractedVehicleModel || claim.vehicleModel || 'Unknown').toLowerCase();
   const physicsYear = analysis.extractedVehicleYear || claim.vehicleYear || 2020;
 
-  // Vehicle mass lookup table (kg) — common models in ZW/SA market
+  // ─── Vehicle mass lookup table (kg) ───────────────────────────────────────
+  // Keyed as "<make> <model>" (both lower-cased). Covers 150+ models common in
+  // sub-Saharan Africa and globally. When an exact match is not found the system
+  // falls back through: make-only → model-keyword → vehicle-class heuristic.
   const vehicleMassTable: Record<string, number> = {
-    'honda fit': 1050, 'honda jazz': 1050, 'honda civic': 1250, 'honda cr-v': 1500,
-    'toyota vitz': 980, 'toyota yaris': 1050, 'toyota corolla': 1300, 'toyota hilux': 1900,
-    'toyota fortuner': 2100, 'toyota land cruiser': 2500, 'toyota prado': 2200,
-    'isuzu d-max': 1900, 'isuzu d-teq': 1900, 'isuzu kb': 1900, 'isuzu mu-x': 2100,
-    'mazda 3': 1300, 'mazda cx-5': 1600, 'mazda bt-50': 1900,
-    'ford ranger': 1950, 'ford everest': 2200, 'ford fiesta': 1050, 'ford focus': 1300,
-    'volkswagen polo': 1100, 'volkswagen golf': 1300, 'volkswagen tiguan': 1600,
-    'nissan np200': 900, 'nissan np300': 1700, 'nissan navara': 1900, 'nissan x-trail': 1600,
-    'mitsubishi triton': 1900, 'mitsubishi outlander': 1700, 'mitsubishi colt': 1100,
-    'suzuki swift': 900, 'suzuki vitara': 1100, 'suzuki jimny': 1100,
-    'chevrolet spark': 900, 'chevrolet cruze': 1400,
-    'hyundai i10': 900, 'hyundai i20': 1050, 'hyundai tucson': 1600, 'hyundai h100': 1500,
-    'kia picanto': 900, 'kia rio': 1050, 'kia sportage': 1600,
-    'bmw 3 series': 1500, 'bmw x5': 2100, 'mercedes c-class': 1500, 'mercedes e-class': 1700,
+    // ── Honda ──
+    'honda fit': 1050, 'honda jazz': 1050, 'honda city': 1150, 'honda civic': 1250,
+    'honda accord': 1500, 'honda cr-v': 1550, 'honda hr-v': 1300, 'honda pilot': 2000,
+    'honda passport': 1900, 'honda ridgeline': 2000, 'honda odyssey': 1900,
+    'honda element': 1550, 'honda insight': 1250, 'honda freed': 1200,
+    // ── Toyota ──
+    'toyota vitz': 980, 'toyota yaris': 1050, 'toyota corolla': 1300,
+    'toyota corolla cross': 1450, 'toyota camry': 1600, 'toyota avalon': 1700,
+    'toyota rav4': 1700, 'toyota c-hr': 1400, 'toyota rush': 1500,
+    'toyota hilux': 1900, 'toyota fortuner': 2100, 'toyota land cruiser': 2500,
+    'toyota land cruiser prado': 2200, 'toyota prado': 2200, 'toyota 4runner': 2100,
+    'toyota tundra': 2300, 'toyota tacoma': 1800, 'toyota sienna': 2100,
+    'toyota hiace': 1900, 'toyota quantum': 1900, 'toyota probox': 1100,
+    'toyota starlet': 900, 'toyota etios': 1050, 'toyota agya': 900,
+    // ── Nissan ──
+    'nissan np200': 900, 'nissan np300': 1700, 'nissan navara': 1900,
+    'nissan x-trail': 1600, 'nissan qashqai': 1450, 'nissan juke': 1250,
+    'nissan micra': 950, 'nissan note': 1100, 'nissan tiida': 1200,
+    'nissan almera': 1200, 'nissan sentra': 1300, 'nissan altima': 1600,
+    'nissan patrol': 2600, 'nissan murano': 1900, 'nissan pathfinder': 2100,
+    'nissan leaf': 1600, 'nissan ariya': 2100, 'nissan kicks': 1350,
+    'nissan hardbody': 1400, 'nissan frontier': 1900,
+    // ── Isuzu ──
+    'isuzu d-max': 1900, 'isuzu d-teq': 1900, 'isuzu kb': 1900,
+    'isuzu mu-x': 2100, 'isuzu trooper': 2000, 'isuzu rodeo': 1800,
+    // ── Mazda ──
+    'mazda 2': 1050, 'mazda 3': 1300, 'mazda 6': 1500, 'mazda cx-3': 1250,
+    'mazda cx-5': 1600, 'mazda cx-7': 1700, 'mazda cx-9': 2000,
+    'mazda bt-50': 1900, 'mazda mx-5': 1100,
+    // ── Ford ──
+    'ford ka': 1000, 'ford fiesta': 1050, 'ford focus': 1300, 'ford fusion': 1600,
+    'ford mustang': 1800, 'ford mondeo': 1600, 'ford edge': 1900,
+    'ford escape': 1600, 'ford explorer': 2100, 'ford expedition': 2600,
+    'ford ranger': 1950, 'ford f-150': 2300, 'ford f-250': 2900,
+    'ford everest': 2200, 'ford transit': 2000, 'ford tourneo': 1900,
+    'ford ecosport': 1300,
+    // ── Volkswagen ──
+    'volkswagen polo': 1100, 'volkswagen polo vivo': 1050, 'volkswagen up': 950,
+    'volkswagen golf': 1300, 'volkswagen jetta': 1400, 'volkswagen passat': 1600,
+    'volkswagen tiguan': 1600, 'volkswagen touareg': 2100, 'volkswagen t-cross': 1250,
+    'volkswagen t-roc': 1400, 'volkswagen amarok': 2100, 'volkswagen caddy': 1400,
+    'volkswagen transporter': 1900, 'volkswagen touran': 1600,
+    // ── Mitsubishi ──
+    'mitsubishi mirage': 950, 'mitsubishi lancer': 1200, 'mitsubishi galant': 1500,
+    'mitsubishi colt': 1100, 'mitsubishi triton': 1900, 'mitsubishi l200': 1900,
+    'mitsubishi outlander': 1700, 'mitsubishi eclipse cross': 1600,
+    'mitsubishi pajero': 2200, 'mitsubishi pajero sport': 2000,
+    'mitsubishi asx': 1400, 'mitsubishi rvr': 1400,
+    // ── Suzuki ──
+    'suzuki alto': 750, 'suzuki celerio': 850, 'suzuki swift': 900,
+    'suzuki baleno': 1000, 'suzuki ciaz': 1100, 'suzuki vitara': 1100,
+    'suzuki grand vitara': 1500, 'suzuki jimny': 1100, 'suzuki s-cross': 1300,
+    'suzuki ertiga': 1200, 'suzuki xl7': 1400,
+    // ── Hyundai ──
+    'hyundai i10': 900, 'hyundai grand i10': 950, 'hyundai i20': 1050,
+    'hyundai i30': 1300, 'hyundai elantra': 1350, 'hyundai sonata': 1600,
+    'hyundai accent': 1100, 'hyundai verna': 1100, 'hyundai atos': 850,
+    'hyundai tucson': 1600, 'hyundai santa fe': 1900, 'hyundai creta': 1350,
+    'hyundai venue': 1200, 'hyundai kona': 1350, 'hyundai ioniq': 1500,
+    'hyundai ioniq 5': 2100, 'hyundai h100': 1500, 'hyundai h1': 2000,
+    'hyundai staria': 2100,
+    // ── Kia ──
+    'kia picanto': 900, 'kia morning': 900, 'kia rio': 1050,
+    'kia cerato': 1350, 'kia optima': 1600, 'kia stinger': 1800,
+    'kia sportage': 1600, 'kia sorento': 1900, 'kia telluride': 2100,
+    'kia seltos': 1400, 'kia stonic': 1250, 'kia carnival': 2100,
+    'kia soul': 1350, 'kia niro': 1500, 'kia ev6': 2000,
+    // ── BMW ──
+    'bmw 1 series': 1400, 'bmw 2 series': 1500, 'bmw 3 series': 1500,
+    'bmw 4 series': 1600, 'bmw 5 series': 1700, 'bmw 6 series': 1800,
+    'bmw 7 series': 2000, 'bmw 8 series': 1900, 'bmw x1': 1500,
+    'bmw x2': 1550, 'bmw x3': 1700, 'bmw x4': 1800, 'bmw x5': 2100,
+    'bmw x6': 2100, 'bmw x7': 2400, 'bmw z4': 1400, 'bmw m3': 1600,
+    'bmw m5': 1900, 'bmw i3': 1200, 'bmw i4': 2100, 'bmw ix': 2500,
+    // ── Mercedes-Benz ──
+    'mercedes a-class': 1400, 'mercedes b-class': 1500, 'mercedes c-class': 1500,
+    'mercedes e-class': 1700, 'mercedes s-class': 2100, 'mercedes cla': 1500,
+    'mercedes cls': 1800, 'mercedes gla': 1500, 'mercedes glb': 1700,
+    'mercedes glc': 1800, 'mercedes gle': 2100, 'mercedes gls': 2500,
+    'mercedes g-class': 2500, 'mercedes vito': 1900, 'mercedes sprinter': 2200,
+    'mercedes amg gt': 1700,
+    // ── Audi ──
+    'audi a1': 1200, 'audi a3': 1400, 'audi a4': 1600, 'audi a5': 1700,
+    'audi a6': 1800, 'audi a7': 1900, 'audi a8': 2100, 'audi q2': 1300,
+    'audi q3': 1500, 'audi q5': 1800, 'audi q7': 2200, 'audi q8': 2300,
+    'audi tt': 1400, 'audi r8': 1600, 'audi e-tron': 2500,
+    // ── Chevrolet / Opel ──
+    'chevrolet spark': 900, 'chevrolet aveo': 1100, 'chevrolet cruze': 1400,
+    'chevrolet malibu': 1600, 'chevrolet impala': 1800, 'chevrolet equinox': 1700,
+    'chevrolet trailblazer': 2000, 'chevrolet silverado': 2300, 'chevrolet tahoe': 2600,
+    'chevrolet suburban': 2800, 'chevrolet traverse': 2100, 'chevrolet colorado': 1900,
+    'opel corsa': 1100, 'opel astra': 1300, 'opel insignia': 1600,
+    'opel mokka': 1400, 'opel crossland': 1300, 'opel grandland': 1600,
+    // ── Renault ──
+    'renault kwid': 800, 'renault sandero': 1050, 'renault logan': 1100,
+    'renault clio': 1100, 'renault megane': 1300, 'renault fluence': 1400,
+    'renault duster': 1300, 'renault captur': 1300, 'renault koleos': 1700,
+    'renault scenic': 1500, 'renault trafic': 1900,
+    // ── Peugeot ──
+    'peugeot 107': 850, 'peugeot 208': 1100, 'peugeot 308': 1300,
+    'peugeot 408': 1500, 'peugeot 508': 1600, 'peugeot 2008': 1300,
+    'peugeot 3008': 1500, 'peugeot 5008': 1700, 'peugeot boxer': 2000,
+    // ── Citroën ──
+    'citroen c1': 850, 'citroen c3': 1100, 'citroen c4': 1300,
+    'citroen c5': 1600, 'citroen berlingo': 1400,
+    // ── Fiat ──
+    'fiat 500': 900, 'fiat punto': 1100, 'fiat tipo': 1300,
+    'fiat bravo': 1300, 'fiat doblo': 1500, 'fiat ducato': 2100,
+    // ── Volvo ──
+    'volvo s60': 1700, 'volvo s90': 2000, 'volvo v40': 1500,
+    'volvo v60': 1700, 'volvo v90': 2000, 'volvo xc40': 1700,
+    'volvo xc60': 1900, 'volvo xc90': 2300,
+    // ── Land Rover / Range Rover ──
+    'land rover defender': 2200, 'land rover discovery': 2300,
+    'land rover discovery sport': 1900, 'land rover freelander': 1700,
+    'range rover': 2500, 'range rover sport': 2300, 'range rover evoque': 1800,
+    'range rover velar': 2000,
+    // ── Jeep ──
+    'jeep renegade': 1400, 'jeep compass': 1600, 'jeep cherokee': 1900,
+    'jeep grand cherokee': 2200, 'jeep wrangler': 2000, 'jeep gladiator': 2200,
+    // ── Tesla ──
+    'tesla model 3': 1850, 'tesla model s': 2250, 'tesla model x': 2500,
+    'tesla model y': 2000, 'tesla cybertruck': 3000,
+    // ── Chinese brands (growing ZW/SSA market) ──
+    'chery tiggo': 1500, 'chery arrizo': 1300, 'chery qq': 900,
+    'haval h1': 1100, 'haval h2': 1300, 'haval h6': 1600, 'haval jolion': 1450,
+    'great wall wingle': 1800, 'great wall steed': 1800,
+    'byd atto 3': 1750, 'byd seal': 2000, 'byd han': 2200,
+    'mg zs': 1350, 'mg hs': 1600, 'mg 5': 1300, 'mg 6': 1500,
+    'geely emgrand': 1300, 'geely coolray': 1400,
+    'dfsk glory': 1300, 'dfsk 580': 1600,
+    // ── Commercial / Minibus ──
+    'nissan urvan': 1900, 'ford transit connect': 1500, 'volkswagen crafter': 2100,
+    'iveco daily': 2200, 'man tge': 2100,
   };
+
+  // ─── Multi-tier mass inference ─────────────────────────────────────────────
+  // Tier 1: exact "make model" key
+  // Tier 2: make-only or model-only key
+  // Tier 3: partial model keyword scan across all table keys
+  // Tier 4: vehicle class heuristic derived from make/model keywords
+  // Tier 5: year-based adjustment (+50 kg for post-2019 safety features)
   const vehicleMassKey = `${physicsMake} ${physicsModel}`;
-  const vehicleMass = vehicleMassTable[vehicleMassKey] ||
-    vehicleMassTable[physicsMake] ||
-    (physicsMake.includes('hilux') || physicsMake.includes('ranger') || physicsMake.includes('d-max') ? 1900 :
-     physicsMake.includes('land cruiser') || physicsMake.includes('fortuner') ? 2200 :
-     physicsMake.includes('fit') || physicsMake.includes('vitz') || physicsMake.includes('swift') ? 1000 :
-     1300); // sensible default for unknown sedans
+  const vehicleMassKeyModelOnly = physicsModel;
+
+  // Tier 3: scan all table keys for a partial match on the model string.
+  // Tries the full keyword first, then each individual word (min 4 chars) so
+  // that "Land Cruiser 200" still matches "toyota land cruiser".
+  function findMassByKeyword(keyword: string): number | undefined {
+    if (!keyword || keyword === 'unknown') return undefined;
+    // Full string match
+    const direct = Object.entries(vehicleMassTable).find(([k]) => k.includes(keyword));
+    if (direct) return direct[1];
+    // Word-by-word match (skip short tokens like numbers, "np", "d-")
+    const words = keyword.split(/\s+/).filter(w => w.length >= 4);
+    for (const word of words) {
+      const entry = Object.entries(vehicleMassTable).find(([k]) => k.includes(word));
+      if (entry) return entry[1];
+    }
+    return undefined;
+  }
+
+  // Tier 4: vehicle-class heuristic from make/model keywords
+  function inferMassByClass(make: string, model: string): number {
+    const combined = `${make} ${model}`;
+    if (/hilux|ranger|navara|d-max|d-teq|triton|l200|bt-50|np300|amarok|frontier|tacoma|tundra|f-150|f-250|wingle|steed|np200|hardbody/.test(combined)) return 1900;
+    if (/land cruiser|prado|fortuner|patrol|pajero|defender|discovery|grand cherokee|wrangler|expedition|suburban|tahoe|4runner|trooper/.test(combined)) return 2300;
+    if (/cr-v|rav4|tucson|santa fe|sorento|cx-5|tiguan|x-trail|qashqai|outlander|mu-x|everest|explorer|edge|koleos|duster|haval h6|jolion|mg hs/.test(combined)) return 1700;
+    if (/hr-v|vitara|jimny|juke|kona|venue|seltos|stonic|creta|ecosport|captur|2008|t-cross|t-roc|gla|glb|q3|x1|x2|asx|rvr|mg zs|haval h2/.test(combined)) return 1400;
+    if (/hiace|quantum|h1|staria|urvan|sprinter|transit|transporter|trafic|berlingo|caddy|vito|crafter|daily/.test(combined)) return 2000;
+    if (/polo|vivo|swift|celerio|alto|kwid|sandero|picanto|morning|i10|i20|atos|vitz|yaris|starlet|etios|agya|fiesta|ka|up|clio|208|punto|500|micra|note|spark|aveo|baleno|city/.test(combined)) return 1050;
+    return 1300; // sensible default for unknown sedans
+  }
+
+  // Tier 5: year-based mass adjustment
+  function yearMassAdjustment(baseKg: number, year: number): number {
+    if (year < 1990) return Math.max(baseKg - 100, 700);
+    if (year >= 2020) return baseKg + 50;
+    return baseKg;
+  }
+
+  const vehicleMassRaw =
+    vehicleMassTable[vehicleMassKey] ||                        // Tier 1: exact make+model
+    vehicleMassTable[vehicleMassKeyModelOnly] ||               // Tier 2a: model-only key
+    vehicleMassTable[physicsMake] ||                           // Tier 2b: make-only key
+    findMassByKeyword(physicsModel) ||                         // Tier 3: partial model match
+    findMassByKeyword(physicsMake) ||                          // Tier 3: partial make match
+    inferMassByClass(physicsMake, physicsModel);               // Tier 4: class heuristic
+
+  const vehicleMass = yearMassAdjustment(vehicleMassRaw, physicsYear);
+
+  // ─── Vehicle type classification ───────────────────────────────────────────
+  const combinedForType = `${physicsMake} ${physicsModel}`;
+  const inferredVehicleType: 'sedan' | 'suv' | 'pickup' | 'van' | 'truck' | 'sports' | 'compact' =
+    /hilux|ranger|navara|d-max|d-teq|triton|l200|bt-50|np300|np200|amarok|frontier|tacoma|tundra|f-150|f-250|wingle|steed|hardbody/.test(combinedForType) ? 'pickup' :
+    /land cruiser|prado|fortuner|patrol|pajero|defender|discovery|grand cherokee|wrangler|expedition|suburban|tahoe|4runner|trooper|mu-x|everest|explorer|edge|sorento|santa fe|cx-9|cx-7|cx-5|rav4|cr-v|tucson|x-trail|qashqai|outlander|tiguan|touareg|x5|x7|q7|q8|glc|gle|gls|g-class|xc90|xc60|haval h6|jolion|mg hs/.test(combinedForType) ? 'suv' :
+    /hiace|quantum|h1|staria|urvan|sprinter|transit|transporter|trafic|berlingo|caddy|vito|crafter|daily|odyssey|sienna|carnival|tourneo/.test(combinedForType) ? 'van' :
+    /mx-5|z4|tt|r8|mustang|stinger|amg gt|boxster|cayman|911|corvette/.test(combinedForType) ? 'sports' :
+    /polo|vivo|swift|celerio|alto|kwid|sandero|picanto|morning|i10|i20|atos|vitz|yaris|starlet|etios|agya|fiesta|ka|up|clio|208|punto|500|micra|note|spark|aveo|baleno/.test(combinedForType) ? 'compact' :
+    'sedan';
+
+  // ─── Powertrain classification ─────────────────────────────────────────────
+  const inferredPowertrain: 'ice' | 'bev' | 'phev' | 'hev' =
+    /tesla|leaf|ariya|ioniq 5|ioniq5|ev6|atto 3|byd seal|byd han|e-tron|i3|i4|ix|model 3|model s|model x|model y|cybertruck/.test(combinedForType) ? 'bev' :
+    /prius|insight|niro|ioniq(?! 5)|kona electric|outlander phev|rav4 hybrid|tucson hybrid/.test(combinedForType) ? 'hev' :
+    'ice';
 
   const vehicleData = {
     mass: vehicleMass,
     make: analysis.extractedVehicleMake || claim.vehicleMake || 'Unknown',
     model: analysis.extractedVehicleModel || claim.vehicleModel || 'Unknown',
     year: physicsYear,
-    vehicleType: (physicsMake.includes('hilux') || physicsMake.includes('ranger') || physicsMake.includes('d-max') || physicsMake.includes('navara') ? 'pickup' :
-                  physicsMake.includes('land cruiser') || physicsMake.includes('fortuner') || physicsMake.includes('prado') ? 'suv' :
-                  'sedan') as 'sedan' | 'suv' | 'pickup' | 'van' | 'truck',
-    powertrainType: (physicsYear >= 2020 && (physicsMake.includes('leaf') || physicsMake.includes('tesla') || physicsMake.includes('bolt')) ? 'bev' : 'ice') as 'ice' | 'bev' | 'phev' | 'hev',
+    vehicleType: inferredVehicleType as 'sedan' | 'suv' | 'pickup' | 'van' | 'truck',
+    powertrainType: inferredPowertrain,
   };
-  
+
   // Prepare accident data using AI-extracted information
   const accidentType = analysis.accidentType || "unknown";
   const accidentData = {
@@ -1269,7 +1454,20 @@ Provide your response in JSON format.`;
       distanceFromImpact: index * 0.5, // Approximate distance based on order
     })),
     totalDamageArea: analysis.totalDamageArea || 0,
-    maxCrushDepth: analysis.maxCrushDepth || 0.1, // Use AI-extracted crush depth
+    maxCrushDepth: (() => {
+      // Use AI-extracted crush depth if meaningful (>0.05m)
+      if (analysis.maxCrushDepth && analysis.maxCrushDepth >= 0.05) return analysis.maxCrushDepth;
+      // Infer crush depth from maximum component severity when PDF doesn't provide 3D data
+      const components: any[] = analysis.damagedComponents || [];
+      const severities = components.map((c: any) => c.severity?.toLowerCase() || 'minor');
+      const hasCatastrophic = severities.some((s: string) => s === 'catastrophic');
+      const hasSevere = severities.some((s: string) => s === 'severe');
+      const hasModerate = severities.some((s: string) => s === 'moderate');
+      if (hasCatastrophic) return 0.40; // 40cm — catastrophic structural collapse
+      if (hasSevere) return 0.25;       // 25cm — severe deformation
+      if (hasModerate) return 0.15;     // 15cm — moderate crumple
+      return 0.08;                       // 8cm — minor/cosmetic damage
+    })(), // Infer from severity when PDF can't provide 3D crush data
     structuralDamage: analysis.structuralDamage || false,
     airbagDeployment: analysis.airbagDeployment || false,
   };

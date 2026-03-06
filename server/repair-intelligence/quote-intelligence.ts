@@ -81,7 +81,7 @@ export interface EnhancedIntelligenceReport extends IntelligenceReport {
 
 export interface GarageQuoteSummary {
   garageName: string;
-  totalAmount: number;          // ZAR cents
+  totalAmount: number;          // currency minor units (cents)
   isOutlier: boolean;
   deviationFromMedian: number | null; // percentage
 }
@@ -91,7 +91,7 @@ export interface RepairCostBenchmark {
   vehicleModel: string;
   damageCategory: string;
   country: string;
-  medianRepairCost: number;     // ZAR cents
+  medianRepairCost: number;     // currency minor units (cents)
   minRepairCost: number;
   maxRepairCost: number;
   claimCount: number;
@@ -101,9 +101,9 @@ export interface RepairCostBenchmark {
 export interface AiRecommendationOutput {
   quotesAnalysed: number;
   garageComparison: GarageComparisonLine[];
-  medianRepairCost: number;     // ZAR cents
-  fairRangeLow: number;         // ZAR cents
-  fairRangeHigh: number;        // ZAR cents
+  medianRepairCost: number;     // currency minor units (cents)
+  fairRangeLow: number;         // currency minor units (cents)
+  fairRangeHigh: number;        // currency minor units (cents)
   repairRatioPercentage: number | null;
   repairRatioCategory: string;
   confidenceScore: number;      // 0–100
@@ -113,7 +113,7 @@ export interface AiRecommendationOutput {
 
 export interface GarageComparisonLine {
   garageName: string;
-  amount: number;               // ZAR cents
+  amount: number;               // currency minor units (cents)
   isOutlier: boolean;
   outlierFlag?: string;
 }
@@ -125,12 +125,12 @@ export interface GarageComparisonLine {
  *
  * @param claimId     - The claim to analyse
  * @param tenantId    - Tenant scope
- * @param countryCode - Country for repair context (default "ZA")
+ * @param countryCode - Country for repair context (default "ZW")
  */
 export async function generateIntelligenceReport(
   claimId: number,
   tenantId: string,
-  countryCode: string = "ZA"
+  countryCode: string = "ZW"
 ): Promise<EnhancedIntelligenceReport> {
   const db = await getDb();
 

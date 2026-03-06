@@ -150,7 +150,7 @@ export async function extractDocumentContent(
     const contentParts: any[] = [
       {
         type: 'text',
-        text: `You are a South African insurance document OCR specialist. Extract ALL text content from this document.
+        text: `You are an insurance document OCR specialist. Extract ALL text content from this document.
 
 DOCUMENT: ${filename}
 
@@ -270,7 +270,7 @@ export async function classifyDocument(
     const contentParts: any[] = [
       {
         type: 'text',
-        text: `You are a South African insurance document classifier. Classify this document.
+        text: `You are an insurance document classifier. Classify this document.
 
 FILENAME: ${filename}
 EXTRACTED TEXT (first 3000 chars):
@@ -278,7 +278,7 @@ ${rawText.substring(0, 3000)}
 
 Classify this document into one of these categories:
 - panel_beater_quote: A repair quotation from a panel beater / body shop
-- police_report: A South African Police Service (SAPS) accident report
+- police_report: A police accident report or traffic incident report
 - claim_form: An insurance claim form
 - assessor_report: A motor assessor's report or evaluation
 - supporting_evidence: Photos, witness statements, or other evidence
@@ -383,7 +383,7 @@ Convert ALL handwritten content into typed, structured format.`
     const contentParts: any[] = [
       {
         type: 'text',
-        text: `You are a South African motor insurance data extraction specialist. Extract ALL structured data from this ${classification.documentType} document.${handwrittenNote}
+        text: `You are a motor insurance data extraction specialist. Extract ALL structured data from this ${classification.documentType} document.${handwrittenNote}
 
 DOCUMENT: ${filename}
 TYPE: ${classification.documentType}

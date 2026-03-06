@@ -3,15 +3,18 @@
  * 
  * Calculates market-based pricing for automotive parts with:
  * - Part stratification (OEM, OEM Equivalent, Aftermarket, Used)
- * - Regional pricing (SA baseline + Zimbabwe/other market multipliers)
- * - Currency conversion (ZAR, USD, ZWL, BWP, JPY, AED, THB)
+ * - Regional pricing (USD baseline + regional multipliers for import costs)
+ * - Currency conversion (USD, ZiG, ZAR, BWP, JPY, AED, THB, and more)
  * - Import cost calculation (shipping, duty, clearing, forex)
  * - Vehicle origin intelligence (ex-Japanese parts sourcing optimization)
  * 
  * Supports continuous improvement through:
  * - Supplier quote ingestion
  * - Historical claims data
- * - Web scraping (SA public sites)
+ * - Market data sources
+ *
+ * DEFAULT CURRENCY: USD
+ * No regional assumptions are made unless explicitly configured.
  */
 
 import { getDb } from "../db";
@@ -71,20 +74,23 @@ export interface PartPricingResult {
 
 /**
  * Regional pricing configuration
- * Multipliers for converting SA baseline prices to other markets
+ * Multipliers are relative to the USD baseline price.
+ * All regions are treated equally — no region is assumed as the baseline.
+ * Multipliers reflect import/transport/handling costs for that region.
+ * When no regional data is configured, multipliers default to 1.0 (no adjustment).
  */
 export const REGIONAL_MULTIPLIERS = {
+  "Zimbabwe": {
+    transport: 1.0, // baseline — no SA-sourcing assumption
+    duty: 1.0,
+    handling: 1.0,
+    forex: 1.0,
+  },
   "South Africa": {
     transport: 1.0,
     duty: 1.0,
     handling: 1.0,
     forex: 1.0,
-  },
-  "Zimbabwe": {
-    transport: 1.25, // 25% markup for transport from SA
-    duty: 1.40, // 40% customs duty
-    handling: 1.10, // 10% clearing/handling fees
-    forex: 1.05, // 5% forex charges
   },
   "Botswana": {
     transport: 1.15,
