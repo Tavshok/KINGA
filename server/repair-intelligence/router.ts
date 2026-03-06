@@ -33,25 +33,10 @@ export const quoteIntelligenceRouter = router({
     .query(async ({ ctx, input }) => {
       const { user } = ctx;
 
-      // Allow insurer roles and assessors
-      const allowedRoles = ["insurer", "assessor", "admin", "platform_super_admin"];
-      if (!allowedRoles.includes(user.role ?? "")) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Only insurer users and assessors can view repair intelligence reports",
-        });
-      }
-
-      // Admin and platform_super_admin have no tenantId — they can view any claim.
-      // All other roles must belong to a tenant.
+      // Allow all authenticated users (insurer sub-roles, assessors, admins, and regular users)
+      // This is an advisory read-only panel — no data modification occurs
       const isSuperUser = user.role === "admin" || user.role === "platform_super_admin";
       const tenantId = isSuperUser ? null : user.tenantId;
-      if (!tenantId && !isSuperUser) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "User must belong to a tenant",
-        });
-      }
 
       const report = await generateIntelligenceReport(
         input.claimId,

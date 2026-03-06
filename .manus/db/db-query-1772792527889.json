@@ -1,0 +1,35 @@
+{
+  "query": "SELECT id, name, business_name FROM panel_beaters ORDER BY id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, name, business_name FROM panel_beaters ORDER BY id;",
+  "rows": [
+    {
+      "id": "1",
+      "name": "John Moyo",
+      "business_name": "Moyo Auto Body Repairs"
+    },
+    {
+      "id": "2",
+      "name": "Sarah Ncube",
+      "business_name": "Ncube Panel Beaters"
+    },
+    {
+      "id": "3",
+      "name": "David Chikwanha",
+      "business_name": "Chikwanha Auto Works"
+    },
+    {
+      "id": "4",
+      "name": "Grace Mlambo",
+      "business_name": "Mlambo Vehicle Repairs"
+    },
+    {
+      "id": "5",
+      "name": "Peter Sibanda",
+      "business_name": "Sibanda Auto Clinic"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tname\tbusiness_name\n1\tJohn Moyo\tMoyo Auto Body Repairs\n2\tSarah Ncube\tNcube Panel Beaters\n3\tDavid Chikwanha\tChikwanha Auto Works\n4\tGrace Mlambo\tMlambo Vehicle Repairs\n5\tPeter Sibanda\tSibanda Auto Clinic\n",
+  "stderr": "",
+  "execution_time_ms": 356
+}

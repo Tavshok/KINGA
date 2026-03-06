@@ -1,0 +1,8 @@
+{
+  "query": "SELECT id, claim_number, total_loss_indicated, estimated_vehicle_value, estimated_cost, repair_to_value_ratio, structural_damage_severity, total_loss_reasoning, damaged_components_json FROM ai_assessments WHERE claim_id = (SELECT id FROM claims WHERE claim_number = '1740456' LIMIT 1) LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_number, total_loss_indicated, estimated_vehicle_value, estimated_cost, repair_to_value_ratio, structural_damage_severity, total_loss_reasoning, damaged_components_json FROM ai_assessments WHERE claim_id = (SELECT id FROM claims WHERE claim_number = '1740456' LIMIT 1) LIMIT 1;",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'claim_number' in 'field list'"
+  ]
+}

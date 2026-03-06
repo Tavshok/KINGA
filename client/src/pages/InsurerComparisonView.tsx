@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {  ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
@@ -124,6 +124,21 @@ export default function InsurerComparisonView() {
   const quotes = quotesWithItems;
 
   const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading;
+
+  // Utils for cache invalidation
+  const utils = trpc.useUtils();
+
+  // Re-run AI assessment mutation (used in Claim Summary card)
+  const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
+    onSuccess: () => {
+      utils.claims.getById.invalidate({ id: claimId });
+      utils.aiAssessments.byClaim.invalidate({ claimId });
+      utils.quotes.getWithLineItems.invalidate({ claimId });
+      utils.panelBeaters.invalidate();
+      toast.success('AI assessment re-triggered', { description: 'Vehicle details will be extracted from the PDF. This may take 30-60 seconds.' });
+    },
+    onError: (err) => toast.error(`Failed to re-run assessment: ${err.message}`),
+  });
 
   // Handler for exporting damage report PDF
   const handleExportDamageReport = (aiAssessment: any, claim: any) => {
@@ -605,68 +620,101 @@ export default function InsurerComparisonView() {
         {/* Claim Summary */}
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle>Claim Summary</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div>
-              <p className="text-sm text-muted-foreground">Vehicle</p>
-              <p className="font-medium">
-                {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Registration</p>
-              <p className="font-medium">{claim.vehicleRegistration}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Incident Date</p>
-              <p className="font-medium">
-                {claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : "N/A"}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Accident Circumstances — show incident description and location */}
-        {((claim as any).incidentDescription || (claim as any).incidentLocation || (claim as any).incidentType) && (
-          <Card className="mb-6 border-2 border-blue-200 bg-blue-50/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-blue-600">Accident</Badge>
-                Accident Circumstances
-              </CardTitle>
-              <CardDescription>Incident details as reported by the claimant</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-4 md:grid-cols-3">
-                {(claim as any).incidentType && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Incident Type</p>
-                    <p className="font-medium capitalize">{(claim as any).incidentType}</p>
-                  </div>
-                )}
-                {(claim as any).incidentLocation && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Location</p>
-                    <p className="font-medium">{(claim as any).incidentLocation}</p>
-                  </div>
-                )}
-                {claim.incidentDate && (
-                  <div>
-                    <p className="text-sm text-muted-foreground">Date &amp; Time</p>
-                    <p className="font-medium">{new Date(claim.incidentDate).toLocaleString()}</p>
-                  </div>
-                )}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Shield className="h-5 w-5 text-primary" />
+                  Claim Summary
+                </CardTitle>
+                <CardDescription>Key claim and vehicle details extracted from the submitted document</CardDescription>
               </div>
-              {(claim as any).incidentDescription && (
-                <div className="mt-4 p-4 bg-white rounded-lg border border-blue-200">
-                  <p className="text-sm text-muted-foreground mb-2">Incident Description</p>
-                  <p className="text-sm leading-relaxed">{(claim as any).incidentDescription}</p>
+              {/* Re-run AI Assessment button — shown when vehicle fields are missing */}
+              {(!claim.vehicleMake || !claim.vehicleModel) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 shrink-0"
+                  disabled={reRunMutation.isPending}
+                  onClick={() => reRunMutation.mutate({ claimId, reason: 'Re-extract vehicle details from PDF' })}
+                >
+                  {reRunMutation.isPending ? (
+                    <><Loader2 className="h-4 w-4 animate-spin" /> Re-running...</>
+                  ) : (
+                    <>Re-run AI Assessment</>
+                  )}
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vehicle</p>
+                <p className="font-semibold text-base">
+                  {claim.vehicleMake && claim.vehicleModel
+                    ? `${claim.vehicleMake} ${claim.vehicleModel}${claim.vehicleYear ? ` (${claim.vehicleYear})` : ''}`
+                    : <span className="text-muted-foreground italic">Not yet extracted — re-run AI assessment</span>}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Registration</p>
+                <p className="font-medium">{claim.vehicleRegistration || <span className="text-muted-foreground italic">N/A</span>}</p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incident Date</p>
+                <p className="font-medium">
+                  {claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : <span className="text-muted-foreground italic">N/A</span>}
+                </p>
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incident Type</p>
+                <p className="font-medium capitalize">{(claim as any).incidentType || <span className="text-muted-foreground italic">N/A</span>}</p>
+              </div>
+              {(claim as any).vehicleColor && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Colour</p>
+                  <p className="font-medium capitalize">{(claim as any).vehicleColor}</p>
                 </div>
               )}
-            </CardContent>
-          </Card>
-        )}
+              {(claim as any).vehicleVin && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">VIN / Chassis</p>
+                  <p className="font-medium font-mono text-sm">{(claim as any).vehicleVin}</p>
+                </div>
+              )}
+              {(claim as any).vehicleEngineNumber && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Engine Number</p>
+                  <p className="font-medium font-mono text-sm">{(claim as any).vehicleEngineNumber}</p>
+                </div>
+              )}
+              {(claim as any).incidentLocation && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</p>
+                  <p className="font-medium">{(claim as any).incidentLocation}</p>
+                </div>
+              )}
+              {(claim as any).thirdPartyVehicle && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Third-Party Vehicle</p>
+                  <p className="font-medium">{(claim as any).thirdPartyVehicle}</p>
+                </div>
+              )}
+              {(claim as any).thirdPartyRegistration && (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Third-Party Reg</p>
+                  <p className="font-medium">{(claim as any).thirdPartyRegistration}</p>
+                </div>
+              )}
+            </div>
+            {(claim as any).incidentDescription && (
+              <div className="mt-4 p-4 bg-muted/40 rounded-lg border">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Incident Description</p>
+                <p className="text-sm leading-relaxed">{(claim as any).incidentDescription}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Damage Images Gallery */}
         {(() => {
@@ -783,7 +831,7 @@ export default function InsurerComparisonView() {
                       {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
                         <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
                           <p>Repair Cost: ${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
-                          <p>Vehicle Value: ${(aiAssessment.estimatedVehicleValue || 0).toLocaleString()}</p>
+                          <p>Vehicle Value: ${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</p>
                           <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
                         </div>
                       )}
@@ -801,6 +849,23 @@ export default function InsurerComparisonView() {
                     <p className="text-sm text-muted-foreground">Confidence Score</p>
                     <p className="font-medium">{aiAssessment.confidenceScore}%</p>
                   </div>
+                  <Separator />
+                  {/* Vehicle value and repair-to-value ratio */}
+                  {aiAssessment.estimatedVehicleValue ? (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Est. Vehicle Value</span>
+                        <span className="font-medium">${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Repair/Value Ratio</span>
+                        <span className={`font-semibold ${
+                          (aiAssessment.repairToValueRatio || 0) > 70 ? 'text-red-600' :
+                          (aiAssessment.repairToValueRatio || 0) > 40 ? 'text-amber-600' : 'text-green-600'
+                        }`}>{aiAssessment.repairToValueRatio || 0}%</span>
+                      </div>
+                    </div>
+                  ) : null}
                   <Separator />
                   <div>
                     <p className="text-sm text-muted-foreground">Fraud Risk</p>
@@ -1192,17 +1257,18 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
   // damagedComponentsJson stores objects: {name, location, damageType, severity}
-  // Normalise to flat string array so all .toLowerCase() calls work correctly
-  const damagedComponents: string[] = (() => {
+  // Keep rich objects for severity/type display
+  const richComponents: Array<{name: string; location?: string; damageType?: string; severity?: string}> = (() => {
     if (!aiAssessment.damagedComponentsJson) return [];
     try {
       const parsed = JSON.parse(aiAssessment.damagedComponentsJson);
       if (!Array.isArray(parsed)) return [];
       return parsed.map((c: any) =>
-        typeof c === 'string' ? c : (c?.name || c?.component || String(c))
+        typeof c === 'string' ? { name: c } : { name: c?.name || c?.component || String(c), location: c?.location, damageType: c?.damageType, severity: c?.severity }
       );
     } catch { return []; }
   })();
+  const damagedComponents: string[] = richComponents.map(c => c.name);
   // Resolve accidentType from claim.incidentType (correct field) with fallback to deprecated aiAssessment.accidentType
   const accidentType = (claim as any)?.incidentType || aiAssessment.accidentType || "";
   // Resolve structural damage from correct field
@@ -1343,41 +1409,34 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
       <div className="p-4 bg-white rounded-lg border">
         <h4 className="font-semibold mb-4 flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5 text-purple-600" />
-          Detected Damage Components
+          Detected Damage Components ({richComponents.length})
         </h4>
-        <div className="space-y-4">
-          {Object.entries(categorizedDamage).map(([category, components]) => (
-            <div key={category}>
-              <p className="text-sm font-medium text-muted-foreground mb-2">{category}</p>
-              <div className="grid gap-2 md:grid-cols-3">
-                {components.map((component: string, idx: number) => (
-                  <div key={idx} className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-200">
-                    <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                    <span className="text-sm capitalize">{component}</span>
-                  </div>
-                ))}
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {richComponents.map((comp, idx) => {
+            const sev = (comp.severity ?? '').toLowerCase();
+            const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 text-red-800 border-red-300'
+              : sev === 'moderate' ? 'bg-amber-100 text-amber-800 border-amber-300'
+              : sev === 'minor' ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+              : 'bg-purple-100 text-purple-800 border-purple-300';
+            const dotColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-500'
+              : sev === 'moderate' ? 'bg-amber-500'
+              : sev === 'minor' ? 'bg-emerald-500'
+              : 'bg-purple-500';
+            return (
+              <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 rounded-lg border border-purple-200">
+                <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${dotColor}`}></div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
+                  {comp.location && <p className="text-xs text-muted-foreground capitalize">{comp.location}</p>}
+                </div>
+                {comp.severity && (
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${sevColor}`}>
+                    {sev === 'total_loss' ? 'TOTAL' : sev.toUpperCase()}
+                  </span>
+                )}
               </div>
-            </div>
-          ))}
-          
-          {/* Uncategorized components */}
-          {damagedComponents.filter((comp: string) => 
-            !Object.values(categorizedDamage).flat().includes(comp)
-          ).length > 0 && (
-            <div>
-              <p className="text-sm font-medium text-muted-foreground mb-2">Other Components</p>
-              <div className="grid gap-2 md:grid-cols-3">
-                {damagedComponents
-                  .filter((comp: string) => !Object.values(categorizedDamage).flat().includes(comp))
-                  .map((component: string, idx: number) => (
-                    <div key={idx} className="flex items-center gap-2 p-2 bg-purple-50 rounded border border-purple-200">
-                      <div className="w-2 h-2 rounded-full bg-purple-500"></div>
-                      <span className="text-sm capitalize">{component}</span>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
+            );
+          })}
         </div>
       </div>
 
@@ -1615,6 +1674,128 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessmen
         </div>
       </div>
       
+      {/* Impact Force Vectors & Damage Propagation */}
+      {raw && (
+        <div className="grid gap-4 md:grid-cols-2">
+          {/* Force Vector Analysis */}
+          <div className="p-4 bg-white rounded-lg border">
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Zap className="h-4 w-4 text-amber-600" />
+              Impact Force Vectors
+            </h4>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Peak Force</span>
+                <span className="font-bold text-amber-700">
+                  {((impactForce?.magnitude ?? 0) / 1000).toFixed(1)} kN
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Impact Duration</span>
+                <span className="font-medium">{impactForce?.duration ?? 0} ms</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Impact Angle</span>
+                <span className="font-medium">
+                  {raw.impactPoint?.impactAngle ?? raw.impactAngle ?? 'N/A'}°
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Primary Zone</span>
+                <span className="font-medium capitalize">
+                  {raw.impactPoint?.primaryImpactZone ?? raw.collisionType ?? 'Unknown'}
+                </span>
+              </div>
+              {/* Force vector bar */}
+              {impactForce?.magnitude > 0 && (
+                <div className="mt-2">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>0 kN</span>
+                    <span>50 kN</span>
+                    <span>100+ kN</span>
+                  </div>
+                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-amber-400 to-red-600"
+                      style={{ width: `${Math.min(100, (impactForce.magnitude / 100000) * 100)}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Equivalent to {Math.round(impactForce.magnitude / 9810)} × vehicle weight
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Damage Propagation */}
+          <div className="p-4 bg-white rounded-lg border">
+            <h4 className="font-semibold mb-3 flex items-center gap-2">
+              <Activity className="h-4 w-4 text-blue-600" />
+              Damage Propagation
+            </h4>
+            {raw.damagePropagation ? (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Consistency</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${raw.damagePropagation.consistency ?? 0}%` }} />
+                    </div>
+                    <span className="text-xs font-medium">{raw.damagePropagation.consistency ?? 0}%</span>
+                  </div>
+                </div>
+                {raw.damagePropagation.propagationPath && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Propagation Path</p>
+                    <div className="flex flex-wrap gap-1">
+                      {(Array.isArray(raw.damagePropagation.propagationPath)
+                        ? raw.damagePropagation.propagationPath
+                        : [raw.damagePropagation.propagationPath]
+                      ).map((step: string, i: number, arr: string[]) => (
+                        <span key={i} className="flex items-center gap-1">
+                          <span className="text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 capitalize">{step}</span>
+                          {i < arr.length - 1 && <span className="text-blue-400 text-xs">→</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {raw.damagePropagation.unexpectedComponents?.length > 0 && (
+                  <div className="mt-2 p-2 bg-amber-50 rounded border border-amber-200">
+                    <p className="text-xs font-medium text-amber-900">Unexpected Damage Components:</p>
+                    <ul className="text-xs text-amber-800 mt-1 space-y-0.5">
+                      {raw.damagePropagation.unexpectedComponents.map((c: string, i: number) => (
+                        <li key={i}>• {c}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Collision Type</span>
+                  <span className="font-medium capitalize">{collisionType ?? 'Unknown'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-sm text-muted-foreground">Damage Consistency</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                      <div className="h-full bg-blue-500 rounded-full" style={{ width: `${damageConsistency?.score ?? 70}%` }} />
+                    </div>
+                    <span className="text-xs font-medium">{damageConsistency?.score ?? 70}%</span>
+                  </div>
+                </div>
+                {damageConsistency?.explanation && (
+                  <p className="text-xs text-muted-foreground italic">{damageConsistency.explanation}</p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* EV/Hybrid Analysis */}
       {physicsAnalysis.evHybridAnalysis && (
         <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">

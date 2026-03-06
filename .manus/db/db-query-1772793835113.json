@@ -1,0 +1,43 @@
+{
+  "query": "SELECT c.id, c.claim_number, c.vehicle_make, c.vehicle_model, aa.total_loss_indicated, aa.estimated_vehicle_value, aa.estimated_cost, aa.repair_to_value_ratio, aa.structural_damage_severity FROM claims c LEFT JOIN ai_assessments aa ON aa.claim_id = c.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT c.id, c.claim_number, c.vehicle_make, c.vehicle_model, aa.total_loss_indicated, aa.estimated_vehicle_value, aa.estimated_cost, aa.repair_to_value_ratio, aa.structural_damage_severity FROM claims c LEFT JOIN ai_assessments aa ON aa.claim_id = c.id;",
+  "rows": [
+    {
+      "id": "1740435",
+      "claim_number": "WB-TEST-ISOLATION-1772784735989",
+      "vehicle_make": "NULL",
+      "vehicle_model": "NULL",
+      "total_loss_indicated": "NULL",
+      "estimated_vehicle_value": "NULL",
+      "estimated_cost": "NULL",
+      "repair_to_value_ratio": "NULL",
+      "structural_damage_severity": "NULL"
+    },
+    {
+      "id": "1740455",
+      "claim_number": "DOC-20260306-3783347D",
+      "vehicle_make": "NULL",
+      "vehicle_model": "NULL",
+      "total_loss_indicated": "1",
+      "estimated_vehicle_value": "100000",
+      "estimated_cost": "53360",
+      "repair_to_value_ratio": "53",
+      "structural_damage_severity": "severe"
+    },
+    {
+      "id": "1740456",
+      "claim_number": "DOC-20260306-0CEBF6F2",
+      "vehicle_make": "NULL",
+      "vehicle_model": "NULL",
+      "total_loss_indicated": "1",
+      "estimated_vehicle_value": "100000",
+      "estimated_cost": "2576",
+      "repair_to_value_ratio": "3",
+      "structural_damage_severity": "moderate"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tvehicle_make\tvehicle_model\ttotal_loss_indicated\testimated_vehicle_value\testimated_cost\trepair_to_value_ratio\tstructural_damage_severity\n1740435\tWB-TEST-ISOLATION-1772784735989\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\n1740455\tDOC-20260306-3783347D\tNULL\tNULL\t1\t100000\t53360\t53\tsevere\n1740456\tDOC-20260306-0CEBF6F2\tNULL\tNULL\t1\t100000\t2576\t3\tmoderate\n",
+  "stderr": "",
+  "execution_time_ms": 353
+}

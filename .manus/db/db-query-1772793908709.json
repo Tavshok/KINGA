@@ -1,0 +1,28 @@
+{
+  "query": "SELECT aa.id, aa.total_loss_indicated, aa.estimated_vehicle_value, aa.estimated_cost, aa.repair_to_value_ratio, aa.structural_damage_severity, c.claim_number FROM ai_assessments aa JOIN claims c ON aa.claim_id = c.id;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT aa.id, aa.total_loss_indicated, aa.estimated_vehicle_value, aa.estimated_cost, aa.repair_to_value_ratio, aa.structural_damage_severity, c.claim_number FROM ai_assessments aa JOIN claims c ON aa.claim_id = c.id;",
+  "rows": [
+    {
+      "id": "1230020",
+      "total_loss_indicated": "0",
+      "estimated_vehicle_value": "245000",
+      "estimated_cost": "2576",
+      "repair_to_value_ratio": "11",
+      "structural_damage_severity": "moderate",
+      "claim_number": "DOC-20260306-0CEBF6F2"
+    },
+    {
+      "id": "1230019",
+      "total_loss_indicated": "0",
+      "estimated_vehicle_value": "245000",
+      "estimated_cost": "53360",
+      "repair_to_value_ratio": "11",
+      "structural_damage_severity": "severe",
+      "claim_number": "DOC-20260306-3783347D"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\ttotal_loss_indicated\testimated_vehicle_value\testimated_cost\trepair_to_value_ratio\tstructural_damage_severity\tclaim_number\n1230020\t0\t245000\t2576\t11\tmoderate\tDOC-20260306-0CEBF6F2\n1230019\t0\t245000\t53360\t11\tsevere\tDOC-20260306-3783347D\n",
+  "stderr": "",
+  "execution_time_ms": 355
+}

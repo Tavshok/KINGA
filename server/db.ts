@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
 import * as schema from "../drizzle/schema";
 import { 
@@ -422,15 +422,18 @@ export async function triggerAiAssessment(claimId: number) {
     ? `You are an expert auto insurance claims analyst. You are being given a PDF document that is an insurance assessment report, repair quotation, or police report for a vehicle damage claim.
 
 Analyze the ENTIRE document thoroughly and extract:
-1. Vehicle details (make, model, year, registration number)
+1. Vehicle details (make, model, year, registration number, VIN, colour, engine number)
 2. ALL damaged components listed (e.g. front bumper, bonnet, left door, windscreen, headlights, etc.)
 3. Damage descriptions and severity for each component
 4. Repair cost estimates (parts, labour, total) — extract exact amounts from the document
-5. Accident description or incident details
-6. Assessor or repairer name and details
-7. Any fraud indicators (inconsistencies, unusual patterns, missing information, inflated costs)
+5. Accident description or incident details (date, location, description, incident type)
+6. Assessor or repairer name, company name, and contact details
+7. ALL individual line items from the quote/invoice (description, quantity, unit price, line total, category: parts/labor/paint/sundries)
+8. Any fraud indicators (inconsistencies, unusual patterns, missing information, inflated costs)
+9. Third party vehicle details if mentioned (make, model, registration)
+10. Owner/claimant name if mentioned
 
-IMPORTANT: You MUST populate ALL required fields in the JSON response. Use the document text, tables, and line items to derive values. For physical measurements not explicitly stated in the document, use typical values for the damage type described. For cost estimates, use the exact figures from the document.
+IMPORTANT: You MUST populate ALL required fields in the JSON response. Use the document text, tables, and line items to derive values. For physical measurements not explicitly stated in the document, use typical values for the damage type described. For cost estimates, use the exact figures from the document. Extract ALL line items from the quote table.
 
 Provide your response in JSON format.`
     : `You are an expert auto insurance damage assessor with expertise in accident reconstruction physics. Analyze these vehicle damage photos and provide:
@@ -649,9 +652,42 @@ Provide your response in JSON format.`;
             laborCost: { type: "number" },
             partsCost: { type: "number" },
             fraudRiskScore: { type: "number" },
-            fraudIndicators: { type: "array", items: { type: "string" } }
+            fraudIndicators: { type: "array", items: { type: "string" } },
+            // PDF-mode extracted fields
+            extractedVehicleMake: { type: "string" },
+            extractedVehicleModel: { type: "string" },
+            extractedVehicleYear: { type: "number" },
+            extractedVehicleRegistration: { type: "string" },
+            extractedVehicleVin: { type: "string" },
+            extractedVehicleColour: { type: "string" },
+            extractedVehicleEngineNumber: { type: "string" },
+            extractedOwnerName: { type: "string" },
+            extractedIncidentDate: { type: "string" },
+            extractedIncidentDescription: { type: "string" },
+            extractedIncidentLocation: { type: "string" },
+            extractedIncidentType: { type: "string", enum: ["collision", "theft", "hail", "fire", "vandalism", "flood", "hijacking", "other", "unknown"] },
+            extractedRepairerName: { type: "string" },
+            extractedRepairerCompany: { type: "string" },
+            extractedThirdPartyVehicle: { type: "string" },
+            extractedThirdPartyRegistration: { type: "string" },
+            extractedQuoteLineItems: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  description: { type: "string" },
+                  partNumber: { type: "string" },
+                  quantity: { type: "number" },
+                  unitPrice: { type: "number" },
+                  lineTotal: { type: "number" },
+                  category: { type: "string", enum: ["parts", "labor", "paint", "diagnostic", "sundries", "other"] }
+                },
+                required: ["description", "quantity", "unitPrice", "lineTotal", "category"],
+                additionalProperties: false
+              }
+            }
           },
-          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "multiVehicleData", "skidMarkData", "postCollisionMovement", "rolloverEvidence", "missingDataFlags", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators"],
+          required: ["damageDescription", "damagedComponents", "maxCrushDepth", "crushDepthConfidence", "totalDamageArea", "structuralDamage", "airbagDeployment", "impactPoint", "accidentType", "referenceObjectsDetected", "photoAnglesAvailable", "imageQualityScore", "scaleCalibrationConfidence", "recommendResubmission", "multiVehicleData", "skidMarkData", "postCollisionMovement", "rolloverEvidence", "missingDataFlags", "estimatedCost", "laborCost", "partsCost", "fraudRiskScore", "fraudIndicators", "extractedVehicleMake", "extractedVehicleModel", "extractedVehicleYear", "extractedVehicleRegistration", "extractedVehicleVin", "extractedVehicleColour", "extractedVehicleEngineNumber", "extractedOwnerName", "extractedIncidentDate", "extractedIncidentDescription", "extractedIncidentLocation", "extractedIncidentType", "extractedRepairerName", "extractedRepairerCompany", "extractedThirdPartyVehicle", "extractedThirdPartyRegistration", "extractedQuoteLineItems"],
           additionalProperties: false
         }
       }
@@ -698,11 +734,36 @@ Provide your response in JSON format.`;
   }
   
   // Estimate vehicle value based on make/model/year (Zimbabwean market)
-  const vehicleAge = claim.vehicleYear ? new Date().getFullYear() - claim.vehicleYear : 10;
+  // ========== EXTRACT VEHICLE & INCIDENT DATA FROM PDF (PDF mode) ==========
+  // In PDF mode, the LLM extracts vehicle details directly from the document
+  const extractedMake = analysis.extractedVehicleMake || '';
+  const extractedModel = analysis.extractedVehicleModel || '';
+  const extractedYear = analysis.extractedVehicleYear || null;
+  const extractedReg = analysis.extractedVehicleRegistration || '';
+  const extractedVin = analysis.extractedVehicleVin || '';
+  const extractedColour = analysis.extractedVehicleColour || '';
+  const extractedEngineNumber = analysis.extractedVehicleEngineNumber || '';
+  const extractedOwnerName = analysis.extractedOwnerName || '';
+  const extractedIncidentDate = analysis.extractedIncidentDate || '';
+  const extractedIncidentDescription = analysis.extractedIncidentDescription || '';
+  const extractedIncidentLocation = analysis.extractedIncidentLocation || '';
+  const extractedIncidentType = analysis.extractedIncidentType || 'other';
+  const extractedRepairerName = analysis.extractedRepairerName || '';
+  const extractedRepairerCompany = analysis.extractedRepairerCompany || '';
+  const extractedThirdPartyVehicle = analysis.extractedThirdPartyVehicle || '';
+  const extractedThirdPartyRegistration = analysis.extractedThirdPartyRegistration || '';
+  const extractedQuoteLineItems: Array<{description: string; partNumber?: string; quantity: number; unitPrice: number; lineTotal: number; category: string}> = analysis.extractedQuoteLineItems || [];
+
+  // Use extracted vehicle data (from PDF) or fall back to existing claim data
+  const effectiveMake = extractedMake || claim.vehicleMake || '';
+  const effectiveModel = extractedModel || claim.vehicleModel || '';
+  const effectiveYear = extractedYear || claim.vehicleYear || null;
+
+  const vehicleAge = effectiveYear ? new Date().getFullYear() - effectiveYear : 10;
   let estimatedVehicleValue = 500000; // Default $5000 in cents
   
   // Zimbabwean market vehicle valuations (rough estimates in cents)
-  const vehicleKey = `${claim.vehicleMake?.toLowerCase()} ${claim.vehicleModel?.toLowerCase()}`;
+  const vehicleKey = `${effectiveMake.toLowerCase()} ${effectiveModel.toLowerCase()}`;
   const vehicleValues: Record<string, number> = {
     'honda fit': 350000, // $3500
     'toyota hilux': 1500000, // $15000
@@ -729,13 +790,15 @@ Provide your response in JSON format.`;
     : 0;
   
   // Determine if total loss
-  const totalLossThreshold = 60; // 60% of vehicle value
+  // NOTE: Total loss should only be indicated when repair cost genuinely exceeds vehicle value threshold,
+  // or when structural damage is catastrophic/severe. Extensive moderate-severity components alone
+  // should NOT trigger total loss — the repair-to-value ratio is the primary determinant.
+  const totalLossThreshold = 70; // 70% of vehicle value
   const totalLossIndicated = 
     hasComponentMarkedTotalLoss ||
     structuralDamageSeverity === 'catastrophic' ||
-    structuralDamageSeverity === 'severe' ||
-    repairToValueRatio > totalLossThreshold ||
-    (extensiveDamage && multipleCriticalSystems && structuralDamageSeverity !== 'none');
+    (structuralDamageSeverity === 'severe' && repairToValueRatio > 40) ||
+    repairToValueRatio > totalLossThreshold;
   
   // Generate total loss reasoning
   let totalLossReasoning = '';
@@ -815,14 +878,45 @@ Provide your response in JSON format.`;
   const { analyzeAccidentPhysics, validateQuoteAgainstPhysics } = await import("./accidentPhysics");
   const { performForensicAnalysis } = await import("./forensicAnalysis");
   
-  // Prepare vehicle data
+  // Prepare vehicle data — use PDF-extracted fields if available, fall back to claim fields
+  const physicsMake = (analysis.extractedVehicleMake || claim.vehicleMake || 'Unknown').toLowerCase();
+  const physicsModel = (analysis.extractedVehicleModel || claim.vehicleModel || 'Unknown').toLowerCase();
+  const physicsYear = analysis.extractedVehicleYear || claim.vehicleYear || 2020;
+
+  // Vehicle mass lookup table (kg) — common models in ZW/SA market
+  const vehicleMassTable: Record<string, number> = {
+    'honda fit': 1050, 'honda jazz': 1050, 'honda civic': 1250, 'honda cr-v': 1500,
+    'toyota vitz': 980, 'toyota yaris': 1050, 'toyota corolla': 1300, 'toyota hilux': 1900,
+    'toyota fortuner': 2100, 'toyota land cruiser': 2500, 'toyota prado': 2200,
+    'isuzu d-max': 1900, 'isuzu d-teq': 1900, 'isuzu kb': 1900, 'isuzu mu-x': 2100,
+    'mazda 3': 1300, 'mazda cx-5': 1600, 'mazda bt-50': 1900,
+    'ford ranger': 1950, 'ford everest': 2200, 'ford fiesta': 1050, 'ford focus': 1300,
+    'volkswagen polo': 1100, 'volkswagen golf': 1300, 'volkswagen tiguan': 1600,
+    'nissan np200': 900, 'nissan np300': 1700, 'nissan navara': 1900, 'nissan x-trail': 1600,
+    'mitsubishi triton': 1900, 'mitsubishi outlander': 1700, 'mitsubishi colt': 1100,
+    'suzuki swift': 900, 'suzuki vitara': 1100, 'suzuki jimny': 1100,
+    'chevrolet spark': 900, 'chevrolet cruze': 1400,
+    'hyundai i10': 900, 'hyundai i20': 1050, 'hyundai tucson': 1600, 'hyundai h100': 1500,
+    'kia picanto': 900, 'kia rio': 1050, 'kia sportage': 1600,
+    'bmw 3 series': 1500, 'bmw x5': 2100, 'mercedes c-class': 1500, 'mercedes e-class': 1700,
+  };
+  const vehicleMassKey = `${physicsMake} ${physicsModel}`;
+  const vehicleMass = vehicleMassTable[vehicleMassKey] ||
+    vehicleMassTable[physicsMake] ||
+    (physicsMake.includes('hilux') || physicsMake.includes('ranger') || physicsMake.includes('d-max') ? 1900 :
+     physicsMake.includes('land cruiser') || physicsMake.includes('fortuner') ? 2200 :
+     physicsMake.includes('fit') || physicsMake.includes('vitz') || physicsMake.includes('swift') ? 1000 :
+     1300); // sensible default for unknown sedans
+
   const vehicleData = {
-    mass: 1500, // Default mass in kg, should be looked up from vehicle database
-    make: claim.vehicleMake || "Unknown",
-    model: claim.vehicleModel || "Unknown",
-    year: claim.vehicleYear || 2020,
-    vehicleType: "sedan" as const, // Default, should be determined from make/model
-    powertrainType: "ice" as const, // Default ICE, should be determined from make/model/year
+    mass: vehicleMass,
+    make: analysis.extractedVehicleMake || claim.vehicleMake || 'Unknown',
+    model: analysis.extractedVehicleModel || claim.vehicleModel || 'Unknown',
+    year: physicsYear,
+    vehicleType: (physicsMake.includes('hilux') || physicsMake.includes('ranger') || physicsMake.includes('d-max') || physicsMake.includes('navara') ? 'pickup' :
+                  physicsMake.includes('land cruiser') || physicsMake.includes('fortuner') || physicsMake.includes('prado') ? 'suv' :
+                  'sedan') as 'sedan' | 'suv' | 'pickup' | 'van' | 'truck',
+    powertrainType: (physicsYear >= 2020 && (physicsMake.includes('leaf') || physicsMake.includes('tesla') || physicsMake.includes('bolt')) ? 'bev' : 'ice') as 'ice' | 'bev' | 'phev' | 'hev',
   };
   
   // Prepare accident data using AI-extracted information
@@ -946,6 +1040,30 @@ Provide your response in JSON format.`;
     
     // Update claim with enhanced fraud assessment + lifecycle status
     // TODO: Uncomment ML fraud scores after running `pnpm db:push` to update TypeScript types
+    // Build vehicle/incident update fields from PDF extraction (only set if extracted data is non-empty)
+    const vehicleUpdateFields: Record<string, any> = {};
+    if (isPdfMode) {
+      if (extractedMake) vehicleUpdateFields.vehicleMake = extractedMake;
+      if (extractedModel) vehicleUpdateFields.vehicleModel = extractedModel;
+      if (extractedYear) vehicleUpdateFields.vehicleYear = extractedYear;
+      if (extractedReg) vehicleUpdateFields.vehicleRegistration = extractedReg;
+      if (extractedVin) vehicleUpdateFields.vehicleVin = extractedVin;
+      if (extractedColour) vehicleUpdateFields.vehicleColor = extractedColour;
+      if (extractedEngineNumber) vehicleUpdateFields.vehicleEngineNumber = extractedEngineNumber;
+      if (extractedIncidentDate) {
+        // Parse incident date to a valid timestamp string
+        try {
+          const d = new Date(extractedIncidentDate);
+          if (!isNaN(d.getTime())) vehicleUpdateFields.incidentDate = d.toISOString().slice(0, 19).replace('T', ' ');
+        } catch { /* ignore invalid dates */ }
+      }
+      if (extractedIncidentDescription) vehicleUpdateFields.incidentDescription = extractedIncidentDescription;
+      if (extractedIncidentLocation) vehicleUpdateFields.incidentLocation = extractedIncidentLocation;
+      if (extractedIncidentType && extractedIncidentType !== 'unknown') vehicleUpdateFields.incidentType = extractedIncidentType as any;
+      if (extractedThirdPartyVehicle) vehicleUpdateFields.thirdPartyVehicle = extractedThirdPartyVehicle;
+      if (extractedThirdPartyRegistration) vehicleUpdateFields.thirdPartyRegistration = extractedThirdPartyRegistration;
+    }
+
     await db.update(claims).set({ 
       aiAssessmentCompleted: 1,
       status: "assessment_complete",
@@ -956,9 +1074,103 @@ Provide your response in JSON format.`;
       // ownershipRiskScore: mlFraudResult ? String(mlFraudResult.ownership_risk_score) : null,
       // stagedAccidentConfidence: mlFraudResult ? String(mlFraudResult.staged_accident_indicators.confidence) : null,
       // fraudAnalysisJson: mlFraudResult ? JSON.stringify(mlFraudResult) : null,
+      ...vehicleUpdateFields,
       updatedAt: new Date().toISOString() 
     }).where(eq(claims.id, claimId));
-    console.log(`[AI Assessment] Claim ${claimId} updated after AI completion.`);
+    console.log(`[AI Assessment] Claim ${claimId} updated after AI completion. Vehicle fields extracted: ${Object.keys(vehicleUpdateFields).join(', ')}`);
+
+    // ========== CREATE PANEL BEATER QUOTE FROM PDF EXTRACTED DATA ==========
+    // If the PDF contained a quote/invoice, create a panel_beater_quotes record
+    if (isPdfMode && (extractedQuoteLineItems.length > 0 || analysis.estimatedCost > 0)) {
+      try {
+        // Find or create a "PDF Assessor" panel beater record for this tenant
+        const tenantId = claim.tenantId;
+        let pdfAssessorPanelBeater = await db.select().from(panelBeaters)
+          .where(and(
+            eq(panelBeaters.businessName, extractedRepairerCompany || 'PDF Assessor'),
+            tenantId ? eq(panelBeaters.tenantId, tenantId) : sql`1=1`
+          ))
+          .limit(1);
+        
+        if (pdfAssessorPanelBeater.length === 0) {
+          // Create a panel beater record for the repairer in the PDF
+          const insertResult = await db.insert(panelBeaters).values({
+            name: extractedRepairerName || extractedRepairerCompany || 'PDF Assessor',
+            businessName: extractedRepairerCompany || extractedRepairerName || 'PDF Assessor',
+            email: '',
+            phone: '',
+            address: '',
+            approved: 1,
+            tenantId: tenantId || null,
+          } as any);
+          const newId = (insertResult as any)[0]?.insertId;
+          if (newId) {
+            pdfAssessorPanelBeater = await db.select().from(panelBeaters).where(eq(panelBeaters.id, newId)).limit(1);
+          }
+        }
+
+        if (pdfAssessorPanelBeater.length > 0) {
+          const panelBeaterId = pdfAssessorPanelBeater[0].id;
+          const laborCost = Math.round(analysis.laborCost || 0);
+          const partsCost = Math.round(analysis.partsCost || 0);
+          const totalCost = Math.round(analysis.estimatedCost || laborCost + partsCost);
+          
+          // Delete any existing PDF-sourced quotes for this claim
+          await db.delete(panelBeaterQuotes).where(
+            and(eq(panelBeaterQuotes.claimId, claimId), eq(panelBeaterQuotes.panelBeaterId, panelBeaterId))
+          );
+
+          // Create the quote
+          const quoteInsert = await db.insert(panelBeaterQuotes).values({
+            claimId,
+            panelBeaterId,
+            quotedAmount: totalCost,
+            laborCost: laborCost,
+            partsCost: partsCost,
+            estimatedDuration: 5, // Default 5 days
+            notes: `Quote extracted from PDF document: ${extractedRepairerCompany || extractedRepairerName || 'Assessor'}`,
+            status: 'submitted',
+            tenantId: tenantId || null,
+            currencyCode: claim.currencyCode || 'USD',
+            itemizedBreakdown: extractedQuoteLineItems.length > 0 ? JSON.stringify(extractedQuoteLineItems) : null,
+            // componentsJson: QuotedPart[] format for parts reconciliation engine
+            componentsJson: extractedQuoteLineItems.length > 0 ? JSON.stringify(
+              extractedQuoteLineItems.map(item => ({
+                componentName: item.description,
+                action: item.category === 'labour' ? 'repair' : 'replace',
+                partsCost: item.category !== 'labour' ? Math.round(item.lineTotal) : 0,
+                laborCost: item.category === 'labour' ? Math.round(item.lineTotal) : 0,
+              }))
+            ) : null,
+          } as any);
+
+          const newQuoteId = (quoteInsert as any)[0]?.insertId;
+          
+          // Create line items if extracted
+          if (newQuoteId && extractedQuoteLineItems.length > 0) {
+            const lineItemsToInsert = extractedQuoteLineItems.map((item, idx) => ({
+              quoteId: newQuoteId,
+              itemNumber: idx + 1,
+              description: item.description,
+              partNumber: item.partNumber || null,
+              category: item.category as any,
+              quantity: String(item.quantity),
+              unitPrice: String(item.unitPrice),
+              lineTotal: String(item.lineTotal),
+              vatRate: '0.00',
+              vatAmount: '0.00',
+              totalWithVat: String(item.lineTotal),
+            }));
+            await db.insert(quoteLineItems).values(lineItemsToInsert as any);
+            console.log(`[AI Assessment] Created ${lineItemsToInsert.length} quote line items for claim ${claimId}`);
+          }
+          
+          console.log(`[AI Assessment] Created panel beater quote (ID: ${newQuoteId}) for claim ${claimId} from PDF data`);
+        }
+      } catch (quoteErr: any) {
+        console.warn(`[AI Assessment] Could not create panel beater quote from PDF: ${quoteErr.message}`);
+      }
+    }
     
     // Calculate physics deviation score for fraud detection
     const { calculatePhysicsDeviationScore, parsePhysicsAnalysis: parsePhysics } = await import("./physics-deviation-calculator");

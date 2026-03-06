@@ -2900,13 +2900,19 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const claim = await getClaimById(input.claimId, tenantId);
         if (!claim) throw new Error("Claim not found");
 
+         // Validate vehicle details are available
+        if (!claim.vehicleMake || !claim.vehicleModel) {
+          throw new Error(
+            `Vehicle make and model are required for valuation. ` +
+            `This claim has not yet had its vehicle details extracted from the PDF. ` +
+            `Please re-run the AI assessment first to extract vehicle details from the uploaded document.`
+          );
+        }
         // Get assessor evaluation for repair cost
         const evaluation = await getAssessorEvaluationByClaimId(input.claimId);
         const repairCost = evaluation?.estimatedRepairCost;
-
         // Import valuation service
         const { valuateVehicle } = await import("./services/vehicleValuation");
-
         // Perform valuation
         const valuation = await valuateVehicle(
           {

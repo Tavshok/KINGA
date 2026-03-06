@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, claim_number, vehicle_make, vehicle_model, vehicle_year, vehicle_registration, incident_date, incident_description, incident_location, source_document_id FROM claims WHERE id = 1740456;\nSELECT id, claim_id, panel_beater_id, quoted_amount, labor_cost, parts_cost, notes FROM panel_beater_quotes WHERE claim_id = 1740456;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_number, vehicle_make, vehicle_model, vehicle_year, vehicle_registration, incident_date, incident_description, incident_location, source_document_id FROM claims WHERE id = 1740456;\nSELECT id, claim_id, panel_beater_id, quoted_amount, labor_cost, parts_cost, notes FROM panel_beater_quotes WHERE claim_id = 1740456;",
+  "rows": [
+    {
+      "id": "1740456",
+      "claim_number": "DOC-20260306-0CEBF6F2",
+      "vehicle_make": "NULL",
+      "vehicle_model": "NULL",
+      "vehicle_year": "NULL",
+      "vehicle_registration": "NULL",
+      "incident_date": "NULL",
+      "incident_description": "NULL",
+      "incident_location": "NULL",
+      "source_document_id": "210002"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tvehicle_make\tvehicle_model\tvehicle_year\tvehicle_registration\tincident_date\tincident_description\tincident_location\tsource_document_id\n1740456\tDOC-20260306-0CEBF6F2\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\tNULL\t210002\n",
+  "stderr": "",
+  "execution_time_ms": 414
+}

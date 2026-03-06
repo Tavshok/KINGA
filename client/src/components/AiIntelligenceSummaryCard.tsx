@@ -15,9 +15,10 @@
  * No workflow logic is modified.  No new tRPC calls are made.
  */
 
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -26,6 +27,8 @@ import {
   BarChart2,
   Brain,
   AlertCircle,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -35,6 +38,7 @@ interface DamagedComponent {
   component?: string;
   location?: string;
   severity?: string;
+  damageType?: string;
   type?: string;
 }
 
@@ -51,6 +55,9 @@ interface AiAssessment {
   fraudRiskLevel?: string | null;
   structuralDamageSeverity?: string | null;
   estimatedCost?: number | null;
+  estimatedPartsCost?: number | null;
+  estimatedLaborCost?: number | null;
+  totalLossIndicated?: number | null;
 }
 
 interface Props {
@@ -62,7 +69,6 @@ interface Props {
 
 function formatAmount(amount: number | null | undefined, sym: string = "US$"): string {
   if (amount == null || isNaN(amount)) return "—";
-  // Costs are stored as whole numbers (e.g. 900 = US$900), not cents
   return `${sym}${amount.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
@@ -145,6 +151,15 @@ function ComplexityBadge({ severity }: { severity: string | null | undefined }) 
   );
 }
 
+function SeverityBadge({ severity }: { severity: string | null | undefined }) {
+  const s = (severity ?? "").toLowerCase();
+  if (s === "total_loss") return <Badge variant="destructive" className="text-[10px] px-1.5 py-0">TOTAL LOSS</Badge>;
+  if (s === "severe") return <Badge className="text-[10px] px-1.5 py-0 bg-red-100 text-red-800 border-red-300">SEVERE</Badge>;
+  if (s === "moderate") return <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 border-amber-300">MODERATE</Badge>;
+  if (s === "minor") return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800 border-emerald-300">MINOR</Badge>;
+  return null;
+}
+
 function ConfidenceBar({ score }: { score: number | null | undefined }) {
   const pct = Math.min(100, Math.max(0, score ?? 0));
   const color =
@@ -167,9 +182,12 @@ function ConfidenceBar({ score }: { score: number | null | undefined }) {
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
+  const [showAllComponents, setShowAllComponents] = useState(false);
+
   // ── Derived values ──────────────────────────────────────────────────────────
   const components = parseComponents(aiAssessment?.damagedComponentsJson);
-  const top3 = components.slice(0, 3);
+  const INITIAL_SHOW = 6;
+  const visibleComponents = showAllComponents ? components : components.slice(0, INITIAL_SHOW);
 
   const quoteAmounts = quotes
     .map((q) => q.quotedAmount ?? 0)
@@ -194,6 +212,10 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
     });
   }
 
+  // Cost breakdown
+  const partsCost = aiAssessment?.estimatedPartsCost;
+  const laborCost = aiAssessment?.estimatedLaborCost;
+
   // ── Empty state ─────────────────────────────────────────────────────────────
   if (!aiAssessment) {
     return (
@@ -215,88 +237,61 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
         <CardTitle className="flex items-center gap-2 text-base font-semibold">
           <Brain className="h-5 w-5 text-primary" />
           AI Intelligence Summary
+          {aiAssessment.totalLossIndicated === 1 && (
+            <Badge variant="destructive" className="ml-2 text-xs">TOTAL LOSS INDICATED</Badge>
+          )}
         </CardTitle>
       </CardHeader>
 
-      <CardContent className="pt-0">
-        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <CardContent className="pt-0 space-y-5">
 
-          {/* ── Section 1: Damage Detection ─────────────────────────────── */}
-          <div className="space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              AI Damage Detection
-            </p>
-            <p className="text-sm">
-              <span className="font-semibold text-foreground">{components.length}</span>
-              {" "}component{components.length !== 1 ? "s" : ""} detected
-            </p>
-            {top3.length > 0 ? (
-              <ul className="space-y-0.5">
-                {top3.map((c, i) => (
-                  <li key={i} className="text-sm text-muted-foreground flex items-start gap-1.5">
-                    <span className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
-                    <span className="capitalize">{componentLabel(c)}</span>
-                  </li>
-                ))}
-                {components.length > 3 && (
-                  <li className="text-xs text-muted-foreground pl-3">
-                    +{components.length - 3} more
-                  </li>
-                )}
-              </ul>
-            ) : (
-              <p className="text-sm text-muted-foreground">No component data</p>
-            )}
-          </div>
+        {/* ── Row 1: Stats grid ─────────────────────────────────────────── */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
 
-          {/* ── Section 2: Repair Cost Intelligence ───────────────── */}
+          {/* Section 1: Repair Cost Intelligence */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1">
               <BarChart2 className="h-3.5 w-3.5" />
               Repair Cost Intelligence
             </p>
             <div className="space-y-1.5 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">AI Estimated Total</span>
+                <span className="font-semibold text-primary">{formatAmount(aiAssessment.estimatedCost)}</span>
+              </div>
+              {partsCost != null && partsCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Parts</span>
+                  <span className="font-medium">{formatAmount(partsCost)}</span>
+                </div>
+              )}
+              {laborCost != null && laborCost > 0 && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Labour</span>
+                  <span className="font-medium">{formatAmount(laborCost)}</span>
+                </div>
+              )}
               {quoteAmounts.length > 0 ? (
                 <>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between pt-1 border-t border-border/50">
                     <span className="text-muted-foreground">Quote spread</span>
-                    <span className="font-semibold">
-                      {spreadPct != null ? `${spreadPct}%` : "—"}
-                    </span>
+                    <span className="font-semibold">{spreadPct != null ? `${spreadPct}%` : "—"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Median cost</span>
+                    <span className="text-muted-foreground">Median quote</span>
                     <span className="font-semibold">{formatAmount(medianQuote)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Recommended</span>
-                    <span className="font-semibold text-primary truncate max-w-[120px] text-right">
-                      {recommendedQuote
-                        ? recommendedQuote.panelBeaterName ?? `Repairer #${recommendedQuote.panelBeaterId ?? recommendedQuote.id}`
-                        : "—"}
-                    </span>
                   </div>
                 </>
               ) : (
-                <>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">AI Estimated Cost</span>
-                    <span className="font-semibold text-primary">{formatAmount(aiAssessment.estimatedCost)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Quote spread</span>
-                    <span className="text-xs text-muted-foreground">Awaiting quotes</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Recommended</span>
-                    <span className="text-xs text-muted-foreground">Awaiting quotes</span>
-                  </div>
-                </>
+                <div className="flex justify-between pt-1 border-t border-border/50">
+                  <span className="text-muted-foreground">Quotes</span>
+                  <span className="text-xs text-muted-foreground">Awaiting quotes</span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* ── Section 3: Risk Indicators ───────────────────────────────── */}
+          {/* Section 2: Risk Indicators */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               Risk Indicators
@@ -310,16 +305,24 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                 <span className="text-muted-foreground">Repair complexity</span>
                 <ComplexityBadge severity={aiAssessment.structuralDamageSeverity} />
               </div>
+              {quoteAmounts.length > 0 && recommendedQuote && (
+                <div className="flex items-start justify-between gap-2 pt-1 border-t border-border/50">
+                  <span className="text-muted-foreground shrink-0">Recommended</span>
+                  <span className="font-semibold text-primary text-right text-xs leading-tight">
+                    {recommendedQuote.panelBeaterName ?? `Repairer #${recommendedQuote.panelBeaterId ?? recommendedQuote.id}`}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* ── Section 4: Confidence ────────────────────────────────────── */}
+          {/* Section 3: AI Confidence */}
           <div className="space-y-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               AI Confidence
             </p>
             <ConfidenceBar score={aiAssessment.confidenceScore} />
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground leading-snug">
               {(aiAssessment.confidenceScore ?? 0) >= 75
                 ? "High confidence — assessment is reliable."
                 : (aiAssessment.confidenceScore ?? 0) >= 50
@@ -328,7 +331,68 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
             </p>
           </div>
 
+          {/* Section 4: Damage Count */}
+          <div className="space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Damage Summary
+            </p>
+            <p className="text-2xl font-bold text-primary">{components.length}</p>
+            <p className="text-xs text-muted-foreground">
+              component{components.length !== 1 ? "s" : ""} detected
+            </p>
+            <div className="flex gap-1.5 flex-wrap">
+              {["total_loss", "severe", "moderate", "minor"].map((sev) => {
+                const count = components.filter(c => (c.severity ?? "").toLowerCase() === sev).length;
+                if (count === 0) return null;
+                return (
+                  <SeverityBadge key={sev} severity={sev} />
+                );
+              })}
+            </div>
+          </div>
+
         </div>
+
+        {/* ── Row 2: All Damaged Components ─────────────────────────────── */}
+        {components.length > 0 && (
+          <div className="border-t border-border/50 pt-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
+              Detected Damage Components ({components.length})
+            </p>
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {visibleComponents.map((c, i) => (
+                <div
+                  key={i}
+                  className="flex items-start gap-2 p-2 rounded-md bg-background/60 border border-border/40"
+                >
+                  <span className="mt-0.5 h-2 w-2 rounded-full bg-primary shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium capitalize leading-tight">{componentLabel(c)}</p>
+                    {c.location && (
+                      <p className="text-xs text-muted-foreground capitalize">{c.location}</p>
+                    )}
+                  </div>
+                  {c.severity && <SeverityBadge severity={c.severity} />}
+                </div>
+              ))}
+            </div>
+            {components.length > INITIAL_SHOW && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="mt-2 text-xs text-muted-foreground"
+                onClick={() => setShowAllComponents(!showAllComponents)}
+              >
+                {showAllComponents ? (
+                  <><ChevronUp className="h-3 w-3 mr-1" />Show less</>
+                ) : (
+                  <><ChevronDown className="h-3 w-3 mr-1" />Show {components.length - INITIAL_SHOW} more components</>
+                )}
+              </Button>
+            )}
+          </div>
+        )}
+
       </CardContent>
     </Card>
   );

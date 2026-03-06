@@ -9729,3 +9729,17 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Integrate full selector in Close for Processing dialog
 - [x] Write 17 vitest tests for updateCurrency procedure (all pass)
 - [x] TypeScript: zero errors
+
+## Pipeline Audit - March 2026
+- [ ] Issue 1: AI intelligence summary truncates at "+9 more" — show all 12 components
+- [ ] Issue 2: Claim summary shows empty vehicle make/model/incident date — fix field mapping
+- [ ] Issue 3: Panel beater quotes from PDF not appearing in comparison section
+- [ ] Issue 4: Vehicle valuation defaults to $100,000 — remove default, move mileage to input
+- [ ] Issue 5: Parts cost $336 / Labour $2,240 inconsistent with extracted quote
+- [ ] Issue 6: Hidden damage inference not derived from physics/impact forces
+- [ ] Issue 7: AI Repair Intelligence section empty
+- [ ] Issue 8: Parts Reconciliation section empty
+- [ ] Issue 9: Total loss triggered using default $100,000 vehicle value
+- [ ] Issue 10: Physics analysis exists but impact forces/vectors not visualised
+- [ ] Issue 11: Physics analysis section not rendering well
+- [ ] Issue 12: Damage images extracted from PDF not stored/displayed
