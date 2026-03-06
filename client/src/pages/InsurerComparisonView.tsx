@@ -576,48 +576,10 @@ export default function InsurerComparisonView() {
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Main Content — 14-section ordered intelligence report */}
       <main className="container mx-auto px-4 py-8">
-        {/* Fraud Alert */}
-        {fraudDetected && (
-          <Card className="mb-6 border-red-500 bg-red-50">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <AlertTriangle className="h-6 w-6 text-red-600" />
-                <div>
-                  <CardTitle className="text-red-900">Potential Fraud Detected</CardTitle>
-                  <CardDescription className="text-red-700">
-                    Significant discrepancies found between evaluations ({'>'}30% variance)
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        )}
 
-        {!fraudDetected && aiAssessment && assessorEval && quotes.length > 0 && (
-          <Card className="mb-6 border-green-500 bg-green-50">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <CheckCircle2 className="h-6 w-6 text-green-600" />
-                <div>
-                  <CardTitle className="text-green-900">No Fraud Indicators</CardTitle>
-                  <CardDescription className="text-green-700">
-                    All evaluations are within acceptable variance
-                  </CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-          </Card>
-        )}
-
-        {/* AI Intelligence Summary — compact overview of AI signals */}
-        <AiIntelligenceSummaryCard
-          aiAssessment={aiAssessment ?? null}
-          quotes={quotes as any[]}
-        />
-
-        {/* Claim Summary */}
+        {/* ── SECTION 1: CLAIM SUMMARY ─────────────────────────────────── */}
         <Card className="mb-6">
           <CardHeader>
             <div className="flex items-start justify-between gap-4">
@@ -628,7 +590,6 @@ export default function InsurerComparisonView() {
                 </CardTitle>
                 <CardDescription>Key claim and vehicle details extracted from the submitted document</CardDescription>
               </div>
-              {/* Re-run AI Assessment button — shown when vehicle fields are missing */}
               {(!claim.vehicleMake || !claim.vehicleModel) && (
                 <Button
                   variant="outline"
@@ -716,7 +677,101 @@ export default function InsurerComparisonView() {
           </CardContent>
         </Card>
 
-        {/* Damage Images Gallery */}
+        {/* ── SECTION 2: AI INTELLIGENCE SUMMARY ───────────────────────── */}
+        <AiIntelligenceSummaryCard
+          aiAssessment={aiAssessment ?? null}
+          quotes={quotes as any[]}
+        />
+
+        {/* ── SECTION 3: DAMAGE ANALYSIS ───────────────────────────────── */}
+        {aiAssessment && (
+          <Card className="mb-6 border-2 border-purple-200 bg-purple-50/30">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Badge className="bg-purple-600">3</Badge>
+                    Damage Analysis
+                  </CardTitle>
+                  <CardDescription>AI-detected damaged components with severity, location, and damage classification</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleExportDamageReport(aiAssessment, claim)} className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export PDF
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-analysis" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── SECTION 4: VEHICLE DAMAGE MAP ────────────────────────────── */}
+        {aiAssessment && (
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-blue-600">4</Badge>
+                Vehicle Damage Map
+              </CardTitle>
+              <CardDescription>Graphical representation of damage locations on the vehicle</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-map" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── SECTION 5: IMPACT ANALYSIS (collision only) ──────────────── */}
+        {aiAssessment && (claim as any).incidentType === 'collision' && (
+          <Card className="mb-6 border-2 border-orange-200 bg-orange-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-orange-600">5</Badge>
+                Impact Analysis
+              </CardTitle>
+              <CardDescription>Impact force, force vectors, direction of impact, and energy distribution (collision incidents only)</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="impact" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── SECTION 6: PHYSICS VALIDATION ────────────────────────────── */}
+        {aiAssessment && (claim as any).incidentType === 'collision' && (
+          <Card className="mb-6 border-2 border-primary/20 bg-primary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-primary">6</Badge>
+                Physics Validation
+              </CardTitle>
+              <CardDescription>Damage consistency score, impact propagation logic, and structural damage analysis</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="physics" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── SECTION 7: HIDDEN DAMAGE INFERENCE ───────────────────────── */}
+        {aiAssessment && (
+          <Card className="mb-6 border-2 border-amber-200 bg-amber-50/30">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-amber-600">7</Badge>
+                Hidden Damage Inference
+              </CardTitle>
+              <CardDescription>Inferred hidden components based on impact physics, structural layout, and engineering rules</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="hidden-damage" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── SECTION 8: DAMAGE IMAGES ─────────────────────────────────── */}
         {(() => {
           let photos: string[] = [];
           try {
@@ -728,10 +783,10 @@ export default function InsurerComparisonView() {
             <Card className="mb-6 border-2 border-indigo-200 bg-indigo-50/30">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <Badge className="bg-indigo-600">Photos</Badge>
+                  <Badge className="bg-indigo-600">8</Badge>
                   Damage Images ({photos.length})
                 </CardTitle>
-                <CardDescription>Uploaded damage photographs for this claim</CardDescription>
+                <CardDescription>Extracted damage photographs from uploaded photos and PDF documents</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
@@ -753,414 +808,247 @@ export default function InsurerComparisonView() {
           );
         })()}
 
-        {/* Panel Beater Choices */}
-        <PanelBeaterChoicesCard claimId={claimId} />
+        {/* ── SECTION 9: REPAIR INTELLIGENCE ───────────────────────────── */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Badge className="bg-teal-600">9</Badge>
+              Repair Intelligence
+            </CardTitle>
+            <CardDescription>Recommended repair actions, repair sequence, and complexity level per component</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RepairIntelligencePanel claimId={claimId} />
+          </CardContent>
+        </Card>
 
-        {/* Vehicle Valuation Section */}
-        <div className="mb-6">
-          <VehicleValuationCard claimId={claimId} />
-        </div>
-
-        {/* Damage Component Breakdown */}
-        {aiAssessment && (
-          <Card className="mb-6 border-2 border-purple-200 bg-purple-50/30">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Badge className="bg-purple-600">AI Damage Analysis</Badge>
-                    Detected Damage Components & Inferred Hidden Damage
-                  </CardTitle>
-                  <CardDescription>
-                    AI-powered component-level damage detection with confidence scores and hidden damage inference
-                  </CardDescription>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleExportDamageReport(aiAssessment, claim)}
-                  className="gap-2"
-                >
-                  <Download className="h-4 w-4" />
-                  Export PDF
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* AI Cost Optimisation Panel */}
-        <QuoteOptimisationPanel claimId={claimId} />
-        {/* Repair Quote Intelligence — advisory panel */}
-        <RepairIntelligencePanel claimId={claimId} />
-
-        {/* Side-by-Side Comparison */}
-        <div className="grid gap-6 lg:grid-cols-3">
-          {/* AI Assessment */}
-          <Card className={aiAssessment ? "" : "opacity-60"}>
+        {/* ── SECTION 10: PARTS RECONCILIATION ─────────────────────────── */}
+        {quotes.length > 0 && aiAssessment && (
+          <Card className="mb-6 border-2 border-cyan-200 bg-cyan-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-primary/10">AI</Badge>
-                AI Assessment
+                <Badge className="bg-cyan-700">10</Badge>
+                Parts Reconciliation
               </CardTitle>
-              <CardDescription>
-                Automated damage analysis
-              </CardDescription>
+              <CardDescription>Detected components vs quoted parts vs inferred hidden damages — highlights missing, inflated, or unrelated parts</CardDescription>
             </CardHeader>
             <CardContent>
-              {aiAssessment ? (
+              {quotes.length >= 2 && quotes.some(q => q.lineItems && q.lineItems.length > 0) ? (
+                <QuoteComparison quotes={quotes} />
+              ) : (
                 <div className="space-y-4">
-                  {/* Total Loss Warning Banner */}
-                  {aiAssessment.totalLossIndicated === 1 && (
-                    <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-2">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-5 w-5 text-red-600" />
-                        <h4 className="font-bold text-red-900 text-lg">TOTAL LOSS INDICATED</h4>
-                      </div>
-                      <Badge variant="destructive" className="text-xs">
-                        {aiAssessment.structuralDamageSeverity?.toUpperCase() || 'SEVERE'} STRUCTURAL DAMAGE
-                      </Badge>
-                      {aiAssessment.totalLossReasoning && (
-                        <p className="text-sm text-red-800 leading-relaxed">
-                          {aiAssessment.totalLossReasoning}
-                        </p>
-                      )}
-                      {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
-                        <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
-                          <p>Repair Cost: ${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
-                          <p>Vehicle Value: ${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</p>
-                          <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <Separator className={aiAssessment.totalLossIndicated === 1 ? "" : "hidden"} />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estimated Cost</p>
-                    <p className="text-2xl font-bold text-primary">
-                      ${(aiAssessment.estimatedCost || 0).toLocaleString()}
-                    </p>
-                  </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Confidence Score</p>
-                    <p className="font-medium">{aiAssessment.confidenceScore}%</p>
-                  </div>
-                  <Separator />
-                  {/* Vehicle value and repair-to-value ratio */}
-                  {aiAssessment.estimatedVehicleValue ? (
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Est. Vehicle Value</span>
-                        <span className="font-medium">${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">Repair/Value Ratio</span>
-                        <span className={`font-semibold ${
-                          (aiAssessment.repairToValueRatio || 0) > 70 ? 'text-red-600' :
-                          (aiAssessment.repairToValueRatio || 0) > 40 ? 'text-amber-600' : 'text-green-600'
-                        }`}>{aiAssessment.repairToValueRatio || 0}%</span>
-                      </div>
-                    </div>
-                  ) : null}
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fraud Risk</p>
-                    <Badge 
-                      variant={
-                        aiAssessment.fraudRiskLevel === "high" ? "destructive" :
-                        aiAssessment.fraudRiskLevel === "medium" ? "default" : "secondary"
-                      }
-                    >
-                      {aiAssessment.fraudRiskLevel}
-                    </Badge>
-                  </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Damage Analysis</p>
-                    <p className="text-sm mt-1">{aiAssessment.damageDescription || "N/A"}</p>
-                  </div>
-                  
-                  {/* Visualization Graphs */}
-                  {aiAssessment.graphUrls && (() => {
-                    try {
-                      const graphs = JSON.parse(aiAssessment.graphUrls);
-                      if (graphs && Object.keys(graphs).length > 0) {
-                        return (
-                          <>
-                            <Separator />
-                            <div>
-                              <p className="text-sm text-muted-foreground mb-3">Analysis Visualizations</p>
-                              <div className="grid grid-cols-2 gap-2">
-                                {graphs.damageBreakdown && (
-                                  <div className="col-span-2">
-                                    <img src={graphs.damageBreakdown} alt="Damage Breakdown" className="w-full rounded-md border" />
-                                  </div>
-                                )}
-                                {graphs.fraudGauge && (
-                                  <div>
-                                    <img src={graphs.fraudGauge} alt="Fraud Risk" className="w-full rounded-md border" />
-                                  </div>
-                                )}
-                                {graphs.physicsValidation && (
-                                  <div>
-                                    <img src={graphs.physicsValidation} alt="Physics Analysis" className="w-full rounded-md border" />
-                                  </div>
-                                )}
-                              </div>
+                  {quotes.map((quote, idx) => (
+                    <div key={quote.id} className="p-4 bg-white rounded-lg border">
+                      <p className="font-semibold mb-2">Quote {idx + 1} — ${(quote.quotedAmount || 0).toLocaleString()}</p>
+                      {quote.lineItems && quote.lineItems.length > 0 ? (
+                        <div className="space-y-2">
+                          {quote.lineItems.map((item: any, i: number) => (
+                            <div key={i} className="flex justify-between text-sm border-b pb-1">
+                              <span className="capitalize">{item.description}</span>
+                              <span className="font-medium">${Number(item.lineTotal || 0).toLocaleString()}</span>
                             </div>
-                          </>
-                        );
-                      }
-                    } catch (e) {
-                      console.error("Failed to parse graph URLs:", e);
-                    }
-                    return null;
-                  })()}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No AI assessment available</p>
-                  <p className="text-xs mt-2">Trigger AI assessment from triage page</p>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No line items available for this quote</p>
+                      )}
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
           </Card>
+        )}
 
-          {/* Assessor Evaluation */}
-          <Card className={assessorEval ? "" : "opacity-60"}>
+        {/* ── SECTION 11: PANEL BEATER QUOTES ──────────────────────────── */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Badge className="bg-violet-600">11</Badge>
+              Panel Beater Quotes
+            </CardTitle>
+            <CardDescription>Submitted repair estimates from panel beaters</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <PanelBeaterChoicesCard claimId={claimId} />
+          </CardContent>
+        </Card>
+
+        {/* ── SECTION 12: COST OPTIMISATION ────────────────────────────── */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Badge className="bg-emerald-600">12</Badge>
+              Cost Optimisation
+            </CardTitle>
+            <CardDescription>Cost differences, repair vs replace logic, and recommended repair cost range</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <QuoteOptimisationPanel claimId={claimId} />
+          </CardContent>
+        </Card>
+
+        {/* ── SECTION 13: FRAUD RISK ANALYSIS ──────────────────────────── */}
+        {aiAssessment && (
+          <Card className="mb-6 border-2 border-red-200 bg-red-50/30">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-green-100">Human</Badge>
-                Assessor Evaluation
+                <Badge className="bg-red-600">13</Badge>
+                Fraud Risk Analysis
               </CardTitle>
-              <CardDescription>
-                Independent expert assessment
-              </CardDescription>
+              <CardDescription>Fraud indicators from physics engine, quote comparison, and damage inconsistency analysis</CardDescription>
             </CardHeader>
             <CardContent>
-              {assessorEval ? (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Estimated Cost</p>
-                    <p className="text-2xl font-bold text-primary">
-                      ${(assessorEval.estimatedRepairCost || 0).toLocaleString()}
+              <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="fraud" />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ── SECTION 14: FINAL AI RECOMMENDATION ──────────────────────── */}
+        {aiAssessment && (
+          <Card className="mb-6 border-2 border-secondary/30 bg-secondary/5">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Badge className="bg-secondary">14</Badge>
+                Final AI Recommendation
+              </CardTitle>
+              <CardDescription>AI-generated recommendation: proceed with repair, request investigation, possible fraud, or total loss</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {/* Total Loss Warning */}
+                {aiAssessment.totalLossIndicated === 1 && (
+                  <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      <h4 className="font-bold text-red-900 text-lg">TOTAL LOSS INDICATED</h4>
+                    </div>
+                    <Badge variant="destructive" className="text-xs">
+                      {aiAssessment.structuralDamageSeverity?.toUpperCase() || 'SEVERE'} STRUCTURAL DAMAGE
+                    </Badge>
+                    {aiAssessment.totalLossReasoning && (
+                      <p className="text-sm text-red-800 leading-relaxed">{aiAssessment.totalLossReasoning}</p>
+                    )}
+                    {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
+                      <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
+                        <p>Repair Cost: ${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
+                        <p>Vehicle Value: ${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</p>
+                        <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+                {/* Recommendation based on fraud risk and damage */}
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="p-4 rounded-lg border bg-white">
+                    <p className="text-sm text-muted-foreground mb-1">Recommended Action</p>
+                    <p className="font-semibold text-lg">
+                      {aiAssessment.totalLossIndicated === 1 ? 'Total Loss — Do Not Repair' :
+                       aiAssessment.fraudRiskLevel === 'high' ? 'Request Investigation' :
+                       aiAssessment.fraudRiskLevel === 'medium' ? 'Proceed with Caution' :
+                       'Proceed with Repair'}
                     </p>
-                  </div>
-                  <Separator />
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground">Labor</p>
-                      <p className="font-medium">
-                        ${(assessorEval.laborCost || 0).toLocaleString()}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-xs text-muted-foreground">Parts</p>
-                      <p className="font-medium">
-                        ${(assessorEval.partsCost || 0).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Duration</p>
-                    <p className="font-medium">{assessorEval.estimatedDuration} days</p>
-                  </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Fraud Risk</p>
-                    <Badge 
-                      variant={
-                        assessorEval.fraudRiskLevel === "high" ? "destructive" :
-                        assessorEval.fraudRiskLevel === "medium" ? "default" : "secondary"
-                      }
-                    >
-                      {assessorEval.fraudRiskLevel || "N/A"}
+                    <Badge className={`mt-2 ${
+                      aiAssessment.totalLossIndicated === 1 ? 'bg-red-600' :
+                      aiAssessment.fraudRiskLevel === 'high' ? 'bg-red-600' :
+                      aiAssessment.fraudRiskLevel === 'medium' ? 'bg-amber-600' : 'bg-green-600'
+                    }`}>
+                      {aiAssessment.totalLossIndicated === 1 ? 'Total Loss' :
+                       aiAssessment.fraudRiskLevel === 'high' ? 'Possible Fraud' :
+                       aiAssessment.fraudRiskLevel === 'medium' ? 'Review Required' : 'Approved'}
                     </Badge>
                   </div>
-                  <Separator />
-                  <div>
-                    <p className="text-sm text-muted-foreground">Assessment</p>
-                    <p className="text-sm mt-1">{assessorEval.damageAssessment || "N/A"}</p>
+                  <div className="p-4 rounded-lg border bg-white">
+                    <p className="text-sm text-muted-foreground mb-1">Estimated Repair Cost</p>
+                    <p className="text-2xl font-bold text-primary">${(aiAssessment.estimatedCost || 0).toLocaleString()}</p>
+                    {aiAssessment.estimatedVehicleValue ? (
+                      <div className="mt-2 space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Est. Vehicle Value</span>
+                          <span className="font-medium">${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Repair/Value Ratio</span>
+                          <span className={`font-semibold ${
+                            (aiAssessment.repairToValueRatio || 0) > 70 ? 'text-red-600' :
+                            (aiAssessment.repairToValueRatio || 0) > 40 ? 'text-amber-600' : 'text-green-600'
+                          }`}>{aiAssessment.repairToValueRatio || 0}%</span>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No assessor evaluation available</p>
-                  <p className="text-xs mt-2">Assign assessor from triage page</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Panel Beater Quotes */}
-          <Card className={quotes.length > 0 ? "" : "opacity-60"}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge variant="outline" className="bg-purple-100">Quotes</Badge>
-                Panel Beater Quotes ({quotes.length})
-              </CardTitle>
-              <CardDescription>
-                Repair shop estimates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {quotes.length > 0 ? (
-                <div className="space-y-4">
-                  {(() => {
-                    // Compute relative stats once across all quotes in this claim
-                    const amounts = quotes.map((q) => q.quotedAmount || 0);
-                    const median = computeMedian(amounts);
-                    return quotes.map((quote, index) => {
-                      const band = getCostBand(quote.quotedAmount || 0, median);
-                      const { label, containerClass, dotClass } = BAND_CONFIG[band];
-                      const deviationPct = median > 0
-                        ? Math.round((((quote.quotedAmount || 0) - median) / median) * 100)
-                        : 0;
+                {/* Damage description */}
+                {aiAssessment.damageDescription && (
+                  <div className="p-4 bg-muted/30 rounded-lg border">
+                    <p className="text-sm text-muted-foreground mb-1">AI Damage Assessment</p>
+                    <p className="text-sm leading-relaxed">{aiAssessment.damageDescription}</p>
+                  </div>
+                )}
+                {/* Visualization Graphs */}
+                {aiAssessment.graphUrls && (() => {
+                  try {
+                    const graphs = JSON.parse(aiAssessment.graphUrls);
+                    if (graphs && Object.keys(graphs).length > 0) {
                       return (
-                    <div key={quote.id}>
-                      {index > 0 && <Separator className="my-4" />}
-                      <div className="space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <p className="text-sm text-muted-foreground">Quote {index + 1}</p>
-                            <p className="text-xl font-bold text-primary">
-                              ${(quote.quotedAmount || 0).toLocaleString()}
-                            </p>
-                          </div>
-                          {/* Cost Intelligence Indicator */}
-                          <div className="flex flex-col items-end gap-1">
-                            <span
-                              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold select-none ${containerClass}`}
-                              title={`Cost Intelligence: ${label} — ${deviationPct > 0 ? '+' : ''}${deviationPct}% vs median`}
-                            >
-                              <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
-                              {label}
-                            </span>
-                            <span className="text-[10px] text-muted-foreground">
-                              {deviationPct > 0 ? '+' : ''}{deviationPct}% vs median
-                            </span>
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-3">Analysis Visualizations</p>
+                          <div className="grid grid-cols-2 gap-2">
+                            {graphs.damageBreakdown && (
+                              <div className="col-span-2">
+                                <img src={graphs.damageBreakdown} alt="Damage Breakdown" className="w-full rounded-md border" />
+                              </div>
+                            )}
+                            {graphs.fraudGauge && (
+                              <div>
+                                <img src={graphs.fraudGauge} alt="Fraud Risk" className="w-full rounded-md border" />
+                              </div>
+                            )}
+                            {graphs.physicsValidation && (
+                              <div>
+                                <img src={graphs.physicsValidation} alt="Physics Analysis" className="w-full rounded-md border" />
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Labor Cost</p>
-                            <p className="text-sm font-medium">
-                              ${(quote.laborCost || 0).toLocaleString()}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Parts Cost</p>
-                            <p className="text-sm font-medium">
-                              ${(quote.partsCost || 0).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <div>
-                            <p className="text-xs text-muted-foreground">Labor Hours</p>
-                            <p className="text-sm font-medium">{quote.laborHours || 'N/A'} hrs</p>
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">Duration</p>
-                            <p className="text-sm font-medium">{quote.estimatedDuration || 'N/A'} days</p>
-                          </div>
-                        </div>
-                        {quote.notes && (
-                          <div>
-                            <p className="text-xs text-muted-foreground">Notes</p>
-                            <p className="text-xs mt-1">{quote.notes}</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
                       );
-                    });
-                  })()}
-
-                  <Separator className="my-4" />
-
-                  {/* Quote spread summary */}
-                  {(() => {
-                    const amounts = quotes.map((q) => q.quotedAmount || 0);
-                    const median = computeMedian(amounts);
-                    const minCost = Math.min(...amounts);
-                    const maxCost = Math.max(...amounts);
-                    const spreadPercent = maxCost > 0 ? Math.round(((maxCost - minCost) / maxCost) * 100) : 0;
-                    return (
-                      <div className="grid grid-cols-3 gap-3 rounded-lg bg-muted/40 p-3">
-                        <div>
-                          <p className="text-xs text-muted-foreground">Median Quote</p>
-                          <p className="text-sm font-semibold">${median.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Lowest Quote</p>
-                          <p className="text-sm font-semibold text-emerald-700">${minCost.toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">Quote Spread</p>
-                          <p className="text-sm font-semibold text-red-600">{spreadPercent}%</p>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  <div>
-                    <p className="text-sm text-muted-foreground">Average Quote</p>
-                    <p className="text-lg font-bold">
-                      ${(quotes.reduce((sum, q) => sum + (q.quotedAmount || 0), 0) / quotes.length).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-muted-foreground">
-                  <p>No quotes submitted yet</p>
-                  <p className="text-xs mt-2">Waiting for panel beater quotes</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        
-        {/* Intelligent Quote Comparison */}
-        {quotes.length >= 2 && quotes.some(q => q.lineItems && q.lineItems.length > 0) && (
-          <QuoteComparison quotes={quotes} />
-        )}
-        
-           {/* Physics-Based Accident Analysis */}
-        {aiAssessment && (
-          <Card className="border-2 border-primary/20 bg-primary/5/30">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Badge className="bg-primary">Physics Analysis</Badge>
-                Accident Dynamics & Fraud Detection
-              </CardTitle>
-              <CardDescription>
-                Physics-based analysis of accident dynamics, impact forces, and repair validation
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} />
+                    }
+                  } catch (e) { /* ignore */ }
+                  return null;
+                })()}
+              </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Claim Approval & Panel Beater Selection */}
-        <Card>
+        {/* ── CLAIM APPROVAL (always last) ──────────────────────────────── */}
+        <Card className="mb-6">
           <CardHeader>
             <CardTitle>Claim Approval & Panel Beater Selection</CardTitle>
-            <CardDescription>
-              Select the winning quote and approve the claim for repair
-            </CardDescription>
+            <CardDescription>Select the winning quote and approve the claim for repair</CardDescription>
           </CardHeader>
           <CardContent>
             <ClaimApprovalSection claimId={claimId} quotes={quotes} />
           </CardContent>
         </Card>
+
+        {/* Vehicle Valuation — reference panel for market value context */}
+        <div className="mb-6">
+          <VehicleValuationCard claimId={claimId} />
+        </div>
+
+        {/* REMOVED SECTIONS (now rendered above in correct order): */}
+        {/* - Old Claim Summary (now Section 1) */}
+        {/* - Old Damage Images (now Section 8) */}
+        {/* - Old Panel Beater Choices (now Section 11) */}
+        {/* - Old Damage Component Breakdown (split into Sections 3, 4, 7) */}
+        {/* - Old Physics Analysis (split into Sections 5, 6, 13) */}
+
+        {/* ── END OF 14-SECTION REPORT ─────────────────────────────────── */}
+        {/* REMOVED: legacy fraud alert, old claim summary, old damage images, old panel beater choices,
+             old vehicle valuation, old damage component breakdown, old cost optimisation,
+             old repair intelligence, old side-by-side comparison, old physics analysis,
+             old claim approval — all replaced by the 14-section ordered layout above */}
       </main>
     </div>
   );
@@ -1255,7 +1143,11 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 
 
 // Damage Component Breakdown Component
-function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
+// section: 'damage-analysis' = Detected components list (section 3)
+//          'damage-map' = Vehicle damage map (section 4)
+//          'hidden-damage' = Hidden damage inference (section 7)
+//          'all' = everything (legacy)
+function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { aiAssessment: any; claim: any; section?: 'damage-analysis' | 'damage-map' | 'hidden-damage' | 'all' }) {
   // damagedComponentsJson stores objects: {name, location, damageType, severity}
   // Keep rich objects for severity/type display
   const richComponents: Array<{name: string; location?: string; damageType?: string; severity?: string}> = (() => {
@@ -1387,6 +1279,144 @@ function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; 
   const partsCost = aiAssessment.estimatedPartsCost || estimatedCost * 0.6;
   const laborCost = aiAssessment.estimatedLaborCost || estimatedCost * 0.4;
 
+  // Render only the requested sub-section
+  if (section === 'damage-map') {
+    return (
+      <div className="p-4 bg-white rounded-lg border">
+        <VehicleDamageVisualization 
+          damagedComponents={damagedComponents} 
+          accidentType={accidentType}
+          estimatedCost={aiAssessment.estimatedCost || 0}
+          structuralDamage={hasStructuralDamage}
+          airbagDeployment={hasAirbagDeployment}
+        />
+      </div>
+    );
+  }
+
+  if (section === 'damage-analysis') {
+    return (
+      <div className="space-y-4">
+        {/* Summary Stats */}
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="p-4 bg-white rounded-lg border">
+            <p className="text-sm text-muted-foreground">Components Detected</p>
+            <p className="text-2xl font-bold text-purple-600">{damagedComponents.length}</p>
+          </div>
+          <div className="p-4 bg-white rounded-lg border">
+            <p className="text-sm text-muted-foreground">Parts Cost</p>
+            <p className="text-2xl font-bold text-primary">${partsCost.toLocaleString()}</p>
+          </div>
+          <div className="p-4 bg-white rounded-lg border">
+            <p className="text-sm text-muted-foreground">Labor Cost</p>
+            <p className="text-2xl font-bold text-green-600">${laborCost.toLocaleString()}</p>
+          </div>
+          <div className="p-4 bg-white rounded-lg border">
+            <p className="text-sm text-muted-foreground">Total Estimated</p>
+            <p className="text-2xl font-bold text-secondary">${estimatedCost.toLocaleString()}</p>
+          </div>
+        </div>
+        {/* Detected Components */}
+        <div className="p-4 bg-white rounded-lg border">
+          <h4 className="font-semibold mb-4 flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 text-purple-600" />
+            Detected Damage Components ({richComponents.length})
+          </h4>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {richComponents.map((comp, idx) => {
+              const sev = (comp.severity ?? '').toLowerCase();
+              const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 text-red-800 border-red-300'
+                : sev === 'moderate' ? 'bg-amber-100 text-amber-800 border-amber-300'
+                : sev === 'minor' ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                : 'bg-purple-100 text-purple-800 border-purple-300';
+              const dotColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-500'
+                : sev === 'moderate' ? 'bg-amber-500'
+                : sev === 'minor' ? 'bg-emerald-500'
+                : 'bg-purple-500';
+              return (
+                <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${dotColor}`}></div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
+                    {comp.location && <p className="text-xs text-muted-foreground capitalize">{comp.location}</p>}
+                    {comp.damageType && <p className="text-xs text-muted-foreground capitalize">{comp.damageType}</p>}
+                  </div>
+                  {comp.severity && (
+                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${sevColor}`}>
+                      {sev === 'total_loss' ? 'TOTAL' : sev.toUpperCase()}
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {/* AI Damage Description */}
+        <div className="p-4 bg-primary/5 rounded-lg border border-primary/20">
+          <h4 className="font-semibold mb-2 text-secondary">AI Damage Analysis Summary</h4>
+          <p className="text-sm text-secondary whitespace-pre-wrap">{damageDescription}</p>
+        </div>
+        {/* Structural Damage Warning */}
+        {hasStructuralDamage && (
+          <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-6 w-6 text-red-600" />
+              <div>
+                <p className="font-semibold text-red-900">Structural Damage Detected</p>
+                <p className="text-sm text-red-800 mt-1">
+                  AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
+                  Detailed structural inspection and repair certification required.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (section === 'hidden-damage') {
+    return (
+      <div className="space-y-4">
+        {inferredHiddenDamage.length > 0 ? (
+          <div className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+            <div className="space-y-3">
+              {inferredHiddenDamage.map((item, idx) => (
+                <div key={idx} className="p-3 bg-white rounded border border-orange-200">
+                  <div className="flex items-start justify-between mb-1">
+                    <p className="font-medium text-sm">{item.component}</p>
+                    <Badge 
+                      className={
+                        item.confidence === 'High' ? 'bg-red-600' :
+                        item.confidence === 'Medium' ? 'bg-orange-600' :
+                        'bg-yellow-600'
+                      }
+                    >
+                      {item.confidence} Confidence
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{item.reason}</p>
+                </div>
+              ))}
+            </div>
+            <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
+              <p className="text-sm text-yellow-900">
+                <strong>⚠️ Recommendation:</strong> Physical inspection recommended to confirm hidden damage. 
+                Inferred damage is based on typical collision patterns and may not be present in all cases.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No hidden damage inferred for this incident type</p>
+            <p className="text-xs mt-2">Hidden damage inference requires collision-type incidents with visible structural damage</p>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // section === 'all' — legacy full render
   return (
     <div className="space-y-6">
       {/* Summary Stats */}
@@ -1618,7 +1648,8 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
 }
 
 // Physics Validation Component
-function PhysicsValidationSection({ aiAssessment, quotes, claim }: { aiAssessment: any; quotes: any[]; claim: any }) {
+// mode: 'impact' = Impact Analysis (section 5), 'physics' = Physics Validation (section 6), 'fraud' = Fraud Indicators (section 13), 'all' = everything (legacy)
+function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }: { aiAssessment: any; quotes: any[]; claim: any; mode?: 'impact' | 'physics' | 'fraud' | 'all' }) {
   // Parse physics analysis from AI assessment
   let physicsAnalysis: any = null;
   try {
