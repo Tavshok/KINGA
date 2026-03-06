@@ -745,6 +745,160 @@ Provide your response in JSON format.`;
   console.log(`[Pipeline Stage 1] Incident context: type=${extractedIncidentType}, location=${effectiveIncidentLocation || 'unknown'}`);
 
   // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 1b — DAMAGE PHOTO EXTRACTION
+  // Extract images from PDF (if PDF mode) or build DamagePhoto objects from
+  // uploaded photos (if photo mode). Persisted as damagePhotosJson.
+  // ═══════════════════════════════════════════════════════════════════════════
+  let extractedDamagePhotos: import('../shared/damage-photo-types').DamagePhoto[] = [];
+  try {
+    const { DamagePhoto: _DPType } = await import('../shared/damage-photo-types').catch(() => ({ DamagePhoto: null }));
+    if (isPdfMode && pdfUrl) {
+      // PDF mode: extract embedded images from the PDF
+      console.log(`[Pipeline Stage 1b] Extracting images from PDF for claim ${claimId}`);
+      try {
+        const { extractImagesFromPDFUrl } = await import('./pdf-image-extractor');
+        const extractedImages = await extractImagesFromPDFUrl(pdfUrl);
+        console.log(`[Pipeline Stage 1b] Extracted ${extractedImages.length} images from PDF`);
+        if (extractedImages.length > 0) {
+          // Classify images via LLM vision
+          const { invokeLLM: _llm } = await import('./_core/llm');
+          const imageContents: any[] = extractedImages.slice(0, 15).map((img: any) => ({
+            type: 'image_url' as const,
+            image_url: { url: img.url, detail: 'low' as const },
+          }));
+          imageContents.push({
+            type: 'text' as const,
+            text: `I've shown you ${imageContents.length} images extracted from a vehicle damage assessment PDF.\n\nFor each image (numbered 1 to ${imageContents.length}), classify it and provide:\n- classification: 'damage_photo' or 'document'\n- description: brief description of what the image shows\n- detectedDamageArea: primary damage area visible (e.g. 'Front bumper deformation')\n- impactZone: front, rear, left, right, roof, undercarriage, or unknown\n- detectedComponents: array of {name, severity (minor/moderate/severe/total_loss), zone} objects\n\nAlso provide an overallDamageAssessment summary.`,
+          });
+          try {
+            const classifyResp = await _llm({
+              messages: [
+                { role: 'system', content: 'You are an expert vehicle damage image classifier. Respond with JSON only.' },
+                { role: 'user', content: imageContents },
+              ],
+              response_format: {
+                type: 'json_schema',
+                json_schema: {
+                  name: 'image_classification',
+                  strict: true,
+                  schema: {
+                    type: 'object',
+                    properties: {
+                      classifications: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            imageIndex: { type: 'integer' },
+                            classification: { type: 'string' },
+                            description: { type: 'string' },
+                            detectedDamageArea: { type: 'string' },
+                            impactZone: { type: 'string' },
+                            detectedComponents: {
+                              type: 'array',
+                              items: {
+                                type: 'object',
+                                properties: {
+                                  name: { type: 'string' },
+                                  severity: { type: 'string' },
+                                  zone: { type: 'string' },
+                                },
+                                required: ['name', 'severity', 'zone'],
+                                additionalProperties: false,
+                              },
+                            },
+                          },
+                          required: ['imageIndex', 'classification', 'description', 'detectedDamageArea', 'impactZone', 'detectedComponents'],
+                          additionalProperties: false,
+                        },
+                      },
+                      overallDamageAssessment: { type: 'string' },
+                    },
+                    required: ['classifications', 'overallDamageAssessment'],
+                    additionalProperties: false,
+                  },
+                },
+              },
+            });
+            const classData = JSON.parse(classifyResp.choices[0].message.content as string);
+            for (const cls of classData.classifications) {
+              const imgIdx = cls.imageIndex - 1;
+              if (imgIdx >= 0 && imgIdx < extractedImages.length) {
+                const img = extractedImages[imgIdx] as any;
+                extractedDamagePhotos.push({
+                  imageUrl: img.url,
+                  caption: cls.description || '',
+                  detectedDamageArea: cls.detectedDamageArea || '',
+                  detectedComponents: (cls.detectedComponents || []).map((c: any) => ({
+                    name: c.name,
+                    severity: c.severity as any,
+                    zone: c.zone as any,
+                  })),
+                  impactZone: cls.impactZone ? {
+                    zone: cls.impactZone,
+                    colorClass: ['front','rear'].includes(cls.impactZone) ? 'red' : ['left','right'].includes(cls.impactZone) ? 'orange' : 'gray',
+                    confidence: 70,
+                  } : undefined,
+                  source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
+                  pageNumber: img.pageNumber,
+                  classification: cls.classification === 'damage_photo' ? 'damage_photo' : 'document',
+                  overallAssessment: classData.overallDamageAssessment || '',
+                });
+              }
+            }
+            console.log(`[Pipeline Stage 1b] Classified ${extractedDamagePhotos.filter(p => p.classification === 'damage_photo').length} damage photos, ${extractedDamagePhotos.filter(p => p.classification === 'document').length} document images`);
+          } catch (classErr: any) {
+            // Fallback: treat all extracted images as damage photos
+            console.warn(`[Pipeline Stage 1b] LLM classification failed, using fallback: ${classErr.message}`);
+            extractedDamagePhotos = extractedImages.map((img: any) => ({
+              imageUrl: img.url,
+              caption: `Page ${img.pageNumber} — vehicle damage photo`,
+              detectedDamageArea: 'Vehicle damage',
+              detectedComponents: [],
+              source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
+              pageNumber: img.pageNumber,
+              classification: 'damage_photo' as const,
+            }));
+          }
+        }
+      } catch (extractErr: any) {
+        console.warn(`[Pipeline Stage 1b] PDF image extraction failed: ${extractErr.message}`);
+        // Retry with a simpler extraction approach
+        try {
+          const { extractImagesFromPDFUrl } = await import('./pdf-image-extractor');
+          const retryImages = await extractImagesFromPDFUrl(pdfUrl, { strategy: 'page_render_only' });
+          extractedDamagePhotos = retryImages.map((img: any) => ({
+            imageUrl: img.url,
+            caption: `Page ${img.pageNumber} — vehicle damage photo`,
+            detectedDamageArea: 'Vehicle damage',
+            detectedComponents: [],
+            source: 'pdf_page_render' as const,
+            pageNumber: img.pageNumber,
+            classification: 'damage_photo' as const,
+          }));
+          console.log(`[Pipeline Stage 1b] Retry extracted ${retryImages.length} images`);
+        } catch (retryErr: any) {
+          console.warn(`[Pipeline Stage 1b] Retry also failed: ${retryErr.message}`);
+        }
+      }
+    } else if (damagePhotos.length > 0) {
+      // Photo mode: build DamagePhoto objects from uploaded photo URLs
+      console.log(`[Pipeline Stage 1b] Building DamagePhoto objects from ${damagePhotos.length} uploaded photos`);
+      extractedDamagePhotos = damagePhotos.map((url: string) => ({
+        imageUrl: url,
+        caption: 'Uploaded damage photo',
+        detectedDamageArea: 'Vehicle damage',
+        detectedComponents: [],
+        source: 'uploaded' as const,
+        classification: 'damage_photo' as const,
+      }));
+    }
+    console.log(`[Pipeline Stage 1b] Total damage photos: ${extractedDamagePhotos.filter(p => p.classification === 'damage_photo').length}`);
+  } catch (stage1bErr: any) {
+    console.warn(`[Pipeline Stage 1b] Failed: ${stage1bErr.message}`);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
   // STAGE 2 — INCIDENT CLASSIFICATION
   // Normalise incidentType to a canonical set used by all downstream stages.
   // Canonical values: collision | theft | vandalism | flood | fire | unknown
@@ -2025,6 +2179,8 @@ Provide your response in JSON format.`;
       repairIntelligenceJson: JSON.stringify(repairIntelligence),
       // Stage 9 output: parts reconciliation (detected vs quoted vs hidden)
       partsReconciliationJson: JSON.stringify(partsReconciliation),
+      // Stage 1b output: extracted damage photos with classification
+      damagePhotosJson: extractedDamagePhotos.length > 0 ? JSON.stringify(extractedDamagePhotos) : null,
       // Stage 7 output: 10-indicator fraud score breakdown
       fraudScoreBreakdownJson: JSON.stringify(fraudScoreBreakdown),
       // Stage 10 output: cost intelligence summary

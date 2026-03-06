@@ -205,3 +205,32 @@ export async function extractImagesFromPDF(pdfPath: string): Promise<ExtractedIm
     return [];
   }
 }
+
+/**
+ * Extract images from a PDF at a remote URL (e.g. S3).
+ * Downloads the PDF buffer and delegates to extractImagesFromPDFBuffer.
+ *
+ * @param pdfUrl   HTTPS URL to the PDF file
+ * @param options  Optional extraction options (reserved for future use)
+ * @returns Array of extracted image objects with S3 URLs
+ */
+export async function extractImagesFromPDFUrl(
+  pdfUrl: string,
+  options?: { strategy?: 'page_render_only' | 'both' }
+): Promise<ExtractedImage[]> {
+  try {
+    // Download the PDF from the remote URL
+    const response = await fetch(pdfUrl);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status} fetching PDF from ${pdfUrl}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const filename = pdfUrl.split('/').pop()?.split('?')[0] || 'document.pdf';
+    console.log(`📲 [PDF Extractor] Downloaded ${buffer.length} bytes from URL: ${filename}`);
+    return extractImagesFromPDFBuffer(buffer, filename);
+  } catch (error: any) {
+    console.error(`❌ [PDF Extractor] Error downloading PDF from URL ${pdfUrl}: ${error.message}`);
+    return [];
+  }
+}

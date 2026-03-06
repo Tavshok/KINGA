@@ -22,6 +22,7 @@ import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
+import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -774,36 +775,28 @@ export default function InsurerComparisonView() {
 
         {/* ── SECTION 8: DAMAGE IMAGES ─────────────────────────────────── */}
         {(() => {
-          let photos: string[] = [];
-          try {
-            const raw = (claim as any).damagePhotos;
-            if (raw) { const p = JSON.parse(raw); if (Array.isArray(p)) photos = p; }
-          } catch { /* ignore */ }
-          if (photos.length === 0) return null;
+          const damagePhotosJson = (aiAssessment as any)?.damagePhotosJson ?? null;
+          const rawDamagePhotos = (claim as any)?.damagePhotos ?? null;
+          const hasPhotos = (() => {
+            if (damagePhotosJson) { try { const p = JSON.parse(damagePhotosJson); return Array.isArray(p) && p.length > 0; } catch { return false; } }
+            if (rawDamagePhotos) { try { const p = JSON.parse(rawDamagePhotos); return Array.isArray(p) && p.length > 0; } catch { return false; } }
+            return false;
+          })();
+          if (!hasPhotos) return null;
           return (
             <Card className="mb-6 border-2 border-indigo-200 bg-indigo-50/30">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Badge className="bg-indigo-600">8</Badge>
-                  Damage Images ({photos.length})
+                  Damage Images
                 </CardTitle>
-                <CardDescription>Extracted damage photographs from uploaded photos and PDF documents</CardDescription>
+                <CardDescription>AI-classified damage photographs extracted from PDF documents and uploaded photos — with impact zone overlays and detected component labels</CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                  {photos.map((url: string, idx: number) => (
-                    <div key={idx} className="relative rounded-lg overflow-hidden border border-indigo-200 bg-white">
-                      <img
-                        src={url}
-                        alt={`Damage photo ${idx + 1}`}
-                        className="w-full h-40 object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                        onClick={() => window.open(url, '_blank')}
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                      />
-                      <p className="text-xs text-center text-muted-foreground py-1">Photo {idx + 1}</p>
-                    </div>
-                  ))}
-                </div>
+                <DamageImagesPanel
+                  damagePhotosJson={damagePhotosJson}
+                  rawDamagePhotos={rawDamagePhotos}
+                />
               </CardContent>
             </Card>
           );

@@ -135,6 +135,16 @@ interface PhotoWithClassification {
   url: string;
   classification: 'damage_photo' | 'document';
   page?: number;
+  caption?: string;
+  detectedDamageArea?: string;
+  detectedComponents?: Array<{
+    name: string;
+    severity: string;
+    zone: string;
+  }>;
+  impactZone?: string;
+  source?: 'pdf_page_render' | 'pdf_embedded' | 'uploaded';
+  overallAssessment?: string;
 }
 
 interface PhysicsAnalysis {
@@ -1077,9 +1087,25 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
                       properties: {
                         imageIndex: { type: "integer", description: "1-based index of the image" },
                         classification: { type: "string", description: "damage_photo or document" },
-                        description: { type: "string", description: "Brief description of what the image shows" }
+                        description: { type: "string", description: "Brief description of what the image shows" },
+                        detectedDamageArea: { type: "string", description: "Primary damage area visible, e.g. 'Front bumper and bonnet deformation'" },
+                        impactZone: { type: "string", description: "Primary impact zone: front, rear, left, right, roof, undercarriage, or unknown" },
+                        detectedComponents: {
+                          type: "array",
+                          description: "List of damaged components visible in this photo",
+                          items: {
+                            type: "object",
+                            properties: {
+                              name: { type: "string", description: "Component name, e.g. Front Bumper" },
+                              severity: { type: "string", description: "minor, moderate, severe, or total_loss" },
+                              zone: { type: "string", description: "front, rear, left, right, roof, undercarriage, interior, or unknown" }
+                            },
+                            required: ["name", "severity", "zone"],
+                            additionalProperties: false
+                          }
+                        }
                       },
-                      required: ["imageIndex", "classification", "description"],
+                      required: ["imageIndex", "classification", "description", "detectedDamageArea", "impactZone", "detectedComponents"],
                       additionalProperties: false
                     }
                   },
@@ -1105,6 +1131,12 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
               url: img.url,
               classification: classification as 'damage_photo' | 'document',
               page: img.pageNumber,
+              caption: cls.description || '',
+              detectedDamageArea: cls.detectedDamageArea || '',
+              impactZone: cls.impactZone || 'unknown',
+              detectedComponents: cls.detectedComponents || [],
+              source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
+              overallAssessment: classData.overallDamageAssessment || '',
             });
             
             if (classification === 'damage_photo') {
@@ -1121,6 +1153,11 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
               url: extractedImages[i].url,
               classification: 'damage_photo',
               page: extractedImages[i].pageNumber,
+              caption: `Page ${extractedImages[i].pageNumber} — vehicle damage photo`,
+              detectedDamageArea: 'Vehicle damage',
+              impactZone: 'unknown',
+              detectedComponents: [],
+              source: extractedImages[i].source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
             });
             damagePhotoUrls.push(extractedImages[i].url);
           }
@@ -1142,6 +1179,11 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
             url: img.url,
             classification: 'damage_photo',
             page: img.pageNumber,
+            caption: `Page ${img.pageNumber} — vehicle damage photo`,
+            detectedDamageArea: 'Vehicle damage',
+            impactZone: 'unknown',
+            detectedComponents: [],
+            source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
           });
           damagePhotoUrls.push(img.url);
         }
