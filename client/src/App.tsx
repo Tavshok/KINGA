@@ -648,8 +648,8 @@ function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider
-        defaultTheme="dark"
-        // switchable
+        defaultTheme="light"
+        switchable
       >
         <TooltipProvider>
           <OnboardingManager>

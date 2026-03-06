@@ -9755,3 +9755,14 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Fix vehicle damage map precision — shows entire front zone instead of specific corner/component
 - [ ] Add driver name to claim summary header
 - [ ] Build world-class downloadable PDF report (server-side generation)
+
+
+## UI Redesign: Theme Toggle & Targeted World-Class Upgrade
+- [x] Revert global dark default — restore light as default theme
+- [x] Add user-controlled light/dark theme toggle to all navigation headers
+- [x] Audit InsurerComparisonView for JSX structure issues and contrast in both themes
+- [x] Fix Recharts quote chart to only render when 2+ quotes exist
+- [x] Fix dark/light chart colours in ExecutiveAnalyticsCharts
+- [x] Fix Executive Dashboard contrast for both light and dark themes
+- [x] Fix Claims Triage contrast for both light and dark themes
+- [ ] Test all 3 critical pages (ComparisonView, ExecutiveDashboard, ClaimsTriage) in both themes

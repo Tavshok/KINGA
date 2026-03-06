@@ -51,7 +51,7 @@ export function GovernanceSummaryCard({
     switch (trend) {
       case "down": return { background: 'oklch(0.65 0.18 145 / 0.12)', color: 'oklch(0.65 0.18 145)' };
       case "up":   return { background: 'oklch(0.62 0.22 25 / 0.12)',  color: 'oklch(0.62 0.22 25)'  };
-      case "stable": return { background: 'oklch(0.45 0.015 250 / 0.12)', color: 'oklch(0.55 0.015 250)' };
+      case "stable": return { background: 'oklch(0.45 0.015 250 / 0.12)', color: 'var(--muted-foreground)' };
     }
   };
 
@@ -93,7 +93,7 @@ export function GovernanceSummaryCard({
         <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.48 0.015 250)' }}>{title}</p>
         <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
         {subtitle && (
-          <p className="text-xs" style={{ color: 'oklch(0.52 0.015 250)' }}>{subtitle}</p>
+          <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
         )}
       </div>
 
@@ -101,7 +101,7 @@ export function GovernanceSummaryCard({
         <div className="mt-4 pt-3" style={{ borderTop: '1px solid oklch(0.22 0.02 250)' }}>
           <button
             className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded"
-            style={{ color: 'oklch(0.55 0.015 250)', background: 'oklch(0.18 0.015 250)' }}
+            style={{ color: 'var(--muted-foreground)', background: 'var(--card)' }}
             onClick={onViewDetails}
           >
             <Eye className="h-3 w-3" />

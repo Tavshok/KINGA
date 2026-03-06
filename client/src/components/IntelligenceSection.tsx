@@ -27,7 +27,7 @@ export function IntelligenceSection({
           </div>
           <h2
             className="text-lg font-semibold tracking-tight"
-            style={{ color: 'oklch(0.88 0.008 250)' }}
+            style={{ color: 'var(--foreground)' }}
           >
             {title}
           </h2>

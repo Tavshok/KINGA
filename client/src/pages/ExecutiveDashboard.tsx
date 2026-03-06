@@ -33,6 +33,7 @@ import { AnalyticsExportButton } from "@/components/AnalyticsExportButton";
 import { RiskRadarWidget } from "@/components/RiskRadarWidget";
 import { ClaimDrillDownModal } from "@/components/ClaimDrillDownModal";
 import { IntelligenceSection } from "@/components/IntelligenceSection";
+import ThemeToggle from "@/components/ThemeToggle";
 import {
   calculateOperationalInsight,
   calculateFinancialInsight,
@@ -176,7 +177,7 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
           <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.48 0.015 250)' }}>{title}</p>
           <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
           {subtitle && (
-            <p className="text-xs" style={{ color: 'oklch(0.52 0.015 250)' }}>{subtitle}</p>
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
           )}
           {trend && (
             <p className="text-xs" style={{ color: 'oklch(0.42 0.015 250)' }}>{trend.label}</p>
@@ -352,7 +353,7 @@ export default function ExecutiveDashboard() {
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'oklch(0.10 0.015 250)' }}>
         <div className="text-center space-y-4">
           <Activity className="h-12 w-12 animate-spin mx-auto" style={{ color: 'oklch(0.65 0.18 145)' }} />
-          <p style={{ color: 'oklch(0.55 0.015 250)' }}>Loading Executive Command Center...</p>
+          <p style={{ color: 'var(--muted-foreground)' }}>Loading Executive Command Center...</p>
         </div>
       </div>
     );
@@ -373,16 +374,17 @@ export default function ExecutiveDashboard() {
                   <h1 className="text-2xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>Executive Command Center</h1>
                   <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'oklch(0.55 0.18 145)', color: 'white' }}>LIVE</span>
                 </div>
-                <p className="text-sm mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Real-time insights · Decision intelligence · AI-powered analytics</p>
+                <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Real-time insights · Decision intelligence · AI-powered analytics</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <div className="text-right">
-                <p className="text-xs" style={{ color: 'oklch(0.45 0.015 250)' }}>Last updated</p>
-                <p className="text-sm font-medium" style={{ color: 'oklch(0.72 0.015 250)' }}>{new Date().toLocaleTimeString()}</p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Last updated</p>
+                <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{new Date().toLocaleTimeString()}</p>
               </div>
+              <ThemeToggle />
               <Link href="/portal-hub">
-                <Button variant="outline" size="sm" style={{ borderColor: 'oklch(0.28 0.02 250)', color: 'oklch(0.72 0.015 250)', background: 'transparent' }}>
+                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent' }}>
                   <Target className="mr-2 h-4 w-4" />
                   Switch Portal
                 </Button>

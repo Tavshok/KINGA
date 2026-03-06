@@ -746,4 +746,134 @@
     border: 1px solid oklch(0.68 0.10 185 / 0.3);
     flex-shrink: 0;
   }
+
+  /* ═══════════════════════════════════════════════════════════════
+   * LIGHT MODE OVERRIDES FOR BI DESIGN SYSTEM
+   * Applied when .dark class is NOT present on <html>
+   * ═══════════════════════════════════════════════════════════════ */
+
+  /* Light mode: BI hero header uses subtle teal-tinted gradient */
+  :root:not(.dark) .bi-hero {
+    background: linear-gradient(135deg,
+      oklch(0.22 0.04 250) 0%,
+      oklch(0.28 0.05 220) 50%,
+      oklch(0.25 0.06 185) 100%);
+    border-bottom: 1px solid oklch(0.68 0.10 185 / 0.3);
+  }
+
+  /* Light mode: KPI cards use white/light backgrounds */
+  :root:not(.dark) .kpi-card {
+    background: oklch(1 0 0);
+    border: 1px solid oklch(0.88 0.015 185);
+    box-shadow: 0 1px 4px oklch(0.68 0.10 185 / 0.08);
+  }
+
+  :root:not(.dark) .kpi-card-value {
+    color: oklch(0.20 0.02 250);
+  }
+
+  :root:not(.dark) .kpi-card-label {
+    color: oklch(0.45 0.02 250);
+  }
+
+  /* Light mode: comparison sections use white cards */
+  :root:not(.dark) .comparison-section {
+    background: oklch(1 0 0);
+    border: 1px solid oklch(0.88 0.015 185);
+    box-shadow: 0 1px 3px oklch(0.68 0.10 185 / 0.06);
+  }
+
+  :root:not(.dark) .comparison-section-header {
+    background: oklch(0.97 0.008 185);
+    border-bottom: 1px solid oklch(0.88 0.015 185);
+  }
+
+  /* Light mode: BI table uses light backgrounds */
+  :root:not(.dark) .bi-table thead tr {
+    background: oklch(0.96 0.01 185);
+  }
+
+  :root:not(.dark) .bi-table thead th {
+    color: oklch(0.40 0.02 250);
+    border-bottom: 1px solid oklch(0.88 0.015 185);
+  }
+
+  :root:not(.dark) .bi-table tbody tr {
+    border-bottom: 1px solid oklch(0.92 0.01 185);
+  }
+
+  :root:not(.dark) .bi-table tbody td {
+    color: oklch(0.25 0.015 250);
+  }
+
+  :root:not(.dark) .bi-table .highlight-row {
+    background: oklch(0.68 0.10 185 / 0.06);
+  }
+
+  :root:not(.dark) .bi-table .highlight-row td {
+    color: oklch(0.25 0.04 185);
+  }
+
+  /* Light mode: BI stat rows */
+  :root:not(.dark) .bi-stat-row {
+    border-bottom: 1px solid oklch(0.92 0.01 185);
+  }
+
+  :root:not(.dark) .bi-stat-label {
+    color: oklch(0.45 0.02 250);
+  }
+
+  :root:not(.dark) .bi-stat-value {
+    color: oklch(0.20 0.02 250);
+  }
+
+  /* Light mode: BI chart container */
+  :root:not(.dark) .bi-chart-container {
+    background: oklch(0.98 0.005 185);
+    border: 1px solid oklch(0.88 0.015 185);
+  }
+
+  :root:not(.dark) .bi-chart-title {
+    color: oklch(0.40 0.02 250);
+  }
+
+  /* Light mode: BI field */
+  :root:not(.dark) .bi-field {
+    background: oklch(0.97 0.008 185);
+    border: 1px solid oklch(0.88 0.015 185);
+  }
+
+  :root:not(.dark) .bi-field-label {
+    color: oklch(0.45 0.02 250);
+  }
+
+  :root:not(.dark) .bi-field-value {
+    color: oklch(0.20 0.02 250);
+  }
+
+  /* Light mode: BI divider */
+  :root:not(.dark) .bi-divider {
+    background: linear-gradient(90deg, transparent, oklch(0.85 0.015 185), transparent);
+  }
+
+  /* Light mode: BI progress */
+  :root:not(.dark) .bi-progress {
+    background: oklch(0.90 0.015 185);
+  }
+
+  /* Light mode: BI table wrapper */
+  :root:not(.dark) .bi-table-wrapper {
+    border: 1px solid oklch(0.88 0.015 185);
+  }
+
+  /* Light mode: BI chip neutral */
+  :root:not(.dark) .bi-chip.neutral {
+    background: oklch(0.92 0.01 250);
+    color: oklch(0.35 0.02 250);
+    border: 1px solid oklch(0.82 0.015 250);
+  }
+
+  :root:not(.dark) .bi-chip.neutral .bi-chip-dot {
+    background: oklch(0.50 0.02 250);
+  }
 }

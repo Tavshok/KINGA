@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import VehicleValuationCard from "@/components/VehicleValuationCard";
 import { QuoteComparison } from "@/components/QuoteComparison";
 import { generateComparisonPDF, generateDamageReportPDF } from "@/lib/pdfExport";
+import ThemeToggle from "@/components/ThemeToggle";
 import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
@@ -384,7 +385,7 @@ export default function InsurerComparisonView() {
             <div className="flex items-center gap-3">
               <div className="text-right">
                 <p className="text-sm font-medium" style={{ color: 'oklch(0.88 0.005 250)' }}>{user?.name}</p>
-                <p className="text-xs capitalize" style={{ color: 'oklch(0.55 0.015 250)' }}>{user?.role}</p>
+                <p className="text-xs capitalize" style={{ color: 'var(--muted-foreground)' }}>{user?.role}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => logout()}
                 style={{ borderColor: 'oklch(0.35 0.02 250)', color: 'oklch(0.75 0.01 250)', background: 'transparent' }}>
@@ -398,11 +399,11 @@ export default function InsurerComparisonView() {
             <div>
               <div className="flex items-center gap-2 mb-2">
                 <Button variant="ghost" size="sm" onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}
-                  className="gap-1.5 px-2 h-7" style={{ color: 'oklch(0.65 0.015 250)' }}>
+                  className="gap-1.5 px-2 h-7" style={{ color: 'var(--muted-foreground)' }}>
                   <ArrowLeft className="h-3.5 w-3.5" /> Claims
                 </Button>
                 <span style={{ color: 'oklch(0.40 0.02 250)' }}>/</span>
-                <span className="text-xs font-mono" style={{ color: 'oklch(0.65 0.015 250)' }}>{claim.claimNumber}</span>
+                <span className="text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>{claim.claimNumber}</span>
               </div>
               <h1 className="text-2xl font-bold mb-1" style={{ color: 'oklch(0.95 0.005 65)' }}>
                 {claim.vehicleMake && claim.vehicleModel
@@ -410,7 +411,7 @@ export default function InsurerComparisonView() {
                   : 'AI Intelligence Report'}
               </h1>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-mono" style={{ color: 'oklch(0.60 0.015 250)' }}>{claim.claimNumber}</span>
+                <span className="text-sm font-mono" style={{ color: 'var(--muted-foreground)' }}>{claim.claimNumber}</span>
                 {claim.vehicleRegistration && (
                   <span className="text-xs px-2 py-0.5 rounded" style={{ background: 'oklch(0.22 0.02 250)', color: 'oklch(0.70 0.015 250)', border: '1px solid oklch(0.30 0.02 250)' }}>
                     {claim.vehicleRegistration}
@@ -642,6 +643,7 @@ export default function InsurerComparisonView() {
                 <Download className="mr-2 h-4 w-4" />
                 Download PDF
               </Button>
+              <ThemeToggle />
               <Button 
                 variant="outline" 
                 size="sm"
@@ -664,8 +666,8 @@ export default function InsurerComparisonView() {
             <span className="bi-section-num">1</span>
             <div className="flex-1 flex items-start justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Claim Summary</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Key claim and vehicle details extracted from the submitted document</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Claim Summary</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Key claim and vehicle details extracted from the submitted document</p>
               </div>
               {(!claim.vehicleMake || !claim.vehicleModel) && (
                 <Button
@@ -685,7 +687,7 @@ export default function InsurerComparisonView() {
             </div>
           </div>
           <div className="comparison-section-body">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" style={{ color: 'oklch(0.82 0.008 250)' }}>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" style={{ color: 'var(--foreground)' }}>
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vehicle</p>
                 <p className="font-semibold text-base">
@@ -767,8 +769,8 @@ export default function InsurerComparisonView() {
               <span className="bi-section-num">3</span>
               <div className="flex-1 flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Damage Analysis</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>AI-detected damaged components with severity, location, and damage classification</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Damage Analysis</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI-detected damaged components with severity, location, and damage classification</p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => handleExportDamageReport(aiAssessment, claim)} className="gap-2"
                   style={{ borderColor: 'oklch(0.35 0.02 250)', color: 'oklch(0.70 0.015 250)', background: 'transparent' }}>
@@ -788,8 +790,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">4</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Vehicle Damage Map</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Graphical representation of damage locations on the vehicle</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Vehicle Damage Map</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Graphical representation of damage locations on the vehicle</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -804,8 +806,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">5</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Impact Analysis</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Impact force, force vectors, direction of impact, and energy distribution (collision incidents only)</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Impact Analysis</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Impact force, force vectors, direction of impact, and energy distribution (collision incidents only)</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -820,8 +822,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">6</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Physics Validation</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Damage consistency score, impact propagation logic, and structural damage analysis</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Physics Validation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Damage consistency score, impact propagation logic, and structural damage analysis</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -836,8 +838,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">7</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Hidden Damage Inference</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Inferred hidden components based on impact physics, structural layout, and engineering rules</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Hidden Damage Inference</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Inferred hidden components based on impact physics, structural layout, and engineering rules</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -861,8 +863,8 @@ export default function InsurerComparisonView() {
               <div className="comparison-section-header">
                 <span className="bi-section-num">8</span>
                 <div>
-                  <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Damage Images</p>
-                  <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>AI-classified damage photographs with impact zone overlays and detected component labels</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Damage Images</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI-classified damage photographs with impact zone overlays and detected component labels</p>
                 </div>
               </div>
               <div className="comparison-section-body">
@@ -880,8 +882,8 @@ export default function InsurerComparisonView() {
           <div className="comparison-section-header">
             <span className="bi-section-num">9</span>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Repair Intelligence</p>
-              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Recommended repair actions, repair sequence, and complexity level per component</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Repair Intelligence</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Recommended repair actions, repair sequence, and complexity level per component</p>
             </div>
           </div>
           <div className="comparison-section-body">
@@ -895,8 +897,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">10</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Parts Reconciliation</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Detected components vs quoted parts vs inferred hidden damages — highlights missing, inflated, or unrelated parts</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Parts Reconciliation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Detected components vs quoted parts vs inferred hidden damages — highlights missing, inflated, or unrelated parts</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -905,7 +907,7 @@ export default function InsurerComparisonView() {
               ) : (
                 <div className="space-y-4">
                   {quotes.map((quote, idx) => (
-                    <div key={quote.id} className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid oklch(0.28 0.02 250)' }}>
+                    <div key={quote.id} className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid var(--border)' }}>
                       <p className="font-semibold mb-2">{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       {quote.lineItems && quote.lineItems.length > 0 ? (
                         <div className="space-y-2">
@@ -932,13 +934,13 @@ export default function InsurerComparisonView() {
           <div className="comparison-section-header">
             <span className="bi-section-num">11</span>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Panel Beater Quotes</p>
-              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Submitted repair estimates from panel beaters — visual cost comparison</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Panel Beater Quotes</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Submitted repair estimates from panel beaters — visual cost comparison</p>
             </div>
           </div>
           <div className="comparison-section-body">
-            {/* BI Quote Comparison Bar Chart */}
-            {quotes.length > 0 && (() => {
+            {/* BI Quote Comparison Bar Chart — only shown when 2+ quotes exist */}
+            {quotes.length >= 2 && (() => {
               const chartData = quotes.map((q, i) => ({
                 name: (q as any).panelBeaterName || `Quote ${i + 1}`,
                 amount: (q.quotedAmount || 0) / 100,
@@ -953,15 +955,15 @@ export default function InsurerComparisonView() {
                 'oklch(0.65 0.18 290)',
               ];
               return (
-                <div className="mb-6 p-4 rounded-lg" style={{ background: 'oklch(0.16 0.018 250)', border: '1px solid oklch(0.24 0.02 250)' }}>
-                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'oklch(0.52 0.015 250)' }}>Quote Cost Comparison (USD)</p>
+                <div className="mb-6 p-4 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
+                  <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--muted-foreground)' }}>Quote Cost Comparison (USD)</p>
                   <ResponsiveContainer width="100%" height={220}>
                     <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.24 0.02 250)" vertical={false} />
-                      <XAxis dataKey="name" tick={{ fill: 'oklch(0.55 0.015 250)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill: 'oklch(0.55 0.015 250)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v.toLocaleString()}`} />
+                      <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                      <XAxis dataKey="name" tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v.toLocaleString()}`} />
                       <Tooltip
-                        contentStyle={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', borderRadius: '8px', color: 'oklch(0.88 0.008 250)' }}
+                        contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }}
                         formatter={(value: number) => [`US$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 'Quote Amount']}
                       />
                       <ReferenceLine y={median} stroke="oklch(0.72 0.18 60)" strokeDasharray="4 4" label={{ value: `Median $${median.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, fill: 'oklch(0.72 0.18 60)', fontSize: 10, position: 'right' }} />
@@ -972,7 +974,7 @@ export default function InsurerComparisonView() {
                       </Bar>
                     </BarChart>
                   </ResponsiveContainer>
-                  <p className="text-xs mt-2" style={{ color: 'oklch(0.45 0.015 250)' }}>Dashed line = median quote value. Bars above median may warrant further scrutiny.</p>
+                  <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>Dashed line = median quote value. Bars above median may warrant further scrutiny.</p>
                 </div>
               );
             })()}
@@ -985,8 +987,8 @@ export default function InsurerComparisonView() {
           <div className="comparison-section-header">
             <span className="bi-section-num">12</span>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Cost Optimisation</p>
-              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Cost differences, repair vs replace logic, and recommended repair cost range</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Cost Optimisation</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Cost differences, repair vs replace logic, and recommended repair cost range</p>
             </div>
           </div>
           <div className="comparison-section-body">
@@ -1000,8 +1002,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">13</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Fraud Risk Analysis</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>10-indicator fraud scoring engine: physics mismatch, claimant risk, staged accident, panel beater patterns, assessor integrity, collusion network, document integrity, cost anomalies, vehicle ownership, and claim timing</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Fraud Risk Analysis</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>10-indicator fraud scoring engine: physics mismatch, claimant risk, staged accident, panel beater patterns, assessor integrity, collusion network, document integrity, cost anomalies, vehicle ownership, and claim timing</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -1016,8 +1018,8 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-header">
               <span className="bi-section-num">14</span>
               <div>
-                <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Final AI Recommendation</p>
-                <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>AI-generated recommendation: proceed with repair, request investigation, possible fraud, or total loss</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Final AI Recommendation</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>AI-generated recommendation: proceed with repair, request investigation, possible fraud, or total loss</p>
               </div>
             </div>
             <div className="comparison-section-body">
@@ -1046,8 +1048,8 @@ export default function InsurerComparisonView() {
                 )}
                 {/* Recommendation based on fraud risk and damage */}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid oklch(0.28 0.02 250)' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'oklch(0.52 0.015 250)' }}>Recommended Action</p>
+                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid var(--border)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Recommended Action</p>
                     <p className="font-semibold text-lg">
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss — Do Not Repair' :
                        (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'Request Investigation' :
@@ -1064,8 +1066,8 @@ export default function InsurerComparisonView() {
                        aiAssessment.fraudRiskLevel === 'moderate' ? 'Review Required' : 'Approved'}
                     </Badge>
                   </div>
-                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid oklch(0.28 0.02 250)' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'oklch(0.52 0.015 250)' }}>Estimated Repair Cost</p>
+                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid var(--border)' }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Estimated Repair Cost</p>
                     <p className="text-2xl font-bold text-primary">US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     {aiAssessment.estimatedVehicleValue ? (
                       <div className="mt-2 space-y-1">
@@ -1087,7 +1089,7 @@ export default function InsurerComparisonView() {
                 {/* Damage description */}
                 {aiAssessment.damageDescription && (
                   <div className="p-4 rounded-lg" style={{ background: 'oklch(0.14 0.01 250)', border: '1px solid oklch(0.25 0.018 250)' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'oklch(0.52 0.015 250)' }}>AI Damage Assessment</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>AI Damage Assessment</p>
                     <p className="text-sm leading-relaxed">{aiAssessment.damageDescription}</p>
                   </div>
                 )}
@@ -1132,8 +1134,8 @@ export default function InsurerComparisonView() {
           <div className="comparison-section-header">
             <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.45 0.15 145))' }}>✓</span>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Claim Approval & Panel Beater Selection</p>
-              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Select the winning quote and approve the claim for repair</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Claim Approval & Panel Beater Selection</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Select the winning quote and approve the claim for repair</p>
             </div>
           </div>
           <div className="comparison-section-body">
@@ -1146,8 +1148,8 @@ export default function InsurerComparisonView() {
           <div className="comparison-section-header">
             <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.50 0.15 250), oklch(0.40 0.12 250))' }}>$</span>
             <div>
-              <p className="text-sm font-semibold" style={{ color: 'oklch(0.88 0.008 250)' }}>Vehicle Valuation</p>
-              <p className="text-xs mt-0.5" style={{ color: 'oklch(0.52 0.015 250)' }}>Market value reference for total loss assessment</p>
+              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Vehicle Valuation</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Market value reference for total loss assessment</p>
             </div>
           </div>
           <div className="comparison-section-body">

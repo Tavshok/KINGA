@@ -29,6 +29,7 @@ import { toast } from "sonner";
 import { useState, useMemo } from "react";
 import { EmptyState } from "@/components/EmptyState";
 import { generateClaimSummaryPDF } from "@/lib/pdfExport";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function InsurerClaimsTriage() {
   const { user, logout } = useAuth();
@@ -237,7 +238,7 @@ export default function InsurerClaimsTriage() {
               <button
                 onClick={() => refetchClaims()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', color: 'oklch(0.65 0.015 250)' }}
+                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
               >
                 <RefreshCw className="h-3 w-3" />
                 Refresh
@@ -245,16 +246,17 @@ export default function InsurerClaimsTriage() {
               <button
                 onClick={() => setLocation("/insurer/dashboard")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', color: 'oklch(0.65 0.015 250)' }}
+                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
               >
                 <LayoutDashboard className="h-3 w-3" />
                 Dashboard
               </button>
               <div className="w-px h-6 mx-1" style={{ background: 'oklch(0.25 0.02 250)' }} />
               <div className="text-right">
-                <p className="text-xs font-medium" style={{ color: 'oklch(0.72 0.015 250)' }}>{user?.name}</p>
-                <p className="text-xs capitalize" style={{ color: 'oklch(0.45 0.015 250)' }}>{user?.role}</p>
+                <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>{user?.name}</p>
+                <p className="text-xs capitalize" style={{ color: 'var(--muted-foreground)' }}>{user?.role}</p>
               </div>
+              <ThemeToggle />
               <button
                 onClick={() => logout()}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium"
@@ -275,7 +277,7 @@ export default function InsurerClaimsTriage() {
           style={{ background: 'oklch(0.13 0.018 250)', border: '1px solid oklch(0.22 0.02 250)' }}
         >
           <div className="relative flex-1 max-w-md">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'oklch(0.45 0.015 250)' }} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
             <input
               type="text"
               placeholder="Search by claim # or registration…"
@@ -284,14 +286,14 @@ export default function InsurerClaimsTriage() {
               className="w-full pl-9 pr-4 py-2 rounded-lg text-sm"
               style={{
                 background: 'oklch(0.16 0.018 250)',
-                border: '1px solid oklch(0.26 0.02 250)',
-                color: 'oklch(0.82 0.008 250)',
+                border: '1px solid var(--border)',
+                color: 'var(--foreground)',
                 outline: 'none',
               }}
             />
           </div>
           <div className="text-xs" style={{ color: 'oklch(0.48 0.015 250)' }}>
-            Showing <span className="font-semibold" style={{ color: 'oklch(0.72 0.015 250)' }}>{claims.length}</span> claim{claims.length !== 1 ? 's' : ''}
+            Showing <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{claims.length}</span> claim{claims.length !== 1 ? 's' : ''}
           </div>
         </div>
 
@@ -314,7 +316,7 @@ export default function InsurerClaimsTriage() {
                 <thead>
                   <tr style={{ background: 'oklch(0.16 0.018 250)', borderBottom: '1px solid oklch(0.24 0.02 250)' }}>
                     {['Claim #', 'Claimant', 'Vehicle', 'Date', 'Status', 'Policy', 'Risk', 'Actions'].map(h => (
-                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'oklch(0.52 0.015 250)' }}>{h}</th>
+                      <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -324,11 +326,11 @@ export default function InsurerClaimsTriage() {
                       <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: 'oklch(0.65 0.18 145)' }}>
                         {claim.claimNumber}
                       </td>
-                      <td className="px-4 py-3 text-xs" style={{ color: 'oklch(0.72 0.015 250)' }}>Claimant #{claim.claimantId}</td>
-                      <td className="px-4 py-3 text-xs" style={{ color: 'oklch(0.72 0.015 250)' }}>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--foreground)' }}>Claimant #{claim.claimantId}</td>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--foreground)' }}>
                         {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear})
                       </td>
-                      <td className="px-4 py-3 text-xs" style={{ color: 'oklch(0.55 0.015 250)' }}>
+                      <td className="px-4 py-3 text-xs" style={{ color: 'var(--muted-foreground)' }}>
                         {claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : 'N/A'}
                       </td>
                       <td className="px-4 py-3">{getStatusBadge(claim.status)}</td>
@@ -402,7 +404,7 @@ export default function InsurerClaimsTriage() {
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', color: 'oklch(0.65 0.015 250)' }}
+                              style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
                               onClick={() => setLocation(`/insurer/claims/${claim.id}`)}
                             >
                               <Eye className="h-3 w-3" />
@@ -455,7 +457,7 @@ export default function InsurerClaimsTriage() {
                 <div className="flex gap-1.5">
                   <button
                     className="px-3 py-1.5 rounded text-xs font-medium disabled:opacity-40"
-                    style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', color: 'oklch(0.65 0.015 250)' }}
+                    style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                   >
@@ -477,7 +479,7 @@ export default function InsurerClaimsTriage() {
                   ))}
                   <button
                     className="px-3 py-1.5 rounded text-xs font-medium disabled:opacity-40"
-                    style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid oklch(0.28 0.02 250)', color: 'oklch(0.65 0.015 250)' }}
+                    style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                   >
