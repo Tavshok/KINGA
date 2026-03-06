@@ -1753,8 +1753,13 @@ Provide your response in JSON format.`;
     findMassByKeyword(physicsMake) ||                          // Tier 3: partial make match
     inferMassByClass(physicsMake, physicsModel);               // Tier 4: class heuristic
 
-  const vehicleMass = yearMassAdjustment(vehicleMassRaw, physicsYear);
-
+   const vehicleMass = yearMassAdjustment(vehicleMassRaw, physicsYear);
+  // Track mass source tier for confidence scoring
+  const vehicleMassSource: "explicit" | "inferred_model" | "inferred_class" | "not_available" =
+    ((claim as any).vehicleMassKg && (claim as any).vehicleMassKg > 0) ? "explicit" :
+    (vehicleMassTable[vehicleMassKey] || vehicleMassTable[vehicleMassKeyModelOnly] || vehicleMassTable[physicsMake] || findMassByKeyword(physicsModel) || findMassByKeyword(physicsMake)) ? "inferred_model" :
+    inferMassByClass(physicsMake, physicsModel) ? "inferred_class" :
+    "not_available";
   // ─── Vehicle type classification ───────────────────────────────────────────
   const combinedForType = `${physicsMake} ${physicsModel}`;
   const inferredVehicleType: 'sedan' | 'suv' | 'pickup' | 'van' | 'truck' | 'sports' | 'compact' =
@@ -2092,32 +2097,68 @@ Provide your response in JSON format.`;
     
     console.log(`[Physics Deviation] Claim ${claimId}: Score = ${physicsDeviationScore}, Risk = ${physicsDeviationScore && physicsDeviationScore >= 70 ? 'HIGH' : physicsDeviationScore && physicsDeviationScore >= 40 ? 'MEDIUM' : 'LOW'}`);
     
-    // Recalculate confidence score incorporating physics and forensic analysis quality
-    // Physics consistency score (0-100): higher = more consistent physics analysis
-    const physicsConsistencyScore = physicsAnalysis.consistencyScore ?? physicsAnalysis.overallConsistency ?? 70;
-    // Forensic confidence (0-100): lower fraud score = higher confidence in legitimacy
-    const forensicConfidenceBoost = forensicAnalysis ? Math.max(0, 100 - (forensicAnalysis.overallFraudScore || 0)) : 50;
-    // Physics deviation penalty: high deviation = lower confidence
-    const deviationPenalty = physicsDeviationScore ? Math.min(15, physicsDeviationScore * 0.15) : 0;
+    // ─── Standardised 8-input confidence scoring engine ─────────────────────────
+    const confidenceScoringInput = buildConfidenceScoringInput({
+      imageQuality: {
+        score: imageQuality.score,
+        scaleCalibrationConfidence: imageQuality.scaleConfidence,
+        photoAnglesAvailable: imageQuality.photoAngles || [],
+        referenceObjectsDetected: imageQuality.referenceObjects || [],
+        recommendResubmission: imageQuality.recommendResubmission || false,
+        crushDepthConfidence: imageQuality.crushDepthConfidence,
+      },
+      damagedComponents: analysis.damagedComponents || [],
+      missingDataFlags: analysis.missingDataFlags || [],
+      physicsAnalysis: physicsAnalysis ? {
+        consistencyScore: physicsAnalysis.consistencyScore ?? physicsAnalysis.overallConsistency ?? 50,
+        overallConsistency: physicsAnalysis.overallConsistency,
+        speedEstimate: (physicsAnalysis as any).speedEstimate,
+        available: true,
+      } : null,
+      physicsDeviationScore: physicsDeviationScore || 0,
+      massSource: vehicleMassSource,
+      partsReconciliation: partsReconciliation.map((r: any) => ({
+        status: r.status,
+        quotedCost: r.quotedCost,
+      })),
+      estimatedRepairCost: estimatedRepairCost || 0,
+      quoteTotal: analysis.extractedQuoteLineItems?.reduce((s: number, i: any) => s + (i.unitCost || 0), 0) || 0,
+      quoteAvailable: !!(analysis.extractedQuoteLineItems && analysis.extractedQuoteLineItems.length > 0),
+      vehicle: {
+        vin: extractedVin || claim.vehicleVin || null,
+        registration: extractedReg || claim.vehicleRegistration || null,
+        engineNumber: extractedEngineNumber || claim.vehicleEngineNumber || null,
+        year: effectiveYear,
+        colour: extractedColour || claim.vehicleColour || null,
+        make: effectiveMake || null,
+        model: effectiveModel || null,
+        massKg: (claim as any).vehicleMassKg || null,
+      },
+      extractedVehicle: {
+        make: extractedMake,
+        model: extractedModel,
+      },
+      claimVehicle: {
+        make: claim.vehicleMake || "",
+        model: claim.vehicleModel || "",
+      },
+      document: {
+        ownerName: analysis.extractedOwnerName || claim.policyHolderName || null,
+        incidentDate: analysis.extractedIncidentDate || claim.incidentDate || null,
+        repairerName: analysis.extractedRepairerName || null,
+        incidentDescription: analysis.extractedIncidentDescription || claim.incidentDescription || null,
+        incidentLocation: analysis.extractedIncidentLocation || claim.incidentLocation || null,
+        thirdPartyDetails: analysis.extractedThirdPartyVehicle || null,
+        policeReportUrl: claim.policeReportUrl || null,
+      },
+      fraudScore: combinedFraudScore,
+      fraudLevel: combinedFraudLevel,
+      fraudIndicatorCount: fraudScoreBreakdown.triggeredCount || 0,
+    });
+    const confidenceBreakdown = computeConfidenceScore(confidenceScoringInput);
+    const enhancedConfidenceScore = confidenceBreakdown.finalScore;
     
-    // Recalculate: original vision confidence (60%) + physics consistency (20%) + forensic confidence (20%) - deviation penalty
-    const visionConfidence = Math.min(100, Math.max(10,
-      (imageQuality.score || 50) * 0.30 +
-      (imageQuality.crushDepthConfidence || 50) * 0.25 +
-      (imageQuality.scaleConfidence || 50) * 0.15 +
-      (analysis.photoAnglesAvailable?.length >= 3 ? 80 : analysis.photoAnglesAvailable?.length >= 2 ? 60 : 40) * 0.15 +
-      (analysis.damagedComponents?.length > 0 ? 80 : 30) * 0.15
-    ));
-    const enhancedConfidenceScore = Math.round(
-      Math.min(100, Math.max(10,
-        visionConfidence * 0.60 +
-        physicsConsistencyScore * 0.20 +
-        forensicConfidenceBoost * 0.20 -
-        deviationPenalty
-      ))
-    );
-    
-    console.log(`[AI Assessment] Enhanced confidence for claim ${claimId}: vision=${visionConfidence}, physics=${physicsConsistencyScore}, forensic=${forensicConfidenceBoost}, deviation_penalty=${deviationPenalty.toFixed(1)}, final=${enhancedConfidenceScore}`);
+    console.log(`[AI Assessment] Standardised confidence for claim ${claimId}: ${confidenceBreakdown.level} (${enhancedConfidenceScore}%) — ${confidenceBreakdown.allImprovements.length} improvement(s) available`);
     
     // Normalise physics analysis to the standardised frontend contract before persisting.
     // This ensures all stored records share the same shape regardless of engine version.
@@ -2183,6 +2224,8 @@ Provide your response in JSON format.`;
       damagePhotosJson: extractedDamagePhotos.length > 0 ? JSON.stringify(extractedDamagePhotos) : null,
       // Stage 7 output: 10-indicator fraud score breakdown
       fraudScoreBreakdownJson: JSON.stringify(fraudScoreBreakdown),
+      // Confidence score breakdown from the 8-input standardised engine
+      confidenceScoreBreakdownJson: JSON.stringify(confidenceBreakdown),
       // Stage 10 output: cost intelligence summary
       costIntelligenceJson: JSON.stringify({
         estimatedRepairCost,

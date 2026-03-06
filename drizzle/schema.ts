@@ -74,7 +74,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	// Stage 10 output: cost intelligence summary (JSON object)
 	costIntelligenceJson: text("cost_intelligence_json"),
 	// Damage photos extracted from PDF or uploaded (JSON array of DamagePhoto objects)
-	damagePhotosJson: text("damage_photos_json"),
+  damagePhotosJson: text("damage_photos_json"),
+  confidenceScoreBreakdownJson: text("confidence_score_breakdown_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

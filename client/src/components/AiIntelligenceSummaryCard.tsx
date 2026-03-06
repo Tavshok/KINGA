@@ -16,6 +16,7 @@
  */
 
 import { useState } from "react";
+import { ConfidenceScorePanel } from "@/components/ConfidenceScorePanel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,7 @@ interface Quote {
 interface AiAssessment {
   damagedComponentsJson?: string | null;
   confidenceScore?: number | null;
+  confidenceScoreBreakdownJson?: string | null;
   fraudRiskLevel?: string | null;
   structuralDamageSeverity?: string | null;
   estimatedCost?: number | null;
@@ -316,19 +318,16 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
             </div>
           </div>
 
-          {/* Section 3: AI Confidence */}
-          <div className="space-y-2">
+          {/* Section 3: AI Confidence — full breakdown panel */}
+          <div className="space-y-2 col-span-full lg:col-span-2">
             <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               AI Confidence
             </p>
-            <ConfidenceBar score={aiAssessment.confidenceScore} />
-            <p className="text-xs text-muted-foreground leading-snug">
-              {(aiAssessment.confidenceScore ?? 0) >= 75
-                ? "High confidence — assessment is reliable."
-                : (aiAssessment.confidenceScore ?? 0) >= 50
-                ? "Moderate confidence — manual review recommended."
-                : "Low confidence — additional photos may improve accuracy."}
-            </p>
+            <ConfidenceScorePanel
+              confidenceScore={aiAssessment.confidenceScore ?? 0}
+              confidenceScoreBreakdownJson={aiAssessment.confidenceScoreBreakdownJson}
+              compact={false}
+            />
           </div>
 
           {/* Section 4: Damage Count */}
