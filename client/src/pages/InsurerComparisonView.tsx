@@ -127,9 +127,13 @@ export default function InsurerComparisonView() {
 
   // Handler for exporting damage report PDF
   const handleExportDamageReport = (aiAssessment: any, claim: any) => {
-    // Parse damaged components
-    const damagedComponents = aiAssessment.damagedComponentsJson 
-      ? JSON.parse(aiAssessment.damagedComponentsJson) 
+    // damagedComponentsJson stores objects: {name, location, damageType, severity}
+    // Normalise to flat string array so all .toLowerCase() calls work correctly
+    const rawComponents = aiAssessment.damagedComponentsJson
+      ? (() => { try { return JSON.parse(aiAssessment.damagedComponentsJson); } catch { return []; } })()
+      : [];
+    const damagedComponents: string[] = Array.isArray(rawComponents)
+      ? rawComponents.map((c: any) => typeof c === 'string' ? c : (c?.name || c?.component || String(c)))
       : [];
 
     // Component categories for categorization
@@ -1187,10 +1191,17 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
 
 // Damage Component Breakdown Component
 function DamageComponentBreakdown({ aiAssessment, claim }: { aiAssessment: any; claim: any }) {
-  // Parse damaged components
-  const damagedComponents = (() => {
+  // damagedComponentsJson stores objects: {name, location, damageType, severity}
+  // Normalise to flat string array so all .toLowerCase() calls work correctly
+  const damagedComponents: string[] = (() => {
     if (!aiAssessment.damagedComponentsJson) return [];
-    try { return JSON.parse(aiAssessment.damagedComponentsJson); } catch { return []; }
+    try {
+      const parsed = JSON.parse(aiAssessment.damagedComponentsJson);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.map((c: any) =>
+        typeof c === 'string' ? c : (c?.name || c?.component || String(c))
+      );
+    } catch { return []; }
   })();
   // Resolve accidentType from claim.incidentType (correct field) with fallback to deprecated aiAssessment.accidentType
   const accidentType = (claim as any)?.incidentType || aiAssessment.accidentType || "";
