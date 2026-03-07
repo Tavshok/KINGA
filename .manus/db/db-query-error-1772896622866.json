@@ -1,0 +1,8 @@
+{
+  "query": "UPDATE claims SET status = 'intake_pending', document_processing_status = 'pending', workflow_state = 'created', ai_assessment_triggered = 0, updated_at = NOW() WHERE claim_reference LIKE 'DOC-20260307-380F09C1%' OR (status IN ('assessment_in_progress') AND DATE(created_at) = '2026-03-07');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute UPDATE claims SET status = 'intake_pending', document_processing_status = 'pending', workflow_state = 'created', ai_assessment_triggered = 0, updated_at = NOW() WHERE claim_reference LIKE 'DOC-20260307-380F09C1%' OR (status IN ('assessment_in_progress') AND DATE(created_at) = '2026-03-07');",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 1: Unknown column 'claim_reference' in 'where clause'"
+  ]
+}
