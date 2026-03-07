@@ -24,7 +24,8 @@ import {
   Loader2,
   ArrowRight,
   ExternalLink,
-  Search
+  Search,
+  RotateCcw
 } from "lucide-react";
 import { useAuth } from "@/_core/hooks/useAuth";
 
@@ -159,6 +160,31 @@ export default function ClaimsProcessorDashboard() {
       });
     },
   });
+
+  // Reset stuck claim mutation
+  const resetStuckClaimMutation = trpc.claims.resetStuckClaim.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
+    onSuccess: (_data, variables) => {
+      // Remove from processing set if it was there
+      setAiProcessingClaimIds(prev => {
+        const next = new Set(prev);
+        next.delete(variables.claimId);
+        return next;
+      });
+      toast.success("Claim Reset", {
+        description: "The claim has been reset to Pending. You can now re-run the AI assessment.",
+      });
+      refetchAll();
+    },
+    onError: (error: any) => {
+      toast.error("Reset Failed", {
+        description: error.message || "Could not reset the claim. Please try again.",
+      });
+    },
+  });
+
+  const handleResetStuckClaim = (claimId: number) => {
+    resetStuckClaimMutation.mutate({ claimId });
+  };
 
   // Upload document mutation
   const uploadDocument = trpc.documents.upload.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
@@ -429,6 +455,20 @@ export default function ClaimsProcessorDashboard() {
               {/* PENDING CLAIMS: Trigger AI or Assign Assessor */}
               {section === "pending" && (
                 <>
+                  {/* Show Reset button if claim is stuck in assessment_in_progress */}
+                  {claim.status === "assessment_in_progress" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => handleResetStuckClaim(claim.id)}
+                      disabled={resetStuckClaimMutation.isPending}
+                      className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50 text-xs"
+                      title="This claim appears stuck in AI processing. Click to reset it to Pending."
+                    >
+                      <RotateCcw className="h-3 w-3 mr-2" />
+                      Reset Stuck Claim
+                    </Button>
+                  )}
                   <Button 
                     size="sm" 
                     variant="default"
@@ -468,10 +508,23 @@ export default function ClaimsProcessorDashboard() {
               {section === "in_review" && (
                 <>
                   {isProcessing ? (
-                    <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 rounded-md p-3">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>AI is analyzing this claim...</span>
-                    </div>
+                    <>
+                      <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 rounded-md p-3">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span>AI is analyzing this claim...</span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleResetStuckClaim(claim.id)}
+                        disabled={resetStuckClaimMutation.isPending}
+                        className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50 text-xs"
+                        title="Use this if the AI has been processing for more than 5 minutes without completing"
+                      >
+                        <RotateCcw className="h-3 w-3 mr-2" />
+                        Reset if Stuck
+                      </Button>
+                    </>
                   ) : (
                     <Button 
                       size="sm" 

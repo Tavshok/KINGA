@@ -9784,3 +9784,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add Pipeline Health link to InsurerClaimsTriage header nav
 - [x] Fix dark theme contrast in InsurerComparisonView: replace all bg-white with bg-card, hardcoded text-gray/slate with semantic CSS vars
 - [ ] Parts pricing API integration (Audatex/Masterparts) - pending commercial agreement
+
+## Bug: Pipeline Stuck on "AI Processing..." (2026-03-07)
+- [x] Diagnose where pipeline hangs — root cause: LLM fetch() had no timeout, hung indefinitely
+- [x] Add 3-minute AbortController timeout to LLM fetch in server/_core/llm.ts
+- [x] Global pipeline timeout covered by LLM timeout + existing top-level catch block in db.ts
+- [x] Existing catch block in db.ts already resets claim to intake_pending on error
+- [x] Add resetStuckClaim tRPC procedure (claims router) for manual recovery
+- [x] Add "Reset if Stuck" button in ClaimsProcessorDashboard (IN REVIEW section)
+- [x] Add "Reset Stuck Claim" button for claims stuck in assessment_in_progress (pending section)

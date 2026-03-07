@@ -1445,6 +1445,47 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     /**
+     * Reset a stuck claim back to intake_pending
+     *
+     * Use when a claim is stuck in assessment_in_progress / parsing state
+     * due to an LLM timeout or infrastructure error.
+     * Only accessible to claims_processor, claims_manager, executive, insurer_admin, and admin.
+     */
+    resetStuckClaim: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const allowedRoles = ["claims_processor", "claims_manager", "executive", "insurer_admin", "admin", "platform_super_admin"];
+        if (!allowedRoles.includes(ctx.user.role || "")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions" });
+        }
+        const tenantId = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        await db.update(claims).set({
+          status: "intake_pending",
+          documentProcessingStatus: "failed",
+          aiAssessmentTriggered: 0,
+          updatedAt: new Date().toISOString(),
+        }).where(eq(claims.id, input.claimId));
+
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: "claim_reset_from_stuck",
+          entityType: "claim",
+          changeDescription: `Claim manually reset from stuck AI processing state by ${ctx.user.role}`,
+        });
+
+        console.log(`[AI Assessment] Claim ${input.claimId} manually reset to intake_pending by user ${ctx.user.id} (${ctx.user.role})`);
+        return { success: true };
+      }),
+
+    /**
      * Approve Claim and Assign Repair
      * 
      * Final approval step where insurer selects the winning panel beater quote

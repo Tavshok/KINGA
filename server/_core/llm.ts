@@ -312,14 +312,30 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  // 3-minute hard timeout — prevents the fire-and-forget AI pipeline from
+  // hanging indefinitely when the LLM API is slow or unresponsive.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 3 * 60 * 1000);
+
+  let response: Response;
+  try {
+    response = await fetch(resolveApiUrl(), {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${ENV.forgeApiKey}`,
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  } catch (fetchErr: any) {
+    clearTimeout(timeoutId);
+    if (fetchErr.name === "AbortError") {
+      throw new Error("LLM invoke timed out after 3 minutes");
+    }
+    throw fetchErr;
+  }
+  clearTimeout(timeoutId);
 
   if (!response.ok) {
     const errorText = await response.text();
