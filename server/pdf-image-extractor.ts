@@ -12,7 +12,15 @@
  *   embedded inside a PDF). These are added to the page renders if they are
  *   large enough to be real photos (not logos or decorative elements).
  *
- * Both strategies upload results to S3 and return arrays of S3 URLs.
+ * Both strategies upload results to S3 in parallel and return arrays of S3 URLs.
+ *
+ * Performance limits:
+ *   - Max 10 pages rendered (first 10 pages only)
+ *   - 30s timeout on PDF download
+ *   - 90s timeout on pdftoppm (was 120s)
+ *   - 30s timeout on pdfimages (was 60s)
+ *   - S3 uploads run in parallel (was sequential)
+ *   - Global 3-minute hard timeout on the entire extraction
  */
 
 import { execSync } from 'child_process';
@@ -22,6 +30,9 @@ import { join } from 'path';
 import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
 import sharp from 'sharp';
+
+const MAX_PAGES = 10;           // Only process first N pages
+const GLOBAL_TIMEOUT_MS = 3 * 60 * 1000; // 3-minute hard cap on entire extraction
 
 interface ExtractedImage {
   url: string;
@@ -33,14 +44,6 @@ interface ExtractedImage {
 
 /**
  * Extract images from a PDF buffer and upload to S3.
- *
- * Always renders pages with pdftoppm so document-style PDFs (assessor reports,
- * police reports, quote sheets) produce visual images for AI analysis.
- * Also attempts to extract any embedded photos with pdfimages.
- *
- * @param pdfBuffer   Buffer containing the PDF file
- * @param pdfFileName Original filename for logging
- * @returns Array of extracted image objects with S3 URLs
  */
 export async function extractImagesFromPDFBuffer(
   pdfBuffer: Buffer,
@@ -51,28 +54,52 @@ export async function extractImagesFromPDFBuffer(
   const pdfPath = join(tempDir, 'input.pdf');
 
   console.log(
-    `🖼️  [PDF Extractor] Starting extraction from: ${pdfFileName || 'buffer'} (session: ${sessionId})`,
+    `🖼️  [PDF Extractor] Starting extraction from: ${pdfFileName || 'buffer'} (session: ${sessionId}, maxPages: ${MAX_PAGES})`,
   );
 
+  // Wrap the entire extraction in a global timeout
+  const extractionPromise = _doExtraction(pdfBuffer, pdfFileName, sessionId, tempDir, pdfPath);
+  const timeoutPromise = new Promise<ExtractedImage[]>((_, reject) =>
+    setTimeout(() => reject(new Error(`PDF extraction timed out after ${GLOBAL_TIMEOUT_MS / 1000}s`)), GLOBAL_TIMEOUT_MS)
+  );
+
+  try {
+    return await Promise.race([extractionPromise, timeoutPromise]);
+  } catch (error: any) {
+    console.error(`❌ [PDF Extractor] Extraction failed: ${error.message}`);
+    try { rmSync(tempDir, { recursive: true, force: true }); } catch (_) {}
+    return [];
+  }
+}
+
+async function _doExtraction(
+  pdfBuffer: Buffer,
+  pdfFileName: string | undefined,
+  sessionId: string,
+  tempDir: string,
+  pdfPath: string,
+): Promise<ExtractedImage[]> {
   try {
     mkdirSync(tempDir, { recursive: true });
     writeFileSync(pdfPath, pdfBuffer);
     console.log(`📄 [PDF Extractor] Wrote ${pdfBuffer.length} bytes to temp file`);
 
     // ----------------------------------------------------------------
-    // STRATEGY 1: Render every page as a PNG with pdftoppm
+    // STRATEGY 1: Render first MAX_PAGES pages as PNG with pdftoppm
     // ----------------------------------------------------------------
     const pagePrefix = join(tempDir, 'page');
     let pageFiles: string[] = [];
 
     try {
-      execSync(`pdftoppm -png -r 200 "${pdfPath}" "${pagePrefix}"`, {
-        timeout: 120_000,
+      // -l MAX_PAGES limits to first N pages — prevents huge PDFs from hanging
+      execSync(`pdftoppm -png -r 150 -l ${MAX_PAGES} "${pdfPath}" "${pagePrefix}"`, {
+        timeout: 90_000,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       pageFiles = readdirSync(tempDir)
         .filter((f) => f.startsWith('page') && f.endsWith('.png'))
-        .sort();
+        .sort()
+        .slice(0, MAX_PAGES);
       console.log(`📄 [PDF Extractor] pdftoppm rendered ${pageFiles.length} page(s) as PNG`);
     } catch (err: any) {
       console.warn(`⚠️  [PDF Extractor] pdftoppm failed: ${err.message}`);
@@ -85,45 +112,33 @@ export async function extractImagesFromPDFBuffer(
     let embeddedFiles: string[] = [];
 
     try {
-      execSync(`pdfimages -all "${pdfPath}" "${embeddedPrefix}"`, {
-        timeout: 60_000,
+      execSync(`pdfimages -all -l ${MAX_PAGES} "${pdfPath}" "${embeddedPrefix}"`, {
+        timeout: 30_000,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       embeddedFiles = readdirSync(tempDir)
         .filter(
           (f) =>
             f.startsWith('emb') &&
-            (f.endsWith('.png') ||
-              f.endsWith('.jpg') ||
-              f.endsWith('.ppm') ||
-              f.endsWith('.pbm') ||
-              f.endsWith('.pgm') ||
-              f.endsWith('.tif') ||
-              f.endsWith('.tiff') ||
-              f.endsWith('.jp2') ||
-              f.endsWith('.jb2') ||
+            (f.endsWith('.png') || f.endsWith('.jpg') || f.endsWith('.ppm') ||
+              f.endsWith('.pbm') || f.endsWith('.pgm') || f.endsWith('.tif') ||
+              f.endsWith('.tiff') || f.endsWith('.jp2') || f.endsWith('.jb2') ||
               f.endsWith('.ccitt')),
         )
         .sort();
-      console.log(
-        `📸 [PDF Extractor] pdfimages found ${embeddedFiles.length} embedded image(s)`,
-      );
+      console.log(`📸 [PDF Extractor] pdfimages found ${embeddedFiles.length} embedded image(s)`);
     } catch (err: any) {
-      // pdfimages failing is non-fatal — page renders are sufficient
       console.warn(`⚠️  [PDF Extractor] pdfimages extraction warning: ${err.message}`);
     }
 
     // ----------------------------------------------------------------
-    // PROCESS & UPLOAD
+    // PROCESS & UPLOAD IN PARALLEL
     // ----------------------------------------------------------------
-    const extractedImages: ExtractedImage[] = [];
-
-    // Helper: process a single image file and upload to S3
     async function processAndUpload(
       file: string,
       source: 'page_render' | 'embedded_image',
       minDimension: number,
-    ): Promise<void> {
+    ): Promise<ExtractedImage | null> {
       try {
         const filePath = join(tempDir, file);
         const fileBuffer = readFileSync(filePath);
@@ -133,46 +148,39 @@ export async function extractImagesFromPDFBuffer(
         const w = metadata.width || 0;
         const h = metadata.height || 0;
 
-        // Skip images that are too small (icons, logos, decorative elements)
         if (w < minDimension || h < minDimension) {
           console.log(`⏭️  [PDF Extractor] Skipping small image: ${file} (${w}×${h})`);
-          return;
+          return null;
         }
 
-        // Skip extreme aspect ratios (borders, lines)
         const aspect = w / (h || 1);
         if (aspect > 8 || aspect < 0.125) {
           console.log(`⏭️  [PDF Extractor] Skipping narrow image: ${file} (${w}×${h})`);
-          return;
+          return null;
         }
 
-        const pngBuffer = await sharpInstance.png({ quality: 90 }).toBuffer();
-
-        // Extract page number from filename
+        const pngBuffer = await sharpInstance.png({ quality: 85 }).toBuffer();
         const pageMatch = file.match(/(\d+)/);
         const pageNumber = pageMatch ? parseInt(pageMatch[1]) : 1;
 
         const imageKey = `extracted-images/${sessionId}/${nanoid(10)}.png`;
         const { url } = await storagePut(imageKey, pngBuffer, 'image/png');
 
-        extractedImages.push({ url, width: w, height: h, pageNumber, source });
-        console.log(
-          `📤 [PDF Extractor] Uploaded ${source} ${extractedImages.length}: ${w}×${h} → ${url.substring(0, 80)}...`,
-        );
+        console.log(`📤 [PDF Extractor] Uploaded ${source}: ${w}×${h} → ${url.substring(0, 80)}...`);
+        return { url, width: w, height: h, pageNumber, source };
       } catch (imgError: any) {
         console.error(`❌ [PDF Extractor] Error processing ${file}: ${imgError.message}`);
+        return null;
       }
     }
 
-    // Process page renders (minimum 300px — full pages are always large)
-    for (const file of pageFiles) {
-      await processAndUpload(file, 'page_render', 300);
-    }
+    // Run all uploads in parallel for speed
+    const allResults = await Promise.all([
+      ...pageFiles.map(f => processAndUpload(f, 'page_render', 300)),
+      ...embeddedFiles.map(f => processAndUpload(f, 'embedded_image', 150)),
+    ]);
 
-    // Process embedded images (minimum 150px — real photos are at least 150×150)
-    for (const file of embeddedFiles) {
-      await processAndUpload(file, 'embedded_image', 150);
-    }
+    const extractedImages = allResults.filter((r): r is ExtractedImage => r !== null);
 
     console.log(
       `✅ [PDF Extractor] Complete. ${extractedImages.length} image(s) uploaded to S3 ` +
@@ -186,9 +194,7 @@ export async function extractImagesFromPDFBuffer(
     try {
       rmSync(tempDir, { recursive: true, force: true });
       console.log(`🧹 [PDF Extractor] Cleaned up temp directory`);
-    } catch (_) {
-      // Ignore cleanup errors
-    }
+    } catch (_) {}
   }
 }
 
@@ -209,18 +215,23 @@ export async function extractImagesFromPDF(pdfPath: string): Promise<ExtractedIm
 /**
  * Extract images from a PDF at a remote URL (e.g. S3).
  * Downloads the PDF buffer and delegates to extractImagesFromPDFBuffer.
- *
- * @param pdfUrl   HTTPS URL to the PDF file
- * @param options  Optional extraction options (reserved for future use)
- * @returns Array of extracted image objects with S3 URLs
  */
 export async function extractImagesFromPDFUrl(
   pdfUrl: string,
   options?: { strategy?: 'page_render_only' | 'both' }
 ): Promise<ExtractedImage[]> {
   try {
-    // Download the PDF from the remote URL
-    const response = await fetch(pdfUrl);
+    // 30-second timeout on PDF download to prevent hanging on slow/unavailable URLs
+    const controller = new AbortController();
+    const downloadTimeoutId = setTimeout(() => controller.abort(), 30_000);
+
+    let response: Response;
+    try {
+      response = await fetch(pdfUrl, { signal: controller.signal });
+    } finally {
+      clearTimeout(downloadTimeoutId);
+    }
+
     if (!response.ok) {
       throw new Error(`HTTP ${response.status} fetching PDF from ${pdfUrl}`);
     }
