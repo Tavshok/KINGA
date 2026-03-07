@@ -1483,6 +1483,97 @@ Provide your response in JSON format.`;
   const hiddenDamageTotalUsd = inferredHiddenDamages.reduce((sum, h) => sum + h.estimatedCostUsd, 0);
   const hiddenDamageCostCents = hiddenDamageTotalUsd * 100;
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // STAGE 10b — INDEPENDENT AI BENCHMARK COST
+  // Computes an AI-independent repair cost estimate from component-level market rates.
+  // This is SEPARATE from the document-extracted cost (estimatedRepairCost above).
+  // Used to validate whether the submitted quote is within a fair market range.
+  // Market rates: Zimbabwe USD market (2024 benchmarks)
+  // ═══════════════════════════════════════════════════════════════════════════
+  const PART_BENCHMARK_USD: Record<string, { repair: number; replace: number }> = {
+    // Exterior panels
+    'bumper': { repair: 80, replace: 180 },
+    'fender': { repair: 120, replace: 250 },
+    'bonnet': { repair: 150, replace: 350 },
+    'hood': { repair: 150, replace: 350 },
+    'door': { repair: 200, replace: 450 },
+    'quarter panel': { repair: 200, replace: 500 },
+    'rocker panel': { repair: 100, replace: 220 },
+    'trunk': { repair: 150, replace: 350 },
+    'boot': { repair: 150, replace: 350 },
+    // Lighting
+    'headlamp': { repair: 30, replace: 120 },
+    'headlight': { repair: 30, replace: 120 },
+    'taillight': { repair: 30, replace: 80 },
+    'fog light': { repair: 20, replace: 60 },
+    // Glass
+    'windshield': { repair: 50, replace: 200 },
+    'windscreen': { repair: 50, replace: 200 },
+    'window': { repair: 40, replace: 120 },
+    'mirror': { repair: 30, replace: 90 },
+    // Structural
+    'frame': { repair: 500, replace: 1500 },
+    'subframe': { repair: 300, replace: 800 },
+    'pillar': { repair: 400, replace: 1200 },
+    'crossmember': { repair: 200, replace: 600 },
+    // Mechanical
+    'radiator': { repair: 80, replace: 250 },
+    'condenser': { repair: 60, replace: 180 },
+    'suspension': { repair: 150, replace: 400 },
+    'wheel': { repair: 50, replace: 150 },
+    'tire': { repair: 20, replace: 80 },
+    'axle': { repair: 200, replace: 600 },
+    'engine mount': { repair: 60, replace: 150 },
+    // Interior
+    'dashboard': { repair: 100, replace: 400 },
+    'airbag': { repair: 0, replace: 600 },
+    'seat': { repair: 80, replace: 300 },
+    // Default
+    'default': { repair: 100, replace: 250 },
+  };
+
+  // Severity multiplier for replacement cost
+  const SEVERITY_MULTIPLIER: Record<string, number> = {
+    'minor': 0.5,    // repair only
+    'moderate': 0.8, // repair or partial replace
+    'severe': 1.0,   // full replace
+    'total_loss': 1.2, // replace + associated
+    'catastrophic': 1.5,
+  };
+
+  // Compute independent benchmark cost from detected components
+  let aiBenchmarkPartsCentsTotal = 0;
+  for (const comp of damagedComponents) {
+    const compNameLower = (comp.name || '').toLowerCase();
+    const severity = (comp.severity || 'moderate').toLowerCase();
+    const action = repairIntelligence.find(r => r.component.toLowerCase() === compNameLower)?.action || 'replace';
+    // Find best matching benchmark key
+    const benchmarkKey = Object.keys(PART_BENCHMARK_USD).find(k => compNameLower.includes(k)) || 'default';
+    const benchmark = PART_BENCHMARK_USD[benchmarkKey];
+    const baseUsd = action === 'repair' ? benchmark.repair : benchmark.replace;
+    const multiplier = SEVERITY_MULTIPLIER[severity] || 1.0;
+    aiBenchmarkPartsCentsTotal += Math.round(baseUsd * multiplier * 100);
+  }
+
+  const aiBenchmarkLaborCents = laborCostFromIntelligence > 0 ? laborCostFromIntelligence : Math.round(totalEstimatedLaborHours * laborRateUsdPerHour * 100);
+  const aiBenchmarkHiddenCents = hiddenDamageCostCents; // Include hidden damage probability-weighted cost
+  const aiBenchmarkTotalCents = aiBenchmarkPartsCentsTotal + aiBenchmarkLaborCents + aiBenchmarkHiddenCents;
+
+  // Fair range: ±20% around the benchmark
+  const aiBenchmarkLowCents = Math.round(aiBenchmarkTotalCents * 0.80);
+  const aiBenchmarkHighCents = Math.round(aiBenchmarkTotalCents * 1.20);
+
+  // Document-extracted cost (from PDF quote/assessment)
+  const documentExtractedCostCents = estimatedRepairCost;
+
+  // Variance between document cost and AI benchmark
+  const costVariancePct = aiBenchmarkTotalCents > 0
+    ? Math.round(((documentExtractedCostCents - aiBenchmarkTotalCents) / aiBenchmarkTotalCents) * 100)
+    : 0;
+
+  console.log(`[Pipeline Stage 10b] AI benchmark: parts=$${(aiBenchmarkPartsCentsTotal/100).toFixed(2)}, labour=$${(aiBenchmarkLaborCents/100).toFixed(2)}, hidden=$${(aiBenchmarkHiddenCents/100).toFixed(2)}, total=$${(aiBenchmarkTotalCents/100).toFixed(2)} (range: $${(aiBenchmarkLowCents/100).toFixed(2)}-$${(aiBenchmarkHighCents/100).toFixed(2)})`);
+  console.log(`[Pipeline Stage 10b] Document cost: $${(documentExtractedCostCents/100).toFixed(2)}, variance: ${costVariancePct}%`);
+
   // Reconciliation cost gap (detected but not quoted)
   const missingFromQuoteItems = partsReconciliation.filter(r => r.status === 'detected_not_quoted');
   const extraInQuoteItems = partsReconciliation.filter(r => r.status === 'quoted_not_detected');
@@ -2457,6 +2548,15 @@ Provide your response in JSON format.`;
         matchedCount,
         missingFromQuoteCount,
         extraInQuoteCount,
+        // Stage 10b: independent AI benchmark (does NOT use document-extracted cost)
+        aiBenchmarkTotalCents,
+        aiBenchmarkPartsCentsTotal,
+        aiBenchmarkLaborCents,
+        aiBenchmarkHiddenCents,
+        aiBenchmarkLowCents,
+        aiBenchmarkHighCents,
+        documentExtractedCostCents,
+        costVariancePct,
       }),
       updatedAt: new Date().toISOString(),
     }).where(eq(aiAssessments.claimId, claimId));

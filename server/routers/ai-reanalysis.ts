@@ -1,14 +1,14 @@
 // @ts-nocheck
 /**
  * AI Re-Analysis Router
- * 
- * Allows all insurer roles to run AI analysis on accessible claims for review purposes
- * without affecting workflow state.
+ *
+ * Allows all insurer roles to run AI analysis on accessible claims for review purposes.
+ * Wired to the REAL triggerAiAssessment pipeline (db.ts) — not a mock.
  */
 
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
-import { getDb } from "../db";
+import { getDb, triggerAiAssessment } from "../db";
 import { protectedProcedure, router } from "../_core/trpc";
 import { claims, aiAssessments, auditTrail } from "../../drizzle/schema";
 import { eq, and, desc, sql, count } from "drizzle-orm";
@@ -22,7 +22,7 @@ const db = getDb();
 export const aiReanalysisRouter = router({
   /**
    * Re-run AI analysis on a claim
-   * 
+   *
    * Access: All insurer roles (claims_processor, assessor_internal, risk_manager, claims_manager, executive)
    * Validation:
    * - Must have access to claim state
@@ -107,7 +107,6 @@ export const aiReanalysisRouter = router({
       }
 
       // 6. Check for simultaneous execution (locking mechanism)
-      // Look for any re-analysis created in the last 5 minutes
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       const [recentReanalysis] = await db
         .select()
@@ -128,7 +127,7 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // 7. Get original AI assessment (most recent non-reanalysis)
+      // 7. Get original AI assessment (most recent)
       const [originalAssessment] = await db
         .select()
         .from(aiAssessments)
@@ -144,43 +143,48 @@ export const aiReanalysisRouter = router({
 
       const nextVersion = (maxVersion?.maxVersion || 0) + 1;
 
-      // 9. Trigger AI assessment (mock implementation - replace with actual AI service call)
-      // In production, this would call the AI assessment service
-      const aiResult = await triggerAiAssessmentService(claim);
+      // 9. Mark as re-analysis in metadata before running
+      // The real pipeline (triggerAiAssessment) will DELETE and re-INSERT the assessment row.
+      // We capture the original assessment ID first so we can backfill re-analysis metadata after.
+      const previousAssessmentId = originalAssessment?.id || null;
 
-      // 10. Create new AI assessment entry (re-analysis version)
+      // 10. Run the REAL AI pipeline (same pipeline as initial intake)
+      // This runs all 10 stages: LLM extraction, incident classification, physics engine,
+      // hidden damage propagation, fraud scoring, repair intelligence, parts reconciliation,
+      // cost intelligence, confidence scoring, and cross-claim signals.
+      try {
+        await triggerAiAssessment(input.claimId);
+      } catch (pipelineErr: any) {
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: `AI pipeline failed: ${pipelineErr.message}`,
+        });
+      }
+
+      // 11. Fetch the newly created assessment (pipeline deletes old + inserts new)
       const [newAssessment] = await db
-        .insert(aiAssessments)
-        .values({
-          claimId: input.claimId,
-          estimatedCost: aiResult.estimatedCost,
-          damageDescription: aiResult.damageDescription,
-          detectedDamageTypes: JSON.stringify(aiResult.detectedDamageTypes),
-          confidenceScore: aiResult.confidenceScore,
-          fraudIndicators: JSON.stringify(aiResult.fraudIndicators),
-          fraudRiskLevel: aiResult.fraudRiskLevel,
-          totalLossIndicated: aiResult.totalLossIndicated ? 1 : 0,
-          structuralDamageSeverity: aiResult.structuralDamageSeverity,
-          estimatedVehicleValue: aiResult.estimatedVehicleValue,
-          repairToValueRatio: aiResult.repairToValueRatio,
-          totalLossReasoning: aiResult.totalLossReasoning,
-          damagedComponentsJson: JSON.stringify(aiResult.damagedComponents),
-          physicsAnalysis: JSON.stringify(aiResult.physicsAnalysis),
-          graphUrls: JSON.stringify(aiResult.graphUrls),
-          modelVersion: aiResult.modelVersion,
-          processingTime: aiResult.processingTime,
-          // Re-analysis metadata
-          isReanalysis: 1,
-          triggeredBy: userId,
-          triggeredRole: userRole,
-          previousAssessmentId: originalAssessment?.id || null,
-          reanalysisReason: input.reason || null,
-          versionNumber: nextVersion,
-          tenantId: tenantId || null,
-        })
-        .$returningId();
+        .select()
+        .from(aiAssessments)
+        .where(eq(aiAssessments.claimId, input.claimId))
+        .orderBy(desc(aiAssessments.createdAt))
+        .limit(1);
 
-      // 11. Log governance audit trail
+      // 12. Backfill re-analysis metadata on the new assessment row
+      if (newAssessment) {
+        await db
+          .update(aiAssessments)
+          .set({
+            isReanalysis: 1,
+            triggeredBy: userId,
+            triggeredRole: userRole,
+            previousAssessmentId,
+            reanalysisReason: input.reason || null,
+            versionNumber: nextVersion,
+          })
+          .where(eq(aiAssessments.id, newAssessment.id));
+      }
+
+      // 13. Log governance audit trail
       await db.insert(auditTrail).values({
         action: "AI_REANALYSIS",
         userId: userId,
@@ -189,15 +193,15 @@ export const aiReanalysisRouter = router({
           triggeredRole: userRole,
           reason: input.reason,
           versionNumber: nextVersion,
-          previousAssessmentId: originalAssessment?.id,
-          newAssessmentId: newAssessment.id,
+          previousAssessmentId,
+          newAssessmentId: newAssessment?.id,
         }),
         tenantId: tenantId || null,
       });
 
       return {
         success: true,
-        assessmentId: newAssessment.id,
+        assessmentId: newAssessment?.id,
         versionNumber: nextVersion,
         message: `AI re-analysis completed successfully (Version #${nextVersion})`,
       };
@@ -215,7 +219,6 @@ export const aiReanalysisRouter = router({
     .query(async ({ ctx, input }) => {
       const tenantId = ctx.user.tenantId;
 
-      // Validate claim access
       const [claim] = await db
         .select()
         .from(claims)
@@ -234,7 +237,6 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // Fetch all AI assessments for this claim, ordered by version
       const assessments = await db
         .select()
         .from(aiAssessments)
@@ -271,7 +273,6 @@ export const aiReanalysisRouter = router({
     .query(async ({ ctx, input }) => {
       const tenantId = ctx.user.tenantId;
 
-      // Fetch both assessments
       const [assessment1] = await db
         .select()
         .from(aiAssessments)
@@ -291,7 +292,6 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // Validate both belong to same claim and tenant
       if (assessment1.claimId !== assessment2.claimId) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -306,7 +306,6 @@ export const aiReanalysisRouter = router({
         });
       }
 
-      // Calculate differences
       const costDiff = (assessment2.estimatedCost || 0) - (assessment1.estimatedCost || 0);
       const costDiffPercent = assessment1.estimatedCost
         ? ((costDiff / assessment1.estimatedCost) * 100).toFixed(2)
@@ -355,7 +354,6 @@ export const aiReanalysisRouter = router({
       const tenantId = ctx.user.tenantId;
       const userRole = ctx.user.insurerRole;
 
-      // Only executive and insurer_admin can view stats
       if (userRole !== "executive" && userRole !== "insurer_admin") {
         throw new TRPCError({
           code: "FORBIDDEN",
@@ -365,7 +363,6 @@ export const aiReanalysisRouter = router({
 
       const daysAgo = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
 
-      // Count re-analyses by role
       const reanalysisByRole = await db
         .select({
           role: aiAssessments.triggeredRole,
@@ -381,7 +378,6 @@ export const aiReanalysisRouter = router({
         )
         .groupBy(sql`${aiAssessments.triggeredRole}`);
 
-      // Total re-analyses
       const [totalReanalyses] = await db
         .select({ count: count() })
         .from(aiAssessments)
@@ -400,40 +396,3 @@ export const aiReanalysisRouter = router({
       };
     }),
 });
-
-/**
- * Mock AI Assessment Service
- * 
- * In production, replace this with actual AI service integration
- */
-async function triggerAiAssessmentService(claim: any) {
-  // Simulate AI processing delay
-  await new Promise((resolve) => setTimeout(resolve, 2000));
-
-  // Mock AI assessment result
-  return {
-    estimatedCost: Math.floor(Math.random() * 50000) + 10000, // Random cost between 10k-60k cents
-    damageDescription: "Re-analysis: Front bumper damage, headlight replacement required",
-    detectedDamageTypes: ["bumper_damage", "headlight_damage", "paint_damage"],
-    confidenceScore: Math.floor(Math.random() * 30) + 70, // Random 70-100
-    fraudIndicators: [],
-    fraudRiskLevel: "low" as const,
-    totalLossIndicated: false,
-    structuralDamageSeverity: "minor" as const,
-    estimatedVehicleValue: 2000000, // 20,000 in cents
-    repairToValueRatio: 15,
-    totalLossReasoning: null,
-    damagedComponents: [
-      { component: "Front Bumper", severity: "moderate", cost: 5000 },
-      { component: "Headlight (Left)", severity: "severe", cost: 3000 },
-    ],
-    physicsAnalysis: {
-      impactSpeed: "25 km/h",
-      impactAngle: "frontal",
-      consistency: "high",
-    },
-    graphUrls: [],
-    modelVersion: "v2.1.0",
-    processingTime: 2000,
-  };
-}

@@ -60,6 +60,7 @@ interface AiAssessment {
   estimatedPartsCost?: number | null;
   estimatedLaborCost?: number | null;
   totalLossIndicated?: number | null;
+  costIntelligenceJson?: string | null;
 }
 
 interface Props {
@@ -259,10 +260,43 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
               Repair Cost Intelligence
             </p>
             <div className="space-y-1.5 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">AI Estimated Total</span>
-                <span className="font-semibold text-primary">{formatAmount(aiAssessment.estimatedCost)}</span>
-              </div>
+              {/* Show AI benchmark (independent) if available, otherwise show document-extracted */}
+              {(() => {
+                const ci = (() => { try { return aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null; } catch { return null; } })();
+                const hasBenchmark = ci && ci.aiBenchmarkTotalCents > 0;
+                const docCost = ci?.documentExtractedCostCents ?? aiAssessment.estimatedCost;
+                const benchmarkLow = ci?.aiBenchmarkLowCents;
+                const benchmarkHigh = ci?.aiBenchmarkHighCents;
+                const variancePct = ci?.costVariancePct;
+                return (
+                  <>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">{hasBenchmark ? 'Document Quote' : 'AI Estimated Total'}</span>
+                      <span className="font-semibold text-primary">{formatAmount(docCost)}</span>
+                    </div>
+                    {hasBenchmark && (
+                      <>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">AI Benchmark</span>
+                          <span className="font-semibold" style={{ color: 'oklch(0.62 0.18 155)' }}>{formatAmount(ci.aiBenchmarkTotalCents)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Fair Range</span>
+                          <span className="font-medium text-xs">{formatAmount(benchmarkLow)} – {formatAmount(benchmarkHigh)}</span>
+                        </div>
+                        {variancePct != null && Math.abs(variancePct) > 5 && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Variance</span>
+                            <span className={`font-semibold text-xs ${variancePct > 20 ? 'text-destructive' : variancePct > 10 ? 'text-yellow-400' : 'text-green-400'}`}>
+                              {variancePct > 0 ? '+' : ''}{variancePct}%
+                            </span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                );
+              })()}
               {partsCost != null && partsCost > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Parts</span>

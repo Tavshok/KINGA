@@ -184,12 +184,12 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
               <tbody>
                 {sortedItems.map((item, idx) => {
                   const bgColor = item.missingInSomeQuotes
-                    ? "bg-amber-50"
+                    ? "bg-amber-500/10"
                     : item.hasPriceDiscrepancy
-                    ? "bg-orange-50"
+                    ? "bg-orange-500/10"
                     : idx % 2 === 0
-                    ? "bg-gray-50"
-                    : "bg-white";
+                    ? "bg-muted/30"
+                    : "";
 
                   return (
                     <tr key={item.description} className={bgColor}>

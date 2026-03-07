@@ -24,7 +24,7 @@ import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { getDb } from "./db";
 import { parsePhysicsAnalysis } from "./types/physics-validation";
-import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants } from "../drizzle/schema";
+import { claims, insuranceQuotes, insuranceProducts, insuranceCarriers, insurancePolicies, fleetVehicles, fleetDrivers, insurerTenants, ingestionDocuments } from "../drizzle/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { 
   getAllApprovedPanelBeaters,
@@ -1135,9 +1135,25 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           resolvedCurrencyCode = resolvedCurrencyCode ?? "USD";
           // ────────────────────────────────────────────────────────────────────
 
+          // Fetch PDF URL from source document if available
+          let sourcePdfUrl: string | null = null;
+          if (claim.sourceDocumentId) {
+            const db = await getDb();
+            if (db) {
+              const [sourceDoc] = await db
+                .select({ s3Url: ingestionDocuments.s3Url })
+                .from(ingestionDocuments)
+                .where(eq(ingestionDocuments.id, claim.sourceDocumentId))
+                .limit(1);
+              sourcePdfUrl = sourceDoc?.s3Url ?? null;
+            }
+          }
+
           return {
             ...claim,
             currencyCode: resolvedCurrencyCode,
+            // PDF URL from source document (for image display fallback)
+            sourcePdfUrl,
             // Parse physics analysis JSON into typed PhysicsValidation object
             // Maintains backward compatibility - returns null if missing
             physicsValidation: aiAssessment?.physicsAnalysis 

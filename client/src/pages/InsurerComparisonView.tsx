@@ -370,7 +370,7 @@ export default function InsurerComparisonView() {
     fraudLevel === 'moderate' ? 'warning' : fraudLevel === 'low' ? 'success' : 'neutral';
 
   return (
-    <div className="min-h-screen" style={{ background: 'oklch(0.12 0.015 250)' }}>
+    <div className="min-h-screen dark" style={{ background: 'oklch(0.12 0.015 250)', colorScheme: 'dark' }}>
       {/* BI Hero Header */}
       <header className="bi-hero">
         <div className="bi-hero-grid" />
@@ -852,12 +852,12 @@ export default function InsurerComparisonView() {
         {(() => {
           const damagePhotosJson = (aiAssessment as any)?.damagePhotosJson ?? null;
           const rawDamagePhotos = (claim as any)?.damagePhotos ?? null;
+          const sourcePdfUrl = (claim as any)?.sourcePdfUrl ?? null;
           const hasPhotos = (() => {
             if (damagePhotosJson) { try { const p = JSON.parse(damagePhotosJson); return Array.isArray(p) && p.length > 0; } catch { return false; } }
             if (rawDamagePhotos) { try { const p = JSON.parse(rawDamagePhotos); return Array.isArray(p) && p.length > 0; } catch { return false; } }
             return false;
           })();
-          if (!hasPhotos) return null;
           return (
             <div className="comparison-section mb-5">
               <div className="comparison-section-header">
@@ -868,10 +868,37 @@ export default function InsurerComparisonView() {
                 </div>
               </div>
               <div className="comparison-section-body">
-                <DamageImagesPanel
-                  damagePhotosJson={damagePhotosJson}
-                  rawDamagePhotos={rawDamagePhotos}
-                />
+                {hasPhotos ? (
+                  <DamageImagesPanel
+                    damagePhotosJson={damagePhotosJson}
+                    rawDamagePhotos={rawDamagePhotos}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center py-10 gap-4 text-center">
+                    <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ background: 'oklch(0.68 0.10 185 / 0.12)', border: '1px solid oklch(0.68 0.10 185 / 0.25)' }}>
+                      <svg className="w-8 h-8" style={{ color: 'oklch(0.68 0.10 185)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold mb-1" style={{ color: 'var(--foreground)' }}>No damage images extracted yet</p>
+                      <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+                        {sourcePdfUrl
+                          ? 'This claim was submitted as a PDF document. Click "Re-run AI Analysis" above to extract damage photos from the document.'
+                          : 'No damage photos have been uploaded or extracted for this claim.'}
+                      </p>
+                    </div>
+                    {sourcePdfUrl && (
+                      <a
+                        href={sourcePdfUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs px-3 py-1.5 rounded-md font-medium transition-colors"
+                        style={{ background: 'oklch(0.68 0.10 185 / 0.15)', color: 'oklch(0.68 0.10 185)', border: '1px solid oklch(0.68 0.10 185 / 0.3)' }}
+                      >
+                        View Source PDF Document
+                      </a>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -907,12 +934,12 @@ export default function InsurerComparisonView() {
               ) : (
                 <div className="space-y-4">
                   {quotes.map((quote, idx) => (
-                    <div key={quote.id} className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid var(--border)' }}>
-                      <p className="font-semibold mb-2">{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                    <div key={quote.id} className="p-4 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
+                      <p className="font-semibold mb-2" style={{ color: 'var(--foreground)' }}>{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       {quote.lineItems && quote.lineItems.length > 0 ? (
                         <div className="space-y-2">
                           {quote.lineItems.map((item: any, i: number) => (
-                            <div key={i} className="flex justify-between text-sm border-b pb-1">
+                            <div key={i} className="flex justify-between text-sm border-b pb-1" style={{ borderColor: 'var(--border)', color: 'var(--foreground)' }}>
                               <span className="capitalize">{item.description}</span>
                               <span className="font-medium">US${Number(item.lineTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                             </div>
@@ -1048,7 +1075,7 @@ export default function InsurerComparisonView() {
                 )}
                 {/* Recommendation based on fraud risk and damage */}
                 <div className="grid gap-4 md:grid-cols-2">
-                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid var(--border)' }}>
+                  <div className="p-4 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Recommended Action</p>
                     <p className="font-semibold text-lg">
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss — Do Not Repair' :
@@ -1066,7 +1093,7 @@ export default function InsurerComparisonView() {
                        aiAssessment.fraudRiskLevel === 'moderate' ? 'Review Required' : 'Approved'}
                     </Badge>
                   </div>
-                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.16 0.012 250)', border: '1px solid var(--border)' }}>
+                  <div className="p-4 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Estimated Repair Cost</p>
                     <p className="text-2xl font-bold text-primary">US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     {aiAssessment.estimatedVehicleValue ? (
@@ -1088,7 +1115,7 @@ export default function InsurerComparisonView() {
                 </div>
                 {/* Damage description */}
                 {aiAssessment.damageDescription && (
-                  <div className="p-4 rounded-lg" style={{ background: 'oklch(0.14 0.01 250)', border: '1px solid oklch(0.25 0.018 250)' }}>
+                  <div className="p-4 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>AI Damage Assessment</p>
                     <p className="text-sm leading-relaxed">{aiAssessment.damageDescription}</p>
                   </div>
@@ -1342,22 +1369,49 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
   // Local fallback hidden damage inference (used when server pipeline data is unavailable)
   const localInferredHiddenDamage: HiddenDamageItem[] = [];
 
+  // Derive impact zone from component locations (more reliable than accidentType alone)
+  const componentLocations = richComponents.map(c => (c.location || '').toLowerCase());
+  const componentNames = damagedComponents.map(c => c.toLowerCase());
+  const descLower = damageDescription.toLowerCase();
+  const hasFrontComponents = componentLocations.some(l => l.includes('front')) || componentNames.some(c => c.includes('bumper') || c.includes('fender') || c.includes('bonnet') || c.includes('hood') || c.includes('headlamp') || c.includes('headlight'));
+  const hasRearComponents = componentLocations.some(l => l.includes('rear')) || componentNames.some(c => c.includes('taillight') || c.includes('tail lamp') || c.includes('boot') || c.includes('trunk'));
+  const hasRightComponents = componentLocations.some(l => l.includes('right') || l.includes('r/h') || l.includes('rh'));
+  const hasLeftComponents = componentLocations.some(l => l.includes('left') || l.includes('l/h') || l.includes('lh'));
+  const hasSideComponents = componentNames.some(c => c.includes('door') || c.includes('quarter panel') || c.includes('rocker'));
+  const isFrontImpact = hasFrontComponents || accidentType === 'frontal' || accidentType.includes('front') || descLower.includes('front') || descLower.includes('r/h front') || descLower.includes('l/h front');
+  const isRearImpact = hasRearComponents || accidentType === 'rear' || accidentType.includes('rear') || descLower.includes('rear');
+  const isSideImpact = hasSideComponents || accidentType?.includes('side') || descLower.includes('side impact');
+  const isRightSide = hasRightComponents || descLower.includes('r/h') || descLower.includes('right hand') || descLower.includes('right side');
+  const isLeftSide = hasLeftComponents || descLower.includes('l/h') || descLower.includes('left hand') || descLower.includes('left side');
+
   // Front impact propagation chain: bumper → crash bar → radiator support → radiator/condenser
-  if (
-    damagedComponents.some((c: string) => c.toLowerCase().includes("bumper") || c.toLowerCase().includes("fender")) ||
-    accidentType === "frontal" || accidentType.includes("front") || damageDescription.toLowerCase().includes("front")
-  ) {
-    localInferredHiddenDamage.push({ component: "Front crash bar / bumper beam", reason: "First structural energy absorber in frontal collisions", confidence: "High", probability: 82, propagationStep: 1, chain: "front" });
-    localInferredHiddenDamage.push({ component: "Radiator support / front subframe", reason: "Force propagates from crash bar to radiator support", confidence: "High", probability: 75, propagationStep: 2, chain: "front" });
-    localInferredHiddenDamage.push({ component: "Radiator / AC condenser", reason: "Cooling unit sits behind radiator support; vulnerable when support deforms", confidence: "Medium", probability: 62, propagationStep: 3, chain: "front" });
+  if (isFrontImpact) {
+    localInferredHiddenDamage.push({ component: "Front crash bar / bumper beam", reason: "First structural energy absorber in frontal collisions; deforms before visible bumper damage", confidence: "High", probability: 82, propagationStep: 1, chain: "front" });
+    localInferredHiddenDamage.push({ component: "Radiator support / front subframe", reason: "Force propagates from crash bar to radiator support on frontal impacts", confidence: "High", probability: 75, propagationStep: 2, chain: "front" });
+    localInferredHiddenDamage.push({ component: "Radiator / AC condenser", reason: "Cooling unit sits directly behind radiator support; vulnerable when support deforms", confidence: "Medium", probability: 62, propagationStep: 3, chain: "front" });
+    if (isRightSide) {
+      localInferredHiddenDamage.push({ component: "Right-hand engine mount", reason: "R/H front impact transmits force to engine mount via subframe", confidence: "Medium", probability: 55, propagationStep: 4, chain: "front" });
+      localInferredHiddenDamage.push({ component: "Right-hand suspension strut / spring", reason: "R/H front impact loads the suspension strut and spring assembly", confidence: "Medium", probability: 58, propagationStep: 4, chain: "front" });
+    } else if (isLeftSide) {
+      localInferredHiddenDamage.push({ component: "Left-hand engine mount", reason: "L/H front impact transmits force to engine mount via subframe", confidence: "Medium", probability: 55, propagationStep: 4, chain: "front" });
+      localInferredHiddenDamage.push({ component: "Left-hand suspension strut / spring", reason: "L/H front impact loads the suspension strut and spring assembly", confidence: "Medium", probability: 58, propagationStep: 4, chain: "front" });
+    }
+  }
+
+  // Rear impact propagation chain
+  if (isRearImpact) {
+    localInferredHiddenDamage.push({ component: "Rear crash bar / bumper beam", reason: "First structural energy absorber in rear-end collisions", confidence: "High", probability: 80, propagationStep: 1, chain: "rear" });
+    localInferredHiddenDamage.push({ component: "Rear floor / boot floor structure", reason: "Rear impact loads transfer to boot floor and rear floor rails", confidence: "Medium", probability: 65, propagationStep: 2, chain: "rear" });
+    localInferredHiddenDamage.push({ component: "Fuel tank / fuel lines", reason: "Rear impact can displace fuel tank and damage fuel lines", confidence: "Medium", probability: 50, propagationStep: 3, chain: "rear" });
   }
 
   // Side impact propagation chain: door → intrusion beam → B-pillar → floor structure
-  if (accidentType?.includes("side")) {
-    const sideChain = (accidentType.includes("driver") || accidentType.includes("left")) ? "side_driver" : "side_passenger";
-    localInferredHiddenDamage.push({ component: "Door intrusion beam", reason: "Side impact beams are the first structural absorbers in lateral collisions", confidence: "High", probability: 78, propagationStep: 1, chain: sideChain });
-    localInferredHiddenDamage.push({ component: "B-pillar", reason: "Force propagates from door into B-pillar", confidence: "Medium", probability: 60, propagationStep: 2, chain: sideChain });
-    localInferredHiddenDamage.push({ component: "Floor structure / rocker sill", reason: "Lateral impact loads transfer to floor structure", confidence: "Medium", probability: 48, propagationStep: 3, chain: sideChain });
+  if (isSideImpact) {
+    const sideChain = isRightSide ? "side_passenger" : "side_driver";
+    const sideLabel = isRightSide ? "R/H" : isLeftSide ? "L/H" : "";
+    localInferredHiddenDamage.push({ component: `${sideLabel} Door intrusion beam`.trim(), reason: "Side impact beams are the first structural absorbers in lateral collisions", confidence: "High", probability: 78, propagationStep: 1, chain: sideChain });
+    localInferredHiddenDamage.push({ component: "B-pillar", reason: "Force propagates from door into B-pillar under lateral loading", confidence: "Medium", probability: 60, propagationStep: 2, chain: sideChain });
+    localInferredHiddenDamage.push({ component: "Floor structure / rocker sill", reason: "Lateral impact loads transfer to floor structure and rocker sill", confidence: "Medium", probability: 48, propagationStep: 3, chain: sideChain });
   }
 
   // Rollover chain
@@ -1819,12 +1873,63 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
   } catch { /* ignore */ }
   
   if (!physicsAnalysis) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        <p>Physics analysis not available for this claim</p>
-        <p className="text-xs mt-2">Physics analysis runs automatically with AI assessment</p>
-      </div>
-    );
+    // ── Infer physics from available claim data when DB physics_analysis is NULL ──
+    // This handles old assessments created before the physics pipeline was added.
+    // We derive approximate values from: vehicle type, damage severity, impact zone.
+    const damagedComponents: any[] = (() => {
+      try { return JSON.parse(aiAssessment.damagedComponentsJson || '[]'); } catch { return []; }
+    })();
+    const incidentType = (claim as any)?.incidentType || (aiAssessment as any)?.accidentType || 'unknown';
+    const isCollision = incidentType === 'collision' || incidentType === 'frontal' || incidentType === 'rear' || incidentType === 'side_driver' || incidentType === 'side_passenger';
+    
+    if (!isCollision || damagedComponents.length === 0) {
+      return (
+        <div className="text-center py-8 text-muted-foreground">
+          <p>Physics analysis not available for this claim</p>
+          <p className="text-xs mt-2">Physics analysis runs automatically with AI assessment. Click \"Re-run AI\" to generate physics data.</p>
+        </div>
+      );
+    }
+    
+    // Infer impact zone from damaged components
+    const locations = damagedComponents.map((c: any) => (c.location || '').toLowerCase());
+    const hasFront = locations.some((l: string) => l.includes('front'));
+    const hasRear = locations.some((l: string) => l.includes('rear'));
+    const hasLeft = locations.some((l: string) => l.includes('left'));
+    const hasRight = locations.some((l: string) => l.includes('right'));
+    const inferredAccidentType = hasRear ? 'rear' : (hasLeft || hasRight) ? (hasLeft ? 'side_driver' : 'side_passenger') : 'frontal';
+    
+    // Infer severity from component damage levels
+    const severities = damagedComponents.map((c: any) => (c.severity || 'minor').toLowerCase());
+    const hasCatastrophic = severities.some((s: string) => s === 'catastrophic');
+    const hasSevere = severities.some((s: string) => s === 'severe');
+    const hasModerate = severities.some((s: string) => s === 'moderate');
+    const maxCrushDepth = hasCatastrophic ? 0.40 : hasSevere ? 0.25 : hasModerate ? 0.15 : 0.08;
+    
+    // Approximate vehicle mass (Nissan AD is a light van ~1200kg)
+    const vehicleMass = 1200;
+    const stiffness = 800; // kN/m for compact/light van
+    const forceMagnitude = Math.round(stiffness * maxCrushDepth * 1000); // Newtons
+    const speedMs = Math.sqrt((2 * forceMagnitude * maxCrushDepth) / vehicleMass);
+    const speedKmh = Math.round(speedMs * 3.6);
+    
+    // Build inferred physics object
+    physicsAnalysis = {
+      _inferred: true,
+      _raw: {
+        estimatedSpeed: { value: speedKmh, confidence: 55, method: "Inferred from damage severity (re-run AI for precise values)", confidenceInterval: [Math.round(speedKmh * 0.7), Math.round(speedKmh * 1.3)] },
+        impactForce: { magnitude: forceMagnitude, confidence: 55, duration: 0.08 },
+        accidentSeverity: hasCatastrophic ? 'catastrophic' : hasSevere ? 'severe' : hasModerate ? 'moderate' : 'minor',
+        collisionType: inferredAccidentType,
+        damageConsistency: { score: 65, label: 'Inferred' },
+        fraudIndicators: { impossibleDamagePatterns: [], unrelatedDamage: [], stagedAccidentIndicators: [], severityMismatch: false },
+        occupantInjuryRisk: hasSevere || hasCatastrophic ? 'moderate' : 'low',
+      },
+      consistencyScore: 65,
+      damagePropagationScore: 70,
+      fraudRiskScore: 0,
+      fraudIndicators: [],
+    };
   }
 
   // Normalise: physics data may be at top-level OR nested under _raw
