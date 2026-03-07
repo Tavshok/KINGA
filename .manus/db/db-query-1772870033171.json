@@ -1,0 +1,58 @@
+{
+  "query": "\nSHOW COLUMNS FROM ai_assessments WHERE Field LIKE '%fraud%' OR Field LIKE '%risk%' OR Field LIKE '%score%';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSHOW COLUMNS FROM ai_assessments WHERE Field LIKE '%fraud%' OR Field LIKE '%risk%' OR Field LIKE '%score%';\n",
+  "rows": [
+    {
+      "Field": "confidence_score",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_indicators",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_risk_level",
+      "Type": "enum('low','medium','high','critical')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_score_breakdown_json",
+      "Type": "longtext",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "physics_deviation_score",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "confidence_score_breakdown_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nconfidence_score\tint\tYES\t\tNULL\t\nfraud_indicators\ttext\tYES\t\tNULL\t\nfraud_risk_level\tenum('low','medium','high','critical')\tYES\t\tNULL\t\nfraud_score_breakdown_json\tlongtext\tYES\t\tNULL\t\nphysics_deviation_score\tint\tYES\t\tNULL\t\nconfidence_score_breakdown_json\ttext\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 57
+}

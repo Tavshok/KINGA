@@ -1,0 +1,23 @@
+{
+  "query": "\n-- Verify the column definition\nSHOW COLUMNS FROM ai_assessments LIKE 'fraud_risk_level';\n\n-- Check for any rows with old enum values that would now be NULL\nSELECT fraud_risk_level, COUNT(*) as count \nFROM ai_assessments \nGROUP BY fraud_risk_level;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Verify the column definition\nSHOW COLUMNS FROM ai_assessments LIKE 'fraud_risk_level';\n\n-- Check for any rows with old enum values that would now be NULL\nSELECT fraud_risk_level, COUNT(*) as count \nFROM ai_assessments \nGROUP BY fraud_risk_level;\n",
+  "rows": [
+    {
+      "Field": "fraud_risk_level",
+      "Type": "enum('low','medium','high','critical')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [
+    "fraud_risk_level\tcount",
+    "low\t362",
+    "NULL\t495",
+    "high\t7"
+  ],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nfraud_risk_level\tenum('low','medium','high','critical')\tYES\t\tNULL\t\nfraud_risk_level\tcount\nlow\t362\nNULL\t495\nhigh\t7\n",
+  "stderr": "",
+  "execution_time_ms": 73
+}

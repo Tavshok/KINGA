@@ -2284,8 +2284,8 @@ Provide your response in JSON format.`;
     console.error(`[Pipeline Stage 5] Forensic analysis failed: ${String(forensicErr)}`);
     forensicAnalysis = {
       fraudRiskScore: 0,
-      fraudRiskLevel: "minimal",
-      fraudIndicators: [],
+      fraudRiskLevel: "low",
+      confidenceScore: 0,
       damageConsistencyScore: 50,
       damageConsistencyNotes: "Forensic analysis unavailable",
     };
@@ -2433,7 +2433,7 @@ Provide your response in JSON format.`;
     // Build forensic analysis JSON
     const forensicAnalysisJson = forensicAnalysis ? JSON.stringify({
       fraudRiskScore: forensicAnalysis.fraudRiskScore || 0,
-      fraudRiskLevel: forensicAnalysis.fraudRiskLevel || "minimal",
+      fraudRiskLevel: (forensicAnalysis.fraudRiskLevel as any) || "low",
       fraudIndicators: forensicAnalysis.fraudIndicators || [],
       damageConsistencyScore: forensicAnalysis.damageConsistencyScore || 50,
       damageConsistencyNotes: forensicAnalysis.damageConsistencyNotes || "",

@@ -366,8 +366,8 @@ export default function InsurerComparisonView() {
   const fraudLevel = aiAssessment?.fraudRiskLevel || assessorEval?.fraudRiskLevel || 'unknown';
   const confidenceScore = aiAssessment?.confidenceScore || 0;
 
-  const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'very_high' ? 'danger' :
-    fraudLevel === 'moderate' ? 'warning' : fraudLevel === 'low' ? 'success' : 'neutral';
+  const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'critical' ? 'danger' :
+    fraudLevel === 'medium' ? 'warning' : fraudLevel === 'low' ? 'success' : 'neutral';
 
   return (
     <div className="min-h-screen dark" style={{ background: 'oklch(0.12 0.015 250)', colorScheme: 'dark' }}>
@@ -1079,18 +1079,18 @@ export default function InsurerComparisonView() {
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Recommended Action</p>
                     <p className="font-semibold text-lg">
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss — Do Not Repair' :
-                       (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'Request Investigation' :
-                       aiAssessment.fraudRiskLevel === 'moderate' ? 'Proceed with Caution' :
+                       (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical') ? 'Request Investigation' :
+                       aiAssessment.fraudRiskLevel === 'medium' ? 'Proceed with Caution' :
                        'Proceed with Repair'}
                     </p>
                     <Badge className={`mt-2 ${
                       aiAssessment.totalLossIndicated === 1 ? 'bg-red-600' :
-                      (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'bg-red-600' :
-                      aiAssessment.fraudRiskLevel === 'moderate' ? 'bg-amber-600' : 'bg-green-600'
+                      (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical') ? 'bg-red-600' :
+                      aiAssessment.fraudRiskLevel === 'medium' ? 'bg-amber-600' : 'bg-green-600'
                     }`}>
                       {aiAssessment.totalLossIndicated === 1 ? 'Total Loss' :
-                       (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'very_high') ? 'Possible Fraud' :
-                       aiAssessment.fraudRiskLevel === 'moderate' ? 'Review Required' : 'Approved'}
+                       (aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical') ? 'Possible Fraud' :
+                       aiAssessment.fraudRiskLevel === 'medium' ? 'Review Required' : 'Approved'}
                     </Badge>
                   </div>
                   <div className="p-4 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>

@@ -1,0 +1,8 @@
+{
+  "query": "\n-- Check fraud_risk_score distribution for NULL fraud_risk_level rows\nSELECT \n  CASE \n    WHEN fraud_risk_score IS NULL THEN 'no_score'\n    WHEN fraud_risk_score < 20 THEN '0-20 (low)'\n    WHEN fraud_risk_score < 40 THEN '20-40 (medium-low)'\n    WHEN fraud_risk_score < 60 THEN '40-60 (medium)'\n    WHEN fraud_risk_score < 80 THEN '60-80 (high)'\n    ELSE '80-100 (critical)'\n  END as score_band,\n  COUNT(*) as count\nFROM ai_assessments \nWHERE fraud_risk_level IS NULL\nGROUP BY score_band\nORDER BY MIN(fraud_risk_score);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Check fraud_risk_score distribution for NULL fraud_risk_level rows\nSELECT \n  CASE \n    WHEN fraud_risk_score IS NULL THEN 'no_score'\n    WHEN fraud_risk_score < 20 THEN '0-20 (low)'\n    WHEN fraud_risk_score < 40 THEN '20-40 (medium-low)'\n    WHEN fraud_risk_score < 60 THEN '40-60 (medium)'\n    WHEN fraud_risk_score < 80 THEN '60-80 (high)'\n    ELSE '80-100 (critical)'\n  END as score_band,\n  COUNT(*) as count\nFROM ai_assessments \nWHERE fraud_risk_level IS NULL\nGROUP BY score_band\nORDER BY MIN(fraud_risk_score);\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 3: Unknown column 'fraud_risk_score' in 'group statement'"
+  ]
+}

@@ -129,7 +129,7 @@ export function generateConfidenceExplanation(
   const { contributions, normalizedScore } = explainability;
   
   // Determine risk level for each component (inverse for fraud risk)
-  const fraudRiskLevel = contributions.fraudRisk < 20 ? "low" : contributions.fraudRisk < 60 ? "moderate" : "high";
+  const fraudRiskLevel = contributions.fraudRisk < 20 ? "low" : contributions.fraudRisk < 60 ? "medium" : "high";
   const aiCertaintyLevel = contributions.aiCertainty < 20 ? "low" : contributions.aiCertainty < 60 ? "moderate" : "high";
   const varianceLevel = contributions.quoteVariance < 20 ? "low" : contributions.quoteVariance < 60 ? "moderate" : "high";
   const completenessLevel = contributions.claimCompleteness < 20 ? "low" : contributions.claimCompleteness < 60 ? "moderate" : "high";
