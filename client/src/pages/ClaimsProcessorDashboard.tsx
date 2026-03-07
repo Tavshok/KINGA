@@ -83,7 +83,13 @@ export default function ClaimsProcessorDashboard() {
         offset: 0,
       },
       {
-        refetchInterval: aiProcessingClaimIds.size > 0 ? 5_000 : 30_000, // Poll faster when AI is running
+        // Poll every 5s when AI is actively running (either in this session or detected from DB status)
+        // This ensures the page auto-refreshes even after a browser refresh.
+        refetchInterval: (data) => {
+          const claims = (data as any)?.claims || (data as any)?.items || [];
+          const hasInProgress = claims.some((c: any) => c.status === "assessment_in_progress");
+          return (aiProcessingClaimIds.size > 0 || hasInProgress) ? 5_000 : 30_000;
+        },
         refetchIntervalInBackground: false,
       }
     );
@@ -349,9 +355,23 @@ export default function ClaimsProcessorDashboard() {
         );
       }
       
+      // For server-driven in-progress state (e.g. after page refresh), show spinner + elapsed time
+      if (claim.status === "assessment_in_progress") {
+        const startedAt = claim.updatedAt ? new Date(claim.updatedAt) : null;
+        const elapsedMs = startedAt ? Date.now() - startedAt.getTime() : 0;
+        const elapsedMin = Math.floor(elapsedMs / 60000);
+        const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
+        const elapsedLabel = elapsedMin > 0 ? `${elapsedMin}m ${elapsedSec}s` : `${elapsedSec}s`;
+        return (
+          <Badge className="bg-purple-100 text-purple-800 border-purple-300 flex items-center gap-1">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            AI Analyzing... {elapsedLabel}
+          </Badge>
+        );
+      }
+
       const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
         intake_pending: { bg: "bg-amber-100", text: "text-amber-800", label: "PENDING REVIEW" },
-        assessment_in_progress: { bg: "bg-purple-100", text: "text-purple-800", label: "AI IN PROGRESS" },
         quotes_pending: { bg: "bg-blue-100", text: "text-blue-800", label: "QUOTES PENDING" },
         assessment_complete: { bg: "bg-teal-100", text: "text-teal-800", label: "ASSESSMENT COMPLETE" },
         closed: { bg: "bg-green-100", text: "text-green-800", label: "COMPLETED" },
