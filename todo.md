@@ -9793,3 +9793,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add resetStuckClaim tRPC procedure (claims router) for manual recovery
 - [x] Add "Reset if Stuck" button in ClaimsProcessorDashboard (IN REVIEW section)
 - [x] Add "Reset Stuck Claim" button for claims stuck in assessment_in_progress (pending section)
+
+## Bug: AI Assessment Failing After Timeout Fix (2026-03-07)
+- [x] Identify error: "Invalid workflow transition: under_assessment → under_assessment" — state machine rejects re-triggering from under_assessment
+- [x] Fix triggerAiAssessment router: check workflowState === 'under_assessment' and skip transition (self-loop fix)
+- [x] Fix resetStuckClaim to also reset workflowState to 'created' so next AI run transitions cleanly
+- [ ] Verify AI assessment completes successfully end-to-end (user to confirm)

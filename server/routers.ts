@@ -1336,7 +1336,20 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Progress through required intermediate states to reach assessment_in_progress
         const claimTenantId = currentClaim.tenantId || "default";
         const currentStatus = currentClaim.status;
-        if (currentStatus === "intake_pending") {
+        const currentWorkflowState = currentClaim.workflowState;
+
+        // If the claim's workflow state is already under_assessment (or the legacy status
+        // is assessment_in_progress / assessment_complete), skip the transition entirely
+        // and just re-run the AI. Attempting to transition under_assessment → under_assessment
+        // is an invalid self-loop and causes the state machine to throw.
+        const alreadyInAssessment =
+          currentStatus === "assessment_in_progress" ||
+          currentStatus === "assessment_complete" ||
+          currentWorkflowState === "under_assessment";
+
+        if (alreadyInAssessment) {
+          // No state transition needed — just re-run the AI assessment
+        } else if (currentStatus === "intake_pending" || currentWorkflowState === "intake_queue" || currentWorkflowState === "created") {
           // Document-ingestion claims: intake_pending → assessment_in_progress
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
         } else if (currentStatus === "submitted") {
@@ -1346,10 +1359,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         } else if (currentStatus === "triage") {
           await updateClaimStatus(input.claimId, "assessment_pending", ctx.user.id, "claims_processor", claimTenantId);
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
-        } else if (currentStatus === "assessment_pending") {
+        } else if (currentStatus === "assessment_pending" || currentWorkflowState === "assigned") {
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
-        } else if (currentStatus === "assessment_in_progress" || currentStatus === "assessment_complete") {
-          // Already in progress or complete — just re-run the assessment
         } else {
           // For other states, try direct transition (will throw if invalid)
           await updateClaimStatus(input.claimId, "assessment_in_progress", ctx.user.id, "claims_processor", claimTenantId);
@@ -1468,6 +1479,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         await db.update(claims).set({
           status: "intake_pending",
+          // Reset workflowState back to 'created' so the next AI run can
+          // transition created → under_assessment without hitting a self-loop error.
+          workflowState: "created",
           documentProcessingStatus: "failed",
           aiAssessmentTriggered: 0,
           updatedAt: new Date().toISOString(),
