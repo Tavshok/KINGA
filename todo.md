@@ -9793,3 +9793,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add resetStuckClaim tRPC procedure (claims router) for manual recovery
 - [x] Add "Reset if Stuck" button in ClaimsProcessorDashboard (IN REVIEW section)
 - [x] Add "Reset Stuck Claim" button for claims stuck in assessment_in_progress (pending section)
+
+## Fix: Remove 10-Page Cap from PDF Extraction (Fraud Risk)
+- [x] Remove MAX_PAGES cap — all pages must be processed for fraud detection
+- [x] Use chunked parallel rendering (batches of 5 pages) to control memory
+- [x] Increase global timeout to 10 minutes for large PDFs
+- [ ] Save checkpoint

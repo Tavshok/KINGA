@@ -15,12 +15,12 @@
  * Both strategies upload results to S3 in parallel and return arrays of S3 URLs.
  *
  * Performance limits:
- *   - Max 10 pages rendered (first 10 pages only)
+ *   - NO page cap — all pages processed (required for fraud detection)
  *   - 30s timeout on PDF download
- *   - 90s timeout on pdftoppm (was 120s)
- *   - 30s timeout on pdfimages (was 60s)
- *   - S3 uploads run in parallel (was sequential)
- *   - Global 3-minute hard timeout on the entire extraction
+ *   - 90s timeout on pdftoppm per batch
+ *   - 30s timeout on pdfimages
+ *   - Pages rendered in batches of 5, S3 uploads run in parallel per batch
+ *   - Global 10-minute hard timeout on the entire extraction
  */
 
 import { execSync } from 'child_process';
@@ -31,8 +31,8 @@ import { nanoid } from 'nanoid';
 import { storagePut } from './storage';
 import sharp from 'sharp';
 
-const MAX_PAGES = 10;           // Only process first N pages
-const GLOBAL_TIMEOUT_MS = 3 * 60 * 1000; // 3-minute hard cap on entire extraction
+const BATCH_SIZE = 5;           // Render pages in batches to control memory usage
+const GLOBAL_TIMEOUT_MS = 10 * 60 * 1000; // 10-minute hard cap — covers large multi-page PDFs
 
 interface ExtractedImage {
   url: string;
@@ -54,7 +54,7 @@ export async function extractImagesFromPDFBuffer(
   const pdfPath = join(tempDir, 'input.pdf');
 
   console.log(
-    `🖼️  [PDF Extractor] Starting extraction from: ${pdfFileName || 'buffer'} (session: ${sessionId}, maxPages: ${MAX_PAGES})`,
+    `🖼️  [PDF Extractor] Starting extraction from: ${pdfFileName || 'buffer'} (session: ${sessionId}, batchSize: ${BATCH_SIZE}, timeout: ${GLOBAL_TIMEOUT_MS / 60000}min)`,
   );
 
   // Wrap the entire extraction in a global timeout
@@ -85,21 +85,21 @@ async function _doExtraction(
     console.log(`📄 [PDF Extractor] Wrote ${pdfBuffer.length} bytes to temp file`);
 
     // ----------------------------------------------------------------
-    // STRATEGY 1: Render first MAX_PAGES pages as PNG with pdftoppm
+    // STRATEGY 1: Render ALL pages as PNG with pdftoppm (no page cap)
+    // All pages must be processed — fraud evidence can appear anywhere in the document.
     // ----------------------------------------------------------------
     const pagePrefix = join(tempDir, 'page');
     let pageFiles: string[] = [];
 
     try {
-      // -l MAX_PAGES limits to first N pages — prevents huge PDFs from hanging
-      execSync(`pdftoppm -png -r 150 -l ${MAX_PAGES} "${pdfPath}" "${pagePrefix}"`, {
+      // No -l flag — process all pages
+      execSync(`pdftoppm -png -r 150 "${pdfPath}" "${pagePrefix}"`, {
         timeout: 90_000,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       pageFiles = readdirSync(tempDir)
         .filter((f) => f.startsWith('page') && f.endsWith('.png'))
-        .sort()
-        .slice(0, MAX_PAGES);
+        .sort();
       console.log(`📄 [PDF Extractor] pdftoppm rendered ${pageFiles.length} page(s) as PNG`);
     } catch (err: any) {
       console.warn(`⚠️  [PDF Extractor] pdftoppm failed: ${err.message}`);
@@ -112,7 +112,7 @@ async function _doExtraction(
     let embeddedFiles: string[] = [];
 
     try {
-      execSync(`pdfimages -all -l ${MAX_PAGES} "${pdfPath}" "${embeddedPrefix}"`, {
+      execSync(`pdfimages -all "${pdfPath}" "${embeddedPrefix}"`, {
         timeout: 30_000,
         stdio: ['pipe', 'pipe', 'pipe'],
       });
@@ -174,13 +174,25 @@ async function _doExtraction(
       }
     }
 
-    // Run all uploads in parallel for speed
-    const allResults = await Promise.all([
-      ...pageFiles.map(f => processAndUpload(f, 'page_render', 300)),
-      ...embeddedFiles.map(f => processAndUpload(f, 'embedded_image', 150)),
-    ]);
+    // Process pages in batches of BATCH_SIZE to control memory usage,
+    // while still uploading each batch in parallel for speed.
+    const extractedImages: ExtractedImage[] = [];
 
-    const extractedImages = allResults.filter((r): r is ExtractedImage => r !== null);
+    const allFiles = [
+      ...pageFiles.map(f => ({ file: f, source: 'page_render' as const, minDim: 300 })),
+      ...embeddedFiles.map(f => ({ file: f, source: 'embedded_image' as const, minDim: 150 })),
+    ];
+
+    for (let i = 0; i < allFiles.length; i += BATCH_SIZE) {
+      const batch = allFiles.slice(i, i + BATCH_SIZE);
+      console.log(`📦 [PDF Extractor] Processing batch ${Math.floor(i / BATCH_SIZE) + 1}/${Math.ceil(allFiles.length / BATCH_SIZE)} (files ${i + 1}-${Math.min(i + BATCH_SIZE, allFiles.length)} of ${allFiles.length})`);
+      const batchResults = await Promise.all(
+        batch.map(({ file, source, minDim }) => processAndUpload(file, source, minDim))
+      );
+      for (const result of batchResults) {
+        if (result) extractedImages.push(result);
+      }
+    }
 
     console.log(
       `✅ [PDF Extractor] Complete. ${extractedImages.length} image(s) uploaded to S3 ` +
