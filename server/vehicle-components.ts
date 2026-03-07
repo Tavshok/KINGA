@@ -12,6 +12,8 @@
  *   4. Generic names (last resort)
  */
 
+import { lookupSaParts, getSaPartName } from './pipeline/sa-parts-database';
+
 export interface VehicleComponentSet {
   // Front impact chain
   frontBumperBeam: string;          // Step 1 — first energy absorber
@@ -420,6 +422,15 @@ function buildClassFallback(
 /**
  * Resolve vehicle-specific component names for hidden damage inference.
  *
+ * Resolution hierarchy:
+ *  1. SA Parts Database (TecDoc/Masterparts SA nomenclature + OEM part numbers)
+ *  2. Internal vehicle component DB (manually curated, vehicle-specific)
+ *  3. Class-level fallback (body type based)
+ *
+ * The SA parts database is the authoritative source for naming — it uses
+ * SA/TecDoc standard terminology (British English: bonnet, mudguard, windscreen)
+ * with OEM part numbers. It is used for nomenclature ONLY — no pricing.
+ *
  * @param make       - Vehicle make (e.g. "Nissan", "Toyota")
  * @param model      - Vehicle model (e.g. "AD", "Corolla", "Hilux")
  * @param year       - Model year (e.g. 2008)
@@ -436,7 +447,51 @@ export function resolveVehicleComponents(
   const makeLower  = (make  || '').toLowerCase().trim();
   const modelLower = (model || '').toLowerCase().trim();
 
-  // ── 1. Exact make+model lookup ─────────────────────────────────────────────
+  // ── 0. SA Parts Database (primary — TecDoc/Masterparts SA nomenclature) ───
+  // When the vehicle is in the SA parts database, use its authoritative names
+  // (SA/TecDoc standard: bonnet, mudguard, windscreen, sill panel, etc.)
+  // with OEM part numbers. Nomenclature only — no pricing.
+  const saPartSet = lookupSaParts(make, model, year ?? undefined);
+  if (saPartSet) {
+    const g = (key: keyof typeof saPartSet, fallback: string) =>
+      getSaPartName(key as any, make, model, year ?? undefined, fallback);
+    const oem = (key: keyof typeof saPartSet) => {
+      const p = saPartSet[key];
+      return p && typeof p === 'object' && 'oemPartNumber' in p
+        ? ` [${(p as any).oemPartNumber}]` : '';
+    };
+    const label = `${saPartSet.make} ${saPartSet.model}`;
+    // Build a VehicleComponentSet from SA database names
+    const saComponents: VehicleComponentSet = {
+      frontBumperBeam:    g('frontBumperReinforcement', 'Front Bumper Reinforcement Bar') + oem('frontBumperReinforcement'),
+      radiatorSupport:    g('radiatorSupportPanel',     'Radiator Support Panel') + oem('radiatorSupportPanel'),
+      radiator:           g('radiator',                 'Radiator Assembly') + oem('radiator'),
+      acCondenser:        g('acCondenser',              'A/C Condenser Assembly') + oem('acCondenser'),
+      engineMounts:       `${g('engineMountLeft', 'Engine Mounting LH')} + ${g('engineMountRight', 'Engine Mounting RH')}`,
+      steeringRack:       g('steeringRack',             'Steering Rack & Pinion Assembly') + oem('steeringRack'),
+      transmissionMount:  g('transmissionMount',        'Transmission Mounting') + oem('transmissionMount'),
+      frontSubframe:      g('subframeFront',            'Front Suspension Crossmember') + oem('subframeFront'),
+      rearBumperBeam:     g('rearBumperReinforcement',  'Rear Bumper Reinforcement Bar') + oem('rearBumperReinforcement'),
+      bootFloor:          `${label} rear floor panel / boot floor (monocoque)`,
+      rearChassisRails:   `${label} rear longitudinal chassis rails (unibody, welded)`,
+      fuelTank:           `${label} polyethylene fuel tank (underfloor mounted)`,
+      rearAxle:           `${label} rear axle / torsion beam assembly`,
+      doorIntrusionBeam:  (side: string) => `${g(`doorIntrusionBeamFront${side === 'driver' || side === 'right' ? 'Right' : 'Left'}` as any, `Front Door Intrusion Beam ${side.toUpperCase()}`)}`,
+      bPillar:            (side: string) => `${g(side === 'driver' || side === 'right' ? 'bPillarRight' : 'bPillarLeft', `B-Pillar Inner Panel ${side.toUpperCase()}`)}`,
+      rockerSill:         (side: string) => `${g(side === 'driver' || side === 'right' ? 'rockerSillRight' : 'rockerSillLeft', `Sill Panel (Outer) ${side.toUpperCase()}`)}`,
+      aPillar:            (side: string) => `${label} A-pillar inner reinforcement ${side.toUpperCase()} (high-strength steel, windscreen frame)`,
+      suspensionGeometry: `${label} front wheel alignment geometry (camber, caster, toe)`,
+      wiringHarness:      `${label} engine bay wiring harness / impact zone loom`,
+      engineFamily:       saPartSet.engineCodes?.join(' / ') ?? 'Unknown',
+      bodyCode:           `${saPartSet.yearFrom}–${saPartSet.yearTo}`,
+      suspensionFront:    `MacPherson strut (${label})`,
+      suspensionRear:     vehicleType === 'pickup' ? 'Leaf spring solid axle' : 'Torsion beam / multi-link',
+      bodyConstruction:   vehicleType === 'pickup' ? 'Body-on-frame (ladder chassis)' : 'Unibody monocoque (steel)',
+    };
+    return saComponents;
+  }
+
+  // ── 1. Internal vehicle component DB (manually curated) ───────────────────
   // Try progressively shorter model keys (e.g. "ad wagon" → "ad")
   const modelWords = modelLower.split(/\s+/);
   for (let len = modelWords.length; len >= 1; len--) {

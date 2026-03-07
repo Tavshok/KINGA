@@ -9766,3 +9766,21 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix Executive Dashboard contrast for both light and dark themes
 - [x] Fix Claims Triage contrast for both light and dark themes
 - [ ] Test all 3 critical pages (ComparisonView, ExecutiveDashboard, ClaimsTriage) in both themes
+
+## Phase N: Pipeline Health Dashboard & SA Parts Database
+
+- [ ] Build server/pipeline/sa-parts-database.ts with SA-authoritative part names for Nissan AD/Tiida/Navara, Toyota Corolla/Hilux/Prado/Fortuner, Honda Fit/CR-V, Mazda Demio/BT-50, Isuzu KB/D-Max, Mitsubishi Colt/L200, Hyundai H100/Tucson — nomenclature only, no ZAR pricing
+- [ ] Update vehicle-components.ts to resolve part names from SA parts database
+- [ ] Add pipeline_run_summary column to ai_assessments schema and migrate DB
+- [ ] Update pipeline-runner.ts to persist per-stage completion status to DB
+- [ ] Build PipelineHealthDashboard admin page: per-assessment stage grid (success/failed/skipped + duration + error)
+- [ ] Add route and navigation entry for Pipeline Health Dashboard (admin only)
+
+## Pipeline Health Dashboard & Dark Theme Fixes (Session 2026-03-07)
+- [x] Add getPipelineHealth tRPC procedure to admin router (protectedProcedure, limit param)
+- [x] Build PipelineHealthDashboard page: per-stage status badges, duration, error tooltips, expandable detail panel
+- [x] Add route /admin/pipeline-health to App.tsx (accessible to platform_super_admin, admin, insurer)
+- [x] Add Pipeline Health link to ExecutiveDashboard header nav
+- [x] Add Pipeline Health link to InsurerClaimsTriage header nav
+- [x] Fix dark theme contrast in InsurerComparisonView: replace all bg-white with bg-card, hardcoded text-gray/slate with semantic CSS vars
+- [ ] Parts pricing API integration (Audatex/Masterparts) - pending commercial agreement

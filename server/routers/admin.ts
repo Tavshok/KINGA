@@ -623,6 +623,69 @@ export const adminRouter = router({
     }),
   
   /**
+   * Get pipeline stage health for all recent AI assessments
+   * Shows per-stage status (success/failed/skipped), duration, and errors
+   */
+  getPipelineHealth: protectedProcedure
+    .input(z.object({
+      limit: z.number().min(1).max(200).default(50),
+    }))
+    .query(async ({ input }) => {
+      try {
+        const db = await getDb();
+        if (!db) throw new Error('DB not available');
+        const { aiAssessments } = await import('../../drizzle/schema');
+        const { desc } = await import('drizzle-orm');
+
+        const rows = await db
+          .select({
+            id: aiAssessments.id,
+            claimId: aiAssessments.claimId,
+            createdAt: aiAssessments.createdAt,
+            updatedAt: aiAssessments.updatedAt,
+            pipelineRunSummary: aiAssessments.pipelineRunSummary,
+            versionNumber: aiAssessments.versionNumber,
+            isReanalysis: aiAssessments.isReanalysis,
+            fraudRiskLevel: aiAssessments.fraudRiskLevel,
+            confidenceScore: aiAssessments.confidenceScore,
+          })
+          .from(aiAssessments)
+          .orderBy(desc(aiAssessments.createdAt))
+          .limit(input.limit);
+
+        return rows.map(row => {
+          let parsedSummary: any = null;
+          try {
+            if (row.pipelineRunSummary) {
+              parsedSummary = JSON.parse(row.pipelineRunSummary as string);
+            }
+          } catch { /* ignore parse errors */ }
+
+          return {
+            assessmentId: row.id,
+            claimId: row.claimId,
+            createdAt: row.createdAt,
+            updatedAt: row.updatedAt,
+            versionNumber: row.versionNumber,
+            isReanalysis: row.isReanalysis === 1,
+            fraudRiskLevel: row.fraudRiskLevel,
+            confidenceScore: row.confidenceScore,
+            hasPipelineRunSummary: !!row.pipelineRunSummary,
+            stages: parsedSummary?.stages ?? null,
+            totalDurationMs: parsedSummary?.totalDurationMs ?? null,
+            completedAt: parsedSummary?.completedAt ?? null,
+            allSavedToDb: parsedSummary?.allSavedToDb ?? null,
+          };
+        });
+      } catch (error: any) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: `Failed to fetch pipeline health: ${error.message}`,
+        });
+      }
+    }),
+
+  /**
    * Collect and store observability metrics
    * Manually trigger metrics collection
    */

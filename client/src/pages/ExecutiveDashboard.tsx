@@ -383,6 +383,12 @@ export default function ExecutiveDashboard() {
                 <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{new Date().toLocaleTimeString()}</p>
               </div>
               <ThemeToggle />
+              <Link href="/admin/pipeline-health">
+                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent' }}>
+                  <Activity className="mr-2 h-4 w-4" />
+                  Pipeline Health
+                </Button>
+              </Link>
               <Link href="/portal-hub">
                 <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent' }}>
                   <Target className="mr-2 h-4 w-4" />

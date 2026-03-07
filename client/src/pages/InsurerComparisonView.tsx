@@ -1442,7 +1442,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
   // Render only the requested sub-section
   if (section === 'damage-map') {
     return (
-      <div className="p-4 bg-white rounded-lg border">
+      <div className="p-4 bg-card rounded-lg border border-border">
         <VehicleDamageVisualization 
           damagedComponents={damagedComponents} 
           accidentType={accidentType}
@@ -1459,25 +1459,25 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
       <div className="space-y-4">
         {/* Summary Stats */}
         <div className="grid gap-4 md:grid-cols-4">
-          <div className="p-4 bg-white rounded-lg border">
+          <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Components Detected</p>
             <p className="text-2xl font-bold text-purple-600">{damagedComponents.length}</p>
           </div>
-          <div className="p-4 bg-white rounded-lg border">
+          <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Parts Cost</p>
             <p className="text-2xl font-bold text-primary">US${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
-          <div className="p-4 bg-white rounded-lg border">
+          <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Labor Cost</p>
             <p className="text-2xl font-bold text-green-600">US${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
-          <div className="p-4 bg-white rounded-lg border">
+          <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Total Estimated</p>
             <p className="text-2xl font-bold text-secondary">US${estimatedCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
           </div>
         </div>
         {/* Detected Components */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <h4 className="font-semibold mb-4 flex items-center gap-2">
             <CheckCircle2 className="h-5 w-5 text-purple-600" />
             Detected Damage Components ({richComponents.length})
@@ -1542,7 +1542,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           <div className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
             <div className="space-y-3">
               {inferredHiddenDamage.map((item, idx) => (
-                <div key={idx} className="p-3 bg-white rounded border border-orange-200">
+                <div key={idx} className="p-3 bg-card rounded border border-orange-200/50">
                   <div className="flex items-start justify-between mb-1">
                     <p className="font-medium text-sm">{item.component}</p>
                     <Badge 
@@ -1581,26 +1581,26 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
     <div className="space-y-6">
       {/* Summary Stats */}
       <div className="grid gap-4 md:grid-cols-4">
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Components Detected</p>
           <p className="text-2xl font-bold text-purple-600">{damagedComponents.length}</p>
         </div>
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Inferred Hidden Damage</p>
           <p className="text-2xl font-bold text-orange-600">{inferredHiddenDamage.length}</p>
         </div>
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
           <p className="text-2xl font-bold text-primary">US${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
           <p className="text-2xl font-bold text-green-600">US${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
         </div>
       </div>
 
       {/* Vehicle Damage Visualization */}
-      <div className="p-4 bg-white rounded-lg border">
+      <div className="p-4 bg-card rounded-lg border border-border">
         <h4 className="font-semibold mb-4 flex items-center gap-2">
           <AlertTriangle className="h-5 w-5 text-purple-600" />
           Visual Damage Map
@@ -1615,7 +1615,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
       </div>
 
       {/* Detected Damage Components by Category */}
-      <div className="p-4 bg-white rounded-lg border">
+      <div className="p-4 bg-card rounded-lg border border-border">
         <h4 className="font-semibold mb-4 flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5 text-purple-600" />
           Detected Damage Components ({richComponents.length})
@@ -1692,7 +1692,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                         (prob ?? 0) >= 40 ? 'bg-orange-400' :
                                             'bg-yellow-400';
                       return (
-                        <div key={idx} className="p-3 bg-white rounded border border-orange-200">
+                        <div key={idx} className="p-3 bg-card rounded border border-orange-200/50">
                           <div className="flex items-start justify-between mb-1 gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               {step !== undefined && (
@@ -1715,7 +1715,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                                   style={{ width: `${prob}%` }}
                                 />
                               </div>
-                              <span className="text-xs font-semibold text-gray-700 w-10 text-right">
+                              <span className="text-xs font-semibold text-foreground w-10 text-right">
                                 {prob}%
                               </span>
                             </div>
@@ -1953,7 +1953,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
       {/* Accident Physics Summary — 5 Required Quantitative Outputs */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-5">
         {/* 1. Velocity Estimate */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Velocity Estimate</p>
           <p className="text-2xl font-bold text-primary">
             {estimatedSpeed?.value ?? 0} <span className="text-sm font-normal">km/h</span>
@@ -1965,7 +1965,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         </div>
 
         {/* 2. Impact Force */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Impact Force (F = Δp/Δt)</p>
           <p className="text-2xl font-bold text-primary">
             {((impactForce?.magnitude ?? 0) / 1000).toFixed(1)} <span className="text-sm font-normal">kN</span>
@@ -1977,7 +1977,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         </div>
 
         {/* 3. Impact Energy */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Impact Energy (E = ½mv²)</p>
           <p className="text-2xl font-bold text-orange-600">
             {raw?.kineticEnergy
@@ -1994,7 +1994,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         </div>
 
         {/* 4. Delta-V */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Delta-V (Δv)</p>
           <p className="text-2xl font-bold text-red-600">
             {raw?.deltaV ?? 0} <span className="text-sm font-normal">km/h</span>
@@ -2007,7 +2007,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         </div>
 
         {/* 5. Impact Direction */}
-        <div className="p-4 bg-white rounded-lg border">
+        <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Impact Direction</p>
           <p className="text-base font-bold text-blue-700 capitalize leading-tight">
             {(raw?.primaryImpactZone ?? raw?.collisionType ?? "Unknown").replace(/_/g, " ")}
@@ -2034,7 +2034,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
       {raw && (
         <div className="grid gap-4 md:grid-cols-2">
           {/* Force Vector Analysis */}
-          <div className="p-4 bg-white rounded-lg border">
+          <div className="p-4 bg-card rounded-lg border border-border">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Zap className="h-4 w-4 text-amber-600" />
               Impact Force Vectors
@@ -2085,7 +2085,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
           </div>
 
           {/* Damage Propagation */}
-          <div className="p-4 bg-white rounded-lg border">
+          <div className="p-4 bg-card rounded-lg border border-border">
             <h4 className="font-semibold mb-3 flex items-center gap-2">
               <Activity className="h-4 w-4 text-blue-600" />
               Damage Propagation
@@ -2277,7 +2277,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                 const score = s.score ?? s.fraudScore ?? 0;
                 const findings: string[] = Array.isArray(s.findings) ? s.findings : [];
                 return (
-                  <div key={key} className="p-3 bg-white rounded-lg border">
+                  <div key={key} className="p-3 bg-card rounded-lg border border-border">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">{icon} {label}</span>
                       <Badge variant={score > 60 ? 'destructive' : score > 30 ? 'default' : 'secondary'} className="text-xs">
@@ -2285,16 +2285,16 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                       </Badge>
                     </div>
                     {findings.length > 0 ? (
-                      <ul className="text-xs space-y-1 text-slate-600">
+                      <ul className="text-xs space-y-1 text-muted-foreground">
                         {findings.slice(0, 3).map((f: string, i: number) => (
                           <li key={i}>• {f}</li>
                         ))}
                         {findings.length > 3 && (
-                          <li className="text-slate-400">+{findings.length - 3} more</li>
+                          <li className="text-muted-foreground/60">+{findings.length - 3} more</li>
                         )}
                       </ul>
                     ) : (
-                      <p className="text-xs text-slate-400">No anomalies detected</p>
+                      <p className="text-xs text-muted-foreground/60">No anomalies detected</p>
                     )}
                   </div>
                 );
@@ -2312,7 +2312,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
             const hasIssues = physicsAnalysis.fraudIndicators?.unrelatedDamage?.length > 0 || 
                              physicsAnalysis.fraudIndicators?.impossibleDamagePatterns?.length > 0;
             return (
-              <div key={quote.id} className="flex items-center justify-between p-2 bg-white rounded border">
+              <div key={quote.id} className="flex items-center justify-between p-2 bg-card rounded border border-border">
                 <span className="text-sm">{(quote as any).panelBeaterName || `Panel Beater #${quote.panelBeaterId}`}</span>
                 {hasIssues ? (
                   <Badge variant="destructive" className="text-xs">

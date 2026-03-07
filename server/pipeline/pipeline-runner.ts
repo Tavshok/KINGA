@@ -19,6 +19,9 @@ import type { PipelineContext, ExtractedDocumentData, PipelineRunSummary } from 
 import { runClassificationStage } from "./stage-2-classification";
 import { runPhysicsStage } from "./stage-3-physics";
 import { runHiddenDamageStage } from "./stage-4-hidden-damage";
+import { getDb } from "../db";
+import { aiAssessments } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
 
 export async function runPipeline(
   ctx: PipelineContext,
@@ -86,6 +89,22 @@ export async function runPipeline(
     `Pipeline complete in ${summary.totalDurationMs}ms. ` +
     `Stages: ${Object.entries(summary.stages).map(([k, v]) => `${k}:${v.status}`).join(", ")}`
   );
+
+  // ── Persist pipeline run summary to DB ────────────────────────────────────
+  // This enables the Pipeline Health Dashboard to show per-stage status.
+  // Non-fatal: if this save fails, the pipeline result is still returned.
+  try {
+    if (ctx.assessmentId) {
+      const db = await getDb();
+      if (!db) throw new Error('DB not available');
+      await db.update(aiAssessments)
+        .set({ pipelineRunSummary: JSON.stringify(summary) })
+        .where(eq(aiAssessments.id, ctx.assessmentId));
+      ctx.log("Pipeline Runner", `Pipeline run summary saved to assessment ${ctx.assessmentId}`);
+    }
+  } catch (saveErr) {
+    ctx.log("Pipeline Runner", `Warning: Failed to save pipeline run summary: ${saveErr}`);
+  }
 
   return summary;
 }
