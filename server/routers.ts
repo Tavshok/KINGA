@@ -1468,6 +1468,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         await db.update(claims).set({
           status: "intake_pending",
+          workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
           documentProcessingStatus: "failed",
           aiAssessmentTriggered: 0,
           updatedAt: new Date().toISOString(),

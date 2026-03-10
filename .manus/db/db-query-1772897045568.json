@@ -1,0 +1,9 @@
+{
+  "query": "UPDATE claims SET workflow_state = 'created', ai_assessment_triggered = 0, updated_at = NOW() WHERE workflow_state = 'under_assessment' AND status NOT IN ('assessment_complete', 'closed', 'approved', 'rejected');",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute UPDATE claims SET workflow_state = 'created', ai_assessment_triggered = 0, updated_at = NOW() WHERE workflow_state = 'under_assessment' AND status NOT IN ('assessment_complete', 'closed', 'approved', 'rejected');",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 66
+}

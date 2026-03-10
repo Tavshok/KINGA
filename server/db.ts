@@ -59,14 +59,24 @@ export async function getDb() {
     try {
       _pool = mysql.createPool({
         uri: process.env.DATABASE_URL,
-        connectionLimit: 10,
+        connectionLimit: 5,
         waitForConnections: true,
         queueLimit: 0,
         enableKeepAlive: true,
-        keepAliveInitialDelay: 10000,
+        keepAliveInitialDelay: 30000,  // Send keepalive after 30s idle
         connectTimeout: 30000,
-        // Automatically reconnect on ECONNRESET / PROTOCOL_CONNECTION_LOST
         multipleStatements: false,
+        // TiDB Cloud drops idle connections after ~5 minutes.
+        // Set idleTimeout to 4 minutes so the pool releases connections before TiDB drops them.
+        idleTimeout: 240000,
+      });
+      // Reset pool on fatal connection errors so next getDb() call creates a fresh pool
+      (_pool as any).on('error', (err: Error) => {
+        if ((err as any).code === 'ECONNRESET' || (err as any).code === 'PROTOCOL_CONNECTION_LOST') {
+          console.warn('[Database] Pool connection lost, will reinitialise on next query:', err.message);
+          _db = null;
+          _pool = null;
+        }
       });
       _db = drizzle(_pool, { schema, mode: "default" });
       console.log("[Database] Connection pool initialized");
@@ -298,8 +308,23 @@ export async function updateClaimStatus(
   const { transition } = await import("./workflow-engine");
   const { statusToWorkflowState } = await import("./workflow-migration");
   
-  const fromState = claim.workflowState || statusToWorkflowState(claim.status as any);
   const toState = statusToWorkflowState(status as any);
+  
+  // Detect and heal workflowState/status inconsistency:
+  // If the DB workflowState doesn't match what the current status implies,
+  // the claim is in a stale/inconsistent state from a previous failed run.
+  // In that case, derive fromState from the status field (source of truth for legacy claims).
+  const statusImpliedState = statusToWorkflowState(claim.status as any);
+  const dbWorkflowState = claim.workflowState;
+  
+  let fromState: string;
+  if (dbWorkflowState && dbWorkflowState === toState) {
+    // Self-transition detected — use status-implied state to avoid invalid loop
+    console.warn(`[Workflow] Self-transition detected for claim ${claimId}: ${dbWorkflowState} → ${toState}. Using status-implied state: ${statusImpliedState}`);
+    fromState = statusImpliedState;
+  } else {
+    fromState = dbWorkflowState || statusImpliedState;
+  }
   
   await transition({
     claimId,
@@ -1673,7 +1698,7 @@ Provide your response in JSON format.`;
     for (const q of quoted) {
       if (q.category === 'labor' || q.category === 'labour') continue; // skip labour lines
       const qName = (q.description || '').toLowerCase();
-      const alreadyMatched = items.some(i => i.component.toLowerCase() === qName || qName.includes(i.component.toLowerCase()));
+      const alreadyMatched = items.some(i => i.component?.toLowerCase() === qName || qName.includes(i.component?.toLowerCase() ?? ''));
       if (!alreadyMatched) {
         items.push({ component: q.description, status: 'quoted_not_detected', quotedCost: q.lineTotal, note: 'In quote but not detected by AI vision — verify necessity' });
       }
@@ -1782,7 +1807,7 @@ Provide your response in JSON format.`;
   for (const comp of damagedComponents) {
     const compNameLower = (comp.name || '').toLowerCase();
     const severity = (comp.severity || 'moderate').toLowerCase();
-    const action = repairIntelligence.find(r => r.component.toLowerCase() === compNameLower)?.action || 'replace';
+    const action = repairIntelligence.find(r => r.component?.toLowerCase() === compNameLower)?.action || 'replace';
     // Find best matching benchmark key
     const benchmarkKey = Object.keys(PART_BENCHMARK_USD).find(k => compNameLower.includes(k)) || 'default';
     const benchmark = PART_BENCHMARK_USD[benchmarkKey];
@@ -2234,7 +2259,7 @@ Provide your response in JSON format.`;
     crushDepthM: (analysis as any).crushDepthM || null,
     documentQuotedCostCents: analysis.estimatedCost ? Math.round(analysis.estimatedCost * 100) : null,
     impactPoint: (analysis as any).impactPoint || "",
-    sourceMode: documentUrl ? "pdf" : "photo",
+    sourceMode: pdfUrl ? "pdf" : "photo",
   };
 
   // Run the new pipeline (stages 2–4)
@@ -2291,7 +2316,7 @@ Provide your response in JSON format.`;
       accidentSeverity: physicsAccidentSeverity,
       repairerName: (claim as any).repairerName || "",
       claimHistory: [],
-      documentType: documentUrl ? "pdf" : "photo",
+      documentType: pdfUrl ? "pdf" : "photo",
     };
     forensicAnalysis = await performForensicAnalysis(forensicInput);
     console.log(`[Pipeline Stage 5] Forensic analysis complete. Fraud risk: ${forensicAnalysis?.fraudRiskLevel || 'unknown'}`);
@@ -2511,9 +2536,10 @@ Provide your response in JSON format.`;
         await dbInner.update(claims).set({
           documentProcessingStatus: "failed",
           status: "intake_pending",
+          workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
           updatedAt: new Date().toISOString(),
         }).where(eq(claims.id, claimId));
-        console.log(`[AI Assessment] Claim ${claimId} marked as failed after AI error.`);
+        console.log(`[AI Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
       }
     } catch (updateError) {
       console.error(`[AI Assessment] Could not update failure status for claim ${claimId}:`, updateError);
