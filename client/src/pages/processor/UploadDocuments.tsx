@@ -101,13 +101,13 @@ export default function UploadDocuments() {
         }))
       );
 
-      const duplicatesSkipped = (result as any).duplicates_skipped ?? 0;
-      const toastDescription = duplicatesSkipped > 0
-        ? `Uploaded ${result.uploaded} new document(s). ${duplicatesSkipped} duplicate(s) skipped — existing claim(s) retained.`
+      const reuploads = (result as any).reuploads ?? 0;
+      const toastDescription = reuploads > 0
+        ? `Uploaded ${result.uploaded} document(s). ${reuploads} re-upload(s) detected \u2014 new claim(s) created with re-upload tag.`
         : `Uploaded ${result.uploaded} document(s). ${result.uploaded} new claim(s) created.`;
 
-      if (duplicatesSkipped > 0 && result.uploaded === 0) {
-        toast.warning("All duplicates detected", {
+      if (reuploads > 0) {
+        toast.success("Upload successful (re-upload detected)", {
           description: toastDescription,
         });
       } else {

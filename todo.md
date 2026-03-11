@@ -9873,3 +9873,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Verify TypeScript compilation after all fixes — 0 client errors
 - [x] Audit for missed dark mode patterns — all bg-*-50, text-gray/slate, border-gray/slate covered
 - [x] All 1928 existing tests pass (1 pre-existing failure in pdf-image-extractor unrelated to our changes)
+
+## Duplicate Document Upload Issue
+- [x] Fix: re-uploading the same PDF shows "All duplicates detected" and skips — allow re-upload but tag with unique re-upload identifier
+- [x] Server: removed duplicate block, re-uploads now create new ingestion doc + claim with is_reupload flag and original_claim_id reference
+- [x] Frontend: updated toast messages to show re-upload info instead of blocking warning

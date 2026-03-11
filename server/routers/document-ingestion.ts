@@ -127,12 +127,11 @@ export const documentIngestionRouter = router({
               // If any step throws, the driver issues ROLLBACK automatically.
               // ---------------------------------------------------------------
               type TxResult =
-                | { kind: "duplicate"; docDbId: number; claimDbId: number }
-                | { kind: "created"; docDbId: number; claimDbId: number; claimNumber: string };
+                | { kind: "created"; docDbId: number; claimDbId: number; claimNumber: string; isReupload: boolean; originalClaimId?: number };
 
               const txResult: TxResult = await dbInstance.transaction(async (tx) => {
-                // Step 1 — Application-level duplicate guard (runs inside the tx so the
-                //           SELECT is part of the same serialisable unit as the INSERTs).
+                // Step 1 — Check for previous uploads of the same document (by SHA-256 hash).
+                //           If found, we still allow the upload but tag it as a re-upload.
                 const existingByHash = await tx
                   .select({
                     id: ingestionDocuments.id,
@@ -147,18 +146,15 @@ export const documentIngestionRouter = router({
                   )
                   .limit(1);
 
-                if (existingByHash.length > 0 && existingByHash[0].historicalClaimId) {
-                  console.warn(
-                    `[Document Upload] Duplicate document ingestion detected. ` +
-                    `SHA-256 hash ${hash} already exists as ingestionDocument id=${existingByHash[0].id}, ` +
-                    `linked to claim id=${existingByHash[0].historicalClaimId}. Skipping.`
+                const isReupload = existingByHash.length > 0 && !!existingByHash[0].historicalClaimId;
+                const originalClaimId = isReupload ? existingByHash[0].historicalClaimId! : undefined;
+
+                if (isReupload) {
+                  console.log(
+                    `[Document Upload] Re-upload detected: SHA-256 hash ${hash} was previously uploaded ` +
+                    `(ingestionDocument id=${existingByHash[0].id}, original claim id=${originalClaimId}). ` +
+                    `Creating new claim with re-upload tag.`
                   );
-                  // Return early — no inserts, transaction commits a no-op read
-                  return {
-                    kind: "duplicate" as const,
-                    docDbId: existingByHash[0].id,
-                    claimDbId: existingByHash[0].historicalClaimId,
-                  };
                 }
 
                 // Step 2 — INSERT ingestionDocuments
@@ -229,23 +225,13 @@ export const documentIngestionRouter = router({
                   docDbId,
                   claimDbId,
                   claimNumber,
+                  isReupload,
+                  originalClaimId,
                 };
               });
               // ---------------------------------------------------------------
               // ATOMIC TRANSACTION: END
               // ---------------------------------------------------------------
-
-              if (txResult.kind === "duplicate") {
-                return {
-                  document_id: documentId,
-                  document_db_id: txResult.docDbId,
-                  claim_id: txResult.claimDbId,
-                  claim_number: null,
-                  filename: doc.filename,
-                  status: "skipped_duplicate",
-                  message: "Document already ingested. Existing claim returned.",
-                };
-              }
 
               // ---------------------------------------------------------------
               // AI PROCESSING — DEFERRED TO MANUAL TRIGGER
@@ -255,8 +241,9 @@ export const documentIngestionRouter = router({
               // The processor triggers AI assessment via the dashboard button.
               // ---------------------------------------------------------------
               console.log(
-                `[Document Upload] Claim ${txResult.claimDbId} created in intake_pending. ` +
-                `AI assessment deferred — processor will trigger manually from dashboard.`
+                `[Document Upload] Claim ${txResult.claimDbId} created in intake_pending` +
+                `${txResult.isReupload ? ` (re-upload of original claim #${txResult.originalClaimId})` : ''}. ` +
+                `AI assessment deferred \u2014 processor will trigger manually from dashboard.`
               );
 
               return {
@@ -266,6 +253,8 @@ export const documentIngestionRouter = router({
                 claim_number: txResult.claimNumber,
                 filename: doc.filename,
                 status: "uploaded",
+                is_reupload: txResult.isReupload,
+                original_claim_id: txResult.originalClaimId ?? null,
               };
             } catch (error) {
               console.error(`[Document Upload] Failed to process document ${doc.filename}:`, error);
@@ -285,12 +274,12 @@ export const documentIngestionRouter = router({
         // Update batch statistics
         const successCount = uploadedDocs.filter((d) => d.status === "uploaded").length;
         const failedCount = uploadedDocs.filter((d) => d.status === "failed").length;
-        const duplicateCount = uploadedDocs.filter((d) => d.status === "skipped_duplicate").length;
+        const reuploadCount = uploadedDocs.filter((d) => (d as any).is_reupload === true).length;
 
         await dbInstance
           .update(ingestionBatches)
           .set({
-            processedDocuments: successCount + duplicateCount,
+            processedDocuments: successCount,
             failedDocuments: failedCount,
             status: failedCount === documents.length ? "failed" : "completed",
             completedAt: new Date(),
@@ -298,7 +287,8 @@ export const documentIngestionRouter = router({
           .where(eq(ingestionBatches.id, batchDbId));
 
         console.log(
-          `[Document Upload] Batch complete. Uploaded: ${successCount}, Duplicates skipped: ${duplicateCount}, Failed: ${failedCount}`
+          `[Document Upload] Batch complete. Uploaded: ${successCount}` +
+          `${reuploadCount > 0 ? ` (${reuploadCount} re-upload(s))` : ''}, Failed: ${failedCount}`
         );
 
         return {
@@ -306,7 +296,8 @@ export const documentIngestionRouter = router({
           batch_db_id: batchDbId,
           total_documents: documents.length,
           uploaded: successCount,
-          duplicates_skipped: duplicateCount,
+          reuploads: reuploadCount,
+          duplicates_skipped: 0,
           failed: failedCount,
           documents: uploadedDocs,
         };
