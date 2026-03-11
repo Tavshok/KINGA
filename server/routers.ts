@@ -1487,6 +1487,65 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     /**
+     * Debug Pipeline — Run the 10-stage pipeline in DEBUG MODE
+     * 
+     * Runs the full pipeline and captures ALL intermediate data at every stage.
+     * This is a read-only diagnostic tool — it does NOT modify the database.
+     * Returns the full diagnostic report for engineers to identify data loss.
+     */
+    debugPipeline: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
+        const allowedRoles = ["claims_processor", "claims_manager", "executive", "insurer_admin", "admin", "platform_super_admin"];
+        if (!allowedRoles.includes(ctx.user.role || "")) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "Insufficient permissions for debug mode" });
+        }
+
+        const { runDebugPipeline } = await import("./pipeline-v2/debug-runner");
+        const db = await getDb();
+        if (!db) throw new Error("Database not available");
+
+        const tenantId = ctx.user.role === "admin" || ctx.user.role === "platform_super_admin" ? undefined : (ctx.user.tenantId || "default");
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
+
+        // Resolve PDF URL and damage photos (same logic as triggerAiAssessment)
+        let pdfUrl: string | null = null;
+        let damagePhotos: string[] = [];
+
+        if (claim.sourceDocumentId) {
+          try {
+            const [sourceDoc] = await db.select().from(ingestionDocuments)
+              .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
+            if (sourceDoc && sourceDoc.s3Url) {
+              pdfUrl = sourceDoc.s3Url;
+            }
+          } catch (docErr: any) {
+            console.warn(`[Debug] Claim ${input.claimId}: Failed to look up source document: ${docErr.message}`);
+          }
+        }
+
+        if (!pdfUrl) {
+          damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
+        }
+
+        const pipelineCtx = {
+          claimId: input.claimId,
+          tenantId: claim.tenantId ? Number(claim.tenantId) : null,
+          assessmentId: 0,
+          claim: claim as Record<string, any>,
+          pdfUrl,
+          damagePhotoUrls: damagePhotos,
+          db,
+          log: (stage: string, msg: string) => console.log(`[Debug][${stage}] Claim ${input.claimId}: ${msg}`),
+        };
+
+        const report = await runDebugPipeline(pipelineCtx);
+        return report;
+      }),
+
+    /**
      * Approve Claim and Assign Repair
      * 
      * Final approval step where insurer selects the winning panel beater quote

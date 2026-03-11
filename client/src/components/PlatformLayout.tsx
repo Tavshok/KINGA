@@ -16,6 +16,7 @@ import {
   Shield,
   Users,
   FlaskConical,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,6 +44,12 @@ const navItems = [
     href: "/platform/claim-debug",
     icon: Bug,
     description: "Integrity checker",
+  },
+  {
+    label: "Pipeline Debug",
+    href: "/platform/pipeline-debug",
+    icon: Wrench,
+    description: "10-stage pipeline diagnostic",
   },
   {
     label: "System Health",

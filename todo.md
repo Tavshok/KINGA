@@ -9815,3 +9815,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Ensure all stages pass structured data objects (not raw AI text) between them
 - [x] Add per-stage error handling and logging
 - [x] Test full pipeline end-to-end with both claims
+
+## Debug Mode: Pipeline Diagnostic Dashboard (2026-03-11)
+- [x] Create debug pipeline runner that captures all intermediate data at each stage
+- [x] Step 1 — Document Registry: show all documents with type, OCR status, extraction status
+- [x] Step 2 — Raw Text Output: display extracted raw text from each document
+- [x] Step 3 — Structured Data Extraction: show all extracted fields with confidence scores, NULL for missing
+- [x] Step 4 — Claim Data Object: display the assembled ClaimRecord passed to engines
+- [x] Step 5 — Engine Input Check: show inputs passed to each engine with missing field warnings
+- [x] Step 6 — Engine Execution Results: show status and output for each engine
+- [x] Step 7 — Report Generation Check: show which sections have valid data vs empty
+- [x] Step 8 — Error Diagnostics: explain reason for each failure
+- [x] Step 9 — System Health Summary: completeness %, engine success rate, missing fields, recommended fixes
+- [x] Create tRPC procedure for debug mode
+- [x] Build frontend Debug Mode UI page
+- [x] Test with both claims (15/15 vitest tests pass)

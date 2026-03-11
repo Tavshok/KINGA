@@ -65,6 +65,7 @@ const PlatformClaimTrace = lazy(() => import("./pages/PlatformClaimTrace"));
 const PlatformMarketplace = lazy(() => import("./pages/PlatformMarketplace"));
 const PlatformImpersonate = lazy(() => import("./pages/PlatformImpersonate"));
 const PlatformClaimDebug = lazy(() => import("./pages/PlatformClaimDebug"));
+const PipelineDebug = lazy(() => import("./pages/PipelineDebug"));
 const PlatformUserRoleManager = lazy(() => import("./pages/PlatformUserRoleManager"));
 const ClaimSimulator = lazy(() => import("./pages/platform/ClaimSimulator"));
 const VehicleRegistry = lazy(() => import("./pages/VehicleRegistry"));
@@ -181,6 +182,11 @@ function Router() {
         <Route path="/platform/claim-debug/:claimId?">
           <ProtectedRoute domain="platform">
             <PlatformLayout><PlatformClaimDebug /></PlatformLayout>
+          </ProtectedRoute>
+        </Route>
+        <Route path="/platform/pipeline-debug/:claimId?">
+          <ProtectedRoute domain="platform">
+            <PlatformLayout><PipelineDebug /></PlatformLayout>
           </ProtectedRoute>
         </Route>
         <Route path="/platform/system-health">
