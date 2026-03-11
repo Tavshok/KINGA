@@ -49,7 +49,7 @@ export default function KingaDashboardLayout({
   return (
     <div className="min-h-screen pattern-bg">
       {/* Header with KINGA gradient */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-primary/10 shadow-sm sticky top-0 z-50">
+      <header className="bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-primary/10 shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             {/* Left: Logo and Title */}
@@ -124,7 +124,7 @@ export default function KingaDashboardLayout({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-primary/10 bg-white/50 backdrop-blur-sm mt-12">
+      <footer className="border-t border-primary/10 bg-white/50 dark:bg-card/50 backdrop-blur-sm mt-12">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center justify-between text-sm text-muted-foreground">
             <p>© 2026 KINGA. All rights reserved.</p>
@@ -181,7 +181,7 @@ export function KingaMetricCard({
 
   return (
     <Card
-      className={`card-hover bg-white/80 backdrop-blur-sm overflow-hidden relative ${
+      className={`card-hover bg-white/80 dark:bg-card/80 backdrop-blur-sm overflow-hidden relative ${
         onClick ? "cursor-pointer" : ""
       }`}
       onClick={onClick}

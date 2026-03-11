@@ -21,9 +21,9 @@ interface HealthStatusProps {
 
 function HealthStatusBadge({ status, value, label }: HealthStatusProps) {
   const colors = {
-    green: "bg-green-100 text-green-800 border-green-300",
-    yellow: "bg-yellow-100 text-yellow-800 border-yellow-300",
-    red: "bg-red-100 text-red-800 border-red-300",
+    green: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700",
+    yellow: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700",
+    red: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
   };
   
   const icons = {
@@ -59,8 +59,8 @@ export default function ObservabilityDashboard() {
     return (
       <div className="container mx-auto py-8">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin text-gray-400" />
-          <span className="ml-3 text-gray-600">Loading observability metrics...</span>
+          <RefreshCw className="h-8 w-8 animate-spin text-gray-400 dark:text-muted-foreground/70" />
+          <span className="ml-3 text-gray-600 dark:text-muted-foreground">Loading observability metrics...</span>
         </div>
       </div>
     );
@@ -110,7 +110,7 @@ export default function ObservabilityDashboard() {
             <Activity className="h-8 w-8" />
             Platform Observability
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-muted-foreground mt-2">
             Real-time platform health monitoring with automated alerting
           </p>
         </div>
@@ -145,7 +145,7 @@ export default function ObservabilityDashboard() {
                   <CardDescription>{def.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-gray-400">No data available</div>
+                  <div className="text-gray-400 dark:text-muted-foreground/70">No data available</div>
                 </CardContent>
               </Card>
             );
@@ -165,18 +165,18 @@ export default function ObservabilityDashboard() {
                 />
                 
                 {metric.status === "red" && (
-                  <Alert className="mt-4 border-red-300 bg-red-50">
+                  <Alert className="mt-4 border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30">
                     <AlertTriangle className="h-4 w-4 text-red-600" />
-                    <AlertDescription className="text-red-800">
+                    <AlertDescription className="text-red-800 dark:text-red-200">
                       Critical: This metric requires immediate attention
                     </AlertDescription>
                   </Alert>
                 )}
                 
                 {metric.status === "yellow" && (
-                  <Alert className="mt-4 border-yellow-300 bg-yellow-50">
+                  <Alert className="mt-4 border-yellow-300 dark:border-yellow-700 bg-yellow-50 dark:bg-yellow-950/30">
                     <AlertTriangle className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-yellow-800">
+                    <AlertDescription className="text-yellow-800 dark:text-yellow-200">
                       Warning: Monitor this metric closely
                     </AlertDescription>
                   </Alert>
@@ -197,7 +197,7 @@ export default function ObservabilityDashboard() {
               <CheckCircle2 className="h-6 w-6 text-green-600" />
               <div>
                 <div className="font-semibold">Green (&gt;90%)</div>
-                <div className="text-sm text-gray-600">Healthy - System operating normally</div>
+                <div className="text-sm text-gray-600 dark:text-muted-foreground">Healthy - System operating normally</div>
               </div>
             </div>
             
@@ -205,7 +205,7 @@ export default function ObservabilityDashboard() {
               <AlertTriangle className="h-6 w-6 text-yellow-600" />
               <div>
                 <div className="font-semibold">Yellow (70-90%)</div>
-                <div className="text-sm text-gray-600">Warning - Monitor closely</div>
+                <div className="text-sm text-gray-600 dark:text-muted-foreground">Warning - Monitor closely</div>
               </div>
             </div>
             
@@ -213,7 +213,7 @@ export default function ObservabilityDashboard() {
               <XCircle className="h-6 w-6 text-red-600" />
               <div>
                 <div className="font-semibold">Red (&lt;70%)</div>
-                <div className="text-sm text-gray-600">Critical - Immediate action required</div>
+                <div className="text-sm text-gray-600 dark:text-muted-foreground">Critical - Immediate action required</div>
               </div>
             </div>
           </div>

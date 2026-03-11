@@ -47,7 +47,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
   // Loading state
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-muted/50">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle>Loading...</CardTitle>
@@ -61,7 +61,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
   // Not authenticated
   if (!user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-muted/50">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -85,7 +85,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
   // No insurer role assigned
   if (!user.insurerRole) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-muted/50">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-amber-600">
@@ -109,7 +109,7 @@ export function RoleRouteGuard({ allowedRoles, children }: RoleRouteGuardProps) 
   // Role not in allowed roles - will redirect via useEffect
   if (!allowedRoles.includes(user.insurerRole)) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-muted/50">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">

@@ -29,10 +29,10 @@ interface UploadFile {
 
 const statusColors: Record<string, string> = {
   documents_uploaded: "bg-primary/10 text-primary/90",
-  extraction_complete: "bg-green-100 text-green-700",
-  ground_truth_captured: "bg-emerald-100 text-emerald-700",
-  variance_generated: "bg-purple-100 text-purple-700",
-  failed: "bg-red-100 text-red-700",
+  extraction_complete: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+  ground_truth_captured: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
+  variance_generated: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
+  failed: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
 };
 
 // ============================================================
@@ -178,7 +178,7 @@ function BulkUploadSection() {
           <div
             {...getRootProps()}
             className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors
-              ${isDragActive ? "border-emerald-500 bg-emerald-50" : "border-muted-foreground/25 hover:border-emerald-400/50"}`}
+              ${isDragActive ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30" : "border-muted-foreground/25 hover:border-emerald-400/50"}`}
           >
             <input {...getInputProps()} />
             <UploadIcon className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
@@ -254,16 +254,16 @@ function BulkUploadSection() {
 
           {/* Processing Result */}
           {processingResult && (
-            <Card className="border-emerald-200 bg-emerald-50/50">
+            <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/50">
               <CardContent className="pt-4">
                 <div className="flex items-center gap-2 mb-3">
                   <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                  <span className="font-semibold text-emerald-800">Processing Complete</span>
+                  <span className="font-semibold text-emerald-800 dark:text-emerald-200">Processing Complete</span>
                 </div>
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <span className="text-muted-foreground">Documents Processed</span>
-                    <div className="text-lg font-bold text-emerald-700">{processingResult.documentsProcessed}</div>
+                    <div className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{processingResult.documentsProcessed}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Failed</span>
@@ -271,13 +271,13 @@ function BulkUploadSection() {
                   </div>
                   <div>
                     <span className="text-muted-foreground">Status</span>
-                    <Badge className={statusColors[processingResult.pipelineStatus] || "bg-gray-100 text-gray-700"}>
+                    <Badge className={statusColors[processingResult.pipelineStatus] || "bg-gray-100 dark:bg-muted text-gray-700 dark:text-foreground/80"}>
                       {processingResult.pipelineStatus?.replace(/_/g, " ")}
                     </Badge>
                   </div>
                 </div>
                 {processingResult.errors?.length > 0 && (
-                  <div className="mt-3 p-2 bg-red-50 rounded text-sm text-red-700">
+                  <div className="mt-3 p-2 bg-red-50 dark:bg-red-950/30 rounded text-sm text-red-700 dark:text-red-300">
                     {processingResult.errors.map((e: string, i: number) => (
                       <div key={i}>{e}</div>
                     ))}
@@ -403,7 +403,7 @@ function ClaimsListSection() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`text-xs ${statusColors[claim.pipelineStatus] || "bg-gray-100 text-gray-700"}`}>
+                        <Badge className={`text-xs ${statusColors[claim.pipelineStatus] || "bg-gray-100 dark:bg-muted text-gray-700 dark:text-foreground/80"}`}>
                           {claim.pipelineStatus?.replace(/_/g, " ")}
                         </Badge>
                       </TableCell>

@@ -23,7 +23,7 @@ export default function FraudAnalyticsDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-white/80 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 border-b bg-white/80 dark:bg-card/80 backdrop-blur-sm">
         <div className="container flex h-16 items-center justify-between">
           <div className="flex items-center gap-6">
             <KingaLogo className="h-8" />
@@ -179,7 +179,7 @@ export default function FraudAnalyticsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-red-50 rounded-lg border-2 border-red-200">
+                <div className="flex items-center justify-between p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border-2 border-red-200 dark:border-red-800">
                   <div>
                     <p className="text-2xl font-bold text-red-600">{fraudStats.impossibleRollovers}</p>
                     <p className="text-sm text-muted-foreground">Impossible rollovers detected</p>
@@ -376,7 +376,7 @@ export default function FraudAnalyticsDashboard() {
                   <Badge className="bg-primary">{fraudStats.physicsDetections}</Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div className="flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                   <div>
                     <p className="font-medium text-sm">AI Vision Analysis</p>
                     <p className="text-xs text-muted-foreground">Damage photo analysis, fraud indicators</p>
@@ -384,7 +384,7 @@ export default function FraudAnalyticsDashboard() {
                   <Badge className="bg-purple-600">{fraudStats.aiDetections}</Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-200">
+                <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                   <div>
                     <p className="font-medium text-sm">Assessor Review</p>
                     <p className="text-xs text-muted-foreground">Human expert evaluation</p>
@@ -392,7 +392,7 @@ export default function FraudAnalyticsDashboard() {
                   <Badge className="bg-green-600">{fraudStats.assessorDetections}</Badge>
                 </div>
 
-                <div className="flex items-center justify-between p-3 bg-orange-50 rounded-lg border border-orange-200">
+                <div className="flex items-center justify-between p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-200 dark:border-orange-800">
                   <div>
                     <p className="font-medium text-sm">Quote Comparison</p>
                     <p className="text-xs text-muted-foreground">Panel beater quote discrepancies</p>

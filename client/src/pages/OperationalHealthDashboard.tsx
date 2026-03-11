@@ -141,9 +141,9 @@ export default function OperationalHealthDashboard() {
   if (error) {
     return (
       <div className="container py-8">
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
           <CardHeader>
-            <CardTitle className="text-red-700">Error Loading Health Data</CardTitle>
+            <CardTitle className="text-red-700 dark:text-red-300">Error Loading Health Data</CardTitle>
             <CardDescription className="text-red-600">
               {error.message || "Failed to load operational health metrics"}
             </CardDescription>
@@ -194,7 +194,7 @@ export default function OperationalHealthDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-blue-100 rounded-lg">
+                <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                   <Shield className="h-6 w-6 text-blue-600" />
                 </div>
                 <div>
@@ -240,7 +240,7 @@ export default function OperationalHealthDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-100 rounded-lg">
+                <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                   <Database className="h-6 w-6 text-green-600" />
                 </div>
                 <div>
@@ -301,7 +301,7 @@ export default function OperationalHealthDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-purple-100 rounded-lg">
+                <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                   <Zap className="h-6 w-6 text-purple-600" />
                 </div>
                 <div>
@@ -345,7 +345,7 @@ export default function OperationalHealthDashboard() {
           <CardHeader>
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-100 rounded-lg">
+                <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
                   <Brain className="h-6 w-6 text-amber-600" />
                 </div>
                 <div>
@@ -383,16 +383,16 @@ export default function OperationalHealthDashboard() {
                 </div>
                 
                 <div className="grid grid-cols-3 gap-2 text-xs">
-                  <div className="text-center p-2 bg-green-50 rounded border border-green-200">
-                    <div className="font-semibold text-green-700">{health.aiStability.aiVsAssessorVariance.distribution.low}</div>
+                  <div className="text-center p-2 bg-green-50 dark:bg-green-950/30 rounded border border-green-200 dark:border-green-800">
+                    <div className="font-semibold text-green-700 dark:text-green-300">{health.aiStability.aiVsAssessorVariance.distribution.low}</div>
                     <div className="text-green-600">&lt;10% Variance</div>
                   </div>
-                  <div className="text-center p-2 bg-amber-50 rounded border border-amber-200">
-                    <div className="font-semibold text-amber-700">{health.aiStability.aiVsAssessorVariance.distribution.medium}</div>
+                  <div className="text-center p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                    <div className="font-semibold text-amber-700 dark:text-amber-300">{health.aiStability.aiVsAssessorVariance.distribution.medium}</div>
                     <div className="text-amber-600">10-20%</div>
                   </div>
-                  <div className="text-center p-2 bg-red-50 rounded border border-red-200">
-                    <div className="font-semibold text-red-700">{health.aiStability.aiVsAssessorVariance.distribution.high}</div>
+                  <div className="text-center p-2 bg-red-50 dark:bg-red-950/30 rounded border border-red-200 dark:border-red-800">
+                    <div className="font-semibold text-red-700 dark:text-red-300">{health.aiStability.aiVsAssessorVariance.distribution.high}</div>
                     <div className="text-red-600">&gt;20%</div>
                   </div>
                 </div>

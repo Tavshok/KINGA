@@ -34,7 +34,7 @@ export default function AssessorLeaderboard() {
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />;
-    if (rank === 2) return <Medal className="h-5 w-5 text-gray-400" />;
+    if (rank === 2) return <Medal className="h-5 w-5 text-gray-400 dark:text-muted-foreground/70" />;
     if (rank === 3) return <Award className="h-5 w-5 text-orange-600" />;
     return <span className="text-muted-foreground font-semibold">#{rank}</span>;
   };
@@ -76,16 +76,16 @@ export default function AssessorLeaderboard() {
       {leaderboard && leaderboard.length >= 3 && (
         <div className="grid grid-cols-3 gap-4 mb-8">
           {/* 2nd Place */}
-          <Card className="border-gray-300">
+          <Card className="border-gray-300 dark:border-border">
             <CardHeader className="text-center pb-3">
               <div className="flex justify-center mb-2">
-                <Medal className="h-12 w-12 text-gray-400" />
+                <Medal className="h-12 w-12 text-gray-400 dark:text-muted-foreground/70" />
               </div>
               <CardTitle className="text-lg">{leaderboard[1].name || "Assessor"}</CardTitle>
               <CardDescription>{getTierBadge(leaderboard[1].tier || "free")}</CardDescription>
             </CardHeader>
             <CardContent className="text-center">
-              <div className="text-3xl font-bold text-gray-600 mb-2">
+              <div className="text-3xl font-bold text-gray-600 dark:text-muted-foreground mb-2">
                 {(leaderboard[1].performanceScore || 0).toFixed(1)}
               </div>
               <p className="text-xs text-muted-foreground">
@@ -114,7 +114,7 @@ export default function AssessorLeaderboard() {
           </Card>
 
           {/* 3rd Place */}
-          <Card className="border-orange-300">
+          <Card className="border-orange-300 dark:border-orange-700">
             <CardHeader className="text-center pb-3">
               <div className="flex justify-center mb-2">
                 <Award className="h-12 w-12 text-orange-600" />

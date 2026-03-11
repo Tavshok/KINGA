@@ -51,7 +51,7 @@ export function GovernanceIndicators({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                  <Shield className={`h-4 w-4 ${fraudDetectionActive ? "text-green-600" : "text-gray-400"}`} />
+                  <Shield className={`h-4 w-4 ${fraudDetectionActive ? "text-green-600" : "text-gray-400 dark:text-muted-foreground/70"}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">Fraud Detection</p>
                     <p className="text-xs text-muted-foreground">
@@ -78,7 +78,7 @@ export function GovernanceIndicators({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                  <Activity className={`h-4 w-4 ${physicsValidationComplete ? "text-blue-600" : "text-gray-400"}`} />
+                  <Activity className={`h-4 w-4 ${physicsValidationComplete ? "text-blue-600" : "text-gray-400 dark:text-muted-foreground/70"}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">Physics Validation</p>
                     <p className="text-xs text-muted-foreground">
@@ -105,7 +105,7 @@ export function GovernanceIndicators({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                  <DollarSign className={`h-4 w-4 ${costOptimisationApplied ? "text-purple-600" : "text-gray-400"}`} />
+                  <DollarSign className={`h-4 w-4 ${costOptimisationApplied ? "text-purple-600" : "text-gray-400 dark:text-muted-foreground/70"}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">Cost Optimisation</p>
                     <p className="text-xs text-muted-foreground">
@@ -152,7 +152,7 @@ export function GovernanceIndicators({
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center gap-2 p-2 rounded-md bg-muted/50">
-                  <Activity className={`h-4 w-4 ${governanceLoggingActive ? "text-teal-600" : "text-gray-400"}`} />
+                  <Activity className={`h-4 w-4 ${governanceLoggingActive ? "text-teal-600" : "text-gray-400 dark:text-muted-foreground/70"}`} />
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-medium text-foreground">Governance Logging</p>
                     <p className="text-xs text-muted-foreground">

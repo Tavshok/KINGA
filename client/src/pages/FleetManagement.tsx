@@ -223,7 +223,7 @@ export default function FleetManagement() {
               <p className="text-teal-100 text-sm">Manage your vehicle fleet and maintenance schedules</p>
             </div>
           </div>
-          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10" onClick={() => window.location.href = '/portal-hub'}>
+          <Button variant="outline" className="border-white/30 text-white hover:bg-white/10 dark:bg-card/10" onClick={() => window.location.href = '/portal-hub'}>
             Portal Hub
           </Button>
         </div>

@@ -24,7 +24,7 @@ export function HistoricalBenchmarkCard({
 
   if (isLoading) {
     return (
-      <Card className="border-emerald-200 bg-emerald-50/30">
+      <Card className="border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/30">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <History className="h-4 w-4 text-emerald-600" />
@@ -33,9 +33,9 @@ export function HistoricalBenchmarkCard({
         </CardHeader>
         <CardContent>
           <div className="animate-pulse space-y-3">
-            <div className="h-4 bg-emerald-100 rounded w-3/4" />
-            <div className="h-4 bg-emerald-100 rounded w-1/2" />
-            <div className="h-4 bg-emerald-100 rounded w-2/3" />
+            <div className="h-4 bg-emerald-100 dark:bg-emerald-900/30 rounded w-3/4" />
+            <div className="h-4 bg-emerald-100 dark:bg-emerald-900/30 rounded w-1/2" />
+            <div className="h-4 bg-emerald-100 dark:bg-emerald-900/30 rounded w-2/3" />
           </div>
         </CardContent>
       </Card>
@@ -44,10 +44,10 @@ export function HistoricalBenchmarkCard({
 
   if (!benchmarks || benchmarks.claimCount === 0) {
     return (
-      <Card className="border-gray-200 bg-gray-50/30">
+      <Card className="border-gray-200 dark:border-border bg-gray-50/30 dark:bg-muted/30">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Database className="h-4 w-4 text-gray-500" />
+            <Database className="h-4 w-4 text-gray-500 dark:text-muted-foreground" />
             Historical Intelligence
           </CardTitle>
         </CardHeader>
@@ -72,7 +72,7 @@ export function HistoricalBenchmarkCard({
     : null;
 
   const getVarianceColor = (variance: number | null) => {
-    if (variance === null) return "text-gray-500";
+    if (variance === null) return "text-gray-500 dark:text-muted-foreground";
     if (Math.abs(variance) < 10) return "text-emerald-600";
     if (Math.abs(variance) < 25) return "text-amber-600";
     return "text-red-600";
@@ -80,21 +80,21 @@ export function HistoricalBenchmarkCard({
 
   const getVarianceBadge = (variance: number | null) => {
     if (variance === null) return null;
-    if (Math.abs(variance) < 10) return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Within Range</Badge>;
-    if (variance > 25) return <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">Above Average</Badge>;
+    if (Math.abs(variance) < 10) return <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">Within Range</Badge>;
+    if (variance > 25) return <Badge variant="outline" className="bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800">Above Average</Badge>;
     if (variance < -25) return <Badge variant="outline" className="bg-primary/5 text-primary/90 border-primary/20">Below Average</Badge>;
-    return <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">Moderate Variance</Badge>;
+    return <Badge variant="outline" className="bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">Moderate Variance</Badge>;
   };
 
   const VarianceIcon = ({ variance }: { variance: number | null }) => {
-    if (variance === null) return <Minus className="h-4 w-4 text-gray-400" />;
+    if (variance === null) return <Minus className="h-4 w-4 text-gray-400 dark:text-muted-foreground/70" />;
     if (variance > 5) return <TrendingUp className="h-4 w-4 text-red-500" />;
     if (variance < -5) return <TrendingDown className="h-4 w-4 text-emerald-500" />;
     return <Minus className="h-4 w-4 text-emerald-500" />;
   };
 
   return (
-    <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50/50 to-white">
+    <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-br from-emerald-50/50 to-white">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -154,11 +154,11 @@ export function HistoricalBenchmarkCard({
 
         {/* Fraud Rate Warning */}
         {benchmarks.fraudRate !== null && benchmarks.fraudRate > 15 && (
-          <div className="flex items-start gap-2 p-2 bg-amber-50 rounded-lg border border-amber-200">
+          <div className="flex items-start gap-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
             <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
             <div>
-              <p className="text-xs font-medium text-amber-800">Elevated Fraud Rate for This Vehicle</p>
-              <p className="text-xs text-amber-700">
+              <p className="text-xs font-medium text-amber-800 dark:text-amber-200">Elevated Fraud Rate for This Vehicle</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300">
                 {benchmarks.fraudRate.toFixed(1)}% of historical claims for {vehicleMake} {vehicleModel || ""} were flagged as suspicious.
                 Exercise additional scrutiny on this claim.
               </p>

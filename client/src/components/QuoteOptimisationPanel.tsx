@@ -38,16 +38,16 @@ interface Props {
 }
 
 const RISK_COLORS: Record<string, string> = {
-  low: "bg-green-100 text-green-800 border-green-300",
-  medium: "bg-yellow-100 text-yellow-800 border-yellow-300",
-  high: "bg-orange-100 text-orange-800 border-orange-300",
-  critical: "bg-red-100 text-red-800 border-red-300",
+  low: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700",
+  medium: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700",
+  high: "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700",
+  critical: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
 };
 
 const RISK_BORDER: Record<string, string> = {
-  low: "border-green-200",
-  medium: "border-yellow-200",
-  high: "border-orange-300",
+  low: "border-green-200 dark:border-green-800",
+  medium: "border-yellow-200 dark:border-yellow-800",
+  high: "border-orange-300 dark:border-orange-700",
   critical: "border-red-400",
 };
 
@@ -105,10 +105,10 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
   // Processing / pending
   if (isLoading || result?.status === "pending" || result?.status === "processing") {
     return (
-      <Card className="mb-6 border-2 border-blue-200 bg-blue-50/30">
+      <Card className="mb-6 border-2 border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/30">
         <CardContent className="py-8 text-center">
           <Loader2 className="h-8 w-8 mx-auto mb-3 animate-spin text-blue-600" />
-          <p className="text-sm font-medium text-blue-800">AI Cost Optimisation is running…</p>
+          <p className="text-sm font-medium text-blue-800 dark:text-blue-200">AI Cost Optimisation is running…</p>
           <p className="text-xs text-blue-600 mt-1">Comparing quotes against benchmarks. This takes 10–20 seconds.</p>
         </CardContent>
       </Card>
@@ -118,10 +118,10 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
   // Failed
   if (result?.status === "failed") {
     return (
-      <Card className="mb-6 border-2 border-red-200 bg-red-50/30">
+      <Card className="mb-6 border-2 border-red-200 dark:border-red-800 bg-red-50/30 dark:bg-red-950/30">
         <CardContent className="py-6 text-center">
           <AlertTriangle className="h-7 w-7 mx-auto mb-2 text-red-500" />
-          <p className="text-sm font-medium text-red-800">AI optimisation failed.</p>
+          <p className="text-sm font-medium text-red-800 dark:text-red-200">AI optimisation failed.</p>
           <Button
             variant="outline"
             size="sm"
@@ -154,7 +154,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
   const alreadyDecided = result.insurerAcceptedRecommendation !== null && result.insurerAcceptedRecommendation !== undefined;
 
   return (
-    <Card className={`mb-6 border-2 ${RISK_BORDER[riskScore] ?? "border-yellow-200"} bg-white`}>
+    <Card className={`mb-6 border-2 ${RISK_BORDER[riskScore] ?? "border-yellow-200 dark:border-yellow-800"} bg-white dark:bg-card`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div className="flex items-center gap-2">
@@ -189,7 +189,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
               <AlertTriangle className="h-3 w-3" /> Overpricing Detected
             </Badge>
           ) : (
-            <Badge variant="outline" className="gap-1 text-xs text-green-700 border-green-300">
+            <Badge variant="outline" className="gap-1 text-xs text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
               <CheckCircle2 className="h-3 w-3" /> No Overpricing
             </Badge>
           )}
@@ -198,7 +198,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
               <AlertTriangle className="h-3 w-3" /> Parts Inflation
             </Badge>
           ) : (
-            <Badge variant="outline" className="gap-1 text-xs text-green-700 border-green-300">
+            <Badge variant="outline" className="gap-1 text-xs text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
               <CheckCircle2 className="h-3 w-3" /> Parts Within Benchmark
             </Badge>
           )}
@@ -207,7 +207,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
               <AlertTriangle className="h-3 w-3" /> Labour Inflation
             </Badge>
           ) : (
-            <Badge variant="outline" className="gap-1 text-xs text-green-700 border-green-300">
+            <Badge variant="outline" className="gap-1 text-xs text-green-700 dark:text-green-300 border-green-300 dark:border-green-700">
               <CheckCircle2 className="h-3 w-3" /> Labour Within Benchmark
             </Badge>
           )}
@@ -232,7 +232,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
                     const isRecommended = q.profileId === result.recommendedProfileId;
                     const dev = q.costDeviationPct;
                     return (
-                      <tr key={q.profileId} className={`border-t ${isRecommended ? "bg-green-50" : ""}`}>
+                      <tr key={q.profileId} className={`border-t ${isRecommended ? "bg-green-50 dark:bg-green-950/20" : ""}`}>
                         <td className="px-3 py-2 font-medium text-xs">
                           {q.companyName}
                           {isRecommended && (
@@ -249,11 +249,11 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
                           </span>
                         </td>
                         <td className="px-3 py-2 text-xs">
-                          {q.flags.length === 0 ? (
+                          {(q.flags ?? []).length === 0 ? (
                             <span className="text-muted-foreground">—</span>
                           ) : (
                             <div className="flex flex-wrap gap-1">
-                              {q.flags.map((f) => (
+                              {(q.flags ?? []).map((f) => (
                                 <Badge key={f} variant="destructive" className="text-[10px] px-1 py-0">{f.replace(/_/g, " ")}</Badge>
                               ))}
                             </div>
@@ -279,7 +279,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
         {/* Insurer Decision */}
         <div className="border-t pt-4">
           {alreadyDecided ? (
-            <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${result.insurerAcceptedRecommendation ? "bg-green-50 text-green-800 border border-green-200" : "bg-orange-50 text-orange-800 border border-orange-200"}`}>
+            <div className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium ${result.insurerAcceptedRecommendation ? "bg-green-50 dark:bg-green-950/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800" : "bg-orange-50 dark:bg-orange-950/20 text-orange-800 dark:text-orange-200 border border-orange-200 dark:border-orange-800"}`}>
               {result.insurerAcceptedRecommendation ? (
                 <><ThumbsUp className="h-4 w-4" /> Insurer accepted AI recommendation</>
               ) : (
@@ -302,7 +302,7 @@ export function QuoteOptimisationPanel({ claimId }: Props) {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="gap-2 border-orange-300 text-orange-700 hover:bg-orange-50"
+                  className="gap-2 border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
                   onClick={() => setShowOverrideInput(!showOverrideInput)}
                 >
                   <ThumbsDown className="h-4 w-4" />

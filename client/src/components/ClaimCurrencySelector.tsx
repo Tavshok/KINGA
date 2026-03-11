@@ -100,7 +100,7 @@ export function ClaimCurrencySelector({
           onValueChange={(v) => setSelected(v as CurrencyCode)}
           disabled={isLoading}
         >
-          <SelectTrigger className="h-6 w-[80px] text-xs border-dashed border-slate-300 bg-transparent px-2 py-0 focus:ring-0">
+          <SelectTrigger className="h-6 w-[80px] text-xs border-dashed border-slate-300 dark:border-border bg-transparent px-2 py-0 focus:ring-0">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -116,7 +116,7 @@ export function ClaimCurrencySelector({
           <Button
             size="icon"
             variant="ghost"
-            className="h-6 w-6 text-teal-600 hover:bg-teal-50"
+            className="h-6 w-6 text-teal-600 hover:bg-teal-50 dark:bg-teal-950/30"
             onClick={handleSave}
             disabled={isLoading}
             title="Save currency"
@@ -139,7 +139,7 @@ export function ClaimCurrencySelector({
   return (
     <div className="flex items-end gap-2">
       <div className="flex flex-col gap-1 flex-1">
-        <label className="text-xs font-medium text-slate-500 flex items-center gap-1">
+        <label className="text-xs font-medium text-slate-500 dark:text-muted-foreground flex items-center gap-1">
           <DollarSign className="h-3 w-3" />
           Policy Currency
         </label>
@@ -157,7 +157,7 @@ export function ClaimCurrencySelector({
                 <div className="flex items-center gap-2">
                   <span>{c.flag}</span>
                   <span className="font-medium">{c.symbol}</span>
-                  <span className="text-slate-500 text-xs">{c.label}</span>
+                  <span className="text-slate-500 dark:text-muted-foreground text-xs">{c.label}</span>
                   <Badge variant="outline" className="text-[10px] px-1 py-0 ml-1">
                     {c.code}
                   </Badge>

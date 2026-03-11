@@ -377,27 +377,27 @@ export function EnhancedDocumentUpload({
 
         {/* Error Display */}
         {uploadError && (
-          <div className="p-4 bg-red-50 border border-red-200 rounded-lg space-y-3">
+          <div className="p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg space-y-3">
             <div className="flex items-start gap-3">
               <XCircle className="w-5 h-5 text-red-600 mt-0.5" />
               <div className="flex-1">
-                <p className="font-semibold text-red-900">{uploadError.message}</p>
+                <p className="font-semibold text-red-900 dark:text-red-200">{uploadError.message}</p>
                 {uploadError.details && (
-                  <p className="text-sm text-red-700 mt-1">{uploadError.details}</p>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{uploadError.details}</p>
                 )}
               </div>
             </div>
             
             {uploadError.retryable && retryCount < maxRetries && (
-              <div className="flex items-center justify-between pt-2 border-t border-red-200">
-                <p className="text-sm text-red-700">
+              <div className="flex items-center justify-between pt-2 border-t border-red-200 dark:border-red-800">
+                <p className="text-sm text-red-700 dark:text-red-300">
                   Retry attempt {retryCount} of {maxRetries}
                 </p>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleRetry}
-                  className="border-red-300 text-red-700 hover:bg-red-100"
+                  className="border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:bg-red-900/30"
                 >
                   <RefreshCw className="w-4 h-4 mr-2" />
                   Retry Upload
@@ -406,12 +406,12 @@ export function EnhancedDocumentUpload({
             )}
 
             {(!uploadError.retryable || retryCount >= maxRetries) && (
-              <div className="pt-2 border-t border-red-200">
+              <div className="pt-2 border-t border-red-200 dark:border-red-800">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={handleReset}
-                  className="border-red-300 text-red-700 hover:bg-red-100"
+                  className="border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 hover:bg-red-100 dark:bg-red-900/30"
                 >
                   Select Different File
                 </Button>
@@ -422,18 +422,18 @@ export function EnhancedDocumentUpload({
 
         {/* Success Display */}
         {uploadSuccess && (
-          <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
             <div className="flex items-center gap-3">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
               <div className="flex-1">
-                <p className="font-semibold text-green-900">Upload Successful!</p>
-                <p className="text-sm text-green-700">Assessment analyzed and ready for review</p>
+                <p className="font-semibold text-green-900 dark:text-green-200">Upload Successful!</p>
+                <p className="text-sm text-green-700 dark:text-green-300">Assessment analyzed and ready for review</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleReset}
-                className="border-green-300 text-green-700 hover:bg-green-100"
+                className="border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-100 dark:bg-green-900/30"
               >
                 Upload Another
               </Button>

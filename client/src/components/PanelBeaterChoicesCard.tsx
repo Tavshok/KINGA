@@ -38,7 +38,7 @@ export default function PanelBeaterChoicesCard({
     );
   }
 
-  if (!data || data.choices.length === 0) {
+  if (!data || (data.choices ?? []).length === 0) {
     return (
       <Card className="mb-6">
         <CardHeader>
@@ -57,7 +57,7 @@ export default function PanelBeaterChoicesCard({
   // or fall back to the one passed in as a prop
   const resolvedAssignedId = data.assignedProfileId ?? externalAssignedProfileId ?? null;
 
-  const choiceProfileIds = new Set(data.choices.map((c) => c.profileId));
+  const choiceProfileIds = new Set((data.choices ?? []).map((c) => c.profileId));
   const mismatch =
     resolvedAssignedId !== null && !choiceProfileIds.has(resolvedAssignedId);
 
@@ -72,7 +72,7 @@ export default function PanelBeaterChoicesCard({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-2 pt-0">
-        {data.choices.map((choice) => (
+        {(data.choices ?? []).map((choice) => (
           <div
             key={choice.profileId}
             className="flex items-center justify-between rounded-md border px-3 py-2 bg-background"
@@ -89,7 +89,7 @@ export default function PanelBeaterChoicesCard({
               {choice.preferred && (
                 <Badge
                   variant="secondary"
-                  className="gap-1 bg-amber-100 text-amber-800 border-amber-200 text-xs"
+                  className="gap-1 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800 text-xs"
                 >
                   <Star className="h-3 w-3 fill-amber-500 text-amber-500" />
                   Preferred
@@ -98,7 +98,7 @@ export default function PanelBeaterChoicesCard({
               {choice.slaSigned && (
                 <Badge
                   variant="secondary"
-                  className="gap-1 bg-emerald-100 text-emerald-800 border-emerald-200 text-xs"
+                  className="gap-1 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800 text-xs"
                 >
                   <FileCheck className="h-3 w-3 text-emerald-600" />
                   SLA Signed
@@ -109,9 +109,9 @@ export default function PanelBeaterChoicesCard({
         ))}
 
         {mismatch && (
-          <div className="mt-3 flex items-start gap-2 rounded-md border border-orange-300 bg-orange-50 px-3 py-2.5">
+          <div className="mt-3 flex items-start gap-2 rounded-md border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/30 px-3 py-2.5">
             <AlertTriangle className="h-4 w-4 text-orange-500 mt-0.5 shrink-0" />
-            <p className="text-sm text-orange-800 font-medium">
+            <p className="text-sm text-orange-800 dark:text-orange-200 font-medium">
               Final assigned repairer differs from claimant preference
             </p>
           </div>

@@ -377,9 +377,9 @@ export function IncidentReportForm({ driverId, fleetId, onComplete }: IncidentRe
 
           {/* Warning for Critical Incidents */}
           {formData.severity === "critical" && (
-            <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-start gap-2 p-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
               <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
-              <div className="text-sm text-red-800">
+              <div className="text-sm text-red-800 dark:text-red-200">
                 <p className="font-semibold">Critical Incident</p>
                 <p>
                   This incident will be flagged for immediate manager review. If there are

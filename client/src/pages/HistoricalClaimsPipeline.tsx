@@ -469,11 +469,11 @@ function ClaimsListTab() {
 
   const statusColors: Record<string, string> = {
     documents_uploaded: "bg-primary/10 text-primary/90",
-    extraction_complete: "bg-yellow-100 text-yellow-700",
-    ground_truth_captured: "bg-green-100 text-green-700",
-    variance_calculated: "bg-purple-100 text-purple-700",
-    ml_ready: "bg-emerald-100 text-emerald-700",
-    failed: "bg-red-100 text-red-700",
+    extraction_complete: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300",
+    ground_truth_captured: "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300",
+    variance_calculated: "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300",
+    ml_ready: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300",
+    failed: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300",
   };
 
   return (
@@ -557,7 +557,7 @@ function ClaimsListTab() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge className={`text-xs ${statusColors[claim.pipelineStatus] || "bg-gray-100 text-gray-700"}`}>
+                    <Badge className={`text-xs ${statusColors[claim.pipelineStatus] || "bg-gray-100 dark:bg-muted text-gray-700 dark:text-foreground/80"}`}>
                       {claim.pipelineStatus?.replace(/_/g, " ")}
                     </Badge>
                   </TableCell>

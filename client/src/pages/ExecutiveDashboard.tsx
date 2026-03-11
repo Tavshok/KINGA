@@ -54,9 +54,9 @@ import {
 // Gauge component for confidence score visualization
 function ConfidenceGauge({ score }: { score: number }) {
   const getColor = (score: number) => {
-    if (score <= 40) return { bg: "bg-green-100", text: "text-green-700", stroke: "#22c55e" };
-    if (score <= 70) return { bg: "bg-amber-100", text: "text-amber-700", stroke: "#f59e0b" };
-    return { bg: "bg-red-100", text: "text-red-700", stroke: "#ef4444" };
+    if (score <= 40) return { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-700 dark:text-green-300", stroke: "#22c55e" };
+    if (score <= 70) return { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-700 dark:text-amber-300", stroke: "#f59e0b" };
+    return { bg: "bg-red-100 dark:bg-red-900/30", text: "text-red-700 dark:text-red-300", stroke: "#ef4444" };
   };
 
   const color = getColor(score);
@@ -93,7 +93,7 @@ function ConfidenceGauge({ score }: { score: number }) {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <div className={`text-3xl font-bold ${color.text}`}>{score}</div>
-            <div className="text-xs text-slate-500">Risk Score</div>
+            <div className="text-xs text-slate-500 dark:text-muted-foreground">Risk Score</div>
           </div>
         </div>
       </div>
@@ -498,25 +498,25 @@ export default function ExecutiveDashboard() {
             </CardHeader>
             <CardContent>
               <ConfidenceGauge score={kpis?.avgConfidenceScore || 35} />
-              <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+              <div className="mt-6 p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
                 <div className="grid grid-cols-3 gap-4 text-center">
                   <div>
                     <p className="text-2xl font-bold text-green-600">
                       {kpis?.lowRiskCount || 0}
                     </p>
-                    <p className="text-xs text-slate-600 mt-1">Low Risk</p>
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">Low Risk</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-amber-600">
                       {kpis?.mediumRiskCount || 0}
                     </p>
-                    <p className="text-xs text-slate-600 mt-1">Medium Risk</p>
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">Medium Risk</p>
                   </div>
                   <div>
                     <p className="text-2xl font-bold text-red-600">
                       {kpis?.highRiskCount || 0}
                     </p>
-                    <p className="text-xs text-slate-600 mt-1">High Risk</p>
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">High Risk</p>
                   </div>
                 </div>
               </div>
@@ -533,7 +533,7 @@ export default function ExecutiveDashboard() {
           <div className="space-y-8">
             {/* Governance Summary Cards */}
             <div>
-              <h3 className="text-lg font-semibold text-slate-900 mb-4">Governance Summary (30 Days)</h3>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-foreground mb-4">Governance Summary (30 Days)</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                 <GovernanceSummaryCard
                   title="Total Overrides"
@@ -658,7 +658,7 @@ export default function ExecutiveDashboard() {
                           </LineChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500">
+                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
                           No override data available
                         </div>
                       )}
@@ -691,7 +691,7 @@ export default function ExecutiveDashboard() {
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500">
+                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
                           No segregation violation data available
                         </div>
                       )}
@@ -728,7 +728,7 @@ export default function ExecutiveDashboard() {
                           </LineChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500">
+                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
                           No role change data available
                         </div>
                       )}
@@ -757,7 +757,7 @@ export default function ExecutiveDashboard() {
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500">
+                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
                           No involvement conflict data available
                         </div>
                       )}
@@ -782,26 +782,26 @@ export default function ExecutiveDashboard() {
                 <CardContent>
                   <div className="space-y-4">
                     {Array.isArray(overrideHistory) && overrideHistory.map((override: any) => (
-                      <div key={override.id} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                      <div key={override.id} className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg border border-slate-200 dark:border-border">
                         <div className="flex items-start justify-between">
                           <div className="space-y-1">
                             <div className="flex items-center gap-2">
-                              <Badge variant="outline" className="bg-white">
+                              <Badge variant="outline" className="bg-white dark:bg-card">
                                 Claim #{override.claimId}
                               </Badge>
-                              <span className="text-sm text-slate-600">
+                              <span className="text-sm text-slate-600 dark:text-muted-foreground">
                                 {new Date(override.timestamp).toLocaleDateString()}
                               </span>
                             </div>
-                            <p className="text-sm font-medium text-slate-900">
+                            <p className="text-sm font-medium text-slate-900 dark:text-foreground">
                               {override.actor} overrode routing decision
                             </p>
-                            <p className="text-sm text-slate-600">
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
                               <span className="font-medium">From:</span> {override.oldValue} → 
                               <span className="font-medium"> To:</span> {override.newValue}
                             </p>
                             {override.justification && (
-                              <p className="text-sm text-slate-700 italic mt-2">
+                              <p className="text-sm text-slate-700 dark:text-foreground/80 italic mt-2">
                                 "{override.justification}"
                               </p>
                             )}
@@ -856,12 +856,12 @@ export default function ExecutiveDashboard() {
                     content={({ active, payload }) => {
                       if (active && payload && payload.length) {
                         return (
-                          <div className="bg-white p-4 rounded-lg shadow-lg border border-slate-200">
-                            <p className="font-semibold text-slate-900">{payload[0].payload.state}</p>
-                            <p className="text-sm text-slate-600 mt-1">
+                          <div className="bg-white dark:bg-card p-4 rounded-lg shadow-lg border border-slate-200 dark:border-border">
+                            <p className="font-semibold text-slate-900 dark:text-foreground">{payload[0].payload.state}</p>
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground mt-1">
                               Avg Time: <span className="font-bold">{payload[0].value}h</span>
                             </p>
-                            <p className="text-sm text-slate-600">
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
                               Claims: <span className="font-bold">{payload[0].payload.count}</span>
                             </p>
                           </div>
@@ -885,7 +885,7 @@ export default function ExecutiveDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-80 flex items-center justify-center text-slate-500">
+              <div className="h-80 flex items-center justify-center text-slate-500 dark:text-muted-foreground">
                 No bottleneck data available
               </div>
             )}
@@ -895,7 +895,7 @@ export default function ExecutiveDashboard() {
 
         {/* Tabs Section (Existing Content) */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6 bg-white shadow-sm border border-slate-200">
+          <TabsList className="grid w-full grid-cols-6 bg-white dark:bg-card shadow-sm border border-slate-200 dark:border-border">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
             <TabsTrigger value="alerts">Critical Alerts</TabsTrigger>
@@ -943,7 +943,7 @@ export default function ExecutiveDashboard() {
                         <div className="space-y-2">
                           {searchResults.claims.map((claim: any) => (
                             <Link key={claim.id} href={`/claims/${claim.id}`}>
-                              <div className="p-3 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer">
+                              <div className="p-3 bg-slate-50 dark:bg-muted/50 rounded-lg hover:bg-slate-100 dark:bg-muted transition-colors cursor-pointer">
                                 <div className="flex items-center justify-between">
                                   <span className="font-medium">Claim #{claim.id}</span>
                                   <Badge>{claim.status}</Badge>
@@ -1003,7 +1003,7 @@ export default function ExecutiveDashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-slate-500 py-12">No savings data available</p>
+                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No savings data available</p>
                 )}
               </CardContent>
             </Card>
@@ -1012,7 +1012,7 @@ export default function ExecutiveDashboard() {
           {/* Analytics Tab */}
           <TabsContent value="analytics" className="space-y-4">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-2xl font-bold text-slate-800">Fast-Track Analytics</h2>
+              <h2 className="text-2xl font-bold text-slate-800 dark:text-foreground">Fast-Track Analytics</h2>
               <AnalyticsExportButton 
                 tenantId="default-tenant" 
                 variant="outline" 
@@ -1055,16 +1055,16 @@ export default function ExecutiveDashboard() {
                     {alerts.map((alert: any) => (
                       <div
                         key={alert.id}
-                        className="p-4 border-l-4 border-red-500 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                        className="p-4 border-l-4 border-red-500 bg-red-50 dark:bg-red-950/30 rounded-lg hover:bg-red-100 dark:bg-red-900/30 transition-colors"
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-2">
                               <Badge variant="destructive">{alert.severity}</Badge>
-                              <span className="text-sm text-slate-600">{alert.timestamp}</span>
+                              <span className="text-sm text-slate-600 dark:text-muted-foreground">{alert.timestamp}</span>
                             </div>
-                            <p className="font-semibold text-slate-900">{alert.title}</p>
-                            <p className="text-sm text-slate-600 mt-1">{alert.description}</p>
+                            <p className="font-semibold text-slate-900 dark:text-foreground">{alert.title}</p>
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground mt-1">{alert.description}</p>
                           </div>
                           <div className="flex gap-2">
                             <Button
@@ -1087,7 +1087,7 @@ export default function ExecutiveDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 py-12">No critical alerts</p>
+                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No critical alerts</p>
                 )}
               </CardContent>
             </Card>
@@ -1126,21 +1126,21 @@ export default function ExecutiveDashboard() {
                     {assessorPerf.map((assessor: any, index: number) => (
                       <div
                         key={assessor.id}
-                        className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                        className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg hover:bg-slate-100 dark:bg-muted transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="text-2xl font-bold text-slate-400">#{index + 1}</div>
+                            <div className="text-2xl font-bold text-slate-400 dark:text-muted-foreground/70">#{index + 1}</div>
                             <div>
-                              <p className="font-semibold text-slate-900">{assessor.name}</p>
-                              <p className="text-sm text-slate-600">
+                              <p className="font-semibold text-slate-900 dark:text-foreground">{assessor.name}</p>
+                              <p className="text-sm text-slate-600 dark:text-muted-foreground">
                                 {assessor.claimsProcessed} claims • {assessor.avgTime} avg time
                               </p>
                             </div>
                           </div>
                           <div className="flex items-center gap-4">
                             <div className="text-right">
-                              <p className="text-sm text-slate-600">Accuracy</p>
+                              <p className="text-sm text-slate-600 dark:text-muted-foreground">Accuracy</p>
                               <p className="text-lg font-bold text-green-600">{assessor.accuracy}%</p>
                             </div>
                             <Button size="sm" variant="outline">
@@ -1152,7 +1152,7 @@ export default function ExecutiveDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 py-12">No assessor data available</p>
+                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No assessor data available</p>
                 )}
               </CardContent>
             </Card>
@@ -1191,12 +1191,12 @@ export default function ExecutiveDashboard() {
                     {panelBeaterAnalytics.map((beater: any) => (
                       <div
                         key={beater.id}
-                        className="p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                        className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg hover:bg-slate-100 dark:bg-muted transition-colors"
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-semibold text-slate-900">{beater.name}</p>
-                            <p className="text-sm text-slate-600">
+                            <p className="font-semibold text-slate-900 dark:text-foreground">{beater.name}</p>
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
                               {beater.quotesSubmitted} quotes • {beater.avgAccuracy}% accuracy
                             </p>
                           </div>
@@ -1208,7 +1208,7 @@ export default function ExecutiveDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 py-12">No panel beater data available</p>
+                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No panel beater data available</p>
                 )}
               </CardContent>
             </Card>
@@ -1244,37 +1244,37 @@ export default function ExecutiveDashboard() {
                   </div>
                 ) : financials ? (
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-                    <div className="text-center p-6 bg-blue-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Total Payouts</p>
+                    <div className="text-center p-6 bg-blue-50 dark:bg-blue-950/30 rounded-xl">
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Total Payouts</p>
                       <p className="text-4xl font-bold text-blue-600">
                         ${(financials.totalPayouts || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">Approved claims paid</p>
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">Approved claims paid</p>
                     </div>
-                    <div className="text-center p-6 bg-amber-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Total Reserves</p>
+                    <div className="text-center p-6 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Total Reserves</p>
                       <p className="text-4xl font-bold text-amber-600">
                         ${(financials.totalReserves || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">Pending claims estimated</p>
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">Pending claims estimated</p>
                     </div>
-                    <div className="text-center p-6 bg-green-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Fraud Prevented</p>
+                    <div className="text-center p-6 bg-green-50 dark:bg-green-950/30 rounded-xl">
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Fraud Prevented</p>
                       <p className="text-4xl font-bold text-green-600">
                         ${(financials.fraudPrevented || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">High-risk claims rejected</p>
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">High-risk claims rejected</p>
                     </div>
-                    <div className="text-center p-6 bg-purple-50 rounded-xl">
-                      <p className="text-sm text-slate-600 mb-2">Net Exposure</p>
+                    <div className="text-center p-6 bg-purple-50 dark:bg-purple-950/30 rounded-xl">
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Net Exposure</p>
                       <p className="text-4xl font-bold text-purple-600">
                         ${(financials.netExposure || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 mt-2">Total financial exposure</p>
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">Total financial exposure</p>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 py-12">No financial data available</p>
+                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No financial data available</p>
                 )}
               </CardContent>
             </Card>

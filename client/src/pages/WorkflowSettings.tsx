@@ -244,8 +244,8 @@ export default function WorkflowSettings() {
               </p>
             </div>
 
-            <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4">
-              <p className="text-sm text-yellow-800">
+            <div className="rounded-lg border border-yellow-200 dark:border-yellow-800 bg-yellow-50 dark:bg-yellow-950/30 p-4">
+              <p className="text-sm text-yellow-800 dark:text-yellow-200">
                 <strong>Note:</strong> Setting this value too low may cause workflow bottlenecks.
                 Setting it too high reduces fraud prevention effectiveness.
               </p>

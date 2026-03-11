@@ -156,7 +156,7 @@ export default function VehicleDamageVisualization({
   return (
     <Card className="p-6">
       <div className="flex items-center gap-3 mb-4">
-        <div className="p-2 bg-red-100 rounded-lg"><Target className="w-5 h-5 text-red-600" /></div>
+        <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg"><Target className="w-5 h-5 text-red-600" /></div>
         <h2 className="text-xl font-semibold">Vehicle Damage Map</h2>
         <Badge variant="secondary">{damagedZones.size} zones affected</Badge>
         {impactInfo && <Badge variant="outline" className="gap-1"><ArrowRight className="w-3 h-3" />{impactInfo.label}</Badge>}
@@ -387,7 +387,7 @@ export default function VehicleDamageVisualization({
         <div className="lg:col-span-2 space-y-4">
           {/* Active zone detail */}
           {activeZone && (
-            <div className={`p-4 rounded-lg border-2 ${damagedZones.has(activeZone) ? 'border-red-200 bg-red-50/50' : 'border-gray-200 bg-gray-50'}`}>
+            <div className={`p-4 rounded-lg border-2 ${damagedZones.has(activeZone) ? 'border-red-200 dark:border-red-800 bg-red-50/5 dark:bg-red-950/50 dark:bg-red-950/20' : 'border-border bg-muted/50'}`}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-semibold text-sm capitalize">{activeZone.replace(/_/g, " ")} Zone</span>
                 {activeZoneSeverity && (
@@ -401,56 +401,56 @@ export default function VehicleDamageVisualization({
                   <p className="text-xs text-red-600 font-medium mb-2">Damage Detected</p>
                   <div className="space-y-1 mb-2">
                     {getComponentsForZone(activeZone).map((comp, idx) => (
-                      <p key={idx} className="text-xs text-gray-700 capitalize flex items-center gap-1">
+                      <p key={idx} className="text-xs text-foreground/80 capitalize flex items-center gap-1">
                         <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0" />
                         {comp}
                       </p>
                     ))}
                   </div>
-                  {activeZoneSeverity && activeZoneSeverity.safetyImplications.length > 0 && (
-                    <div className="mt-2 pt-2 border-t border-red-200">
-                      <p className="text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
+                  {activeZoneSeverity && (activeZoneSeverity.safetyImplications ?? []).length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                      <p className="text-xs font-medium text-foreground/80 mb-1 flex items-center gap-1">
                         <AlertTriangle className="w-3 h-3 text-amber-500" /> Safety Concerns:
                       </p>
-                      {activeZoneSeverity.safetyImplications.map((concern, idx) => (
-                        <p key={idx} className="text-xs text-amber-700 ml-4">- {concern}</p>
+                      {(activeZoneSeverity.safetyImplications ?? []).map((concern, idx) => (
+                        <p key={idx} className="text-xs text-amber-700 dark:text-amber-300 ml-4">- {concern}</p>
                       ))}
                     </div>
                   )}
                   {activeZoneSeverity && (
-                    <p className="text-xs text-gray-500 mt-2 italic">{getSeverityDescription(activeZoneSeverity.level)}</p>
+                    <p className="text-xs text-muted-foreground mt-2 italic">{getSeverityDescription(activeZoneSeverity.level)}</p>
                   )}
                 </>
               ) : (
-                <p className="text-xs text-gray-500">No damage detected in this zone</p>
+                <p className="text-xs text-muted-foreground">No damage detected in this zone</p>
               )}
             </div>
           )}
 
           {!activeZone && (
-            <div className="p-4 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-center">
-              <Target className="w-6 h-6 mx-auto text-gray-400 mb-2" />
-              <p className="text-sm text-gray-500 font-medium">Hover or click a zone</p>
-              <p className="text-xs text-gray-400">to see damage details</p>
+            <div className="p-4 rounded-lg border border-dashed border-border bg-muted/50 text-center">
+              <Target className="w-6 h-6 mx-auto text-muted-foreground mb-2" />
+              <p className="text-sm text-muted-foreground font-medium">Hover or click a zone</p>
+              <p className="text-xs text-muted-foreground/70">to see damage details</p>
             </div>
           )}
 
           {/* Severity Priority List */}
           {zoneSeverities.length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-1.5">
-                <Shield className="w-4 h-4 text-gray-500" /> Damage Priority
+              <h4 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
+                <Shield className="w-4 h-4 text-muted-foreground" /> Damage Priority
               </h4>
               {zoneSeverities.map((sev, idx) => (
                 <div
                   key={sev.zone}
                   className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                    selectedZone === sev.zone ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:bg-gray-50'
+                    selectedZone === sev.zone ? 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/20' : 'border-border hover:bg-muted/50'
                   }`}
                   onClick={() => handleZoneClick(sev.zone)}
                 >
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-400 w-5">#{idx + 1}</span>
+                    <span className="text-xs font-bold text-muted-foreground w-5">#{idx + 1}</span>
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getSeverityColor(sev.level) }} />
                     <span className="text-sm font-medium capitalize">{sev.zone.replace(/_/g, " ")}</span>
                   </div>
@@ -458,7 +458,7 @@ export default function VehicleDamageVisualization({
                     <Badge variant="outline" className="text-xs" style={{ borderColor: getSeverityColor(sev.level), color: getSeverityColor(sev.level) }}>
                       {sev.level}
                     </Badge>
-                    <span className="text-xs font-bold text-gray-600">{sev.score}/10</span>
+                    <span className="text-xs font-bold text-foreground/70">{sev.score}/10</span>
                   </div>
                 </div>
               ))}
@@ -466,13 +466,13 @@ export default function VehicleDamageVisualization({
           )}
 
           {/* Legend */}
-          <div className="pt-2 border-t border-gray-200">
-            <p className="text-xs font-semibold text-gray-600 mb-2">Severity Scale</p>
+          <div className="pt-2 border-t border-border">
+            <p className="text-xs font-semibold text-foreground/70 mb-2">Severity Scale</p>
             <div className="grid grid-cols-2 gap-1.5">
               {(["Critical", "Severe", "Moderate", "Minor"] as const).map(level => (
                 <div key={level} className="flex items-center gap-1.5">
                   <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: getSeverityColor(level) }} />
-                  <span className="text-xs text-gray-600">{level}</span>
+                  <span className="text-xs text-foreground/70">{level}</span>
                 </div>
               ))}
             </div>

@@ -62,26 +62,26 @@ export function ExecutiveOverrideFlag({
       <PopoverContent className="w-96" align="start">
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-slate-900 mb-1 flex items-center gap-2">
+            <h4 className="font-semibold text-slate-900 dark:text-foreground mb-1 flex items-center gap-2">
               <ShieldAlert className="h-4 w-4 text-purple-600" />
               Executive Override Details
             </h4>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-slate-600 dark:text-muted-foreground">
               This claim's routing decision was manually overridden by an executive
             </p>
           </div>
 
           <div className="space-y-3">
             {/* Override By */}
-            <div className="p-3 bg-slate-50 rounded-lg">
+            <div className="p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
               <div className="flex items-start gap-2">
-                <User className="h-4 w-4 text-slate-600 mt-0.5" />
+                <User className="h-4 w-4 text-slate-600 dark:text-muted-foreground mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs text-slate-600 mb-1">Overridden By</p>
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-xs text-slate-600 dark:text-muted-foreground mb-1">Overridden By</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-foreground">
                     {overrideInfo.overriddenBy}
                   </p>
-                  <p className="text-xs text-slate-600 mt-0.5">
+                  <p className="text-xs text-slate-600 dark:text-muted-foreground mt-0.5">
                     {overrideInfo.overriddenByRole}
                   </p>
                 </div>
@@ -89,12 +89,12 @@ export function ExecutiveOverrideFlag({
             </div>
 
             {/* Override Date */}
-            <div className="p-3 bg-slate-50 rounded-lg">
+            <div className="p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
               <div className="flex items-start gap-2">
-                <Calendar className="h-4 w-4 text-slate-600 mt-0.5" />
+                <Calendar className="h-4 w-4 text-slate-600 dark:text-muted-foreground mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs text-slate-600 mb-1">Override Date</p>
-                  <p className="text-sm font-semibold text-slate-900">
+                  <p className="text-xs text-slate-600 dark:text-muted-foreground mb-1">Override Date</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-foreground">
                     {formatDate(overrideInfo.overriddenAt)}
                   </p>
                 </div>
@@ -102,13 +102,13 @@ export function ExecutiveOverrideFlag({
             </div>
 
             {/* Decision Change */}
-            <div className="p-3 bg-slate-50 rounded-lg">
-              <p className="text-xs text-slate-600 mb-2">Decision Change</p>
+            <div className="p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground mb-2">Decision Change</p>
               <div className="flex items-center gap-2">
                 <Badge variant="outline" className="text-xs">
                   {overrideInfo.originalDecision}
                 </Badge>
-                <span className="text-slate-400">→</span>
+                <span className="text-slate-400 dark:text-muted-foreground/70">→</span>
                 <Badge variant="default" className="text-xs bg-purple-600">
                   {overrideInfo.newDecision}
                 </Badge>
@@ -116,12 +116,12 @@ export function ExecutiveOverrideFlag({
             </div>
 
             {/* Justification */}
-            <div className="p-3 bg-slate-50 rounded-lg">
+            <div className="p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
               <div className="flex items-start gap-2">
-                <FileText className="h-4 w-4 text-slate-600 mt-0.5" />
+                <FileText className="h-4 w-4 text-slate-600 dark:text-muted-foreground mt-0.5" />
                 <div className="flex-1">
-                  <p className="text-xs text-slate-600 mb-2">Justification</p>
-                  <p className="text-sm text-slate-900 leading-relaxed">
+                  <p className="text-xs text-slate-600 dark:text-muted-foreground mb-2">Justification</p>
+                  <p className="text-sm text-slate-900 dark:text-foreground leading-relaxed">
                     {overrideInfo.justification}
                   </p>
                 </div>
@@ -129,8 +129,8 @@ export function ExecutiveOverrideFlag({
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500 italic">
+          <div className="pt-3 border-t border-slate-200 dark:border-border">
+            <p className="text-xs text-slate-500 dark:text-muted-foreground italic">
               This override information is read-only and maintained for audit compliance.
             </p>
           </div>

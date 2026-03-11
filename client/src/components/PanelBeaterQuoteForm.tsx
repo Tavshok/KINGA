@@ -326,7 +326,7 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
                         id={`isOEM-${index}`}
                         checked={item.isOEM}
                         onChange={(e) => updateLineItem(index, "isOEM", e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-border"
                       />
                       <Label htmlFor={`isOEM-${index}`} className="font-normal">
                         OEM Part

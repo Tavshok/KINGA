@@ -44,9 +44,9 @@ function KPICard({ title, value, change, changeLabel, icon: Icon, color, onClick
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
         <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
           color === 'blue' ? 'bg-primary/10 text-primary' :
-          color === 'purple' ? 'bg-purple-100 text-purple-600' :
-          color === 'red' ? 'bg-red-100 text-red-600' :
-          color === 'green' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-600'
+          color === 'purple' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' :
+          color === 'red' ? 'bg-red-100 dark:bg-red-900/30 text-red-600' :
+          color === 'green' ? 'bg-green-100 dark:bg-green-900/30 text-green-600' : 'bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground'
         }`}>
           <Icon />
         </div>
@@ -170,7 +170,7 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
           <h4 className="font-semibold mb-3">Claims by Complexity</h4>
           <div className="space-y-2">
             {Object.entries(kpis.claimsProcessed.details.byComplexity).map(([complexity, count]) => (
-              <div key={complexity} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div key={complexity} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <Badge variant={complexity === "exceptional" ? "destructive" : "secondary"}>
                     {complexity.charAt(0).toUpperCase() + complexity.slice(1)}
@@ -259,15 +259,15 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
       </DialogHeader>
       <div className="space-y-6 py-4">
         <div className="grid grid-cols-3 gap-4">
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
+          <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Flagged</p>
             <p className="text-3xl font-bold text-orange-600">{kpis.fraudDetectionRate.details.flagged}</p>
           </div>
-          <div className="text-center p-4 bg-red-50 rounded-lg">
+          <div className="text-center p-4 bg-red-50 dark:bg-red-950/30 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Confirmed</p>
             <p className="text-3xl font-bold text-red-600">{kpis.fraudDetectionRate.details.confirmed}</p>
           </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg">
+          <div className="text-center p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
             <p className="text-sm text-muted-foreground mb-1">Saved</p>
             <p className="text-3xl font-bold text-green-600">{kpis.fraudDetectionRate.details.savedAmount}</p>
           </div>
@@ -277,7 +277,7 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
           <h4 className="font-semibold mb-3">Top Fraud Indicators</h4>
           <div className="space-y-2">
             {kpis.fraudDetectionRate.details.topIndicators.map((indicator, idx) => (
-              <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div key={idx} className="flex items-center gap-3 p-3 bg-gray-50 dark:bg-muted/50 rounded-lg">
                 <Shield className="h-5 w-5 text-red-600" />
                 <span>{indicator}</span>
               </div>
@@ -306,7 +306,7 @@ export default function ExecutiveKPICards({ tenantId }: ExecutiveKPICardsProps) 
         </DialogDescription>
       </DialogHeader>
       <div className="space-y-6 py-4">
-        <div className="text-center p-6 bg-green-50 rounded-lg">
+        <div className="text-center p-6 bg-green-50 dark:bg-green-950/30 rounded-lg">
           <p className="text-sm text-muted-foreground mb-2">Total Savings This Month</p>
           <p className="text-5xl font-bold text-green-600">{kpis.costSavings.value}</p>
         </div>

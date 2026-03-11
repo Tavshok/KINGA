@@ -60,14 +60,14 @@ function groupByClaimId(quotes: QuoteRow[]): Map<number, QuoteRow[]> {
 
 function statusBadge(status: string) {
   const variants: Record<string, { label: string; className: string }> = {
-    pending:  { label: "Pending",  className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-    sent:     { label: "Sent",     className: "bg-blue-100 text-blue-800 border-blue-300" },
-    quoted:   { label: "Quoted",   className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-    accepted: { label: "Accepted", className: "bg-green-100 text-green-800 border-green-300" },
-    rejected: { label: "Rejected", className: "bg-red-100 text-red-800 border-red-300" },
-    expired:  { label: "Expired",  className: "bg-gray-100 text-gray-600 border-gray-300" },
+    pending:  { label: "Pending",  className: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700" },
+    sent:     { label: "Sent",     className: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700" },
+    quoted:   { label: "Quoted",   className: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700" },
+    accepted: { label: "Accepted", className: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700" },
+    rejected: { label: "Rejected", className: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700" },
+    expired:  { label: "Expired",  className: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border" },
   };
-  const v = variants[status] ?? { label: status, className: "bg-gray-100 text-gray-600" };
+  const v = variants[status] ?? { label: status, className: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground" };
   return <Badge variant="outline" className={`text-xs ${v.className}`}>{v.label}</Badge>;
 }
 
@@ -116,7 +116,7 @@ export default function AgencyFleetQuotes() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-teal-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -130,7 +130,7 @@ export default function AgencyFleetQuotes() {
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Fleet Quote Comparison</h1>
+                  <h1 className="text-lg font-bold text-gray-900 dark:text-foreground">Fleet Quote Comparison</h1>
                   <p className="text-xs text-muted-foreground">All insurer responses — via KINGA Agency</p>
                 </div>
               </div>
@@ -153,7 +153,7 @@ export default function AgencyFleetQuotes() {
           <Card className="border-dashed">
             <CardContent className="py-16 text-center">
               <Building2 className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Fleet RFQs Yet</h3>
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-foreground/80 mb-2">No Fleet RFQs Yet</h3>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                 When you submit a fleet insurance request, all insurer responses will appear here for comparison.
               </p>
@@ -174,13 +174,13 @@ export default function AgencyFleetQuotes() {
                 <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b">
                   <div className="flex items-start justify-between gap-4">
                     <div>
-                      <CardTitle className="text-base font-bold text-gray-900 flex items-center gap-2">
-                        <span className="font-mono text-emerald-700">{first.claimNumber}</span>
-                        <Badge className="bg-emerald-100 text-emerald-800 border-emerald-300 text-xs" variant="outline">
+                      <CardTitle className="text-base font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
+                        <span className="font-mono text-emerald-700 dark:text-emerald-300">{first.claimNumber}</span>
+                        <Badge className="bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700 text-xs" variant="outline">
                           Fleet Policy – via Agency
                         </Badge>
                       </CardTitle>
-                      <CardDescription className="mt-1 text-xs text-gray-500">
+                      <CardDescription className="mt-1 text-xs text-gray-500 dark:text-muted-foreground">
                         Submitted {new Date(first.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}
                         {first.vehicleCount ? ` · ${first.vehicleCount} vehicles` : ""}
                         {first.claimsHistorySummary ? ` · ${first.claimsHistorySummary.slice(0, 60)}${first.claimsHistorySummary.length > 60 ? "…" : ""}` : ""}
@@ -189,7 +189,7 @@ export default function AgencyFleetQuotes() {
                     <div className="text-right shrink-0">
                       <p className="text-xs text-muted-foreground">{quotedCount}/{totalCount} insurers responded</p>
                       {best && (
-                        <p className="text-sm font-semibold text-emerald-700 flex items-center gap-1 justify-end mt-1">
+                        <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300 flex items-center gap-1 justify-end mt-1">
                           <TrendingDown className="h-3.5 w-3.5" />
                           Best: {getCurrencySymbolForCode(best.quoteCurrency ?? currencySymbol)}{parseFloat(best.quoteAmount!).toLocaleString("en-US", { minimumFractionDigits: 2 })}
                         </p>
@@ -201,7 +201,7 @@ export default function AgencyFleetQuotes() {
                 <CardContent className="p-0">
                   <Table>
                     <TableHeader>
-                      <TableRow className="bg-gray-50">
+                      <TableRow className="bg-gray-50 dark:bg-muted/50">
                         <TableHead className="text-xs font-semibold">Insurer</TableHead>
                         <TableHead className="text-xs font-semibold">Status</TableHead>
                         <TableHead className="text-xs font-semibold text-right">Quote Amount</TableHead>
@@ -215,7 +215,7 @@ export default function AgencyFleetQuotes() {
                       {rfqQuotes.map(q => {
                         const isBest = best?.id === q.id;
                         return (
-                          <TableRow key={q.id} className={isBest ? "bg-emerald-50/60" : ""}>
+                          <TableRow key={q.id} className={isBest ? "bg-emerald-50/60 dark:bg-emerald-950/60" : ""}>
                             <TableCell className="font-medium text-sm">
                               <div className="flex items-center gap-1.5">
                                 {isBest && <TrendingDown className="h-3.5 w-3.5 text-emerald-600 shrink-0" />}
@@ -226,7 +226,7 @@ export default function AgencyFleetQuotes() {
                             <TableCell className="text-right font-mono text-sm">
                               {q.quoteAmount
                                 ? `${getCurrencySymbolForCode(q.quoteCurrency ?? currencySymbol)}${parseFloat(q.quoteAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
-                                : <span className="text-gray-400 text-xs">Awaiting</span>}
+                                : <span className="text-gray-400 dark:text-muted-foreground/70 text-xs">Awaiting</span>}
                             </TableCell>
                             <TableCell className="text-right font-mono text-sm text-muted-foreground">
                               {commissionEstimate(q.quoteAmount, currencySymbol)}
@@ -245,7 +245,7 @@ export default function AgencyFleetQuotes() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-7 px-2 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50"
+                                    className="h-7 px-2 text-xs border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-50 dark:bg-emerald-950/30"
                                     onClick={() => setConfirmDialog({ quoteId: q.id, action: "accepted", insurerName: q.insurerName ?? q.insurerTenantId })}
                                   >
                                     <CheckCircle className="h-3 w-3 mr-1" />
@@ -254,7 +254,7 @@ export default function AgencyFleetQuotes() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-7 px-2 text-xs border-red-300 text-red-600 hover:bg-red-50"
+                                    className="h-7 px-2 text-xs border-red-300 dark:border-red-700 text-red-600 hover:bg-red-50 dark:bg-red-950/30"
                                     onClick={() => setConfirmDialog({ quoteId: q.id, action: "rejected", insurerName: q.insurerName ?? q.insurerTenantId })}
                                   >
                                     <XCircle className="h-3 w-3 mr-1" />
@@ -273,7 +273,7 @@ export default function AgencyFleetQuotes() {
                                 </span>
                               )}
                               {(q.status === "pending" || q.status === "sent") && (
-                                <span className="text-xs text-gray-400 flex items-center justify-end gap-1">
+                                <span className="text-xs text-gray-400 dark:text-muted-foreground/70 flex items-center justify-end gap-1">
                                   <Clock className="h-3.5 w-3.5" /> Awaiting
                                 </span>
                               )}

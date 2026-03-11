@@ -24,15 +24,15 @@ export default function UserDiagnostic() {
           
           <CardContent className="pt-6 space-y-6">
             {isLoading && (
-              <p className="text-center text-slate-500">Loading user data...</p>
+              <p className="text-center text-slate-500 dark:text-muted-foreground">Loading user data...</p>
             )}
             
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4 flex items-start gap-3">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-start gap-3">
                 <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
                 <div>
-                  <h3 className="font-semibold text-red-900">Error Loading User</h3>
-                  <p className="text-sm text-red-700 mt-1">{error.message}</p>
+                  <h3 className="font-semibold text-red-900 dark:text-red-200">Error Loading User</h3>
+                  <p className="text-sm text-red-700 dark:text-red-300 mt-1">{error.message}</p>
                 </div>
               </div>
             )}
@@ -40,75 +40,75 @@ export default function UserDiagnostic() {
             {user && (
               <>
                 {/* Authentication Status */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
                   <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                   <div>
-                    <h3 className="font-semibold text-green-900">Authenticated</h3>
-                    <p className="text-sm text-green-700 mt-1">User session is valid</p>
+                    <h3 className="font-semibold text-green-900 dark:text-green-200">Authenticated</h3>
+                    <p className="text-sm text-green-700 dark:text-green-300 mt-1">User session is valid</p>
                   </div>
                 </div>
                 
                 {/* User Data Table */}
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full">
-                    <thead className="bg-slate-100">
+                    <thead className="bg-slate-100 dark:bg-muted">
                       <tr>
-                        <th className="text-left p-3 font-semibold text-slate-700">Field</th>
-                        <th className="text-left p-3 font-semibold text-slate-700">Value</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 dark:text-foreground/80">Field</th>
+                        <th className="text-left p-3 font-semibold text-slate-700 dark:text-foreground/80">Value</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y">
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">ID</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">ID</td>
                         <td className="p-3 font-mono text-sm">{user.id}</td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Open ID</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Open ID</td>
                         <td className="p-3 font-mono text-sm break-all">{user.openId}</td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Name</td>
-                        <td className="p-3">{user.name || <span className="text-slate-400">Not set</span>}</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Name</td>
+                        <td className="p-3">{user.name || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Email</td>
-                        <td className="p-3">{user.email || <span className="text-slate-400">Not set</span>}</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Email</td>
+                        <td className="p-3">{user.email || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
-                      <tr className="bg-yellow-50">
-                        <td className="p-3 font-medium text-slate-600">Role</td>
+                      <tr className="bg-yellow-50 dark:bg-yellow-950/30">
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Role</td>
                         <td className="p-3">
                           {user.role ? (
-                            <span className="font-semibold text-blue-700">{user.role}</span>
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">{user.role}</span>
                           ) : (
                             <span className="text-red-600 font-semibold">❌ Not set</span>
                           )}
                         </td>
                       </tr>
-                      <tr className="bg-yellow-50">
-                        <td className="p-3 font-medium text-slate-600">Insurer Role</td>
+                      <tr className="bg-yellow-50 dark:bg-yellow-950/30">
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Insurer Role</td>
                         <td className="p-3">
                           {user.insurerRole ? (
-                            <span className="font-semibold text-blue-700">{user.insurerRole}</span>
+                            <span className="font-semibold text-blue-700 dark:text-blue-300">{user.insurerRole}</span>
                           ) : (
                             <span className="text-red-600 font-semibold">❌ Not set</span>
                           )}
                         </td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Tenant ID</td>
-                        <td className="p-3">{user.tenantId || <span className="text-slate-400">Not set</span>}</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Tenant ID</td>
+                        <td className="p-3">{user.tenantId || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Login Method</td>
-                        <td className="p-3">{user.loginMethod || <span className="text-slate-400">Not set</span>}</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Login Method</td>
+                        <td className="p-3">{user.loginMethod || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Last Signed In</td>
-                        <td className="p-3">{user.lastSignedIn ? new Date(user.lastSignedIn).toLocaleString() : <span className="text-slate-400">Never</span>}</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Last Signed In</td>
+                        <td className="p-3">{user.lastSignedIn ? new Date(user.lastSignedIn).toLocaleString() : <span className="text-slate-400 dark:text-muted-foreground/70">Never</span>}</td>
                       </tr>
                       <tr>
-                        <td className="p-3 font-medium text-slate-600">Created At</td>
-                        <td className="p-3">{user.createdAt ? new Date(user.createdAt).toLocaleString() : <span className="text-slate-400">Unknown</span>}</td>
+                        <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Created At</td>
+                        <td className="p-3">{user.createdAt ? new Date(user.createdAt).toLocaleString() : <span className="text-slate-400 dark:text-muted-foreground/70">Unknown</span>}</td>
                       </tr>
                     </tbody>
                   </table>
@@ -116,12 +116,12 @@ export default function UserDiagnostic() {
                 
                 {/* Role Status Alert */}
                 {(!user.role || user.role !== "insurer" || !user.insurerRole) && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
+                  <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4 flex items-start gap-3">
                     <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-amber-900">Role Configuration Required</h3>
-                      <p className="text-sm text-amber-700 mt-1">
-                        Your role is not properly configured. You need both <code className="bg-amber-100 px-1 rounded">role="insurer"</code> and a valid <code className="bg-amber-100 px-1 rounded">insurerRole</code> to access Claims Processor and Executive dashboards.
+                      <h3 className="font-semibold text-amber-900 dark:text-amber-200">Role Configuration Required</h3>
+                      <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                        Your role is not properly configured. You need both <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">role="insurer"</code> and a valid <code className="bg-amber-100 dark:bg-amber-900/30 px-1 rounded">insurerRole</code> to access Claims Processor and Executive dashboards.
                       </p>
                       <Button
                         className="mt-3"
@@ -135,12 +135,12 @@ export default function UserDiagnostic() {
                 )}
                 
                 {user.role === "insurer" && user.insurerRole && (
-                  <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+                  <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-start gap-3">
                     <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
                     <div>
-                      <h3 className="font-semibold text-green-900">Role Configured Correctly</h3>
-                      <p className="text-sm text-green-700 mt-1">
-                        You have <code className="bg-green-100 px-1 rounded">role="insurer"</code> and <code className="bg-green-100 px-1 rounded">insurerRole="{user.insurerRole}"</code>. You should be able to access all dashboards.
+                      <h3 className="font-semibold text-green-900 dark:text-green-200">Role Configured Correctly</h3>
+                      <p className="text-sm text-green-700 dark:text-green-300 mt-1">
+                        You have <code className="bg-green-100 dark:bg-green-900/30 px-1 rounded">role="insurer"</code> and <code className="bg-green-100 dark:bg-green-900/30 px-1 rounded">insurerRole="{user.insurerRole}"</code>. You should be able to access all dashboards.
                       </p>
                     </div>
                   </div>

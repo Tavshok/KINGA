@@ -9850,3 +9850,26 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Update debug runner for self-healing (degraded status, assumptions tracking)
 - [x] Update PipelineDebug frontend page for self-healing fields
 - [x] End-to-end test with both claims: PASS (25 vitest tests pass)
+
+## Bug Fixes and UI Improvements
+- [x] Fix InsurerComparisonView crash: add enabled guard to claims query, prevent id=0
+- [x] Fix null-safety in FraudScorePanel (breakdown.recommendedActions, triggeredSignals, indicator.signals)
+- [x] Fix null-safety in PhysicsConfidenceDashboard (validation.anomalies)
+- [x] Fix null-safety in VehicleDamageVisualization (safetyImplications)
+- [x] Fix null-safety in QuoteOptimisationPanel (q.flags)
+- [x] Fix null-safety in PanelBeaterChoicesCard (data.choices)
+- [x] Fix dark mode in InsurerComparisonView (46 dark: classes added)
+- [x] Fix dark mode in FraudScorePanel (RISK_CONFIG, IndicatorCard, actions, signals)
+- [x] Fix dark mode in PhysicsConfidenceDashboard (anomaly backgrounds)
+- [x] Fix dark mode in VehicleDamageVisualization (zone details, priority list, legend)
+- [x] Fix dark mode in QuoteOptimisationPanel (table rows, decision banner)
+- [x] Fix dark mode in PanelBeaterChoicesCard (badges, mismatch warning)
+- [x] Fix dark mode in DamageImagesPanel (severity colours, source badges, photo cards)
+- [x] Fix dark mode across ALL remaining 108 component and page files (automated sweep — 2,130+ replacements)
+- [x] Fix dark mode phase 2: opacity variants (bg-*-50/NN, bg-*-100/NN) — 25 fixes across 11 files
+- [x] Fix dark mode phase 3: bg-white/NN header/layout patterns — 29 fixes across 17 files
+- [x] Fix remaining null-safety issues across all components (26 fixes in 6 files)
+- [x] Fix broken parentheses from null-safety script (22 fixes in 6 files)
+- [x] Verify TypeScript compilation after all fixes — 0 client errors
+- [x] Audit for missed dark mode patterns — all bg-*-50, text-gray/slate, border-gray/slate covered
+- [x] All 1928 existing tests pass (1 pre-existing failure in pdf-image-extractor unrelated to our changes)

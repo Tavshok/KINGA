@@ -53,14 +53,14 @@ type RFQRow = {
 
 function statusBadge(status: string) {
   const variants: Record<string, { label: string; className: string }> = {
-    pending:  { label: "Pending",  className: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-    sent:     { label: "Sent",     className: "bg-blue-100 text-blue-800 border-blue-300" },
-    quoted:   { label: "Quoted",   className: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-    accepted: { label: "Accepted", className: "bg-green-100 text-green-800 border-green-300" },
-    rejected: { label: "Rejected", className: "bg-red-100 text-red-800 border-red-300" },
-    expired:  { label: "Expired",  className: "bg-gray-100 text-gray-600 border-gray-300" },
+    pending:  { label: "Pending",  className: "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700" },
+    sent:     { label: "Sent",     className: "bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700" },
+    quoted:   { label: "Quoted",   className: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700" },
+    accepted: { label: "Accepted", className: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700" },
+    rejected: { label: "Rejected", className: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700" },
+    expired:  { label: "Expired",  className: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border" },
   };
-  const v = variants[status] ?? { label: status, className: "bg-gray-100 text-gray-600" };
+  const v = variants[status] ?? { label: status, className: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground" };
   return <Badge variant="outline" className={`text-xs ${v.className}`}>{v.label}</Badge>;
 }
 
@@ -121,7 +121,7 @@ export default function InsurerFleetRFQs() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -135,7 +135,7 @@ export default function InsurerFleetRFQs() {
                   <Car className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">Fleet Policy RFQs</h1>
+                  <h1 className="text-lg font-bold text-gray-900 dark:text-foreground">Fleet Policy RFQs</h1>
                   <p className="text-xs text-muted-foreground">Broker-sourced requests from KINGA Agency</p>
                 </div>
               </div>
@@ -158,7 +158,7 @@ export default function InsurerFleetRFQs() {
           <Card className="border-dashed">
             <CardContent className="py-16 text-center">
               <Car className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-gray-700 mb-2">No Fleet RFQs Received</h3>
+              <h3 className="text-lg font-semibold text-gray-700 dark:text-foreground/80 mb-2">No Fleet RFQs Received</h3>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                 Fleet insurance requests submitted through KINGA Agency will appear here for your response.
               </p>
@@ -170,7 +170,7 @@ export default function InsurerFleetRFQs() {
               <CardTitle className="text-base font-bold flex items-center gap-2">
                 <Building2 className="h-4 w-4 text-blue-600" />
                 Fleet Policy Requests
-                <Badge className="bg-blue-100 text-blue-800 border-blue-300 text-xs ml-1" variant="outline">
+                <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 border-blue-300 dark:border-blue-700 text-xs ml-1" variant="outline">
                   {rfqs.length} total
                 </Badge>
               </CardTitle>
@@ -178,7 +178,7 @@ export default function InsurerFleetRFQs() {
             <CardContent className="p-0">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-gray-50">
+                  <TableRow className="bg-gray-50 dark:bg-muted/50">
                     <TableHead className="text-xs font-semibold">RFQ Reference</TableHead>
                     <TableHead className="text-xs font-semibold">Source</TableHead>
                     <TableHead className="text-xs font-semibold">Vehicles</TableHead>
@@ -194,19 +194,19 @@ export default function InsurerFleetRFQs() {
                     <TableRow key={rfq.id}>
                       <TableCell>
                         <div>
-                          <p className="font-mono text-xs font-semibold text-blue-700">{rfq.claimNumber}</p>
+                          <p className="font-mono text-xs font-semibold text-blue-700 dark:text-blue-300">{rfq.claimNumber}</p>
                           <p className="text-xs text-muted-foreground mt-0.5">ID #{rfq.id}</p>
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-300 text-xs whitespace-nowrap">
+                        <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 text-xs whitespace-nowrap">
                           Fleet Policy – via Agency
                         </Badge>
                       </TableCell>
                       <TableCell className="text-sm">
                         {rfq.vehicleCount != null ? (
                           <span className="flex items-center gap-1">
-                            <Car className="h-3.5 w-3.5 text-gray-400" />
+                            <Car className="h-3.5 w-3.5 text-gray-400 dark:text-muted-foreground/70" />
                             {rfq.vehicleCount}
                           </span>
                         ) : "—"}
@@ -222,7 +222,7 @@ export default function InsurerFleetRFQs() {
                       <TableCell className="text-right font-mono text-sm">
                         {rfq.quoteAmount
                           ? `${getCurrencySymbolForCode(rfq.quoteCurrency ?? currencySymbol)}${parseFloat(rfq.quoteAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
-                          : <span className="text-gray-400 text-xs">Not submitted</span>}
+                          : <span className="text-gray-400 dark:text-muted-foreground/70 text-xs">Not submitted</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(rfq.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}

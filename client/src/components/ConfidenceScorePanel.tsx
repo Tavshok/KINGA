@@ -58,18 +58,18 @@ function getLevelColour(level: string): string {
     case "Moderate": return "text-amber-600";
     case "Low": return "text-orange-600";
     case "Very Low": return "text-red-600";
-    default: return "text-gray-600";
+    default: return "text-gray-600 dark:text-muted-foreground";
   }
 }
 
 function getLevelBgColour(level: string): string {
   switch (level) {
-    case "Very High": return "bg-emerald-100 text-emerald-800 border-emerald-200";
-    case "High": return "bg-teal-100 text-teal-800 border-teal-200";
-    case "Moderate": return "bg-amber-100 text-amber-800 border-amber-200";
-    case "Low": return "bg-orange-100 text-orange-800 border-orange-200";
-    case "Very Low": return "bg-red-100 text-red-800 border-red-200";
-    default: return "bg-gray-100 text-gray-800 border-gray-200";
+    case "Very High": return "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-200 dark:border-emerald-800";
+    case "High": return "bg-teal-100 dark:bg-teal-900/30 text-teal-800 dark:text-teal-200 border-teal-200 dark:border-teal-800";
+    case "Moderate": return "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-200 dark:border-amber-800";
+    case "Low": return "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-200 dark:border-orange-800";
+    case "Very Low": return "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-200 dark:border-red-800";
+    default: return "bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground border-gray-200 dark:border-border";
   }
 }
 
@@ -83,10 +83,10 @@ function getBarColour(pct: number): string {
 
 function getPriorityColour(priority: string): string {
   switch (priority) {
-    case "high": return "bg-red-100 text-red-700 border-red-200";
-    case "medium": return "bg-amber-100 text-amber-700 border-amber-200";
-    case "low": return "bg-blue-100 text-blue-700 border-blue-200";
-    default: return "bg-gray-100 text-gray-700 border-gray-200";
+    case "high": return "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800";
+    case "medium": return "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800";
+    case "low": return "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800";
+    default: return "bg-gray-100 dark:bg-muted text-gray-700 dark:text-foreground/80 border-gray-200 dark:border-border";
   }
 }
 
@@ -172,24 +172,24 @@ function InputRow({ input }: { input: InputBreakdown }) {
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger className="w-full">
-        <div className="flex items-center gap-2 py-2 px-1 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
+        <div className="flex items-center gap-2 py-2 px-1 hover:bg-gray-50 dark:bg-muted/50 rounded-lg transition-colors cursor-pointer">
           <span className="text-base w-6 flex-shrink-0">{getInputIcon(input.key)}</span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-medium text-gray-700 truncate">{input.name}</span>
+              <span className="text-xs font-medium text-gray-700 dark:text-foreground/80 truncate">{input.name}</span>
               <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                 {!input.available && (
-                  <Badge variant="outline" className="text-xs px-1 py-0 bg-gray-100 text-gray-500 border-gray-200">
+                  <Badge variant="outline" className="text-xs px-1 py-0 bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground border-gray-200 dark:border-border">
                     N/A
                   </Badge>
                 )}
-                <span className="text-xs font-semibold text-gray-600">
+                <span className="text-xs font-semibold text-gray-600 dark:text-muted-foreground">
                   {input.weightedScore.toFixed(1)}/{input.maxWeighted.toFixed(1)}
                 </span>
-                {open ? <ChevronDown className="h-3 w-3 text-gray-400" /> : <ChevronRight className="h-3 w-3 text-gray-400" />}
+                {open ? <ChevronDown className="h-3 w-3 text-gray-400 dark:text-muted-foreground/70" /> : <ChevronRight className="h-3 w-3 text-gray-400 dark:text-muted-foreground/70" />}
               </div>
             </div>
-            <div className="w-full bg-gray-100 rounded-full h-1.5">
+            <div className="w-full bg-gray-100 dark:bg-muted rounded-full h-1.5">
               <div
                 className={`h-1.5 rounded-full transition-all ${getBarColour(pct)}`}
                 style={{ width: `${pct}%` }}
@@ -201,15 +201,15 @@ function InputRow({ input }: { input: InputBreakdown }) {
       <CollapsibleContent>
         <div className="ml-8 mr-1 mb-2 space-y-2">
           {/* Signals */}
-          {input.signals.length > 0 && (
+          {(input.signals ?? []).length > 0 && (
             <div className="space-y-1">
-              {input.signals.map((sig, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs text-gray-600">
-                  <span className={`mt-0.5 flex-shrink-0 ${sig.impact === "positive" ? "text-emerald-500" : sig.impact === "negative" ? "text-red-500" : "text-gray-400"}`}>
+              {(input.signals ?? []).map((sig, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-muted-foreground">
+                  <span className={`mt-0.5 flex-shrink-0 ${sig.impact === "positive" ? "text-emerald-500" : sig.impact === "negative" ? "text-red-500" : "text-gray-400 dark:text-muted-foreground/70"}`}>
                     {sig.impact === "positive" ? "+" : sig.impact === "negative" ? "−" : "·"}
                   </span>
                   <span className="font-medium">{sig.label}:</span>
-                  <span className="text-gray-500">{sig.value}</span>
+                  <span className="text-gray-500 dark:text-muted-foreground">{sig.value}</span>
                 </div>
               ))}
             </div>
@@ -217,7 +217,7 @@ function InputRow({ input }: { input: InputBreakdown }) {
           {/* Improvements for this input */}
           {input.improvements.length > 0 && (
             <div className="border-t border-gray-100 pt-2 space-y-1">
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">How to improve</p>
+              <p className="text-xs font-semibold text-gray-500 dark:text-muted-foreground uppercase tracking-wide">How to improve</p>
               {input.improvements.map((imp, i) => (
                 <div key={i} className={`flex items-start gap-2 text-xs rounded px-2 py-1 border ${getPriorityColour(imp.priority)}`}>
                   <TrendingUp className="h-3 w-3 mt-0.5 flex-shrink-0" />
@@ -291,7 +291,7 @@ export function ConfidenceScorePanel({
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Badge variant="outline" className="text-xs bg-blue-50 text-blue-700 border-blue-200 cursor-help">
+                    <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 cursor-help">
                       <Info className="h-3 w-3 mr-1" />
                       Adaptive weights
                     </Badge>
@@ -307,7 +307,7 @@ export function ConfidenceScorePanel({
           {breakdown?.activePenalties && breakdown.activePenalties.length > 0 && (
             <div className="space-y-1">
               {breakdown.activePenalties.map((p, i) => (
-                <div key={i} className="flex items-start gap-2 text-xs bg-red-50 border border-red-200 rounded px-2 py-1.5 text-red-700">
+                <div key={i} className="flex items-start gap-2 text-xs bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded px-2 py-1.5 text-red-700 dark:text-red-300">
                   <AlertTriangle className="h-3.5 w-3.5 mt-0.5 flex-shrink-0" />
                   <span><span className="font-semibold">Score capped at {p.cap}%:</span> {p.reason}</span>
                 </div>
@@ -316,9 +316,9 @@ export function ConfidenceScorePanel({
           )}
           {/* Quick improvement count */}
           {breakdown && breakdown.allImprovements.length > 0 && (
-            <p className="text-xs text-gray-500">
-              <span className="font-medium text-gray-700">{breakdown.allImprovements.length} improvement{breakdown.allImprovements.length !== 1 ? "s" : ""}</span> available —
-              potential gain up to <span className="font-medium text-teal-700">
+            <p className="text-xs text-gray-500 dark:text-muted-foreground">
+              <span className="font-medium text-gray-700 dark:text-foreground/80">{breakdown.allImprovements.length} improvement{breakdown.allImprovements.length !== 1 ? "s" : ""}</span> available —
+              potential gain up to <span className="font-medium text-teal-700 dark:text-teal-300">
                 +{Math.min(100 - confidenceScore, breakdown.allImprovements.reduce((s, i) => s + i.potentialGain, 0))}%
               </span>
             </p>
@@ -328,9 +328,9 @@ export function ConfidenceScorePanel({
 
       {/* 8-input breakdown */}
       {breakdown && (
-        <div className="border border-gray-200 rounded-lg overflow-hidden">
-          <div className="bg-gray-50 px-3 py-2 border-b border-gray-200">
-            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Score Breakdown by Input</p>
+        <div className="border border-gray-200 dark:border-border rounded-lg overflow-hidden">
+          <div className="bg-gray-50 dark:bg-muted/50 px-3 py-2 border-b border-gray-200 dark:border-border">
+            <p className="text-xs font-semibold text-gray-600 dark:text-muted-foreground uppercase tracking-wide">Score Breakdown by Input</p>
           </div>
           <div className="px-3 py-1 divide-y divide-gray-100">
             {breakdown.inputs.map((input) => (
@@ -342,10 +342,10 @@ export function ConfidenceScorePanel({
 
       {/* What's missing — high priority first */}
       {breakdown && breakdown.allImprovements.length > 0 && (
-        <div className="border border-amber-200 rounded-lg overflow-hidden">
-          <div className="bg-amber-50 px-3 py-2 border-b border-amber-200 flex items-center gap-2">
+        <div className="border border-amber-200 dark:border-amber-800 rounded-lg overflow-hidden">
+          <div className="bg-amber-50 dark:bg-amber-950/30 px-3 py-2 border-b border-amber-200 dark:border-amber-800 flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-amber-600" />
-            <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 uppercase tracking-wide">
               How to Improve This Score
             </p>
           </div>
@@ -380,8 +380,8 @@ export function ConfidenceScorePanel({
 
       {/* Fallback when no breakdown JSON */}
       {!breakdown && (
-        <div className="text-xs text-gray-500 bg-gray-50 rounded-lg p-3 border border-gray-200">
-          <p className="font-medium text-gray-600 mb-1">Detailed breakdown not available</p>
+        <div className="text-xs text-gray-500 dark:text-muted-foreground bg-gray-50 dark:bg-muted/50 rounded-lg p-3 border border-gray-200 dark:border-border">
+          <p className="font-medium text-gray-600 dark:text-muted-foreground mb-1">Detailed breakdown not available</p>
           <p>Re-run the AI assessment to generate a full 8-input confidence breakdown with improvement suggestions.</p>
         </div>
       )}

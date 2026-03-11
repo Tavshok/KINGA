@@ -47,9 +47,9 @@ export default function PlatformClaimTrace() {
   if (error) {
     return (
       <div className="container py-8">
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
           <CardHeader>
-            <CardTitle className="text-red-700">Error Loading Claim Trace</CardTitle>
+            <CardTitle className="text-red-700 dark:text-red-300">Error Loading Claim Trace</CardTitle>
             <CardDescription className="text-red-600">
               {error.message || "Failed to load claim trace data"}
             </CardDescription>
@@ -84,7 +84,7 @@ export default function PlatformClaimTrace() {
         </Link>
         
         <div className="flex items-center gap-3 mb-2">
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+          <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
             Platform Super Admin
           </Badge>
           <Badge variant="outline">Read-Only Access</Badge>

@@ -31,7 +31,7 @@ export default function InsurerExternalAssessmentUpload() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -97,11 +97,11 @@ export default function InsurerExternalAssessmentUpload() {
               
               {/* Inline Results Display */}
               {extractedResult && (
-                <div className="bg-green-50 border-2 border-green-500 rounded-lg p-6 space-y-4">
-                  <h3 className="text-xl font-bold text-green-900">✅ Extraction Complete!</h3>
+                <div className="bg-green-50 dark:bg-green-950/30 border-2 border-green-500 rounded-lg p-6 space-y-4">
+                  <h3 className="text-xl font-bold text-green-900 dark:text-green-200">✅ Extraction Complete!</h3>
                   
-                  <div className="bg-white rounded p-4 space-y-2">
-                    <h4 className="font-semibold text-gray-900">Vehicle Information:</h4>
+                  <div className="bg-white dark:bg-card rounded p-4 space-y-2">
+                    <h4 className="font-semibold text-gray-900 dark:text-foreground">Vehicle Information:</h4>
                     <div className="grid grid-cols-2 gap-2 text-sm">
                       <div><span className="font-medium">Make:</span> {extractedResult.vehicleMake || 'N/A'}</div>
                       <div><span className="font-medium">Model:</span> {extractedResult.vehicleModel || 'N/A'}</div>
@@ -112,9 +112,9 @@ export default function InsurerExternalAssessmentUpload() {
                     </div>
                   </div>
                   
-                  <details className="bg-white rounded p-4">
+                  <details className="bg-white dark:bg-card rounded p-4">
                     <summary className="font-semibold cursor-pointer">View Full JSON Response</summary>
-                    <pre className="text-xs mt-2 overflow-auto max-h-96 bg-gray-50 p-2 rounded">
+                    <pre className="text-xs mt-2 overflow-auto max-h-96 bg-gray-50 dark:bg-muted/50 p-2 rounded">
                       {JSON.stringify(extractedResult, null, 2)}
                     </pre>
                   </details>

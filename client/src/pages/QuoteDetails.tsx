@@ -140,14 +140,14 @@ export default function QuoteDetails() {
     <div className="container mx-auto px-4 py-8 max-w-4xl">
       {/* Quote Header */}
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Insurance Quote</h1>
-        <p className="text-gray-600 mt-2">Quote Number: {quote.quoteNumber}</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Insurance Quote</h1>
+        <p className="text-gray-600 dark:text-muted-foreground mt-2">Quote Number: {quote.quoteNumber}</p>
       </div>
       
       {/* Status Badge */}
       <div className="mb-6">
         {quote.status === "pending" && (
-          <div className="flex items-center gap-2 text-yellow-700 bg-yellow-50 border border-yellow-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg px-4 py-3">
             <Clock className="h-5 w-5" />
             <span className="font-medium">Awaiting Payment</span>
           </div>
@@ -159,19 +159,19 @@ export default function QuoteDetails() {
           </div>
         )}
         {quote.status === "payment_verified" && (
-          <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-3">
             <CheckCircle className="h-5 w-5" />
             <span className="font-medium">Payment Verified - Policy Being Issued</span>
           </div>
         )}
         {quote.status === "accepted" && (
-          <div className="flex items-center gap-2 text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 rounded-lg px-4 py-3">
             <CheckCircle className="h-5 w-5" />
             <span className="font-medium">Policy Active</span>
           </div>
         )}
         {quote.status === "rejected" && (
-          <div className="flex items-center gap-2 text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-3">
             <span className="font-medium">Payment Rejected</span>
             {quote.paymentRejectionReason && (
               <span className="text-sm">- {quote.paymentRejectionReason}</span>
@@ -179,7 +179,7 @@ export default function QuoteDetails() {
           </div>
         )}
         {isExpired && quote.status === "pending" && (
-          <div className="flex items-center gap-2 text-gray-700 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-gray-700 dark:text-foreground/80 bg-gray-50 dark:bg-muted/50 border border-gray-200 dark:border-border rounded-lg px-4 py-3">
             <span className="font-medium">Quote Expired - Please Request a New Quote</span>
           </div>
         )}
@@ -194,30 +194,30 @@ export default function QuoteDetails() {
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label className="text-gray-600">Monthly Premium</Label>
+              <Label className="text-gray-600 dark:text-muted-foreground">Monthly Premium</Label>
               <p className="text-2xl font-bold text-emerald-600">${monthlyPremium.toFixed(2)}</p>
             </div>
             <div>
-              <Label className="text-gray-600">Annual Premium</Label>
-              <p className="text-2xl font-bold text-gray-900">${annualPremium.toFixed(2)}</p>
+              <Label className="text-gray-600 dark:text-muted-foreground">Annual Premium</Label>
+              <p className="text-2xl font-bold text-gray-900 dark:text-foreground">${annualPremium.toFixed(2)}</p>
             </div>
           </div>
           
           <div className="border-t pt-4 space-y-2">
             <div className="flex justify-between">
-              <span className="text-gray-600">Coverage Type</span>
+              <span className="text-gray-600 dark:text-muted-foreground">Coverage Type</span>
               <span className="font-medium">Comprehensive</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Excess Amount</span>
+              <span className="text-gray-600 dark:text-muted-foreground">Excess Amount</span>
               <span className="font-medium">${(quote.excessAmount || 0) / 100}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Driver Age</span>
+              <span className="text-gray-600 dark:text-muted-foreground">Driver Age</span>
               <span className="font-medium">{driverDetails.age} years</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-gray-600">Annual Mileage</span>
+              <span className="text-gray-600 dark:text-muted-foreground">Annual Mileage</span>
               <span className="font-medium capitalize">{driverDetails.annualMileage}</span>
             </div>
           </div>
@@ -247,7 +247,7 @@ export default function QuoteDetails() {
                   <p><strong>Account Name:</strong> KINGA Insurance</p>
                   <p><strong>Account Number:</strong> 01234567890</p>
                   <p><strong>Branch:</strong> Harare Main</p>
-                  <p className="text-gray-600 text-xs mt-2">Use quote number as reference</p>
+                  <p className="text-gray-600 dark:text-muted-foreground text-xs mt-2">Use quote number as reference</p>
                 </CardContent>
               </Card>
               
@@ -263,7 +263,7 @@ export default function QuoteDetails() {
                   <p><strong>Merchant Code:</strong> 123456</p>
                   <p><strong>Number:</strong> 0771234567</p>
                   <p><strong>Name:</strong> KINGA Insurance</p>
-                  <p className="text-gray-600 text-xs mt-2">Use quote number as reference</p>
+                  <p className="text-gray-600 dark:text-muted-foreground text-xs mt-2">Use quote number as reference</p>
                 </CardContent>
               </Card>
               
@@ -279,7 +279,7 @@ export default function QuoteDetails() {
                   <p><strong>Merchant Code:</strong> 789012</p>
                   <p><strong>Number:</strong> 0712345678</p>
                   <p><strong>Name:</strong> KINGA Insurance</p>
-                  <p className="text-gray-600 text-xs mt-2">Use quote number as reference</p>
+                  <p className="text-gray-600 dark:text-muted-foreground text-xs mt-2">Use quote number as reference</p>
                 </CardContent>
               </Card>
               
@@ -295,7 +295,7 @@ export default function QuoteDetails() {
                   <p><strong>Office:</strong> KINGA Harare</p>
                   <p><strong>Address:</strong> 123 Nelson Mandela Ave</p>
                   <p><strong>Hours:</strong> Mon-Fri 8AM-5PM</p>
-                  <p className="text-gray-600 text-xs mt-2">Bring quote number for reference</p>
+                  <p className="text-gray-600 dark:text-muted-foreground text-xs mt-2">Bring quote number for reference</p>
                 </CardContent>
               </Card>
             </div>
@@ -351,7 +351,7 @@ export default function QuoteDetails() {
                     onChange={handleFileChange}
                   />
                   {paymentProof && (
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-gray-600 dark:text-muted-foreground mt-1">
                       Selected: {paymentProof.name}
                     </p>
                   )}
@@ -388,7 +388,7 @@ export default function QuoteDetails() {
           </CardHeader>
           <CardContent className="space-y-2">
             <p>Your payment proof has been submitted and is being verified by our team.</p>
-            <div className="bg-gray-50 p-4 rounded-lg space-y-2 text-sm">
+            <div className="bg-gray-50 dark:bg-muted/50 p-4 rounded-lg space-y-2 text-sm">
               <p><strong>Payment Method:</strong> {quote.paymentMethod?.toUpperCase()}</p>
               {quote.paymentReferenceNumber && (
                 <p><strong>Reference:</strong> {quote.paymentReferenceNumber}</p>
@@ -398,7 +398,7 @@ export default function QuoteDetails() {
               )}
               <p><strong>Submitted:</strong> {quote.paymentSubmittedAt ? new Date(quote.paymentSubmittedAt).toLocaleString() : "N/A"}</p>
             </div>
-            <p className="text-sm text-gray-600 mt-4">
+            <p className="text-sm text-gray-600 dark:text-muted-foreground mt-4">
               We'll notify you once your payment is verified. This usually takes 1-2 business days.
             </p>
           </CardContent>

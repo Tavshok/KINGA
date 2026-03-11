@@ -167,7 +167,7 @@ export default function PanelBeaterQuoteSubmission() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -356,7 +356,7 @@ export default function PanelBeaterQuoteSubmission() {
                         id="includeVat"
                         checked={includeVat}
                         onChange={(e) => setIncludeVat(e.target.checked)}
-                        className="h-4 w-4 rounded border-gray-300"
+                        className="h-4 w-4 rounded border-gray-300 dark:border-border"
                       />
                       <Label htmlFor="includeVat" className="cursor-pointer">
                         Include VAT

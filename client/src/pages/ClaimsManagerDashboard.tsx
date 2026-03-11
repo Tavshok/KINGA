@@ -290,15 +290,15 @@ export default function ClaimsManagerDashboard() {
               <p className="text-teal-100 mt-1">Review assessed claims and close for onward processing</p>
             </div>
             <div className="flex items-center gap-3">
-              <div className="bg-white/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
                 <p className="text-2xl font-bold">{totalReviewable}</p>
                 <p className="text-xs text-teal-100">Pending Review</p>
               </div>
-              <div className="bg-white/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
                 <p className="text-2xl font-bold text-red-300">{highRiskCount}</p>
                 <p className="text-xs text-teal-100">High Risk</p>
               </div>
-              <div className="bg-white/15 backdrop-blur rounded-lg px-4 py-2 text-center">
+              <div className="bg-white/15 dark:bg-card/15 backdrop-blur rounded-lg px-4 py-2 text-center">
                 <p className="text-2xl font-bold text-green-300">{recentlyClosed}</p>
                 <p className="text-xs text-teal-100">Closed</p>
               </div>
@@ -307,10 +307,10 @@ export default function ClaimsManagerDashboard() {
         </header>
 
         {/* Workflow Info */}
-        <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 flex items-start gap-3">
+        <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg p-4 flex items-start gap-3">
           <Shield className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-sm font-medium text-teal-800">Claims Manager Workflow</p>
+            <p className="text-sm font-medium text-teal-800 dark:text-teal-200">Claims Manager Workflow</p>
             <p className="text-xs text-teal-600 mt-1">
               Claims arrive here after Risk Manager review and technical approval. Your role is to conduct a final review 
               of all assessments (AI, assessor, panel beater quotes) and close claims for onward processing — either for 
@@ -387,7 +387,7 @@ export default function ClaimsManagerDashboard() {
                 </Select>
               </div>
             </div>
-            <div className="mt-3 flex items-center justify-between text-xs text-slate-600">
+            <div className="mt-3 flex items-center justify-between text-xs text-slate-600 dark:text-muted-foreground">
               <span>Showing {paginatedClaims.length} of {filteredClaims.length} claims</span>
               <div className="flex items-center gap-2">
                 <Button
@@ -432,14 +432,14 @@ export default function ClaimsManagerDashboard() {
           </CardHeader>
           <CardContent className="pt-4">
             {(queueLoading || assessedLoading) ? (
-              <p className="text-center text-slate-500 py-8">Loading claims for review...</p>
+              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading claims for review...</p>
             ) : paginatedClaims.length > 0 ? (
               <>
                 <div className="space-y-3">
                   {paginatedClaims.map((claim: any) => (
                   <div
                     key={claim.id}
-                    className="p-4 bg-white rounded-lg border border-slate-200 hover:border-teal-300 hover:shadow-md transition-all"
+                    className="p-4 bg-white dark:bg-card rounded-lg border border-slate-200 dark:border-border hover:border-teal-300 dark:border-teal-700 hover:shadow-md transition-all"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
@@ -456,7 +456,7 @@ export default function ClaimsManagerDashboard() {
                             </Badge>
                           )}
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 dark:text-muted-foreground">
                           <div>
                             <span className="font-medium">Vehicle:</span>{" "}
                             {claim.vehicleRegistration || "N/A"}
@@ -478,7 +478,7 @@ export default function ClaimsManagerDashboard() {
 
                         {/* Per-claim currency selector — claims manager sets currency per policy insured */}
                         <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-slate-400">Policy currency:</span>
+                          <span className="text-xs text-slate-400 dark:text-muted-foreground/70">Policy currency:</span>
                           <ClaimCurrencySelector
                             claimId={claim.id}
                             currentCurrency={claim.currencyCode ?? "USD"}
@@ -489,9 +489,9 @@ export default function ClaimsManagerDashboard() {
 
                         {/* Fraud Warning */}
                         {claim.fraudRiskScore && claim.fraudRiskScore >= 70 && (
-                          <div className="mt-2 flex items-center gap-2 p-2 bg-red-50 border border-red-200 rounded text-xs">
+                          <div className="mt-2 flex items-center gap-2 p-2 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded text-xs">
                             <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
-                            <span className="text-red-700 font-medium">
+                            <span className="text-red-700 dark:text-red-300 font-medium">
                               High fraud risk detected (score: {claim.fraudRiskScore}/100). Review carefully before closing.
                             </span>
                           </div>
@@ -503,7 +503,7 @@ export default function ClaimsManagerDashboard() {
                           <FileCheck className="h-4 w-4 mr-2" />
                           Close for Processing
                         </Button>
-                        <Button onClick={() => handleSendBack(claim)} size="sm" variant="outline" className="border-orange-400 text-orange-700 hover:bg-orange-50">
+                        <Button onClick={() => handleSendBack(claim)} size="sm" variant="outline" className="border-orange-400 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30">
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Send Back
                         </Button>
@@ -534,7 +534,7 @@ export default function ClaimsManagerDashboard() {
                 {/* Pagination Controls */}
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between pt-4 border-t">
-                    <div className="text-sm text-slate-600">
+                    <div className="text-sm text-slate-600 dark:text-muted-foreground">
                       Page {currentPage} of {totalPages}
                     </div>
                     <div className="flex items-center gap-2">
@@ -563,8 +563,8 @@ export default function ClaimsManagerDashboard() {
             ) : (
               <div className="text-center py-12">
                 <FileCheck className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 font-medium">No claims pending review</p>
-                <p className="text-sm text-slate-400 mt-1">
+                <p className="text-slate-500 dark:text-muted-foreground font-medium">No claims pending review</p>
+                <p className="text-sm text-slate-400 dark:text-muted-foreground/70 mt-1">
                   Claims will appear here after Risk Manager approval or when assessments are complete
                 </p>
               </div>
@@ -583,19 +583,19 @@ export default function ClaimsManagerDashboard() {
           </CardHeader>
           <CardContent className="pt-4">
             {completedLoading ? (
-              <p className="text-center text-slate-500 py-4">Loading...</p>
+              <p className="text-center text-slate-500 dark:text-muted-foreground py-4">Loading...</p>
             ) : completedClaims && completedClaims.length > 0 ? (
               <div className="space-y-2">
                 {completedClaims.slice(0, 10).map((claim: any) => (
-                  <div key={claim.id} className="p-3 bg-green-50/50 rounded-lg border border-green-100 flex items-center justify-between">
+                  <div key={claim.id} className="p-3 bg-green-50/50 dark:bg-green-950/50 rounded-lg border border-green-100 dark:border-green-900 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <span className="font-medium text-sm">{claim.claimNumber}</span>
-                      <span className="text-xs text-slate-500">
+                      <span className="text-xs text-slate-500 dark:text-muted-foreground">
                         {[claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" ")}
                       </span>
                       {claim.approvedAmount && (
-                        <Badge variant="outline" className="text-xs text-green-700">
+                        <Badge variant="outline" className="text-xs text-green-700 dark:text-green-300">
                           ${(claim.approvedAmount / 100).toLocaleString()}
                         </Badge>
                       )}
@@ -611,7 +611,7 @@ export default function ClaimsManagerDashboard() {
             ) : (
               <div className="text-center py-8">
                 <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No closed claims yet</p>
+                <p className="text-slate-500 dark:text-muted-foreground text-sm">No closed claims yet</p>
               </div>
             )}
           </CardContent>
@@ -640,21 +640,21 @@ export default function ClaimsManagerDashboard() {
             <div className="space-y-4 py-4">
               {/* Cost Comparison Summary */}
               {comparisonData && (
-                <div className="bg-teal-50 border border-teal-200 rounded-lg p-4 space-y-3">
-                  <h3 className="font-semibold text-teal-800 text-sm flex items-center gap-2">
+                <div className="bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-teal-800 dark:text-teal-200 text-sm flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" />
                     Assessment Summary
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
-                    <div className="bg-white rounded p-2">
-                      <p className="text-xs text-slate-500">AI Estimate</p>
-                      <p className="text-lg font-bold text-teal-700">
+                    <div className="bg-white dark:bg-card rounded p-2">
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground">AI Estimate</p>
+                      <p className="text-lg font-bold text-teal-700 dark:text-teal-300">
                         {comparisonData.aiCost ? fmt(comparisonData.aiCost * 100) : "N/A"}
                       </p>
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-xs text-slate-500">Assessor</p>
-                      <p className="text-lg font-bold text-green-700">
+                    <div className="bg-white dark:bg-card rounded p-2">
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground">Assessor</p>
+                      <p className="text-lg font-bold text-green-700 dark:text-green-300">
                         {comparisonData.assessorCost ? fmt(comparisonData.assessorCost * 100) : "N/A"}
                       </p>
                       {comparisonData.aiVsAssessor !== null && (
@@ -663,18 +663,18 @@ export default function ClaimsManagerDashboard() {
                         </p>
                       )}
                     </div>
-                    <div className="bg-white rounded p-2">
-                      <p className="text-xs text-slate-500">Avg Quote ({comparisonData.quoteCount})</p>
-                      <p className="text-lg font-bold text-purple-700">
+                    <div className="bg-white dark:bg-card rounded p-2">
+                      <p className="text-xs text-slate-500 dark:text-muted-foreground">Avg Quote ({comparisonData.quoteCount})</p>
+                      <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
                         {comparisonData.avgQuoteCost ? fmt(comparisonData.avgQuoteCost * 100) : "N/A"}
                       </p>
                     </div>
                   </div>
 
                   {(Math.abs(comparisonData.aiVsAssessor || 0) > 15 || Math.abs(comparisonData.quotesVsAi || 0) > 15) && (
-                    <div className="bg-orange-50 border border-orange-300 rounded p-2 flex items-start gap-2">
+                    <div className="bg-orange-50 dark:bg-orange-950/30 border border-orange-300 dark:border-orange-700 rounded p-2 flex items-start gap-2">
                       <AlertCircle className="h-4 w-4 text-orange-600 flex-shrink-0 mt-0.5" />
-                      <p className="text-xs text-orange-800">
+                      <p className="text-xs text-orange-800 dark:text-orange-200">
                         <strong>High Variance:</strong> Significant cost differences detected between estimates.
                       </p>
                     </div>
@@ -719,9 +719,9 @@ export default function ClaimsManagerDashboard() {
                 </Select>
               </div>
 
-              <div className="flex items-center gap-2 p-3 bg-teal-50 border border-teal-200 rounded">
+              <div className="flex items-center gap-2 p-3 bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800 rounded">
                 <ArrowRight className="h-5 w-5 text-teal-600" />
-                <p className="text-sm text-teal-700">
+                <p className="text-sm text-teal-700 dark:text-teal-300">
                   {closureAction === "approve_for_payment" 
                     ? "This claim will be closed and forwarded for payment processing."
                     : closureAction === "approve_for_repair"
@@ -784,9 +784,9 @@ export default function ClaimsManagerDashboard() {
                 </Select>
               </div>
 
-              <div className="flex items-center gap-2 p-3 bg-orange-50 border border-orange-200 rounded">
+              <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded">
                 <MessageSquare className="h-5 w-5 text-orange-600" />
-                <p className="text-sm text-orange-700">
+                <p className="text-sm text-orange-700 dark:text-orange-300">
                   This claim will be returned to the {sendBackTarget === "risk_manager" ? "Risk Manager" : "Claims Processor"} for further review
                 </p>
               </div>
@@ -811,7 +811,7 @@ export default function ClaimsManagerDashboard() {
                 onClick={handleSubmitSendBack} 
                 disabled={sendBackClaim.isPending || !sendBackComments}
                 variant="outline"
-                className="border-orange-500 text-orange-700 hover:bg-orange-50"
+                className="border-orange-500 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
               >
                 {sendBackClaim.isPending ? "Sending..." : "Send Back for Review"}
               </Button>

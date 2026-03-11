@@ -151,7 +151,7 @@ export function IntakeQueueTab() {
               return (
                 <div
                   key={claim.id}
-                  className="border rounded-lg p-4 space-y-4 hover:bg-slate-50 transition-colors"
+                  className="border rounded-lg p-4 space-y-4 hover:bg-slate-50 dark:bg-muted/50 transition-colors"
                 >
                   {/* Claim Info Row */}
                   <div className="grid grid-cols-1 md:grid-cols-5 gap-4">

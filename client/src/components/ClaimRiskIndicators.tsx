@@ -64,7 +64,7 @@ export function RiskBadge({
     return (
       <Badge 
         variant="outline" 
-        className={`${size === "sm" ? "text-xs px-1.5 py-0.5" : size === "md" ? "text-sm px-2 py-1" : "text-base px-3 py-1.5"} bg-gray-50 text-gray-500 border-gray-200`}
+        className={`${size === "sm" ? "text-xs px-1.5 py-0.5" : size === "md" ? "text-sm px-2 py-1" : "text-base px-3 py-1.5"} bg-gray-50 dark:bg-muted/50 text-gray-500 dark:text-muted-foreground border-gray-200 dark:border-border`}
       >
         <ShieldQuestion className={`${size === "sm" ? "h-3 w-3" : "h-4 w-4"} mr-1`} />
         Not Assessed
@@ -75,19 +75,19 @@ export function RiskBadge({
   const getRiskConfig = () => {
     if (score >= 70) return {
       label: "High Risk",
-      className: "bg-red-50 text-red-700 border-red-300 animate-pulse",
+      className: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700 animate-pulse",
       icon: ShieldAlert,
       glowClass: "shadow-red-200 shadow-sm"
     };
     if (score >= 40) return {
       label: "Medium Risk",
-      className: "bg-orange-50 text-orange-700 border-orange-300",
+      className: "bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300 border-orange-300 dark:border-orange-700",
       icon: AlertTriangle,
       glowClass: "shadow-orange-200 shadow-sm"
     };
     return {
       label: "Low Risk",
-      className: "bg-emerald-50 text-emerald-700 border-emerald-300",
+      className: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700",
       icon: ShieldCheck,
       glowClass: ""
     };
@@ -115,7 +115,7 @@ export function RiskBadge({
       
       {/* Expandable fraud flags */}
       {(showFlags || expanded) && flags.length > 0 && (
-        <div className="bg-red-50/50 border border-red-200 rounded-md p-2 text-xs text-red-700 max-w-xs">
+        <div className="bg-red-50/50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 rounded-md p-2 text-xs text-red-700 dark:text-red-300 max-w-xs">
           <p className="font-semibold mb-1">Fraud Indicators ({flags.length}):</p>
           <ul className="list-disc list-inside space-y-0.5">
             {flags.slice(0, 5).map((flag, i) => (
@@ -179,7 +179,7 @@ export function AiAssessButton({
     <>
       <Button
         variant={variant}
-        className={`${sizeClasses[size]} gap-1 border-teal-300 text-teal-700 hover:bg-teal-50 hover:text-teal-800`}
+        className={`${sizeClasses[size]} gap-1 border-teal-300 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:bg-teal-950/30 hover:text-teal-800 dark:text-teal-200`}
         onClick={handleTrigger}
         disabled={triggerAiAssessment.isPending}
       >

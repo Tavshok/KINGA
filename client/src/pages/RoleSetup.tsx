@@ -123,10 +123,10 @@ function UnassignedUserView({ currentRole }: { currentRole: string }) {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
       <Card className="w-full max-w-2xl shadow-lg">
         <CardHeader className="text-center pb-4">
-          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-amber-100 flex items-center justify-center">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
             <AlertCircle className="h-8 w-8 text-amber-600" />
           </div>
-          <CardTitle className="text-2xl text-slate-800">
+          <CardTitle className="text-2xl text-slate-800 dark:text-foreground">
             Account Not Yet Activated
           </CardTitle>
           <CardDescription className="text-base mt-1">
@@ -136,10 +136,10 @@ function UnassignedUserView({ currentRole }: { currentRole: string }) {
 
         <CardContent className="space-y-6">
           {/* Current role */}
-          <div className="flex items-center gap-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <div className="flex items-center gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
             <UserCog className="h-5 w-5 text-amber-600 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-amber-900">Your current role</p>
+              <p className="text-sm font-medium text-amber-900 dark:text-amber-200">Your current role</p>
               <Badge variant="outline" className="mt-1 font-mono text-xs">
                 {currentRole}
               </Badge>
@@ -148,7 +148,7 @@ function UnassignedUserView({ currentRole }: { currentRole: string }) {
 
           {/* Available roles */}
           <div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-3 flex items-center gap-2">
+            <h3 className="text-sm font-semibold text-slate-700 dark:text-foreground/80 mb-3 flex items-center gap-2">
               <ShieldCheck className="h-4 w-4" />
               Available platform roles
             </h3>
@@ -156,20 +156,20 @@ function UnassignedUserView({ currentRole }: { currentRole: string }) {
               {Object.entries(ROLE_DESCRIPTIONS).map(([key, { label, description }]) => (
                 <div
                   key={key}
-                  className="flex items-start gap-3 p-3 border border-slate-200 rounded-lg bg-white"
+                  className="flex items-start gap-3 p-3 border border-slate-200 dark:border-border rounded-lg bg-white dark:bg-card"
                 >
                   <Badge variant={roleBadgeVariant(key)} className="mt-0.5 shrink-0">
                     {label}
                   </Badge>
-                  <p className="text-sm text-slate-600">{description}</p>
+                  <p className="text-sm text-slate-600 dark:text-muted-foreground">{description}</p>
                 </div>
               ))}
             </div>
           </div>
 
           {/* Contact message */}
-          <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg text-center">
-            <p className="text-sm text-blue-800 font-medium">
+          <div className="p-4 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg text-center">
+            <p className="text-sm text-blue-800 dark:text-blue-200 font-medium">
               Please contact your platform administrator to activate your account.
             </p>
             <p className="text-xs text-blue-600 mt-1">
@@ -203,19 +203,19 @@ function AssignedUserView({ currentRole, insurerRole }: { currentRole: string; i
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 flex items-center justify-center p-6">
       <Card className="w-full max-w-lg shadow-lg">
         <CardHeader className="text-center pb-4">
-          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+          <div className="mx-auto mb-4 w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
             <CheckCircle className="h-8 w-8 text-green-600" />
           </div>
-          <CardTitle className="text-2xl text-slate-800">Role Assigned</CardTitle>
+          <CardTitle className="text-2xl text-slate-800 dark:text-foreground">Role Assigned</CardTitle>
           <CardDescription className="text-base mt-1">
             Your account is active and ready to use.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center gap-3 p-4 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
             <ShieldCheck className="h-5 w-5 text-green-600 shrink-0" />
             <div>
-              <p className="text-sm font-medium text-green-900">Your role</p>
+              <p className="text-sm font-medium text-green-900 dark:text-green-200">Your role</p>
               <div className="flex items-center gap-2 mt-1">
                 <Badge variant={roleBadgeVariant(currentRole)}>{currentRole}</Badge>
                 {insurerRole && (
@@ -223,7 +223,7 @@ function AssignedUserView({ currentRole, insurerRole }: { currentRole: string; i
                 )}
               </div>
               {info && (
-                <p className="text-xs text-green-700 mt-1">{info.description}</p>
+                <p className="text-xs text-green-700 dark:text-green-300 mt-1">{info.description}</p>
               )}
             </div>
           </div>
@@ -294,7 +294,7 @@ function AdminRoleManagerView() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-muted-foreground/70" />
       </div>
     );
   }
@@ -310,12 +310,12 @@ function AdminRoleManagerView() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+        <div className="w-10 h-10 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
           <Users className="h-5 w-5 text-blue-600" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">User Role Manager</h2>
-          <p className="text-sm text-slate-500">
+          <h2 className="text-lg font-semibold text-slate-800 dark:text-foreground">User Role Manager</h2>
+          <p className="text-sm text-slate-500 dark:text-muted-foreground">
             Assign roles to users. Changes take effect immediately.
           </p>
         </div>
@@ -339,14 +339,14 @@ function AdminRoleManagerView() {
                 const sel = getSelected(u.id);
                 return (
                   <TableRow key={u.id}>
-                    <TableCell className="font-mono text-xs text-slate-600">
+                    <TableCell className="font-mono text-xs text-slate-600 dark:text-muted-foreground">
                       {u.email ?? "—"}
                     </TableCell>
                     <TableCell className="text-sm">{u.name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant={roleBadgeVariant(u.role)}>{u.role}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-500">
+                    <TableCell className="text-xs text-slate-500 dark:text-muted-foreground">
                       {u.insurerRole ?? "—"}
                     </TableCell>
                     <TableCell>
@@ -497,7 +497,7 @@ export default function RoleSetup() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-muted-foreground/70" />
       </div>
     );
   }
@@ -525,8 +525,8 @@ export default function RoleSetup() {
                 Portal Hub
               </Button>
               <div>
-                <h1 className="text-2xl font-bold text-slate-800">Role Setup</h1>
-                <p className="text-sm text-slate-500">
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-foreground">Role Setup</h1>
+                <p className="text-sm text-slate-500 dark:text-muted-foreground">
                   Manage user role assignments across the platform.
                 </p>
               </div>

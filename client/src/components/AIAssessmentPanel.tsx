@@ -47,7 +47,7 @@ export default function AIAssessmentPanel({
       <Card className="border-l-4 border-l-primary">
         <CardContent className="flex items-center justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          <span className="ml-3 text-sm text-slate-600">Loading AI assessment...</span>
+          <span className="ml-3 text-sm text-slate-600 dark:text-muted-foreground">Loading AI assessment...</span>
         </CardContent>
       </Card>
     );
@@ -58,7 +58,7 @@ export default function AIAssessmentPanel({
       <Card className="border-l-4 border-l-slate-300">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-slate-500" />
+            <Activity className="h-5 w-5 text-slate-500 dark:text-muted-foreground" />
             AI Assessment
           </CardTitle>
           <CardDescription>No AI assessment available for this claim</CardDescription>
@@ -69,7 +69,7 @@ export default function AIAssessmentPanel({
               <Activity className="mr-2 h-4 w-4" />
               Trigger AI Assessment
             </Button>
-            <p className="text-xs text-slate-500 mt-2">
+            <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">
               Generate AI-powered damage analysis, cost estimation, and fraud detection
             </p>
           </CardContent>
@@ -100,24 +100,24 @@ export default function AIAssessmentPanel({
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Cost Estimation */}
-        <div className="bg-white rounded-lg p-4 space-y-3">
-          <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+        <div className="bg-white dark:bg-card rounded-lg p-4 space-y-3">
+          <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 flex items-center gap-2">
             <DollarSign className="h-4 w-4" />
             Cost Estimation
           </h3>
           <div className="grid grid-cols-2 gap-3">
-            <div className="bg-slate-50 rounded p-3">
-              <p className="text-xs text-slate-600">AI Estimated Cost</p>
-              <p className="text-lg font-bold text-slate-900">
+            <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Estimated Cost</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                 {fmt(aiAssessment.estimatedCost || 0)}
               </p>
             </div>
-            <div className="bg-slate-50 rounded p-3">
-              <p className="text-xs text-slate-600">Market Range</p>
-              <p className="text-lg font-bold text-slate-900">
+            <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">Market Range</p>
+              <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                 {fmt(Math.round((aiAssessment.estimatedCost || 0) * 0.9))} - {fmt(Math.round((aiAssessment.estimatedCost || 0) * 1.1))}
               </p>
-              <p className="text-xs text-slate-500">±10% variance</p>
+              <p className="text-xs text-slate-500 dark:text-muted-foreground">±10% variance</p>
             </div>
           </div>
         </div>
@@ -126,19 +126,19 @@ export default function AIAssessmentPanel({
         {aiAssessment.fraudRiskLevel && aiAssessment.fraudRiskLevel !== "low" && (
           <div className={`rounded-lg p-4 ${
             aiAssessment.fraudRiskLevel === "high" 
-              ? "bg-red-50 border border-red-200" 
-              : "bg-orange-50 border border-orange-200"
+              ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" 
+              : "bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800"
           }`}>
             <h3 className="font-semibold text-sm flex items-center gap-2 mb-2">
               <Shield className="h-4 w-4" />
-              <span className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700" : "text-orange-700"}>
+              <span className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
                 {aiAssessment.fraudRiskLevel === "high" ? "High" : "Medium"} Fraud Risk Detected
               </span>
             </h3>
             {aiAssessment.fraudIndicators && (
               <ul className="text-sm space-y-1 ml-6">
                 {JSON.parse(aiAssessment.fraudIndicators).map((indicator: string, idx: number) => (
-                  <li key={idx} className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700" : "text-orange-700"}>
+                  <li key={idx} className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
                     • {indicator}
                   </li>
                 ))}
@@ -150,9 +150,9 @@ export default function AIAssessmentPanel({
         {variant === "full" && (
           <>
             {/* Damage Analysis */}
-            <div className="bg-white rounded-lg p-4">
-              <h3 className="font-semibold text-sm text-slate-700 mb-2">Damage Analysis</h3>
-              <p className="text-sm text-slate-600 whitespace-pre-wrap">
+            <div className="bg-white dark:bg-card rounded-lg p-4">
+              <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 mb-2">Damage Analysis</h3>
+              <p className="text-sm text-slate-600 dark:text-muted-foreground whitespace-pre-wrap">
                 {aiAssessment.damageDescription || "No detailed analysis available"}
               </p>
               {aiAssessment.detectedDamageTypes && (
@@ -179,38 +179,38 @@ export default function AIAssessmentPanel({
               const fi = phys.fraudIndicators || {};
               const hasFlags = (fi.impossibleDamagePatterns?.length > 0) || (fi.unrelatedDamage?.length > 0) || (fi.stagedAccidentIndicators?.length > 0) || fi.severityMismatch;
               return (
-                <div className="bg-white rounded-lg p-4 space-y-3">
-                  <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                <div className="bg-white dark:bg-card rounded-lg p-4 space-y-3">
+                  <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 flex items-center gap-2">
                     <Activity className="h-4 w-4" />
                     Physics-Based Validation
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div>
-                      <span className="text-slate-500 block text-xs">Impact Force</span>
+                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Impact Force</span>
                       <span className="font-semibold">{(phys.impactForce ?? 0).toFixed(1)} kN</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-xs">Est. Speed</span>
+                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Est. Speed</span>
                       <span className="font-semibold">{(phys.estimatedSpeed ?? 0).toFixed(0)} km/h</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-xs">Impact Angle</span>
+                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Impact Angle</span>
                       <span className="font-semibold">{(phys.impactAngle ?? 0).toFixed(0)}&deg;</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 block text-xs">Deviation Score</span>
+                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Deviation Score</span>
                       <span className="font-semibold">{phys.physicsDeviationScore ?? 'N/A'}</span>
                     </div>
                   </div>
                   {propagation.length > 0 && (
                     <div>
-                      <span className="text-xs font-medium text-slate-500">Damage Propagation Path</span>
+                      <span className="text-xs font-medium text-slate-500 dark:text-muted-foreground">Damage Propagation Path</span>
                       <div className="mt-1 space-y-1">
                         {propagation.slice(0, 5).map((dp: any, i: number) => (
-                          <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
+                          <div key={i} className="flex items-center gap-2 text-xs text-slate-600 dark:text-muted-foreground">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
                             <span className="font-medium">{dp.component}</span>
-                            <span className="text-slate-400">&mdash;</span>
+                            <span className="text-slate-400 dark:text-muted-foreground/70">&mdash;</span>
                             <span>{(dp.force ?? 0).toFixed(1)} kN at {(dp.distance ?? 0).toFixed(2)}m</span>
                           </div>
                         ))}
@@ -218,8 +218,8 @@ export default function AIAssessmentPanel({
                     </div>
                   )}
                   {hasFlags && (
-                    <div className="bg-red-50 border border-red-200 rounded p-2 space-y-1">
-                      <span className="text-xs font-semibold text-red-700">Physics Fraud Indicators</span>
+                    <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded p-2 space-y-1">
+                      <span className="text-xs font-semibold text-red-700 dark:text-red-300">Physics Fraud Indicators</span>
                       {fi.impossibleDamagePatterns?.map((p: string, i: number) => (
                         <p key={`imp-${i}`} className="text-xs text-red-600">&bull; Impossible: {p}</p>
                       ))}
@@ -240,8 +240,8 @@ export default function AIAssessmentPanel({
 
             {/* Total Loss Indicator */}
             {aiAssessment.totalLossIndicated === 1 && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <h3 className="font-semibold text-sm text-red-700 mb-2 flex items-center gap-2">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4">
+                <h3 className="font-semibold text-sm text-red-700 dark:text-red-300 mb-2 flex items-center gap-2">
                   <AlertTriangle className="h-4 w-4" />
                   Total Loss Indicated
                 </h3>

@@ -69,12 +69,12 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
   return (
     <Card className="p-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-2 bg-green-100 rounded-lg">
+        <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
           <DollarSign className="w-5 h-5 text-green-600" />
         </div>
         <h2 className="text-xl font-semibold">Cost Breakdown</h2>
         {isEstimated && (
-          <Badge variant="outline" className="border-amber-300 text-amber-700 bg-amber-50">Estimated from industry averages</Badge>
+          <Badge variant="outline" className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30">Estimated from industry averages</Badge>
         )}
         {itemizedCosts && itemizedCosts.length > 0 && (
           <Badge variant="secondary">{itemizedCosts.length} line items</Badge>
@@ -83,7 +83,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
 
       {/* Total Cost */}
       <div className="mb-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg">
-        <p className="text-sm text-gray-600 mb-1">Total Estimated Cost</p>
+        <p className="text-sm text-gray-600 dark:text-muted-foreground mb-1">Total Estimated Cost</p>
         <p className="text-4xl font-bold text-green-600">
           {currency}{breakdown.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
@@ -153,11 +153,11 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
               <div className="flex items-center justify-between mb-1">
                 <div className="flex items-center gap-2">
                   <Icon className="w-4 h-4" style={{ color }} />
-                  <span className="text-sm font-medium text-gray-700">{category.label}</span>
+                  <span className="text-sm font-medium text-gray-700 dark:text-foreground/80">{category.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500">{percentage.toFixed(1)}%</span>
-                  <span className="text-sm font-semibold text-gray-900">
+                  <span className="text-sm text-gray-500 dark:text-muted-foreground">{percentage.toFixed(1)}%</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-foreground">
                     {currency}{category.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
@@ -176,30 +176,30 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
       {/* Itemized Line Items Table */}
       {itemizedCosts && itemizedCosts.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-gray-700 mb-3">Itemized Line Items</h3>
-          <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground/80 mb-3">Itemized Line Items</h3>
+          <div className="border border-gray-200 dark:border-border rounded-lg overflow-hidden">
             <table className="w-full text-sm">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-muted/50">
                 <tr>
-                  <th className="text-left p-3 font-semibold text-gray-700">#</th>
-                  <th className="text-left p-3 font-semibold text-gray-700">Description</th>
-                  <th className="text-left p-3 font-semibold text-gray-700">Category</th>
-                  <th className="text-right p-3 font-semibold text-gray-700">Amount</th>
+                  <th className="text-left p-3 font-semibold text-gray-700 dark:text-foreground/80">#</th>
+                  <th className="text-left p-3 font-semibold text-gray-700 dark:text-foreground/80">Description</th>
+                  <th className="text-left p-3 font-semibold text-gray-700 dark:text-foreground/80">Category</th>
+                  <th className="text-right p-3 font-semibold text-gray-700 dark:text-foreground/80">Amount</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {itemizedCosts.map((item, index) => {
                   const catColor = categoryColors[item.category || 'other'] || '#6b7280';
                   return (
-                    <tr key={index} className="hover:bg-gray-50">
-                      <td className="p-3 text-gray-500">{index + 1}</td>
-                      <td className="p-3 font-medium text-gray-900">{item.description}</td>
+                    <tr key={index} className="hover:bg-gray-50 dark:bg-muted/50">
+                      <td className="p-3 text-gray-500 dark:text-muted-foreground">{index + 1}</td>
+                      <td className="p-3 font-medium text-gray-900 dark:text-foreground">{item.description}</td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-xs" style={{ borderColor: catColor, color: catColor }}>
                           {item.category || 'other'}
                         </Badge>
                       </td>
-                      <td className="p-3 text-right font-semibold text-gray-900">
+                      <td className="p-3 text-right font-semibold text-gray-900 dark:text-foreground">
                         {currency}{item.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </td>
                     </tr>
@@ -207,7 +207,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
                 })}
               </tbody>
               <tfoot>
-                <tr className="bg-green-50 font-bold">
+                <tr className="bg-green-50 dark:bg-green-950/30 font-bold">
                   <td className="p-3" colSpan={3}>Total</td>
                   <td className="p-3 text-right text-green-600">
                     {currency}{breakdown.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -220,13 +220,13 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
       )}
 
       {/* Category Summary Table */}
-      <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="border border-gray-200 dark:border-border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50">
+          <thead className="bg-gray-50 dark:bg-muted/50">
             <tr>
-              <th className="text-left p-3 font-semibold text-gray-700">Category</th>
-              <th className="text-right p-3 font-semibold text-gray-700">Amount</th>
-              <th className="text-right p-3 font-semibold text-gray-700">%</th>
+              <th className="text-left p-3 font-semibold text-gray-700 dark:text-foreground/80">Category</th>
+              <th className="text-right p-3 font-semibold text-gray-700 dark:text-foreground/80">Amount</th>
+              <th className="text-right p-3 font-semibold text-gray-700 dark:text-foreground/80">%</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200">
@@ -234,26 +234,26 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
               const percentage = (category.value / breakdown.total) * 100;
               const color = categoryColors[category.key] || '#6b7280';
               return (
-                <tr key={index} className="hover:bg-gray-50">
+                <tr key={index} className="hover:bg-gray-50 dark:bg-muted/50">
                   <td className="p-3">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full" style={{ backgroundColor: color }}></div>
-                      <span className="font-medium text-gray-900">{category.label}</span>
+                      <span className="font-medium text-gray-900 dark:text-foreground">{category.label}</span>
                     </div>
                   </td>
-                  <td className="p-3 text-right font-semibold text-gray-900">
+                  <td className="p-3 text-right font-semibold text-gray-900 dark:text-foreground">
                     {currency}{category.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
-                  <td className="p-3 text-right text-gray-600">{percentage.toFixed(1)}%</td>
+                  <td className="p-3 text-right text-gray-600 dark:text-muted-foreground">{percentage.toFixed(1)}%</td>
                 </tr>
               );
             })}
-            <tr className="bg-green-50 font-bold">
-              <td className="p-3 text-gray-900">Total</td>
+            <tr className="bg-green-50 dark:bg-green-950/30 font-bold">
+              <td className="p-3 text-gray-900 dark:text-foreground">Total</td>
               <td className="p-3 text-right text-green-600">
                 {currency}{breakdown.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </td>
-              <td className="p-3 text-right text-gray-900">100%</td>
+              <td className="p-3 text-right text-gray-900 dark:text-foreground">100%</td>
             </tr>
           </tbody>
         </table>
@@ -261,7 +261,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
 
       {/* Cost Analysis Notes */}
       <div className="mt-4 p-3 bg-primary/5 rounded-lg">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-gray-700 dark:text-foreground/80">
           <strong>Cost Analysis:</strong> Labor represents {((breakdown.labor / breakdown.total) * 100).toFixed(0)}% of total cost. 
           {breakdown.labor > breakdown.parts && " Labor-intensive repair expected."}
           {breakdown.parts > breakdown.labor && " Parts replacement is the primary cost driver."}

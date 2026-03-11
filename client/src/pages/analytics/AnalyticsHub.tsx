@@ -20,7 +20,7 @@ const dashboards = [
     icon: MapPin,
     path: '/analytics/fraud-heatmap',
     color: 'text-red-500',
-    bgColor: 'bg-red-50',
+    bgColor: 'bg-red-50 dark:bg-red-950/30',
   },
   {
     id: 'fleet-risk',
@@ -29,7 +29,7 @@ const dashboards = [
     icon: Users,
     path: '/analytics/fleet-risk',
     color: 'text-green-500',
-    bgColor: 'bg-green-50',
+    bgColor: 'bg-green-50 dark:bg-green-950/30',
   },
   {
     id: 'panel-beater',
@@ -38,7 +38,7 @@ const dashboards = [
     icon: Wrench,
     path: '/analytics/panel-beater',
     color: 'text-orange-500',
-    bgColor: 'bg-orange-50',
+    bgColor: 'bg-orange-50 dark:bg-orange-950/30',
   },
 ];
 

@@ -67,13 +67,13 @@ export default function TenantManagement() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Building2 className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Tenant Management</h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Tenant Management</h1>
                 <p className="text-sm text-muted-foreground">Configure insurance companies and their settings</p>
               </div>
             </div>
@@ -215,12 +215,12 @@ export default function TenantManagement() {
                     </div>
                     <div className="flex gap-2">
                       <div 
-                        className="w-8 h-8 rounded border-2 border-gray-300" 
+                        className="w-8 h-8 rounded border-2 border-gray-300 dark:border-border" 
                         style={{ backgroundColor: tenant.primaryColor }}
                         title="Primary Color"
                       />
                       <div 
-                        className="w-8 h-8 rounded border-2 border-gray-300" 
+                        className="w-8 h-8 rounded border-2 border-gray-300 dark:border-border" 
                         style={{ backgroundColor: tenant.secondaryColor }}
                         title="Secondary Color"
                       />

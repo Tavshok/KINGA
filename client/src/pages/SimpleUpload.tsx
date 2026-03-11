@@ -74,10 +74,10 @@ export default function SimpleUpload() {
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-accent/5 to-primary/10 p-8">
       <div className="max-w-4xl mx-auto space-y-6">
         <div className="text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
+          <h1 className="text-4xl font-bold text-gray-900 dark:text-foreground mb-2">
             PDF Assessment Upload (New System)
           </h1>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-muted-foreground">
             Upload your assessment PDF and extract vehicle information
           </p>
         </div>
@@ -115,7 +115,7 @@ export default function SimpleUpload() {
             </div>
 
             {file && (
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-muted-foreground">
                 <FileText className="h-4 w-4" />
                 <span>
                   {file.name} ({(file.size / 1024).toFixed(0)} KB)
@@ -126,67 +126,67 @@ export default function SimpleUpload() {
         </Card>
 
         {result && (
-          <Card className="border-2 border-green-500 bg-green-50">
+          <Card className="border-2 border-green-500 bg-green-50 dark:bg-green-950/30">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-green-900">
+              <CardTitle className="flex items-center gap-2 text-green-900 dark:text-green-200">
                 <CheckCircle2 className="h-6 w-6" />
                 Extraction Complete!
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="bg-white rounded-lg p-4 space-y-3">
-                <h3 className="font-semibold text-lg text-gray-900">
+              <div className="bg-white dark:bg-card rounded-lg p-4 space-y-3">
+                <h3 className="font-semibold text-lg text-gray-900 dark:text-foreground">
                   Vehicle Information
                 </h3>
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div>
-                    <span className="font-medium text-gray-700">Make:</span>
-                    <span className="ml-2 text-gray-900">
+                    <span className="font-medium text-gray-700 dark:text-foreground/80">Make:</span>
+                    <span className="ml-2 text-gray-900 dark:text-foreground">
                       {result.vehicleMake || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Model:</span>
-                    <span className="ml-2 text-gray-900">
+                    <span className="font-medium text-gray-700 dark:text-foreground/80">Model:</span>
+                    <span className="ml-2 text-gray-900 dark:text-foreground">
                       {result.vehicleModel || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Year:</span>
-                    <span className="ml-2 text-gray-900">
+                    <span className="font-medium text-gray-700 dark:text-foreground/80">Year:</span>
+                    <span className="ml-2 text-gray-900 dark:text-foreground">
                       {result.vehicleYear || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-gray-700 dark:text-foreground/80">
                       Registration:
                     </span>
-                    <span className="ml-2 text-gray-900">
+                    <span className="ml-2 text-gray-900 dark:text-foreground">
                       {result.vehicleRegistration || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">Claimant:</span>
-                    <span className="ml-2 text-gray-900">
+                    <span className="font-medium text-gray-700 dark:text-foreground/80">Claimant:</span>
+                    <span className="ml-2 text-gray-900 dark:text-foreground">
                       {result.claimantName || "N/A"}
                     </span>
                   </div>
                   <div>
-                    <span className="font-medium text-gray-700">
+                    <span className="font-medium text-gray-700 dark:text-foreground/80">
                       Estimated Cost:
                     </span>
-                    <span className="ml-2 text-gray-900 font-semibold">
+                    <span className="ml-2 text-gray-900 dark:text-foreground font-semibold">
                       ${result.estimatedCost || "0"}
                     </span>
                   </div>
                 </div>
               </div>
 
-              <details className="bg-white rounded-lg p-4">
-                <summary className="font-semibold cursor-pointer text-gray-900">
+              <details className="bg-white dark:bg-card rounded-lg p-4">
+                <summary className="font-semibold cursor-pointer text-gray-900 dark:text-foreground">
                   View Full JSON Response
                 </summary>
-                <pre className="mt-3 text-xs overflow-auto max-h-96 bg-gray-50 p-3 rounded">
+                <pre className="mt-3 text-xs overflow-auto max-h-96 bg-gray-50 dark:bg-muted/50 p-3 rounded">
                   {JSON.stringify(result, null, 2)}
                 </pre>
               </details>

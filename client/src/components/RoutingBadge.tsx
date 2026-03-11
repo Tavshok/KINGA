@@ -79,8 +79,8 @@ export function RoutingBadge({
       <PopoverContent className="w-80" align="start">
         <div className="space-y-4">
           <div>
-            <h4 className="font-semibold text-slate-900 mb-1">Routing Decision Breakdown</h4>
-            <p className="text-xs text-slate-600">
+            <h4 className="font-semibold text-slate-900 dark:text-foreground mb-1">Routing Decision Breakdown</h4>
+            <p className="text-xs text-slate-600 dark:text-muted-foreground">
               AI confidence components that contributed to this routing decision
             </p>
           </div>
@@ -89,8 +89,8 @@ export function RoutingBadge({
             {/* Fraud Risk Contribution */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-700 font-medium">Fraud Risk Impact</span>
-                <span className="font-bold text-slate-900">
+                <span className="text-slate-700 dark:text-foreground/80 font-medium">Fraud Risk Impact</span>
+                <span className="font-bold text-slate-900 dark:text-foreground">
                   {confidenceComponents.fraudRiskContribution}%
                 </span>
               </div>
@@ -106,7 +106,7 @@ export function RoutingBadge({
                   style={{ width: `${confidenceComponents.fraudRiskContribution}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">
                 {confidenceComponents.fraudRiskContribution > 70
                   ? "High fraud risk detected, escalation recommended"
                   : confidenceComponents.fraudRiskContribution > 40
@@ -118,8 +118,8 @@ export function RoutingBadge({
             {/* Quote Variance Contribution */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-700 font-medium">Quote Variance Impact</span>
-                <span className="font-bold text-slate-900">
+                <span className="text-slate-700 dark:text-foreground/80 font-medium">Quote Variance Impact</span>
+                <span className="font-bold text-slate-900 dark:text-foreground">
                   {confidenceComponents.quoteVarianceContribution}%
                 </span>
               </div>
@@ -135,7 +135,7 @@ export function RoutingBadge({
                   style={{ width: `${confidenceComponents.quoteVarianceContribution}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">
                 {confidenceComponents.quoteVarianceContribution > 70
                   ? "Significant variance between quotes and AI estimate"
                   : confidenceComponents.quoteVarianceContribution > 40
@@ -147,8 +147,8 @@ export function RoutingBadge({
             {/* Claim Completeness Score */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-700 font-medium">Claim Completeness</span>
-                <span className="font-bold text-slate-900">
+                <span className="text-slate-700 dark:text-foreground/80 font-medium">Claim Completeness</span>
+                <span className="font-bold text-slate-900 dark:text-foreground">
                   {confidenceComponents.claimCompletenessScore}%
                 </span>
               </div>
@@ -164,7 +164,7 @@ export function RoutingBadge({
                   style={{ width: `${confidenceComponents.claimCompletenessScore}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">
                 {confidenceComponents.claimCompletenessScore >= 80
                   ? "All required documentation and information provided"
                   : confidenceComponents.claimCompletenessScore >= 60
@@ -176,8 +176,8 @@ export function RoutingBadge({
             {/* Historical Pattern Impact */}
             <div className="space-y-1.5">
               <div className="flex items-center justify-between text-sm">
-                <span className="text-slate-700 font-medium">Historical Pattern</span>
-                <span className="font-bold text-slate-900">
+                <span className="text-slate-700 dark:text-foreground/80 font-medium">Historical Pattern</span>
+                <span className="font-bold text-slate-900 dark:text-foreground">
                   {confidenceComponents.historicalPatternImpact}%
                 </span>
               </div>
@@ -193,7 +193,7 @@ export function RoutingBadge({
                   style={{ width: `${confidenceComponents.historicalPatternImpact}%` }}
                 ></div>
               </div>
-              <p className="text-xs text-slate-600">
+              <p className="text-xs text-slate-600 dark:text-muted-foreground">
                 {confidenceComponents.historicalPatternImpact > 70
                   ? "Claimant history shows concerning patterns"
                   : confidenceComponents.historicalPatternImpact > 40
@@ -203,8 +203,8 @@ export function RoutingBadge({
             </div>
           </div>
 
-          <div className="pt-3 border-t border-slate-200">
-            <p className="text-xs text-slate-500 italic">
+          <div className="pt-3 border-t border-slate-200 dark:border-border">
+            <p className="text-xs text-slate-500 dark:text-muted-foreground italic">
               These components are calculated by the AI governance engine and do not reflect manual overrides.
             </p>
           </div>

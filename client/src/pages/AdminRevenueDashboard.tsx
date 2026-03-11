@@ -80,8 +80,8 @@ export function AdminRevenueDashboard() {
   return (
     <div className="container mx-auto py-8 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Revenue Dashboard</h1>
-        <p className="text-gray-600 mt-2">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Revenue Dashboard</h1>
+        <p className="text-gray-600 dark:text-muted-foreground mt-2">
           Platform monetisation analytics and business intelligence
         </p>
       </div>
@@ -128,7 +128,7 @@ export function AdminRevenueDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Tenants</CardTitle>
-            <Users className="h-4 w-4 text-gray-600" />
+            <Users className="h-4 w-4 text-gray-600 dark:text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {revenueSimulation.isLoading ? (
@@ -266,7 +266,7 @@ export function AdminRevenueDashboard() {
                     <TableCell>{tenant.claimsProcessed}</TableCell>
                     <TableCell>{tenant.userCount}</TableCell>
                     <TableCell>
-                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200">
                         {tenant.tierName}
                       </span>
                     </TableCell>
@@ -278,10 +278,10 @@ export function AdminRevenueDashboard() {
                       <span
                         className={`px-2 py-1 rounded-full text-xs font-semibold ${
                           tenant.profitabilityScore > 70
-                            ? "bg-green-100 text-green-800"
+                            ? "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200"
                             : tenant.profitabilityScore > 40
-                            ? "bg-yellow-100 text-yellow-800"
-                            : "bg-red-100 text-red-800"
+                            ? "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200"
+                            : "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200"
                         }`}
                       >
                         {tenant.profitabilityScore}
@@ -323,7 +323,7 @@ export function AdminRevenueDashboard() {
                     <TableCell className="text-right">{tenant.currentEvents}</TableCell>
                     <TableCell className="text-right">{tenant.previousEvents}</TableCell>
                     <TableCell className="text-right">
-                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                      <span className="px-2 py-1 rounded-full text-xs font-semibold bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200">
                         +{tenant.growthRate}%
                       </span>
                     </TableCell>
@@ -348,9 +348,9 @@ export function AdminRevenueDashboard() {
             </div>
           ) : (
             <>
-              <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                <p className="text-sm text-gray-600">Platform Average Cost per Compute Unit</p>
-                <p className="text-2xl font-bold text-gray-900">
+              <div className="mb-4 p-4 bg-gray-50 dark:bg-muted/50 rounded-lg">
+                <p className="text-sm text-gray-600 dark:text-muted-foreground">Platform Average Cost per Compute Unit</p>
+                <p className="text-2xl font-bold text-gray-900 dark:text-foreground">
                   ${costComputeRatio.data?.platformAverageCostPerUnit}
                 </p>
               </div>

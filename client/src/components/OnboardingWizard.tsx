@@ -104,7 +104,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       ? "bg-emerald-600 text-white"
                       : index + 1 === step
                       ? "bg-primary text-white"
-                      : "bg-gray-200 text-gray-500"
+                      : "bg-gray-200 text-gray-500 dark:text-muted-foreground"
                   }`}
                 >
                   {index + 1 < step ? <CheckCircle2 className="w-5 h-5" /> : index + 1}
@@ -119,7 +119,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
               </div>
             ))}
           </div>
-          <p className="text-center text-sm text-gray-600">
+          <p className="text-center text-sm text-gray-600 dark:text-muted-foreground">
             Step {step} of {totalSteps}
           </p>
         </div>
@@ -130,8 +130,8 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <User className="w-16 h-16 mx-auto mb-4 text-emerald-600" />
-                <h2 className="text-2xl font-bold text-gray-900">Welcome to KINGA!</h2>
-                <p className="text-gray-600 mt-2">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground">Welcome to KINGA!</h2>
+                <p className="text-gray-600 dark:text-muted-foreground mt-2">
                   Let's set up your {getRoleDisplayName(userRole)} account
                 </p>
               </div>
@@ -191,8 +191,8 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <Building2 className="w-16 h-16 mx-auto mb-4 text-primary" />
-                <h2 className="text-2xl font-bold text-gray-900">Organization Details</h2>
-                <p className="text-gray-600 mt-2">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground">Organization Details</h2>
+                <p className="text-gray-600 dark:text-muted-foreground mt-2">
                   Tell us about your organization
                 </p>
               </div>
@@ -226,10 +226,10 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
             <div className="space-y-6">
               <div className="text-center mb-6">
                 <Settings className="w-16 h-16 mx-auto mb-4 text-emerald-600" />
-                <h2 className="text-2xl font-bold text-gray-900">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground">
                   {getRoleDisplayName(userRole)} Specific Details
                 </h2>
-                <p className="text-gray-600 mt-2">
+                <p className="text-gray-600 dark:text-muted-foreground mt-2">
                   Complete your professional profile
                 </p>
               </div>
@@ -244,7 +244,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={assessorLicenseNumber}
                       onChange={(e) => setAssessorLicenseNumber(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
                       Your professional license or certification number
                     </p>
                   </div>
@@ -259,7 +259,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={insurerRegistrationNumber}
                       onChange={(e) => setInsurerRegistrationNumber(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
                       Your insurance company registration number
                     </p>
                   </div>
@@ -274,7 +274,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={panelBeaterCertification}
                       onChange={(e) => setPanelBeaterCertification(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
                       Your trade license or certification number
                     </p>
                   </div>
@@ -290,7 +290,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={fleetSize}
                       onChange={(e) => setFleetSize(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 mt-1">
+                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
                       Total number of vehicles in your fleet
                     </p>
                   </div>

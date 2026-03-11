@@ -105,7 +105,7 @@ export default function TenantRegistration() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-emerald-100 rounded-lg">
+            <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
               <Building2 className="w-6 h-6 text-emerald-600" />
             </div>
             <div>
@@ -255,7 +255,7 @@ export default function TenantRegistration() {
                       intakeEscalationEnabled: e.target.checked,
                     })
                   }
-                  className="rounded border-gray-300"
+                  className="rounded border-gray-300 dark:border-border"
                 />
                 <Label htmlFor="intakeEscalationEnabled" className="cursor-pointer">
                   Enable intake escalation on tenant creation

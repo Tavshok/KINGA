@@ -93,13 +93,13 @@ export default function InsurerRoleSelection() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <KingaLogo />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">KINGA</h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">KINGA</h1>
                 <p className="text-sm text-muted-foreground">Insurer Portal</p>
               </div>
             </div>
@@ -116,7 +116,7 @@ export default function InsurerRoleSelection() {
         <div className="max-w-6xl mx-auto">
           {/* Welcome Section */}
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-3">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-3">
               Select Your Role
             </h2>
             <p className="text-lg text-muted-foreground">
@@ -145,7 +145,7 @@ export default function InsurerRoleSelection() {
                   </CardHeader>
                   <CardContent className="flex-1 flex flex-col">
                     <div className="space-y-2 flex-1">
-                      <p className="text-sm font-semibold text-gray-700 mb-2">Key Responsibilities:</p>
+                      <p className="text-sm font-semibold text-gray-700 dark:text-foreground/80 mb-2">Key Responsibilities:</p>
                       <ul className="space-y-1">
                         {role.responsibilities.map((resp, idx) => (
                           <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
@@ -175,8 +175,8 @@ export default function InsurerRoleSelection() {
                 <span className="text-white text-sm font-bold">i</span>
               </div>
               <div>
-                <h3 className="font-semibold text-gray-900 mb-1">Role-Based Access Control</h3>
-                <p className="text-sm text-gray-700">
+                <h3 className="font-semibold text-gray-900 dark:text-foreground mb-1">Role-Based Access Control</h3>
+                <p className="text-sm text-gray-700 dark:text-foreground/80">
                   Your access level and available features are determined by your assigned role. 
                   If you need access to additional roles or have questions about permissions, 
                   please contact your system administrator.

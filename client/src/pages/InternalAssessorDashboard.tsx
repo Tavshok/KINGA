@@ -107,8 +107,8 @@ export default function InternalAssessorDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Internal Assessor Dashboard</h1>
-            <p className="text-slate-600 mt-1">Review external assessments and conduct internal evaluations</p>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-foreground">Internal Assessor Dashboard</h1>
+            <p className="text-slate-600 dark:text-muted-foreground mt-1">Review external assessments and conduct internal evaluations</p>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="text-lg px-4 py-2">
@@ -129,13 +129,13 @@ export default function InternalAssessorDashboard() {
           </CardHeader>
           <CardContent>
             {queueLoading ? (
-              <p className="text-center text-slate-500 py-8">Loading assessment queue...</p>
+              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading assessment queue...</p>
             ) : assessmentQueue && assessmentQueue.length > 0 ? (
               <div className="space-y-3">
                 {assessmentQueue.map((claim: any) => (
                   <div
                     key={claim.id}
-                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-teal-300 transition-colors"
+                    className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg border border-slate-200 dark:border-border hover:border-teal-300 dark:border-teal-700 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -144,7 +144,7 @@ export default function InternalAssessorDashboard() {
                           <Badge variant="outline">Pending Internal Assessment</Badge>
                           <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 dark:text-muted-foreground mb-3">
                           <div>
                             <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
                           </div>
@@ -160,7 +160,7 @@ export default function InternalAssessorDashboard() {
                           </div>
                         </div>
                         {claim.incidentDescription && (
-                          <p className="text-sm text-slate-600 mb-2">
+                          <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">
                             <span className="font-medium">Incident:</span> {claim.incidentDescription}
                           </p>
                         )}
@@ -190,8 +190,8 @@ export default function InternalAssessorDashboard() {
             ) : (
               <div className="text-center py-12">
                 <ClipboardList className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">No claims pending internal assessment</p>
-                <p className="text-sm text-slate-400">New claims will appear here when external assessments are complete</p>
+                <p className="text-slate-500 dark:text-muted-foreground">No claims pending internal assessment</p>
+                <p className="text-sm text-slate-400 dark:text-muted-foreground/70">New claims will appear here when external assessments are complete</p>
               </div>
             )}
           </CardContent>
@@ -274,9 +274,9 @@ export default function InternalAssessorDashboard() {
                   </SelectContent>
                 </Select>
                 {assessmentData.fraudRiskLevel === "high" && (
-                  <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
+                  <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded">
                     <AlertTriangle className="h-5 w-5 text-red-600" />
-                    <p className="text-sm text-red-700">
+                    <p className="text-sm text-red-700 dark:text-red-300">
                       High-risk claims will be flagged for executive review and fraud investigation
                     </p>
                   </div>

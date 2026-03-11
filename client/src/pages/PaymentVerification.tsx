@@ -90,15 +90,15 @@ export default function PaymentVerification() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900">Payment Verification</h1>
-        <p className="text-gray-600 mt-2">Review and verify customer payment submissions</p>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Payment Verification</h1>
+        <p className="text-gray-600 dark:text-muted-foreground mt-2">Review and verify customer payment submissions</p>
       </div>
       
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Pending Verification</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Pending Verification</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-yellow-600">
@@ -109,7 +109,7 @@ export default function PaymentVerification() {
         
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Total Amount</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Total Amount</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-emerald-600">
@@ -120,7 +120,7 @@ export default function PaymentVerification() {
         
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600">Avg. Processing Time</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Avg. Processing Time</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
@@ -135,8 +135,8 @@ export default function PaymentVerification() {
         <Card>
           <CardContent className="py-12 text-center">
             <CheckCircle className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-            <p className="text-gray-600">No pending payment verifications at the moment.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-2">All Caught Up!</h3>
+            <p className="text-gray-600 dark:text-muted-foreground">No pending payment verifications at the moment.</p>
           </CardContent>
         </Card>
       ) : (
@@ -155,7 +155,7 @@ export default function PaymentVerification() {
                         Submitted {quote.paymentSubmittedAt ? new Date(quote.paymentSubmittedAt).toLocaleString() : "N/A"}
                       </CardDescription>
                     </div>
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">
+                    <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800">
                       Pending Verification
                     </Badge>
                   </div>
@@ -164,37 +164,37 @@ export default function PaymentVerification() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Payment Details */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900 dark:text-foreground flex items-center gap-2">
                         <CreditCard className="h-4 w-4" />
                         Payment Details
                       </h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Method:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Method:</span>
                           <span className="font-medium uppercase">{quote.paymentMethod}</span>
                         </div>
                         {quote.paymentReferenceNumber && (
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Reference:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">Reference:</span>
                             <span className="font-medium">{quote.paymentReferenceNumber}</span>
                           </div>
                         )}
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Payment Date:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Payment Date:</span>
                           <span className="font-medium">
                             {quote.paymentDate ? new Date(quote.paymentDate).toLocaleDateString() : "N/A"}
                           </span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Amount Paid:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Amount Paid:</span>
                           <span className="font-bold text-emerald-600">${paymentAmount}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Expected Amount:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Expected Amount:</span>
                           <span className="font-medium">${monthlyPremium}</span>
                         </div>
                         {paymentAmount !== monthlyPremium && (
-                          <div className="bg-yellow-50 border border-yellow-200 rounded p-2 text-xs text-yellow-700">
+                          <div className="bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded p-2 text-xs text-yellow-700 dark:text-yellow-300">
                             ⚠️ Amount mismatch detected
                           </div>
                         )}
@@ -203,25 +203,25 @@ export default function PaymentVerification() {
                     
                     {/* Quote Details */}
                     <div className="space-y-3">
-                      <h4 className="font-semibold text-gray-900 flex items-center gap-2">
+                      <h4 className="font-semibold text-gray-900 dark:text-foreground flex items-center gap-2">
                         <FileText className="h-4 w-4" />
                         Quote Details
                       </h4>
                       <div className="space-y-2 text-sm">
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Customer ID:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Customer ID:</span>
                           <span className="font-medium">{quote.customerId}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Vehicle ID:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Vehicle ID:</span>
                           <span className="font-medium">{quote.vehicleId}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Coverage:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Coverage:</span>
                           <span className="font-medium">Comprehensive</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-gray-600">Valid Until:</span>
+                          <span className="text-gray-600 dark:text-muted-foreground">Valid Until:</span>
                           <span className="font-medium">
                             {new Date(quote.quoteValidUntil).toLocaleDateString()}
                           </span>
@@ -288,7 +288,7 @@ export default function PaymentVerification() {
                 />
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-gray-500 dark:text-muted-foreground">
                 No payment proof available
               </div>
             )}

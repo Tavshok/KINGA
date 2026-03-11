@@ -132,9 +132,9 @@ export default function GovernanceDashboard() {
   };
 
   const getRiskScoreColor = (score: number) => {
-    if (score <= 30) return "text-green-600 bg-green-50 border-green-200";
-    if (score <= 60) return "text-amber-600 bg-amber-50 border-amber-200";
-    return "text-red-600 bg-red-50 border-red-200";
+    if (score <= 30) return "text-green-600 bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800";
+    if (score <= 60) return "text-amber-600 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800";
+    return "text-red-600 bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800";
   };
 
   const getRiskScoreLabel = (score: number) => {
@@ -161,7 +161,7 @@ export default function GovernanceDashboard() {
             <div className="flex gap-3">
               <Button
                 variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                className="bg-white/10 dark:bg-card/10 border-white/30 text-white hover:bg-white/20 dark:bg-card/20"
                 onClick={handleExportPDF}
               >
                 <FileText className="h-4 w-4 mr-2" />
@@ -169,7 +169,7 @@ export default function GovernanceDashboard() {
               </Button>
               <Button
                 variant="outline"
-                className="bg-white/10 border-white/30 text-white hover:bg-white/20"
+                className="bg-white/10 dark:bg-card/10 border-white/30 text-white hover:bg-white/20 dark:bg-card/20"
                 onClick={handleExportCSV}
               >
                 <Download className="h-4 w-4 mr-2" />
@@ -203,20 +203,20 @@ export default function GovernanceDashboard() {
                   <Badge className={`text-lg px-6 py-2 ${getRiskScoreColor(riskScore.score)}`}>
                     {getRiskScoreLabel(riskScore.score)}
                   </Badge>
-                  <p className="text-sm text-slate-500 mt-4">
+                  <p className="text-sm text-slate-500 dark:text-muted-foreground mt-4">
                     Last updated: {new Date(riskScore.lastUpdated).toLocaleString()}
                   </p>
                 </div>
 
                 {/* Risk Score Breakdown */}
                 <div className="lg:col-span-2 space-y-4">
-                  <h4 className="font-semibold text-slate-900 mb-4">Risk Score Breakdown</h4>
+                  <h4 className="font-semibold text-slate-900 dark:text-foreground mb-4">Risk Score Breakdown</h4>
                   
                   <div className="space-y-3">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">Override Risk</span>
-                        <span className="text-sm font-bold text-slate-900">{riskScore.breakdown.overrideRisk}/30</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-foreground/80">Override Risk</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-foreground">{riskScore.breakdown.overrideRisk}/30</span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
@@ -228,8 +228,8 @@ export default function GovernanceDashboard() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">Segregation Risk</span>
-                        <span className="text-sm font-bold text-slate-900">{riskScore.breakdown.segregationRisk}/25</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-foreground/80">Segregation Risk</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-foreground">{riskScore.breakdown.segregationRisk}/25</span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
@@ -241,8 +241,8 @@ export default function GovernanceDashboard() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">Role Volatility Risk</span>
-                        <span className="text-sm font-bold text-slate-900">{riskScore.breakdown.roleVolatilityRisk}/25</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-foreground/80">Role Volatility Risk</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-foreground">{riskScore.breakdown.roleVolatilityRisk}/25</span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
@@ -254,8 +254,8 @@ export default function GovernanceDashboard() {
 
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-medium text-slate-700">Fast-Track Risk</span>
-                        <span className="text-sm font-bold text-slate-900">{riskScore.breakdown.fastTrackRisk}/20</span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-foreground/80">Fast-Track Risk</span>
+                        <span className="text-sm font-bold text-slate-900 dark:text-foreground">{riskScore.breakdown.fastTrackRisk}/20</span>
                       </div>
                       <div className="w-full bg-slate-200 rounded-full h-2">
                         <div
@@ -268,7 +268,7 @@ export default function GovernanceDashboard() {
 
                   {/* Risk Score Trend */}
                   <div className="mt-6">
-                    <h4 className="font-semibold text-slate-900 mb-3">30-Day Trend</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-foreground mb-3">30-Day Trend</h4>
                     <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <LineChart data={riskScore.trend}>
@@ -403,22 +403,22 @@ export default function GovernanceDashboard() {
               <CardContent>
                 <div className="space-y-4">
                   {topOverrideActors.map((actor, index) => (
-                    <div key={actor.userId} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                    <div key={actor.userId} className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg border border-slate-200 dark:border-border">
                       <div className="flex items-start justify-between">
                         <div className="space-y-2 flex-1">
                           <div className="flex items-center gap-3">
-                            <Badge variant="outline" className="bg-white">
+                            <Badge variant="outline" className="bg-white dark:bg-card">
                               #{index + 1}
                             </Badge>
-                            <span className="font-semibold text-slate-900">{actor.userName}</span>
-                            <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                            <span className="font-semibold text-slate-900 dark:text-foreground">{actor.userName}</span>
+                            <Badge className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
                               {actor.overrideCount} overrides
                             </Badge>
                           </div>
-                          <p className="text-sm text-slate-600">
+                          <p className="text-sm text-slate-600 dark:text-muted-foreground">
                             <span className="font-medium">Most common reason:</span> {actor.mostCommonReason}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-muted-foreground">
                             Avg justification length: {actor.avgJustificationLength} characters
                           </p>
                         </div>
@@ -517,18 +517,18 @@ export default function GovernanceDashboard() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-center p-6 bg-red-50 rounded-xl mb-6">
+                    <div className="text-center p-6 bg-red-50 dark:bg-red-950/30 rounded-xl mb-6">
                       <p className="text-5xl font-bold text-red-600">
                         {violationsPrevented.totalViolationsPrevented}
                       </p>
-                      <p className="text-sm text-slate-600 mt-2">Total Violations Blocked</p>
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground mt-2">Total Violations Blocked</p>
                     </div>
 
                     <div className="space-y-3">
                       {violationsPrevented.byViolationType.map((violation) => (
-                        <div key={violation.type} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                          <span className="text-sm font-medium text-slate-700">{violation.type}</span>
-                          <Badge variant="outline" className="bg-white">
+                        <div key={violation.type} className="flex items-center justify-between p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
+                          <span className="text-sm font-medium text-slate-700 dark:text-foreground/80">{violation.type}</span>
+                          <Badge variant="outline" className="bg-white dark:bg-card">
                             {violation.count} blocked
                           </Badge>
                         </div>
@@ -590,7 +590,7 @@ export default function GovernanceDashboard() {
                   {monopolizationAttempts.length > 0 ? (
                     monopolizationAttempts.map((attempt) => (
                       <div key={attempt.userId} className={`p-4 rounded-lg border-2 ${
-                        attempt.severity === "high" ? "bg-red-50 border-red-300" : "bg-orange-50 border-orange-300"
+                        attempt.severity === "high" ? "bg-red-50 dark:bg-red-950/30 border-red-300 dark:border-red-700" : "bg-orange-50 dark:bg-orange-950/30 border-orange-300 dark:border-orange-700"
                       }`}>
                         <div className="flex items-start justify-between">
                           <div className="space-y-2 flex-1">
@@ -598,15 +598,15 @@ export default function GovernanceDashboard() {
                               <Badge className={attempt.severity === "high" ? "bg-red-600" : "bg-orange-600"}>
                                 {attempt.severity.toUpperCase()} SEVERITY
                               </Badge>
-                              <span className="font-semibold text-slate-900">{attempt.userName}</span>
+                              <span className="font-semibold text-slate-900 dark:text-foreground">{attempt.userName}</span>
                             </div>
-                            <p className="text-sm text-slate-700">
+                            <p className="text-sm text-slate-700 dark:text-foreground/80">
                               <span className="font-medium">Attempted roles:</span> {attempt.attemptedRoles.join(" → ")}
                             </p>
-                            <p className="text-sm text-slate-600">
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
                               <span className="font-medium">Claim:</span> {attempt.claimId}
                             </p>
-                            <p className="text-xs text-slate-500">
+                            <p className="text-xs text-slate-500 dark:text-muted-foreground">
                               Blocked at: {new Date(attempt.blockedAt).toLocaleString()}
                             </p>
                           </div>
@@ -614,7 +614,7 @@ export default function GovernanceDashboard() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-slate-500">
+                    <div className="text-center py-8 text-slate-500 dark:text-muted-foreground">
                       No monopolization attempts detected
                     </div>
                   )}
@@ -637,21 +637,21 @@ export default function GovernanceDashboard() {
                 <div className="space-y-4">
                   {involvementClusters.length > 0 ? (
                     involvementClusters.map((cluster, index) => (
-                      <div key={index} className="p-4 bg-purple-50 rounded-lg border border-purple-200">
+                      <div key={index} className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                         <div className="flex items-start justify-between">
                           <div className="space-y-2 flex-1">
                             <div className="flex items-center gap-3">
                               <Badge className="bg-purple-600">
                                 Risk Score: {cluster.riskScore}
                               </Badge>
-                              <span className="font-semibold text-slate-900">
+                              <span className="font-semibold text-slate-900 dark:text-foreground">
                                 {cluster.users.join(" + ")}
                               </span>
                             </div>
-                            <p className="text-sm text-slate-700">
+                            <p className="text-sm text-slate-700 dark:text-foreground/80">
                               <span className="font-medium">Shared claims:</span> {cluster.sharedClaimCount}
                             </p>
-                            <p className="text-sm text-slate-600">
+                            <p className="text-sm text-slate-600 dark:text-muted-foreground">
                               <span className="font-medium">Pattern:</span> {cluster.pattern}
                             </p>
                           </div>
@@ -659,7 +659,7 @@ export default function GovernanceDashboard() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-slate-500">
+                    <div className="text-center py-8 text-slate-500 dark:text-muted-foreground">
                       No high-risk involvement clusters detected
                     </div>
                   )}
@@ -678,7 +678,7 @@ export default function GovernanceDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
                   Role change oversight section will be implemented in the next phase
                 </div>
               </CardContent>

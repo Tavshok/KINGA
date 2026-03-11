@@ -196,7 +196,7 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
                       <td className="py-3 px-4 capitalize">
                         {item.description}
                         {item.missingInSomeQuotes && (
-                          <Badge variant="outline" className="ml-2 bg-amber-100 text-amber-800 border-amber-300">
+                          <Badge variant="outline" className="ml-2 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700">
                             Missing in some quotes
                           </Badge>
                         )}
@@ -229,7 +229,7 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
                                 {quoteItem.quantity} × ${(typeof quoteItem.unitPrice === 'string' ? parseFloat(quoteItem.unitPrice) : quoteItem.unitPrice).toFixed(2)}
                               </div>
                               {isPriceOutlier && (
-                                <Badge variant="outline" className="mt-1 bg-orange-100 text-orange-800 border-orange-300 text-xs">
+                                <Badge variant="outline" className="mt-1 bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700 text-xs">
                                   {(typeof quoteItem.lineTotal === 'string' ? parseFloat(quoteItem.lineTotal) : quoteItem.lineTotal) > item.avgPrice ? "+" : ""}
                                   {((((typeof quoteItem.lineTotal === 'string' ? parseFloat(quoteItem.lineTotal) : quoteItem.lineTotal) - item.avgPrice) / item.avgPrice) * 100).toFixed(0)}%
                                 </Badge>
@@ -240,17 +240,17 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
                       })}
                       <td className="text-right py-3 px-4">
                         {item.missingInSomeQuotes ? (
-                          <Badge variant="outline" className="bg-amber-100 text-amber-800 border-amber-300">
+                          <Badge variant="outline" className="bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700">
                             <AlertTriangle className="h-3 w-3 mr-1" />
                             Incomplete
                           </Badge>
                         ) : item.hasPriceDiscrepancy ? (
-                          <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                          <Badge variant="outline" className="bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700">
                             <AlertTriangle className="h-3 w-3 mr-1" />
                             {item.percentDiff.toFixed(0)}% diff
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
+                          <Badge variant="outline" className="bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700">
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             OK
                           </Badge>
@@ -267,12 +267,12 @@ export function QuoteComparison({ quotes }: QuoteComparisonProps) {
 
       {/* Recommendations */}
       {totalDiscrepancies > 0 && (
-        <Card className="p-6 border-amber-200 bg-amber-50">
+        <Card className="p-6 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
           <div className="flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5" />
             <div>
-              <h4 className="font-semibold text-amber-900">Recommended Actions</h4>
-              <ul className="mt-2 space-y-1 text-sm text-amber-800">
+              <h4 className="font-semibold text-amber-900 dark:text-amber-200">Recommended Actions</h4>
+              <ul className="mt-2 space-y-1 text-sm text-amber-800 dark:text-amber-200">
                 {sortedItems.some(item => item.missingInSomeQuotes) && (
                   <li>• Request clarification from panel beaters on missing items</li>
                 )}

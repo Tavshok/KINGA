@@ -117,14 +117,14 @@ function FraudBadge({ level }: { level: string | null | undefined }) {
   }
   if (normalized === "medium") {
     return (
-      <Badge className="flex items-center gap-1 text-xs px-2 py-0.5 bg-amber-100 text-amber-800 border-amber-300">
+      <Badge className="flex items-center gap-1 text-xs px-2 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700">
         <ShieldAlert className="h-3 w-3" />
         MEDIUM
       </Badge>
     );
   }
   return (
-    <Badge className="flex items-center gap-1 text-xs px-2 py-0.5 bg-emerald-100 text-emerald-800 border-emerald-300">
+    <Badge className="flex items-center gap-1 text-xs px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700">
       <ShieldCheck className="h-3 w-3" />
       LOW
     </Badge>
@@ -143,10 +143,10 @@ function ComplexityBadge({ severity }: { severity: string | null | undefined }) 
 
   const colorClass =
     normalized === "total_loss" || normalized === "severe"
-      ? "bg-red-100 text-red-800 border-red-300"
+      ? "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700"
       : normalized === "moderate"
-      ? "bg-amber-100 text-amber-800 border-amber-300"
-      : "bg-emerald-100 text-emerald-800 border-emerald-300";
+      ? "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+      : "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700";
 
   return (
     <Badge className={`flex items-center gap-1 text-xs px-2 py-0.5 ${colorClass}`}>
@@ -159,9 +159,9 @@ function ComplexityBadge({ severity }: { severity: string | null | undefined }) 
 function SeverityBadge({ severity }: { severity: string | null | undefined }) {
   const s = (severity ?? "").toLowerCase();
   if (s === "total_loss") return <Badge variant="destructive" className="text-[10px] px-1.5 py-0">TOTAL LOSS</Badge>;
-  if (s === "severe") return <Badge className="text-[10px] px-1.5 py-0 bg-red-100 text-red-800 border-red-300">SEVERE</Badge>;
-  if (s === "moderate") return <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 text-amber-800 border-amber-300">MODERATE</Badge>;
-  if (s === "minor") return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 text-emerald-800 border-emerald-300">MINOR</Badge>;
+  if (s === "severe") return <Badge className="text-[10px] px-1.5 py-0 bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700">SEVERE</Badge>;
+  if (s === "moderate") return <Badge className="text-[10px] px-1.5 py-0 bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700">MODERATE</Badge>;
+  if (s === "minor") return <Badge className="text-[10px] px-1.5 py-0 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700">MINOR</Badge>;
   return null;
 }
 

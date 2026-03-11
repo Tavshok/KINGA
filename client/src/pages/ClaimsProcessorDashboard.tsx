@@ -53,7 +53,7 @@ export default function ClaimsProcessorDashboard() {
   // Role validation — allow admin users to bypass for testing
   if (user?.role !== "admin" && user?.insurerRole !== "claims_processor") {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-muted/50">
         <Card className="max-w-md">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-red-600">
@@ -348,7 +348,7 @@ export default function ClaimsProcessorDashboard() {
     const getStatusBadge = () => {
       if (isProcessing) {
         return (
-          <Badge className="bg-purple-100 text-purple-800 border-purple-300 flex items-center gap-1">
+          <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
             AI Processing...
           </Badge>
@@ -363,7 +363,7 @@ export default function ClaimsProcessorDashboard() {
         const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
         const elapsedLabel = elapsedMin > 0 ? `${elapsedMin}m ${elapsedSec}s` : `${elapsedSec}s`;
         return (
-          <Badge className="bg-purple-100 text-purple-800 border-purple-300 flex items-center gap-1">
+          <Badge className="bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700 flex items-center gap-1">
             <Loader2 className="h-3 w-3 animate-spin" />
             AI Analyzing... {elapsedLabel}
           </Badge>
@@ -371,13 +371,13 @@ export default function ClaimsProcessorDashboard() {
       }
 
       const statusConfig: Record<string, { bg: string; text: string; label: string }> = {
-        intake_pending: { bg: "bg-amber-100", text: "text-amber-800", label: "PENDING REVIEW" },
-        quotes_pending: { bg: "bg-blue-100", text: "text-blue-800", label: "QUOTES PENDING" },
-        assessment_complete: { bg: "bg-teal-100", text: "text-teal-800", label: "ASSESSMENT COMPLETE" },
-        closed: { bg: "bg-green-100", text: "text-green-800", label: "COMPLETED" },
+        intake_pending: { bg: "bg-amber-100 dark:bg-amber-900/30", text: "text-amber-800 dark:text-amber-200", label: "PENDING REVIEW" },
+        quotes_pending: { bg: "bg-blue-100 dark:bg-blue-900/30", text: "text-blue-800 dark:text-blue-200", label: "QUOTES PENDING" },
+        assessment_complete: { bg: "bg-teal-100 dark:bg-teal-900/30", text: "text-teal-800 dark:text-teal-200", label: "ASSESSMENT COMPLETE" },
+        closed: { bg: "bg-green-100 dark:bg-green-900/30", text: "text-green-800 dark:text-green-200", label: "COMPLETED" },
       };
       
-      const config = statusConfig[claim.status] || { bg: "bg-slate-100", text: "text-slate-800", label: claim.status?.replace(/_/g, " ").toUpperCase() };
+      const config = statusConfig[claim.status] || { bg: "bg-slate-100 dark:bg-muted", text: "text-slate-800 dark:text-foreground", label: claim.status?.replace(/_/g, " ").toUpperCase() };
       
       return (
         <Badge className={`${config.bg} ${config.text} border-0`}>
@@ -388,7 +388,7 @@ export default function ClaimsProcessorDashboard() {
 
     return (
       <Card className={`hover:shadow-md transition-shadow ${
-        isProcessing ? "border-l-4 border-l-purple-500 bg-purple-50/30" :
+        isProcessing ? "border-l-4 border-l-purple-500 bg-purple-50/30 dark:bg-purple-950/30" :
         section === "pending" ? "border-l-4 border-l-amber-400" :
         section === "in_review" ? "border-l-4 border-l-blue-400" :
         section === "ai_flagged" ? "border-l-4 border-l-teal-500" :
@@ -403,7 +403,7 @@ export default function ClaimsProcessorDashboard() {
                 <h3 className="font-bold text-lg text-primary">{claim.claimNumber}</h3>
                 {getStatusBadge()}
                 {claim.aiConfidenceScore > 0 && (
-                  <Badge variant="outline" className="text-emerald-700 border-emerald-300 flex items-center gap-1">
+                  <Badge variant="outline" className="text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
                     AI: {claim.aiConfidenceScore}%
                   </Badge>
@@ -419,18 +419,18 @@ export default function ClaimsProcessorDashboard() {
               {/* Data Source Badge */}
               {claim.sourceDocumentId && (
                 <div className="flex items-center gap-1.5">
-                  <Badge variant="outline" className="text-xs text-blue-700 border-blue-300 bg-blue-50 flex items-center gap-1">
+                  <Badge variant="outline" className="text-xs text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30 flex items-center gap-1">
                     <FileText className="h-3 w-3" />
                     PDF Document Ingestion
                   </Badge>
                   {claim.documentProcessingStatus === "parsing" && (
-                    <Badge variant="outline" className="text-xs text-purple-700 border-purple-300 bg-purple-50 flex items-center gap-1">
+                    <Badge variant="outline" className="text-xs text-purple-700 dark:text-purple-300 border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/30 flex items-center gap-1">
                       <Loader2 className="h-3 w-3 animate-spin" />
                       Extracting...
                     </Badge>
                   )}
                   {claim.documentProcessingStatus === "extracted" && (
-                    <Badge variant="outline" className="text-xs text-green-700 border-green-300 bg-green-50 flex items-center gap-1">
+                    <Badge variant="outline" className="text-xs text-green-700 dark:text-green-300 border-green-300 dark:border-green-700 bg-green-50 dark:bg-green-950/30 flex items-center gap-1">
                       <CheckCircle className="h-3 w-3" />
                       Extracted
                     </Badge>
@@ -441,27 +441,27 @@ export default function ClaimsProcessorDashboard() {
               {/* Claim Details Grid */}
               <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
                 <div>
-                  <span className="font-medium text-slate-600">Policyholder:</span>
-                  <p className="text-slate-900">{claim.claimantName || claim.policyholderName || "N/A"}</p>
+                  <span className="font-medium text-slate-600 dark:text-muted-foreground">Policyholder:</span>
+                  <p className="text-slate-900 dark:text-foreground">{claim.claimantName || claim.policyholderName || "N/A"}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-slate-600">Claim Type:</span>
-                  <p className="text-slate-900">Motor Vehicle</p>
+                  <span className="font-medium text-slate-600 dark:text-muted-foreground">Claim Type:</span>
+                  <p className="text-slate-900 dark:text-foreground">Motor Vehicle</p>
                 </div>
                 <div>
-                  <span className="font-medium text-slate-600">Vehicle:</span>
-                  <p className="text-slate-900">
+                  <span className="font-medium text-slate-600 dark:text-muted-foreground">Vehicle:</span>
+                  <p className="text-slate-900 dark:text-foreground">
                     {claim.vehicleRegistration || "N/A"}
                     {claim.vehicleMake && ` (${claim.vehicleMake} ${claim.vehicleModel || ""})`}
                   </p>
                 </div>
                 <div>
-                  <span className="font-medium text-slate-600">Policy Number:</span>
-                  <p className="text-slate-900">{claim.policyNumber || "N/A"}</p>
+                  <span className="font-medium text-slate-600 dark:text-muted-foreground">Policy Number:</span>
+                  <p className="text-slate-900 dark:text-foreground">{claim.policyNumber || "N/A"}</p>
                 </div>
                 <div>
-                  <span className="font-medium text-slate-600">Submitted:</span>
-                  <p className="text-slate-900">
+                  <span className="font-medium text-slate-600 dark:text-muted-foreground">Submitted:</span>
+                  <p className="text-slate-900 dark:text-foreground">
                     {claim.createdAt 
                       ? new Date(claim.createdAt).toLocaleDateString() 
                       : "N/A"}
@@ -482,7 +482,7 @@ export default function ClaimsProcessorDashboard() {
                       variant="outline"
                       onClick={() => handleResetStuckClaim(claim.id)}
                       disabled={resetStuckClaimMutation.isPending}
-                      className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50 text-xs"
+                      className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
                       title="This claim appears stuck in AI processing. Click to reset it to Pending."
                     >
                       <RotateCcw className="h-3 w-3 mr-2" />
@@ -507,7 +507,7 @@ export default function ClaimsProcessorDashboard() {
                     size="sm" 
                     variant="outline"
                     onClick={() => handleAssignAssessor(claim.id)}
-                    className="w-full justify-start border-blue-300 text-blue-700 hover:bg-blue-50"
+                    className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
                     Assign Human Assessor
@@ -529,7 +529,7 @@ export default function ClaimsProcessorDashboard() {
                 <>
                   {isProcessing ? (
                     <>
-                      <div className="flex items-center gap-2 text-sm text-purple-700 bg-purple-50 rounded-md p-3">
+                      <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
                         <Loader2 className="h-4 w-4 animate-spin" />
                         <span>AI is analyzing this claim...</span>
                       </div>
@@ -538,7 +538,7 @@ export default function ClaimsProcessorDashboard() {
                         variant="outline"
                         onClick={() => handleResetStuckClaim(claim.id)}
                         disabled={resetStuckClaimMutation.isPending}
-                        className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50 text-xs"
+                        className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30 text-xs"
                         title="Use this if the AI has been processing for more than 5 minutes without completing"
                       >
                         <RotateCcw className="h-3 w-3 mr-2" />
@@ -585,7 +585,7 @@ export default function ClaimsProcessorDashboard() {
                     size="sm" 
                     variant="outline"
                     onClick={() => handleAssignAssessor(claim.id)}
-                    className="w-full justify-start border-blue-300 text-blue-700 hover:bg-blue-50"
+                    className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
                   >
                     <UserPlus className="h-4 w-4 mr-2" />
                     Assign Human Assessor
@@ -595,7 +595,7 @@ export default function ClaimsProcessorDashboard() {
                     variant="outline"
                     onClick={() => handleTriggerAI(claim.id)}
                     disabled={triggerAiMutation.isPending}
-                    className="w-full justify-start border-purple-300 text-purple-700 hover:bg-purple-50"
+                    className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
                   >
                     <Brain className="h-4 w-4 mr-2" />
                     Re-run AI Assessment
@@ -604,7 +604,7 @@ export default function ClaimsProcessorDashboard() {
                     size="sm" 
                     variant="outline"
                     onClick={() => handleEscalate(claim.id)}
-                    className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50"
+                    className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
                   >
                     <AlertTriangle className="h-4 w-4 mr-2" />
                     Escalate
@@ -659,21 +659,21 @@ export default function ClaimsProcessorDashboard() {
           <CardTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
             {title}
-            <span className="ml-auto text-sm font-normal text-slate-500 bg-white/80 rounded-full px-3 py-1">
+            <span className="ml-auto text-sm font-normal text-slate-500 dark:text-muted-foreground bg-white/80 dark:bg-card/80 rounded-full px-3 py-1">
               {claims.length}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
           {allClaimsLoading ? (
-            <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
+            <div className="flex items-center justify-center py-8 gap-2 text-slate-500 dark:text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span>Loading claims...</span>
             </div>
           ) : claims.length === 0 ? (
-            <div className="text-center py-12 bg-slate-50 rounded-lg border-2 border-dashed border-slate-200">
+            <div className="text-center py-12 bg-slate-50 dark:bg-muted/50 rounded-lg border-2 border-dashed border-slate-200 dark:border-border">
               <Icon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-              <p className="text-slate-600 font-medium">{emptyMessage}</p>
+              <p className="text-slate-600 dark:text-muted-foreground font-medium">{emptyMessage}</p>
               <Button 
                 variant="outline" 
                 size="sm" 
@@ -708,7 +708,7 @@ export default function ClaimsProcessorDashboard() {
           <div className="flex gap-2">
             <Button 
               variant="default" 
-              className="bg-white text-teal-700 hover:bg-white/90 font-medium"
+              className="bg-white dark:bg-card text-teal-700 dark:text-teal-300 hover:bg-white/90 dark:bg-card/90 font-medium"
               onClick={() => window.location.href = "/processor/upload-documents"}
             >
               <Upload className="h-4 w-4 mr-2" />
@@ -716,7 +716,7 @@ export default function ClaimsProcessorDashboard() {
             </Button>
             <Button 
               variant="outline" 
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-white hover:bg-white/10 dark:bg-card/10"
               onClick={() => refetchAll()}
             >
               <RefreshCw className="h-4 w-4 mr-2" />
@@ -724,7 +724,7 @@ export default function ClaimsProcessorDashboard() {
             </Button>
             <Button 
               variant="outline" 
-              className="border-white/30 text-white hover:bg-white/10"
+              className="border-white/30 text-white hover:bg-white/10 dark:bg-card/10"
               onClick={() => window.location.href = "/portal-hub"}
             >
               Portal Hub
@@ -736,38 +736,38 @@ export default function ClaimsProcessorDashboard() {
       <div className="max-w-7xl mx-auto space-y-6 p-6">
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
           <Input
             placeholder="Search by claim number, policyholder, vehicle registration, or policy number..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-white"
+            className="pl-10 bg-white dark:bg-card"
           />
         </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-4 gap-4">
-          <Card className="bg-amber-50 border-amber-200">
+          <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-amber-700">{pendingClaims.length}</p>
+              <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{pendingClaims.length}</p>
               <p className="text-xs text-amber-600 font-medium">Pending Review</p>
             </CardContent>
           </Card>
-          <Card className="bg-blue-50 border-blue-200">
+          <Card className="bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-700">{inReviewClaims.length}</p>
+              <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{inReviewClaims.length}</p>
               <p className="text-xs text-blue-600 font-medium">In Review</p>
             </CardContent>
           </Card>
-          <Card className="bg-teal-50 border-teal-200">
+          <Card className="bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-teal-700">{aiFlaggedClaims.length}</p>
+              <p className="text-2xl font-bold text-teal-700 dark:text-teal-300">{aiFlaggedClaims.length}</p>
               <p className="text-xs text-teal-600 font-medium">AI Complete</p>
             </CardContent>
           </Card>
-          <Card className="bg-green-50 border-green-200">
+          <Card className="bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-green-700">{completedClaims.length}</p>
+              <p className="text-2xl font-bold text-green-700 dark:text-green-300">{completedClaims.length}</p>
               <p className="text-xs text-green-600 font-medium">Completed</p>
             </CardContent>
           </Card>
@@ -781,7 +781,7 @@ export default function ClaimsProcessorDashboard() {
           "pending",
           "No pending claims. Upload a new claim document to get started.",
           "border-t-amber-400",
-          "bg-amber-50/50"
+          "bg-amber-50/50 dark:bg-amber-950/50"
         )}
 
         {/* In Review */}
@@ -792,7 +792,7 @@ export default function ClaimsProcessorDashboard() {
           "in_review",
           "No claims currently in review",
           "border-t-blue-400",
-          "bg-blue-50/50"
+          "bg-blue-50/50 dark:bg-blue-950/50"
         )}
 
         {/* AI Flagged / Assessment Complete */}
@@ -803,7 +803,7 @@ export default function ClaimsProcessorDashboard() {
           "ai_flagged",
           "No claims with completed AI assessment",
           "border-t-teal-500",
-          "bg-teal-50/50"
+          "bg-teal-50/50 dark:bg-teal-950/50"
         )}
 
         {/* Completed */}
@@ -814,7 +814,7 @@ export default function ClaimsProcessorDashboard() {
           "completed",
           "No completed claims",
           "border-t-green-500",
-          "bg-green-50/50"
+          "bg-green-50/50 dark:bg-green-950/50"
         )}
       </div>
 
@@ -828,8 +828,8 @@ export default function ClaimsProcessorDashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-4">
-            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-              <Upload className="h-12 w-12 text-slate-400 mx-auto mb-3" />
+            <div className="border-2 border-dashed border-slate-300 dark:border-border rounded-lg p-8 text-center">
+              <Upload className="h-12 w-12 text-slate-400 dark:text-muted-foreground/70 mx-auto mb-3" />
               <Label
                 htmlFor="evidence-upload"
                 className="cursor-pointer text-primary hover:text-primary/90 font-medium"
@@ -849,7 +849,7 @@ export default function ClaimsProcessorDashboard() {
                 }}
                 disabled={uploadingFile}
               />
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">
                 PDF or image files, max 16MB
               </p>
             </div>
@@ -884,7 +884,7 @@ export default function ClaimsProcessorDashboard() {
           <div className="space-y-4 pt-2">
             {/* Assessor Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
               <Input
                 placeholder="Search assessors by name or email..."
                 value={assessorSearchQuery}
@@ -896,12 +896,12 @@ export default function ClaimsProcessorDashboard() {
             {/* Assessor List */}
             <div className="max-h-[300px] overflow-y-auto border rounded-lg divide-y">
               {assessorsLoading ? (
-                <div className="flex items-center justify-center py-8 gap-2 text-slate-500">
+                <div className="flex items-center justify-center py-8 gap-2 text-slate-500 dark:text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Loading assessors...</span>
                 </div>
               ) : filteredAssessors.length === 0 ? (
-                <div className="text-center py-8 text-slate-500">
+                <div className="text-center py-8 text-slate-500 dark:text-muted-foreground">
                   <UserPlus className="h-8 w-8 text-slate-300 mx-auto mb-2" />
                   <p className="text-sm">
                     {assessorSearchQuery ? "No assessors match your search" : "No assessors available"}
@@ -914,37 +914,37 @@ export default function ClaimsProcessorDashboard() {
                     <button
                       key={assessor.id}
                       onClick={() => setSelectedAssessorId(isSelected ? null : assessor.id)}
-                      className={`w-full text-left p-3 hover:bg-blue-50 transition-colors flex items-center gap-3 ${
-                        isSelected ? "bg-blue-100 border-l-4 border-l-blue-600" : ""
+                      className={`w-full text-left p-3 hover:bg-blue-50 dark:bg-blue-950/30 transition-colors flex items-center gap-3 ${
+                        isSelected ? "bg-blue-100 dark:bg-blue-900/30 border-l-4 border-l-blue-600" : ""
                       }`}
                     >
                       <div className={`h-10 w-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                        isSelected ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600"
+                        isSelected ? "bg-blue-600 text-white" : "bg-slate-200 text-slate-600 dark:text-muted-foreground"
                       }`}>
                         {(assessor.name || "A").charAt(0).toUpperCase()}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium text-sm text-slate-900 truncate">
+                        <p className="font-medium text-sm text-slate-900 dark:text-foreground truncate">
                           {assessor.userName || assessor.name || "Unnamed Assessor"}
                         </p>
-                        <p className="text-xs text-slate-500 truncate">
+                        <p className="text-xs text-slate-500 dark:text-muted-foreground truncate">
                           {assessor.userEmail || assessor.email || "No email"}
                         </p>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {assessor.specializations && assessor.specializations.length > 0 && (
                             assessor.specializations.slice(0, 2).map((spec: string, i: number) => (
-                              <Badge key={i} variant="outline" className="text-xs bg-slate-50">
+                              <Badge key={i} variant="outline" className="text-xs bg-slate-50 dark:bg-muted/50">
                                 {spec}
                               </Badge>
                             ))
                           )}
                           {assessor.performanceRating && (
-                            <Badge variant="outline" className="text-xs bg-amber-50 text-amber-700 border-amber-200">
+                            <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
                               ★ {Number(assessor.performanceRating).toFixed(1)}
                             </Badge>
                           )}
                           {assessor.totalAssignmentsCompleted > 0 && (
-                            <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                            <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800">
                               {assessor.totalAssignmentsCompleted} completed
                             </Badge>
                           )}
@@ -966,9 +966,9 @@ export default function ClaimsProcessorDashboard() {
 
             {/* Selected Assessor Confirmation */}
             {selectedAssessorId && (
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-center gap-2">
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg p-3 flex items-center gap-2">
                 <CheckCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
-                <p className="text-sm text-blue-800">
+                <p className="text-sm text-blue-800 dark:text-blue-200">
                   <strong>Selected:</strong>{" "}
                   {(() => { const a: any = filteredAssessors.find((a: any) => a.id === selectedAssessorId); return a?.userName || a?.name || "Assessor"; })()}
                 </p>
@@ -984,7 +984,7 @@ export default function ClaimsProcessorDashboard() {
                 }
                 setAssignDialogOpen(false);
               }}
-              className="border-purple-300 text-purple-700 hover:bg-purple-50"
+              className="border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
             >
               <Brain className="h-4 w-4 mr-2" />
               Run AI Instead

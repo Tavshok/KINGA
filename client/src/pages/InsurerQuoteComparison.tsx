@@ -189,7 +189,7 @@ export default function InsurerQuoteComparison() {
 
       {/* Fraud Alerts */}
       {fraudFlags.length > 0 && (
-        <Alert className="border-red-600 bg-red-50">
+        <Alert className="border-red-600 bg-red-50 dark:bg-red-950/30">
           <AlertTriangle className="h-4 w-4 text-red-600" />
           <AlertDescription>
             <strong className="text-red-600">Fraud Risk Detected:</strong>
@@ -249,7 +249,7 @@ export default function InsurerQuoteComparison() {
                     return (
                       <TableRow
                         key={quote.quoteId}
-                        className={isLowest ? "bg-green-50" : isHighest ? "bg-red-50" : ""}
+                        className={isLowest ? "bg-green-50 dark:bg-green-950/30" : isHighest ? "bg-red-50 dark:bg-red-950/30" : ""}
                       >
                         <TableCell className="font-medium">
                           {quote.panelBeaterName}
@@ -301,7 +301,7 @@ export default function InsurerQuoteComparison() {
                     <div
                       key={idx}
                       className={`p-4 rounded-lg border ${
-                        comp.flagged ? "border-red-300 bg-red-50" : "border-gray-200"
+                        comp.flagged ? "border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/30" : "border-gray-200 dark:border-border"
                       }`}
                     >
                       <div className="flex items-center justify-between mb-3">
@@ -337,7 +337,7 @@ export default function InsurerQuoteComparison() {
                       </div>
 
                       {comp.flagged && comp.notes && (
-                        <Alert className="mt-3 border-yellow-600 bg-yellow-50">
+                        <Alert className="mt-3 border-yellow-600 bg-yellow-50 dark:bg-yellow-950/30">
                           <AlertDescription className="text-sm">
                             {comp.notes}
                           </AlertDescription>
@@ -417,28 +417,28 @@ export default function InsurerQuoteComparison() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="p-6 rounded-lg border-2 border-green-600 bg-green-50">
+              <div className="p-6 rounded-lg border-2 border-green-600 bg-green-50 dark:bg-green-950/30">
                 <div className="flex items-start gap-4">
                   <CheckCircle2 className="h-8 w-8 text-green-600 flex-shrink-0 mt-1" />
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-green-900 mb-2">
+                    <h3 className="text-xl font-bold text-green-900 dark:text-green-200 mb-2">
                       Recommended: {recommendedQuote.panelBeaterName}
                     </h3>
-                    <p className="text-green-800 mb-4">
+                    <p className="text-green-800 dark:text-green-200 mb-4">
                       Based on optimal balance of cost, quality ({recommendedQuote.partsQuality}), 
                       warranty ({recommendedQuote.warrantyMonths} months), and completion time ({recommendedQuote.estimatedDuration} days).
                     </p>
 
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
-                        <p className="text-green-700 font-medium">Total Cost</p>
-                        <p className="text-2xl font-bold text-green-900">
+                        <p className="text-green-700 dark:text-green-300 font-medium">Total Cost</p>
+                        <p className="text-2xl font-bold text-green-900 dark:text-green-200">
                           {formatCurrency(recommendedQuote.totalCost)}
                         </p>
                       </div>
                       <div>
-                        <p className="text-green-700 font-medium">Potential Savings</p>
-                        <p className="text-2xl font-bold text-green-900">
+                        <p className="text-green-700 dark:text-green-300 font-medium">Potential Savings</p>
+                        <p className="text-2xl font-bold text-green-900 dark:text-green-200">
                           {formatCurrency(potentialSavings)}
                         </p>
                       </div>
@@ -448,11 +448,11 @@ export default function InsurerQuoteComparison() {
               </div>
 
               {riskLevel !== 'low' && (
-                <Alert className="border-yellow-600 bg-yellow-50">
+                <Alert className="border-yellow-600 bg-yellow-50 dark:bg-yellow-950/30">
                   <AlertTriangle className="h-4 w-4 text-yellow-600" />
                   <AlertDescription>
-                    <strong className="text-yellow-900">Risk Assessment:</strong>
-                    <p className="text-yellow-800 mt-1">
+                    <strong className="text-yellow-900 dark:text-yellow-200">Risk Assessment:</strong>
+                    <p className="text-yellow-800 dark:text-yellow-200 mt-1">
                       This claim has {riskLevel} risk level. Consider additional verification before approval.
                     </p>
                   </AlertDescription>

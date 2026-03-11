@@ -81,7 +81,7 @@ function ApprovalBadge({ status, rejectionReason }: { status: ApprovalStatus; re
 
   if (isSuspended) {
     return (
-      <Badge className="bg-orange-100 text-orange-700 border-orange-200 gap-1">
+      <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 gap-1">
         <ShieldAlert className="h-3 w-3" />
         Suspended
       </Badge>
@@ -91,21 +91,21 @@ function ApprovalBadge({ status, rejectionReason }: { status: ApprovalStatus; re
   switch (status) {
     case "approved":
       return (
-        <Badge className="bg-green-100 text-green-700 border-green-200 gap-1">
+        <Badge className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 gap-1">
           <CheckCircle2 className="h-3 w-3" />
           Approved
         </Badge>
       );
     case "rejected":
       return (
-        <Badge className="bg-red-100 text-red-700 border-red-200 gap-1">
+        <Badge className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 gap-1">
           <XCircle className="h-3 w-3" />
           Rejected
         </Badge>
       );
     default:
       return (
-        <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 gap-1">
+        <Badge className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 gap-1">
           <Clock className="h-3 w-3" />
           Pending
         </Badge>
@@ -116,11 +116,11 @@ function ApprovalBadge({ status, rejectionReason }: { status: ApprovalStatus; re
 function RelationshipStatusBadge({ status }: { status: string }) {
   switch (status) {
     case "approved":
-      return <Badge className="bg-green-100 text-green-700 border-green-200 text-xs">Active</Badge>;
+      return <Badge className="bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800 text-xs">Active</Badge>;
     case "blacklisted":
-      return <Badge className="bg-red-100 text-red-700 border-red-200 text-xs">Blacklisted</Badge>;
+      return <Badge className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 text-xs">Blacklisted</Badge>;
     case "suspended":
-      return <Badge className="bg-orange-100 text-orange-700 border-orange-200 text-xs">Suspended</Badge>;
+      return <Badge className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800 text-xs">Suspended</Badge>;
     default:
       return <Badge variant="secondary" className="text-xs">{status}</Badge>;
   }
@@ -252,13 +252,13 @@ function RelationshipsModal({
                       {rel.insurerContactName ?? rel.insurerTenantId}
                     </span>
                     {rel.preferred && (
-                      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs gap-1">
+                      <Badge className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 text-xs gap-1">
                         <Star className="h-2.5 w-2.5" />
                         Preferred
                       </Badge>
                     )}
                     {rel.slaSigned && (
-                      <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs">
+                      <Badge className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800 text-xs">
                         SLA Signed
                       </Badge>
                     )}
@@ -467,7 +467,7 @@ export default function PlatformMarketplace() {
       {/* ── Header ── */}
       <div>
         <div className="flex items-center gap-3 mb-2">
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+          <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
             Platform Super Admin
           </Badge>
           <Badge variant="outline">Marketplace Management</Badge>
@@ -557,7 +557,7 @@ export default function PlatformMarketplace() {
             >
               {/* Left: Provider info */}
               <div className="flex items-start gap-4 flex-1 min-w-0">
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
                   <Building2 className="h-5 w-5 text-purple-600" />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -571,13 +571,13 @@ export default function PlatformMarketplace() {
                       rejectionReason={provider.rejectionReason}
                     />
                     {provider.stats.blacklistedCount > 0 && (
-                      <Badge className="bg-red-100 text-red-700 border-red-200 text-xs gap-1 shrink-0">
+                      <Badge className="bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800 text-xs gap-1 shrink-0">
                         <ShieldAlert className="h-2.5 w-2.5" />
                         Blacklisted by {provider.stats.blacklistedCount}
                       </Badge>
                     )}
                     {provider.stats.preferredCount > 0 && (
-                      <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 text-xs gap-1 shrink-0">
+                      <Badge className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800 text-xs gap-1 shrink-0">
                         <Star className="h-2.5 w-2.5" />
                         Preferred by {provider.stats.preferredCount}
                       </Badge>
@@ -632,7 +632,7 @@ export default function PlatformMarketplace() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-orange-600 border-orange-200 hover:bg-orange-50 gap-1"
+                    className="text-orange-600 border-orange-200 dark:border-orange-800 hover:bg-orange-50 dark:bg-orange-950/30 gap-1"
                     onClick={() => openAction(provider, "suspended")}
                   >
                     <ShieldAlert className="h-3.5 w-3.5" />
@@ -644,7 +644,7 @@ export default function PlatformMarketplace() {
                   <Button
                     size="sm"
                     variant="outline"
-                    className="text-red-600 border-red-200 hover:bg-red-50 gap-1"
+                    className="text-red-600 border-red-200 dark:border-red-800 hover:bg-red-50 dark:bg-red-950/30 gap-1"
                     onClick={() => openAction(provider, "rejected")}
                   >
                     <XCircle className="h-3.5 w-3.5" />

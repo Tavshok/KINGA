@@ -153,10 +153,10 @@ export default function InsurerDashboard() {
                           <td className="py-2 px-3">
                             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
                               claim.status === 'submitted' ? 'bg-primary/10 text-secondary' :
-                              claim.status === 'triage' ? 'bg-yellow-100 text-yellow-800' :
-                              claim.status === 'comparison' ? 'bg-purple-100 text-purple-800' :
-                              claim.status === 'completed' ? 'bg-green-100 text-green-800' :
-                              'bg-gray-100 text-gray-800'
+                              claim.status === 'triage' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200' :
+                              claim.status === 'comparison' ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200' :
+                              claim.status === 'completed' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :
+                              'bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground'
                             }`}>
                               {claim.status?.replace(/_/g, ' ')}
                             </span>

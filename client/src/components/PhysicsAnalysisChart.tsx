@@ -18,10 +18,10 @@ interface PhysicsAnalysisChartProps {
 export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
   const getConsistencyColor = (consistency: string) => {
     switch (consistency) {
-      case 'consistent': return 'bg-green-100 text-green-800 border-green-300';
-      case 'questionable': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'impossible': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'consistent': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700';
+      case 'questionable': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700';
+      case 'impossible': return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700';
+      default: return 'bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground border-gray-300 dark:border-border';
     }
   };
 
@@ -35,7 +35,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
     <Card className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
+          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
             <Activity className="w-5 h-5 text-purple-600" />
           </div>
           <h2 className="text-xl font-semibold">Physics Analysis</h2>
@@ -48,7 +48,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
       {/* Physics Score Gauge */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Physics Validation Score</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-foreground/80">Physics Validation Score</span>
           <span className="text-2xl font-bold" style={{ color: getScoreColor(data.physicsScore) }}>
             {data.physicsScore}/100
           </span>
@@ -62,7 +62,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
             }}
           ></div>
         </div>
-        <p className="text-xs text-gray-500 mt-1">
+        <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
           Based on collision dynamics and damage pattern analysis
         </p>
       </div>
@@ -73,50 +73,50 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
           <div className="p-4 bg-primary/5 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-primary" />
-              <span className="text-xs font-medium text-gray-600">Impact Speed</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Impact Speed</span>
             </div>
             <p className="text-2xl font-bold text-primary">{data.impactSpeed}</p>
-            <p className="text-xs text-gray-500">km/h</p>
+            <p className="text-xs text-gray-500 dark:text-muted-foreground">km/h</p>
           </div>
         )}
 
         {data.impactForce && (
-          <div className="p-4 bg-purple-50 rounded-lg">
+          <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <TrendingUp className="w-4 h-4 text-purple-600" />
-              <span className="text-xs font-medium text-gray-600">Impact Force</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Impact Force</span>
             </div>
             <p className="text-2xl font-bold text-purple-600">{data.impactForce}</p>
-            <p className="text-xs text-gray-500">kN</p>
+            <p className="text-xs text-gray-500 dark:text-muted-foreground">kN</p>
           </div>
         )}
 
         {data.energyDissipated && (
-          <div className="p-4 bg-orange-50 rounded-lg">
+          <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <Activity className="w-4 h-4 text-orange-600" />
-              <span className="text-xs font-medium text-gray-600">Energy Dissipated</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Energy Dissipated</span>
             </div>
             <p className="text-2xl font-bold text-orange-600">{data.energyDissipated}</p>
-            <p className="text-xs text-gray-500">kJ</p>
+            <p className="text-xs text-gray-500 dark:text-muted-foreground">kJ</p>
           </div>
         )}
 
         {data.deceleration && (
-          <div className="p-4 bg-red-50 rounded-lg">
+          <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg">
             <div className="flex items-center gap-2 mb-1">
               <Zap className="w-4 h-4 text-red-600" />
-              <span className="text-xs font-medium text-gray-600">Deceleration</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Deceleration</span>
             </div>
             <p className="text-2xl font-bold text-red-600">{data.deceleration}</p>
-            <p className="text-xs text-gray-500">g-force</p>
+            <p className="text-xs text-gray-500 dark:text-muted-foreground">g-force</p>
           </div>
         )}
       </div>
 
       {/* Force Vector Visualization */}
-      <div className="bg-gray-50 rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">Impact Force Vectors</h3>
+      <div className="bg-gray-50 dark:bg-muted/50 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground/80 mb-3">Impact Force Vectors</h3>
         <svg viewBox="0 0 300 200" className="w-full">
           {/* Vehicle representation */}
           <rect x="100" y="75" width="100" height="50" rx="5" 
@@ -161,7 +161,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
 
       {/* Analysis Summary */}
       <div className="mt-4 p-3 bg-primary/5 rounded-lg">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-gray-700 dark:text-foreground/80">
           {data.damageConsistency === 'consistent' && (
             <span>✅ Damage pattern is <strong>consistent</strong> with reported collision physics. All measurements fall within expected ranges for this type of impact.</span>
           )}

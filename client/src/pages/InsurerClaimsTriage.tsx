@@ -208,7 +208,7 @@ export default function InsurerClaimsTriage() {
       },
     };
     const config = statusConfig[status] || { 
-      className: "bg-gray-100 text-gray-800", 
+      className: "bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground", 
       label: status 
     };
     return <Badge className={config.className}>{config.label}</Badge>;

@@ -21,10 +21,10 @@ interface FraudRiskRadarChartProps {
 export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flaggedIssues }: FraudRiskRadarChartProps) {
   const getRiskColor = (risk: string) => {
     switch (risk) {
-      case 'low': return { bg: 'bg-green-100', text: 'text-green-800', border: 'border-green-300', fill: '#10b981' };
-      case 'medium': return { bg: 'bg-yellow-100', text: 'text-yellow-800', border: 'border-yellow-300', fill: '#f59e0b' };
-      case 'high': return { bg: 'bg-red-100', text: 'text-red-800', border: 'border-red-300', fill: '#ef4444' };
-      default: return { bg: 'bg-gray-100', text: 'text-gray-800', border: 'border-gray-300', fill: '#6b7280' };
+      case 'low': return { bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-800 dark:text-green-200', border: 'border-green-300 dark:border-green-700', fill: '#10b981' };
+      case 'medium': return { bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-800 dark:text-yellow-200', border: 'border-yellow-300 dark:border-yellow-700', fill: '#f59e0b' };
+      case 'high': return { bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-800 dark:text-red-200', border: 'border-red-300 dark:border-red-700', fill: '#ef4444' };
+      default: return { bg: 'bg-gray-100 dark:bg-muted', text: 'text-gray-800 dark:text-foreground', border: 'border-gray-300 dark:border-border', fill: '#6b7280' };
     }
   };
 
@@ -81,7 +81,7 @@ export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flagge
       {/* Risk Score */}
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700">Overall Fraud Risk Score</span>
+          <span className="text-sm font-medium text-gray-700 dark:text-foreground/80">Overall Fraud Risk Score</span>
           <span className="text-2xl font-bold" style={{ color: colors.fill }}>
             {riskScore}/100
           </span>
@@ -98,7 +98,7 @@ export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flagge
       </div>
 
       {/* Radar Chart */}
-      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+      <div className="bg-gray-50 dark:bg-muted/50 rounded-lg p-4 mb-4">
         <svg viewBox="0 0 300 300" className="w-full">
           {/* Background circles (scale rings) */}
           {[0.2, 0.4, 0.6, 0.8, 1.0].map((scale, i) => (
@@ -195,10 +195,10 @@ export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flagge
 
       {/* Indicator Breakdown */}
       <div className="space-y-2 mb-4">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">Risk Indicators:</h3>
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground/80 mb-2">Risk Indicators:</h3>
         {indicatorsArray.map((ind, i) => (
           <div key={i} className="flex items-center justify-between text-sm">
-            <span className="text-gray-600">{ind.label}</span>
+            <span className="text-gray-600 dark:text-muted-foreground">{ind.label}</span>
             <div className="flex items-center gap-2">
               <div className="w-24 bg-gray-200 rounded-full h-2">
                 <div 
@@ -217,14 +217,14 @@ export function FraudRiskRadarChart({ indicators, overallRisk, riskScore, flagge
 
       {/* Flagged Issues */}
       {flaggedIssues.length > 0 && (
-        <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+        <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-600" />
-            <h3 className="text-sm font-semibold text-red-800">Flagged Issues:</h3>
+            <h3 className="text-sm font-semibold text-red-800 dark:text-red-200">Flagged Issues:</h3>
           </div>
           <ul className="space-y-1">
             {flaggedIssues.map((issue, i) => (
-              <li key={i} className="text-sm text-red-700">
+              <li key={i} className="text-sm text-red-700 dark:text-red-300">
                 • {issue}
               </li>
             ))}

@@ -167,7 +167,7 @@ export function DriverOnboardingWizard({ fleetId, onComplete }: DriverOnboarding
                 className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold ${
                   currentStep >= step.number
                     ? "bg-emerald-500 text-white"
-                    : "bg-gray-200 text-gray-500"
+                    : "bg-gray-200 text-gray-500 dark:text-muted-foreground"
                 }`}
               >
                 {currentStep > step.number ? (

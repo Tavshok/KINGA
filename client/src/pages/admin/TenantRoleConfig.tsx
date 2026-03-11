@@ -123,13 +123,13 @@ export default function TenantRoleConfig() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Users className="h-8 w-8 text-primary" />
               <div>
-                <h1 className="text-xl font-bold text-gray-900">Role Configuration</h1>
+                <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Role Configuration</h1>
                 <p className="text-sm text-muted-foreground">Tenant: {tenantId}</p>
               </div>
             </div>
@@ -186,10 +186,10 @@ export default function TenantRoleConfig() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-sm text-gray-700">Permissions</h4>
+                    <h4 className="font-semibold text-sm text-gray-700 dark:text-foreground/80">Permissions</h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {allPermissions.map((permission) => (
-                        <div key={permission.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                        <div key={permission.id} className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50 dark:bg-muted/50 transition-colors">
                           <Checkbox
                             id={`${role.roleKey}-${permission.id}`}
                             checked={role.permissions.includes(permission.id)}

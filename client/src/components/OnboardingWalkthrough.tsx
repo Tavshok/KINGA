@@ -417,15 +417,15 @@ export function OnboardingWalkthrough({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-2xl bg-white shadow-2xl">
+      <Card className="w-full max-w-2xl bg-white dark:bg-card shadow-2xl">
         {/* Header */}
         <div className="p-6 border-b">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-foreground">
                 Welcome, {content.roleName}!
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
+              <p className="text-sm text-gray-600 dark:text-muted-foreground mt-1">
                 {content.roleDescription}
               </p>
             </div>
@@ -433,7 +433,7 @@ export function OnboardingWalkthrough({
               variant="ghost"
               size="icon"
               onClick={onSkip}
-              className="text-gray-400 hover:text-gray-600"
+              className="text-gray-400 dark:text-muted-foreground/70 hover:text-gray-600 dark:text-muted-foreground"
             >
               <X className="w-5 h-5" />
             </Button>
@@ -441,7 +441,7 @@ export function OnboardingWalkthrough({
 
           {/* Progress Bar */}
           <div className="space-y-2">
-            <div className="flex justify-between text-xs text-gray-600">
+            <div className="flex justify-between text-xs text-gray-600 dark:text-muted-foreground">
               <span>
                 Step {currentStep + 1} of {totalSteps}
               </span>
@@ -455,20 +455,20 @@ export function OnboardingWalkthrough({
         <div className="p-8">
           <div className="flex flex-col items-center text-center mb-6">
             <div className="mb-4">{currentStepData.icon}</div>
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-xl font-bold text-gray-900 dark:text-foreground mb-2">
               {currentStepData.title}
             </h3>
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-muted-foreground">
               {currentStepData.description}
             </p>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6">
+          <div className="bg-gray-50 dark:bg-muted/50 rounded-lg p-6">
             <ul className="space-y-3">
               {currentStepData.items.map((item, index) => (
                 <li key={index} className="flex items-start gap-3">
                   <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
-                  <span className="text-sm text-gray-700 text-left">{item}</span>
+                  <span className="text-sm text-gray-700 dark:text-foreground/80 text-left">{item}</span>
                 </li>
               ))}
             </ul>
@@ -476,7 +476,7 @@ export function OnboardingWalkthrough({
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t bg-gray-50 flex items-center justify-between">
+        <div className="p-6 border-t bg-gray-50 dark:bg-muted/50 flex items-center justify-between">
           <Button
             variant="ghost"
             onClick={handleBack}

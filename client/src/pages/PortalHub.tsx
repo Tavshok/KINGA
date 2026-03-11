@@ -100,7 +100,7 @@ export default function PortalHub() {
   return (
     <div className="min-h-screen pattern-bg">
       {/* Header with KINGA gradient */}
-      <header className="bg-white/90 backdrop-blur-md border-b border-primary/10 shadow-sm sticky top-0 z-10">
+      <header className="bg-white/90 dark:bg-card/90 backdrop-blur-md border-b border-primary/10 shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -142,13 +142,13 @@ export default function PortalHub() {
             {/* Role Configuration Notice */}
             {user && user.role === "insurer" && !user.insurerRole && (
               <div className="max-w-2xl mx-auto mb-6">
-                <Card className="border-amber-200 bg-amber-50">
+                <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
                   <CardContent className="pt-6">
                     <div className="flex items-start gap-4">
                       <UserCog className="h-6 w-6 text-amber-600 flex-shrink-0 mt-1" />
                       <div className="flex-1 text-left">
-                        <h3 className="font-semibold text-amber-900 mb-2">Role Configuration Required</h3>
-                        <p className="text-sm text-amber-800 mb-4">
+                        <h3 className="font-semibold text-amber-900 dark:text-amber-200 mb-2">Role Configuration Required</h3>
+                        <p className="text-sm text-amber-800 dark:text-amber-200 mb-4">
                           To access insurer dashboards, you need to configure your specific role (Claims Processor, Executive, etc.)
                         </p>
                         <Button
@@ -189,14 +189,14 @@ export default function PortalHub() {
           {/* Fix Group 3: empty-state for users with no portal role assigned */}
           {accessiblePortals.length === 0 && (
             <div className="max-w-lg mx-auto mb-10">
-              <Card className="border-amber-200 bg-amber-50">
+              <Card className="border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
                 <CardContent className="pt-6 text-center">
                   <UserCog className="h-10 w-10 text-amber-600 mx-auto mb-3" />
-                  <h3 className="font-semibold text-amber-900 text-lg mb-2">No Portal Assigned</h3>
-                  <p className="text-sm text-amber-800 mb-1">
-                    Your account role is: <code className="font-mono bg-amber-100 px-1 rounded">{user?.role ?? "unknown"}</code>
+                  <h3 className="font-semibold text-amber-900 dark:text-amber-200 text-lg mb-2">No Portal Assigned</h3>
+                  <p className="text-sm text-amber-800 dark:text-amber-200 mb-1">
+                    Your account role is: <code className="font-mono bg-amber-100 dark:bg-amber-900/30 px-1 rounded">{user?.role ?? "unknown"}</code>
                   </p>
-                  <p className="text-sm text-amber-800 mb-4">
+                  <p className="text-sm text-amber-800 dark:text-amber-200 mb-4">
                     Contact your administrator or complete role setup to access the platform.
                   </p>
                   <Button
@@ -218,7 +218,7 @@ export default function PortalHub() {
               return (
                 <Card
                   key={portal.id}
-                  className="card-hover cursor-pointer bg-white/80 backdrop-blur-sm overflow-hidden relative"
+                  className="card-hover cursor-pointer bg-white/80 dark:bg-card/80 backdrop-blur-sm overflow-hidden relative"
                   onClick={() => setLocation(portal.path)}
                 >
                   {/* Gradient accent bar */}

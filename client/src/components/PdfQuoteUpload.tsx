@@ -126,7 +126,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Upload Area */}
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary transition-colors">
+        <div className="border-2 border-dashed border-gray-300 dark:border-border rounded-lg p-8 text-center hover:border-primary transition-colors">
           <input
             type="file"
             accept=".pdf,image/*"
@@ -146,7 +146,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
             ) : error ? (
               <XCircle className="h-12 w-12 text-red-600" />
             ) : (
-              <FileText className="h-12 w-12 text-gray-400" />
+              <FileText className="h-12 w-12 text-gray-400 dark:text-muted-foreground/70" />
             )}
             
             <div className="mt-2">
@@ -170,8 +170,8 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
 
         {/* Extracted Data Preview */}
         {extractedData && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
-            <h4 className="font-semibold text-green-900 flex items-center gap-2">
+          <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 space-y-3">
+            <h4 className="font-semibold text-green-900 dark:text-green-200 flex items-center gap-2">
               <CheckCircle className="h-4 w-4" />
               Extracted Quote Details
             </h4>
@@ -201,7 +201,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
               </p>
               <div className="space-y-1 max-h-32 overflow-y-auto">
                 {extractedData.components.map((comp, idx) => (
-                  <div key={idx} className="text-xs bg-white rounded px-2 py-1 flex justify-between">
+                  <div key={idx} className="text-xs bg-white dark:bg-card rounded px-2 py-1 flex justify-between">
                     <span>{comp.name}</span>
                     <span className="text-muted-foreground">
                       {fmt(comp.partCost + comp.laborCost)}
@@ -214,7 +214,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
             {extractedData.notes && (
               <div>
                 <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                <p className="text-xs text-gray-700 mt-1">{extractedData.notes}</p>
+                <p className="text-xs text-gray-700 dark:text-foreground/80 mt-1">{extractedData.notes}</p>
               </div>
             )}
 

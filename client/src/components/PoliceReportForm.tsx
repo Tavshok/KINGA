@@ -128,10 +128,10 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
               {existingReport.speedDiscrepancy && existingReport.speedDiscrepancy > 0 && (
                 <div className={
                   existingReport.speedDiscrepancy > 30 
-                    ? "bg-red-50 border-2 border-red-300 rounded-lg p-4" 
+                    ? "bg-red-50 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-700 rounded-lg p-4" 
                     : existingReport.speedDiscrepancy > 20
-                    ? "bg-orange-50 border-2 border-orange-300 rounded-lg p-4"
-                    : "bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4"
+                    ? "bg-orange-50 dark:bg-orange-950/30 border-2 border-orange-300 dark:border-orange-700 rounded-lg p-4"
+                    : "bg-yellow-50 dark:bg-yellow-950/30 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg p-4"
                 }>
                   <div className="flex items-start gap-3">
                     <AlertTriangle className={
@@ -145,10 +145,10 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
                       <div className="flex items-center gap-2 mb-2">
                         <strong className={
                           existingReport.speedDiscrepancy > 30 
-                            ? "text-red-800" 
+                            ? "text-red-800 dark:text-red-200" 
                             : existingReport.speedDiscrepancy > 20
-                            ? "text-orange-800"
-                            : "text-yellow-800"
+                            ? "text-orange-800 dark:text-orange-200"
+                            : "text-yellow-800 dark:text-yellow-200"
                         }>
                           Speed Discrepancy: {existingReport.speedDiscrepancy} km/h
                         </strong>
@@ -168,10 +168,10 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
                       </div>
                       <p className={
                         existingReport.speedDiscrepancy > 30 
-                          ? "text-sm text-red-700" 
+                          ? "text-sm text-red-700 dark:text-red-300" 
                           : existingReport.speedDiscrepancy > 20
-                          ? "text-sm text-orange-700"
-                          : "text-sm text-yellow-700"
+                          ? "text-sm text-orange-700 dark:text-orange-300"
+                          : "text-sm text-yellow-700 dark:text-yellow-300"
                       }>
                         {existingReport.speedDiscrepancy > 30 
                           ? "⚠️ Significant discrepancy detected. This may indicate intentional misrepresentation. Recommend immediate investigation and possible claim rejection."
@@ -184,15 +184,15 @@ export default function PoliceReportForm({ claimId }: PoliceReportFormProps) {
                 </div>
               )}
               {existingReport.locationMismatch === 1 && (
-                <div className="bg-orange-50 border-2 border-orange-300 rounded-lg p-4">
+                <div className="bg-orange-50 dark:bg-orange-950/30 border-2 border-orange-300 dark:border-orange-700 rounded-lg p-4">
                   <div className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-orange-600 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-2">
-                        <strong className="text-orange-800">Location Mismatch</strong>
+                        <strong className="text-orange-800 dark:text-orange-200">Location Mismatch</strong>
                         <Badge variant="default">High</Badge>
                       </div>
-                      <p className="text-sm text-orange-700">
+                      <p className="text-sm text-orange-700 dark:text-orange-300">
                         ⚠️ Accident location differs between claim and police report. Verify GPS coordinates, dashcam footage, or witness statements to resolve discrepancy.
                       </p>
                     </div>

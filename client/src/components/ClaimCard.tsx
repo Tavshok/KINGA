@@ -56,7 +56,7 @@ export function ClaimCard({
     if (!score) return null;
     
     const variant = score >= 80 ? "default" : score >= 60 ? "secondary" : "destructive";
-    const color = score >= 80 ? "text-green-700" : score >= 60 ? "text-amber-700" : "text-red-700";
+    const color = score >= 80 ? "text-green-700 dark:text-green-300" : score >= 60 ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300";
     
     return (
       <Badge variant={variant} className={`${color} flex items-center gap-1`}>
@@ -84,21 +84,21 @@ export function ClaimCard({
     if (!status) return null;
     
     const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-      pending: { variant: "outline", color: "text-slate-700" },
-      in_review: { variant: "secondary", color: "text-amber-700" },
-      ai_flagged: { variant: "destructive", color: "text-red-700" },
-      completed: { variant: "default", color: "text-green-700" },
-      created: { variant: "outline", color: "text-slate-700" },
-      assigned: { variant: "secondary", color: "text-blue-700" },
-      disputed: { variant: "destructive", color: "text-orange-700" },
+      pending: { variant: "outline", color: "text-slate-700 dark:text-foreground/80" },
+      in_review: { variant: "secondary", color: "text-amber-700 dark:text-amber-300" },
+      ai_flagged: { variant: "destructive", color: "text-red-700 dark:text-red-300" },
+      completed: { variant: "default", color: "text-green-700 dark:text-green-300" },
+      created: { variant: "outline", color: "text-slate-700 dark:text-foreground/80" },
+      assigned: { variant: "secondary", color: "text-blue-700 dark:text-blue-300" },
+      disputed: { variant: "destructive", color: "text-orange-700 dark:text-orange-300" },
       // Document-ingestion statuses
-      intake_pending: { variant: "outline", color: "text-amber-700" },
-      quotes_pending: { variant: "secondary", color: "text-blue-700" },
-      assessment_complete: { variant: "default", color: "text-teal-700" },
-      closed: { variant: "default", color: "text-green-700" },
+      intake_pending: { variant: "outline", color: "text-amber-700 dark:text-amber-300" },
+      quotes_pending: { variant: "secondary", color: "text-blue-700 dark:text-blue-300" },
+      assessment_complete: { variant: "default", color: "text-teal-700 dark:text-teal-300" },
+      closed: { variant: "default", color: "text-green-700 dark:text-green-300" },
     };
 
-    const config = statusConfig[status] || { variant: "outline" as const, color: "text-slate-700" };
+    const config = statusConfig[status] || { variant: "outline" as const, color: "text-slate-700 dark:text-foreground/80" };
     
     return (
       <Badge variant={config.variant} className={config.color}>
@@ -113,7 +113,7 @@ export function ClaimCard({
     return (
       <Badge
         variant="outline"
-        className="border-amber-400 bg-amber-50 text-amber-800 font-semibold flex items-center gap-1"
+        className="border-amber-400 bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-200 font-semibold flex items-center gap-1"
       >
         <Clock className="h-3 w-3" />
         Awaiting Processing
@@ -139,27 +139,27 @@ export function ClaimCard({
             {/* Claim Details Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-2 text-sm">
               <div>
-                <span className="font-medium text-slate-600">Policyholder:</span>
-                <p className="text-slate-900">{claim.policyholderName || claim.claimantName || "N/A"}</p>
+                <span className="font-medium text-slate-600 dark:text-muted-foreground">Policyholder:</span>
+                <p className="text-slate-900 dark:text-foreground">{claim.policyholderName || claim.claimantName || "N/A"}</p>
               </div>
               <div>
-                <span className="font-medium text-slate-600">Claim Type:</span>
-                <p className="text-slate-900">{claim.claimType || "Motor Vehicle"}</p>
+                <span className="font-medium text-slate-600 dark:text-muted-foreground">Claim Type:</span>
+                <p className="text-slate-900 dark:text-foreground">{claim.claimType || "Motor Vehicle"}</p>
               </div>
               <div>
-                <span className="font-medium text-slate-600">Vehicle:</span>
-                <p className="text-slate-900">
+                <span className="font-medium text-slate-600 dark:text-muted-foreground">Vehicle:</span>
+                <p className="text-slate-900 dark:text-foreground">
                   {claim.vehicleRegistration || "N/A"}
                   {claim.vehicleMake && ` (${claim.vehicleMake} ${claim.vehicleModel || ""})`}
                 </p>
               </div>
               <div>
-                <span className="font-medium text-slate-600">Policy Number:</span>
-                <p className="text-slate-900">{claim.policyNumber || "N/A"}</p>
+                <span className="font-medium text-slate-600 dark:text-muted-foreground">Policy Number:</span>
+                <p className="text-slate-900 dark:text-foreground">{claim.policyNumber || "N/A"}</p>
               </div>
               <div>
-                <span className="font-medium text-slate-600">Submitted:</span>
-                <p className="text-slate-900">
+                <span className="font-medium text-slate-600 dark:text-muted-foreground">Submitted:</span>
+                <p className="text-slate-900 dark:text-foreground">
                   {claim.createdAt 
                     ? new Date(claim.createdAt).toLocaleDateString() 
                     : "N/A"}
@@ -205,7 +205,7 @@ export function ClaimCard({
                 size="sm" 
                 variant="outline"
                 onClick={() => onTriggerAI(claim.id)}
-                className="w-full justify-start border-purple-300 text-purple-700 hover:bg-purple-50"
+                className="w-full justify-start border-purple-300 dark:border-purple-700 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:bg-purple-950/30"
               >
                 <Brain className="h-4 w-4 mr-2" />
                 Trigger AI Assessment
@@ -217,7 +217,7 @@ export function ClaimCard({
                 size="sm" 
                 variant="outline"
                 onClick={() => onAssignAssessor(claim.id)}
-                className="w-full justify-start border-blue-300 text-blue-700 hover:bg-blue-50"
+                className="w-full justify-start border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:bg-blue-950/30"
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Assign Assessor
@@ -228,7 +228,7 @@ export function ClaimCard({
               size="sm" 
               variant="outline"
               onClick={() => onEscalate(claim.id)}
-              className="w-full justify-start border-orange-300 text-orange-700 hover:bg-orange-50"
+              className="w-full justify-start border-orange-300 dark:border-orange-700 text-orange-700 dark:text-orange-300 hover:bg-orange-50 dark:bg-orange-950/30"
             >
               <AlertTriangle className="h-4 w-4 mr-2" />
               Escalate

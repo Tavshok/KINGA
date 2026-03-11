@@ -84,9 +84,9 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
                 ${(valuation.estimatedMarketValue / 100).toFixed(2)}
               </p>
             </div>
-            <div className="bg-green-50 rounded-lg p-4">
+            <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-4">
               <Label className="text-muted-foreground text-sm">Final Adjusted Value</Label>
-              <p className="text-2xl font-bold text-green-700">
+              <p className="text-2xl font-bold text-green-700 dark:text-green-300">
                 ${((valuation.finalAdjustedValue ?? 0) / 100).toFixed(2)}
               </p>
             </div>
@@ -97,15 +97,15 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
             <div>
               <Label className="text-muted-foreground">Market Price Range</Label>
               <div className="grid grid-cols-3 gap-2 mt-2">
-                <div className="text-center p-2 bg-gray-50 rounded">
+                <div className="text-center p-2 bg-gray-50 dark:bg-muted/50 rounded">
                   <p className="text-xs text-muted-foreground">Min</p>
                   <p className="font-medium">{fmt(priceRange.min)}</p>
                 </div>
-                <div className="text-center p-2 bg-gray-50 rounded">
+                <div className="text-center p-2 bg-gray-50 dark:bg-muted/50 rounded">
                   <p className="text-xs text-muted-foreground">Median</p>
                   <p className="font-medium">{fmt(priceRange.median)}</p>
                 </div>
-                <div className="text-center p-2 bg-gray-50 rounded">
+                <div className="text-center p-2 bg-gray-50 dark:bg-muted/50 rounded">
                   <p className="text-xs text-muted-foreground">Max</p>
                   <p className="font-medium">{fmt(priceRange.max)}</p>
                 </div>
@@ -169,14 +169,14 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
 
           {/* Total Loss Analysis */}
           {valuation.repairCostToValueRatio && (
-            <div className={`rounded-lg p-4 ${valuation.isTotalLoss ? "bg-red-50 border border-red-200" : "bg-green-50 border border-green-200"}`}>
+            <div className={`rounded-lg p-4 ${valuation.isTotalLoss ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" : "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800"}`}>
               <div className="flex items-center gap-2 mb-2">
                 {valuation.isTotalLoss ? (
                   <AlertCircle className="h-4 w-4 text-red-600" />
                 ) : (
                   <TrendingUp className="h-4 w-4 text-green-600" />
                 )}
-                <Label className={valuation.isTotalLoss ? "text-red-800" : "text-green-800"}>
+                <Label className={valuation.isTotalLoss ? "text-red-800 dark:text-red-200" : "text-green-800 dark:text-green-200"}>
                   Total Loss Analysis
                 </Label>
               </div>
@@ -194,7 +194,7 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
                   </span>
                 </div>
                 {valuation.isTotalLoss && (
-                  <p className="text-red-700 font-medium mt-2">
+                  <p className="text-red-700 dark:text-red-300 font-medium mt-2">
                     ⚠️ Recommend cash settlement instead of repair
                   </p>
                 )}
@@ -208,7 +208,7 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
               <Label className="text-muted-foreground">Valuation Notes</Label>
               <div className="mt-2 space-y-1">
                 {notes.map((note, idx) => (
-                  <p key={idx} className="text-sm text-gray-700">
+                  <p key={idx} className="text-sm text-gray-700 dark:text-foreground/80">
                     • {note}
                   </p>
                 ))}

@@ -71,8 +71,8 @@ function RiskBadge({ level }: { level: "low" | "medium" | "high" }) {
 
 function ConfidenceBadge({ level }: { level: "high" | "medium" | "low" }) {
   const styles = {
-    high: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
-    medium: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+    high: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+    medium: "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
     low: "bg-muted text-muted-foreground",
   };
   return (
@@ -265,7 +265,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
                         {formatRands(g.totalAmount)}
                       </span>
                       {g.isOutlier && (
-                        <Badge className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300">
+                        <Badge className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300 dark:border-amber-700">
                           <AlertTriangle className="h-3 w-3 mr-1" />
                           Potential cost outlier
                         </Badge>
@@ -411,7 +411,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
               </p>
               <div className="flex flex-wrap gap-1">
                 {reconciliation.missingParts.map((p: string) => (
-                  <Badge key={p} variant="outline" className="text-xs border-red-300 text-red-700 dark:text-red-300">
+                  <Badge key={p} variant="outline" className="text-xs border-red-300 dark:border-red-700 text-red-700 dark:text-red-300">
                     {p}
                   </Badge>
                 ))}
@@ -426,7 +426,7 @@ export function RepairIntelligencePanel({ claimId, countryCode = "ZA" }: Props) 
               </p>
               <div className="flex flex-wrap gap-1">
                 {reconciliation.extraParts.map((p: string) => (
-                  <Badge key={p} variant="outline" className="text-xs border-amber-300 text-amber-700 dark:text-amber-300">
+                  <Badge key={p} variant="outline" className="text-xs border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300">
                     {p}
                   </Badge>
                 ))}

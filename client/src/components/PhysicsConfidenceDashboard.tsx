@@ -63,9 +63,9 @@ export default function PhysicsConfidenceDashboard({ validation }: PhysicsConfid
       case "info":
         return "bg-primary/5 border-primary/20";
       case "warning":
-        return "bg-yellow-50 border-yellow-200";
+        return "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800";
       case "error":
-        return "bg-red-50 border-red-200";
+        return "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800";
     }
   };
 
@@ -155,11 +155,11 @@ export default function PhysicsConfidenceDashboard({ validation }: PhysicsConfid
         </div>
 
         {/* Anomaly Detection */}
-        {validation.anomalies.length > 0 && (
+        {(validation.anomalies ?? []).length > 0 && (
           <div>
             <h3 className="font-semibold mb-3 text-lg">Anomaly Detection</h3>
             <div className="space-y-3">
-              {validation.anomalies.map((anomaly, index) => (
+              {(validation.anomalies ?? []).map((anomaly, index) => (
                 <div key={index} className={`p-3 rounded-lg border ${getAnomalyBg(anomaly.type)}`}>
                   <div className="flex items-start gap-3">
                     {getAnomalyIcon(anomaly.type)}
@@ -169,9 +169,9 @@ export default function PhysicsConfidenceDashboard({ validation }: PhysicsConfid
                         <Badge 
                           variant="outline" 
                           className={
-                            anomaly.riskLevel === "high" ? "border-red-500 text-red-700" :
-                            anomaly.riskLevel === "medium" ? "border-yellow-500 text-yellow-700" :
-                            "border-green-500 text-green-700"
+                            anomaly.riskLevel === "high" ? "border-red-500 text-red-700 dark:text-red-300" :
+                            anomaly.riskLevel === "medium" ? "border-yellow-500 text-yellow-700 dark:text-yellow-300" :
+                            "border-green-500 text-green-700 dark:text-green-300"
                           }
                         >
                           {anomaly.riskLevel.toUpperCase()}

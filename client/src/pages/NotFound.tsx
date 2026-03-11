@@ -25,7 +25,7 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4">
-      <Card className="max-w-2xl w-full shadow-2xl border-emerald-100">
+      <Card className="max-w-2xl w-full shadow-2xl border-emerald-100 dark:border-emerald-900">
         <CardContent className="p-12">
           {/* Logo */}
           <div className="flex justify-center mb-8">
@@ -39,10 +39,10 @@ export default function NotFound() {
           {/* 404 Message */}
           <div className="text-center mb-8">
             <h1 className="text-8xl font-bold text-emerald-600 mb-4">404</h1>
-            <h2 className="text-3xl font-semibold text-gray-800 mb-3">
+            <h2 className="text-3xl font-semibold text-gray-800 dark:text-foreground mb-3">
               Page Not Found
             </h2>
-            <p className="text-lg text-gray-600 max-w-md mx-auto">
+            <p className="text-lg text-gray-600 dark:text-muted-foreground max-w-md mx-auto">
               The page you're looking for doesn't exist or has been moved. Let's
               get you back on track.
             </p>
@@ -52,7 +52,7 @@ export default function NotFound() {
           <form onSubmit={handleSearch} className="mb-8">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-muted-foreground/70" />
                 <Input
                   type="text"
                   placeholder="Search for claims, assessments, or reports..."
@@ -73,7 +73,7 @@ export default function NotFound() {
 
           {/* Quick Links */}
           <div className="space-y-3 mb-8">
-            <p className="text-sm font-medium text-gray-700 text-center mb-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-foreground/80 text-center mb-4">
               Quick Navigation
             </p>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
@@ -82,7 +82,7 @@ export default function NotFound() {
                   key={link.path}
                   variant="outline"
                   onClick={() => setLocation(link.path)}
-                  className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-emerald-50 hover:border-emerald-300 transition-colors"
+                  className="h-auto py-4 flex flex-col items-center gap-2 hover:bg-emerald-50 dark:bg-emerald-950/30 hover:border-emerald-300 dark:border-emerald-700 transition-colors"
                 >
                   <link.icon className="h-5 w-5 text-emerald-600" />
                   <span className="text-sm font-medium">{link.label}</span>
@@ -96,7 +96,7 @@ export default function NotFound() {
             <Button
               variant="ghost"
               onClick={() => window.history.back()}
-              className="text-gray-600 hover:text-emerald-600"
+              className="text-gray-600 dark:text-muted-foreground hover:text-emerald-600"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Go Back
@@ -104,8 +104,8 @@ export default function NotFound() {
           </div>
 
           {/* Help Text */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-500 text-center">
+          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-border">
+            <p className="text-sm text-gray-500 dark:text-muted-foreground text-center">
               Need help? Contact your system administrator or visit our support
               documentation.
             </p>

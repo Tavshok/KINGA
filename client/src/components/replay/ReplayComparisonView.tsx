@@ -172,7 +172,7 @@ export function ReplayComparisonView({ result }: ReplayComparisonViewProps) {
                 ) : result.payoutVarianceAmount > 0 ? (
                   <TrendingUp className="h-5 w-5 text-red-600" />
                 ) : (
-                  <CheckCircle2 className="h-5 w-5 text-gray-600" />
+                  <CheckCircle2 className="h-5 w-5 text-gray-600 dark:text-muted-foreground" />
                 )}
                 <div>
                   <div className="text-2xl font-bold">
@@ -197,7 +197,7 @@ export function ReplayComparisonView({ result }: ReplayComparisonViewProps) {
                 ) : result.processingTimeDelta !== null && result.processingTimeDelta > 0 ? (
                   <TrendingUp className="h-5 w-5 text-red-600" />
                 ) : (
-                  <CheckCircle2 className="h-5 w-5 text-gray-600" />
+                  <CheckCircle2 className="h-5 w-5 text-gray-600 dark:text-muted-foreground" />
                 )}
                 <div>
                   <div className="text-2xl font-bold">

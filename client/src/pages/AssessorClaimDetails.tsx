@@ -112,7 +112,7 @@ export default function AssessorClaimDetails() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -222,26 +222,26 @@ export default function AssessorClaimDetails() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Cost Recommendations */}
-                  <div className="bg-white rounded-lg p-4 space-y-3">
-                    <h3 className="font-semibold text-sm text-slate-700 flex items-center gap-2">
+                  <div className="bg-white dark:bg-card rounded-lg p-4 space-y-3">
+                    <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 flex items-center gap-2">
                       <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                       Cost Optimization
                     </h3>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-slate-50 rounded p-3">
-                        <p className="text-xs text-slate-600">AI Estimated Cost</p>
-                        <p className="text-lg font-bold text-slate-900">
+                      <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Estimated Cost</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                           ${((aiAssessment.estimatedCost || 0) / 100).toLocaleString()}
                         </p>
                       </div>
-                      <div className="bg-slate-50 rounded p-3">
-                        <p className="text-xs text-slate-600">Market Average</p>
-                        <p className="text-lg font-bold text-slate-900">
+                      <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Market Average</p>
+                        <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                           ${(((aiAssessment.estimatedCost || 0) * 1.1) / 100).toLocaleString()}
                         </p>
-                        <p className="text-xs text-slate-500">±10% variance</p>
+                        <p className="text-xs text-slate-500 dark:text-muted-foreground">±10% variance</p>
                       </div>
                     </div>
                   </div>
@@ -250,21 +250,21 @@ export default function AssessorClaimDetails() {
                   {aiAssessment.fraudRiskLevel && aiAssessment.fraudRiskLevel !== "low" && (
                     <div className={`rounded-lg p-4 ${
                       aiAssessment.fraudRiskLevel === "high" 
-                        ? "bg-red-50 border border-red-200" 
-                        : "bg-orange-50 border border-orange-200"
+                        ? "bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800" 
+                        : "bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800"
                     }`}>
                       <h3 className="font-semibold text-sm flex items-center gap-2 mb-2">
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
-                        <span className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700" : "text-orange-700"}>
+                        <span className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
                           {aiAssessment.fraudRiskLevel === "high" ? "High" : "Medium"} Fraud Risk Detected
                         </span>
                       </h3>
                       {aiAssessment.fraudIndicators && (
                         <ul className="text-sm space-y-1 ml-6">
                           {JSON.parse(aiAssessment.fraudIndicators).map((indicator: string, idx: number) => (
-                            <li key={idx} className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700" : "text-orange-700"}>
+                            <li key={idx} className={aiAssessment.fraudRiskLevel === "high" ? "text-red-700 dark:text-red-300" : "text-orange-700 dark:text-orange-300"}>
                               • {indicator}
                             </li>
                           ))}
@@ -274,9 +274,9 @@ export default function AssessorClaimDetails() {
                   )}
 
                   {/* Damage Analysis */}
-                  <div className="bg-white rounded-lg p-4">
-                    <h3 className="font-semibold text-sm text-slate-700 mb-2">AI Damage Analysis</h3>
-                    <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                  <div className="bg-white dark:bg-card rounded-lg p-4">
+                    <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 mb-2">AI Damage Analysis</h3>
+                    <p className="text-sm text-slate-600 dark:text-muted-foreground whitespace-pre-wrap">
                       {aiAssessment.damageDescription || "No detailed analysis available"}
                     </p>
                     {aiAssessment.detectedDamageTypes && (
@@ -292,14 +292,14 @@ export default function AssessorClaimDetails() {
 
                   {/* Physics Analysis */}
                   {aiAssessment.physicsAnalysis && (
-                    <div className="bg-white rounded-lg p-4">
-                      <h3 className="font-semibold text-sm text-slate-700 mb-2 flex items-center gap-2">
+                    <div className="bg-white dark:bg-card rounded-lg p-4">
+                      <h3 className="font-semibold text-sm text-slate-700 dark:text-foreground/80 mb-2 flex items-center gap-2">
                         <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
                         </svg>
                         Physics-Based Validation
                       </h3>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground">
                         {typeof aiAssessment.physicsAnalysis === 'string' 
                           ? aiAssessment.physicsAnalysis 
                           : JSON.stringify(aiAssessment.physicsAnalysis, null, 2)}
@@ -454,22 +454,22 @@ export default function AssessorClaimDetails() {
 
                   {/* AI Disagreement Section */}
                   {aiAssessment && (
-                    <div className="col-span-full space-y-3 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                    <div className="col-span-full space-y-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
                       <div className="flex items-center gap-2">
                         <input
                           type="checkbox"
                           id="disagreesWithAi"
                           checked={evaluation.disagreesWithAi}
                           onChange={(e) => setEvaluation(prev => ({ ...prev, disagreesWithAi: e.target.checked }))}
-                          className="h-4 w-4 rounded border-gray-300"
+                          className="h-4 w-4 rounded border-gray-300 dark:border-border"
                         />
-                        <Label htmlFor="disagreesWithAi" className="font-semibold text-amber-900 cursor-pointer">
+                        <Label htmlFor="disagreesWithAi" className="font-semibold text-amber-900 dark:text-amber-200 cursor-pointer">
                           I disagree with the AI assessment
                         </Label>
                       </div>
                       {evaluation.disagreesWithAi && (
                         <div className="space-y-2">
-                          <Label htmlFor="aiDisagreementReason" className="text-amber-900">
+                          <Label htmlFor="aiDisagreementReason" className="text-amber-900 dark:text-amber-200">
                             Please explain why you disagree with the AI's analysis *
                           </Label>
                           <Textarea
@@ -479,9 +479,9 @@ export default function AssessorClaimDetails() {
                             placeholder="E.g., AI underestimated structural damage, missed paint work, overestimated labor hours, etc."
                             rows={4}
                             required={evaluation.disagreesWithAi}
-                            className="bg-white"
+                            className="bg-white dark:bg-card"
                           />
-                          <p className="text-xs text-amber-700">
+                          <p className="text-xs text-amber-700 dark:text-amber-300">
                             Your professional judgment helps improve the AI model. This feedback will be reviewed by the Risk Manager.
                           </p>
                         </div>

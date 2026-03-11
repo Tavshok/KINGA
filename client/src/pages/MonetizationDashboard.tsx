@@ -97,13 +97,13 @@ export default function MonetizationDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-muted/50 p-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">KINGA Monetisation Dashboard</h1>
-            <p className="text-sm text-gray-600 mt-1">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">KINGA Monetisation Dashboard</h1>
+            <p className="text-sm text-gray-600 dark:text-muted-foreground mt-1">
               Internal strategic monitoring and billing projections
             </p>
           </div>
@@ -129,7 +129,7 @@ export default function MonetizationDashboard() {
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   className="px-3 py-2 border rounded-md text-sm"
                 />
-                <span className="text-gray-500">to</span>
+                <span className="text-gray-500 dark:text-muted-foreground">to</span>
                 <input
                   type="date"
                   value={customEndDate}
@@ -145,54 +145,54 @@ export default function MonetizationDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-green-100 rounded-lg">
+              <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
                 <DollarSign className="w-5 h-5 text-green-600" />
               </div>
-              <div className="text-sm font-medium text-gray-600">Total Revenue</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Total Revenue</div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{formatCurrency(totalRevenue)}</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-foreground">{formatCurrency(totalRevenue)}</div>
           </Card>
 
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-100 rounded-lg">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
                 <Users className="w-5 h-5 text-blue-600" />
               </div>
-              <div className="text-sm font-medium text-gray-600">Active Tenants</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Active Tenants</div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{metrics.length}</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-foreground">{metrics.length}</div>
           </Card>
 
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-purple-100 rounded-lg">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
                 <FileText className="w-5 h-5 text-purple-600" />
               </div>
-              <div className="text-sm font-medium text-gray-600">Total Claims</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Total Claims</div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">{totalClaims.toLocaleString()}</div>
+            <div className="text-2xl font-bold text-gray-900 dark:text-foreground">{totalClaims.toLocaleString()}</div>
           </Card>
 
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-amber-100 rounded-lg">
+              <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
                 <Zap className="w-5 h-5 text-amber-600" />
               </div>
-              <div className="text-sm font-medium text-gray-600">AI-Only Rate</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">AI-Only Rate</div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-foreground">
               {totalClaims > 0 ? ((totalAiOnly / totalClaims) * 100).toFixed(1) : 0}%
             </div>
           </Card>
 
           <Card className="p-6">
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-red-100 rounded-lg">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                 <Clock className="w-5 h-5 text-red-600" />
               </div>
-              <div className="text-sm font-medium text-gray-600">Avg Time Saved</div>
+              <div className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Avg Time Saved</div>
             </div>
-            <div className="text-2xl font-bold text-gray-900">
+            <div className="text-2xl font-bold text-gray-900 dark:text-foreground">
               {avgProcessingTimeReduction.toFixed(1)}h
             </div>
           </Card>
@@ -201,7 +201,7 @@ export default function MonetizationDashboard() {
         {/* Per-Tenant Metrics Table */}
         <Card className="p-6">
           <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Per-Tenant Breakdown</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Per-Tenant Breakdown</h2>
             <Button
               variant="outline"
               size="sm"
@@ -220,7 +220,7 @@ export default function MonetizationDashboard() {
               <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : metrics.length === 0 ? (
-            <div className="text-center py-12 text-gray-500">
+            <div className="text-center py-12 text-gray-500 dark:text-muted-foreground">
               No data available for the selected period
             </div>
           ) : (
@@ -279,7 +279,7 @@ export default function MonetizationDashboard() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-gray-400">N/A</span>
+                          <span className="text-gray-400 dark:text-muted-foreground/70">N/A</span>
                         )}
                       </TableCell>
                     </TableRow>
@@ -293,11 +293,11 @@ export default function MonetizationDashboard() {
         {/* Revenue Breakdown Card */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Revenue Breakdown</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-foreground mb-4">Revenue Breakdown</h3>
             <div className="space-y-3">
               {metrics.slice(0, 5).map((tenant) => (
                 <div key={tenant.tenantId} className="flex items-center justify-between">
-                  <span className="text-sm text-gray-600">{tenant.tenantName}</span>
+                  <span className="text-sm text-gray-600 dark:text-muted-foreground">{tenant.tenantName}</span>
                   <div className="flex items-center gap-2">
                     <div className="w-32 bg-gray-200 rounded-full h-2">
                       <div
@@ -307,7 +307,7 @@ export default function MonetizationDashboard() {
                         }}
                       />
                     </div>
-                    <span className="text-sm font-semibold text-gray-900 w-20 text-right">
+                    <span className="text-sm font-semibold text-gray-900 dark:text-foreground w-20 text-right">
                       {formatCurrency(tenant.projectedInvoice.total)}
                     </span>
                   </div>
@@ -317,12 +317,12 @@ export default function MonetizationDashboard() {
           </Card>
 
           <Card className="p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">Assessment Type Distribution</h3>
+            <h3 className="text-lg font-bold text-gray-900 dark:text-foreground mb-4">Assessment Type Distribution</h3>
             <div className="space-y-4">
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-600">AI-Only Assessments</span>
-                  <span className="text-sm font-semibold text-gray-900">{totalAiOnly}</span>
+                  <span className="text-sm text-gray-600 dark:text-muted-foreground">AI-Only Assessments</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-foreground">{totalAiOnly}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
@@ -336,8 +336,8 @@ export default function MonetizationDashboard() {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm text-gray-600">Hybrid Assessments</span>
-                  <span className="text-sm font-semibold text-gray-900">{totalHybrid}</span>
+                  <span className="text-sm text-gray-600 dark:text-muted-foreground">Hybrid Assessments</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-foreground">{totalHybrid}</span>
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div

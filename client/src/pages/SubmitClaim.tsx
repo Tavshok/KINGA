@@ -447,7 +447,7 @@ export default function SubmitClaim() {
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50">
-        <header className="bg-white border-b shadow-sm">
+        <header className="bg-white dark:bg-card border-b shadow-sm">
           <div className="container mx-auto px-4 py-4">
             <div className="flex items-center gap-3">
               <Shield className="h-8 w-8 text-emerald-600" />
@@ -462,16 +462,16 @@ export default function SubmitClaim() {
         <main className="container mx-auto px-4 py-8">
           <Card className="max-w-2xl mx-auto">
             <CardHeader className="text-center space-y-4">
-              <div className="mx-auto w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center">
+              <div className="mx-auto w-16 h-16 bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center">
                 <CheckCircle className="h-8 w-8 text-emerald-600" />
               </div>
               <CardTitle className="text-2xl">Claim Submitted Successfully!</CardTitle>
               <CardDescription>Your claim has been received and is being processed</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-lg text-center">
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 p-4 rounded-lg text-center">
                 <p className="text-sm text-muted-foreground mb-1">Claim Number</p>
-                <p className="text-2xl font-bold font-mono text-emerald-700">{claimNumber}</p>
+                <p className="text-2xl font-bold font-mono text-emerald-700 dark:text-emerald-300">{claimNumber}</p>
               </div>
 
               <div className="space-y-2 text-sm text-muted-foreground">
@@ -498,7 +498,7 @@ export default function SubmitClaim() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-50">
-      <header className="bg-white border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white dark:bg-card border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -533,11 +533,11 @@ export default function SubmitClaim() {
         <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-6">
 
           {/* STEP 0: AI Document Upload (always visible) */}
-          <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+          <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50">
             <CardHeader>
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-emerald-600" />
-                <CardTitle className="text-emerald-800">Quick Fill with AI</CardTitle>
+                <CardTitle className="text-emerald-800 dark:text-emerald-200">Quick Fill with AI</CardTitle>
               </div>
               <CardDescription>
                 Upload your claim form, vehicle registration book, licence disc, or ID document.
@@ -545,7 +545,7 @@ export default function SubmitClaim() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="border-2 border-dashed border-emerald-300 rounded-lg p-6 text-center bg-white/50">
+              <div className="border-2 border-dashed border-emerald-300 dark:border-emerald-700 rounded-lg p-6 text-center bg-white/50 dark:bg-card/50">
                 <FileUp className="h-10 w-10 mx-auto mb-3 text-emerald-500" />
                 <Label htmlFor="docExtract" className="cursor-pointer">
                   <span className="text-emerald-600 font-medium hover:underline">Upload documents for AI extraction</span>
@@ -565,15 +565,15 @@ export default function SubmitClaim() {
               </div>
 
               {extracting && (
-                <div className="flex items-center justify-center gap-2 p-3 bg-emerald-100 rounded-lg">
+                <div className="flex items-center justify-center gap-2 p-3 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg">
                   <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
-                  <span className="text-sm text-emerald-700 font-medium">AI is analyzing your document...</span>
+                  <span className="text-sm text-emerald-700 dark:text-emerald-300 font-medium">AI is analyzing your document...</span>
                 </div>
               )}
 
               {extractedDocs.length > 0 && (
                 <div className="space-y-1">
-                  <p className="text-sm font-medium text-emerald-700">Extracted documents:</p>
+                  <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Extracted documents:</p>
                   {extractedDocs.map((doc, i) => (
                     <div key={i} className="flex items-center gap-2 text-sm text-emerald-600">
                       <CheckCircle className="h-3 w-3" />
@@ -1155,7 +1155,7 @@ export default function SubmitClaim() {
                       <div className="flex items-center justify-between">
                         <span className="text-sm font-medium">{label}</span>
                         {uploaded.length > 0 && (
-                          <Badge variant="outline" className="text-emerald-600 border-emerald-300 text-xs">
+                          <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:border-emerald-700 text-xs">
                             {uploaded.length} uploaded
                           </Badge>
                         )}
@@ -1223,7 +1223,7 @@ export default function SubmitClaim() {
                     key={pb.profileId}
                     className={`flex items-start space-x-3 p-3 rounded-lg border transition-colors ${
                       formData.selectedPanelBeaterIds.includes(pb.profileId)
-                        ? "border-emerald-300 bg-emerald-50"
+                        ? "border-emerald-300 dark:border-emerald-700 bg-emerald-50 dark:bg-emerald-950/30"
                         : "hover:bg-muted/50"
                     }`}
                   >
@@ -1238,12 +1238,12 @@ export default function SubmitClaim() {
                           {pb.companyName}
                         </Label>
                         {!!pb.preferred && (
-                          <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-700 border-amber-200">
+                          <Badge variant="secondary" className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800">
                             Preferred
                           </Badge>
                         )}
                         {!!pb.slaSigned && (
-                          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300">
+                          <Badge variant="outline" className="text-xs text-emerald-600 border-emerald-300 dark:border-emerald-700">
                             SLA Signed
                           </Badge>
                         )}

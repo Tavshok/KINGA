@@ -47,7 +47,7 @@ export function FleetRoleGuard({ children, allowedRoles, requireFleetId = false 
       <div className="flex items-center justify-center min-h-screen">
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-          <p className="text-sm text-gray-600">Verifying fleet access...</p>
+          <p className="text-sm text-gray-600 dark:text-muted-foreground">Verifying fleet access...</p>
         </div>
       </div>
     );

@@ -21,9 +21,9 @@ import type { DamagePhoto } from "../../../shared/damage-photo-types";
 
 // ─── Severity colour map ─────────────────────────────────────────────────────
 const SEVERITY_COLOURS: Record<string, string> = {
-  minor:       "bg-yellow-100 text-yellow-800 border-yellow-300",
-  moderate:    "bg-orange-100 text-orange-800 border-orange-300",
-  severe:      "bg-red-100 text-red-800 border-red-300",
+  minor:       "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700",
+  moderate:    "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700",
+  severe:      "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
   total_loss:  "bg-red-900 text-white border-red-900",
 };
 
@@ -42,17 +42,17 @@ const ZONE_COLOURS: Record<string, string> = {
 function SourceBadge({ source }: { source?: string }) {
   if (!source) return null;
   if (source === "pdf_embedded") return (
-    <span className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-1.5 py-0.5">
+    <span className="flex items-center gap-1 text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded px-1.5 py-0.5">
       <FileText className="w-3 h-3" /> PDF embedded
     </span>
   );
   if (source === "pdf_page_render") return (
-    <span className="flex items-center gap-1 text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded px-1.5 py-0.5">
+    <span className="flex items-center gap-1 text-xs text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800 rounded px-1.5 py-0.5">
       <Camera className="w-3 h-3" /> PDF page
     </span>
   );
   return (
-    <span className="flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-1.5 py-0.5">
+    <span className="flex items-center gap-1 text-xs text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded px-1.5 py-0.5">
       <Upload className="w-3 h-3" /> Uploaded
     </span>
   );
@@ -71,7 +71,7 @@ function Lightbox({ photo, onClose }: LightboxProps) {
       onClick={onClose}
     >
       <div
-        className="relative max-w-4xl w-full bg-white rounded-xl overflow-hidden shadow-2xl"
+        className="relative max-w-4xl w-full bg-white dark:bg-card rounded-xl overflow-hidden shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -84,16 +84,16 @@ function Lightbox({ photo, onClose }: LightboxProps) {
             )}
             <SourceBadge source={photo.source} />
             {photo.pageNumber && (
-              <span className="text-xs text-gray-400">Page {photo.pageNumber}</span>
+              <span className="text-xs text-gray-400 dark:text-muted-foreground/70">Page {photo.pageNumber}</span>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20">
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20 dark:bg-card/20">
             <X className="w-5 h-5" />
           </Button>
         </div>
 
         {/* Image */}
-        <div className="relative bg-gray-100">
+        <div className="relative bg-gray-100 dark:bg-muted">
           <img
             src={photo.imageUrl}
             alt={photo.caption || "Damage photo"}
@@ -104,18 +104,18 @@ function Lightbox({ photo, onClose }: LightboxProps) {
         {/* Footer */}
         <div className="p-4 space-y-3">
           {photo.caption && (
-            <p className="text-sm font-medium text-gray-800">{photo.caption}</p>
+            <p className="text-sm font-medium text-foreground">{photo.caption}</p>
           )}
           {photo.detectedDamageArea && (
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-foreground/80">
               <span className="font-semibold">Damage area: </span>{photo.detectedDamageArea}
             </p>
           )}
-          {photo.detectedComponents && photo.detectedComponents.length > 0 && (
+          {photo.detectedComponents && (photo.detectedComponents ?? []).length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Detected components</p>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Detected components</p>
               <div className="flex flex-wrap gap-1.5">
-                {photo.detectedComponents.map((comp, i) => (
+                {(photo.detectedComponents ?? []).map((comp, i) => (
                   <span
                     key={i}
                     className={`text-xs border rounded px-2 py-0.5 font-medium ${SEVERITY_COLOURS[comp.severity] || SEVERITY_COLOURS.minor}`}
@@ -130,7 +130,7 @@ function Lightbox({ photo, onClose }: LightboxProps) {
             </div>
           )}
           {photo.overallAssessment && (
-            <p className="text-xs text-gray-500 italic border-t pt-2">{photo.overallAssessment}</p>
+            <p className="text-xs text-muted-foreground italic border-t pt-2">{photo.overallAssessment}</p>
           )}
         </div>
       </div>
@@ -152,11 +152,11 @@ function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
   const moreCount = (photo.detectedComponents || []).length - topComponents.length;
 
   return (
-    <div className="relative rounded-xl overflow-hidden border border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow group">
+    <div className="relative rounded-xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
       {/* Image area */}
-      <div className="relative h-44 bg-gray-100 overflow-hidden cursor-pointer" onClick={onOpen}>
+      <div className="relative h-44 bg-muted overflow-hidden cursor-pointer" onClick={onOpen}>
         {imgError ? (
-          <div className="flex flex-col items-center justify-center h-full text-gray-400 gap-2">
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
             <Camera className="w-8 h-8" />
             <span className="text-xs">Image unavailable</span>
           </div>
@@ -195,13 +195,13 @@ function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
         <div className="flex items-center gap-1.5 flex-wrap">
           <SourceBadge source={photo.source} />
           {photo.classification === "document" && (
-            <Badge variant="outline" className="text-xs text-gray-500">Document</Badge>
+            <Badge variant="outline" className="text-xs text-muted-foreground">Document</Badge>
           )}
         </div>
 
         {/* Caption */}
         {photo.detectedDamageArea && (
-          <p className="text-xs text-gray-700 font-medium line-clamp-1">{photo.detectedDamageArea}</p>
+          <p className="text-xs text-foreground/80 font-medium line-clamp-1">{photo.detectedDamageArea}</p>
         )}
 
         {/* Component chips */}
@@ -216,7 +216,7 @@ function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
               </span>
             ))}
             {moreCount > 0 && (
-              <span className="text-xs text-gray-400 px-1">+{moreCount} more</span>
+              <span className="text-xs text-muted-foreground px-1">+{moreCount} more</span>
             )}
           </div>
         )}
@@ -291,7 +291,7 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
           {damageOnly.length} damage photo{damageOnly.length !== 1 ? "s" : ""}
         </Badge>
         {docPages.length > 0 && (
-          <Badge variant="outline" className="gap-1 text-gray-500">
+          <Badge variant="outline" className="gap-1 text-muted-foreground">
             <FileText className="w-3 h-3" />
             {docPages.length} document page{docPages.length !== 1 ? "s" : ""}
           </Badge>
@@ -332,14 +332,14 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
       {/* Document pages toggle */}
       {docPages.length > 0 && damageOnly.length > 0 && (
         <div className="mt-4 pt-3 border-t">
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-gray-500 dark:text-muted-foreground mb-2">
             {docPages.length} document page{docPages.length !== 1 ? "s" : ""} also extracted (quote sheets, police reports, assessor forms)
           </p>
           <div className="grid gap-2 grid-cols-3 md:grid-cols-5">
             {docPages.slice(0, 5).map((photo, idx) => (
               <div
                 key={idx}
-                className="relative rounded border border-gray-200 overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                className="relative rounded border border-gray-200 dark:border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
                 onClick={() => setLightboxPhoto(photo)}
               >
                 <img
@@ -348,11 +348,11 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
                   className="w-full h-20 object-cover"
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
-                <p className="text-xs text-center text-gray-500 py-0.5">p.{photo.pageNumber || idx + 1}</p>
+                <p className="text-xs text-center text-gray-500 dark:text-muted-foreground py-0.5">p.{photo.pageNumber || idx + 1}</p>
               </div>
             ))}
             {docPages.length > 5 && (
-              <div className="flex items-center justify-center text-xs text-gray-400">
+              <div className="flex items-center justify-center text-xs text-gray-400 dark:text-muted-foreground/70">
                 +{docPages.length - 5} more
               </div>
             )}

@@ -334,7 +334,7 @@ export default function InsuranceQuote() {
       
       {/* Trust Indicators */}
       <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
-        <div className="p-4 bg-emerald-50 rounded-lg">
+        <div className="p-4 bg-emerald-50 dark:bg-emerald-950/30 rounded-lg">
           <div className="text-3xl font-bold text-emerald-600">2 min</div>
           <div className="text-sm text-muted-foreground">Average completion time</div>
         </div>
@@ -342,7 +342,7 @@ export default function InsuranceQuote() {
           <div className="text-3xl font-bold text-primary">7 fields</div>
           <div className="text-sm text-muted-foreground">Simple, streamlined form</div>
         </div>
-        <div className="p-4 bg-purple-50 rounded-lg">
+        <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
           <div className="text-3xl font-bold text-purple-600">AI-powered</div>
           <div className="text-sm text-muted-foreground">KINGA intelligence engine</div>
         </div>

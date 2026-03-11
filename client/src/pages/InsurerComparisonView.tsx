@@ -50,17 +50,17 @@ function getCostBand(amount: number, median: number): CostBand {
 const BAND_CONFIG: Record<CostBand, { label: string; containerClass: string; dotClass: string }> = {
   FAIR: {
     label: "FAIR",
-    containerClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    containerClass: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
     dotClass: "bg-emerald-500",
   },
   HIGH: {
     label: "HIGH",
-    containerClass: "bg-red-50 text-red-700 border-red-200",
+    containerClass: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
     dotClass: "bg-red-500",
   },
   LOW: {
     label: "LOW",
-    containerClass: "bg-amber-50 text-amber-700 border-amber-200",
+    containerClass: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
     dotClass: "bg-amber-500",
   },
 };
@@ -74,7 +74,10 @@ export default function InsurerComparisonView() {
   const claimId = params?.id ? parseInt(params.id) : 0;
 
   // Get claim details
-  const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery({ id: claimId });
+  const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery(
+    { id: claimId },
+    { enabled: !!claimId }
+  );
 
   // Get AI assessment — poll every 5 s while the claim is in assessment_in_progress
   // so the panel refreshes automatically after the fire-and-forget job completes.
@@ -1053,19 +1056,19 @@ export default function InsurerComparisonView() {
               <div className="space-y-4">
                 {/* Total Loss Warning */}
                 {aiAssessment.totalLossIndicated === 1 && (
-                  <div className="bg-red-50 border-2 border-red-500 rounded-lg p-4 space-y-2">
+                  <div className="bg-red-50 dark:bg-red-950/30 border-2 border-red-500 rounded-lg p-4 space-y-2">
                     <div className="flex items-center gap-2">
                       <AlertTriangle className="h-5 w-5 text-red-600" />
-                      <h4 className="font-bold text-red-900 text-lg">TOTAL LOSS INDICATED</h4>
+                      <h4 className="font-bold text-red-900 dark:text-red-200 text-lg">TOTAL LOSS INDICATED</h4>
                     </div>
                     <Badge variant="destructive" className="text-xs">
                       {aiAssessment.structuralDamageSeverity?.toUpperCase() || 'SEVERE'} STRUCTURAL DAMAGE
                     </Badge>
                     {aiAssessment.totalLossReasoning && (
-                      <p className="text-sm text-red-800 leading-relaxed">{aiAssessment.totalLossReasoning}</p>
+                      <p className="text-sm text-red-800 dark:text-red-200 leading-relaxed">{aiAssessment.totalLossReasoning}</p>
                     )}
                     {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
-                      <div className="text-xs text-red-700 mt-2 pt-2 border-t border-red-300">
+                      <div className="text-xs text-red-700 dark:text-red-300 mt-2 pt-2 border-t border-red-300 dark:border-red-700">
                         <p>Repair Cost: US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                         <p>Vehicle Value: US${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                         <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
@@ -1485,16 +1488,16 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {richComponents.map((comp, idx) => {
               const sev = (comp.severity ?? '').toLowerCase();
-              const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 text-red-800 border-red-300'
-                : sev === 'moderate' ? 'bg-amber-100 text-amber-800 border-amber-300'
-                : sev === 'minor' ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-                : 'bg-purple-100 text-purple-800 border-purple-300';
+              const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
+                : sev === 'moderate' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                : sev === 'minor' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+                : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700';
               const dotColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-500'
                 : sev === 'moderate' ? 'bg-amber-500'
                 : sev === 'minor' ? 'bg-emerald-500'
                 : 'bg-purple-500';
               return (
-                <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 rounded-lg border border-purple-200">
+                <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                   <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${dotColor}`}></div>
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
@@ -1518,12 +1521,12 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         </div>
         {/* Structural Damage Warning */}
         {hasStructuralDamage && (
-          <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
+          <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border-2 border-red-200 dark:border-red-800">
             <div className="flex items-center gap-3">
               <AlertTriangle className="h-6 w-6 text-red-600" />
               <div>
-                <p className="font-semibold text-red-900">Structural Damage Detected</p>
-                <p className="text-sm text-red-800 mt-1">
+                <p className="font-semibold text-red-900 dark:text-red-200">Structural Damage Detected</p>
+                <p className="text-sm text-red-800 dark:text-red-200 mt-1">
                   AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
                   Detailed structural inspection and repair certification required.
                 </p>
@@ -1539,7 +1542,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
     return (
       <div className="space-y-4">
         {inferredHiddenDamage.length > 0 ? (
-          <div className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+          <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg border-2 border-orange-200 dark:border-orange-800">
             <div className="space-y-3">
               {inferredHiddenDamage.map((item, idx) => (
                 <div key={idx} className="p-3 bg-card rounded border border-orange-200/50">
@@ -1559,8 +1562,8 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                 </div>
               ))}
             </div>
-            <div className="mt-4 p-3 bg-yellow-50 rounded border border-yellow-200">
-              <p className="text-sm text-yellow-900">
+            <div className="mt-4 p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded border border-yellow-200 dark:border-yellow-800">
+              <p className="text-sm text-yellow-900 dark:text-yellow-200">
                 <strong>⚠️ Recommendation:</strong> Physical inspection recommended to confirm hidden damage. 
                 Inferred damage is based on typical collision patterns and may not be present in all cases.
               </p>
@@ -1623,16 +1626,16 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           {richComponents.map((comp, idx) => {
             const sev = (comp.severity ?? '').toLowerCase();
-            const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 text-red-800 border-red-300'
-              : sev === 'moderate' ? 'bg-amber-100 text-amber-800 border-amber-300'
-              : sev === 'minor' ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
-              : 'bg-purple-100 text-purple-800 border-purple-300';
+            const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
+              : sev === 'moderate' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+              : sev === 'minor' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700';
             const dotColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-500'
               : sev === 'moderate' ? 'bg-amber-500'
               : sev === 'minor' ? 'bg-emerald-500'
               : 'bg-purple-500';
             return (
-              <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 rounded-lg border border-purple-200">
+              <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                 <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${dotColor}`}></div>
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
@@ -1651,7 +1654,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
 
       {/* Inferred Hidden Damage — physics-based propagation with probability scoring */}
       {inferredHiddenDamage.length > 0 && (
-        <div className="p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
+        <div className="p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg border-2 border-orange-200 dark:border-orange-800">
           <h4 className="font-semibold mb-1 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
             Inferred Hidden Damage — Propagation Analysis
@@ -1676,7 +1679,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
               const items = inferredHiddenDamage.filter(i => ((i as any).chain || 'general') === chain);
               return (
                 <div key={chain} className="mb-4">
-                  <p className="text-xs font-semibold text-orange-800 mb-2 uppercase tracking-wide">
+                  <p className="text-xs font-semibold text-orange-800 dark:text-orange-200 mb-2 uppercase tracking-wide">
                     {chainLabels[chain] || chain}
                   </p>
                   <div className="space-y-2">
@@ -1696,7 +1699,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                           <div className="flex items-start justify-between mb-1 gap-2">
                             <div className="flex items-center gap-2 min-w-0">
                               {step !== undefined && (
-                                <span className="shrink-0 text-xs font-bold text-orange-700 bg-orange-100 rounded-full w-5 h-5 flex items-center justify-center">
+                                <span className="shrink-0 text-xs font-bold text-orange-700 dark:text-orange-300 bg-orange-100 dark:bg-orange-900/30 rounded-full w-5 h-5 flex items-center justify-center">
                                   {step}
                                 </span>
                               )}
@@ -1729,8 +1732,8 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
             });
           })()}
 
-          <div className="mt-3 p-3 bg-yellow-50 rounded border border-yellow-200">
-            <p className="text-sm text-yellow-900">
+          <div className="mt-3 p-3 bg-yellow-50 dark:bg-yellow-950/30 rounded border border-yellow-200 dark:border-yellow-800">
+            <p className="text-sm text-yellow-900 dark:text-yellow-200">
               <strong>Recommendation:</strong> Physical inspection required to confirm hidden damage.
               Probability scores are derived from structural engineering propagation models and the
               computed impact force — not from visual inspection.
@@ -1741,12 +1744,12 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
 
       {/* Structural Damage Warning */}
       {hasStructuralDamage && (
-        <div className="p-4 bg-red-50 rounded-lg border-2 border-red-200">
+        <div className="p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border-2 border-red-200 dark:border-red-800">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-6 w-6 text-red-600" />
             <div>
-              <p className="font-semibold text-red-900">Structural Damage Detected</p>
-              <p className="text-sm text-red-800 mt-1">
+              <p className="font-semibold text-red-900 dark:text-red-200">Structural Damage Detected</p>
+              <p className="text-sm text-red-800 dark:text-red-200 mt-1">
                 AI analysis indicates potential frame or unibody damage. This may affect vehicle safety and resale value. 
                 Detailed structural inspection and repair certification required.
               </p>
@@ -1806,7 +1809,7 @@ function transformPhysicsAnalysisToValidation(physicsAnalysis: any, claim: any) 
     anomalies.push({
       type: "warning",
       title: "Unrelated Damage Detected",
-      description: `${fraudIndicators.unrelatedDamage.length} components show damage inconsistent with impact point`,
+      description: `${(fraudIndicators.unrelatedDamage ?? []).length} components show damage inconsistent with impact point`,
       riskLevel: "medium",
     });
   }
@@ -2009,7 +2012,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         {/* 5. Impact Direction */}
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Impact Direction</p>
-          <p className="text-base font-bold text-blue-700 capitalize leading-tight">
+          <p className="text-base font-bold text-blue-700 dark:text-blue-300 capitalize leading-tight">
             {(raw?.primaryImpactZone ?? raw?.collisionType ?? "Unknown").replace(/_/g, " ")}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
@@ -2042,7 +2045,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Peak Force</span>
-                <span className="font-bold text-amber-700">
+                <span className="font-bold text-amber-700 dark:text-amber-300">
                   {((impactForce?.magnitude ?? 0) / 1000).toFixed(1)} kN
                 </span>
               </div>
@@ -2070,7 +2073,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                     <span>50 kN</span>
                     <span>100+ kN</span>
                   </div>
-                  <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-3 bg-gray-100 dark:bg-muted rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full bg-gradient-to-r from-amber-400 to-red-600"
                       style={{ width: `${Math.min(100, (impactForce.magnitude / 100000) * 100)}%` }}
@@ -2095,7 +2098,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Consistency</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-20 h-2 bg-gray-100 dark:bg-muted rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${raw.damagePropagation.consistency ?? 0}%` }} />
                     </div>
                     <span className="text-xs font-medium">{raw.damagePropagation.consistency ?? 0}%</span>
@@ -2110,7 +2113,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                         : [raw.damagePropagation.propagationPath]
                       ).map((step: string, i: number, arr: string[]) => (
                         <span key={i} className="flex items-center gap-1">
-                          <span className="text-xs bg-blue-50 text-blue-800 px-2 py-0.5 rounded border border-blue-200 capitalize">{step}</span>
+                          <span className="text-xs bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-200 px-2 py-0.5 rounded border border-blue-200 dark:border-blue-800 capitalize">{step}</span>
                           {i < arr.length - 1 && <span className="text-blue-400 text-xs">→</span>}
                         </span>
                       ))}
@@ -2118,9 +2121,9 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                   </div>
                 )}
                 {raw.damagePropagation.unexpectedComponents?.length > 0 && (
-                  <div className="mt-2 p-2 bg-amber-50 rounded border border-amber-200">
-                    <p className="text-xs font-medium text-amber-900">Unexpected Damage Components:</p>
-                    <ul className="text-xs text-amber-800 mt-1 space-y-0.5">
+                  <div className="mt-2 p-2 bg-amber-50 dark:bg-amber-950/30 rounded border border-amber-200 dark:border-amber-800">
+                    <p className="text-xs font-medium text-amber-900 dark:text-amber-200">Unexpected Damage Components:</p>
+                    <ul className="text-xs text-amber-800 dark:text-amber-200 mt-1 space-y-0.5">
                       {raw.damagePropagation.unexpectedComponents.map((c: string, i: number) => (
                         <li key={i}>• {c}</li>
                       ))}
@@ -2137,7 +2140,7 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-muted-foreground">Damage Consistency</span>
                   <div className="flex items-center gap-2">
-                    <div className="w-20 h-2 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="w-20 h-2 bg-gray-100 dark:bg-muted rounded-full overflow-hidden">
                       <div className="h-full bg-blue-500 rounded-full" style={{ width: `${damageConsistency?.score ?? 70}%` }} />
                     </div>
                     <span className="text-xs font-medium">{damageConsistency?.score ?? 70}%</span>
@@ -2154,14 +2157,14 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
 
       {/* EV/Hybrid Analysis */}
       {physicsAnalysis.evHybridAnalysis && (
-        <div className="p-4 bg-orange-50 border-2 border-orange-200 rounded-lg">
+        <div className="p-4 bg-orange-50 dark:bg-orange-950/30 border-2 border-orange-200 dark:border-orange-800 rounded-lg">
           <div className="flex items-center gap-2 mb-3">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
-            <h4 className="font-semibold text-orange-900">EV/Hybrid Vehicle Safety Alert</h4>
+            <h4 className="font-semibold text-orange-900 dark:text-orange-200">EV/Hybrid Vehicle Safety Alert</h4>
           </div>
           <div className="grid gap-3 md:grid-cols-2">
             <div>
-              <p className="text-sm font-medium text-orange-900">Battery Damage Risk</p>
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-200">Battery Damage Risk</p>
               <Badge variant={
                 physicsAnalysis.evHybridAnalysis.batteryDamageRisk === "critical" ? "destructive" :
                 physicsAnalysis.evHybridAnalysis.batteryDamageRisk === "high" ? "destructive" :
@@ -2171,14 +2174,14 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
               </Badge>
             </div>
             <div>
-              <p className="text-sm font-medium text-orange-900">Fire/Explosion Risk</p>
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-200">Fire/Explosion Risk</p>
               <p className="text-sm">{physicsAnalysis.evHybridAnalysis.fireExplosionRisk}%</p>
             </div>
           </div>
           {physicsAnalysis.evHybridAnalysis.specialSafetyProtocols?.length > 0 && (
             <div className="mt-3">
-              <p className="text-sm font-medium text-orange-900 mb-2">Required Safety Protocols:</p>
-              <ul className="text-xs space-y-1 text-orange-800">
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-200 mb-2">Required Safety Protocols:</p>
+              <ul className="text-xs space-y-1 text-orange-800 dark:text-orange-200">
                 {physicsAnalysis.evHybridAnalysis.specialSafetyProtocols.slice(0, 3).map((protocol: string, idx: number) => (
                   <li key={idx}>• {protocol}</li>
                 ))}
@@ -2198,9 +2201,9 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
           
           {/* Impossible Damage Patterns */}
           {fraudIndicators.impossibleDamagePatterns?.length > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm font-medium text-red-900 mb-2">⚠️ Impossible Damage Patterns Detected</p>
-              <ul className="text-xs space-y-1 text-red-800">
+            <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm font-medium text-red-900 dark:text-red-200 mb-2">⚠️ Impossible Damage Patterns Detected</p>
+              <ul className="text-xs space-y-1 text-red-800 dark:text-red-200">
                 {fraudIndicators.impossibleDamagePatterns.map((pattern: string, idx: number) => (
                   <li key={idx}>• {pattern}</li>
                 ))}
@@ -2210,10 +2213,10 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
           
           {/* Unrelated Damage */}
           {fraudIndicators.unrelatedDamage?.length > 0 && (
-            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-              <p className="text-sm font-medium text-yellow-900 mb-2">⚠️ Unrelated Damage Detected</p>
-              <ul className="text-xs space-y-1 text-yellow-800">
-                {fraudIndicators.unrelatedDamage.map((damage: any, idx: number) => (
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-sm font-medium text-yellow-900 dark:text-yellow-200 mb-2">⚠️ Unrelated Damage Detected</p>
+              <ul className="text-xs space-y-1 text-yellow-800 dark:text-yellow-200">
+                {(fraudIndicators.unrelatedDamage ?? []).map((damage: any, idx: number) => (
                   <li key={idx}>
                     • {damage.component} ({(damage.distanceFromImpact || 0).toFixed(1)}m from impact point)
                   </li>
@@ -2224,9 +2227,9 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
           
           {/* Staged Accident Indicators */}
           {fraudIndicators.stagedAccidentIndicators?.length > 0 && (
-            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-              <p className="text-sm font-medium text-red-900 mb-2">🚨 Staged Accident Indicators</p>
-              <ul className="text-xs space-y-1 text-red-800">
+            <div className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
+              <p className="text-sm font-medium text-red-900 dark:text-red-200 mb-2">🚨 Staged Accident Indicators</p>
+              <ul className="text-xs space-y-1 text-red-800 dark:text-red-200">
                 {fraudIndicators.stagedAccidentIndicators.map((indicator: string, idx: number) => (
                   <li key={idx}>• {indicator}</li>
                 ))}
@@ -2236,9 +2239,9 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
           
           {/* Severity Mismatch */}
           {fraudIndicators.severityMismatch && (
-            <div className="p-3 bg-orange-50 border border-orange-200 rounded-lg">
-              <p className="text-sm font-medium text-orange-900">⚠️ Severity Mismatch</p>
-              <p className="text-xs text-orange-800 mt-1">
+            <div className="p-3 bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800 rounded-lg">
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-200">⚠️ Severity Mismatch</p>
+              <p className="text-xs text-orange-800 dark:text-orange-200 mt-1">
                 Reported damage severity doesn't match estimated impact speed and forces
               </p>
             </div>

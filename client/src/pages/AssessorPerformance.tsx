@@ -31,7 +31,7 @@ export default function AssessorPerformance() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-accent/5">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -151,7 +151,7 @@ export default function AssessorPerformance() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">Under 24 hours</span>
-                      <Badge variant="outline" className="bg-green-50">
+                      <Badge variant="outline" className="bg-green-50 dark:bg-green-950/30">
                         {metrics.turnaroundBreakdown.under24} cases
                       </Badge>
                     </div>
@@ -166,7 +166,7 @@ export default function AssessorPerformance() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">24-48 hours</span>
-                      <Badge variant="outline" className="bg-yellow-50">
+                      <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/30">
                         {metrics.turnaroundBreakdown.under48} cases
                       </Badge>
                     </div>
@@ -181,7 +181,7 @@ export default function AssessorPerformance() {
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium">Over 48 hours</span>
-                      <Badge variant="outline" className="bg-red-50">
+                      <Badge variant="outline" className="bg-red-50 dark:bg-red-950/30">
                         {metrics.turnaroundBreakdown.over48} cases
                       </Badge>
                     </div>

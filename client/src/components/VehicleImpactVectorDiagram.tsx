@@ -227,10 +227,10 @@ export function VehicleImpactVectorDiagram({
   
   const getConsistencyColor = (consistency: string) => {
     switch (consistency) {
-      case 'consistent': return 'bg-green-100 text-green-800 border-green-300';
-      case 'questionable': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-      case 'impossible': return 'bg-red-100 text-red-800 border-red-300';
-      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'consistent': return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700';
+      case 'questionable': return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700';
+      case 'impossible': return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700';
+      default: return 'bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground border-gray-300 dark:border-border';
     }
   };
 
@@ -238,13 +238,13 @@ export function VehicleImpactVectorDiagram({
     <Card className="p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
+          <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
             <Zap className="w-5 h-5 text-purple-600" />
           </div>
           <div>
             <h2 className="text-xl font-semibold">Impact Force Vectors</h2>
             {vehicleMake && vehicleModel && (
-              <p className="text-sm text-gray-600">
+              <p className="text-sm text-gray-600 dark:text-muted-foreground">
                 {vehicleMake} {vehicleModel} {vehicleYear || ''}
               </p>
             )}
@@ -255,11 +255,11 @@ export function VehicleImpactVectorDiagram({
             {damageConsistency}
           </Badge>
           {config.isQuantitative ? (
-            <Badge variant="outline" className="text-xs bg-green-50 text-green-800">
+            <Badge variant="outline" className="text-xs bg-green-50 dark:bg-green-950/30 text-green-800 dark:text-green-200">
               Quantitative Physics
             </Badge>
           ) : (
-            <Badge variant="outline" className="text-xs bg-yellow-50 text-yellow-800">
+            <Badge variant="outline" className="text-xs bg-yellow-50 dark:bg-yellow-950/30 text-yellow-800 dark:text-yellow-200">
               Qualitative Mode
             </Badge>
           )}
@@ -279,29 +279,29 @@ export function VehicleImpactVectorDiagram({
       <div className="grid grid-cols-2 gap-3 mb-4">
         {displaySpeed && (
           <div className="p-3 bg-primary/5 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">Impact Speed</p>
+            <p className="text-xs text-gray-600 dark:text-muted-foreground mb-1">Impact Speed</p>
             <p className="text-xl font-bold text-primary">{displaySpeed} km/h</p>
           </div>
         )}
         {displayForce && (
-          <div className="p-3 bg-purple-50 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">Impact Force</p>
+          <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
+            <p className="text-xs text-gray-600 dark:text-muted-foreground mb-1">Impact Force</p>
             <p className="text-xl font-bold text-purple-600">{displayForce.toFixed(1)} kN</p>
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
               ≈ {(displayForce * 0.102).toFixed(1)} tons
             </p>
           </div>
         )}
         {displayAngle !== undefined && (
-          <div className="p-3 bg-blue-50 rounded-lg">
-            <p className="text-xs text-gray-600 mb-1">Impact Angle</p>
+          <div className="p-3 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
+            <p className="text-xs text-gray-600 dark:text-muted-foreground mb-1">Impact Angle</p>
             <p className="text-xl font-bold text-blue-600">{displayAngle}°</p>
           </div>
         )}
       </div>
 
       {/* Vehicle-Specific Force Vector Diagram */}
-      <div className="bg-gray-50 rounded-lg p-4">
+      <div className="bg-gray-50 dark:bg-muted/50 rounded-lg p-4">
         <svg viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`} className="w-full">
           <defs>
             {/* Confidence-based arrowheads */}
@@ -447,19 +447,19 @@ export function VehicleImpactVectorDiagram({
 
       {/* Damaged Components List */}
       {damagedComponents.length > 0 && (
-        <div className="mt-4 p-3 bg-red-50 rounded-lg">
+        <div className="mt-4 p-3 bg-red-50 dark:bg-red-950/30 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle className="w-4 h-4 text-red-600" />
-            <p className="text-sm font-semibold text-red-900">Damaged Components</p>
+            <p className="text-sm font-semibold text-red-900 dark:text-red-200">Damaged Components</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {damagedComponents.slice(0, 6).map((comp, idx) => (
-              <Badge key={idx} variant="outline" className="text-xs bg-white">
+              <Badge key={idx} variant="outline" className="text-xs bg-white dark:bg-card">
                 {comp}
               </Badge>
             ))}
             {damagedComponents.length > 6 && (
-              <Badge variant="outline" className="text-xs bg-white">
+              <Badge variant="outline" className="text-xs bg-white dark:bg-card">
                 +{damagedComponents.length - 6} more
               </Badge>
             )}
@@ -469,7 +469,7 @@ export function VehicleImpactVectorDiagram({
 
       {/* Physics Consistency Note */}
       <div className="mt-4 p-3 bg-primary/5 rounded-lg">
-        <p className="text-sm text-gray-700">
+        <p className="text-sm text-gray-700 dark:text-foreground/80">
           {damageConsistency === 'consistent' && (
             <span>✅ Impact vectors and damage pattern are <strong>consistent</strong> with reported collision physics.</span>
           )}

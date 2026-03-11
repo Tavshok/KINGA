@@ -70,7 +70,7 @@ export default function Unauthorized() {
         <CardContent className="space-y-4">
           <div className="text-sm text-center text-muted-foreground space-y-2">
             <p>{message.description}</p>
-            <p className="text-amber-700 font-medium">
+            <p className="text-amber-700 dark:text-amber-300 font-medium">
               You attempted to access a portal that your account role does not permit.
             </p>
             {user && (
@@ -116,7 +116,7 @@ export default function Unauthorized() {
           </div>
           
           <div className="pt-4 border-t">
-            <p className="text-xs text-gray-500 text-center">
+            <p className="text-xs text-gray-500 dark:text-muted-foreground text-center">
               This access attempt has been logged for security purposes.
             </p>
           </div>

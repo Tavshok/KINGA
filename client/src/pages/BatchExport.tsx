@@ -256,7 +256,7 @@ export default function BatchExport() {
           <CardContent>
             {allClaims.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/70" />
                 <p>No claims available for export</p>
                 <p className="text-sm mt-2">Claims with AI assessments will appear here</p>
               </div>
@@ -271,8 +271,8 @@ export default function BatchExport() {
                       key={claim.id}
                       className={`flex items-center gap-4 p-4 rounded-lg border-2 transition-all ${
                         selectedClaims.has(claim.id)
-                          ? "border-emerald-500 bg-emerald-50"
-                          : "border-gray-200 bg-white hover:border-gray-300"
+                          ? "border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30"
+                          : "border-gray-200 dark:border-border bg-white dark:bg-card hover:border-gray-300 dark:border-border"
                       } ${!hasAssessment ? "opacity-50" : ""}`}
                     >
                       <Checkbox
@@ -285,27 +285,27 @@ export default function BatchExport() {
                           <p className="font-semibold">{claim.claimNumber}</p>
                           {getStatusBadge(claim.status)}
                           {hasAssessment && (
-                            <Badge variant="outline" className="bg-purple-50 text-purple-700 border-purple-200">
+                            <Badge variant="outline" className="bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800">
                               <CheckCircle2 className="h-3 w-3 mr-1" />
                               AI Assessment Available
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-muted-foreground">
                           {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear}) • {claim.vehicleRegistration}
                         </p>
                         {claim.incidentDate && (
-                          <p className="text-xs text-gray-500 mt-1">
+                          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                             Incident: {new Date(claim.incidentDate).toLocaleDateString()}
                           </p>
                         )}
                       </div>
                       {hasAssessment && (
                         <div className="text-right">
-                          <p className="text-sm font-medium text-gray-700">
+                          <p className="text-sm font-medium text-gray-700 dark:text-foreground/80">
                             ${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}
                           </p>
-                          <p className="text-xs text-gray-500">Estimated Cost</p>
+                          <p className="text-xs text-gray-500 dark:text-muted-foreground">Estimated Cost</p>
                         </div>
                       )}
                     </div>

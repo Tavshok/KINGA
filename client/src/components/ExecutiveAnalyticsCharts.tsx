@@ -333,9 +333,9 @@ export default function ExecutiveAnalyticsCharts() {
                   key={r.name}
                   variant="outline"
                   className={
-                    r.override_rate > 60 ? "border-red-300 text-red-700 bg-red-50" :
-                    r.override_rate > 30 ? "border-amber-300 text-amber-700 bg-amber-50" :
-                    "border-green-300 text-green-700 bg-green-50"
+                    r.override_rate > 60 ? "border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/30" :
+                    r.override_rate > 30 ? "border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30" :
+                    "border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/30"
                   }
                 >
                   {r.name}: {r.override_rate.toFixed(0)}% override rate

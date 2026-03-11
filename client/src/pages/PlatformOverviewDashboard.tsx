@@ -30,9 +30,9 @@ export default function PlatformOverviewDashboard() {
   if (error) {
     return (
       <div className="container py-8">
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30">
           <CardHeader>
-            <CardTitle className="text-red-700">Error Loading Platform Data</CardTitle>
+            <CardTitle className="text-red-700 dark:text-red-300">Error Loading Platform Data</CardTitle>
             <CardDescription className="text-red-600">
               {error.message || "Failed to load platform overview"}
             </CardDescription>
@@ -51,7 +51,7 @@ export default function PlatformOverviewDashboard() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-2">
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+          <Badge variant="secondary" className="bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
             Platform Super Admin
           </Badge>
           <Badge variant="outline">Read-Only Access</Badge>
@@ -144,34 +144,34 @@ export default function PlatformOverviewDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid gap-4 md:grid-cols-3">
-            <div className="flex flex-col gap-2 p-4 bg-green-50 rounded-lg border border-green-200">
+            <div className="flex flex-col gap-2 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <span className="text-sm font-medium text-green-700">High Confidence</span>
+                <span className="text-sm font-medium text-green-700 dark:text-green-300">High Confidence</span>
               </div>
-              <span className="text-2xl font-bold text-green-700">
+              <span className="text-2xl font-bold text-green-700 dark:text-green-300">
                 {overview.confidenceDistribution.high || 0}
               </span>
               <span className="text-xs text-green-600">≥80% confidence</span>
             </div>
             
-            <div className="flex flex-col gap-2 p-4 bg-amber-50 rounded-lg border border-amber-200">
+            <div className="flex flex-col gap-2 p-4 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-amber-600" />
-                <span className="text-sm font-medium text-amber-700">Medium Confidence</span>
+                <span className="text-sm font-medium text-amber-700 dark:text-amber-300">Medium Confidence</span>
               </div>
-              <span className="text-2xl font-bold text-amber-700">
+              <span className="text-2xl font-bold text-amber-700 dark:text-amber-300">
                 {overview.confidenceDistribution.medium || 0}
               </span>
               <span className="text-xs text-amber-600">50-79% confidence</span>
             </div>
             
-            <div className="flex flex-col gap-2 p-4 bg-red-50 rounded-lg border border-red-200">
+            <div className="flex flex-col gap-2 p-4 bg-red-50 dark:bg-red-950/30 rounded-lg border border-red-200 dark:border-red-800">
               <div className="flex items-center gap-2">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
-                <span className="text-sm font-medium text-red-700">Low Confidence</span>
+                <span className="text-sm font-medium text-red-700 dark:text-red-300">Low Confidence</span>
               </div>
-              <span className="text-2xl font-bold text-red-700">
+              <span className="text-2xl font-bold text-red-700 dark:text-red-300">
                 {overview.confidenceDistribution.low || 0}
               </span>
               <span className="text-xs text-red-600">&lt;50% confidence</span>

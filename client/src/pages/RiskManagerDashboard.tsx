@@ -87,8 +87,8 @@ export default function RiskManagerDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800">Risk Manager Dashboard</h1>
-            <p className="text-slate-600 mt-1">Review and approve technical assessments</p>
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-foreground">Risk Manager Dashboard</h1>
+            <p className="text-slate-600 dark:text-muted-foreground mt-1">Review and approve technical assessments</p>
           </div>
           <div className="flex items-center gap-3">
             <Badge variant="outline" className="text-lg px-4 py-2">
@@ -109,13 +109,13 @@ export default function RiskManagerDashboard() {
           </CardHeader>
           <CardContent>
             {queueLoading ? (
-              <p className="text-center text-slate-500 py-8">Loading approval queue...</p>
+              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading approval queue...</p>
             ) : approvalQueue && approvalQueue.length > 0 ? (
               <div className="space-y-3">
                 {approvalQueue.map((claim: any) => (
                   <div
                     key={claim.id}
-                    className="p-4 bg-slate-50 rounded-lg border border-slate-200 hover:border-amber-300 transition-colors"
+                    className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg border border-slate-200 dark:border-border hover:border-amber-300 dark:border-amber-700 transition-colors"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
@@ -125,7 +125,7 @@ export default function RiskManagerDashboard() {
                           <RiskBadge fraudRiskScore={claim.fraudRiskScore} fraudFlags={claim.fraudFlags} size="sm" />
                           {claim.estimatedCost && getHighValueBadge(claim.estimatedCost)}
                         </div>
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 mb-3">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-slate-600 dark:text-muted-foreground mb-3">
                           <div>
                             <span className="font-medium">Vehicle:</span> {claim.vehicleRegistration}
                           </div>
@@ -142,9 +142,9 @@ export default function RiskManagerDashboard() {
                           </div>
                         </div>
                         {claim.fraudRiskLevel && claim.fraudRiskLevel !== "low" && (
-                          <div className="flex items-center gap-2 p-2 bg-yellow-50 border border-yellow-200 rounded mb-2">
+                          <div className="flex items-center gap-2 p-2 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded mb-2">
                             <AlertCircle className="h-4 w-4 text-yellow-600" />
-                            <span className="text-sm text-yellow-700">
+                            <span className="text-sm text-yellow-700 dark:text-yellow-300">
                               Fraud Risk: <strong>{claim.fraudRiskLevel.toUpperCase()}</strong>
                             </span>
                           </div>
@@ -179,8 +179,8 @@ export default function RiskManagerDashboard() {
             ) : (
               <div className="text-center py-12">
                 <Shield className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500">No claims pending technical approval</p>
-                <p className="text-sm text-slate-400">Approved claims will move to payment authorization</p>
+                <p className="text-slate-500 dark:text-muted-foreground">No claims pending technical approval</p>
+                <p className="text-sm text-slate-400 dark:text-muted-foreground/70">Approved claims will move to payment authorization</p>
               </div>
             )}
           </CardContent>
@@ -197,7 +197,7 @@ export default function RiskManagerDashboard() {
           </CardHeader>
           <CardContent>
             {highValueLoading ? (
-              <p className="text-center text-slate-500 py-8">Loading high-value claims...</p>
+              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading high-value claims...</p>
             ) : highValueClaims && highValueClaims.length > 0 ? (
               <div className="space-y-2">
                 {highValueClaims.slice(0, 20).map((item: any) => {
@@ -207,7 +207,7 @@ export default function RiskManagerDashboard() {
                   return (
                     <div
                       key={c.id}
-                      className="p-3 bg-red-50 rounded border border-red-200 hover:border-red-400 transition-colors"
+                      className="p-3 bg-red-50 dark:bg-red-950/30 rounded border border-red-200 dark:border-red-800 hover:border-red-400 transition-colors"
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
@@ -223,7 +223,7 @@ export default function RiskManagerDashboard() {
                               {(c.workflowState || c.status || 'pending').replace(/_/g, " ")}
                             </Badge>
                           </div>
-                          <div className="text-sm text-slate-600">
+                          <div className="text-sm text-slate-600 dark:text-muted-foreground">
                             {[c.vehicleRegistration, c.vehicleMake, c.vehicleModel].filter(Boolean).join(' • ') || 'Vehicle details pending'}
                           </div>
                         </div>
@@ -244,7 +244,7 @@ export default function RiskManagerDashboard() {
             ) : (
               <div className="text-center py-8">
                 <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 text-sm">No high-value claims at this time</p>
+                <p className="text-slate-500 dark:text-muted-foreground text-sm">No high-value claims at this time</p>
               </div>
             )}
           </CardContent>
@@ -264,16 +264,16 @@ export default function RiskManagerDashboard() {
 
             <div className="space-y-4 py-4">
               {approvalAction === "approve" ? (
-                <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded">
+                <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded">
                   <CheckCircle className="h-5 w-5 text-green-600" />
-                  <p className="text-sm text-green-700">
+                  <p className="text-sm text-green-700 dark:text-green-300">
                     Approving this claim will move it to payment authorization queue
                   </p>
                 </div>
               ) : (
-                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded">
+                <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded">
                   <XCircle className="h-5 w-5 text-red-600" />
-                  <p className="text-sm text-red-700">
+                  <p className="text-sm text-red-700 dark:text-red-300">
                     Rejecting this claim will mark it as disputed and require resolution
                   </p>
                 </div>

@@ -89,7 +89,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
       case "status_changed":
         return <Clock className="h-5 w-5 text-orange-500" />;
       default:
-        return <User className="h-5 w-5 text-gray-500" />;
+        return <User className="h-5 w-5 text-gray-500 dark:text-muted-foreground" />;
     }
   };
 

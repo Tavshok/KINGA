@@ -163,7 +163,7 @@ export default function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-emerald-50">
       {/* Header */}
-      <header className="bg-white border-b shadow-sm">
+      <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -426,7 +426,7 @@ export default function AdminDashboard() {
             </div>
             {/* Training Overview */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card className="border-emerald-200">
+              <Card className="border-emerald-200 dark:border-emerald-800">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Historical Claims</CardTitle>
                   <Database className="h-4 w-4 text-emerald-500" />
@@ -439,7 +439,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="border-emerald-200">
+              <Card className="border-emerald-200 dark:border-emerald-800">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Ground Truth Records</CardTitle>
                   <Target className="h-4 w-4 text-emerald-500" />
@@ -452,7 +452,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="border-emerald-200">
+              <Card className="border-emerald-200 dark:border-emerald-800">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Avg Variance</CardTitle>
                   <ArrowUpDown className="h-4 w-4 text-emerald-500" />
@@ -467,7 +467,7 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
 
-              <Card className="border-emerald-200">
+              <Card className="border-emerald-200 dark:border-emerald-800">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium">Data Quality</CardTitle>
                   <Activity className="h-4 w-4 text-emerald-500" />
@@ -484,7 +484,7 @@ export default function AdminDashboard() {
             </div>
 
             {/* Ground Truth Capture */}
-            <Card className="border-emerald-200">
+            <Card className="border-emerald-200 dark:border-emerald-800">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Target className="h-5 w-5 text-emerald-600" />
@@ -755,11 +755,11 @@ export default function AdminDashboard() {
             </Card>
 
             {/* Continuous Learning Status */}
-            <Card className="border-emerald-200 bg-gradient-to-r from-emerald-50 to-teal-50">
+            <Card className="border-emerald-200 dark:border-emerald-800 bg-gradient-to-r from-emerald-50 to-teal-50">
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Shield className="h-5 w-5 text-emerald-600" />
-                  <CardTitle className="text-emerald-800">Continuous Learning Status</CardTitle>
+                  <CardTitle className="text-emerald-800 dark:text-emerald-200">Continuous Learning Status</CardTitle>
                 </div>
                 <CardDescription>
                   The AI continuously learns from every claim processed through the system
@@ -767,7 +767,7 @@ export default function AdminDashboard() {
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                  <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       <span className="text-sm font-medium">Auto-Feed Active</span>
@@ -776,7 +776,7 @@ export default function AdminDashboard() {
                       Every approved/completed claim automatically feeds into the historical database for model improvement
                     </p>
                   </div>
-                  <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                  <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       <span className="text-sm font-medium">Cost Benchmarks</span>
@@ -785,7 +785,7 @@ export default function AdminDashboard() {
                       New claims are automatically compared against historical cost data for the same vehicle make/model
                     </p>
                   </div>
-                  <div className="bg-white rounded-lg p-4 border border-emerald-200">
+                  <div className="bg-white dark:bg-card rounded-lg p-4 border border-emerald-200 dark:border-emerald-800">
                     <div className="flex items-center gap-2 mb-2">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
                       <span className="text-sm font-medium">Fraud Pattern Learning</span>
@@ -852,11 +852,11 @@ export default function AdminDashboard() {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Cross-Validation</span>
-                      <Badge variant="outline" className="text-emerald-600 border-emerald-300">Enabled</Badge>
+                      <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:border-emerald-700">Enabled</Badge>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm">Physics Engine</span>
-                      <Badge variant="outline" className="text-emerald-600 border-emerald-300">Enabled</Badge>
+                      <Badge variant="outline" className="text-emerald-600 border-emerald-300 dark:border-emerald-700">Enabled</Badge>
                     </div>
                   </div>
                 </div>

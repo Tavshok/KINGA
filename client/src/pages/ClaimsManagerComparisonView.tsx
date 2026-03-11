@@ -46,9 +46,9 @@ import { QMSCompliancePanel } from "@/components/QMSCompliancePanel";
 // Confidence Score Meter Component
 function ConfidenceMeter({ score, size = "default" }: { score: number; size?: "default" | "large" }) {
   const getColor = (score: number) => {
-    if (score >= 80) return { bg: "bg-green-500", text: "text-green-700" };
-    if (score >= 60) return { bg: "bg-amber-500", text: "text-amber-700" };
-    return { bg: "bg-red-500", text: "text-red-700" };
+    if (score >= 80) return { bg: "bg-green-500", text: "text-green-700 dark:text-green-300" };
+    if (score >= 60) return { bg: "bg-amber-500", text: "text-amber-700 dark:text-amber-300" };
+    return { bg: "bg-red-500", text: "text-red-700 dark:text-red-300" };
   };
 
   const color = getColor(score);
@@ -57,7 +57,7 @@ function ConfidenceMeter({ score, size = "default" }: { score: number; size?: "d
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className={`${isLarge ? "text-base font-semibold" : ""} text-slate-600`}>
+        <span className={`${isLarge ? "text-base font-semibold" : ""} text-slate-600 dark:text-muted-foreground`}>
           Confidence Score
         </span>
         <span className={`${isLarge ? "text-3xl" : "text-lg"} font-bold ${color.text}`}>
@@ -77,9 +77,9 @@ function ConfidenceMeter({ score, size = "default" }: { score: number; size?: "d
 // Fraud Risk Meter Component
 function FraudRiskMeter({ score, size = "default" }: { score: number; size?: "default" | "large" }) {
   const getColor = (score: number) => {
-    if (score <= 30) return { bg: "bg-green-500", text: "text-green-700", label: "Low Risk" };
-    if (score <= 60) return { bg: "bg-amber-500", text: "text-amber-700", label: "Medium Risk" };
-    return { bg: "bg-red-500", text: "text-red-700", label: "High Risk" };
+    if (score <= 30) return { bg: "bg-green-500", text: "text-green-700 dark:text-green-300", label: "Low Risk" };
+    if (score <= 60) return { bg: "bg-amber-500", text: "text-amber-700 dark:text-amber-300", label: "Medium Risk" };
+    return { bg: "bg-red-500", text: "text-red-700 dark:text-red-300", label: "High Risk" };
   };
 
   const color = getColor(score);
@@ -88,7 +88,7 @@ function FraudRiskMeter({ score, size = "default" }: { score: number; size?: "de
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between text-sm">
-        <span className={`${isLarge ? "text-base font-semibold" : ""} text-slate-600`}>
+        <span className={`${isLarge ? "text-base font-semibold" : ""} text-slate-600 dark:text-muted-foreground`}>
           Fraud Risk
         </span>
         <span className={`${isLarge ? "text-3xl" : "text-lg"} font-bold ${color.text}`}>
@@ -110,14 +110,14 @@ function VarianceBadge({ variance }: { variance: number | null }) {
   if (variance === null) return null;
 
   const absVariance = Math.abs(variance);
-  let color = "bg-green-100 text-green-700 border-green-300";
+  let color = "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-300 dark:border-green-700";
   let label = "Low Variance";
 
   if (absVariance > 20) {
-    color = "bg-red-100 text-red-700 border-red-300";
+    color = "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-300 dark:border-red-700";
     label = "High Variance";
   } else if (absVariance >= 10) {
-    color = "bg-amber-100 text-amber-700 border-amber-300";
+    color = "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700";
     label = "Medium Variance";
   }
 
@@ -151,7 +151,7 @@ export default function ClaimsManagerComparisonView() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-50 p-8">
+      <div className="min-h-screen bg-slate-50 dark:bg-muted/50 p-8">
         <div className="max-w-[1800px] mx-auto space-y-6">
           <Skeleton className="h-12 w-64" />
           <div className="grid grid-cols-3 gap-6">
@@ -166,9 +166,9 @@ export default function ClaimsManagerComparisonView() {
 
   if (!claim) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-muted/50 flex items-center justify-center">
         <Card>
-          <CardContent className="py-12 text-center text-slate-500">
+          <CardContent className="py-12 text-center text-slate-500 dark:text-muted-foreground">
             <p>Claim not found</p>
           </CardContent>
         </Card>
@@ -194,9 +194,9 @@ export default function ClaimsManagerComparisonView() {
   const aiVsAssessor = calculateVariance(assessorCost, aiCost);
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-slate-50 dark:bg-muted/50">
       {/* Header */}
-      <div className="bg-white border-b border-slate-200">
+      <div className="bg-white dark:bg-card border-b border-slate-200 dark:border-border">
         <div className="max-w-[1800px] mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -204,10 +204,10 @@ export default function ClaimsManagerComparisonView() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <div>
-                <h1 className="text-3xl font-bold text-slate-900">
+                <h1 className="text-3xl font-bold text-slate-900 dark:text-foreground">
                   {isRiskManager ? "Risk Analysis" : "Assessment Comparison"}
                 </h1>
-                <p className="text-slate-600 mt-1 flex items-center gap-2">
+                <p className="text-slate-600 dark:text-muted-foreground mt-1 flex items-center gap-2">
                   {claim.claimNumber} • {claim.vehicleMake} {claim.vehicleModel} {claim.vehicleYear}
                   <AiStatusBadge claim={claim} aiAssessment={aiAssessment ?? null} />
                 </p>
@@ -265,7 +265,7 @@ export default function ClaimsManagerComparisonView() {
         <div className="max-w-[1800px] mx-auto px-8 pt-8">
           <Card className="border-0 shadow-lg bg-gradient-to-r from-red-50 to-amber-50 border-l-4 border-l-red-500">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-red-900">
+              <CardTitle className="flex items-center gap-2 text-red-900 dark:text-red-200">
                 <Shield className="h-6 w-6" />
                 Technical Validation & Risk Intelligence
               </CardTitle>
@@ -274,19 +274,19 @@ export default function ClaimsManagerComparisonView() {
             <CardContent>
               <div className="grid grid-cols-4 gap-4">
                 {/* Damage Plausibility */}
-                <div className="p-4 bg-white rounded-lg border border-slate-200">
+                <div className="p-4 bg-white dark:bg-card rounded-lg border border-slate-200 dark:border-border">
                   <div className="flex items-center gap-2 mb-3">
                     <CheckSquare className="h-5 w-5 text-blue-600" />
-                    <h4 className="font-semibold text-slate-900">Damage Plausibility</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-foreground">Damage Plausibility</h4>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Assessment</span>
+                      <span className="text-slate-600 dark:text-muted-foreground">Assessment</span>
                       <Badge variant={aiAssessment?.damageComplexity === "simple" ? "default" : "secondary"}>
                         {aiAssessment?.damageComplexity || "N/A"}
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2">
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-2">
                       {aiAssessment?.damageComplexity === "complex" 
                         ? "⚠️ Complex damage pattern requires detailed review"
                         : "✓ Damage pattern consistent with incident"}
@@ -295,19 +295,19 @@ export default function ClaimsManagerComparisonView() {
                 </div>
 
                 {/* Prior Claim History */}
-                <div className="p-4 bg-white rounded-lg border border-slate-200">
+                <div className="p-4 bg-white dark:bg-card rounded-lg border border-slate-200 dark:border-border">
                   <div className="flex items-center gap-2 mb-3">
                     <History className="h-5 w-5 text-purple-600" />
-                    <h4 className="font-semibold text-slate-900">Prior Claims</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-foreground">Prior Claims</h4>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">History Flag</span>
+                      <span className="text-slate-600 dark:text-muted-foreground">History Flag</span>
                       <Badge variant={claim.priorClaimsCount && claim.priorClaimsCount > 2 ? "destructive" : "default"}>
                         {claim.priorClaimsCount || 0} claims
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2">
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-2">
                       {claim.priorClaimsCount && claim.priorClaimsCount > 2
                         ? "⚠️ Multiple prior claims detected"
                         : "✓ Normal claim history"}
@@ -316,39 +316,39 @@ export default function ClaimsManagerComparisonView() {
                 </div>
 
                 {/* Policy Coverage Validation */}
-                <div className="p-4 bg-white rounded-lg border border-slate-200">
+                <div className="p-4 bg-white dark:bg-card rounded-lg border border-slate-200 dark:border-border">
                   <div className="flex items-center gap-2 mb-3">
                     <FileText className="h-5 w-5 text-green-600" />
-                    <h4 className="font-semibold text-slate-900">Coverage Status</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-foreground">Coverage Status</h4>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Validation</span>
+                      <span className="text-slate-600 dark:text-muted-foreground">Validation</span>
                       <Badge variant="default" className="bg-green-600">
                         <CheckCircle className="h-3 w-3 mr-1" />
                         Valid
                       </Badge>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2">
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-2">
                       ✓ Policy active and covers reported damage
                     </p>
                   </div>
                 </div>
 
                 {/* Repair Timeline Risk */}
-                <div className="p-4 bg-white rounded-lg border border-slate-200">
+                <div className="p-4 bg-white dark:bg-card rounded-lg border border-slate-200 dark:border-border">
                   <div className="flex items-center gap-2 mb-3">
                     <Clock className="h-5 w-5 text-amber-600" />
-                    <h4 className="font-semibold text-slate-900">Timeline Risk</h4>
+                    <h4 className="font-semibold text-slate-900 dark:text-foreground">Timeline Risk</h4>
                   </div>
                   <div className="space-y-2">
                     <div className="flex items-center justify-between text-sm">
-                      <span className="text-slate-600">Estimated Duration</span>
-                      <span className="font-bold text-slate-900">
+                      <span className="text-slate-600 dark:text-muted-foreground">Estimated Duration</span>
+                      <span className="font-bold text-slate-900 dark:text-foreground">
                         {assessorEval?.estimatedDuration || aiAssessment?.estimatedDuration || "N/A"} days
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 mt-2">
+                    <p className="text-xs text-slate-600 dark:text-muted-foreground mt-2">
                       {(assessorEval?.estimatedDuration || 0) > 14
                         ? "⚠️ Extended repair timeline"
                         : "✓ Normal repair timeline"}
@@ -369,7 +369,7 @@ export default function ClaimsManagerComparisonView() {
           <div className="max-w-[1800px] mx-auto px-8 pt-6">
             <Card className="border-0 shadow-lg">
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2 text-slate-900">
+                <CardTitle className="flex items-center gap-2 text-slate-900 dark:text-foreground">
                   <ImageIcon className="h-5 w-5 text-blue-600" />
                   Damage Photos ({photos.length})
                 </CardTitle>
@@ -379,7 +379,7 @@ export default function ClaimsManagerComparisonView() {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
                   {photos.map((url: string, idx: number) => (
                     <a key={idx} href={url} target="_blank" rel="noopener noreferrer" className="group">
-                      <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 group-hover:border-blue-400 transition-colors">
+                      <div className="aspect-square rounded-lg overflow-hidden border border-slate-200 dark:border-border group-hover:border-blue-400 transition-colors">
                         <img
                           src={url}
                           alt={`Damage photo ${idx + 1}`}
@@ -400,8 +400,8 @@ export default function ClaimsManagerComparisonView() {
         <div className="grid grid-cols-3 gap-6">
           {/* Column 1: AI Assessment */}
           <Card className="border-0 shadow-lg border-t-4 border-t-blue-500">
-            <CardHeader className="bg-blue-50">
-              <CardTitle className="flex items-center gap-2 text-blue-900">
+            <CardHeader className="bg-blue-50 dark:bg-blue-950/30">
+              <CardTitle className="flex items-center gap-2 text-blue-900 dark:text-blue-200">
                 <Bot className="h-5 w-5" />
                 AI Assessment
               </CardTitle>
@@ -409,44 +409,44 @@ export default function ClaimsManagerComparisonView() {
             </CardHeader>
             <CardContent className="space-y-6 pt-6">
               {/* Estimated Cost - De-emphasized for Risk Manager */}
-              <div className={`text-center p-6 bg-blue-50 rounded-xl border-2 border-blue-200 ${
+              <div className={`text-center p-6 bg-blue-50 dark:bg-blue-950/30 rounded-xl border-2 border-blue-200 dark:border-blue-800 ${
                 isRiskManager ? "opacity-60" : ""
               }`}>
-                <p className="text-sm text-slate-600 mb-2">Estimated Cost</p>
-                <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-blue-900`}>
+                <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Estimated Cost</p>
+                <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-blue-900 dark:text-blue-200`}>
                   {aiCost ? fmt(aiCost * 100) : "N/A"}
                 </p>
               </div>
 
               {/* Fraud Risk Score - ENLARGED for Risk Manager */}
               {isRiskManager && aiAssessment?.fraudRiskScore !== undefined && (
-                <div className="p-6 bg-red-50 rounded-xl border-2 border-red-200">
-                  <h3 className="text-lg font-bold text-red-900 mb-4 flex items-center gap-2">
+                <div className="p-6 bg-red-50 dark:bg-red-950/30 rounded-xl border-2 border-red-200 dark:border-red-800">
+                  <h3 className="text-lg font-bold text-red-900 dark:text-red-200 mb-4 flex items-center gap-2">
                     <Shield className="h-6 w-6" />
                     Fraud Risk Analysis
                   </h3>
                   <FraudRiskMeter score={aiAssessment.fraudRiskScore} size="large" />
                   
                   {/* AI Confidence Breakdown */}
-                  <div className="mt-6 pt-6 border-t border-red-200">
-                    <h4 className="font-semibold text-slate-900 mb-3">Confidence Breakdown</h4>
+                  <div className="mt-6 pt-6 border-t border-red-200 dark:border-red-800">
+                    <h4 className="font-semibold text-slate-900 dark:text-foreground mb-3">Confidence Breakdown</h4>
                     <div className="space-y-3">
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Overall Confidence</span>
-                        <span className="font-bold text-slate-900">
+                        <span className="text-slate-600 dark:text-muted-foreground">Overall Confidence</span>
+                        <span className="font-bold text-slate-900 dark:text-foreground">
                           {aiAssessment.confidenceScore}%
                         </span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Damage Assessment</span>
+                        <span className="text-slate-600 dark:text-muted-foreground">Damage Assessment</span>
                         <span className="font-bold text-green-600">High</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Cost Estimation</span>
+                        <span className="text-slate-600 dark:text-muted-foreground">Cost Estimation</span>
                         <span className="font-bold text-green-600">High</span>
                       </div>
                       <div className="flex items-center justify-between text-sm">
-                        <span className="text-slate-600">Fraud Detection</span>
+                        <span className="text-slate-600 dark:text-muted-foreground">Fraud Detection</span>
                         <span className={`font-bold ${
                           aiAssessment.fraudRiskLevel === "high" ? "text-red-600" :
                           aiAssessment.fraudRiskLevel === "medium" ? "text-amber-600" :
@@ -462,29 +462,29 @@ export default function ClaimsManagerComparisonView() {
 
               {/* Confidence Score - Standard for Claims Manager */}
               {!isRiskManager && aiAssessment?.confidenceScore && (
-                <div className="p-4 bg-slate-50 rounded-lg">
+                <div className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
                   <ConfidenceMeter score={aiAssessment.confidenceScore} />
                 </div>
               )}
 
               {/* Fraud Risk Score - Standard for Claims Manager */}
               {!isRiskManager && aiAssessment?.fraudRiskScore !== undefined && (
-                <div className="p-4 bg-slate-50 rounded-lg">
+                <div className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
                   <FraudRiskMeter score={aiAssessment.fraudRiskScore} />
                 </div>
               )}
 
               {/* Key Flags */}
               <div>
-                <h4 className="font-semibold text-slate-700 mb-3">Key Flags</h4>
+                <h4 className="font-semibold text-slate-700 dark:text-foreground/80 mb-3">Key Flags</h4>
                 <div className="space-y-2">
                   {aiAssessment?.fraudRiskLevel && (
                     <div className={`flex items-center gap-2 p-3 rounded-lg ${
                       aiAssessment.fraudRiskLevel === "high" 
-                        ? "bg-red-50 text-red-700" 
+                        ? "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300" 
                         : aiAssessment.fraudRiskLevel === "medium"
-                        ? "bg-amber-50 text-amber-700"
-                        : "bg-green-50 text-green-700"
+                        ? "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300"
+                        : "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300"
                     }`}>
                       <Shield className="h-4 w-4" />
                       <span className="text-sm font-medium">
@@ -493,7 +493,7 @@ export default function ClaimsManagerComparisonView() {
                     </div>
                   )}
                   {aiAssessment?.damageComplexity && (
-                    <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 text-slate-700">
+                    <div className="flex items-center gap-2 p-3 rounded-lg bg-slate-50 dark:bg-muted/50 text-slate-700 dark:text-foreground/80">
                       <Activity className="h-4 w-4" />
                       <span className="text-sm font-medium">
                         {aiAssessment.damageComplexity.replace(/_/g, " ").toUpperCase()} Complexity
@@ -502,7 +502,7 @@ export default function ClaimsManagerComparisonView() {
                   )}
                   {aiAssessment?.keyFlags && aiAssessment.keyFlags.length > 0 && (
                     aiAssessment.keyFlags.map((flag: string, idx: number) => (
-                      <div key={idx} className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 text-amber-700">
+                      <div key={idx} className="flex items-center gap-2 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300">
                         <AlertTriangle className="h-4 w-4" />
                         <span className="text-sm font-medium">{flag}</span>
                       </div>
@@ -514,8 +514,8 @@ export default function ClaimsManagerComparisonView() {
               {/* Fast-Track Eligibility */}
               <div className={`p-4 rounded-lg border-2 ${
                 aiAssessment?.fastTrackEligible 
-                  ? "bg-green-50 border-green-300 text-green-700" 
-                  : "bg-slate-50 border-slate-300 text-slate-700"
+                  ? "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700 text-green-700 dark:text-green-300" 
+                  : "bg-slate-50 dark:bg-muted/50 border-slate-300 dark:border-border text-slate-700 dark:text-foreground/80"
               }`}>
                 <div className="flex items-center gap-2">
                   {aiAssessment?.fastTrackEligible ? (
@@ -534,9 +534,9 @@ export default function ClaimsManagerComparisonView() {
 
               {/* AI Reasoning */}
               {aiAssessment?.reasoning && (
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <h4 className="font-semibold text-slate-700 mb-2">AI Reasoning</h4>
-                  <p className="text-sm text-slate-600 leading-relaxed">
+                <div className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
+                  <h4 className="font-semibold text-slate-700 dark:text-foreground/80 mb-2">AI Reasoning</h4>
+                  <p className="text-sm text-slate-600 dark:text-muted-foreground leading-relaxed">
                     {aiAssessment.reasoning}
                   </p>
                 </div>
@@ -546,8 +546,8 @@ export default function ClaimsManagerComparisonView() {
 
           {/* Column 2: Assessor Report */}
           <Card className="border-0 shadow-lg border-t-4 border-t-green-500">
-            <CardHeader className="bg-green-50">
-              <CardTitle className="flex items-center gap-2 text-green-900">
+            <CardHeader className="bg-green-50 dark:bg-green-950/30">
+              <CardTitle className="flex items-center gap-2 text-green-900 dark:text-green-200">
                 <User className="h-5 w-5" />
                 Internal Assessor Report
               </CardTitle>
@@ -557,11 +557,11 @@ export default function ClaimsManagerComparisonView() {
               {assessorEval ? (
                 <>
                   {/* Assessed Cost - De-emphasized for Risk Manager */}
-                  <div className={`text-center p-6 bg-green-50 rounded-xl border-2 border-green-200 ${
+                  <div className={`text-center p-6 bg-green-50 dark:bg-green-950/30 rounded-xl border-2 border-green-200 dark:border-green-800 ${
                     isRiskManager ? "opacity-60" : ""
                   }`}>
-                    <p className="text-sm text-slate-600 mb-2">Assessed Cost</p>
-                    <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-green-900`}>
+                    <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Assessed Cost</p>
+                    <p className={`${isRiskManager ? "text-3xl" : "text-5xl"} font-bold text-green-900 dark:text-green-200`}>
                       {assessorCost ? fmt(assessorCost * 100) : "N/A"}
                     </p>
                   </div>
@@ -570,16 +570,16 @@ export default function ClaimsManagerComparisonView() {
                   {aiVsAssessor !== null && (
                     <div className={`p-4 rounded-lg ${
                       isRiskManager 
-                        ? "bg-amber-50 border-2 border-amber-300" 
-                        : "bg-slate-50"
+                        ? "bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-300 dark:border-amber-700" 
+                        : "bg-slate-50 dark:bg-muted/50"
                     }`}>
                       <h4 className={`font-semibold mb-3 ${
-                        isRiskManager ? "text-lg text-amber-900" : "text-slate-700"
+                        isRiskManager ? "text-lg text-amber-900 dark:text-amber-200" : "text-slate-700 dark:text-foreground/80"
                       }`}>
                         Discrepancy Analysis
                       </h4>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm text-slate-600">AI vs Assessor Variance</span>
+                        <span className="text-sm text-slate-600 dark:text-muted-foreground">AI vs Assessor Variance</span>
                         <span className={`${isRiskManager ? "text-3xl" : "text-2xl"} font-bold ${
                           Math.abs(aiVsAssessor) > 20 ? "text-red-600" :
                           Math.abs(aiVsAssessor) >= 10 ? "text-amber-600" :
@@ -592,8 +592,8 @@ export default function ClaimsManagerComparisonView() {
                       
                       {/* Risk Manager: Additional Analysis */}
                       {isRiskManager && (
-                        <div className="mt-4 pt-4 border-t border-amber-200">
-                          <p className="text-xs text-slate-600">
+                        <div className="mt-4 pt-4 border-t border-amber-200 dark:border-amber-800">
+                          <p className="text-xs text-slate-600 dark:text-muted-foreground">
                             {Math.abs(aiVsAssessor) > 20
                               ? "⚠️ Significant discrepancy detected. Manual review recommended to validate cost estimation accuracy and identify potential anomalies."
                               : Math.abs(aiVsAssessor) >= 10
@@ -607,22 +607,22 @@ export default function ClaimsManagerComparisonView() {
 
                   {/* Adjustment Notes */}
                   {assessorEval.notes && (
-                    <div className="p-4 bg-slate-50 rounded-lg">
-                      <h4 className="font-semibold text-slate-700 mb-2">Adjustment Notes</h4>
-                      <p className="text-sm text-slate-600 leading-relaxed">
+                    <div className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
+                      <h4 className="font-semibold text-slate-700 dark:text-foreground/80 mb-2">Adjustment Notes</h4>
+                      <p className="text-sm text-slate-600 dark:text-muted-foreground leading-relaxed">
                         {assessorEval.notes}
                       </p>
                     </div>
                   )}
 
                   {/* Photo Evidence Count */}
-                  <div className="p-4 bg-slate-50 rounded-lg">
+                  <div className="p-4 bg-slate-50 dark:bg-muted/50 rounded-lg">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <ImageIcon className="h-5 w-5 text-slate-600" />
-                        <span className="font-semibold text-slate-700">Photo Evidence</span>
+                        <ImageIcon className="h-5 w-5 text-slate-600 dark:text-muted-foreground" />
+                        <span className="font-semibold text-slate-700 dark:text-foreground/80">Photo Evidence</span>
                       </div>
-                      <span className="text-2xl font-bold text-slate-900">
+                      <span className="text-2xl font-bold text-slate-900 dark:text-foreground">
                         {assessorEval.photoCount || 0}
                       </span>
                     </div>
@@ -630,27 +630,27 @@ export default function ClaimsManagerComparisonView() {
 
                   {/* Additional Details */}
                   <div className="space-y-3">
-                    <h4 className="font-semibold text-slate-700">Assessment Details</h4>
+                    <h4 className="font-semibold text-slate-700 dark:text-foreground/80">Assessment Details</h4>
                     {assessorEval.estimatedDuration && (
-                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <span className="text-sm text-slate-600">Estimated Duration</span>
-                        <span className="font-semibold text-slate-900">
+                      <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
+                        <span className="text-sm text-slate-600 dark:text-muted-foreground">Estimated Duration</span>
+                        <span className="font-semibold text-slate-900 dark:text-foreground">
                           {assessorEval.estimatedDuration} days
                         </span>
                       </div>
                     )}
                     {assessorEval.laborCost && (
-                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <span className="text-sm text-slate-600">Labor Cost</span>
-                        <span className="font-semibold text-slate-900">
+                      <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
+                        <span className="text-sm text-slate-600 dark:text-muted-foreground">Labor Cost</span>
+                        <span className="font-semibold text-slate-900 dark:text-foreground">
                           ${(assessorEval.laborCost / 100).toLocaleString()}
                         </span>
                       </div>
                     )}
                     {assessorEval.partsCost && (
-                      <div className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                        <span className="text-sm text-slate-600">Parts Cost</span>
-                        <span className="font-semibold text-slate-900">
+                      <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-muted/50 rounded-lg">
+                        <span className="text-sm text-slate-600 dark:text-muted-foreground">Parts Cost</span>
+                        <span className="font-semibold text-slate-900 dark:text-foreground">
                           ${(assessorEval.partsCost / 100).toLocaleString()}
                         </span>
                       </div>
@@ -659,10 +659,10 @@ export default function ClaimsManagerComparisonView() {
 
                   {/* Assessor Info */}
                   {assessorEval.assessorName && (
-                    <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                    <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
                       <div className="flex items-center gap-2">
                         <User className="h-4 w-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-900">
+                        <span className="text-sm font-medium text-green-900 dark:text-green-200">
                           Assessed by: {assessorEval.assessorName}
                         </span>
                       </div>
@@ -670,7 +670,7 @@ export default function ClaimsManagerComparisonView() {
                   )}
                 </>
               ) : (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
                   <p>No assessor evaluation available</p>
                 </div>
               )}
@@ -681,8 +681,8 @@ export default function ClaimsManagerComparisonView() {
           <Card className={`border-0 shadow-lg border-t-4 border-t-purple-500 ${
             isRiskManager ? "opacity-40" : ""
           }`}>
-            <CardHeader className="bg-purple-50">
-              <CardTitle className="flex items-center gap-2 text-purple-900">
+            <CardHeader className="bg-purple-50 dark:bg-purple-950/30">
+              <CardTitle className="flex items-center gap-2 text-purple-900 dark:text-purple-200">
                 <Wrench className="h-5 w-5" />
                 Panel Beater Quotes
                 {isRiskManager && (
@@ -711,19 +711,19 @@ export default function ClaimsManagerComparisonView() {
                           key={quote.id}
                           className={`p-4 rounded-lg border-2 ${
                             isSelected 
-                              ? "bg-purple-50 border-purple-400" 
+                              ? "bg-purple-50 dark:bg-purple-950/30 border-purple-400" 
                               : isLowest 
-                              ? "bg-green-50 border-green-300" 
-                              : "bg-slate-50 border-slate-200"
+                              ? "bg-green-50 dark:bg-green-950/30 border-green-300 dark:border-green-700" 
+                              : "bg-slate-50 dark:bg-muted/50 border-slate-200 dark:border-border"
                           }`}
                         >
                           <div className="flex items-start justify-between mb-3">
                             <div>
-                              <h4 className="font-semibold text-slate-900">
+                              <h4 className="font-semibold text-slate-900 dark:text-foreground">
                                 {quote.panelBeaterName || `Quote #${idx + 1}`}
                               </h4>
                               {quote.shopLocation && (
-                                <p className="text-xs text-slate-600 mt-1">{quote.shopLocation}</p>
+                                <p className="text-xs text-slate-600 dark:text-muted-foreground mt-1">{quote.shopLocation}</p>
                               )}
                             </div>
                             <div className="flex flex-col gap-1 items-end">
@@ -744,23 +744,23 @@ export default function ClaimsManagerComparisonView() {
 
                           <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-slate-600">Quoted Amount</span>
-                              <span className="text-2xl font-bold text-slate-900">
+                              <span className="text-sm text-slate-600 dark:text-muted-foreground">Quoted Amount</span>
+                              <span className="text-2xl font-bold text-slate-900 dark:text-foreground">
                                 ${quoteCost.toLocaleString()}
                               </span>
                             </div>
 
                             {varianceVsAI !== null && !isRiskManager && (
                               <div className="flex items-center justify-between">
-                                <span className="text-xs text-slate-600">vs AI Estimate</span>
+                                <span className="text-xs text-slate-600 dark:text-muted-foreground">vs AI Estimate</span>
                                 <VarianceBadge variance={varianceVsAI} />
                               </div>
                             )}
 
                             {quote.estimatedDuration && (
-                              <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                                <span className="text-xs text-slate-600">Duration</span>
-                                <span className="text-sm font-semibold text-slate-900">
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-200 dark:border-border">
+                                <span className="text-xs text-slate-600 dark:text-muted-foreground">Duration</span>
+                                <span className="text-sm font-semibold text-slate-900 dark:text-foreground">
                                   {quote.estimatedDuration} days
                                 </span>
                               </div>
@@ -768,7 +768,7 @@ export default function ClaimsManagerComparisonView() {
                           </div>
 
                           {quote.notes && (
-                            <p className="text-xs text-slate-600 mt-3 pt-3 border-t border-slate-200">
+                            <p className="text-xs text-slate-600 dark:text-muted-foreground mt-3 pt-3 border-t border-slate-200 dark:border-border">
                               {quote.notes}
                             </p>
                           )}
@@ -779,16 +779,16 @@ export default function ClaimsManagerComparisonView() {
 
                   {/* Quote Summary - Hidden for Risk Manager */}
                   {!isRiskManager && (
-                    <div className="p-4 bg-purple-50 rounded-lg border border-purple-200">
-                      <h4 className="font-semibold text-purple-900 mb-3">Quote Summary</h4>
+                    <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
+                      <h4 className="font-semibold text-purple-900 dark:text-purple-200 mb-3">Quote Summary</h4>
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="text-sm text-slate-600">Total Quotes</span>
-                          <span className="font-bold text-slate-900">{quotes.length}</span>
+                          <span className="text-sm text-slate-600 dark:text-muted-foreground">Total Quotes</span>
+                          <span className="font-bold text-slate-900 dark:text-foreground">{quotes.length}</span>
                         </div>
                         {lowestQuote && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-600">Lowest Quote</span>
+                            <span className="text-sm text-slate-600 dark:text-muted-foreground">Lowest Quote</span>
                             <span className="font-bold text-green-600">
                               ${((lowestQuote.quotedAmount || 0) / 100).toLocaleString()}
                             </span>
@@ -796,7 +796,7 @@ export default function ClaimsManagerComparisonView() {
                         )}
                         {selectedQuote && (
                           <div className="flex items-center justify-between">
-                            <span className="text-sm text-slate-600">Selected Quote</span>
+                            <span className="text-sm text-slate-600 dark:text-muted-foreground">Selected Quote</span>
                             <span className="font-bold text-purple-600">
                               ${((selectedQuote.quotedAmount || 0) / 100).toLocaleString()}
                             </span>
@@ -807,7 +807,7 @@ export default function ClaimsManagerComparisonView() {
                   )}
                 </>
               ) : (
-                <div className="text-center py-12 text-slate-500">
+                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
                   <Wrench className="h-12 w-12 mx-auto mb-4 text-slate-300" />
                   <p>No panel beater quotes available</p>
                 </div>

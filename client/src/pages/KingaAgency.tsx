@@ -27,7 +27,7 @@ export default function KingaAgency() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5">
       {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
+      <header className="bg-white/80 dark:bg-card/80 backdrop-blur-sm border-b shadow-sm sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
@@ -41,7 +41,7 @@ export default function KingaAgency() {
                   <Building2 className="h-5 w-5 text-white" />
                 </div>
                 <div>
-                  <h1 className="text-lg font-bold text-gray-900">KINGA Agency</h1>
+                  <h1 className="text-lg font-bold text-gray-900 dark:text-foreground">KINGA Agency</h1>
                   <p className="text-xs text-muted-foreground">Insurance Quotations & Renewals</p>
                 </div>
               </div>
@@ -399,7 +399,7 @@ function NewQuoteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2 flex-1">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                s <= step ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500"
+                s <= step ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500 dark:text-muted-foreground"
               }`}>
                 {s}
               </div>

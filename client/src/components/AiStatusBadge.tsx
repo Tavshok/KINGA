@@ -89,26 +89,26 @@ const CONFIG: Record<AiState, {
 }> = {
   waiting: {
     label: "Waiting for AI",
-    containerClass: "bg-gray-100 text-gray-600 border-gray-200",
+    containerClass: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-gray-200 dark:border-border",
     Icon: Clock,
-    iconClass: "text-gray-400",
+    iconClass: "text-gray-400 dark:text-muted-foreground/70",
   },
   analysing: {
     label: "Analysing…",
-    containerClass: "bg-amber-50 text-amber-700 border-amber-200",
+    containerClass: "bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800",
     Icon: Loader2,
     iconClass: "text-amber-500",
     spin: true,
   },
   complete: {
     label: "AI Complete",
-    containerClass: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    containerClass: "bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800",
     Icon: CheckCircle2,
     iconClass: "text-emerald-500",
   },
   failed: {
     label: "AI Failed",
-    containerClass: "bg-red-50 text-red-700 border-red-200",
+    containerClass: "bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800",
     Icon: XCircle,
     iconClass: "text-red-500",
   },

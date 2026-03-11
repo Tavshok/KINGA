@@ -104,7 +104,7 @@ export default function QuoteOCRUpload({ claimId, onSuccess }: QuoteOCRUploadPro
         )}
 
         {error && (
-          <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center gap-2 p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg">
             <AlertCircle className="h-4 w-4 text-red-600" />
             <p className="text-sm text-red-600">{error}</p>
           </div>
@@ -112,7 +112,7 @@ export default function QuoteOCRUpload({ claimId, onSuccess }: QuoteOCRUploadPro
 
         {extractedItems.length > 0 && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
               <CheckCircle2 className="h-4 w-4 text-green-600" />
               <p className="text-sm text-green-600">
                 Successfully extracted {extractedItems.length} line items

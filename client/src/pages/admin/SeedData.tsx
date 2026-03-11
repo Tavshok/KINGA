@@ -105,21 +105,21 @@ export default function SeedData() {
             {seedResult.success ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="flex items-center gap-2 p-4 bg-blue-50 rounded-lg">
+                  <div className="flex items-center gap-2 p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg">
                     <Image className="h-8 w-8 text-blue-600" />
                     <div>
                       <div className="text-2xl font-bold">{seedResult.report.imagesUploaded}</div>
                       <div className="text-sm text-muted-foreground">Images Uploaded</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 p-4 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-2 p-4 bg-green-50 dark:bg-green-950/30 rounded-lg">
                     <FileText className="h-8 w-8 text-green-600" />
                     <div>
                       <div className="text-2xl font-bold">{seedResult.report.claimsCreated}</div>
                       <div className="text-sm text-muted-foreground">Claims Created</div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-2 p-4 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-2 p-4 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
                     <Brain className="h-8 w-8 text-purple-600" />
                     <div>
                       <div className="text-2xl font-bold">{seedResult.report.aiAssessmentsTriggered}</div>

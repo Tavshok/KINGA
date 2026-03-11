@@ -81,15 +81,15 @@ export default function InsuranceDashboard() {
       case 'active':
         return <Badge className="bg-emerald-600">Active</Badge>;
       case 'pending':
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-200">Awaiting Payment</Badge>;
+        return <Badge variant="outline" className="bg-yellow-50 dark:bg-yellow-950/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800">Awaiting Payment</Badge>;
       case 'payment_submitted':
         return <Badge variant="outline" className="bg-primary/5 text-primary/90 border-primary/20">Verifying Payment</Badge>;
       case 'payment_verified':
-        return <Badge variant="outline" className="bg-emerald-50 text-emerald-700 border-emerald-200">Payment Verified</Badge>;
+        return <Badge variant="outline" className="bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">Payment Verified</Badge>;
       case 'rejected':
         return <Badge variant="destructive">Payment Rejected</Badge>;
       case 'expired':
-        return <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200">Expired</Badge>;
+        return <Badge variant="outline" className="bg-gray-50 dark:bg-muted/50 text-gray-700 dark:text-foreground/80 border-gray-200 dark:border-border">Expired</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -100,8 +100,8 @@ export default function InsuranceDashboard() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Insurance Dashboard</h1>
-          <p className="text-gray-600 mt-2">Manage your policies and quotes</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground">Insurance Dashboard</h1>
+          <p className="text-gray-600 dark:text-muted-foreground mt-2">Manage your policies and quotes</p>
         </div>
         <Button onClick={() => setLocation("/insurance/quote")} className="bg-emerald-600 hover:bg-emerald-700">
           <Plus className="mr-2 h-4 w-4" />
@@ -113,7 +113,7 @@ export default function InsuranceDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-muted-foreground flex items-center gap-2">
               <Shield className="h-4 w-4" />
               Active Policies
             </CardTitle>
@@ -127,7 +127,7 @@ export default function InsuranceDashboard() {
         
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-muted-foreground flex items-center gap-2">
               <Clock className="h-4 w-4" />
               Pending Quotes
             </CardTitle>
@@ -141,7 +141,7 @@ export default function InsuranceDashboard() {
         
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-gray-600 flex items-center gap-2">
+            <CardTitle className="text-sm font-medium text-gray-600 dark:text-muted-foreground flex items-center gap-2">
               <FileText className="h-4 w-4" />
               Total Coverage
             </CardTitle>
@@ -150,7 +150,7 @@ export default function InsuranceDashboard() {
             <div className="text-3xl font-bold text-primary">
               ${((activePolicies.reduce((sum: number, p: any) => sum + (p.premiumAmount || 0), 0)) / 100 * 12).toFixed(0)}
             </div>
-            <p className="text-xs text-gray-500 mt-1">Annual value</p>
+            <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Annual value</p>
           </CardContent>
         </Card>
       </div>
@@ -196,36 +196,36 @@ export default function InsuranceDashboard() {
                   <CardContent>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-gray-900">Coverage Details</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-foreground">Coverage Details</h4>
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Type:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">Type:</span>
                             <span className="font-medium">Comprehensive</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Monthly Premium:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">Monthly Premium:</span>
                             <span className="font-bold text-emerald-600">${monthlyPremium}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Excess:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">Excess:</span>
                             <span className="font-medium">${(policy.excessAmount || 0) / 100}</span>
                           </div>
                         </div>
                       </div>
                       
                       <div className="space-y-2">
-                        <h4 className="font-semibold text-gray-900">Policy Period</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-foreground">Policy Period</h4>
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Start Date:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">Start Date:</span>
                             <span className="font-medium">{startDate.toLocaleDateString()}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">End Date:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">End Date:</span>
                             <span className="font-medium">{endDate.toLocaleDateString()}</span>
                           </div>
                           <div className="flex justify-between">
-                            <span className="text-gray-600">Days Remaining:</span>
+                            <span className="text-gray-600 dark:text-muted-foreground">Days Remaining:</span>
                             <span className="font-medium">{daysRemaining} days</span>
                           </div>
                         </div>
@@ -233,7 +233,7 @@ export default function InsuranceDashboard() {
                     </div>
                     
                     {daysRemaining <= 30 && (
-                      <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded-lg p-3 flex items-center gap-2 text-sm text-yellow-700">
+                      <div className="mt-4 bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 flex items-center gap-2 text-sm text-yellow-700 dark:text-yellow-300">
                         <AlertCircle className="h-4 w-4" />
                         <span>Your policy expires in {daysRemaining} days. Consider renewing soon.</span>
                       </div>
@@ -270,8 +270,8 @@ export default function InsuranceDashboard() {
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Pending Quotes</h3>
-                <p className="text-gray-600">All your quotes have been processed.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-2">No Pending Quotes</h3>
+                <p className="text-gray-600 dark:text-muted-foreground">All your quotes have been processed.</p>
               </CardContent>
             </Card>
           ) : (
@@ -297,7 +297,7 @@ export default function InsuranceDashboard() {
                     <div className="space-y-4">
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm text-gray-600">Monthly Premium</p>
+                          <p className="text-sm text-gray-600 dark:text-muted-foreground">Monthly Premium</p>
                           <p className="text-2xl font-bold text-emerald-600">${monthlyPremium}</p>
                         </div>
                         <Button 
@@ -316,7 +316,7 @@ export default function InsuranceDashboard() {
                       )}
                       
                       {isExpired && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm text-gray-700">
+                        <div className="bg-gray-50 dark:bg-muted/50 border border-gray-200 dark:border-border rounded-lg p-3 text-sm text-gray-700 dark:text-foreground/80">
                           <p className="font-medium">Quote expired</p>
                           <p className="text-xs mt-1">Please request a new quote to get updated pricing.</p>
                         </div>
@@ -335,8 +335,8 @@ export default function InsuranceDashboard() {
             <Card>
               <CardContent className="py-12 text-center">
                 <CheckCircle className="h-12 w-12 text-emerald-600 mx-auto mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Rejected Payments</h3>
-                <p className="text-gray-600">All your payment submissions have been accepted.</p>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-foreground mb-2">No Rejected Payments</h3>
+                <p className="text-gray-600 dark:text-muted-foreground">All your payment submissions have been accepted.</p>
               </CardContent>
             </Card>
           ) : (
@@ -344,7 +344,7 @@ export default function InsuranceDashboard() {
               const monthlyPremium = (quote.premiumAmount / 100).toFixed(2);
               
               return (
-                <Card key={quote.id} className="border-red-200">
+                <Card key={quote.id} className="border-red-200 dark:border-red-800">
                   <CardHeader>
                     <div className="flex justify-between items-start">
                       <div>
@@ -358,14 +358,14 @@ export default function InsuranceDashboard() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                        <p className="font-medium text-red-900 text-sm">Rejection Reason:</p>
-                        <p className="text-sm text-red-700 mt-1">{quote.paymentRejectionReason || 'No reason provided'}</p>
+                      <div className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                        <p className="font-medium text-red-900 dark:text-red-200 text-sm">Rejection Reason:</p>
+                        <p className="text-sm text-red-700 dark:text-red-300 mt-1">{quote.paymentRejectionReason || 'No reason provided'}</p>
                       </div>
                       
                       <div className="flex justify-between items-center">
                         <div>
-                          <p className="text-sm text-gray-600">Monthly Premium</p>
+                          <p className="text-sm text-gray-600 dark:text-muted-foreground">Monthly Premium</p>
                           <p className="text-2xl font-bold text-emerald-600">${monthlyPremium}</p>
                         </div>
                         <Button 

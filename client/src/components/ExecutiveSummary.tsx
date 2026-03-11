@@ -108,9 +108,9 @@ function getOverallVerdict(physics: PhysicsData, fraud: FraudData, cv?: { summar
 
   const pct = maxScore > 0 ? Math.round((score / maxScore) * 100) : 50;
 
-  if (pct >= 75) return { label: 'CLAIM APPEARS LEGITIMATE', color: 'text-green-700', bg: 'bg-green-50', border: 'border-green-200', status: 'pass' as const };
-  if (pct >= 45) return { label: 'CLAIM REQUIRES FURTHER REVIEW', color: 'text-amber-700', bg: 'bg-amber-50', border: 'border-amber-200', status: 'warning' as const };
-  return { label: 'SIGNIFICANT CONCERNS IDENTIFIED', color: 'text-red-700', bg: 'bg-red-50', border: 'border-red-200', status: 'fail' as const };
+  if (pct >= 75) return { label: 'CLAIM APPEARS LEGITIMATE', color: 'text-green-700 dark:text-green-300', bg: 'bg-green-50 dark:bg-green-950/30', border: 'border-green-200 dark:border-green-800', status: 'pass' as const };
+  if (pct >= 45) return { label: 'CLAIM REQUIRES FURTHER REVIEW', color: 'text-amber-700 dark:text-amber-300', bg: 'bg-amber-50 dark:bg-amber-950/30', border: 'border-amber-200 dark:border-amber-800', status: 'warning' as const };
+  return { label: 'SIGNIFICANT CONCERNS IDENTIFIED', color: 'text-red-700 dark:text-red-300', bg: 'bg-red-50 dark:bg-red-950/30', border: 'border-red-200 dark:border-red-800', status: 'fail' as const };
 }
 
 /** Format incident type for display */
@@ -152,16 +152,16 @@ export function ExecutiveSummary({
         </div>
         <div className="flex-1">
           <div className="flex items-center gap-3 mb-1">
-            <h2 className="text-xl font-bold text-gray-900">Executive Summary</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-foreground">Executive Summary</h2>
             <Badge className={`text-sm px-3 py-1 ${
-              verdict.status === 'pass' ? 'bg-green-100 text-green-800' :
-              verdict.status === 'warning' ? 'bg-amber-100 text-amber-800' :
-              'bg-red-100 text-red-800'
+              verdict.status === 'pass' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :
+              verdict.status === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200' :
+              'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
             }`}>
               {verdict.label}
             </Badge>
           </div>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 dark:text-muted-foreground">
             AI-powered assessment of {vehicleYear} {vehicleMake} {vehicleModel} ({vehicleRegistration})
             {' — '}{incidentLabel.toLowerCase()} incident
           </p>
@@ -171,15 +171,15 @@ export function ExecutiveSummary({
       {/* Key Validation Results Grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         {/* Physics / Damage Validation */}
-        <div className="p-4 bg-white rounded-lg border border-gray-200">
+        <div className="p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
           <div className="flex items-center gap-2 mb-2">
             <StatusIcon status={physicsStatus} />
-            <span className="text-sm font-semibold text-gray-700">{validationLabel}</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">{validationLabel}</span>
           </div>
           <p className={`text-lg font-bold ${physicsStatus === 'pass' ? 'text-green-600' : physicsStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
             {physicsData.physicsScore}/100
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
             {isCollision
               ? (physicsData.damageConsistency === 'consistent'
                   ? 'Damage consistent with reported accident'
@@ -193,39 +193,39 @@ export function ExecutiveSummary({
                   : `Damage pattern questionable for ${incidentLabel.toLowerCase()}`)
             }
           </p>
-          {physicsData.flags.length > 0 && (
-            <p className="text-xs text-amber-600 mt-1">{physicsData.flags.length} flag(s) raised</p>
+          {(physicsData.flags ?? []).length > 0 && (
+            <p className="text-xs text-amber-600 mt-1">{(physicsData.flags ?? []).length} flag(s) raised</p>
           )}
         </div>
 
         {/* Fraud Risk */}
-        <div className="p-4 bg-white rounded-lg border border-gray-200">
+        <div className="p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
           <div className="flex items-center gap-2 mb-2">
             <StatusIcon status={fraudStatus} />
-            <span className="text-sm font-semibold text-gray-700">Fraud Risk</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Fraud Risk</span>
           </div>
           <p className={`text-lg font-bold ${fraudStatus === 'pass' ? 'text-green-600' : fraudStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
             {fraudData.riskScore}/100 ({fraudData.overallRisk})
           </p>
-          <p className="text-xs text-gray-500 mt-1">
-            {fraudData.flaggedIssues.length > 0
-              ? `${fraudData.flaggedIssues.length} risk factor(s) identified`
+          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+            {(fraudData.flaggedIssues ?? []).length > 0
+              ? `${(fraudData.flaggedIssues ?? []).length} risk factor(s) identified`
               : 'No significant risk factors'}
           </p>
         </div>
 
         {/* Cross-Validation */}
-        <div className="p-4 bg-white rounded-lg border border-gray-200">
+        <div className="p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
           <div className="flex items-center gap-2 mb-2">
-            {cvStatus ? <StatusIcon status={cvStatus} /> : <Eye className="w-5 h-5 text-gray-400" />}
-            <span className="text-sm font-semibold text-gray-700">Quote vs Photos</span>
+            {cvStatus ? <StatusIcon status={cvStatus} /> : <Eye className="w-5 h-5 text-gray-400 dark:text-muted-foreground/70" />}
+            <span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Quote vs Photos</span>
           </div>
           {crossValidation ? (
             <>
               <p className={`text-lg font-bold ${cvStatus === 'pass' ? 'text-green-600' : cvStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
                 {crossValidation.summary.confirmedCount} confirmed
               </p>
-              <p className="text-xs text-gray-500 mt-1">
+              <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
                 {crossValidation.summary.suspiciousCount > 0
                   ? `${crossValidation.summary.suspiciousCount} suspicious item(s)`
                   : 'All quoted parts verified'}
@@ -235,22 +235,22 @@ export function ExecutiveSummary({
             </>
           ) : (
             <>
-              <p className="text-lg font-bold text-gray-400">N/A</p>
-              <p className="text-xs text-gray-500 mt-1">Insufficient data for cross-validation</p>
+              <p className="text-lg font-bold text-gray-400 dark:text-muted-foreground/70">N/A</p>
+              <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Insufficient data for cross-validation</p>
             </>
           )}
         </div>
 
         {/* Cost Analysis */}
-        <div className="p-4 bg-white rounded-lg border border-gray-200">
+        <div className="p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign className="w-5 h-5 text-green-600" />
-            <span className="text-sm font-semibold text-gray-700">Cost Analysis</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Cost Analysis</span>
           </div>
           <p className="text-lg font-bold text-green-600">
             {symbol}{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-gray-500 mt-1">
+          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
             {componentCount} component(s) · {damagePhotoCount} photo(s)
             {savings && savings > 0 && (
               <span className="text-green-600 font-medium"> · {symbol}{savings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} saved</span>
@@ -261,33 +261,33 @@ export function ExecutiveSummary({
 
       {/* Narrative Validation Section (for non-collision incidents) */}
       {narrativeValidation && (
-        <div className="mb-4 p-4 bg-white rounded-lg border border-gray-200">
+        <div className="mb-4 p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
           <div className="flex items-center gap-2 mb-3">
             <FileText className="w-5 h-5 text-indigo-600" />
-            <h3 className="text-sm font-semibold text-gray-700">Narrative & Incident Validation</h3>
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Narrative & Incident Validation</h3>
             {narrativeStatus && (
               <Badge className={`text-xs px-2 py-0.5 ${
-                narrativeStatus === 'pass' ? 'bg-green-100 text-green-800' :
-                narrativeStatus === 'warning' ? 'bg-amber-100 text-amber-800' :
-                'bg-red-100 text-red-800'
+                narrativeStatus === 'pass' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :
+                narrativeStatus === 'warning' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200' :
+                'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'
               }`}>
                 {narrativeValidation.narrativeScore}/100
               </Badge>
             )}
           </div>
           {incidentClassification && (
-            <p className="text-sm text-gray-600 mb-2">
+            <p className="text-sm text-gray-600 dark:text-muted-foreground mb-2">
               <strong>Incident type:</strong> {incidentLabel}
               {!isCollision && ' (non-collision)'}
               {incidentClassification.vehicleWasStationary && ' · Vehicle was stationary'}
             </p>
           )}
-          {narrativeValidation.deductions.length > 0 && (
+          {(narrativeValidation.deductions ?? []).length > 0 && (
             <div className="mb-2">
-              <p className="text-xs font-semibold text-gray-600 mb-1">AI Deductions:</p>
+              <p className="text-xs font-semibold text-gray-600 dark:text-muted-foreground mb-1">AI Deductions:</p>
               <ul className="space-y-1">
-                {narrativeValidation.deductions.map((d, i) => (
-                  <li key={i} className="text-xs text-gray-700 flex items-start gap-1.5">
+                {(narrativeValidation.deductions ?? []).map((d, i) => (
+                  <li key={i} className="text-xs text-gray-700 dark:text-foreground/80 flex items-start gap-1.5">
                     <Brain className="w-3 h-3 mt-0.5 flex-shrink-0 text-indigo-500" />
                     {d}
                   </li>
@@ -296,12 +296,12 @@ export function ExecutiveSummary({
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">
-            {narrativeValidation.supports.length > 0 && (
+            {(narrativeValidation.supports ?? []).length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-green-700 mb-1">Supporting Factors:</p>
+                <p className="text-xs font-semibold text-green-700 dark:text-green-300 mb-1">Supporting Factors:</p>
                 <ul className="space-y-0.5">
-                  {narrativeValidation.supports.map((s, i) => (
-                    <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                  {(narrativeValidation.supports ?? []).map((s, i) => (
+                    <li key={i} className="text-xs text-gray-600 dark:text-muted-foreground flex items-start gap-1.5">
                       <CheckCircle2 className="w-3 h-3 mt-0.5 flex-shrink-0 text-green-500" />
                       {s}
                     </li>
@@ -309,12 +309,12 @@ export function ExecutiveSummary({
                 </ul>
               </div>
             )}
-            {narrativeValidation.concerns.length > 0 && (
+            {(narrativeValidation.concerns ?? []).length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-amber-700 mb-1">Concerns:</p>
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-1">Concerns:</p>
                 <ul className="space-y-0.5">
-                  {narrativeValidation.concerns.map((c, i) => (
-                    <li key={i} className="text-xs text-gray-600 flex items-start gap-1.5">
+                  {(narrativeValidation.concerns ?? []).map((c, i) => (
+                    <li key={i} className="text-xs text-gray-600 dark:text-muted-foreground flex items-start gap-1.5">
                       <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0 text-amber-500" />
                       {c}
                     </li>
@@ -327,9 +327,9 @@ export function ExecutiveSummary({
       )}
 
       {/* Key Findings Narrative */}
-      <div className="p-4 bg-white rounded-lg border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-2">Key Findings</h3>
-        <div className="text-sm text-gray-700 space-y-2">
+      <div className="p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
+        <h3 className="text-sm font-semibold text-gray-700 dark:text-foreground/80 mb-2">Key Findings</h3>
+        <div className="text-sm text-gray-700 dark:text-foreground/80 space-y-2">
           <p>
             <strong>{isCollision ? 'Physics' : 'Damage Validation'}:</strong>{' '}
             {isCollision ? (
@@ -343,7 +343,7 @@ export function ExecutiveSummary({
                 ? `The damage pattern is consistent with the reported ${incidentLabel.toLowerCase()} incident. The described damage to ${physicsData.damageConsistency === 'consistent' ? 'the affected components aligns with' : 'some components may not fully align with'} what would be expected from this type of incident (score: ${physicsData.physicsScore}/100).`
                 : `The damage pattern raises some questions for the reported ${incidentLabel.toLowerCase()} incident. The observed damage may not fully align with what would typically be expected from this type of incident (score: ${physicsData.physicsScore}/100).`
             )}
-            {physicsData.flags.length > 0 && ` Flags: ${physicsData.flags.join('; ')}.`}
+            {(physicsData.flags ?? []).length > 0 && ` Flags: ${physicsData.flags.join('; ')}.`}
           </p>
 
           <p>
@@ -351,8 +351,8 @@ export function ExecutiveSummary({
             {fraudData.riskScore <= 30
               ? `Low fraud probability at ${fraudData.riskScore}/100. No significant indicators of fraudulent activity.`
               : fraudData.riskScore <= 60
-              ? `Moderate fraud risk at ${fraudData.riskScore}/100. ${fraudData.flaggedIssues.length > 0 ? `Factors include: ${fraudData.flaggedIssues.slice(0, 3).join('; ')}.` : 'Additional review recommended.'}`
-              : `Elevated fraud risk at ${fraudData.riskScore}/100. ${fraudData.flaggedIssues.length > 0 ? `Key concerns: ${fraudData.flaggedIssues.slice(0, 3).join('; ')}.` : 'Immediate investigation recommended.'}`
+              ? `Moderate fraud risk at ${fraudData.riskScore}/100. ${(fraudData.flaggedIssues ?? []).length > 0 ? `Factors include: ${fraudData.flaggedIssues.slice(0, 3).join('; ')}.` : 'Additional review recommended.'}`
+              : `Elevated fraud risk at ${fraudData.riskScore}/100. ${(fraudData.flaggedIssues ?? []).length > 0 ? `Key concerns: ${fraudData.flaggedIssues.slice(0, 3).join('; ')}.` : 'Immediate investigation recommended.'}`
             }
           </p>
 
@@ -386,29 +386,29 @@ export function ExecutiveSummary({
       </div>
 
       {/* Critical Alerts */}
-      {(fraudData.flaggedIssues.length > 0 || (crossValidation?.fraudIndicators?.length ?? 0) > 0 || physicsData.flags.length > 0) && (
-        <div className="mt-4 p-4 bg-white rounded-lg border border-amber-200">
-          <h3 className="text-sm font-semibold text-amber-800 mb-2 flex items-center gap-2">
+      {((fraudData.flaggedIssues ?? []).length > 0 || (crossValidation?.fraudIndicators?.length ?? 0) > 0 || (physicsData.flags ?? []).length > 0) && (
+        <div className="mt-4 p-4 bg-white dark:bg-card rounded-lg border border-amber-200 dark:border-amber-800">
+          <h3 className="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2 flex items-center gap-2">
             <AlertTriangle className="w-4 h-4" />
             Items Requiring Attention
           </h3>
           <ul className="space-y-1.5">
-            {physicsData.flags.map((flag, i) => (
-              <li key={`p-${i}`} className="flex items-start gap-2 text-sm text-gray-700">
+            {(physicsData.flags ?? []).map((flag, i) => (
+              <li key={`p-${i}`} className="flex items-start gap-2 text-sm text-gray-700 dark:text-foreground/80">
                 <Activity className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-primary/80" />
                 <span><strong className="text-primary/90">{isCollision ? 'Physics' : 'Damage'}:</strong> {flag}</span>
               </li>
             ))}
-            {fraudData.flaggedIssues.slice(0, 5).map((issue, i) => (
-              <li key={`f-${i}`} className="flex items-start gap-2 text-sm text-gray-700">
+            {(fraudData.flaggedIssues ?? []).slice(0, 5).map((issue, i) => (
+              <li key={`f-${i}`} className="flex items-start gap-2 text-sm text-gray-700 dark:text-foreground/80">
                 <Shield className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-red-500" />
-                <span><strong className="text-red-700">Fraud:</strong> {issue}</span>
+                <span><strong className="text-red-700 dark:text-red-300">Fraud:</strong> {issue}</span>
               </li>
             ))}
             {crossValidation?.fraudIndicators?.slice(0, 3).map((ind, i) => (
-              <li key={`cv-${i}`} className="flex items-start gap-2 text-sm text-gray-700">
+              <li key={`cv-${i}`} className="flex items-start gap-2 text-sm text-gray-700 dark:text-foreground/80">
                 <Eye className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-amber-500" />
-                <span><strong className="text-amber-700">Cross-Validation:</strong> {ind}</span>
+                <span><strong className="text-amber-700 dark:text-amber-300">Cross-Validation:</strong> {ind}</span>
               </li>
             ))}
           </ul>

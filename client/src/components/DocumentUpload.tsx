@@ -165,7 +165,7 @@ export default function DocumentUpload({ claimId, onUploadComplete }: DocumentUp
     if (['xls', 'xlsx'].includes(ext || '')) {
       return <FileSpreadsheet className="h-8 w-8 text-green-500" />;
     }
-    return <FileText className="h-8 w-8 text-gray-500" />;
+    return <FileText className="h-8 w-8 text-gray-500 dark:text-muted-foreground" />;
   };
 
   return (
@@ -177,7 +177,7 @@ export default function DocumentUpload({ claimId, onUploadComplete }: DocumentUp
         className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
           isDragging
             ? "border-primary bg-primary/5"
-            : "border-gray-300 hover:border-primary/50"
+            : "border-gray-300 dark:border-border hover:border-primary/50"
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}

@@ -29,7 +29,7 @@ export default function ClaimDocuments() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-muted/50 flex items-center justify-center">
         <p>Loading...</p>
       </div>
     );
@@ -37,7 +37,7 @@ export default function ClaimDocuments() {
 
   if (!claim) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-muted/50 flex items-center justify-center">
         <Card className="p-6">
           <p>Claim not found</p>
           <Button onClick={() => setLocation("/")} className="mt-4">
@@ -49,24 +49,24 @@ export default function ClaimDocuments() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-muted/50">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+      <header className="bg-white dark:bg-card border-b border-gray-200 dark:border-border sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <KingaLogo />
             <div className="h-8 w-px bg-gray-300" />
             <div>
-              <h1 className="text-xl font-bold text-gray-900">Document Management</h1>
-              <p className="text-sm text-gray-600">
+              <h1 className="text-xl font-bold text-gray-900 dark:text-foreground">Document Management</h1>
+              <p className="text-sm text-gray-600 dark:text-muted-foreground">
                 Claim #{claimId} - {claim.vehicleMake} {claim.vehicleModel}
               </p>
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-gray-600 dark:text-muted-foreground">
               {user?.name}
-              <span className="block text-xs text-gray-500 capitalize">{user?.role}</span>
+              <span className="block text-xs text-gray-500 dark:text-muted-foreground capitalize">{user?.role}</span>
             </span>
             <Button variant="outline" onClick={logout}>
               Sign Out
