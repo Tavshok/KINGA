@@ -1,13 +1,13 @@
 /**
  * pipeline-v2/stage-10-report.ts
  *
- * STAGE 10 — REPORT GENERATION
+ * STAGE 10 — REPORT GENERATION (Self-Healing)
  *
  * Compiles the final assessment report from structured data ONLY.
  * No LLM calls — this is a deterministic compilation stage.
+ * ALWAYS produces output — marks sections as unavailable if data is missing.
  *
- * Input: ClaimRecord + all stage outputs
- * Output: Stage10Output (structured report sections)
+ * Includes: confidence score, assumptions log, missing documents/fields.
  */
 
 import type {
@@ -18,8 +18,12 @@ import type {
   Stage7Output,
   Stage8Output,
   Stage9Output,
+  TurnaroundTimeOutput,
   Stage10Output,
   ReportSection,
+  Assumption,
+  RecoveryAction,
+  MissingDocument,
 } from "./types";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
@@ -57,10 +61,17 @@ function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   };
 }
 
-function buildDamageSection(damageAnalysis: Stage6Output, claimRecord: ClaimRecord): ReportSection {
+function buildDamageSection(damageAnalysis: Stage6Output | null, claimRecord: ClaimRecord): ReportSection {
+  if (!damageAnalysis) {
+    return {
+      title: "Damage Analysis",
+      content: { available: false, note: "Damage analysis data unavailable." },
+    };
+  }
   return {
     title: "Damage Analysis",
     content: {
+      available: true,
       overallSeverityScore: damageAnalysis.overallSeverityScore,
       structuralDamageDetected: damageAnalysis.structuralDamageDetected,
       totalDamageArea: damageAnalysis.totalDamageArea,
@@ -81,20 +92,25 @@ function buildDamageSection(damageAnalysis: Stage6Output, claimRecord: ClaimReco
   };
 }
 
-function buildPhysicsSection(physicsAnalysis: Stage7Output): ReportSection {
+function buildPhysicsSection(physicsAnalysis: Stage7Output | null): ReportSection {
+  if (!physicsAnalysis) {
+    return {
+      title: "Physics Reconstruction",
+      content: { available: false, executed: false, note: "Physics analysis data unavailable." },
+    };
+  }
+
   if (!physicsAnalysis.physicsExecuted) {
     return {
       title: "Physics Reconstruction",
-      content: {
-        executed: false,
-        note: "Physics analysis was not applicable for this incident type.",
-      },
+      content: { available: true, executed: false, note: "Physics analysis was not applicable for this incident type." },
     };
   }
 
   return {
     title: "Physics Reconstruction",
     content: {
+      available: true,
       executed: true,
       impactForceKn: physicsAnalysis.impactForceKn,
       impactVector: physicsAnalysis.impactVector,
@@ -113,10 +129,18 @@ function buildPhysicsSection(physicsAnalysis: Stage7Output): ReportSection {
   };
 }
 
-function buildCostSection(costAnalysis: Stage9Output, claimRecord: ClaimRecord): ReportSection {
+function buildCostSection(costAnalysis: Stage9Output | null, claimRecord: ClaimRecord): ReportSection {
+  if (!costAnalysis) {
+    return {
+      title: "Cost Optimisation",
+      content: { available: false, note: "Cost analysis data unavailable." },
+    };
+  }
+
   return {
     title: "Cost Optimisation",
     content: {
+      available: true,
       expectedRepairCost: {
         totalCents: costAnalysis.expectedRepairCostCents,
         formatted: `${costAnalysis.currency} ${(costAnalysis.expectedRepairCostCents / 100).toFixed(2)}`,
@@ -149,10 +173,18 @@ function buildCostSection(costAnalysis: Stage9Output, claimRecord: ClaimRecord):
   };
 }
 
-function buildFraudSection(fraudAnalysis: Stage8Output): ReportSection {
+function buildFraudSection(fraudAnalysis: Stage8Output | null): ReportSection {
+  if (!fraudAnalysis) {
+    return {
+      title: "Fraud Risk Indicators",
+      content: { available: false, note: "Fraud analysis data unavailable." },
+    };
+  }
+
   return {
     title: "Fraud Risk Indicators",
     content: {
+      available: true,
       riskScore: fraudAnalysis.fraudRiskScore,
       riskLevel: fraudAnalysis.fraudRiskLevel,
       indicatorCount: fraudAnalysis.indicators.length,
@@ -173,6 +205,29 @@ function buildFraudSection(fraudAnalysis: Stage8Output): ReportSection {
   };
 }
 
+function buildTurnaroundSection(turnaround: TurnaroundTimeOutput | null): ReportSection {
+  if (!turnaround) {
+    return {
+      title: "Turnaround Time Estimate",
+      content: { available: false, note: "Turnaround time analysis data unavailable." },
+    };
+  }
+
+  return {
+    title: "Turnaround Time Estimate",
+    content: {
+      available: true,
+      estimatedRepairDays: turnaround.estimatedRepairDays,
+      bestCaseDays: turnaround.bestCaseDays,
+      worstCaseDays: turnaround.worstCaseDays,
+      confidence: turnaround.confidence,
+      breakdown: turnaround.breakdown,
+      bottlenecks: turnaround.bottlenecks,
+      marketRegion: turnaround.marketRegion,
+    },
+  };
+}
+
 function buildImageSection(claimRecord: ClaimRecord): ReportSection {
   return {
     title: "Supporting Images",
@@ -183,36 +238,128 @@ function buildImageSection(claimRecord: ClaimRecord): ReportSection {
   };
 }
 
+/**
+ * Compute overall pipeline confidence from all stage assumptions.
+ */
+function computeOverallConfidence(allAssumptions: Assumption[], dataCompleteness: number): number {
+  if (allAssumptions.length === 0) return Math.min(95, dataCompleteness);
+
+  // Average confidence of all assumptions, weighted by how many there are
+  const avgAssumptionConfidence = allAssumptions.reduce((sum, a) => sum + a.confidence, 0) / allAssumptions.length;
+
+  // Penalty for number of assumptions (more assumptions = less reliable)
+  const assumptionPenalty = Math.min(40, allAssumptions.length * 3);
+
+  // Base from data completeness
+  const base = dataCompleteness * 0.6;
+
+  return Math.max(5, Math.min(95, Math.round(base + avgAssumptionConfidence * 0.2 - assumptionPenalty)));
+}
+
+/**
+ * Identify missing documents from the pipeline data.
+ */
+function identifyMissingDocuments(claimRecord: ClaimRecord): MissingDocument[] {
+  const missing: MissingDocument[] = [];
+
+  if (!claimRecord.policeReport.reportNumber) {
+    missing.push({
+      documentType: "police_report",
+      impact: "Fraud analysis has reduced accuracy without police report verification.",
+      required: false,
+    });
+  }
+
+  if (claimRecord.damage.imageUrls.length === 0) {
+    missing.push({
+      documentType: "vehicle_photos",
+      impact: "Damage analysis relies entirely on text descriptions without photo verification.",
+      required: true,
+    });
+  }
+
+  if (!claimRecord.repairQuote.quoteTotalCents) {
+    missing.push({
+      documentType: "repair_quote",
+      impact: "Cost deviation analysis cannot be performed without a repair quote.",
+      required: false,
+    });
+  }
+
+  return missing;
+}
+
 export async function runReportGenerationStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
-  damageAnalysis: Stage6Output,
-  physicsAnalysis: Stage7Output,
-  fraudAnalysis: Stage8Output,
-  costAnalysis: Stage9Output
+  damageAnalysis: Stage6Output | null,
+  physicsAnalysis: Stage7Output | null,
+  fraudAnalysis: Stage8Output | null,
+  costAnalysis: Stage9Output | null,
+  turnaroundAnalysis: TurnaroundTimeOutput | null,
+  allAssumptions: Assumption[]
 ): Promise<StageResult<Stage10Output>> {
   const start = Date.now();
   ctx.log("Stage 10", "Report generation starting");
 
+  const assumptions: Assumption[] = [];
+  const recoveryActions: RecoveryAction[] = [];
+  let isDegraded = false;
+
   try {
+    // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
     const physicsSection = buildPhysicsSection(physicsAnalysis);
     const costSection = buildCostSection(costAnalysis, claimRecord);
     const fraudSection = buildFraudSection(fraudAnalysis);
+    const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);
     const imageSection = buildImageSection(claimRecord);
 
-    // Compile full report as a single JSON object
+    // Track which sections are degraded
+    const unavailableSections: string[] = [];
+    if (!damageAnalysis) unavailableSections.push("Damage Analysis");
+    if (!physicsAnalysis) unavailableSections.push("Physics Reconstruction");
+    if (!fraudAnalysis) unavailableSections.push("Fraud Risk Indicators");
+    if (!costAnalysis) unavailableSections.push("Cost Optimisation");
+    if (!turnaroundAnalysis) unavailableSections.push("Turnaround Time");
+
+    if (unavailableSections.length > 0) {
+      isDegraded = true;
+      assumptions.push({
+        field: "reportSections",
+        assumedValue: `${unavailableSections.length} sections unavailable`,
+        reason: `The following sections have no data: ${unavailableSections.join(", ")}. Report is partial.`,
+        strategy: "partial_data",
+        confidence: 30,
+        stage: "Stage 10",
+      });
+    }
+
+    // Compute overall confidence
+    const overallConfidence = computeOverallConfidence(
+      allAssumptions,
+      claimRecord.dataQuality.completenessScore
+    );
+
+    // Identify missing documents
+    const missingDocuments = identifyMissingDocuments(claimRecord);
+
+    // Compile full report
     const fullReport = {
-      reportVersion: "2.0",
+      reportVersion: "3.0",
       generatedAt: new Date().toISOString(),
       claimId: claimRecord.claimId,
+      overallConfidence,
+      assumptionCount: allAssumptions.length,
+      missingDocumentCount: missingDocuments.length,
       sections: {
         claimSummary: claimSummary.content,
         damageAnalysis: damageSection.content,
         physicsReconstruction: physicsSection.content,
         costOptimisation: costSection.content,
         fraudRiskIndicators: fraudSection.content,
+        turnaroundTimeEstimate: turnaroundSection.content,
         supportingImages: imageSection.content,
       },
     };
@@ -223,27 +370,83 @@ export async function runReportGenerationStage(
       physicsReconstruction: physicsSection,
       costOptimisation: costSection,
       fraudRiskIndicators: fraudSection,
+      turnaroundTimeEstimate: turnaroundSection,
       supportingImages: imageSection,
       fullReport,
       generatedAt: new Date().toISOString(),
+      // Self-healing additions
+      confidenceScore: overallConfidence,
+      assumptions: allAssumptions,
+      missingDocuments,
+      missingFields: claimRecord.dataQuality.missingFields,
     };
 
-    ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections compiled.`);
+    ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);
 
     return {
-      status: "success",
+      status: isDegraded ? "degraded" : "success",
       data: output,
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions,
+      recoveryActions,
+      degraded: isDegraded,
     };
   } catch (err) {
-    ctx.log("Stage 10", `Report generation failed: ${String(err)}`);
+    ctx.log("Stage 10", `Report generation failed: ${String(err)} — producing minimal report`);
+
+    // Self-healing: produce a minimal report
+    const minimalReport: Stage10Output = {
+      claimSummary: buildClaimSummary(claimRecord),
+      damageAnalysis: { title: "Damage Analysis", content: { available: false, note: "Report generation failed." } },
+      physicsReconstruction: { title: "Physics Reconstruction", content: { available: false, note: "Report generation failed." } },
+      costOptimisation: { title: "Cost Optimisation", content: { available: false, note: "Report generation failed." } },
+      fraudRiskIndicators: { title: "Fraud Risk Indicators", content: { available: false, note: "Report generation failed." } },
+      turnaroundTimeEstimate: { title: "Turnaround Time Estimate", content: { available: false, note: "Report generation failed." } },
+      supportingImages: buildImageSection(claimRecord),
+      fullReport: {
+        reportVersion: "3.0",
+        generatedAt: new Date().toISOString(),
+        claimId: claimRecord.claimId,
+        overallConfidence: 5,
+        error: String(err),
+        sections: {},
+      },
+      generatedAt: new Date().toISOString(),
+      confidenceScore: 5,
+      assumptions: [{
+        field: "report",
+        assumedValue: "minimal",
+        reason: `Report generation failed: ${String(err)}. Only claim summary and images are available.`,
+        strategy: "default_value",
+        confidence: 5,
+        stage: "Stage 10",
+      }],
+      missingDocuments: [],
+      missingFields: claimRecord.dataQuality.missingFields,
+    };
+
     return {
-      status: "failed",
-      data: null,
+      status: "degraded",
+      data: minimalReport,
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions: [{
+        field: "report",
+        assumedValue: "minimal",
+        reason: `Report generation failed: ${String(err)}.`,
+        strategy: "default_value",
+        confidence: 5,
+        stage: "Stage 10",
+      }],
+      recoveryActions: [{
+        target: "report_error",
+        strategy: "default_value",
+        success: true,
+        description: `Report generation error caught. Produced minimal report with claim summary only.`,
+      }],
+      degraded: true,
     };
   }
 }

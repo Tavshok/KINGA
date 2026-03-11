@@ -1,15 +1,60 @@
 /**
  * pipeline-v2/types.ts
  *
- * Single source of truth for the KINGA 10-stage deterministic pipeline.
+ * Single source of truth for the KINGA Self-Healing Claim Processing Engine.
  *
  * Architecture:
  *   - Every stage imports ONLY from this file.
  *   - Each stage receives a typed input and returns a typed output.
  *   - The ClaimRecord is the assembled data object passed to all analysis engines.
- *   - Missing fields are explicitly NULL — never guessed.
- *   - The report (Stage 10) is generated ONLY from validated structured data.
+ *   - Missing fields are explicitly NULL at extraction time.
+ *   - Recovery strategies (estimation, inference, approximation) are applied
+ *     at the assembly and analysis stages, with all assumptions tracked.
+ *   - The pipeline NEVER halts — every stage produces output even if degraded.
+ *   - The report (Stage 10) is ALWAYS generated with confidence scores,
+ *     assumptions made, and missing data lists.
  */
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SELF-HEALING PRIMITIVES
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Assumption {
+  field: string;
+  assumedValue: any;
+  reason: string;
+  strategy: RecoveryStrategy;
+  confidence: number;
+  stage: string;
+}
+
+export type RecoveryStrategy =
+  | "secondary_ocr"
+  | "cross_document_search"
+  | "historical_data"
+  | "contextual_inference"
+  | "manufacturer_lookup"
+  | "industry_average"
+  | "damage_based_estimate"
+  | "typical_collision"
+  | "default_value"
+  | "partial_data"
+  | "none";
+
+export interface RecoveryAction {
+  target: string;
+  strategy: RecoveryStrategy;
+  success: boolean;
+  description: string;
+  recoveredValue?: any;
+}
+
+export interface MissingDocument {
+  documentType: DocumentType;
+  impact: string;
+  required?: boolean;
+  recoveryApplied?: string;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ENUMS & CANONICAL TYPES
@@ -307,6 +352,8 @@ export interface ClaimRecord {
   };
   /** Market region for cost benchmarking */
   marketRegion: string;
+  /** Assumptions made during assembly */
+  assumptions: Assumption[];
 }
 
 export interface Stage5Output {
@@ -453,6 +500,38 @@ export interface Stage9Output {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// STAGE 9b — TURNAROUND TIME ANALYSIS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface TurnaroundMetric {
+  entityName: string;
+  entityType: "assessor" | "repair_shop";
+  averageDays: number;
+  claimCount: number;
+  outlierFlag: boolean;
+  outlierReason: string | null;
+}
+
+export interface TurnaroundTimeOutput {
+  estimatedRepairDays: number;
+  bestCaseDays: number;
+  worstCaseDays: number;
+  confidence: number;
+  breakdown: {
+    assessmentDays: number;
+    partsSourcingDays: number;
+    repairDays: number;
+    paintDays: number;
+    qualityCheckDays: number;
+  };
+  bottlenecks: string[];
+  marketRegion: string;
+}
+
+/** @deprecated alias — use TurnaroundTimeOutput */
+export type Stage9bOutput = TurnaroundTimeOutput;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // STAGE 10 — REPORT GENERATION
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -467,11 +546,20 @@ export interface Stage10Output {
   physicsReconstruction: ReportSection;
   costOptimisation: ReportSection;
   fraudRiskIndicators: ReportSection;
+  turnaroundTimeEstimate: ReportSection;
   supportingImages: ReportSection;
   /** Full structured report as a single JSON object */
   fullReport: Record<string, any>;
   /** Generated at timestamp */
   generatedAt: string;
+  /** Overall confidence score (0-100) */
+  confidenceScore: number;
+  /** All assumptions made during processing */
+  assumptions: Assumption[];
+  /** Documents that were expected but not provided */
+  missingDocuments: MissingDocument[];
+  /** Fields that remain NULL after all recovery attempts */
+  missingFields: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -479,18 +567,24 @@ export interface Stage10Output {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface StageResult<T> {
-  status: "success" | "failed" | "skipped";
+  status: "success" | "failed" | "skipped" | "degraded";
   data: T | null;
   error?: string;
   durationMs: number;
   savedToDb: boolean;
+  assumptions: Assumption[];
+  recoveryActions: RecoveryAction[];
+  degraded: boolean;
 }
 
 export interface PipelineStageSummary {
-  status: "success" | "failed" | "skipped";
+  status: "success" | "failed" | "skipped" | "degraded";
   durationMs: number;
   savedToDb: boolean;
   error?: string;
+  degraded: boolean;
+  assumptionCount: number;
+  recoveryActionCount: number;
 }
 
 export interface PipelineRunSummary {

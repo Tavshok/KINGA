@@ -1,11 +1,17 @@
 /**
  * pipeline-v2/debug-runner.ts
  *
- * Debug Mode Pipeline Runner — runs the 10-stage pipeline
+ * Debug Mode Pipeline Runner — runs the 10-stage self-healing pipeline
  * and captures ALL intermediate data at every stage for diagnostic display.
  *
  * This does NOT modify the database — it's a read-only diagnostic tool
  * that re-runs the pipeline on existing claim data.
+ *
+ * Updated for the Self-Healing Claim Processing Engine:
+ *   - Supports "degraded" status on all stages
+ *   - Tracks assumptions and recovery actions per stage
+ *   - Includes Stage 9b (Turnaround Time Analysis)
+ *   - Never halts — mirrors the production pipeline behaviour
  */
 
 import type {
@@ -21,8 +27,12 @@ import type {
   Stage8Output,
   Stage9Output,
   Stage10Output,
+  TurnaroundTimeOutput,
   ClaimRecord,
   ValidationIssue,
+  Assumption,
+  RecoveryAction,
+  StageResult,
 } from "./types";
 
 import { runIngestionStage } from "./stage-1-ingestion";
@@ -34,11 +44,14 @@ import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runPhysicsStage } from "./stage-7-physics";
 import { runFraudAnalysisStage } from "./stage-8-fraud";
 import { runCostOptimisationStage } from "./stage-9-cost";
+import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DEBUG OUTPUT TYPES
 // ─────────────────────────────────────────────────────────────────────────────
+
+type StageStatus = "success" | "failed" | "skipped" | "degraded";
 
 /** Step 1 — Document Registry */
 export interface DebugDocumentEntry {
@@ -87,10 +100,12 @@ export interface DebugEngineInput {
 /** Step 6 — Engine Execution Result */
 export interface DebugEngineResult {
   engineName: string;
-  executionStatus: "success" | "failed" | "skipped";
+  executionStatus: StageStatus;
   durationMs: number;
   reason?: string;
   outputData: Record<string, any>;
+  assumptionCount: number;
+  recoveryActionCount: number;
 }
 
 /** Step 7 — Report Section Status */
@@ -119,9 +134,12 @@ export interface DebugSystemHealth {
   successfulEngines: number;
   failedEngines: number;
   skippedEngines: number;
+  degradedEngines: number;
   missingFieldsList: string[];
   recommendedFixes: string[];
   overallStatus: "healthy" | "degraded" | "critical";
+  totalAssumptions: number;
+  totalRecoveryActions: number;
 }
 
 /** Full debug diagnostic output */
@@ -152,6 +170,10 @@ export interface DebugDiagnosticReport {
   // Step 9
   systemHealth: DebugSystemHealth;
 
+  // Self-healing metadata
+  allAssumptions: Assumption[];
+  allRecoveryActions: RecoveryAction[];
+
   // Per-stage timing
   stageSummaries: Record<string, PipelineStageSummary>;
 }
@@ -166,8 +188,10 @@ export async function runDebugPipeline(
   const pipelineStart = Date.now();
   const stages: Record<string, PipelineStageSummary> = {};
   const errors: DebugErrorDiagnostic[] = [];
+  const allAssumptions: Assumption[] = [];
+  const allRecoveryActions: RecoveryAction[] = [];
 
-  ctx.log("Debug", `Starting DEBUG MODE pipeline for claim ${ctx.claimId}`);
+  ctx.log("Debug", `Starting DEBUG MODE self-healing pipeline for claim ${ctx.claimId}`);
 
   let stage1Data: Stage1Output | null = null;
   let stage2Data: Stage2Output | null = null;
@@ -178,12 +202,40 @@ export async function runDebugPipeline(
   let stage7Data: Stage7Output | null = null;
   let stage8Data: Stage8Output | null = null;
   let stage9Data: Stage9Output | null = null;
+  let stage9bData: TurnaroundTimeOutput | null = null;
   let stage10Data: Stage10Output | null = null;
+
+  /** Helper to record a stage result into the summary */
+  const recordStage = <T>(name: string, result: StageResult<T>) => {
+    stages[name] = {
+      status: result.status,
+      durationMs: result.durationMs,
+      savedToDb: false,
+      error: result.error,
+      degraded: result.degraded || false,
+      assumptionCount: result.assumptions?.length || 0,
+      recoveryActionCount: result.recoveryActions?.length || 0,
+    };
+    if (result.assumptions) allAssumptions.push(...result.assumptions);
+    if (result.recoveryActions) allRecoveryActions.push(...result.recoveryActions);
+  };
+
+  const skipStage = (name: string, error: string) => {
+    stages[name] = {
+      status: "skipped",
+      durationMs: 0,
+      savedToDb: false,
+      error,
+      degraded: true,
+      assumptionCount: 0,
+      recoveryActionCount: 0,
+    };
+  };
 
   // ── STAGE 1: Document Ingestion ──────────────────────────────────────
   try {
     const s1 = await runIngestionStage(ctx);
-    stages["1_ingestion"] = { status: s1.status, durationMs: s1.durationMs, savedToDb: false, error: s1.error };
+    recordStage("1_ingestion", s1);
     stage1Data = s1.data;
     if (s1.status === "failed") {
       errors.push({
@@ -195,7 +247,7 @@ export async function runDebugPipeline(
       });
     }
   } catch (err: any) {
-    stages["1_ingestion"] = { status: "failed", durationMs: Date.now() - pipelineStart, savedToDb: false, error: err.message };
+    skipStage("1_ingestion", err.message);
     errors.push({
       stage: "Stage 1 — Document Ingestion",
       component: "Document Classifier",
@@ -209,7 +261,7 @@ export async function runDebugPipeline(
   if (stage1Data) {
     try {
       const s2 = await runExtractionStage(ctx, stage1Data);
-      stages["2_extraction"] = { status: s2.status, durationMs: s2.durationMs, savedToDb: false, error: s2.error };
+      recordStage("2_extraction", s2);
       stage2Data = s2.data;
       if (s2.status === "failed") {
         errors.push({
@@ -221,7 +273,7 @@ export async function runDebugPipeline(
         });
       }
     } catch (err: any) {
-      stages["2_extraction"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("2_extraction", err.message);
       errors.push({
         stage: "Stage 2 — OCR & Text Extraction",
         component: "OCR Engine",
@@ -231,14 +283,14 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["2_extraction"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No documents from Stage 1" };
+    skipStage("2_extraction", "No documents from Stage 1");
   }
 
   // ── STAGE 3: Structured Data Extraction ──────────────────────────────
   if (stage1Data && stage2Data) {
     try {
       const s3 = await runStructuredExtractionStage(ctx, stage1Data, stage2Data);
-      stages["3_structured_extraction"] = { status: s3.status, durationMs: s3.durationMs, savedToDb: false, error: s3.error };
+      recordStage("3_structured_extraction", s3);
       stage3Data = s3.data;
       if (s3.status === "failed") {
         errors.push({
@@ -250,7 +302,7 @@ export async function runDebugPipeline(
         });
       }
     } catch (err: any) {
-      stages["3_structured_extraction"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("3_structured_extraction", err.message);
       errors.push({
         stage: "Stage 3 — Structured Data Extraction",
         component: "Field Extractor",
@@ -260,17 +312,17 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["3_structured_extraction"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "Missing input from prior stages" };
+    skipStage("3_structured_extraction", "Missing input from prior stages");
   }
 
   // ── STAGE 4: Data Validation ─────────────────────────────────────────
   if (stage3Data) {
     try {
       const s4 = await runValidationStage(ctx, stage3Data);
-      stages["4_validation"] = { status: s4.status, durationMs: s4.durationMs, savedToDb: false, error: s4.error };
+      recordStage("4_validation", s4);
       stage4Data = s4.data;
     } catch (err: any) {
-      stages["4_validation"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("4_validation", err.message);
       errors.push({
         stage: "Stage 4 — Data Validation",
         component: "Validator",
@@ -280,17 +332,17 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["4_validation"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No extraction data from Stage 3" };
+    skipStage("4_validation", "No extraction data from Stage 3");
   }
 
   // ── STAGE 5: Claim Data Assembly ─────────────────────────────────────
   if (stage4Data) {
     try {
       const s5 = await runAssemblyStage(ctx, stage4Data);
-      stages["5_assembly"] = { status: s5.status, durationMs: s5.durationMs, savedToDb: false, error: s5.error };
+      recordStage("5_assembly", s5);
       stage5Data = s5.data;
     } catch (err: any) {
-      stages["5_assembly"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("5_assembly", err.message);
       errors.push({
         stage: "Stage 5 — Claim Data Assembly",
         component: "Assembler",
@@ -300,7 +352,7 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["5_assembly"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No validated data from Stage 4" };
+    skipStage("5_assembly", "No validated data from Stage 4");
   }
 
   const claimRecord = stage5Data?.claimRecord || null;
@@ -309,7 +361,7 @@ export async function runDebugPipeline(
   if (claimRecord) {
     try {
       const s6 = await runDamageAnalysisStage(ctx, claimRecord);
-      stages["6_damage_analysis"] = { status: s6.status, durationMs: s6.durationMs, savedToDb: false, error: s6.error };
+      recordStage("6_damage_analysis", s6);
       stage6Data = s6.data;
       if (s6.status === "failed") {
         errors.push({
@@ -321,7 +373,7 @@ export async function runDebugPipeline(
         });
       }
     } catch (err: any) {
-      stages["6_damage_analysis"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("6_damage_analysis", err.message);
       errors.push({
         stage: "Stage 6 — Damage Analysis",
         component: "Damage Engine",
@@ -331,14 +383,14 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["6_damage_analysis"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No ClaimRecord from Stage 5" };
+    skipStage("6_damage_analysis", "No ClaimRecord from Stage 5");
   }
 
   // ── STAGE 7: Physics Analysis ────────────────────────────────────────
-  if (claimRecord && stage6Data) {
+  if (claimRecord) {
     try {
-      const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data);
-      stages["7_physics"] = { status: s7.status, durationMs: s7.durationMs, savedToDb: false, error: s7.error };
+      const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data!);
+      recordStage("7_physics", s7);
       stage7Data = s7.data;
       if (s7.status === "failed") {
         errors.push({
@@ -350,7 +402,7 @@ export async function runDebugPipeline(
         });
       }
     } catch (err: any) {
-      stages["7_physics"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("7_physics", err.message);
       errors.push({
         stage: "Stage 7 — Physics Analysis",
         component: "Physics Engine",
@@ -360,21 +412,21 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["7_physics"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "Missing ClaimRecord or damage analysis" };
+    skipStage("7_physics", "Missing ClaimRecord");
     errors.push({
       stage: "Stage 7 — Physics Analysis",
       component: "Physics Engine",
       errorType: "missing_input",
-      description: "Physics engine skipped because ClaimRecord or damage analysis was not available.",
+      description: "Physics engine skipped because ClaimRecord was not available.",
       recommendation: "Fix upstream stages (5 and 6) first.",
     });
   }
 
   // ── STAGE 8: Fraud Analysis ──────────────────────────────────────────
-  if (claimRecord && stage6Data && stage7Data) {
+  if (claimRecord) {
     try {
-      const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data, stage7Data);
-      stages["8_fraud"] = { status: s8.status, durationMs: s8.durationMs, savedToDb: false, error: s8.error };
+      const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!);
+      recordStage("8_fraud", s8);
       stage8Data = s8.data;
       if (s8.status === "failed") {
         errors.push({
@@ -386,7 +438,7 @@ export async function runDebugPipeline(
         });
       }
     } catch (err: any) {
-      stages["8_fraud"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("8_fraud", err.message);
       errors.push({
         stage: "Stage 8 — Fraud Analysis",
         component: "Fraud Engine",
@@ -396,14 +448,14 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["8_fraud"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "Missing upstream data" };
+    skipStage("8_fraud", "Missing upstream data");
   }
 
   // ── STAGE 9: Cost Optimisation ───────────────────────────────────────
-  if (claimRecord && stage6Data && stage7Data) {
+  if (claimRecord) {
     try {
-      const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data, stage7Data);
-      stages["9_cost"] = { status: s9.status, durationMs: s9.durationMs, savedToDb: false, error: s9.error };
+      const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!);
+      recordStage("9_cost", s9);
       stage9Data = s9.data;
       if (s9.status === "failed") {
         errors.push({
@@ -415,7 +467,7 @@ export async function runDebugPipeline(
         });
       }
     } catch (err: any) {
-      stages["9_cost"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
+      skipStage("9_cost", err.message);
       errors.push({
         stage: "Stage 9 — Cost Optimisation",
         component: "Cost Engine",
@@ -425,20 +477,31 @@ export async function runDebugPipeline(
       });
     }
   } else {
-    stages["9_cost"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "Missing upstream data" };
+    skipStage("9_cost", "Missing upstream data");
+  }
+
+  // ── STAGE 9b: Turnaround Time Analysis ───────────────────────────────
+  if (claimRecord) {
+    try {
+      const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data!);
+      recordStage("9b_turnaround", s9b);
+      stage9bData = s9b.data;
+    } catch (err: any) {
+      skipStage("9b_turnaround", err.message);
+    }
+  } else {
+    skipStage("9b_turnaround", "Missing upstream data");
   }
 
   // ── STAGE 10: Report Generation ──────────────────────────────────────
-  if (claimRecord && stage6Data && stage7Data && stage8Data && stage9Data) {
-    try {
-      const s10 = await runReportGenerationStage(ctx, claimRecord, stage6Data, stage7Data, stage8Data, stage9Data);
-      stages["10_report"] = { status: s10.status, durationMs: s10.durationMs, savedToDb: false, error: s10.error };
-      stage10Data = s10.data;
-    } catch (err: any) {
-      stages["10_report"] = { status: "failed", durationMs: 0, savedToDb: false, error: err.message };
-    }
-  } else {
-    stages["10_report"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "Missing upstream data" };
+  try {
+    const s10 = await runReportGenerationStage(
+      ctx, claimRecord!, stage6Data!, stage7Data!, stage8Data!, stage9Data!, stage9bData!, allAssumptions
+    );
+    recordStage("10_report", s10);
+    stage10Data = s10.data;
+  } catch (err: any) {
+    skipStage("10_report", err.message);
   }
 
   // ─────────────────────────────────────────────────────────────────────
@@ -487,6 +550,7 @@ export async function runDebugPipeline(
     const sourceName = doc?.fileName || "primary_document";
 
     const fieldMap: Record<string, any> = {
+      claim_id: ext.claimId,
       claimant_name: ext.claimantName,
       driver_name: ext.driverName,
       vehicle_registration: ext.vehicleRegistration,
@@ -543,17 +607,17 @@ export async function runDebugPipeline(
 
   // Step 6 — Engine Execution Results
   const engineResults: DebugEngineResult[] = buildEngineResults(
-    stages, stage6Data, stage7Data, stage8Data, stage9Data, stage10Data
+    stages, stage6Data, stage7Data, stage8Data, stage9Data, stage9bData, stage10Data
   );
 
   // Step 7 — Report Section Statuses
   const reportSectionStatuses: DebugReportSectionStatus[] = buildReportSectionStatuses(
-    claimRecord, stage6Data, stage7Data, stage8Data, stage9Data, stage10Data
+    claimRecord, stage6Data, stage7Data, stage8Data, stage9Data, stage9bData, stage10Data
   );
 
   // Step 9 — System Health Summary
   const systemHealth = buildSystemHealth(
-    stages, completenessScore, missingFields, errors
+    stages, completenessScore, missingFields, errors, allAssumptions, allRecoveryActions
   );
 
   const totalDurationMs = Date.now() - pipelineStart;
@@ -574,6 +638,8 @@ export async function runDebugPipeline(
     reportSectionStatuses,
     errorDiagnostics: errors,
     systemHealth,
+    allAssumptions,
+    allRecoveryActions,
     stageSummaries: stages,
   };
 }
@@ -623,7 +689,7 @@ function buildEngineInputChecks(
     engineName: "Damage Analysis Engine",
     inputs: damageInputs,
     missingRequiredFields: damageMissing,
-    canExecute: claimRecord !== null && (claimRecord?.damage.components.length ?? 0) > 0,
+    canExecute: claimRecord !== null,
   });
 
   // Physics Engine
@@ -682,7 +748,7 @@ function buildEngineInputChecks(
     engineName: "Fraud Analysis Engine",
     inputs: fraudInputs,
     missingRequiredFields: fraudMissing,
-    canExecute: stage6Data !== null && stage7Data !== null,
+    canExecute: claimRecord !== null,
   });
 
   // Cost Engine
@@ -710,7 +776,19 @@ function buildEngineInputChecks(
     engineName: "Cost Optimisation Engine",
     inputs: costInputs,
     missingRequiredFields: costMissing,
-    canExecute: stage6Data !== null,
+    canExecute: claimRecord !== null,
+  });
+
+  // Turnaround Time Engine
+  checks.push({
+    engineName: "Turnaround Time Engine",
+    inputs: claimRecord ? [
+      { fieldName: "market_region", value: claimRecord.marketRegion, status: "present" },
+      { fieldName: "damage_severity", value: stage6Data?.overallSeverityScore ?? null, status: stage6Data ? "present" : "missing" },
+      { fieldName: "cost_estimate", value: stage6Data ? "available" : null, status: stage6Data ? "present" : "missing" },
+    ] : [],
+    missingRequiredFields: [],
+    canExecute: claimRecord !== null,
   });
 
   return checks;
@@ -722,16 +800,18 @@ function buildEngineResults(
   stage7Data: Stage7Output | null,
   stage8Data: Stage8Output | null,
   stage9Data: Stage9Output | null,
+  stage9bData: TurnaroundTimeOutput | null,
   stage10Data: Stage10Output | null
 ): DebugEngineResult[] {
   const results: DebugEngineResult[] = [];
 
   // Damage Analysis
+  const s6 = stages["6_damage_analysis"];
   results.push({
     engineName: "Damage Analysis Engine",
-    executionStatus: stages["6_damage_analysis"]?.status || "skipped",
-    durationMs: stages["6_damage_analysis"]?.durationMs || 0,
-    reason: stages["6_damage_analysis"]?.error,
+    executionStatus: s6?.status || "skipped",
+    durationMs: s6?.durationMs || 0,
+    reason: s6?.error,
     outputData: stage6Data ? {
       damaged_parts_count: stage6Data.damagedParts.length,
       damage_zones_count: stage6Data.damageZones.length,
@@ -739,20 +819,20 @@ function buildEngineResults(
       structural_damage_detected: stage6Data.structuralDamageDetected,
       total_damage_area: stage6Data.totalDamageArea,
       parts: stage6Data.damagedParts.map(p => ({
-        name: p.name,
-        severity: p.severity,
-        damageType: p.damageType,
-        location: p.location,
+        name: p.name, severity: p.severity, damageType: p.damageType, location: p.location,
       })),
     } : {},
+    assumptionCount: s6?.assumptionCount || 0,
+    recoveryActionCount: s6?.recoveryActionCount || 0,
   });
 
   // Physics Analysis
+  const s7 = stages["7_physics"];
   results.push({
     engineName: "Physics Analysis Engine",
-    executionStatus: stages["7_physics"]?.status || "skipped",
-    durationMs: stages["7_physics"]?.durationMs || 0,
-    reason: stages["7_physics"]?.error,
+    executionStatus: s7?.status || "skipped",
+    durationMs: s7?.durationMs || 0,
+    reason: s7?.error,
     outputData: stage7Data ? {
       impact_force_kn: stage7Data.impactForceKn,
       impact_vector: stage7Data.impactVector,
@@ -764,14 +844,17 @@ function buildEngineResults(
       damage_consistency_score: stage7Data.damageConsistencyScore,
       physics_executed: stage7Data.physicsExecuted,
     } : {},
+    assumptionCount: s7?.assumptionCount || 0,
+    recoveryActionCount: s7?.recoveryActionCount || 0,
   });
 
   // Fraud Analysis
+  const s8 = stages["8_fraud"];
   results.push({
     engineName: "Fraud Analysis Engine",
-    executionStatus: stages["8_fraud"]?.status || "skipped",
-    durationMs: stages["8_fraud"]?.durationMs || 0,
-    reason: stages["8_fraud"]?.error,
+    executionStatus: s8?.status || "skipped",
+    durationMs: s8?.durationMs || 0,
+    reason: s8?.error,
     outputData: stage8Data ? {
       fraud_risk_score: stage8Data.fraudRiskScore,
       fraud_risk_level: stage8Data.fraudRiskLevel,
@@ -780,14 +863,17 @@ function buildEngineResults(
       quote_deviation: stage8Data.quoteDeviation,
       damage_consistency_score: stage8Data.damageConsistencyScore,
     } : {},
+    assumptionCount: s8?.assumptionCount || 0,
+    recoveryActionCount: s8?.recoveryActionCount || 0,
   });
 
   // Cost Optimisation
+  const s9 = stages["9_cost"];
   results.push({
     engineName: "Cost Optimisation Engine",
-    executionStatus: stages["9_cost"]?.status || "skipped",
-    durationMs: stages["9_cost"]?.durationMs || 0,
-    reason: stages["9_cost"]?.error,
+    executionStatus: s9?.status || "skipped",
+    durationMs: s9?.durationMs || 0,
+    reason: s9?.error,
     outputData: stage9Data ? {
       expected_repair_cost: (stage9Data.expectedRepairCostCents / 100).toFixed(2),
       quote_deviation_pct: stage9Data.quoteDeviationPct,
@@ -806,26 +892,55 @@ function buildEngineResults(
       market_region: stage9Data.marketRegion,
       currency: stage9Data.currency,
     } : {},
+    assumptionCount: s9?.assumptionCount || 0,
+    recoveryActionCount: s9?.recoveryActionCount || 0,
+  });
+
+  // Turnaround Time
+  const s9b = stages["9b_turnaround"];
+  results.push({
+    engineName: "Turnaround Time Engine",
+    executionStatus: s9b?.status || "skipped",
+    durationMs: s9b?.durationMs || 0,
+    reason: s9b?.error,
+    outputData: stage9bData ? {
+      estimated_repair_days: stage9bData.estimatedRepairDays,
+      best_case_days: stage9bData.bestCaseDays,
+      worst_case_days: stage9bData.worstCaseDays,
+      confidence: stage9bData.confidence,
+      breakdown: stage9bData.breakdown,
+      bottlenecks: stage9bData.bottlenecks,
+    } : {},
+    assumptionCount: s9b?.assumptionCount || 0,
+    recoveryActionCount: s9b?.recoveryActionCount || 0,
   });
 
   // Report Generation
+  const s10 = stages["10_report"];
   results.push({
     engineName: "Report Generation",
-    executionStatus: stages["10_report"]?.status || "skipped",
-    durationMs: stages["10_report"]?.durationMs || 0,
-    reason: stages["10_report"]?.error,
+    executionStatus: s10?.status || "skipped",
+    durationMs: s10?.durationMs || 0,
+    reason: s10?.error,
     outputData: stage10Data ? {
-      sections_generated: 6,
+      sections_generated: 7,
       generated_at: stage10Data.generatedAt,
+      confidence_score: stage10Data.confidenceScore,
+      assumptions_count: stage10Data.assumptions.length,
+      missing_documents_count: stage10Data.missingDocuments.length,
+      missing_fields_count: stage10Data.missingFields.length,
       sections: [
         stage10Data.claimSummary.title,
         stage10Data.damageAnalysis.title,
         stage10Data.physicsReconstruction.title,
         stage10Data.costOptimisation.title,
         stage10Data.fraudRiskIndicators.title,
+        stage10Data.turnaroundTimeEstimate.title,
         stage10Data.supportingImages.title,
       ],
     } : {},
+    assumptionCount: s10?.assumptionCount || 0,
+    recoveryActionCount: s10?.recoveryActionCount || 0,
   });
 
   return results;
@@ -837,6 +952,7 @@ function buildReportSectionStatuses(
   stage7Data: Stage7Output | null,
   stage8Data: Stage8Output | null,
   stage9Data: Stage9Output | null,
+  stage9bData: TurnaroundTimeOutput | null,
   stage10Data: Stage10Output | null
 ): DebugReportSectionStatus[] {
   const sections: DebugReportSectionStatus[] = [];
@@ -892,6 +1008,15 @@ function buildReportSectionStatuses(
     populatedFieldCount: stage8Data ? 6 : 0,
   });
 
+  // Turnaround Time Estimate
+  sections.push({
+    sectionName: "Turnaround Time Estimate",
+    status: stage9bData ? "ok" : "missing_inputs",
+    dataSource: "Stage 9b — Turnaround Time Analysis",
+    fieldCount: 5,
+    populatedFieldCount: stage9bData ? 5 : 0,
+  });
+
   // Police Report Summary
   const hasPolice = claimRecord?.policeReport.reportNumber !== null;
   sections.push({
@@ -909,22 +1034,26 @@ function buildSystemHealth(
   stages: Record<string, PipelineStageSummary>,
   completenessScore: number,
   missingFields: string[],
-  errors: DebugErrorDiagnostic[]
+  errors: DebugErrorDiagnostic[],
+  allAssumptions: Assumption[],
+  allRecoveryActions: RecoveryAction[]
 ): DebugSystemHealth {
-  const engineStages = ["6_damage_analysis", "7_physics", "8_fraud", "9_cost", "10_report"];
+  const engineStages = ["6_damage_analysis", "7_physics", "8_fraud", "9_cost", "9b_turnaround", "10_report"];
   let successful = 0;
   let failed = 0;
   let skipped = 0;
+  let degraded = 0;
 
   for (const key of engineStages) {
     const stage = stages[key];
     if (!stage || stage.status === "skipped") skipped++;
     else if (stage.status === "success") successful++;
+    else if (stage.status === "degraded") degraded++;
     else failed++;
   }
 
   const total = engineStages.length;
-  const successRate = total > 0 ? Math.round((successful / total) * 100) : 0;
+  const successRate = total > 0 ? Math.round(((successful + degraded) / total) * 100) : 0;
 
   const recommendedFixes: string[] = [];
   if (completenessScore < 70) {
@@ -939,6 +1068,9 @@ function buildSystemHealth(
   if (missingFields.includes("policeReportNumber")) {
     recommendedFixes.push("Police report number not found. Upload the police report as a separate document.");
   }
+  if (allAssumptions.length > 5) {
+    recommendedFixes.push(`${allAssumptions.length} assumptions were made during processing. Review the assumptions list to verify accuracy.`);
+  }
   for (const err of errors) {
     if (!recommendedFixes.includes(err.recommendation)) {
       recommendedFixes.push(err.recommendation);
@@ -947,7 +1079,7 @@ function buildSystemHealth(
 
   let overallStatus: "healthy" | "degraded" | "critical" = "healthy";
   if (failed > 0 || completenessScore < 50) overallStatus = "critical";
-  else if (skipped > 0 || completenessScore < 70) overallStatus = "degraded";
+  else if (skipped > 0 || degraded > 0 || completenessScore < 70) overallStatus = "degraded";
 
   return {
     dataExtractionCompleteness: completenessScore,
@@ -956,8 +1088,11 @@ function buildSystemHealth(
     successfulEngines: successful,
     failedEngines: failed,
     skippedEngines: skipped,
+    degradedEngines: degraded,
     missingFieldsList: missingFields,
     recommendedFixes,
     overallStatus,
+    totalAssumptions: allAssumptions.length,
+    totalRecoveryActions: allRecoveryActions.length,
   };
 }

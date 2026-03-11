@@ -1,17 +1,11 @@
 /**
  * pipeline-v2/stage-7-physics.ts
  *
- * STAGE 7 — PHYSICS ANALYSIS ENGINE
+ * STAGE 7 — PHYSICS ANALYSIS ENGINE (Self-Healing)
  *
- * Uses extracted information to compute accident physics.
- *
- * Required inputs (from ClaimRecord + Stage 6):
- *   vehicle_mass, impact_direction, estimated_speed, damage_zone
- *
- * Outputs:
- *   impact_force, impact_vector, energy_distribution, accident_reconstruction_summary
- *
+ * Computes accident physics from ClaimRecord + Stage 6 damage analysis.
  * GATED: Only runs when incidentType === "collision".
+ * NEVER halts — if physics engine fails, produces estimated output from damage data.
  */
 
 import type {
@@ -21,11 +15,10 @@ import type {
   Stage6Output,
   Stage7Output,
   AccidentSeverity,
+  Assumption,
+  RecoveryAction,
 } from "./types";
 
-/**
- * Build the structured input for the existing physics engine.
- */
 function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Output) {
   const vehicleData = {
     mass: claimRecord.vehicle.massKg,
@@ -44,7 +37,7 @@ function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Outpu
   };
 
   const damageAssessment = {
-    damagedComponents: damageAnalysis.damagedParts.map((p, i) => ({
+    damagedComponents: damageAnalysis.damagedParts.map((p) => ({
       name: p.name,
       location: p.location,
       damageType: p.damageType,
@@ -61,16 +54,10 @@ function buildPhysicsInput(claimRecord: ClaimRecord, damageAnalysis: Stage6Outpu
   return { vehicleData, accidentData, damageAssessment };
 }
 
-/**
- * Infer crush depth from damage analysis when not explicitly available.
- */
 function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord): number {
-  // Use extracted value if available
   if (claimRecord.accidentDetails.maxCrushDepthM && claimRecord.accidentDetails.maxCrushDepthM >= 0.05) {
     return claimRecord.accidentDetails.maxCrushDepthM;
   }
-
-  // Infer from component severities
   const severities = damageAnalysis.damagedParts.map(p => p.severity);
   if (severities.includes("catastrophic")) return 0.40;
   if (severities.includes("severe")) return 0.25;
@@ -78,9 +65,6 @@ function inferCrushDepth(damageAnalysis: Stage6Output, claimRecord: ClaimRecord)
   return 0.08;
 }
 
-/**
- * Map physics severity string to canonical type.
- */
 function mapSeverity(raw: string): AccidentSeverity {
   const s = (raw || "").toLowerCase();
   if (s === "catastrophic") return "catastrophic";
@@ -91,6 +75,68 @@ function mapSeverity(raw: string): AccidentSeverity {
   return "moderate";
 }
 
+/**
+ * Estimate physics from damage data when the physics engine fails.
+ * Uses simplified Newtonian mechanics.
+ */
+function estimatePhysicsFromDamage(
+  claimRecord: ClaimRecord,
+  damageAnalysis: Stage6Output,
+  assumptions: Assumption[]
+): Stage7Output {
+  const mass = claimRecord.vehicle.massKg;
+  const speedKmh = claimRecord.accidentDetails.estimatedSpeedKmh || 30;
+  const speedMs = speedKmh / 3.6;
+
+  // KE = 0.5 * m * v^2
+  const kineticEnergyJ = 0.5 * mass * speedMs * speedMs;
+  // Assume 60% of energy is dissipated in deformation
+  const energyDissipatedJ = kineticEnergyJ * 0.6;
+
+  // F = m * a, assume deceleration over crush depth
+  const crushDepth = inferCrushDepth(damageAnalysis, claimRecord);
+  const decelDistance = Math.max(crushDepth, 0.1);
+  // v^2 = 2*a*d => a = v^2 / (2*d)
+  const decelMs2 = (speedMs * speedMs) / (2 * decelDistance);
+  const forceN = mass * decelMs2;
+  const forceKn = forceN / 1000;
+  const decelerationG = decelMs2 / 9.81;
+
+  assumptions.push({
+    field: "physicsAnalysis",
+    assumedValue: `force=${forceKn.toFixed(1)}kN, speed=${speedKmh}km/h`,
+    reason: `Physics engine failed or unavailable. Estimated using simplified Newtonian mechanics: KE=½mv², F=ma with assumed crush depth of ${crushDepth.toFixed(2)}m.`,
+    strategy: "industry_average",
+    confidence: 35,
+    stage: "Stage 7",
+  });
+
+  const severity = damageAnalysis.overallSeverityScore > 70 ? "severe" :
+    damageAnalysis.overallSeverityScore > 40 ? "moderate" : "minor";
+
+  return {
+    impactForceKn: forceKn,
+    impactVector: {
+      direction: claimRecord.accidentDetails.collisionDirection,
+      magnitude: forceN,
+      angle: 0,
+    },
+    energyDistribution: {
+      kineticEnergyJ,
+      energyDissipatedJ,
+      energyDissipatedKj: energyDissipatedJ / 1000,
+    },
+    estimatedSpeedKmh: speedKmh,
+    deltaVKmh: speedKmh * 0.6, // Approximate delta-V
+    decelerationG,
+    accidentSeverity: severity as AccidentSeverity,
+    accidentReconstructionSummary: `Estimated physics: ${claimRecord.vehicle.make} ${claimRecord.vehicle.model} (${mass}kg) at ~${speedKmh}km/h. Force: ~${forceKn.toFixed(0)}kN. Energy dissipated: ~${(energyDissipatedJ/1000).toFixed(0)}kJ. (Simplified calculation — physics engine was unavailable.)`,
+    damageConsistencyScore: 50,
+    latentDamageProbability: { engine: 0.1, transmission: 0.1, suspension: 0.2, frame: 0.15, electrical: 0.05 },
+    physicsExecuted: false,
+  };
+}
+
 export async function runPhysicsStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
@@ -99,6 +145,9 @@ export async function runPhysicsStage(
   const start = Date.now();
   const isCollision = claimRecord.accidentDetails.incidentType === "collision";
 
+  const assumptions: Assumption[] = [];
+  const recoveryActions: RecoveryAction[] = [];
+
   if (!isCollision) {
     ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${claimRecord.accidentDetails.incidentType}", not collision`);
     return {
@@ -106,21 +155,20 @@ export async function runPhysicsStage(
       data: buildDefaultPhysicsOutput(false),
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions: [],
+      recoveryActions: [],
+      degraded: false,
     };
   }
 
   ctx.log("Stage 7", "Physics analysis starting");
 
   try {
-    // Import the existing physics engine
-    const { analyzeAccidentPhysics, validateQuoteAgainstPhysics } = await import("../accidentPhysics");
-
+    const { analyzeAccidentPhysics } = await import("../accidentPhysics");
     const { vehicleData, accidentData, damageAssessment } = buildPhysicsInput(claimRecord, damageAnalysis);
 
-    // Run physics analysis
     const physicsResult: any = await analyzeAccidentPhysics(vehicleData as any, accidentData as any, damageAssessment as any);
 
-    // Extract structured outputs
     const impactForceN = physicsResult.impactForce?.magnitude || 0;
     const impactForceKn = impactForceN / 1000;
     const kineticEnergyJ = physicsResult.kineticEnergy || 0;
@@ -162,15 +210,32 @@ export async function runPhysicsStage(
       data: output,
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions: [],
+      recoveryActions: [],
+      degraded: false,
     };
   } catch (err) {
-    ctx.log("Stage 7", `Physics analysis failed: ${String(err)}`);
+    ctx.log("Stage 7", `Physics engine failed: ${String(err)} — estimating from damage data`);
+
+    // Self-healing: estimate physics from damage data
+    const estimated = estimatePhysicsFromDamage(claimRecord, damageAnalysis, assumptions);
+    recoveryActions.push({
+      target: "physicsAnalysis",
+      strategy: "industry_average",
+      success: true,
+      description: `Physics engine failed: ${String(err)}. Estimated using simplified Newtonian mechanics.`,
+      recoveredValue: `force=${estimated.impactForceKn.toFixed(1)}kN`,
+    });
+
     return {
-      status: "failed",
-      data: buildDefaultPhysicsOutput(false),
+      status: "degraded",
+      data: estimated,
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions,
+      recoveryActions,
+      degraded: true,
     };
   }
 }

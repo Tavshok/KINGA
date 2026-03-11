@@ -1,13 +1,10 @@
 /**
  * pipeline-v2/stage-8-fraud.ts
  *
- * STAGE 8 — FRAUD ANALYSIS ENGINE
+ * STAGE 8 — FRAUD ANALYSIS ENGINE (Self-Healing)
  *
- * Combines damage analysis and physics analysis with claim data
- * to compute fraud risk indicators and scores.
- *
- * Input: ClaimRecord + Stage6Output + Stage7Output
- * Output: Stage8Output (fraud_risk_score, indicators, consistency)
+ * Combines damage + physics + claim data to compute fraud risk.
+ * NEVER halts — produces baseline fraud assessment even with missing data.
  */
 
 import type {
@@ -19,11 +16,10 @@ import type {
   Stage8Output,
   FraudIndicator,
   FraudRiskLevel,
+  Assumption,
+  RecoveryAction,
 } from "./types";
 
-/**
- * Compute fraud risk level from score (0-100).
- */
 function scoreToLevel(score: number): FraudRiskLevel {
   if (score >= 80) return "critical";
   if (score >= 60) return "high";
@@ -32,9 +28,6 @@ function scoreToLevel(score: number): FraudRiskLevel {
   return "minimal";
 }
 
-/**
- * Analyse damage consistency between reported damage and physics.
- */
 function analyseDamageConsistency(
   claimRecord: ClaimRecord,
   damageAnalysis: Stage6Output,
@@ -44,11 +37,10 @@ function analyseDamageConsistency(
   let consistencyScore = physicsAnalysis.damageConsistencyScore;
   const notes: string[] = [];
 
-  // Check if damage zones are consistent with impact direction
   const impactDir = claimRecord.accidentDetails.collisionDirection;
   const zones = damageAnalysis.damageZones.map(z => z.zone);
 
-  if (impactDir === "frontal" && !zones.includes("front")) {
+  if (impactDir === "frontal" && zones.length > 0 && !zones.includes("front")) {
     indicators.push({
       indicator: "damage_direction_mismatch",
       category: "consistency",
@@ -59,7 +51,7 @@ function analyseDamageConsistency(
     notes.push("Impact direction inconsistent with damage zones.");
   }
 
-  if (impactDir === "rear" && !zones.includes("rear")) {
+  if (impactDir === "rear" && zones.length > 0 && !zones.includes("rear")) {
     indicators.push({
       indicator: "damage_direction_mismatch",
       category: "consistency",
@@ -70,12 +62,10 @@ function analyseDamageConsistency(
     notes.push("Impact direction inconsistent with damage zones.");
   }
 
-  // Check if severity is consistent with physics
   if (physicsAnalysis.physicsExecuted) {
     const physSeverity = physicsAnalysis.accidentSeverity;
     const dmgSeverity = damageAnalysis.overallSeverityScore;
 
-    // High damage severity but low physics severity = suspicious
     if (dmgSeverity > 70 && (physSeverity === "minor" || physSeverity === "cosmetic")) {
       indicators.push({
         indicator: "severity_physics_mismatch",
@@ -88,7 +78,6 @@ function analyseDamageConsistency(
     }
   }
 
-  // Check for suspicious damage patterns
   if (damageAnalysis.damagedParts.length > 15) {
     indicators.push({
       indicator: "excessive_damage_count",
@@ -106,9 +95,6 @@ function analyseDamageConsistency(
   };
 }
 
-/**
- * Analyse quote deviation — compare quoted cost to expected cost.
- */
 function analyseQuoteDeviation(claimRecord: ClaimRecord): {
   deviation: number | null;
   indicators: FraudIndicator[];
@@ -120,14 +106,10 @@ function analyseQuoteDeviation(claimRecord: ClaimRecord): {
     return { deviation: null, indicators };
   }
 
-  // We'll compute deviation later in Stage 9 when we have expected cost
-  // For now, flag if quote seems unusually high for the damage described
   const componentCount = claimRecord.damage.components.length;
   const avgCostPerComponent = quotedCents / Math.max(1, componentCount);
 
-  // Flag if average cost per component exceeds reasonable threshold
-  // (Using ZAR/USD agnostic threshold — $500 per component is a rough flag)
-  if (avgCostPerComponent > 50000) { // 500.00 in cents
+  if (avgCostPerComponent > 50000) {
     indicators.push({
       indicator: "high_cost_per_component",
       category: "financial",
@@ -139,9 +121,6 @@ function analyseQuoteDeviation(claimRecord: ClaimRecord): {
   return { deviation: null, indicators };
 }
 
-/**
- * Check for missing documentation flags.
- */
 function analyseDocumentation(claimRecord: ClaimRecord): FraudIndicator[] {
   const indicators: FraudIndicator[] = [];
 
@@ -184,23 +163,70 @@ export async function runFraudAnalysisStage(
   const start = Date.now();
   ctx.log("Stage 8", "Fraud analysis starting");
 
+  const assumptions: Assumption[] = [];
+  const recoveryActions: RecoveryAction[] = [];
+  let isDegraded = false;
+
   try {
-    // Collect all fraud indicators
     const allIndicators: FraudIndicator[] = [];
 
-    // 1. Damage consistency analysis
-    const consistency = analyseDamageConsistency(claimRecord, damageAnalysis, physicsAnalysis);
-    allIndicators.push(...consistency.indicators);
+    // 1. Damage consistency
+    let consistency: { score: number; notes: string; indicators: FraudIndicator[] };
+    try {
+      consistency = analyseDamageConsistency(claimRecord, damageAnalysis, physicsAnalysis);
+      allIndicators.push(...consistency.indicators);
+    } catch (e) {
+      isDegraded = true;
+      consistency = { score: 50, notes: "Consistency analysis failed.", indicators: [] };
+      recoveryActions.push({
+        target: "damageConsistency",
+        strategy: "default_value",
+        success: true,
+        description: `Damage consistency analysis failed: ${String(e)}. Using neutral score of 50.`,
+      });
+    }
 
-    // 2. Quote deviation analysis
-    const quoteAnalysis = analyseQuoteDeviation(claimRecord);
-    allIndicators.push(...quoteAnalysis.indicators);
+    // 2. Quote deviation
+    try {
+      const quoteAnalysis = analyseQuoteDeviation(claimRecord);
+      allIndicators.push(...quoteAnalysis.indicators);
+    } catch (e) {
+      isDegraded = true;
+      recoveryActions.push({
+        target: "quoteDeviation",
+        strategy: "default_value",
+        success: true,
+        description: `Quote deviation analysis failed: ${String(e)}. Skipping.`,
+      });
+    }
 
-    // 3. Documentation analysis
-    const docIndicators = analyseDocumentation(claimRecord);
-    allIndicators.push(...docIndicators);
+    // 3. Documentation
+    try {
+      const docIndicators = analyseDocumentation(claimRecord);
+      allIndicators.push(...docIndicators);
+    } catch (e) {
+      isDegraded = true;
+      recoveryActions.push({
+        target: "documentation",
+        strategy: "default_value",
+        success: true,
+        description: `Documentation analysis failed: ${String(e)}. Skipping.`,
+      });
+    }
 
-    // Calculate overall fraud risk score (weighted average of indicators)
+    // 4. Missing data penalty
+    if (claimRecord.dataQuality.completenessScore < 30) {
+      isDegraded = true;
+      assumptions.push({
+        field: "fraudRiskScore",
+        assumedValue: "limited_data",
+        reason: `Data completeness is only ${claimRecord.dataQuality.completenessScore}%. Fraud analysis has limited confidence.`,
+        strategy: "partial_data",
+        confidence: 30,
+        stage: "Stage 8",
+      });
+    }
+
     const totalIndicatorScore = allIndicators.reduce((sum, i) => sum + i.score, 0);
     const fraudRiskScore = Math.min(100, totalIndicatorScore);
     const fraudRiskLevel = scoreToLevel(fraudRiskScore);
@@ -209,19 +235,10 @@ export async function runFraudAnalysisStage(
       fraudRiskScore,
       fraudRiskLevel,
       indicators: allIndicators,
-      quoteDeviation: quoteAnalysis.deviation,
-      repairerHistory: {
-        flagged: false,
-        notes: "No repairer history data available for analysis.",
-      },
-      claimantClaimFrequency: {
-        flagged: false,
-        notes: "No historical claim frequency data available.",
-      },
-      vehicleClaimHistory: {
-        flagged: false,
-        notes: "No vehicle claim history data available.",
-      },
+      quoteDeviation: null,
+      repairerHistory: { flagged: false, notes: "No repairer history data available for analysis." },
+      claimantClaimFrequency: { flagged: false, notes: "No historical claim frequency data available." },
+      vehicleClaimHistory: { flagged: false, notes: "No vehicle claim history data available." },
       damageConsistencyScore: consistency.score,
       damageConsistencyNotes: consistency.notes,
     };
@@ -229,19 +246,53 @@ export async function runFraudAnalysisStage(
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
 
     return {
-      status: "success",
+      status: isDegraded ? "degraded" : "success",
       data: output,
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions,
+      recoveryActions,
+      degraded: isDegraded,
     };
   } catch (err) {
-    ctx.log("Stage 8", `Fraud analysis failed: ${String(err)}`);
+    ctx.log("Stage 8", `Fraud analysis failed: ${String(err)} — producing baseline assessment`);
+
     return {
-      status: "failed",
-      data: null,
+      status: "degraded",
+      data: {
+        fraudRiskScore: 50,
+        fraudRiskLevel: "medium",
+        indicators: [{
+          indicator: "analysis_failure",
+          category: "system",
+          score: 50,
+          description: `Fraud analysis engine failed: ${String(err)}. Defaulting to medium risk for manual review.`,
+        }],
+        quoteDeviation: null,
+        repairerHistory: { flagged: false, notes: "Analysis failed." },
+        claimantClaimFrequency: { flagged: false, notes: "Analysis failed." },
+        vehicleClaimHistory: { flagged: false, notes: "Analysis failed." },
+        damageConsistencyScore: 50,
+        damageConsistencyNotes: "Unable to assess — analysis engine failed.",
+      },
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions: [{
+        field: "fraudRiskScore",
+        assumedValue: 50,
+        reason: `Fraud analysis failed: ${String(err)}. Defaulting to medium risk (50/100) to flag for manual review.`,
+        strategy: "default_value",
+        confidence: 20,
+        stage: "Stage 8",
+      }],
+      recoveryActions: [{
+        target: "fraud_analysis_error",
+        strategy: "default_value",
+        success: true,
+        description: `Fraud analysis error caught. Defaulting to medium risk for manual review.`,
+      }],
+      degraded: true,
     };
   }
 }

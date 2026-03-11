@@ -1,11 +1,12 @@
 /**
  * pipeline-v2/stage-3-structured-extraction.ts
  *
- * STAGE 3 — STRUCTURED DATA EXTRACTION
+ * STAGE 3 — STRUCTURED DATA EXTRACTION (Self-Healing)
  *
- * From each document's extracted text, extract structured fields
- * and store them in ExtractedClaimFields objects.
- * Missing fields are marked as NULL — never guessed.
+ * From each document's extracted text, extract structured fields.
+ * Missing fields are marked as NULL at this stage.
+ * If a document extraction fails, continues with remaining documents.
+ * NEVER halts — produces empty extraction if all documents fail.
  */
 
 import type {
@@ -15,8 +16,8 @@ import type {
   Stage2Output,
   Stage3Output,
   ExtractedClaimFields,
-  DamagedComponentExtracted,
-  RepairLineItem,
+  Assumption,
+  RecoveryAction,
 } from "./types";
 import { invokeLLM } from "../_core/llm";
 
@@ -24,10 +25,6 @@ function llmCall(params: any): Promise<any> {
   return invokeLLM(params);
 }
 
-/**
- * The JSON schema for structured field extraction from a document.
- * This schema is used for both PDF and photo-based extraction.
- */
 const EXTRACTION_SCHEMA = {
   type: "json_schema" as const,
   json_schema: {
@@ -103,9 +100,6 @@ const EXTRACTION_SCHEMA = {
   },
 };
 
-/**
- * Extract structured fields from a PDF document using LLM.
- */
 async function extractFieldsFromPdf(
   pdfUrl: string,
   rawText: string,
@@ -154,14 +148,10 @@ Extract all available structured fields.`,
   return mapToExtractedFields(parsed, 0);
 }
 
-/**
- * Extract structured fields from damage photos using LLM vision.
- */
 async function extractFieldsFromPhotos(
   photoUrls: string[],
   ctx: PipelineContext
 ): Promise<ExtractedClaimFields> {
-  // Build image content array for LLM
   const imageContent: any[] = photoUrls.slice(0, 5).map(url => ({
     type: "image_url",
     image_url: { url, detail: "high" },
@@ -195,12 +185,9 @@ RULES:
 
   const content = response.choices?.[0]?.message?.content || "{}";
   const parsed = JSON.parse(content);
-  return mapToExtractedFields(parsed, -1); // -1 for photo-based extraction
+  return mapToExtractedFields(parsed, -1);
 }
 
-/**
- * Map raw LLM output to typed ExtractedClaimFields.
- */
 function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedClaimFields {
   return {
     claimId: raw.claimId || null,
@@ -248,6 +235,11 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
   };
 }
 
+/** Create an empty extraction with all fields null */
+function emptyExtraction(): ExtractedClaimFields {
+  return mapToExtractedFields({}, -1);
+}
+
 export async function runStructuredExtractionStage(
   ctx: PipelineContext,
   stage1: Stage1Output,
@@ -256,34 +248,87 @@ export async function runStructuredExtractionStage(
   const start = Date.now();
   ctx.log("Stage 3", "Structured data extraction starting");
 
+  const assumptions: Assumption[] = [];
+  const recoveryActions: RecoveryAction[] = [];
+  let isDegraded = false;
+
   try {
     const perDocumentExtractions: ExtractedClaimFields[] = [];
 
-    // Extract from the primary PDF document
-    const pdfDocs = stage1.documents.filter(d => d.mimeType === "application/pdf");
-    for (const pdfDoc of pdfDocs) {
-      const extractedText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex);
-      const rawText = extractedText?.rawText || "";
-
-      ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName}`);
-      const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, rawText, ctx);
-      fields.sourceDocumentIndex = pdfDoc.documentIndex;
-      perDocumentExtractions.push(fields);
-
-      ctx.log("Stage 3", `PDF extraction complete. Vehicle: ${fields.vehicleMake || 'unknown'} ${fields.vehicleModel || 'unknown'}, Components: ${fields.damagedComponents.length}`);
+    if (stage1.documents.length === 0) {
+      // Self-healing: no documents — produce empty extraction from DB fields
+      isDegraded = true;
+      assumptions.push({
+        field: "perDocumentExtractions",
+        assumedValue: "empty",
+        reason: "No documents available for structured extraction. Will rely on claim database fields at assembly stage.",
+        strategy: "partial_data",
+        confidence: 20,
+        stage: "Stage 3",
+      });
+      ctx.log("Stage 3", "DEGRADED: No documents to extract from");
     }
 
-    // Extract from damage photos (grouped as one extraction)
+    // Extract from PDF documents
+    const pdfDocs = stage1.documents.filter(d => d.mimeType === "application/pdf");
+    for (const pdfDoc of pdfDocs) {
+      try {
+        const extractedText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex);
+        const rawText = extractedText?.rawText || "";
+
+        ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName}`);
+        const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, rawText, ctx);
+        fields.sourceDocumentIndex = pdfDoc.documentIndex;
+        perDocumentExtractions.push(fields);
+
+        ctx.log("Stage 3", `PDF extraction complete. Vehicle: ${fields.vehicleMake || 'unknown'} ${fields.vehicleModel || 'unknown'}, Components: ${fields.damagedComponents.length}`);
+      } catch (docErr) {
+        // Self-healing: individual PDF extraction failed — continue
+        isDegraded = true;
+        ctx.log("Stage 3", `Failed to extract from PDF ${pdfDoc.fileName}: ${String(docErr)} — skipping`);
+        recoveryActions.push({
+          target: `pdf_extraction_${pdfDoc.documentIndex}`,
+          strategy: "partial_data",
+          success: true,
+          description: `PDF extraction failed for ${pdfDoc.fileName}: ${String(docErr)}. Continuing with other documents.`,
+        });
+      }
+    }
+
+    // Extract from damage photos
     const photoDocs = stage1.documents.filter(d => d.documentType === "vehicle_photos");
     if (photoDocs.length > 0) {
       const photoUrls = photoDocs.map(d => d.sourceUrl).filter(Boolean) as string[];
       if (photoUrls.length > 0) {
-        ctx.log("Stage 3", `Extracting structured fields from ${photoUrls.length} damage photo(s)`);
-        const photoFields = await extractFieldsFromPhotos(photoUrls, ctx);
-        photoFields.uploadedImageUrls = photoUrls;
-        perDocumentExtractions.push(photoFields);
-        ctx.log("Stage 3", `Photo extraction complete. Components: ${photoFields.damagedComponents.length}`);
+        try {
+          ctx.log("Stage 3", `Extracting structured fields from ${photoUrls.length} damage photo(s)`);
+          const photoFields = await extractFieldsFromPhotos(photoUrls, ctx);
+          photoFields.uploadedImageUrls = photoUrls;
+          perDocumentExtractions.push(photoFields);
+          ctx.log("Stage 3", `Photo extraction complete. Components: ${photoFields.damagedComponents.length}`);
+        } catch (photoErr) {
+          isDegraded = true;
+          ctx.log("Stage 3", `Failed to extract from photos: ${String(photoErr)} — skipping`);
+          recoveryActions.push({
+            target: "photo_extraction",
+            strategy: "partial_data",
+            success: true,
+            description: `Photo extraction failed: ${String(photoErr)}. Damage assessment will rely on text descriptions.`,
+          });
+        }
       }
+    }
+
+    if (perDocumentExtractions.length === 0 && stage1.documents.length > 0) {
+      isDegraded = true;
+      assumptions.push({
+        field: "perDocumentExtractions",
+        assumedValue: "all_failed",
+        reason: "All document extractions failed. Will rely on claim database fields at assembly stage.",
+        strategy: "partial_data",
+        confidence: 15,
+        stage: "Stage 3",
+      });
     }
 
     const output: Stage3Output = {
@@ -293,19 +338,38 @@ export async function runStructuredExtractionStage(
     ctx.log("Stage 3", `Structured extraction complete. ${perDocumentExtractions.length} extraction(s) produced.`);
 
     return {
-      status: "success",
+      status: isDegraded ? "degraded" : "success",
       data: output,
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions,
+      recoveryActions,
+      degraded: isDegraded,
     };
   } catch (err) {
-    ctx.log("Stage 3", `Structured extraction failed: ${String(err)}`);
+    ctx.log("Stage 3", `Structured extraction failed completely: ${String(err)} — producing empty output`);
+
     return {
-      status: "failed",
-      data: null,
+      status: "degraded",
+      data: { perDocumentExtractions: [] },
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
+      assumptions: [{
+        field: "perDocumentExtractions",
+        assumedValue: "empty",
+        reason: `Complete extraction failure: ${String(err)}. Pipeline will rely on claim database fields.`,
+        strategy: "default_value",
+        confidence: 10,
+        stage: "Stage 3",
+      }],
+      recoveryActions: [{
+        target: "extraction_error_recovery",
+        strategy: "default_value",
+        success: true,
+        description: `Extraction error caught. Producing empty extraction to allow pipeline to continue.`,
+      }],
+      degraded: true,
     };
   }
 }

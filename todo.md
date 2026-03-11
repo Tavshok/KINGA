@@ -9830,3 +9830,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Create tRPC procedure for debug mode
 - [x] Build frontend Debug Mode UI page
 - [x] Test with both claims (15/15 vitest tests pass)
+
+## Self-Healing Claim Processing Engine
+- [x] Add Assumption, RecoveryAction, MissingDocument types
+- [x] Extend StageResult with assumptions, recoveryActions, degraded fields
+- [x] Extend PipelineStageSummary with degraded, assumptionCount, recoveryActionCount
+- [x] Stage 1 — Ingestion: never halt, track missing documents, add recovery actions
+- [x] Stage 2 — Extraction: secondary OCR on low confidence, never halt
+- [x] Stage 3 — Structured Extraction: per-document error recovery, cross-document search
+- [x] Stage 4 — Validation: handle empty extractions, add recovery strategies
+- [x] Stage 5 — Assembly: produce degraded ClaimRecord with assumptions, never halt
+- [x] Stage 6 — Damage Analysis: never halt, produce degraded output with assumptions
+- [x] Stage 7 — Physics Analysis: never halt, produce degraded output with assumptions
+- [x] Stage 8 — Fraud Analysis: never halt, produce degraded output with assumptions
+- [x] Stage 9 — Cost Optimisation: never halt, produce degraded output with assumptions
+- [x] Stage 9b — Turnaround Time Analysis: new stage, estimate repair timeline
+- [x] Stage 10 — Report: always produce output, include confidence, assumptions, missing data
+- [x] Update orchestrator to never abort, collect all assumptions/recoveries
+- [x] Update debug runner for self-healing (degraded status, assumptions tracking)
+- [x] Update PipelineDebug frontend page for self-healing fields
+- [x] End-to-end test with both claims: PASS (25 vitest tests pass)

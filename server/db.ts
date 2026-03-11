@@ -469,7 +469,7 @@ export async function triggerAiAssessment(claimId: number) {
   const result = await runPipelineV2(pipelineCtx);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
-  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, summary } = result;
+  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary } = result;
 
   // Map fraud risk level to DB enum
   const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical'> = {
@@ -590,7 +590,17 @@ export async function triggerAiAssessment(claimId: number) {
     inferredHiddenDamagesJson: hiddenDamagesJson,
     costIntelligenceJson,
     damagePhotosJson: claimRecord ? JSON.stringify(claimRecord.damage.imageUrls) : '[]',
-    pipelineRunSummary: JSON.stringify(summary.stages),
+    pipelineRunSummary: JSON.stringify({
+      stages: summary.stages,
+      turnaroundEstimate: turnaroundAnalysis ? {
+        estimatedRepairDays: turnaroundAnalysis.estimatedRepairDays,
+        bestCaseDays: turnaroundAnalysis.bestCaseDays,
+        worstCaseDays: turnaroundAnalysis.worstCaseDays,
+        confidence: turnaroundAnalysis.confidence,
+        breakdown: turnaroundAnalysis.breakdown,
+        bottlenecks: turnaroundAnalysis.bottlenecks,
+      } : null,
+    }),
   });
 
   // Update claim status to complete

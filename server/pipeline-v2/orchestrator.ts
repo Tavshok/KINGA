@@ -1,11 +1,11 @@
 /**
  * pipeline-v2/orchestrator.ts
  *
- * Pipeline Orchestrator — wires all 10 stages together.
+ * Pipeline Orchestrator — Self-Healing Edition
  *
- * This is the single entry point for the new deterministic pipeline.
- * Each stage receives typed input and returns typed output.
- * The orchestrator manages the flow and saves results to the database.
+ * Wires all stages together. NEVER aborts — every stage either succeeds,
+ * degrades, or produces default output. Assumptions and recovery actions
+ * are collected from all stages and passed to Stage 10 for the final report.
  */
 
 import type {
@@ -22,7 +22,10 @@ import type {
   Stage7Output,
   Stage8Output,
   Stage9Output,
+  TurnaroundTimeOutput,
   Stage10Output,
+  Assumption,
+  RecoveryAction,
 } from "./types";
 
 import { runIngestionStage } from "./stage-1-ingestion";
@@ -34,13 +37,12 @@ import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runPhysicsStage } from "./stage-7-physics";
 import { runFraudAnalysisStage } from "./stage-8-fraud";
 import { runCostOptimisationStage } from "./stage-9-cost";
+import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
 
 /**
- * Run the full 10-stage pipeline.
- *
- * Returns a PipelineRunSummary with per-stage status,
- * plus the final ClaimRecord and report for DB persistence.
+ * Run the full self-healing pipeline.
+ * NEVER throws — always returns a result with whatever data was produced.
  */
 export async function runPipelineV2(
   ctx: PipelineContext
@@ -52,11 +54,14 @@ export async function runPipelineV2(
   physicsAnalysis: Stage7Output | null;
   fraudAnalysis: Stage8Output | null;
   costAnalysis: Stage9Output | null;
+  turnaroundAnalysis: TurnaroundTimeOutput | null;
 }> {
   const pipelineStart = Date.now();
   const stages: Record<string, PipelineStageSummary> = {};
+  const allAssumptions: Assumption[] = [];
+  const allRecoveryActions: RecoveryAction[] = [];
 
-  ctx.log("Pipeline", `Starting 10-stage pipeline for claim ${ctx.claimId}`);
+  ctx.log("Pipeline", `Starting self-healing pipeline for claim ${ctx.claimId}`);
 
   let stage1Data: Stage1Output | null = null;
   let stage2Data: Stage2Output | null = null;
@@ -67,100 +72,133 @@ export async function runPipelineV2(
   let stage7Data: Stage7Output | null = null;
   let stage8Data: Stage8Output | null = null;
   let stage9Data: Stage9Output | null = null;
+  let stage9bData: TurnaroundTimeOutput | null = null;
   let stage10Data: Stage10Output | null = null;
+  let claimRecord: ClaimRecord | null = null;
+
+  // Helper to record stage summary
+  const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
+    stages[key] = {
+      status: result.status as any,
+      durationMs: result.durationMs,
+      savedToDb: result.savedToDb,
+      error: result.error,
+      degraded: result.degraded || false,
+      assumptionCount: result.assumptions?.length || 0,
+      recoveryActionCount: result.recoveryActions?.length || 0,
+    };
+    if (result.assumptions) allAssumptions.push(...result.assumptions);
+    if (result.recoveryActions) allRecoveryActions.push(...result.recoveryActions);
+  };
 
   // ── STAGE 1: Document Ingestion ──────────────────────────────────────
   const s1 = await runIngestionStage(ctx);
-  stages["1_ingestion"] = { status: s1.status, durationMs: s1.durationMs, savedToDb: s1.savedToDb, error: s1.error };
-  if (s1.status === "failed" || !s1.data) {
-    ctx.log("Pipeline", "ABORTED at Stage 1 — no documents to process");
-    return buildResult(stages, pipelineStart, ctx.claimId, null, null, null, null, null, null);
-  }
-  stage1Data = s1.data;
+  recordStage("1_ingestion", s1);
+  stage1Data = s1.data; // May be degraded but always has data
 
   // ── STAGE 2: OCR & Text Extraction ───────────────────────────────────
-  const s2 = await runExtractionStage(ctx, stage1Data);
-  stages["2_extraction"] = { status: s2.status, durationMs: s2.durationMs, savedToDb: s2.savedToDb, error: s2.error };
-  if (s2.status === "failed" || !s2.data) {
-    ctx.log("Pipeline", "ABORTED at Stage 2 — text extraction failed");
-    return buildResult(stages, pipelineStart, ctx.claimId, null, null, null, null, null, null);
+  if (stage1Data) {
+    const s2 = await runExtractionStage(ctx, stage1Data);
+    recordStage("2_extraction", s2);
+    stage2Data = s2.data;
+  } else {
+    stages["2_extraction"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No Stage 1 data", degraded: true, assumptionCount: 0, recoveryActionCount: 0 };
   }
-  stage2Data = s2.data;
 
   // ── STAGE 3: Structured Data Extraction ──────────────────────────────
-  const s3 = await runStructuredExtractionStage(ctx, stage1Data, stage2Data);
-  stages["3_structured_extraction"] = { status: s3.status, durationMs: s3.durationMs, savedToDb: s3.savedToDb, error: s3.error };
-  if (s3.status === "failed" || !s3.data) {
-    ctx.log("Pipeline", "ABORTED at Stage 3 — structured extraction failed");
-    return buildResult(stages, pipelineStart, ctx.claimId, null, null, null, null, null, null);
+  if (stage1Data && stage2Data) {
+    const s3 = await runStructuredExtractionStage(ctx, stage1Data, stage2Data);
+    recordStage("3_structured_extraction", s3);
+    stage3Data = s3.data;
+  } else {
+    stages["3_structured_extraction"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No Stage 1/2 data", degraded: true, assumptionCount: 0, recoveryActionCount: 0 };
   }
-  stage3Data = s3.data;
 
   // ── STAGE 4: Data Validation ─────────────────────────────────────────
-  const s4 = await runValidationStage(ctx, stage3Data);
-  stages["4_validation"] = { status: s4.status, durationMs: s4.durationMs, savedToDb: s4.savedToDb, error: s4.error };
-  if (s4.status === "failed" || !s4.data) {
-    ctx.log("Pipeline", "ABORTED at Stage 4 — validation failed");
-    return buildResult(stages, pipelineStart, ctx.claimId, null, null, null, null, null, null);
+  if (stage3Data) {
+    const s4 = await runValidationStage(ctx, stage3Data);
+    recordStage("4_validation", s4);
+    stage4Data = s4.data;
+  } else {
+    // Self-healing: build minimal Stage4 from DB claim data
+    ctx.log("Stage 4", "DEGRADED: No Stage 3 data — building minimal validation from DB");
+    stage4Data = buildMinimalStage4(ctx);
+    stages["4_validation"] = { status: "degraded", durationMs: 0, savedToDb: false, error: "No Stage 3 data — used DB fallback", degraded: true, assumptionCount: 1, recoveryActionCount: 1 };
+    allAssumptions.push({
+      field: "validatedFields",
+      assumedValue: "minimal_from_db",
+      reason: "Structured extraction failed. Built minimal validated fields from database claim record.",
+      strategy: "default_value",
+      confidence: 20,
+      stage: "Stage 4",
+    });
   }
-  stage4Data = s4.data;
 
   // ── STAGE 5: Claim Data Assembly ─────────────────────────────────────
-  const s5 = await runAssemblyStage(ctx, stage4Data);
-  stages["5_assembly"] = { status: s5.status, durationMs: s5.durationMs, savedToDb: s5.savedToDb, error: s5.error };
-  if (s5.status === "failed" || !s5.data) {
-    ctx.log("Pipeline", "ABORTED at Stage 5 — claim assembly failed");
-    return buildResult(stages, pipelineStart, ctx.claimId, null, null, null, null, null, null);
+  if (stage4Data) {
+    const s5 = await runAssemblyStage(ctx, stage4Data);
+    recordStage("5_assembly", s5);
+    stage5Data = s5.data;
+    if (stage5Data) {
+      claimRecord = stage5Data.claimRecord;
+    }
   }
-  stage5Data = s5.data;
-  const claimRecord = stage5Data.claimRecord;
+
+  if (!claimRecord) {
+    // Last resort: build minimal ClaimRecord from DB
+    ctx.log("Stage 5", "DEGRADED: Assembly failed — building minimal ClaimRecord from DB");
+    claimRecord = buildMinimalClaimRecord(ctx);
+    stages["5_assembly"] = { status: "degraded", durationMs: 0, savedToDb: false, error: "Assembly failed — used DB fallback", degraded: true, assumptionCount: 1, recoveryActionCount: 1 };
+    allAssumptions.push({
+      field: "claimRecord",
+      assumedValue: "minimal_from_db",
+      reason: "Claim assembly failed completely. Built minimal ClaimRecord from database fields only.",
+      strategy: "default_value",
+      confidence: 10,
+      stage: "Stage 5",
+    });
+  }
 
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
   const s6 = await runDamageAnalysisStage(ctx, claimRecord);
-  stages["6_damage_analysis"] = { status: s6.status, durationMs: s6.durationMs, savedToDb: s6.savedToDb, error: s6.error };
-  if (s6.status === "failed" || !s6.data) {
-    ctx.log("Pipeline", "ABORTED at Stage 6 — damage analysis failed");
-    return buildResult(stages, pipelineStart, ctx.claimId, claimRecord, null, null, null, null, null);
-  }
-  stage6Data = s6.data;
+  recordStage("6_damage_analysis", s6);
+  stage6Data = s6.data; // Always has data (self-healing)
 
   // ── STAGE 7: Physics Analysis ────────────────────────────────────────
-  const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data);
-  stages["7_physics"] = { status: s7.status, durationMs: s7.durationMs, savedToDb: s7.savedToDb, error: s7.error };
-  // Physics can be skipped (non-collision) — still continue
-  stage7Data = s7.data!;
+  const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data!);
+  recordStage("7_physics", s7);
+  stage7Data = s7.data; // Always has data (self-healing)
 
   // ── STAGE 8: Fraud Analysis ──────────────────────────────────────────
-  const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data, stage7Data);
-  stages["8_fraud"] = { status: s8.status, durationMs: s8.durationMs, savedToDb: s8.savedToDb, error: s8.error };
-  if (s8.status === "failed" || !s8.data) {
-    ctx.log("Pipeline", "WARNING: Stage 8 fraud analysis failed — continuing with defaults");
-    stage8Data = buildDefaultFraudOutput();
-  } else {
-    stage8Data = s8.data;
-  }
+  const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!);
+  recordStage("8_fraud", s8);
+  stage8Data = s8.data; // Always has data (self-healing)
 
   // ── STAGE 9: Cost Optimisation ───────────────────────────────────────
-  const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data, stage7Data);
-  stages["9_cost"] = { status: s9.status, durationMs: s9.durationMs, savedToDb: s9.savedToDb, error: s9.error };
-  if (s9.status === "failed" || !s9.data) {
-    ctx.log("Pipeline", "WARNING: Stage 9 cost optimisation failed — continuing with defaults");
-    stage9Data = buildDefaultCostOutput();
-  } else {
-    stage9Data = s9.data;
-  }
+  const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!);
+  recordStage("9_cost", s9);
+  stage9Data = s9.data; // Always has data (self-healing)
+
+  // ── STAGE 9b: Turnaround Time Analysis ───────────────────────────────
+  const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
+  recordStage("9b_turnaround", s9b);
+  stage9bData = s9b.data; // Always has data (self-healing)
 
   // ── STAGE 10: Report Generation ──────────────────────────────────────
-  const s10 = await runReportGenerationStage(ctx, claimRecord, stage6Data, stage7Data, stage8Data, stage9Data);
-  stages["10_report"] = { status: s10.status, durationMs: s10.durationMs, savedToDb: s10.savedToDb, error: s10.error };
-  stage10Data = s10.data || null;
+  const s10 = await runReportGenerationStage(
+    ctx, claimRecord,
+    stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
+    allAssumptions
+  );
+  recordStage("10_report", s10);
+  stage10Data = s10.data;
 
-  ctx.log("Pipeline", `Pipeline complete. Total: ${Date.now() - pipelineStart}ms`);
+  ctx.log("Pipeline", `Pipeline complete. Total: ${Date.now() - pipelineStart}ms, Assumptions: ${allAssumptions.length}, Recoveries: ${allRecoveryActions.length}`);
 
   return buildResult(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
-    stage6Data, stage7Data, stage8Data, stage9Data
+    stage6Data, stage7Data, stage8Data, stage9Data, stage9bData
   );
 }
 
@@ -173,7 +211,8 @@ function buildResult(
   damageAnalysis: Stage6Output | null,
   physicsAnalysis: Stage7Output | null,
   fraudAnalysis: Stage8Output | null,
-  costAnalysis: Stage9Output | null
+  costAnalysis: Stage9Output | null,
+  turnaroundAnalysis: TurnaroundTimeOutput | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -190,38 +229,104 @@ function buildResult(
     physicsAnalysis,
     fraudAnalysis,
     costAnalysis,
+    turnaroundAnalysis,
   };
 }
 
-function buildDefaultFraudOutput(): Stage8Output {
+/**
+ * Build minimal Stage4Output from DB claim data when extraction pipeline fails.
+ */
+function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
   return {
-    fraudRiskScore: 0,
-    fraudRiskLevel: "minimal",
-    indicators: [],
-    quoteDeviation: null,
-    repairerHistory: { flagged: false, notes: "Analysis unavailable." },
-    claimantClaimFrequency: { flagged: false, notes: "Analysis unavailable." },
-    vehicleClaimHistory: { flagged: false, notes: "Analysis unavailable." },
-    damageConsistencyScore: 50,
-    damageConsistencyNotes: "Fraud analysis was not completed.",
-  };
-}
-
-function buildDefaultCostOutput(): Stage9Output {
-  return {
-    expectedRepairCostCents: 0,
-    quoteDeviationPct: null,
-    recommendedCostRange: { lowCents: 0, highCents: 0 },
-    savingsOpportunityCents: 0,
-    breakdown: {
-      partsCostCents: 0,
-      labourCostCents: 0,
-      paintCostCents: 0,
-      hiddenDamageCostCents: 0,
-      totalCents: 0,
+    validatedFields: {
+      claimId: String(ctx.claimId),
+      claimantName: ctx.claim.claimantName || null,
+      driverName: ctx.claim.driverName || null,
+      vehicleMake: ctx.claim.vehicleMake || null,
+      vehicleModel: ctx.claim.vehicleModel || null,
+      vehicleYear: ctx.claim.vehicleYear || null,
+      vehicleRegistration: ctx.claim.vehicleRegistration || null,
+      vehicleVin: null,
+      vehicleColour: null,
+      vehicleEngineNumber: null,
+      vehicleMileage: ctx.claim.vehicleMileage || null,
+      accidentDate: ctx.claim.accidentDate || null,
+      accidentLocation: ctx.claim.accidentLocation || null,
+      accidentDescription: ctx.claim.incidentDescription || null,
+      accidentType: null,
+      incidentType: ctx.claim.incidentType || null,
+      impactPoint: null,
+      estimatedSpeedKmh: null,
+      maxCrushDepthM: null,
+      totalDamageAreaM2: null,
+      structuralDamage: null,
+      airbagDeployment: null,
+      policeReportNumber: null,
+      policeStation: null,
+      damageDescription: null,
+      damagedComponents: [],
+      panelBeater: null,
+      repairerCompany: null,
+      assessorName: null,
+      quoteTotalCents: null,
+      labourCostCents: null,
+      partsCostCents: null,
+      uploadedImageUrls: [],
+      thirdPartyVehicle: null,
+      thirdPartyRegistration: null,
+      sourceDocumentIndex: 0,
     },
-    labourRateUsdPerHour: 0,
-    marketRegion: "DEFAULT",
-    currency: "USD",
+    completenessScore: 10,
+    missingFields: ["most_fields"],
+    issues: [{
+      field: "all",
+      severity: "critical" as const,
+      message: "Extraction pipeline failed \u2014 using database fields only",
+      secondaryExtractionAttempted: false,
+      resolved: false,
+    }],
+  };
+}
+
+/**
+ * Build minimal ClaimRecord from DB claim data when assembly fails.
+ */
+function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
+  return {
+    claimId: ctx.claimId,
+    tenantId: ctx.tenantId,
+    vehicle: {
+      make: ctx.claim.vehicleMake || "Unknown",
+      model: ctx.claim.vehicleModel || "Unknown",
+      year: ctx.claim.vehicleYear || null,
+      registration: ctx.claim.vehicleRegistration || null,
+      vin: null, colour: null, engineNumber: null,
+      mileageKm: null, bodyType: "sedan" as any, powertrain: "ice" as any,
+      massKg: 1400, massTier: "not_available" as const, valueUsd: null,
+    },
+    driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null },
+    accidentDetails: {
+      date: ctx.claim.accidentDate || null, location: null, description: null,
+      incidentType: "collision", collisionDirection: "unknown",
+      impactPoint: null, estimatedSpeedKmh: null,
+      maxCrushDepthM: null, totalDamageAreaM2: null,
+      structuralDamage: false, airbagDeployment: false,
+    },
+    policeReport: { reportNumber: null, station: null },
+    damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
+    repairQuote: {
+      repairerName: null, repairerCompany: null, assessorName: null,
+      quoteTotalCents: null, labourCostCents: null, partsCostCents: null, lineItems: [],
+    },
+    dataQuality: { completenessScore: 5, missingFields: ["all"], validationIssues: [] },
+    marketRegion: "ZW",
+    assumptions: [{
+      field: "claimRecord",
+      assumedValue: "minimal_from_db",
+      reason: "Claim assembly failed completely. Built minimal ClaimRecord from database fields only.",
+      strategy: "default_value" as const,
+      confidence: 10,
+      stage: "Stage 5",
+    }],
   };
 }
