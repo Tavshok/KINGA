@@ -9799,3 +9799,19 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Use chunked parallel rendering (batches of 5 pages) to control memory
 - [x] Increase global timeout to 10 minutes for large PDFs
 - [ ] Save checkpoint
+
+
+## Pipeline Restructure: Deterministic 10-Stage Pipeline (2026-03-11)
+- [x] Stage 1 — Document Ingestion: classify each uploaded document (Claim Form, Police Report, Repair Quote, Vehicle Photos, Supporting Documents)
+- [x] Stage 2 — OCR & Text Extraction: run OCR on scanned/image-based documents, preserve tables and structured text
+- [x] Stage 3 — Structured Data Extraction: extract structured fields into claim data object, mark missing fields as NULL
+- [x] Stage 4 — Data Validation: validate extracted data, attempt secondary extraction from other documents for missing fields
+- [x] Stage 5 — Claim Data Assembly: combine extracted data from all documents into one structured claim record
+- [x] Stage 6 — Damage Analysis Engine: identify damaged components with structured output (damaged_parts, damage_zone, severity_score)
+- [x] Stage 7 — Physics Analysis Engine: compute accident physics with structured inputs/outputs (impact_force, impact_vector, energy_distribution)
+- [x] Stage 8 — Fraud Analysis Engine: generate fraud indicators and fraud risk score from historical data
+- [x] Stage 9 — Cost Optimisation Engine: compare quotes against benchmarks, generate expected cost, deviation, savings
+- [x] Stage 10 — Report Generation: compile all structured outputs into final report (no raw AI text)
+- [x] Ensure all stages pass structured data objects (not raw AI text) between them
+- [x] Add per-stage error handling and logging
+- [x] Test full pipeline end-to-end with both claims
