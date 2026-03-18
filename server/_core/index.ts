@@ -76,6 +76,28 @@ async function startServer() {
   // Assessment upload endpoint (the REAL processor with LLM extraction)
   app.use("/api", uploadAssessmentRouter);
   
+  // Audit Export REST download endpoint
+  // GET /api/claims/:claimId/audit-export.json
+  // Returns the full tamper-evident audit export as a downloadable JSON file.
+  app.get("/api/claims/:claimId/audit-export.json", async (req: express.Request, res: express.Response) => {
+    try {
+      const { claimId } = req.params;
+      if (!claimId || typeof claimId !== 'string') {
+        return res.status(400).json({ error: 'Missing claimId' });
+      }
+      const { generateAuditExport } = await import('../audit-export');
+      const exportData = await generateAuditExport(claimId);
+      const filename = `audit-export-${claimId}-${Date.now()}.json`;
+      res.setHeader('Content-Type', 'application/json; charset=utf-8');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('X-Payload-Hash', exportData.payload_hash);
+      res.status(200).send(JSON.stringify(exportData, null, 2));
+    } catch (err) {
+      console.error('[AuditExport] Error generating export:', err);
+      res.status(500).json({ error: 'Failed to generate audit export' });
+    }
+  });
+
   // tRPC API
   app.use(
     "/api/trpc",

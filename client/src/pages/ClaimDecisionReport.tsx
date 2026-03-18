@@ -20,7 +20,7 @@ import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   ArrowLeft, Shield, Zap, DollarSign, Car, FileText,
   TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code, GitCompareArrows,
-  Lock, Unlock, Eye, Gavel
+  Lock, Unlock, Eye, Gavel, Download
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -992,6 +992,32 @@ export default function ClaimDecisionReport() {
     { claimId: String(claimId) },
     { enabled: !!claimId && showAuditLog }
   );
+  const [isExporting, setIsExporting] = useState(false);
+
+  const downloadAuditExport = async () => {
+    if (!claimId) return;
+    setIsExporting(true);
+    try {
+      const res = await fetch(`/api/claims/${encodeURIComponent(String(claimId))}/audit-export.json`);
+      if (!res.ok) throw new Error(`Server returned ${res.status}`);
+      const payloadHash = res.headers.get('X-Payload-Hash');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `audit-export-${claimId}-${Date.now()}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success(`Audit export downloaded${payloadHash ? ` · SHA-256: ${payloadHash.slice(0, 12)}…` : ''}`);
+    } catch (err) {
+      console.error('[AuditExport] Download failed:', err);
+      toast.error('Failed to download audit export');
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   // Helper: open reason dialog
   const openReasonDialog = (
@@ -1594,6 +1620,17 @@ export default function ClaimDecisionReport() {
                   Lock Decision
                 </Button>
               )}
+
+              {/* Download Audit Export */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={downloadAuditExport}
+                disabled={isExporting}
+              >
+                <Download className="h-3.5 w-3.5 mr-1" />
+                {isExporting ? 'Exporting…' : 'Export Audit'}
+              </Button>
 
               {/* Audit Log toggle */}
               <Button

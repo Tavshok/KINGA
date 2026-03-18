@@ -3127,6 +3127,14 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return getAuditLog(input.claimId);
       }),
 
+    // Generate full tamper-evident audit export for a claim
+    getAuditExport: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input }) => {
+        const { generateAuditExport } = await import('./audit-export');
+        return generateAuditExport(input.claimId);
+      }),
+
     // Get replay logs for a claim
     getReplayLogs: protectedProcedure
       .input(z.object({ claimId: z.string() }))
