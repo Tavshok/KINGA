@@ -2768,7 +2768,20 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           fraudScoreBreakdownJson: fraudIndicators.length > 0 ? fraudIndicators : null,
           extractionConfidence: Number(extractionConfidence),
         });
-        return result;
+        // Run the Cost Extraction Engine for guaranteed populated cost object
+        const { extractCosts } = await import('./cost-extraction-engine');
+        const aiPartsCost = (assessment.estimatedPartsCost || 0) / 100; // cents → dollars
+        const aiLabourCost = (assessment.estimatedLaborCost || 0) / 100; // cents → dollars
+        const costExtraction = extractCosts({
+          aiEstimatedCost,
+          aiPartsCost,
+          aiLabourCost,
+          damageComponents: damagedComponents,
+          accidentSeverity,
+          extractionConfidence: Number(extractionConfidence),
+          quotedAmounts,
+        });
+        return { ...result, costExtraction };
       }),
   }),
 

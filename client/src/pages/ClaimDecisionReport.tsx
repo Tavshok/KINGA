@@ -571,21 +571,44 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
   );
 }
 
-function CostDecision({ assessment, enforcement, quotes }: { assessment: any; enforcement: EnforcementResult; quotes: any[] }) {
-  const aiCostCents = assessment.estimatedCost ?? 0;
-  const aiCost = aiCostCents / 100;
-  const partsCost = (assessment.estimatedPartsCost ?? 0) / 100;
-  const labourCost = (assessment.estimatedLaborCost ?? 0) / 100;
+function CostDecision({ assessment, enforcement, quotes }: { assessment: any; enforcement: EnforcementResult & { costExtraction?: any }; quotes: any[] }) {
+  const [showItemised, setShowItemised] = useState(false);
+  // Use guaranteed costExtraction object if available, fall back to raw assessment fields
+  const ce = enforcement.costExtraction;
+  const aiCost = ce ? ce.ai_estimate : (assessment.estimatedCost ?? 0) / 100;
+  const partsCost = ce ? ce.parts : (assessment.estimatedPartsCost ?? 0) / 100;
+  const labourCost = ce ? ce.labour : (assessment.estimatedLaborCost ?? 0) / 100;
+  const fairMin = ce ? ce.fair_range.min : enforcement.costBenchmark.estimatedFairMin;
+  const fairMax = ce ? ce.fair_range.max : enforcement.costBenchmark.estimatedFairMax;
+  const confidence = ce ? ce.confidence : (assessment.confidenceScore ?? 75);
+  const itemisedParts: Array<{ component: string; parts_cost: number; labour_cost: number; total: number; source: string }> = ce?.itemised_parts ?? [];
+  const basis = ce ? ce.basis : enforcement.costBenchmark.basis;
+  const dataSource = ce?.source ?? "extracted";
+
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100);
-  const { costBenchmark } = enforcement;
-  const costVerdict = computeCostVerdict(aiCostCents, costBenchmark.estimatedFairMin, costBenchmark.estimatedFairMax, quotedAmounts);
+  const aiCostCents = aiCost * 100;
+  const costVerdict = computeCostVerdict(aiCostCents, fairMin, fairMax, quotedAmounts);
   const { Icon: CostIcon } = costVerdict;
+
+  // Confidence colour
+  const confColor = confidence >= 80 ? "#10b981" : confidence >= 60 ? "#f59e0b" : "#ef4444";
+  const sourceLabel: Record<string, string> = {
+    extracted: "AI Extracted",
+    estimated: "AI + Estimated",
+    severity_fallback: "Severity Benchmark",
+  };
 
   return (
     <div className="rounded-xl p-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-      <div className="flex items-center gap-2 mb-3">
-        <DollarSign className="h-4 w-4" style={{ color: "var(--primary)" }} />
-        <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Cost Decision</p>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <DollarSign className="h-4 w-4" style={{ color: "var(--primary)" }} />
+          <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Cost Decision</p>
+        </div>
+        {/* Confidence badge */}
+        <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: `${confColor}18`, color: confColor, border: `1px solid ${confColor}40` }}>
+          {confidence}% confidence
+        </span>
       </div>
 
       {/* Verdict pill */}
@@ -600,24 +623,20 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
         </div>
       </div>
 
-      {/* Cost breakdown */}
-      <div className="space-y-2 mb-3">
+      {/* Guaranteed cost breakdown — no empty fields */}
+      <div className="space-y-1.5 mb-3">
         <div className="flex justify-between items-center py-1.5" style={{ borderBottom: "1px solid var(--border)" }}>
-          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>AI Estimated Total</span>
-          <span className="text-sm font-bold" style={{ color: "var(--foreground)" }}>${aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+          <span className="text-xs font-medium" style={{ color: "var(--muted-foreground)" }}>Total Estimate</span>
+          <span className="text-sm font-black" style={{ color: "var(--foreground)" }}>${aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
         </div>
-        {partsCost > 0 && (
-          <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
-            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Parts</span>
-            <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${partsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          </div>
-        )}
-        {labourCost > 0 && (
-          <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
-            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Labour</span>
-            <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${labourCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-          </div>
-        )}
+        <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Parts</span>
+          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${partsCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        </div>
+        <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Labour</span>
+          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${labourCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+        </div>
         {quotedAmounts.length > 0 && (
           <div className="flex justify-between items-center py-1" style={{ borderBottom: "1px solid var(--border)" }}>
             <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Panel Beater Quote{quotedAmounts.length > 1 ? "s" : ""}</span>
@@ -632,34 +651,64 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
       </div>
 
       {/* Fair range bar */}
-      <div>
+      <div className="mb-3">
         <div className="flex justify-between text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
           <span>Fair Range</span>
-          <span>${costBenchmark.estimatedFairMin.toLocaleString()} – ${costBenchmark.estimatedFairMax.toLocaleString()}</span>
+          <span>${fairMin.toLocaleString()} – ${fairMax.toLocaleString()}</span>
         </div>
         <div className="relative h-2 rounded-full" style={{ background: "var(--muted)" }}>
           <div
             className="absolute h-2 rounded-full"
-            style={{
-              left: "10%",
-              width: "80%",
-              background: "linear-gradient(90deg, #10b981, #22c55e)",
-              opacity: 0.6,
-            }}
+            style={{ left: "10%", width: "80%", background: "linear-gradient(90deg, #10b981, #22c55e)", opacity: 0.6 }}
           />
-          {/* AI cost marker */}
-          {aiCost > 0 && costBenchmark.estimatedFairMax > 0 && (
+          {aiCost > 0 && fairMax > 0 && (
             <div
               className="absolute top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-white"
-              style={{
-                left: `${Math.min(95, Math.max(5, (aiCost / (costBenchmark.estimatedFairMax * 1.5)) * 100))}%`,
-                background: costVerdict.color,
-              }}
+              style={{ left: `${Math.min(95, Math.max(5, (aiCost / (fairMax * 1.5)) * 100))}%`, background: costVerdict.color }}
             />
           )}
         </div>
-        <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>{costBenchmark.basis}</p>
+        <div className="flex justify-between text-xs mt-1">
+          <span style={{ color: "var(--muted-foreground)" }}>{basis}</span>
+          <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>{sourceLabel[dataSource] ?? dataSource}</span>
+        </div>
       </div>
+
+      {/* Itemised parts breakdown (collapsible) */}
+      {itemisedParts.length > 0 && (
+        <div>
+          <button
+            className="w-full flex items-center justify-between text-xs py-1.5"
+            style={{ color: "var(--muted-foreground)", borderTop: "1px solid var(--border)" }}
+            onClick={() => setShowItemised(v => !v)}
+          >
+            <span className="font-semibold">Itemised Parts Breakdown ({itemisedParts.length} component{itemisedParts.length !== 1 ? "s" : ""})</span>
+            <span>{showItemised ? "▲" : "▼"}</span>
+          </button>
+          {showItemised && (
+            <div className="mt-2 space-y-1">
+              {itemisedParts.map((item, i) => (
+                <div key={i} className="flex justify-between items-center py-1 px-2 rounded" style={{ background: "var(--muted)", opacity: item.source === "estimated" ? 0.9 : 1 }}>
+                  <div>
+                    <span className="text-xs font-medium capitalize" style={{ color: "var(--foreground)" }}>{item.component}</span>
+                    {item.source === "estimated" && (
+                      <span className="ml-1 text-xs" style={{ color: "var(--muted-foreground)" }}>(est.)</span>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${item.total.toLocaleString()}</span>
+                    <span className="text-xs ml-1" style={{ color: "var(--muted-foreground)" }}>P:${item.parts_cost} L:${item.labour_cost}</span>
+                  </div>
+                </div>
+              ))}
+              <div className="flex justify-between items-center py-1.5 px-2 rounded font-bold" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                <span className="text-xs" style={{ color: "var(--foreground)" }}>Itemised Total</span>
+                <span className="text-xs" style={{ color: "var(--foreground)" }}>${itemisedParts.reduce((s, p) => s + p.total, 0).toLocaleString()}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
