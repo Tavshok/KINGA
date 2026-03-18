@@ -2963,15 +2963,46 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
     // Mark the decision as REVIEWED (user has viewed/reviewed the decision)
     markReviewed: protectedProcedure
-      .input(z.object({ claimId: z.string() }))
+      .input(z.object({
+        claimId: z.string(),
+        reason: z.string().min(10, 'Reason must be at least 10 characters'),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { transitionLifecycle } = await import('./decision-lifecycle');
+        const { enforceGovernance } = await import('./decision-governance');
         const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+
+        // Rule 1 + Rule 5: validate reason and write audit entry
+        const governance = await enforceGovernance({
+          claimId: input.claimId,
+          tenantId,
+          action: 'REVIEWED',
+          performedBy: ctx.user?.id ?? 'unknown',
+          performedByName: ctx.user?.name,
+          reason: input.reason,
+        });
+        if (!governance.action_allowed) {
+          return {
+            success: false,
+            lifecycle_state: 'DRAFT' as const,
+            is_final: false,
+            is_locked: false,
+            action_allowed: false,
+            validation_errors: governance.validation_errors,
+            override_flag: false,
+          };
+        }
+
         const result = await transitionLifecycle(input.claimId, tenantId, 'REVIEWED', {
           userId: ctx.user?.id,
         });
         if (!result.success) throw new Error(result.error);
-        return result;
+        return {
+          ...result,
+          action_allowed: true,
+          validation_errors: [] as string[],
+          override_flag: false,
+        };
       }),
 
     // Finalise the decision — creates authoritative snapshot, sets state = FINALISED
@@ -2979,14 +3010,41 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({
         claimId: z.string(),
         finalDecisionChoice: z.enum(['FINALISE_CLAIM', 'REVIEW_REQUIRED', 'ESCALATE_INVESTIGATION']),
+        reason: z.string().min(10, 'Reason must be at least 10 characters'),
+        // Optional: AI decision for override detection
+        aiDecision: z.string().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const { transitionLifecycle, markAuthoritativeSnapshot } = await import('./decision-lifecycle');
-        const { getLatestSnapshotJson, getDecisionSnapshots } = await import('./db');
-        const { getDb } = await import('./db');
-        const { decisionSnapshots } = await import('../drizzle/schema');
-        const { eq } = await import('drizzle-orm');
+        const { getDecisionSnapshots } = await import('./db');
+        const { enforceGovernance } = await import('./decision-governance');
         const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+
+        // Rule 1 + Rule 2 + Rule 5: validate, detect override, write audit
+        const governance = await enforceGovernance({
+          claimId: input.claimId,
+          tenantId,
+          action: 'FINALISED',
+          performedBy: ctx.user?.id ?? 'unknown',
+          performedByName: ctx.user?.name,
+          reason: input.reason,
+          aiDecision: input.aiDecision,
+          humanDecision: input.finalDecisionChoice,
+          metadata: { finalDecisionChoice: input.finalDecisionChoice },
+        });
+        if (!governance.action_allowed) {
+          return {
+            success: false,
+            lifecycle_state: 'DRAFT' as const,
+            is_final: false,
+            is_locked: false,
+            action_allowed: false,
+            validation_errors: governance.validation_errors,
+            override_flag: governance.override_flag,
+            authoritative_snapshot_id: null as number | null,
+            final_decision_choice: input.finalDecisionChoice,
+          };
+        }
 
         // Get the latest snapshot ID to mark as authoritative
         const snapshots = await getDecisionSnapshots(input.claimId);
@@ -3008,6 +3066,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         return {
           ...result,
+          action_allowed: true,
+          validation_errors: [] as string[],
+          override_flag: governance.override_flag,
+          override: governance.override,
           authoritative_snapshot_id: latestSnapshot.id,
           final_decision_choice: input.finalDecisionChoice,
         };
@@ -3015,15 +3077,54 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
     // Lock the claim — immutable legal record, no further replays or recalculations
     lockDecision: protectedProcedure
-      .input(z.object({ claimId: z.string() }))
+      .input(z.object({
+        claimId: z.string(),
+        reason: z.string().min(10, 'Reason must be at least 10 characters'),
+      }))
       .mutation(async ({ input, ctx }) => {
         const { transitionLifecycle } = await import('./decision-lifecycle');
+        const { enforceGovernance } = await import('./decision-governance');
         const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+
+        // Rule 1 + Rule 3 + Rule 5: validate reason, verify lock conditions, write audit
+        const governance = await enforceGovernance({
+          claimId: input.claimId,
+          tenantId,
+          action: 'LOCKED',
+          performedBy: ctx.user?.id ?? 'unknown',
+          performedByName: ctx.user?.name,
+          reason: input.reason,
+        });
+        if (!governance.action_allowed) {
+          return {
+            success: false,
+            lifecycle_state: 'FINALISED' as const,
+            is_final: true,
+            is_locked: false,
+            action_allowed: false,
+            validation_errors: governance.validation_errors,
+            override_flag: false,
+          };
+        }
+
         const result = await transitionLifecycle(input.claimId, tenantId, 'LOCKED', {
           userId: ctx.user?.id,
         });
         if (!result.success) throw new Error(result.error);
-        return result;
+        return {
+          ...result,
+          action_allowed: true,
+          validation_errors: [] as string[],
+          override_flag: false,
+        };
+      }),
+
+    // Get governance audit log for a claim
+    getAuditLog: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input }) => {
+        const { getAuditLog } = await import('./decision-governance');
+        return getAuditLog(input.claimId);
       }),
 
     // Get replay logs for a claim

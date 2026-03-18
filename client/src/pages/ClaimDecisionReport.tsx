@@ -974,26 +974,95 @@ export default function ClaimDecisionReport() {
   const isFinal = lifecycle?.is_final ?? false;
   const lifecycleState = (lifecycle?.lifecycle_state ?? 'DRAFT') as string;
 
+  // Governance: reason dialog state
+  const [reasonDialog, setReasonDialog] = useState<{
+    open: boolean;
+    action: 'REVIEWED' | 'FINALISED' | 'LOCKED' | null;
+    finalDecisionChoice?: 'FINALISE_CLAIM' | 'REVIEW_REQUIRED' | 'ESCALATE_INVESTIGATION';
+    reason: string;
+    error: string;
+  }>({
+    open: false,
+    action: null,
+    reason: '',
+    error: '',
+  });
+  const [showAuditLog, setShowAuditLog] = useState(false);
+  const { data: auditLog = [], refetch: refetchAuditLog } = trpc.aiAssessments.getAuditLog.useQuery(
+    { claimId: String(claimId) },
+    { enabled: !!claimId && showAuditLog }
+  );
+
+  // Helper: open reason dialog
+  const openReasonDialog = (
+    action: 'REVIEWED' | 'FINALISED' | 'LOCKED',
+    finalDecisionChoice?: 'FINALISE_CLAIM' | 'REVIEW_REQUIRED' | 'ESCALATE_INVESTIGATION'
+  ) => {
+    setReasonDialog({ open: true, action, finalDecisionChoice, reason: '', error: '' });
+  };
+
   const markReviewedMutation = trpc.aiAssessments.markReviewed.useMutation({
-    onSuccess: () => { refetchLifecycle(); toast.success("Decision marked as Reviewed"); },
+    onSuccess: (data) => {
+      refetchLifecycle();
+      refetchAuditLog();
+      if (!data.action_allowed) {
+        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      } else {
+        toast.success("Decision marked as Reviewed");
+      }
+    },
     onError: (err) => toast.error(`Failed to mark reviewed: ${err.message}`),
   });
 
   const finaliseDecisionMutation = trpc.aiAssessments.finaliseDecision.useMutation({
     onSuccess: (data) => {
       refetchLifecycle();
-      toast.success(`Decision FINALISED — Authoritative snapshot #${data.authoritative_snapshot_id} created`);
+      refetchAuditLog();
+      if (!data.action_allowed) {
+        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      } else {
+        const overrideMsg = data.override_flag ? ' ⚠️ Override recorded.' : '';
+        toast.success(`Decision FINALISED — Snapshot #${data.authoritative_snapshot_id} created.${overrideMsg}`);
+      }
     },
     onError: (err) => toast.error(`Finalise failed: ${err.message}`),
   });
 
   const lockDecisionMutation = trpc.aiAssessments.lockDecision.useMutation({
-    onSuccess: () => {
+    onSuccess: (data) => {
       refetchLifecycle();
-      toast.success("Claim LOCKED — This is now an immutable legal record");
+      refetchAuditLog();
+      if (!data.action_allowed) {
+        toast.error(`Governance blocked: ${data.validation_errors.join('; ')}`);
+      } else {
+        toast.success("Claim LOCKED — This is now an immutable legal record");
+      }
     },
     onError: (err) => toast.error(`Lock failed: ${err.message}`),
   });
+
+  // Submit reason dialog
+  const submitReasonDialog = () => {
+    const { action, finalDecisionChoice, reason } = reasonDialog;
+    if (!reason || reason.trim().length < 10) {
+      setReasonDialog(d => ({ ...d, error: 'Reason must be at least 10 characters.' }));
+      return;
+    }
+    const aiVerdictDecision = (enforcement as any)?.finalDecision?.decision as string | undefined;
+    if (action === 'REVIEWED') {
+      markReviewedMutation.mutate({ claimId: String(claimId), reason });
+    } else if (action === 'FINALISED' && finalDecisionChoice) {
+      finaliseDecisionMutation.mutate({
+        claimId: String(claimId),
+        finalDecisionChoice,
+        reason,
+        aiDecision: aiVerdictDecision,
+      });
+    } else if (action === 'LOCKED') {
+      lockDecisionMutation.mutate({ claimId: String(claimId), reason });
+    }
+    setReasonDialog({ open: false, action: null, reason: '', error: '' });
+  };
 
   const replayMutation = trpc.aiAssessments.replayDecision.useMutation({
     onSuccess: (data) => {
@@ -1472,7 +1541,7 @@ export default function ClaimDecisionReport() {
                   size="sm"
                   variant="outline"
                   disabled={markReviewedMutation.isPending}
-                  onClick={() => markReviewedMutation.mutate({ claimId: String(claimId) })}
+                  onClick={() => openReasonDialog('REVIEWED')}
                 >
                   <Eye className="h-3.5 w-3.5 mr-1" />
                   Mark Reviewed
@@ -1486,7 +1555,7 @@ export default function ClaimDecisionReport() {
                     size="sm"
                     variant="outline"
                     disabled={finaliseDecisionMutation.isPending}
-                    onClick={() => finaliseDecisionMutation.mutate({ claimId: String(claimId), finalDecisionChoice: "REVIEW_REQUIRED" })}
+                    onClick={() => openReasonDialog('FINALISED', 'REVIEW_REQUIRED')}
                   >
                     <Gavel className="h-3.5 w-3.5 mr-1" />
                     Review Required
@@ -1494,7 +1563,7 @@ export default function ClaimDecisionReport() {
                   <Button
                     size="sm"
                     disabled={finaliseDecisionMutation.isPending}
-                    onClick={() => finaliseDecisionMutation.mutate({ claimId: String(claimId), finalDecisionChoice: "FINALISE_CLAIM" })}
+                    onClick={() => openReasonDialog('FINALISED', 'FINALISE_CLAIM')}
                   >
                     <CheckCircle className="h-3.5 w-3.5 mr-1" />
                     Finalise Claim
@@ -1504,7 +1573,7 @@ export default function ClaimDecisionReport() {
                     variant="outline"
                     disabled={finaliseDecisionMutation.isPending}
                     style={{ borderColor: "oklch(0.65 0.2 30)", color: "#fca5a5" }}
-                    onClick={() => finaliseDecisionMutation.mutate({ claimId: String(claimId), finalDecisionChoice: "ESCALATE_INVESTIGATION" })}
+                    onClick={() => openReasonDialog('FINALISED', 'ESCALATE_INVESTIGATION')}
                   >
                     <AlertTriangle className="h-3.5 w-3.5 mr-1" />
                     Escalate
@@ -1519,16 +1588,22 @@ export default function ClaimDecisionReport() {
                   variant="outline"
                   disabled={lockDecisionMutation.isPending}
                   style={{ borderColor: "oklch(0.65 0.2 30)", color: "#fca5a5" }}
-                  onClick={() => {
-                    if (confirm("Lock this claim? This action is irreversible. The snapshot becomes an immutable legal record and no further replays or recalculations will be allowed.")) {
-                      lockDecisionMutation.mutate({ claimId: String(claimId) });
-                    }
-                  }}
+                  onClick={() => openReasonDialog('LOCKED')}
                 >
                   <Lock className="h-3.5 w-3.5 mr-1" />
                   Lock Decision
                 </Button>
               )}
+
+              {/* Audit Log toggle */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => { setShowAuditLog(v => !v); refetchAuditLog(); }}
+              >
+                <FileText className="h-3.5 w-3.5 mr-1" />
+                Audit Log
+              </Button>
 
               {/* Full Report link */}
               <Button
@@ -1541,7 +1616,172 @@ export default function ClaimDecisionReport() {
             </div>
           </div>
         </div>
+
+        {/* 9. Governance Audit Log */}
+        {showAuditLog && (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ background: "var(--muted)" }}>
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4" style={{ color: "#93c5fd" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Governance Audit Log</span>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "oklch(0.25 0.06 250)", color: "#93c5fd" }}>
+                  {auditLog.length} {auditLog.length === 1 ? 'entry' : 'entries'}
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setShowAuditLog(false)}>Close</Button>
+            </div>
+            <div className="p-4" style={{ background: "var(--card)" }}>
+              {auditLog.length === 0 ? (
+                <p className="text-sm text-center py-4" style={{ color: "var(--muted-foreground)" }}>No governance actions recorded yet.</p>
+              ) : (
+                <div className="space-y-2">
+                  {auditLog.map((entry) => (
+                    <div
+                      key={entry.id}
+                      className="rounded-lg p-3"
+                      style={{
+                        background: "var(--background)",
+                        border: `1px solid ${entry.overrideFlag ? "oklch(0.65 0.2 30)" : "var(--border)"}`,
+                      }}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className="text-xs font-bold px-2 py-0.5 rounded-full"
+                            style={{
+                              background: entry.action === 'LOCKED' ? "oklch(0.25 0.08 30)"
+                                : entry.action === 'FINALISED' ? "oklch(0.2 0.06 145)"
+                                : entry.action === 'REVIEWED' ? "oklch(0.2 0.05 250)"
+                                : "oklch(0.2 0.04 280)",
+                              color: entry.action === 'LOCKED' ? "#fca5a5"
+                                : entry.action === 'FINALISED' ? "#86efac"
+                                : entry.action === 'REVIEWED' ? "#93c5fd"
+                                : "#c4b5fd",
+                            }}
+                          >
+                            {entry.action}
+                          </span>
+                          {entry.overrideFlag && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "oklch(0.25 0.1 50)", color: "#fbbf24" }}>
+                              ⚠️ OVERRIDE
+                            </span>
+                          )}
+                          {!entry.actionAllowed && (
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "oklch(0.2 0.08 30)", color: "#fca5a5" }}>
+                              BLOCKED
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs" style={{ color: "var(--muted-foreground)", whiteSpace: "nowrap" }}>
+                          {new Date(entry.timestamp).toLocaleString()}
+                        </span>
+                      </div>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                          <span className="font-semibold" style={{ color: "var(--foreground)" }}>By:</span> {entry.performedByName ?? entry.performedBy}
+                        </p>
+                        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                          <span className="font-semibold" style={{ color: "var(--foreground)" }}>Reason:</span> {entry.reason}
+                        </p>
+                        {entry.overrideFlag && entry.aiDecision && entry.humanDecision && (
+                          <p className="text-xs" style={{ color: "#fbbf24" }}>
+                            <span className="font-semibold">Override:</span> AI recommended “{entry.aiDecision.replace(/_/g, ' ')}” → Human chose “{entry.humanDecision.replace(/_/g, ' ')}”
+                          </p>
+                        )}
+                        {entry.validationErrors.length > 0 && (
+                          <p className="text-xs" style={{ color: "#fca5a5" }}>
+                            <span className="font-semibold">Blocked:</span> {entry.validationErrors.join('; ')}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Reason Dialog (Governance Rule 1 — mandatory justification) */}
+      {reasonDialog.open && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: "rgba(0,0,0,0.7)" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setReasonDialog(d => ({ ...d, open: false })); }}
+        >
+          <div
+            className="rounded-xl p-6 w-full max-w-md mx-4"
+            style={{ background: "var(--card)", border: "1px solid var(--border)", boxShadow: "0 25px 50px rgba(0,0,0,0.5)" }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div
+                className="h-8 w-8 rounded-full flex items-center justify-center"
+                style={{
+                  background: reasonDialog.action === 'LOCKED' ? "oklch(0.25 0.08 30)"
+                    : reasonDialog.action === 'FINALISED' ? "oklch(0.2 0.06 145)"
+                    : "oklch(0.2 0.05 250)",
+                }}
+              >
+                {reasonDialog.action === 'LOCKED' ? <Lock className="h-4 w-4" style={{ color: "#fca5a5" }} />
+                  : reasonDialog.action === 'FINALISED' ? <Gavel className="h-4 w-4" style={{ color: "#86efac" }} />
+                  : <Eye className="h-4 w-4" style={{ color: "#93c5fd" }} />}
+              </div>
+              <div>
+                <h3 className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
+                  {reasonDialog.action === 'REVIEWED' ? 'Mark Decision as Reviewed'
+                    : reasonDialog.action === 'LOCKED' ? 'Lock Claim — Immutable Record'
+                    : `Finalise: ${(reasonDialog.finalDecisionChoice ?? '').replace(/_/g, ' ')}`}
+                </h3>
+                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>A written justification is required (min. 10 characters)</p>
+              </div>
+            </div>
+
+            <textarea
+              className="w-full rounded-lg p-3 text-sm resize-none"
+              rows={4}
+              placeholder="Enter your reason for this action..."
+              value={reasonDialog.reason}
+              onChange={(e) => setReasonDialog(d => ({ ...d, reason: e.target.value, error: '' }))}
+              style={{
+                background: "var(--background)",
+                border: `1px solid ${reasonDialog.error ? "oklch(0.65 0.2 30)" : "var(--border)"}`,
+                color: "var(--foreground)",
+                outline: "none",
+              }}
+              autoFocus
+            />
+
+            <div className="flex items-center justify-between mt-1 mb-4">
+              <span className="text-xs" style={{ color: reasonDialog.error ? "#fca5a5" : "var(--muted-foreground)" }}>
+                {reasonDialog.error || `${reasonDialog.reason.trim().length} / 10 characters minimum`}
+              </span>
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setReasonDialog(d => ({ ...d, open: false }))}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                disabled={reasonDialog.reason.trim().length < 10}
+                onClick={submitReasonDialog}
+                style={{
+                  background: reasonDialog.action === 'LOCKED' ? "oklch(0.45 0.15 30)"
+                    : reasonDialog.action === 'FINALISED' ? "oklch(0.4 0.12 145)"
+                    : undefined,
+                }}
+              >
+                Confirm {reasonDialog.action}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

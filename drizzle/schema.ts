@@ -4123,3 +4123,36 @@ export const replayLogs = mysqlTable("replay_logs", {
 
 export type ReplayLog = typeof replayLogs.$inferSelect;
 export type InsertReplayLog = typeof replayLogs.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GOVERNANCE AUDIT LOG
+// Every lifecycle action (REVIEWED, FINALISED, LOCKED, override) appends one row.
+// ─────────────────────────────────────────────────────────────────────────────
+export const governanceAuditLog = mysqlTable("governance_audit_log", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: varchar("claim_id", { length: 50 }).notNull(),
+  tenantId: varchar("tenant_id", { length: 50 }).notNull(),
+  // Action performed: REVIEWED | FINALISED | LOCKED | OVERRIDE | REPLAY | SNAPSHOT_SAVED
+  action: varchar("action", { length: 50 }).notNull(),
+  performedBy: varchar("performed_by", { length: 50 }).notNull(),
+  performedByName: varchar("performed_by_name", { length: 200 }),
+  timestampMs: bigint("timestamp_ms", { mode: "number" }).notNull(),
+  // Mandatory justification (min 10 chars enforced server-side)
+  reason: text("reason").notNull(),
+  // Override tracking
+  overrideFlag: tinyint("override_flag").notNull().default(0),
+  aiDecision: varchar("ai_decision", { length: 100 }),
+  humanDecision: varchar("human_decision", { length: 100 }),
+  // Governance result
+  actionAllowed: tinyint("action_allowed").notNull().default(1),
+  validationErrorsJson: text("validation_errors_json"),
+  metadataJson: text("metadata_json"),
+}, (table) => [
+  index("idx_gal_claim").on(table.claimId),
+  index("idx_gal_tenant").on(table.tenantId),
+  index("idx_gal_action").on(table.action),
+  index("idx_gal_timestamp").on(table.timestampMs),
+  index("idx_gal_override").on(table.overrideFlag),
+]);
+export type GovernanceAuditEntry = typeof governanceAuditLog.$inferSelect;
+export type InsertGovernanceAuditEntry = typeof governanceAuditLog.$inferInsert;
