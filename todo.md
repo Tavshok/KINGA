@@ -9890,3 +9890,20 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix: Physics panel now renders velocity, impact force, energy, delta-V, and direction from pipeline data
 - [x] Tests: 9 vitest tests for cost display, physics normalizer, and vehicle info backfill (all passing)
 - [ ] Note: Existing claims need "Re-run AI Assessment" to backfill vehicle info (only affects new assessments automatically)
+
+## Claim Report UI Rebuild (KINGA Display Engine Spec)
+- [x] Section 1: Header Snapshot — BI hero with AI cost, confidence badge, fraud level, vehicle/registration
+- [x] Section 2: Executive Summary — narrative paragraph + 9-metric grid (vehicle, reg, incident type, date, AI cost, avg quote, fraud risk, confidence, outcome)
+- [x] Section 3: Damage Overview — damage map + images panel
+- [x] Section 4: Accident Reconstruction — Simple/Advanced toggle, hidden damage inference chain
+- [x] Section 5: Repair Cost Analysis — AI cost grid, quote chart with AI reference line (red >30% above AI), cost optimisation, parts reconciliation
+- [x] Section 6: Fraud & Risk Analysis — high fraud banner + full FraudScorePanel
+- [x] Section 7: Operational Performance — panel beater choices + repair intelligence
+- [x] Section 8: Missing Information — dynamic checklist with critical/warning/info severity
+- [x] Approval section always last
+- [x] Dark mode: all sections use CSS var() tokens mapped to spec hex values (oklch equivalents)
+- [x] Number formatting: toLocaleString('en-US') everywhere
+- [x] Never show null/blank — fallback values throughout
+- [x] No raw JSON visible anywhere in the report
+- [x] TypeScript: 0 errors after rebuild
+- [ ] Test end-to-end with real claim data
