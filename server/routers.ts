@@ -2879,6 +2879,35 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return snapshot ?? null;
       }),
 
+    // Re-run current engine logic against an original snapshot and return a structured diff
+    replayDecision: protectedProcedure
+      .input(z.object({
+        claimId: z.string(),
+        snapshotVersion: z.number().optional(), // defaults to latest
+        // Optional live claim data to supplement snapshot fields
+        liveData: z.object({
+          damageComponents: z.array(z.string()).optional(),
+          impactDirection: z.string().optional(),
+          vehicleMake: z.string().optional(),
+          vehicleMassKg: z.number().optional(),
+          hasPreviousClaims: z.boolean().optional(),
+        }).optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { getLatestSnapshotJson } = await import('./db');
+        const { replayDecision } = await import('./decision-replay');
+
+        // Fetch the original immutable snapshot
+        const originalSnapshot = await getLatestSnapshotJson(input.claimId);
+        if (!originalSnapshot) {
+          throw new Error(`No snapshot found for claim ${input.claimId}`);
+        }
+
+        // Re-run current logic — original snapshot is NEVER modified
+        const result = replayDecision(originalSnapshot, input.liveData);
+        return result;
+      }),
+
     // Retrieve all snapshots for a claim (audit history)
     getSnapshots: protectedProcedure
       .input(z.object({ claimId: z.string() }))

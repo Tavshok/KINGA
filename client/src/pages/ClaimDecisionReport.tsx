@@ -19,7 +19,7 @@ import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   ArrowLeft, Shield, Zap, DollarSign, Car, FileText,
-  TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code
+  TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code, GitCompareArrows
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -950,6 +950,28 @@ export default function ClaimDecisionReport() {
   );
   const [showSnapshotHistory, setShowSnapshotHistory] = useState(false);
   const [showSpecJson, setShowSpecJson] = useState(false);
+  const [showReplay, setShowReplay] = useState(false);
+  const [replayResult, setReplayResult] = useState<null | {
+    original_verdict: string;
+    new_verdict: string;
+    changed: boolean;
+    differences: Array<{ field: string; original: unknown; new: unknown }>;
+    impact_analysis: string;
+    replayed_at: string;
+    original_snapshot_version: number;
+  }>(null);
+  const replayMutation = trpc.aiAssessments.replayDecision.useMutation({
+    onSuccess: (data) => {
+      setReplayResult(data);
+      setShowReplay(true);
+      if (data.changed) {
+        toast.warning(`Logic drift detected — ${data.differences.length} field(s) changed`);
+      } else {
+        toast.success("No drift detected — decision is consistent with current logic");
+      }
+    },
+    onError: (err) => toast.error(`Replay failed: ${err.message}`),
+  });
 
   useEffect(() => {
     if (!enforcement || !aiAssessment || snapshotSaved.current) return;
@@ -1228,6 +1250,125 @@ export default function ClaimDecisionReport() {
                 >
                   {JSON.stringify(latestSnapshot, null, 2)}
                 </pre>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 7c. Decision Replay Panel */}
+        {latestSnapshot && (
+          <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            <div
+              className="flex items-center justify-between px-4 py-3"
+              style={{ background: "var(--card)" }}
+            >
+              <span className="flex items-center gap-2 text-sm font-semibold" style={{ color: "var(--muted-foreground)" }}>
+                <GitCompareArrows className="h-3.5 w-3.5" />
+                Decision Replay — Logic Drift Detection
+              </span>
+              <div className="flex items-center gap-2">
+                {replayResult && (
+                  <button
+                    className="text-xs px-2 py-1 rounded"
+                    style={{ background: "var(--muted)", color: "var(--foreground)" }}
+                    onClick={() => setShowReplay(v => !v)}
+                  >
+                    {showReplay ? "Hide Results" : "Show Results"}
+                  </button>
+                )}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={replayMutation.isPending}
+                  onClick={() => replayMutation.mutate({ claimId: String(claimId) })}
+                >
+                  {replayMutation.isPending ? (
+                    <><RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> Replaying...</>
+                  ) : (
+                    <><GitCompareArrows className="h-3.5 w-3.5 mr-1" /> Run Replay</>
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {showReplay && replayResult && (
+              <div className="p-4" style={{ background: "var(--background)", borderTop: "1px solid var(--border)" }}>
+                {/* Header row */}
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
+                    style={{
+                      background: replayResult.changed ? "oklch(0.35 0.12 30)" : "oklch(0.25 0.08 145)",
+                      color: replayResult.changed ? "#fca5a5" : "#86efac",
+                    }}
+                  >
+                    {replayResult.changed ? (
+                      <AlertTriangle className="h-3.5 w-3.5" />
+                    ) : (
+                      <CheckCircle className="h-3.5 w-3.5" />
+                    )}
+                    {replayResult.changed
+                      ? `Logic Drift Detected — ${replayResult.differences.length} field(s) changed`
+                      : "No Drift — Decision Consistent"}
+                  </div>
+                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    Replayed at {new Date(replayResult.replayed_at).toLocaleString()} · Original v{replayResult.original_snapshot_version}
+                  </span>
+                </div>
+
+                {/* Verdict comparison */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="rounded-lg p-3" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Original Verdict</p>
+                    <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
+                      {replayResult.original_verdict.replace(/_/g, " ")}
+                    </p>
+                  </div>
+                  <div className="rounded-lg p-3" style={{ background: "var(--card)", border: `1px solid ${replayResult.changed && replayResult.original_verdict !== replayResult.new_verdict ? "oklch(0.65 0.2 30)" : "var(--border)"}` }}>
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Replayed Verdict</p>
+                    <p className="text-sm font-bold" style={{ color: replayResult.original_verdict !== replayResult.new_verdict ? "#fca5a5" : "var(--foreground)" }}>
+                      {replayResult.new_verdict.replace(/_/g, " ")}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Differences table */}
+                {replayResult.differences.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Field Differences</p>
+                    <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                      <table className="w-full text-xs">
+                        <thead>
+                          <tr style={{ background: "var(--muted)" }}>
+                            <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Field</th>
+                            <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Original</th>
+                            <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Replayed</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {replayResult.differences.map((diff, i) => (
+                            <tr key={diff.field} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                              <td className="px-3 py-2 font-mono font-semibold" style={{ color: "#a5f3fc" }}>{diff.field}</td>
+                              <td className="px-3 py-2" style={{ color: "#fca5a5" }}>{JSON.stringify(diff.original)}</td>
+                              <td className="px-3 py-2" style={{ color: "#86efac" }}>{JSON.stringify(diff.new)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+
+                {/* Impact analysis */}
+                <div className="rounded-lg p-3" style={{ background: "oklch(0.15 0.02 250)", border: "1px solid var(--border)" }}>
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Impact Analysis</p>
+                  <pre
+                    className="text-xs whitespace-pre-wrap"
+                    style={{ color: "#e2e8f0", fontFamily: "inherit", lineHeight: "1.6" }}
+                  >
+                    {replayResult.impact_analysis}
+                  </pre>
+                </div>
               </div>
             )}
           </div>
