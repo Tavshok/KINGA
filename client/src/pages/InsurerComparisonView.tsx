@@ -23,6 +23,7 @@ import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
+import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
@@ -1016,6 +1017,22 @@ export default function InsurerComparisonView() {
                 {/* Full fraud score panel */}
                 <FraudScorePanel aiAssessment={aiAssessment} />
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ SECTION 6b: INTELLIGENCE ENFORCEMENT LAYER ══ */}
+        {aiAssessment && claim && (
+          <div className="comparison-section">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'oklch(0.45 0.22 280)' }}>AI</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Intelligence Enforcement Layer</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Physics inference · consistency validation · direction-damage cross-check · cost benchmark · enforced fraud classification</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
+              <IntelligenceEnforcementPanel claimId={claim.id} />
             </div>
           </div>
         )}

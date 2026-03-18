@@ -2686,6 +2686,72 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         if (!db) throw new Error("Database not available");
         return await db.select().from(aiAssessments);
       }),
+    // Intelligence Enforcement Layer — applies all enforcement rules to a claim's assessment
+    getEnforcement: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error("Not authenticated");
+        const { applyIntelligenceEnforcement } = await import("./intelligence-enforcement");
+        const { getAiAssessmentByClaimId, getQuotesByClaimId } = await import("./db");
+        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+        if (!assessment) return null;
+        const quotes = await getQuotesByClaimId(input.claimId, tenantId);
+        const quotedAmounts = quotes.map(q => (q.quotedAmount || 0) / 100); // cents → dollars
+        // Parse physics analysis
+        let physicsRaw: any = null;
+        try {
+          physicsRaw = assessment.physicsAnalysis
+            ? (typeof assessment.physicsAnalysis === 'string' ? JSON.parse(assessment.physicsAnalysis) : assessment.physicsAnalysis)
+            : null;
+        } catch { /* ignore */ }
+        // Parse damaged components
+        let damagedComponents: string[] = [];
+        try {
+          const comps = assessment.damagedComponentsJson
+            ? (typeof assessment.damagedComponentsJson === 'string' ? JSON.parse(assessment.damagedComponentsJson) : assessment.damagedComponentsJson)
+            : [];
+          damagedComponents = Array.isArray(comps)
+            ? comps.map((c: any) => (typeof c === 'string' ? c : c?.name || c?.component || '')).filter(Boolean)
+            : [];
+        } catch { /* ignore */ }
+        // Parse fraud score breakdown
+        let fraudScoreBreakdown: any = null;
+        try {
+          fraudScoreBreakdown = assessment.fraudScoreBreakdownJson
+            ? (typeof assessment.fraudScoreBreakdownJson === 'string' ? JSON.parse(assessment.fraudScoreBreakdownJson) : assessment.fraudScoreBreakdownJson)
+            : null;
+        } catch { /* ignore */ }
+        const fraudScore = fraudScoreBreakdown?.totalScore ?? 0;
+        const estimatedSpeedKmh = physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value ?? 0;
+        const deltaVKmh = physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV ?? 0;
+        const impactForceKn = physicsRaw?.impactForceKn ?? 0;
+        const energyKj = physicsRaw?.energyDistribution?.energyDissipatedKj ?? 0;
+        const vehicleMassKg = physicsRaw?.vehicleMassKg ?? 1600;
+        const accidentSeverity = (physicsRaw?.accidentSeverity ?? assessment.structuralDamageSeverity ?? 'minor') as string;
+        const consistencyScore = physicsRaw?.damageConsistencyScore ?? 50;
+        const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';
+        const aiEstimatedCost = (assessment.estimatedCost || 0) / 100; // cents → dollars
+        const result = applyIntelligenceEnforcement({
+          fraudScore,
+          fraudRiskLevel: assessment.fraudRiskLevel ?? 'low',
+          estimatedSpeedKmh: Number(estimatedSpeedKmh),
+          deltaVKmh: Number(deltaVKmh),
+          impactForceKn: Number(impactForceKn),
+          energyKj: Number(energyKj),
+          vehicleMassKg: Number(vehicleMassKg),
+          accidentSeverity,
+          consistencyScore: Number(consistencyScore),
+          impactDirection,
+          damageZones: [],
+          damageComponents: damagedComponents,
+          aiEstimatedCost,
+          quotedAmounts,
+          vehicleMake: '',
+          hasPreviousClaims: false,
+        });
+        return result;
+      }),
   }),
 
   // Storage operations
