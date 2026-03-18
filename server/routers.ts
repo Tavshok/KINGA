@@ -2808,9 +2808,120 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         return { ...result, costExtraction, weightedFraud };
       }),
-  }),
 
-  // Storage operations
+    // Save an immutable Decision Snapshot — called once per decision render
+    saveSnapshot: protectedProcedure
+      .input(z.object({
+        claimId: z.string(),
+        verdict: z.object({
+          decision: z.string(),
+          primaryReason: z.string(),
+          confidence: z.number(),
+        }),
+        cost: z.object({
+          aiEstimate: z.number(),
+          quoted: z.number(),
+          deviationPercent: z.number(),
+          fairRangeMin: z.number(),
+          fairRangeMax: z.number(),
+          verdict: z.string(),
+        }),
+        fraud: z.object({
+          score: z.number(),
+          level: z.string(),
+          contributions: z.array(z.object({ factor: z.string(), value: z.number() })),
+        }),
+        physics: z.object({
+          deltaV: z.number(),
+          velocityRange: z.string(),
+          energyKj: z.number(),
+          forceKn: z.number(),
+          estimated: z.boolean(),
+        }),
+        damage: z.object({
+          zones: z.array(z.string()),
+          severity: z.string(),
+          consistencyScore: z.number(),
+        }),
+        enforcementTrace: z.array(z.object({
+          rule: z.string(),
+          value: z.unknown(),
+          threshold: z.string(),
+          triggered: z.boolean(),
+        })),
+        confidenceBreakdown: z.array(z.object({
+          factor: z.string(),
+          penalty: z.number(),
+        })),
+        dataQuality: z.object({
+          missingFields: z.array(z.string()),
+          estimatedFields: z.array(z.string()),
+          extractionConfidence: z.number(),
+        }),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { saveDecisionSnapshot } = await import('./db');
+        const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+        const result = await saveDecisionSnapshot({
+          ...input,
+          tenantId,
+          createdByUserId: ctx.user?.id,
+        });
+        return { success: true, snapshotId: result.id, version: result.version };
+      }),
+
+    // Retrieve all snapshots for a claim (audit history)
+    getSnapshots: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input }) => {
+        const { getDecisionSnapshots } = await import('./db');
+        const snapshots = await getDecisionSnapshots(input.claimId);
+        return snapshots.map(s => ({
+          id: s.id,
+          version: s.snapshotVersion,
+          createdAt: s.createdAt,
+          createdByUserId: s.createdByUserId,
+          verdict: {
+            decision: s.verdictDecision,
+            primaryReason: s.verdictPrimaryReason,
+            confidence: s.verdictConfidence,
+          },
+          cost: {
+            aiEstimate: s.costAiEstimate,
+            quoted: s.costQuoted,
+            deviationPercent: s.costDeviationPercent,
+            fairRangeMin: s.costFairRangeMin,
+            fairRangeMax: s.costFairRangeMax,
+            verdict: s.costVerdict,
+          },
+          fraud: {
+            score: s.fraudScore,
+            level: s.fraudLevel,
+            contributions: JSON.parse(s.fraudContributionsJson || '[]'),
+          },
+          physics: {
+            deltaV: s.physicsDetlaV / 10,
+            velocityRange: s.physicsVelocityRange,
+            energyKj: s.physicsEnergyKj,
+            forceKn: s.physicsForceKn,
+            estimated: s.physicsEstimated === 1,
+          },
+          damage: {
+            zones: JSON.parse(s.damageZonesJson || '[]'),
+            severity: s.damageSeverity,
+            consistencyScore: s.damageConsistencyScore,
+          },
+          enforcementTrace: JSON.parse(s.enforcementTraceJson || '[]'),
+          confidenceBreakdown: JSON.parse(s.confidenceBreakdownJson || '[]'),
+          dataQuality: {
+            missingFields: JSON.parse(s.missingFieldsJson || '[]'),
+            estimatedFields: JSON.parse(s.estimatedFieldsJson || '[]'),
+            extractionConfidence: s.extractionConfidence,
+          },
+        }));
+      }),
+  }),
+  // Storage operationss
   storage: router({
     uploadImage: protectedProcedure
       .input(z.object({

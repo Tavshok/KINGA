@@ -46,7 +46,9 @@ import {
   assessorInsurerRelationships,
   claimEvents,
   InsertClaimEvent,
-  ingestionDocuments
+  ingestionDocuments,
+  decisionSnapshots,
+  DecisionSnapshot
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -1517,4 +1519,141 @@ export async function emitClaimEvent(params: {
     console.error(`[Events] Failed to emit ${params.eventType}:`, error);
     // Non-blocking: don't throw, just log
   }
+}
+
+// ============================================================
+// DECISION SNAPSHOTS — Immutable audit persistence
+// ============================================================
+
+export interface DecisionSnapshotInput {
+  claimId: string;
+  tenantId: string;
+  createdByUserId?: string;
+
+  verdict: {
+    decision: string;
+    primaryReason: string;
+    confidence: number;
+  };
+
+  cost: {
+    aiEstimate: number;       // in cents
+    quoted: number;           // in cents
+    deviationPercent: number;
+    fairRangeMin: number;     // in cents
+    fairRangeMax: number;     // in cents
+    verdict: string;
+  };
+
+  fraud: {
+    score: number;
+    level: string;
+    contributions: Array<{ factor: string; value: number }>;
+  };
+
+  physics: {
+    deltaV: number;
+    velocityRange: string;
+    energyKj: number;
+    forceKn: number;
+    estimated: boolean;
+  };
+
+  damage: {
+    zones: string[];
+    severity: string;
+    consistencyScore: number;
+  };
+
+  enforcementTrace: Array<{ rule: string; value: unknown; threshold: string; triggered: boolean }>;
+  confidenceBreakdown: Array<{ factor: string; penalty: number }>;
+
+  dataQuality: {
+    missingFields: string[];
+    estimatedFields: string[];
+    extractionConfidence: number;
+  };
+}
+
+/**
+ * Persist an immutable Decision Snapshot for a claim.
+ * Snapshots are append-only — never updated after creation.
+ * Returns the new snapshot ID and version number.
+ */
+export async function saveDecisionSnapshot(input: DecisionSnapshotInput): Promise<{ id: number; version: number }> {
+  // Determine next version number for this claim
+  const existing = await db
+    .select({ version: decisionSnapshots.snapshotVersion })
+    .from(decisionSnapshots)
+    .where(eq(decisionSnapshots.claimId, input.claimId))
+    .orderBy(desc(decisionSnapshots.snapshotVersion))
+    .limit(1);
+
+  const nextVersion = existing.length > 0 ? existing[0].version + 1 : 1;
+
+  const [result] = await db.insert(decisionSnapshots).values({
+    claimId: input.claimId,
+    tenantId: input.tenantId,
+    snapshotVersion: nextVersion,
+    createdAt: Date.now(),
+    createdByUserId: input.createdByUserId ?? null,
+
+    verdictDecision: input.verdict.decision,
+    verdictPrimaryReason: input.verdict.primaryReason,
+    verdictConfidence: input.verdict.confidence,
+
+    costAiEstimate: input.cost.aiEstimate,
+    costQuoted: input.cost.quoted,
+    costDeviationPercent: Math.round(input.cost.deviationPercent),
+    costFairRangeMin: input.cost.fairRangeMin,
+    costFairRangeMax: input.cost.fairRangeMax,
+    costVerdict: input.cost.verdict,
+
+    fraudScore: input.fraud.score,
+    fraudLevel: input.fraud.level,
+    fraudContributionsJson: JSON.stringify(input.fraud.contributions),
+
+    physicsDetlaV: Math.round(input.physics.deltaV * 10),
+    physicsVelocityRange: input.physics.velocityRange,
+    physicsEnergyKj: Math.round(input.physics.energyKj),
+    physicsForceKn: Math.round(input.physics.forceKn),
+    physicsEstimated: input.physics.estimated ? 1 : 0,
+
+    damageZonesJson: JSON.stringify(input.damage.zones),
+    damageSeverity: input.damage.severity,
+    damageConsistencyScore: input.damage.consistencyScore,
+
+    enforcementTraceJson: JSON.stringify(input.enforcementTrace),
+    confidenceBreakdownJson: JSON.stringify(input.confidenceBreakdown),
+
+    missingFieldsJson: JSON.stringify(input.dataQuality.missingFields),
+    estimatedFieldsJson: JSON.stringify(input.dataQuality.estimatedFields),
+    extractionConfidence: input.dataQuality.extractionConfidence,
+  });
+
+  return { id: Number((result as { insertId?: number }).insertId ?? 0), version: nextVersion };
+}
+
+/**
+ * Retrieve all Decision Snapshots for a claim, ordered newest first.
+ */
+export async function getDecisionSnapshots(claimId: string): Promise<DecisionSnapshot[]> {
+  return db
+    .select()
+    .from(decisionSnapshots)
+    .where(eq(decisionSnapshots.claimId, claimId))
+    .orderBy(desc(decisionSnapshots.snapshotVersion));
+}
+
+/**
+ * Get the latest Decision Snapshot for a claim, or null if none exists.
+ */
+export async function getLatestDecisionSnapshot(claimId: string): Promise<DecisionSnapshot | null> {
+  const rows = await db
+    .select()
+    .from(decisionSnapshots)
+    .where(eq(decisionSnapshots.claimId, claimId))
+    .orderBy(desc(decisionSnapshots.snapshotVersion))
+    .limit(1);
+  return rows[0] ?? null;
 }

@@ -13,7 +13,7 @@
  *   [Action Bar]
  */
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, useLocation } from "wouter";
 import { trpc } from "@/lib/trpc";
 import {
@@ -936,6 +936,83 @@ export default function ClaimDecisionReport() {
   );
 
   const utils = trpc.useUtils();
+
+  // ── Snapshot auto-save: fires once when enforcement data first loads ──────
+  const snapshotSaved = useRef(false);
+  const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation();
+  const { data: snapshotHistory = [] } = trpc.aiAssessments.getSnapshots.useQuery(
+    { claimId: String(claimId) },
+    { enabled: !!claimId }
+  );
+  const [showSnapshotHistory, setShowSnapshotHistory] = useState(false);
+
+  useEffect(() => {
+    if (!enforcement || !aiAssessment || snapshotSaved.current) return;
+    snapshotSaved.current = true;
+    const e = enforcement as EnforcementResult;
+    const pe = e.physicsEstimate;
+    const ce = (enforcement as any).costExtraction;
+    const wf = (enforcement as any).weightedFraud;
+    const fd = e.finalDecision;
+    const cb = e.confidenceBreakdown;
+    const aiEstimateCents = (aiAssessment.estimatedCost ?? 0) * 100;
+    const quotedCents = (quotesWithItems as any[]).length > 0
+      ? Math.max(...(quotesWithItems as any[]).map((q: any) => q.quotedAmount ?? 0)) * 100
+      : 0;
+    const deviationPct = aiEstimateCents > 0 && quotedCents > 0
+      ? ((quotedCents - aiEstimateCents) / aiEstimateCents) * 100
+      : 0;
+    saveSnapshotMutation.mutate({
+      claimId: String(claimId),
+      verdict: {
+        decision: fd?.decision ?? 'REVIEW_REQUIRED',
+        primaryReason: fd?.primaryReason ?? 'Insufficient data for automatic decision',
+        confidence: cb?.score ?? aiAssessment.confidenceScore ?? 0,
+      },
+      cost: {
+        aiEstimate: aiEstimateCents,
+        quoted: quotedCents,
+        deviationPercent: Math.round(deviationPct),
+        fairRangeMin: ce?.fair_range?.min ?? Math.round(aiEstimateCents * 0.85),
+        fairRangeMax: ce?.fair_range?.max ?? Math.round(aiEstimateCents * 1.15),
+        verdict: ce?.verdict ?? 'FAIR',
+      },
+      fraud: {
+        score: wf?.score ?? (aiAssessment as any).fraudRiskScore ?? 0,
+        level: wf?.level ?? e.fraudLevelEnforced ?? 'minimal',
+        contributions: wf?.contributions ?? [],
+      },
+      physics: {
+        deltaV: pe?.deltaVKmh ?? 0,
+        velocityRange: pe ? `${pe.velocityRangeKmh.min}–${pe.velocityRangeKmh.max} km/h` : 'Not calculated',
+        energyKj: pe?.estimatedEnergyKj ?? 0,
+        forceKn: pe?.estimatedForceKn ?? 0,
+        estimated: pe?.estimated ?? false,
+      },
+      damage: {
+        zones: e.directionFlag?.damageZones ?? [],
+        severity: aiAssessment.structuralDamageSeverity ?? 'unknown',
+        consistencyScore: e.consistencyFlag?.score ?? 0,
+      },
+      enforcementTrace: fd?.ruleTrace?.map((r: any) => ({
+        rule: r.rule,
+        value: r.value,
+        threshold: r.threshold,
+        triggered: r.triggered,
+      })) ?? [],
+      confidenceBreakdown: cb?.penalties?.map((p: any) => ({
+        factor: p.reason,
+        penalty: p.deduction,
+      })) ?? [],
+      dataQuality: {
+        missingFields: (e.costBenchmark as any)?.missingFields ?? [],
+        estimatedFields: pe ? ['velocity', 'force', 'energy'] : [],
+        extractionConfidence: aiAssessment.confidenceScore ?? 0,
+      },
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enforcement, aiAssessment]);
+
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
       utils.claims.getById.invalidate({ id: claimId });
@@ -1062,7 +1139,48 @@ export default function ClaimDecisionReport() {
         {/* 6. Collapsible Technical Data */}
         <CollapsibleTechnicalData assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
 
-        {/* 7. Action Bar */}
+        {/* 7. Snapshot History */}
+        {(snapshotHistory as any[]).length > 0 && (
+          <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
+              style={{ background: "var(--card)", color: "var(--foreground)" }}
+              onClick={() => setShowSnapshotHistory(v => !v)}
+            >
+              <span style={{ color: "var(--muted-foreground)" }}>
+                <FileText className="inline h-3.5 w-3.5 mr-1.5" />
+                Decision Snapshot History ({(snapshotHistory as any[]).length} version{(snapshotHistory as any[]).length !== 1 ? 's' : ''})
+              </span>
+              {showSnapshotHistory ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {showSnapshotHistory && (
+              <div className="divide-y" style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
+                {(snapshotHistory as any[]).map((snap: any) => (
+                  <div key={snap.id} className="px-4 py-3 flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold mb-0.5" style={{ color: "var(--foreground)" }}>
+                        v{snap.version} — {snap.verdict.decision.replace(/_/g, ' ')}
+                      </p>
+                      <p className="text-xs truncate" style={{ color: "var(--muted-foreground)" }}>
+                        {snap.verdict.primaryReason}
+                      </p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>
+                        {new Date(snap.createdAt).toLocaleString()}
+                      </p>
+                      <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                        Fraud {snap.fraud.score}/100 · ${((snap.cost.aiEstimate ?? 0) / 100).toFixed(2)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 8. Action Bar */}
         <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
           <div>
             <p className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>Ready to decide?</p>

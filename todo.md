@@ -9930,3 +9930,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Rule 6: Confidence Score — start 100 subtract penalties
 - [ ] Rule 7: Final Decision — FINALISE/REVIEW/ESCALATE with trace
 - [ ] Frontend: show all calculations and decision trace
+
+## Decision Snapshot System
+- [ ] Add decision_snapshots table to drizzle/schema.ts
+- [ ] Run DB migration for decision_snapshots
+- [ ] Create saveDecisionSnapshot helper in server/db.ts
+- [ ] Add saveSnapshot tRPC mutation in server/routers.ts
+- [ ] Wire auto-save in ClaimDecisionReport frontend (save once on first load)
+- [ ] Add snapshot history viewer panel to claim report
+- [ ] Write vitest tests for snapshot persistence

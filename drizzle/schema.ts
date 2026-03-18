@@ -3974,3 +3974,64 @@ export const crossClaimSignals = mysqlTable("cross_claim_signals", {
 ]);
 export type CrossClaimSignal = typeof crossClaimSignals.$inferSelect;
 export type InsertCrossClaimSignal = typeof crossClaimSignals.$inferInsert;
+
+// ============================================================
+// DECISION SNAPSHOTS — Immutable audit record of every claim decision
+// ============================================================
+export const decisionSnapshots = mysqlTable("decision_snapshots", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: varchar("claim_id", { length: 50 }).notNull(),
+  tenantId: varchar("tenant_id", { length: 50 }).notNull(),
+  snapshotVersion: int("snapshot_version").notNull().default(1),
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  createdByUserId: varchar("created_by_user_id", { length: 50 }),
+
+  // Top-level verdict
+  verdictDecision: varchar("verdict_decision", { length: 50 }).notNull(), // FINALISE CLAIM | REVIEW REQUIRED | ESCALATE INVESTIGATION
+  verdictPrimaryReason: text("verdict_primary_reason").notNull(),
+  verdictConfidence: int("verdict_confidence").notNull(),
+
+  // Cost snapshot
+  costAiEstimate: int("cost_ai_estimate").notNull(),        // in cents
+  costQuoted: int("cost_quoted").notNull().default(0),      // in cents
+  costDeviationPercent: int("cost_deviation_percent").notNull().default(0),
+  costFairRangeMin: int("cost_fair_range_min").notNull(),   // in cents
+  costFairRangeMax: int("cost_fair_range_max").notNull(),   // in cents
+  costVerdict: varchar("cost_verdict", { length: 20 }).notNull(), // FAIR | OVERPRICED | UNDERPRICED
+
+  // Fraud snapshot
+  fraudScore: int("fraud_score").notNull(),
+  fraudLevel: varchar("fraud_level", { length: 20 }).notNull(),
+  fraudContributionsJson: text("fraud_contributions_json").notNull(), // JSON array
+
+  // Physics snapshot
+  physicsDetlaV: int("physics_delta_v").notNull().default(0),        // km/h * 10 (1 decimal)
+  physicsVelocityRange: varchar("physics_velocity_range", { length: 50 }).notNull().default(""),
+  physicsEnergyKj: int("physics_energy_kj").notNull().default(0),
+  physicsForceKn: int("physics_force_kn").notNull().default(0),
+  physicsEstimated: tinyint("physics_estimated").notNull().default(0),
+
+  // Damage snapshot
+  damageZonesJson: text("damage_zones_json").notNull(),    // JSON array of strings
+  damageSeverity: varchar("damage_severity", { length: 30 }).notNull(),
+  damageConsistencyScore: int("damage_consistency_score").notNull().default(0),
+
+  // Enforcement trace
+  enforcementTraceJson: text("enforcement_trace_json").notNull(), // JSON array
+
+  // Confidence breakdown
+  confidenceBreakdownJson: text("confidence_breakdown_json").notNull(), // JSON array
+
+  // Data quality
+  missingFieldsJson: text("missing_fields_json").notNull(),    // JSON array of strings
+  estimatedFieldsJson: text("estimated_fields_json").notNull(), // JSON array of strings
+  extractionConfidence: int("extraction_confidence").notNull().default(0), // 0-100
+}, (table) => [
+  index("idx_ds_claim").on(table.claimId),
+  index("idx_ds_tenant").on(table.tenantId),
+  index("idx_ds_created").on(table.createdAt),
+  index("idx_ds_verdict").on(table.verdictDecision),
+]);
+
+export type DecisionSnapshot = typeof decisionSnapshots.$inferSelect;
+export type InsertDecisionSnapshot = typeof decisionSnapshots.$inferInsert;
