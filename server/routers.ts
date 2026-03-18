@@ -2781,7 +2781,32 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           extractionConfidence: Number(extractionConfidence),
           quotedAmounts,
         });
-        return { ...result, costExtraction };
+        // Run the Weighted Fraud Scoring Engine — deterministic, rule-based
+        const { computeWeightedFraudScore, countMissingFields } = await import('./weighted-fraud-scoring');
+        const primaryQuotedAmount = quotedAmounts.length > 0 ? Math.max(...quotedAmounts) : 0;
+        const missingDataCount = countMissingFields({
+          estimatedSpeedKmh: Number(estimatedSpeedKmh),
+          impactForceKn: Number(impactForceKn),
+          energyKj: Number(energyKj),
+          vehicleMake: assessment.vehicleMake ?? '',
+          impactDirection,
+          damageComponents: damagedComponents,
+        });
+        // Derive damage zones from component names and impact direction
+        const damageZones = damagedComponents.length > 0
+          ? damagedComponents.map((c: string) => c.toLowerCase())
+          : impactDirection !== 'unknown' ? [impactDirection] : [];
+        const weightedFraud = computeWeightedFraudScore({
+          consistencyScore: Number(consistencyScore),
+          aiEstimatedCost,
+          quotedAmount: primaryQuotedAmount,
+          impactDirection,
+          damageZones,
+          hasPreviousClaims: false, // TODO: wire to claims history lookup
+          missingDataCount,
+          aiIndicators: fraudIndicators.map(i => ({ label: i.indicator, points: i.score })),
+        });
+        return { ...result, costExtraction, weightedFraud };
       }),
   }),
 

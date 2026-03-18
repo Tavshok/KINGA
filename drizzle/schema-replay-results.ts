@@ -54,7 +54,7 @@ export const historicalReplayResults = mysqlTable("historical_replay_results", {
   confidenceJustification: text("confidence_justification"), // Explanation of confidence level
   
   // Fraud analysis
-  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["none", "low", "medium", "high", "critical"]),
+  fraudRiskLevel: mysqlEnum("fraud_risk_level", ["none", "low", "medium", "high", "critical", "elevated"]),
   fraudIndicators: json("fraud_indicators"), // Array of fraud indicators detected
   
   // Simulated workflow audit trail

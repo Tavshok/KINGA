@@ -1,0 +1,9 @@
+{
+  "query": "\n-- Add 'elevated' to fraud_risk_level enum in ai_assessments table\nALTER TABLE ai_assessments MODIFY COLUMN fraud_risk_level ENUM('low','medium','high','critical','elevated') DEFAULT 'low';\n\n-- Add 'elevated' to fraud_risk_level enum in assessor_evaluations table (if it exists)\nALTER TABLE assessor_evaluations MODIFY COLUMN fraud_risk_level ENUM('low','medium','high','critical','elevated') DEFAULT NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \n-- Add 'elevated' to fraud_risk_level enum in ai_assessments table\nALTER TABLE ai_assessments MODIFY COLUMN fraud_risk_level ENUM('low','medium','high','critical','elevated') DEFAULT 'low';\n\n-- Add 'elevated' to fraud_risk_level enum in assessor_evaluations table (if it exists)\nALTER TABLE assessor_evaluations MODIFY COLUMN fraud_risk_level ENUM('low','medium','high','critical','elevated') DEFAULT NULL;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 766
+}

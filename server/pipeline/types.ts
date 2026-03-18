@@ -504,7 +504,7 @@ export interface HiddenDamageResult {
 /** Stage 5: Forensic / fraud analysis */
 export interface ForensicResult {
   fraudRiskScore: number;          // 0–100
-  fraudRiskLevel: "low" | "medium" | "high" | "critical";
+  fraudRiskLevel: "low" | "medium" | "high" | "elevated";
   fraudIndicators: string[];
   damageConsistencyScore: number;
   damageConsistencyNotes: string;

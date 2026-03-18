@@ -373,7 +373,7 @@ export default function InsurerComparisonView() {
   const fraudLevel = aiAssessment?.fraudRiskLevel || assessorEval?.fraudRiskLevel || 'unknown';
   const confidenceScore = aiAssessment?.confidenceScore || 0;
 
-  const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'critical' ? 'danger' :
+  const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'danger' :
     fraudLevel === 'medium' ? 'warning' : fraudLevel === 'low' ? 'success' : 'neutral';
 
   return (
@@ -1014,7 +1014,7 @@ export default function InsurerComparisonView() {
             <div className="comparison-section-body">
               <div className="space-y-4">
                 {/* Fraud level banner */}
-                {(aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical') && (
+                {(aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical' || aiAssessment.fraudRiskLevel === 'elevated') && (
                   <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-red-500" style={{ background: 'oklch(0.55 0.22 25 / 0.12)' }}>
                     <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
@@ -2363,7 +2363,7 @@ function ExecutiveSummaryInline({
   const fraudLevel = (aiAssessment.fraudRiskLevel || 'unknown') as string;
   const confidence = aiAssessment.confidenceScore || 0;
   const isTotalLoss = aiAssessment.totalLossIndicated === 1;
-  const fraudColor = fraudLevel === 'high' || fraudLevel === 'critical' ? 'text-red-400' : fraudLevel === 'medium' ? 'text-amber-400' : 'text-green-400';
+  const fraudColor = fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'text-red-400' : fraudLevel === 'medium' ? 'text-amber-400' : 'text-green-400';
 
   const summaryText = aiAssessment.damageDescription
     ? aiAssessment.damageDescription
@@ -2378,7 +2378,7 @@ function ExecutiveSummaryInline({
     { label: 'Avg Quote', value: avgQuote > 0 ? `US$${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
     { label: 'Fraud Risk', value: fraudLevel.toUpperCase(), className: fraudColor },
     { label: 'AI Confidence', value: `${confidence}%` },
-    { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : fraudLevel === 'high' || fraudLevel === 'critical' ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || fraudLevel === 'high' || fraudLevel === 'critical' ? 'text-red-400' : 'text-green-400' },
+    { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'text-red-400' : 'text-green-400' },
   ];
 
   return (

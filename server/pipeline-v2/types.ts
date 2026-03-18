@@ -105,7 +105,7 @@ export type VehicleBodyType =
   | "sports"
   | "compact";
 
-export type FraudRiskLevel = "minimal" | "low" | "medium" | "high" | "critical";
+export type FraudRiskLevel = "minimal" | "low" | "medium" | "high" | "elevated";
 
 export type VarianceFlag = "within_range" | "overpriced" | "underpriced" | "no_quote";
 

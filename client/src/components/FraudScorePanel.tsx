@@ -23,7 +23,7 @@ interface IndicatorResult {
 
 interface FraudScoreBreakdown {
   totalScore: number;
-  riskLevel: "minimal" | "low" | "moderate" | "high" | "very_high" | "critical";
+  riskLevel: "minimal" | "low" | "moderate" | "high" | "very_high" | "critical" | "elevated";
   triggeredIndicatorCount: number;
   concentrationAlert: boolean;
   concentrationIndicator?: string;
@@ -48,10 +48,11 @@ const RISK_CONFIG: Record<string, {
   low:      { label: "Low Risk",       color: "bg-green-600",   bgColor: "bg-green-50 dark:bg-green-950/30",    borderColor: "border-green-200 dark:border-green-800",   gaugeColor: "#22c55e", textColor: "text-green-700 dark:text-green-300" },
   moderate: { label: "Moderate Risk",  color: "bg-amber-600",   bgColor: "bg-amber-50 dark:bg-amber-950/30",    borderColor: "border-amber-200 dark:border-amber-800",   gaugeColor: "#f59e0b", textColor: "text-amber-700 dark:text-amber-300" },
   high:     { label: "High Risk",      color: "bg-orange-600",  bgColor: "bg-orange-50 dark:bg-orange-950/30",   borderColor: "border-orange-200 dark:border-orange-800",  gaugeColor: "#f97316", textColor: "text-orange-700 dark:text-orange-300" },
-  // Enforcement: 'critical' replaces 'very_high' — strict threshold is 81+
-  critical: { label: "Critical Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
-  // Legacy alias — maps to critical for backward compatibility
-  very_high:{ label: "Critical Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
+  // Top band — 81-100
+  elevated: { label: "Elevated Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
+  // Legacy aliases — map to elevated for backward compatibility
+  critical: { label: "Elevated Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
+  very_high:{ label: "Elevated Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
 };
 
 // ─── Indicator icon mapping ───────────────────────────────────────────────────
@@ -137,7 +138,7 @@ function FraudGauge({ score, riskLevel }: { score: number; riskLevel: string }) 
         <span>·</span>
         <span className="text-orange-600">61–80 High</span>
         <span>·</span>
-        <span className="text-red-700 dark:text-red-300">81–100 Critical</span>
+        <span className="text-red-700 dark:text-red-300">81–100 Elevated</span>
       </div>
     </div>
   );

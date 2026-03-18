@@ -32,7 +32,7 @@ export type FraudRiskLevel =
   | "low"
   | "moderate"
   | "high"
-  | "very_high";
+  | "elevated";
 
 export type IndicatorKey =
   | "physicsMismatch"
@@ -223,7 +223,7 @@ function buildIndicator(signals: SignalResult[], maxScore: number): IndicatorRes
 }
 
 function rawRiskLevel(score: number): FraudRiskLevel {
-  if (score >= 76) return "very_high";
+  if (score >= 76) return "elevated";
   if (score >= 56) return "high";
   if (score >= 36) return "moderate";
   if (score >= 16) return "low";
@@ -235,10 +235,10 @@ export const RISK_LEVEL_LABELS: Record<FraudRiskLevel, string> = {
   low:       "Low Risk",
   moderate:  "Moderate Risk",
   high:      "High Risk",
-  very_high: "Very High Risk",
+  elevated: "Elevated Risk",
 };
 
-const LEVEL_ORDER: FraudRiskLevel[] = ["minimal", "low", "moderate", "high", "very_high"];
+const LEVEL_ORDER: FraudRiskLevel[] = ["minimal", "low", "moderate", "high", "elevated"];
 
 function bumpLevel(level: FraudRiskLevel): FraudRiskLevel {
   const idx = LEVEL_ORDER.indexOf(level);
@@ -946,7 +946,7 @@ function buildRecommendations(
 ): RecommendedAction[] {
   const actions: RecommendedAction[] = [];
 
-  if (level === "very_high") {
+  if (level === "elevated") {
     actions.push({ code: "ESCALATE", description: "Refer immediately to the Fraud Investigation Unit", urgency: "immediate" });
     actions.push({ code: "SUSPEND", description: "Place claim on hold pending investigation", urgency: "immediate" });
   } else if (level === "high") {
@@ -1029,7 +1029,7 @@ export function computeFraudScoreBreakdown(
     concentrationAlerts,
     escalation,
     recommendedActions: buildRecommendations(indicators, finalLevel),
-    requiresInvestigation: finalLevel === "high" || finalLevel === "very_high",
+    requiresInvestigation: finalLevel === "high" || finalLevel === "elevated",
   };
 }
 

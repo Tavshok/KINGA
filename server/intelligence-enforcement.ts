@@ -25,7 +25,7 @@
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type FraudLevelEnforced = "minimal" | "low" | "moderate" | "high" | "critical";
+export type FraudLevelEnforced = "minimal" | "low" | "moderate" | "high" | "elevated";
 
 export interface PhysicsEstimate {
   velocityRangeKmh: { min: number; max: number };
@@ -202,10 +202,10 @@ const SEVERITY_COST_RANGE: Record<string, { base: number; min: number; max: numb
 /**
  * Enforces strict 5-band fraud score mapping.
  * The legacy system used "very_high" for 76+; enforcement replaces this
- * with "critical" for 81+ and adjusts all band boundaries.
+ * with "elevated" for 81+ and adjusts all band boundaries.
  */
 export function enforceFraudLevel(score: number): { level: FraudLevelEnforced; label: string } {
-  if (score >= 81) return { level: "critical",  label: "Critical Risk"  };
+  if (score >= 81) return { level: "elevated", label: "Elevated Risk" };
   if (score >= 61) return { level: "high",      label: "High Risk"      };
   if (score >= 41) return { level: "moderate",  label: "Moderate Risk"  };
   if (score >= 21) return { level: "low",       label: "Low Risk"       };
@@ -551,8 +551,8 @@ export function generateCriticalAlerts(params: {
     alerts.push({
       id: "fraud_high",
       severity: "critical",
-      title: `${params.fraudLevel === "critical" ? "Critical" : "High"} Fraud Risk Detected`,
-      detail: `Fraud score of ${params.fraudScore}/100 exceeds the ${params.fraudLevel === "critical" ? "critical (81+)" : "high (61+)"} threshold. Escalate to senior assessor before approving.`,
+      title: `${params.fraudLevel === "elevated" ? "Elevated" : "High"} Fraud Risk Detected`,
+      detail: `Fraud score of ${params.fraudScore}/100 exceeds the ${params.fraudLevel === "elevated" ? "elevated (81+)" : "high (61+)"} threshold. Escalate to senior assessor before approving.`,
       engine: "Fraud Detection Engine",
       priority: 10,
     });

@@ -60,7 +60,7 @@ export interface EnhancedFraudInput {
 
 export interface OwnershipAnalysis {
   risk_score: number;
-  risk_level: "low" | "medium" | "high" | "critical";
+  risk_level: "low" | "medium" | "high" | "elevated";
   is_legitimate: boolean;
   legitimacy_indicators: string[];
   risk_factors: string[];
@@ -87,7 +87,7 @@ export interface EnhancedFraudResult {
   fraud_probability: number;
   ml_fraud_score?: number;
   ownership_risk_score: number;
-  risk_level: "low" | "medium" | "high" | "critical";
+  risk_level: "low" | "medium" | "high" | "elevated";
   confidence: number;
   ownership_analysis: OwnershipAnalysis;
   driver_profile: DriverProfile;

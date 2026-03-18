@@ -472,8 +472,8 @@ export async function triggerAiAssessment(claimId: number) {
   const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary } = result;
 
   // Map fraud risk level to DB enum
-  const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical'> = {
-    minimal: 'low', low: 'low', medium: 'medium', high: 'high', critical: 'critical',
+  const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical' | 'elevated'> = {
+    minimal: 'low', low: 'low', medium: 'medium', high: 'high', critical: 'elevated', elevated: 'elevated',
   };
   const dbFraudLevel = fraudAnalysis ? (fraudLevelMap[fraudAnalysis.fraudRiskLevel] || 'low') : 'low';
 

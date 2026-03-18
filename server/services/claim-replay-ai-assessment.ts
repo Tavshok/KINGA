@@ -35,10 +35,10 @@ export interface ReplayAiAssessmentResult {
   fraudScore: number; // 0-100
   fraudIndicators: Array<{
     indicator: string;
-    severity: "low" | "medium" | "high" | "critical";
+    severity: "low" | "medium" | "high" | "elevated";
     description: string;
   }>;
-  fraudRiskLevel: "none" | "low" | "medium" | "high" | "critical";
+  fraudRiskLevel: "none" | "low" | "medium" | "high" | "elevated";
   
   // Confidence scoring
   compositeConfidenceScore: number; // 0-100
@@ -218,10 +218,10 @@ export async function replayFraudDetection(
   fraudScore: number;
   fraudIndicators: Array<{
     indicator: string;
-    severity: "low" | "medium" | "high" | "critical";
+    severity: "low" | "medium" | "high" | "elevated";
     description: string;
   }>;
-  fraudRiskLevel: "none" | "low" | "medium" | "high" | "critical";
+  fraudRiskLevel: "none" | "low" | "medium" | "high" | "elevated";
 }> {
   const db = await getDb();
   
@@ -239,7 +239,7 @@ export async function replayFraudDetection(
   let fraudScore = 0;
   const fraudIndicators: Array<{
     indicator: string;
-    severity: "low" | "medium" | "high" | "critical";
+    severity: "low" | "medium" | "high" | "elevated";
     description: string;
   }> = [];
   
@@ -302,8 +302,8 @@ export async function replayFraudDetection(
   }
   
   // Determine fraud risk level
-  let fraudRiskLevel: "none" | "low" | "medium" | "high" | "critical" = "none";
-  if (fraudScore >= 60) fraudRiskLevel = "critical";
+  let fraudRiskLevel: "none" | "low" | "medium" | "high" | "elevated" = "none";
+  if (fraudScore >= 60) fraudRiskLevel = "elevated";
   else if (fraudScore >= 40) fraudRiskLevel = "high";
   else if (fraudScore >= 20) fraudRiskLevel = "medium";
   else if (fraudScore >= 10) fraudRiskLevel = "low";

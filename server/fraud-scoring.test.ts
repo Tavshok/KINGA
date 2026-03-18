@@ -567,7 +567,7 @@ describe("Risk level thresholds", () => {
     expect(result.totalScore).toBe(0);
   });
 
-  it("returns very_high for a maximally fraudulent claim", () => {
+  it("returns elevated for a maximally fraudulent claim", () => {
     const input = cleanInput({
       physics: { damageConsistencyScore: 10, impossibleDamagePatterns: ["p1","p2","p3"], unrelatedDamageComponents: [{ name: "d1", distanceFromImpact: 100 }], severityMismatch: true, stagedAccidentIndicators: ["s1"], estimatedSpeedKmh: 120, structuralDamage: true, impactForceKn: 80 },
       claimant: { isNonOwnerDriver: true, driverRelationshipToOwner: "unknown", policyAgeDays: 10, submissionDelayDays: 60, previousClaimsCount: 5, driverLicenseSuspended: true, driverLicenseVerified: false, driverViolationsCount: 5, driverEmploymentStatus: "unemployed", previousInsurerCount: 5, lodgedBy: "third_party", driverAge: 19 },
@@ -583,7 +583,7 @@ describe("Risk level thresholds", () => {
     });
     const result = computeFraudScoreBreakdown(input);
     expect(result.totalScore).toBeGreaterThan(75);
-    expect(result.riskLevel).toBe("very_high");
+    expect(result.riskLevel).toBe("elevated");
   });
 
   it("requiresInvestigation is true for high risk", () => {
@@ -596,7 +596,7 @@ describe("Risk level thresholds", () => {
       documents: { ...cleanInput().documents, hasHandwrittenQuote: true, photoMetadataScore: 0.15 },
     });
     const result = computeFraudScoreBreakdown(input);
-    if (result.riskLevel === "high" || result.riskLevel === "very_high") {
+    if (result.riskLevel === "high" || result.riskLevel === "elevated") {
       expect(result.requiresInvestigation).toBe(true);
     }
   });

@@ -111,6 +111,19 @@ interface EnforcementResult {
     engine: string;
   }>;
   fraudScoreAdjustment: number;
+  /** NEW: deterministic weighted fraud score */
+  weightedFraud?: {
+    score: number;
+    level: string;
+    contributions: Array<{ factor: string; value: number }>;
+    full_contributions: Array<{
+      factor: string;
+      value: number;
+      triggered: boolean;
+      detail: string;
+    }>;
+    explanation: string;
+  };
 }
 
 // ─── Risk level config ────────────────────────────────────────────────────────
@@ -714,47 +727,27 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
 }
 
 function FraudRiskDecision({ assessment, enforcement }: { assessment: any; enforcement: EnforcementResult }) {
-  const riskLevel = enforcement.fraudLevelEnforced;
+  // Prefer the new deterministic weighted fraud score; fall back to AI pipeline score
+  const wf = enforcement.weightedFraud;
+  const riskLevel = wf?.level ?? enforcement.fraudLevelEnforced;
   const style = RISK_STYLE[riskLevel] ?? RISK_STYLE.moderate;
-
-  // Parse fraud breakdown
-  let breakdown: any = null;
-  try {
-    const raw = assessment.fraudScoreBreakdownJson;
-    if (raw) breakdown = typeof raw === "string" ? JSON.parse(raw) : raw;
-  } catch { /* ignore */ }
-
-  const score = breakdown?.totalScore ?? 0;
-  const triggeredSignals: Array<{ label: string; points: number; evidence: string }> = breakdown?.triggeredSignals ?? [];
-  const topSignals = triggeredSignals.slice(0, 3);
-
-  // Build fraud reasoning narrative
-  const reasoningParts: string[] = [];
-  if (score === 0) {
-    reasoningParts.push("No fraud indicators were triggered by the AI assessment.");
-  } else {
-    reasoningParts.push(`The fraud score of ${score}/100 places this claim in the ${enforcement.fraudLevelLabel} category.`);
-    if (topSignals.length > 0) {
-      reasoningParts.push(`The primary contributing factors are: ${topSignals.map(s => s.label.toLowerCase()).join("; ")}.`);
-    }
-    if (enforcement.consistencyFlag.fraudWeightIncrease > 0) {
-      reasoningParts.push(`An additional ${enforcement.consistencyFlag.fraudWeightIncrease} points were applied by the Intelligence Enforcement Layer due to a damage consistency anomaly.`);
-    }
-    if (enforcement.directionFlag.mismatch) {
-      reasoningParts.push("The direction-damage mismatch is a contributing risk signal that warrants assessor review.");
-    }
-  }
-  const reasoning = reasoningParts.join(" ");
+  const score = wf?.score ?? 0;
+  const levelLabel = riskLevel.charAt(0).toUpperCase() + riskLevel.slice(1);
 
   return (
     <div className="rounded-xl p-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 mb-3">
         <Shield className="h-4 w-4" style={{ color: "var(--primary)" }} />
         <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Fraud & Risk Decision</p>
+        {wf && (
+          <span className="ml-auto text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${style.dot}20`, color: style.dot }}>
+            Weighted Score
+          </span>
+        )}
       </div>
 
+      {/* Score + explanation */}
       <div className="flex items-start gap-4 mb-4">
-        {/* Score circle */}
         <div className="shrink-0 flex flex-col items-center">
           <div
             className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-black"
@@ -762,47 +755,79 @@ function FraudRiskDecision({ assessment, enforcement }: { assessment: any; enfor
           >
             {score}
           </div>
-          <p className="text-xs mt-1 font-semibold" style={{ color: style.text }}>{enforcement.fraudLevelLabel}</p>
+          <p className="text-xs mt-1 font-semibold" style={{ color: style.text }}>{levelLabel}</p>
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>/ 100</p>
         </div>
-
-        {/* Reasoning */}
         <div className="flex-1">
-          <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{reasoning}</p>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>
+            {wf?.explanation ?? enforcement.fraudLevelLabel}
+          </p>
         </div>
       </div>
 
-      {/* Top signals */}
-      {topSignals.length > 0 && (
-        <div>
+      {/* Weighted contributions breakdown */}
+      {wf && (
+        <div className="mb-3">
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>
-            Top Fraud Signals
+            Score Breakdown — 5 Weighted Factors
           </p>
-          <div className="space-y-2">
-            {topSignals.map((sig, i) => (
-              <div key={i} className="flex items-start gap-2.5 p-2.5 rounded-lg" style={{ background: "oklch(0.55 0.22 25 / 0.08)", border: "1px solid oklch(0.55 0.22 25 / 0.25)" }}>
-                <span className="text-xs font-black shrink-0 mt-0.5" style={{ color: "#f87171" }}>+{sig.points}</span>
-                <div className="min-w-0">
-                  <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{sig.label}</p>
-                  <p className="text-xs leading-snug" style={{ color: "var(--muted-foreground)" }}>{sig.evidence}</p>
+          <div className="space-y-1.5">
+            {wf.full_contributions.map((c, i) => (
+              <div
+                key={i}
+                className="flex items-start gap-2.5 p-2 rounded-lg"
+                style={{
+                  background: c.triggered
+                    ? "oklch(0.55 0.22 25 / 0.08)"
+                    : "oklch(0.45 0.04 155 / 0.06)",
+                  border: c.triggered
+                    ? "1px solid oklch(0.55 0.22 25 / 0.30)"
+                    : "1px solid var(--border)",
+                }}
+              >
+                <div className="shrink-0 w-8 text-center">
+                  {c.triggered ? (
+                    <span className="text-xs font-black" style={{ color: "#f87171" }}>+{c.value}</span>
+                  ) : (
+                    <span className="text-xs font-semibold" style={{ color: "#10b981" }}>0</span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{c.factor}</p>
+                  <p className="text-xs leading-snug" style={{ color: "var(--muted-foreground)" }}>{c.detail}</p>
+                </div>
+                <div className="shrink-0">
+                  {c.triggered ? (
+                    <span className="text-xs font-bold" style={{ color: "#f87171" }}>✗ TRIGGERED</span>
+                  ) : (
+                    <span className="text-xs font-bold" style={{ color: "#10b981" }}>✓ CLEAR</span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+          {/* Total */}
+          <div className="mt-2 flex items-center justify-between px-2 py-1.5 rounded-lg" style={{ background: `${style.dot}15`, border: `1px solid ${style.dot}40` }}>
+            <span className="text-xs font-bold" style={{ color: "var(--foreground)" }}>Total Fraud Score</span>
+            <span className="text-sm font-black" style={{ color: style.dot }}>{score}/100 — {levelLabel}</span>
+          </div>
         </div>
       )}
 
-      {/* Recommended actions */}
-      {breakdown?.recommendedActions && breakdown.recommendedActions.length > 0 && (
-        <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Recommended Actions</p>
-          <ul className="space-y-1">
-            {breakdown.recommendedActions.slice(0, 3).map((action: string, i: number) => (
-              <li key={i} className="flex items-start gap-1.5 text-xs" style={{ color: "var(--foreground)" }}>
-                <span className="shrink-0 mt-0.5 font-bold" style={{ color: "var(--primary)" }}>→</span>
-                <span>{action}</span>
-              </li>
-            ))}
-          </ul>
+      {/* Enforcement adjustments from intelligence layer */}
+      {(enforcement.consistencyFlag.fraudWeightIncrease > 0 || enforcement.directionFlag.mismatch) && (
+        <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--muted-foreground)" }}>Intelligence Layer Adjustments</p>
+          {enforcement.consistencyFlag.fraudWeightIncrease > 0 && (
+            <p className="text-xs" style={{ color: "var(--foreground)" }}>
+              +{enforcement.consistencyFlag.fraudWeightIncrease} pts applied for damage consistency anomaly ({enforcement.consistencyFlag.score}% consistency).
+            </p>
+          )}
+          {enforcement.directionFlag.mismatch && (
+            <p className="text-xs mt-1" style={{ color: "var(--foreground)" }}>
+              Direction-damage mismatch detected: {enforcement.directionFlag.explanation}
+            </p>
+          )}
         </div>
       )}
     </div>

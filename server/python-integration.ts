@@ -65,7 +65,7 @@ export interface PDFProcessingResult {
 
 export interface FraudPredictionResult {
   fraud_probability: number;
-  risk_level: "low" | "medium" | "high" | "critical";
+  risk_level: "low" | "medium" | "high" | "elevated";
   confidence: number;
   top_risk_factors: string[];
   recommendations: string[];

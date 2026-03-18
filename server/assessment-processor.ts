@@ -770,7 +770,7 @@ function detectFraudInline(
   
   fraudScore = Math.min(1.0, fraudScore);
   
-  const riskLevel = fraudScore < 0.3 ? 'low' : fraudScore < 0.6 ? 'medium' : fraudScore < 0.8 ? 'high' : 'critical';
+  const riskLevel = fraudScore < 0.3 ? 'low' : fraudScore < 0.6 ? 'medium' : fraudScore < 0.8 ? 'high' : 'elevated';
   
   const recommendations: string[] = [];
   if (fraudScore > 0.5) {
@@ -1823,7 +1823,7 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       }
       
       const riskScore = Math.round(adjustedFraudProb * 100);
-      const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'critical';
+      const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'elevated';
       
       const topRiskFactors = [...(llmFraud.top_risk_factors || [])];
       if (physicsContributes) {
@@ -1886,7 +1886,7 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
       }
       
       const riskScore = Math.round(adjustedProb * 100);
-      const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'critical';
+      const riskLevel = riskScore < 30 ? 'low' : riskScore < 60 ? 'medium' : riskScore < 80 ? 'high' : 'elevated';
       const validationLabel = incidentClassification.isCollision ? 'Physics validation' : 'Damage validation';
       
       fraudAnalysis = {
@@ -2027,7 +2027,7 @@ Inline risk score: ${Math.round(inlineFraud.fraudProbability * 100)}/100 (${inli
           fraudAnalysis.fraud_probability = Math.min(1.0, fraudAnalysis.fraud_probability + cvRiskBoost);
           fraudAnalysis.risk_score = Math.round(fraudAnalysis.fraud_probability * 100);
           const rs = fraudAnalysis.risk_score;
-          fraudAnalysis.risk_level = rs < 30 ? 'low' : rs < 60 ? 'medium' : rs < 80 ? 'high' : 'critical';
+          fraudAnalysis.risk_level = rs < 30 ? 'low' : rs < 60 ? 'medium' : rs < 80 ? 'high' : 'elevated';
           console.log(`   ⚠️ Fraud score adjusted: +${(cvRiskBoost * 100).toFixed(0)}% → ${fraudAnalysis.risk_score}/100 (${fraudAnalysis.risk_level})`);
         }
       }
