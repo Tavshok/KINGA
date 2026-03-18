@@ -85,13 +85,25 @@ async function startServer() {
       if (!claimId || typeof claimId !== 'string') {
         return res.status(400).json({ error: 'Missing claimId' });
       }
-      const { generateAuditExport } = await import('../audit-export');
-      const exportData = await generateAuditExport(claimId);
-      const filename = `audit-export-${claimId}-${Date.now()}.json`;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('X-Payload-Hash', exportData.payload_hash);
-      res.status(200).send(JSON.stringify(exportData, null, 2));
+      const { generateAuditExport, AuditExportBlockedError } = await import('../audit-export');
+      try {
+        const exportData = await generateAuditExport(claimId);
+        const filename = `audit-export-${claimId}-${Date.now()}.json`;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('X-Payload-Hash', exportData.payload_hash);
+        res.status(200).send(JSON.stringify(exportData, null, 2));
+      } catch (err) {
+        if (err instanceof AuditExportBlockedError) {
+          // Spec-required blocked response — 422 Unprocessable Entity
+          return res.status(422).json({
+            export_allowed: false,
+            reason: 'Missing or inconsistent audit data',
+            checks: err.checks,
+          });
+        }
+        throw err; // re-throw to outer catch
+      }
     } catch (err) {
       console.error('[AuditExport] Error generating export:', err);
       res.status(500).json({ error: 'Failed to generate audit export' });

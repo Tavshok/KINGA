@@ -3131,8 +3131,34 @@ If any value is not found, use 0 for numbers and empty string for text.`;
     getAuditExport: protectedProcedure
       .input(z.object({ claimId: z.string() }))
       .query(async ({ input }) => {
-        const { generateAuditExport } = await import('./audit-export');
-        return generateAuditExport(input.claimId);
+        const { generateAuditExport, validateAuditExport, AuditExportBlockedError } = await import('./audit-export');
+        try {
+          const result = await generateAuditExport(input.claimId);
+          return { export_allowed: true as const, reason: 'All checks passed', checks: [], data: result };
+        } catch (err) {
+          if (err instanceof AuditExportBlockedError) {
+            // Return spec-compliant blocked response — do NOT throw a TRPCError
+            // so the frontend can read the structured validation details.
+            return {
+              export_allowed: false as const,
+              reason: 'Missing or inconsistent audit data',
+              checks: err.checks,
+              data: null,
+            };
+          }
+          throw new TRPCError({
+            code: 'INTERNAL_SERVER_ERROR',
+            message: err instanceof Error ? err.message : 'Audit export failed',
+          });
+        }
+      }),
+
+    // Validate export preconditions without generating the export
+    validateAuditExport: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input }) => {
+        const { validateAuditExport } = await import('./audit-export');
+        return validateAuditExport(input.claimId);
       }),
 
     // ─── Shadow Override Monitor (passive observation only) ─────────────────

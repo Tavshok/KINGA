@@ -20,7 +20,7 @@ import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   ArrowLeft, Shield, Zap, DollarSign, Car, FileText,
   TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code, GitCompareArrows,
-  Lock, Unlock, Eye, Gavel, Download
+  Lock, Unlock, Eye, Gavel, Download, AlertCircle, XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -993,12 +993,27 @@ export default function ClaimDecisionReport() {
     { enabled: !!claimId && showAuditLog }
   );
   const [isExporting, setIsExporting] = useState(false);
+  const [exportValidationErrors, setExportValidationErrors] = useState<Array<{check: string; passed: boolean; detail: string}> | null>(null);
+  const [showExportValidation, setShowExportValidation] = useState(false);
 
   const downloadAuditExport = async () => {
     if (!claimId) return;
     setIsExporting(true);
+    setExportValidationErrors(null);
+    setShowExportValidation(false);
     try {
       const res = await fetch(`/api/claims/${encodeURIComponent(String(claimId))}/audit-export.json`);
+      if (res.status === 422) {
+        // Pre-export validation gate blocked the export
+        const body = await res.json() as { export_allowed: boolean; reason: string; checks: Array<{check: string; passed: boolean; detail: string}> };
+        setExportValidationErrors(body.checks);
+        setShowExportValidation(true);
+        toast.error('Export blocked — missing or inconsistent audit data', {
+          description: 'See the validation details below the action bar.',
+          duration: 6000,
+        });
+        return;
+      }
       if (!res.ok) throw new Error(`Server returned ${res.status}`);
       const payloadHash = res.headers.get('X-Payload-Hash');
       const blob = await res.blob();
@@ -1653,6 +1668,39 @@ export default function ClaimDecisionReport() {
             </div>
           </div>
         </div>
+
+        {/* Export Validation Gate Panel — shown when export is blocked */}
+        {showExportValidation && exportValidationErrors && (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid oklch(0.55 0.22 30)", background: "oklch(0.18 0.06 30 / 0.5)" }}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ background: "oklch(0.22 0.08 30 / 0.7)" }}>
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" style={{ color: "#fca5a5" }} />
+                <span className="text-sm font-semibold" style={{ color: "#fca5a5" }}>Export Blocked — Validation Failed</span>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "oklch(0.30 0.10 30)", color: "#fca5a5" }}>
+                  {exportValidationErrors.filter(c => !c.passed).length} check{exportValidationErrors.filter(c => !c.passed).length !== 1 ? 's' : ''} failed
+                </span>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => setShowExportValidation(false)}>Dismiss</Button>
+            </div>
+            <div className="p-4 space-y-2">
+              {exportValidationErrors.map((check, i) => (
+                <div key={i} className="flex items-start gap-3 rounded-lg px-3 py-2.5" style={{ background: check.passed ? "oklch(0.20 0.06 150 / 0.4)" : "oklch(0.20 0.08 30 / 0.4)", border: `1px solid ${check.passed ? "oklch(0.40 0.12 150)" : "oklch(0.45 0.18 30)"}` }}>
+                  {check.passed
+                    ? <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#86efac" }} />
+                    : <XCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#fca5a5" }} />
+                  }
+                  <div>
+                    <p className="text-xs font-mono font-semibold" style={{ color: check.passed ? "#86efac" : "#fca5a5" }}>{check.check}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{check.detail}</p>
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs pt-1" style={{ color: "var(--muted-foreground)" }}>
+                Resolve the failed checks above, then click <strong>Export Audit</strong> again.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* 9. Governance Audit Log */}
         {showAuditLog && (

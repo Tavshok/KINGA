@@ -246,3 +246,185 @@ describe("AuditExport output structure", () => {
     expect(tamperedHash).not.toBe(originalHash);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// validateAuditExport — PRE-EXPORT VALIDATION GATE (pure logic, no DB)
+// ─────────────────────────────────────────────────────────────────────────────
+
+import { AuditExportBlockedError } from "./audit-export";
+
+describe("AuditExportValidationResult structure", () => {
+  function buildPassedCheck(name: string): { check: string; passed: boolean; detail: string } {
+    return { check: name, passed: true, detail: `${name}: OK` };
+  }
+  function buildFailedCheck(name: string, detail: string): { check: string; passed: boolean; detail: string } {
+    return { check: name, passed: false, detail };
+  }
+
+  function buildValidationResult(checks: Array<{ check: string; passed: boolean; detail: string }>) {
+    const allPassed = checks.every((c) => c.passed);
+    return {
+      export_allowed: allPassed,
+      reason: allPassed ? "All checks passed" : "Missing or inconsistent audit data",
+      checks,
+    };
+  }
+
+  it("export_allowed is true when all checks pass", () => {
+    const result = buildValidationResult([
+      buildPassedCheck("snapshot_exists"),
+      buildPassedCheck("snapshot_lifecycle_consistency"),
+      buildPassedCheck("governance_log_present"),
+      buildPassedCheck("replay_log_consistency"),
+    ]);
+    expect(result.export_allowed).toBe(true);
+    expect(result.reason).toBe("All checks passed");
+  });
+
+  it("export_allowed is false when any check fails", () => {
+    const result = buildValidationResult([
+      buildPassedCheck("snapshot_exists"),
+      buildFailedCheck("snapshot_lifecycle_consistency", "Lifecycle is FINALISED but no authoritative snapshot exists"),
+      buildPassedCheck("governance_log_present"),
+      buildPassedCheck("replay_log_consistency"),
+    ]);
+    expect(result.export_allowed).toBe(false);
+    expect(result.reason).toBe("Missing or inconsistent audit data");
+  });
+
+  it("reason is exactly 'Missing or inconsistent audit data' when blocked", () => {
+    const result = buildValidationResult([
+      buildFailedCheck("snapshot_exists", "No snapshot found"),
+    ]);
+    expect(result.reason).toBe("Missing or inconsistent audit data");
+  });
+
+  it("reason is exactly 'All checks passed' when allowed", () => {
+    const result = buildValidationResult([
+      buildPassedCheck("snapshot_exists"),
+      buildPassedCheck("snapshot_lifecycle_consistency"),
+      buildPassedCheck("governance_log_present"),
+      buildPassedCheck("replay_log_consistency"),
+    ]);
+    expect(result.reason).toBe("All checks passed");
+  });
+
+  it("checks array contains all 4 expected check names", () => {
+    const result = buildValidationResult([
+      buildPassedCheck("snapshot_exists"),
+      buildPassedCheck("snapshot_lifecycle_consistency"),
+      buildPassedCheck("governance_log_present"),
+      buildPassedCheck("replay_log_consistency"),
+    ]);
+    const names = result.checks.map((c) => c.check);
+    expect(names).toContain("snapshot_exists");
+    expect(names).toContain("snapshot_lifecycle_consistency");
+    expect(names).toContain("governance_log_present");
+    expect(names).toContain("replay_log_consistency");
+  });
+
+  it("each check has required fields: check, passed, detail", () => {
+    const result = buildValidationResult([
+      buildPassedCheck("snapshot_exists"),
+    ]);
+    const check = result.checks[0];
+    expect(check).toHaveProperty("check");
+    expect(check).toHaveProperty("passed");
+    expect(check).toHaveProperty("detail");
+    expect(typeof check.check).toBe("string");
+    expect(typeof check.passed).toBe("boolean");
+    expect(typeof check.detail).toBe("string");
+  });
+
+  it("multiple failed checks all appear in the checks array", () => {
+    const result = buildValidationResult([
+      buildFailedCheck("snapshot_exists", "No snapshot"),
+      buildFailedCheck("governance_log_present", "No governance log"),
+      buildPassedCheck("snapshot_lifecycle_consistency"),
+      buildPassedCheck("replay_log_consistency"),
+    ]);
+    const failed = result.checks.filter((c) => !c.passed);
+    expect(failed).toHaveLength(2);
+    expect(result.export_allowed).toBe(false);
+  });
+
+  it("single failed check blocks export", () => {
+    const result = buildValidationResult([
+      buildPassedCheck("snapshot_exists"),
+      buildPassedCheck("snapshot_lifecycle_consistency"),
+      buildFailedCheck("governance_log_present", "No governance actions recorded"),
+      buildPassedCheck("replay_log_consistency"),
+    ]);
+    expect(result.export_allowed).toBe(false);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AuditExportBlockedError
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("AuditExportBlockedError", () => {
+  it("is an instance of Error", () => {
+    const err = new AuditExportBlockedError({
+      export_allowed: false,
+      reason: "Missing or inconsistent audit data",
+      checks: [{ check: "snapshot_exists", passed: false, detail: "No snapshot" }],
+    });
+    expect(err).toBeInstanceOf(Error);
+  });
+
+  it("has export_allowed = false", () => {
+    const err = new AuditExportBlockedError({
+      export_allowed: false,
+      reason: "Missing or inconsistent audit data",
+      checks: [],
+    });
+    expect(err.export_allowed).toBe(false);
+  });
+
+  it("has the correct reason string", () => {
+    const err = new AuditExportBlockedError({
+      export_allowed: false,
+      reason: "Missing or inconsistent audit data",
+      checks: [],
+    });
+    expect(err.reason).toBe("Missing or inconsistent audit data");
+    expect(err.message).toBe("Missing or inconsistent audit data");
+  });
+
+  it("preserves the checks array", () => {
+    const checks = [
+      { check: "snapshot_exists", passed: false, detail: "No snapshot found" },
+      { check: "governance_log_present", passed: false, detail: "No governance log" },
+    ];
+    const err = new AuditExportBlockedError({
+      export_allowed: false,
+      reason: "Missing or inconsistent audit data",
+      checks,
+    });
+    expect(err.checks).toHaveLength(2);
+    expect(err.checks[0].check).toBe("snapshot_exists");
+    expect(err.checks[1].check).toBe("governance_log_present");
+  });
+
+  it("name is 'AuditExportBlockedError'", () => {
+    const err = new AuditExportBlockedError({
+      export_allowed: false,
+      reason: "Missing or inconsistent audit data",
+      checks: [],
+    });
+    expect(err.name).toBe("AuditExportBlockedError");
+  });
+
+  it("can be caught with instanceof check", () => {
+    function throwBlocked() {
+      throw new AuditExportBlockedError({
+        export_allowed: false,
+        reason: "Missing or inconsistent audit data",
+        checks: [],
+      });
+    }
+    expect(() => throwBlocked()).toThrow(AuditExportBlockedError);
+    expect(() => throwBlocked()).toThrow("Missing or inconsistent audit data");
+  });
+});
