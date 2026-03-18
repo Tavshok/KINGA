@@ -113,6 +113,9 @@ export default function VehicleDamageVisualization({
     return m;
   }, [zoneSeverities]);
 
+  // Detect dark mode via document class for theme-aware SVG fills
+  const isDark = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+
   const getZoneFill = (zone: string) => {
     const isActive = hoveredZone === zone || selectedZone === zone;
     if (damagedZones.has(zone)) {
@@ -123,7 +126,9 @@ export default function VehicleDamageVisualization({
       }
       return isActive ? "#dc2626" : "#dc262666";
     }
-    return isActive ? "#d1d5db" : "#f3f4f6";
+    // Theme-aware undamaged zone fill — visible in both light and dark mode
+    if (isDark) return isActive ? "#334155" : "#1e293b";
+    return isActive ? "#cbd5e1" : "#e2e8f0";
   };
 
   const getZoneStroke = (zone: string) => {
@@ -131,7 +136,7 @@ export default function VehicleDamageVisualization({
       const severity = severityMap.get(zone);
       return severity ? getSeverityColor(severity.level) : "#dc2626";
     }
-    return "#9ca3af";
+    return isDark ? "#475569" : "#94a3b8";
   };
 
   const getZoneStrokeWidth = (zone: string) => {
@@ -165,7 +170,7 @@ export default function VehicleDamageVisualization({
       <div className="grid lg:grid-cols-5 gap-6">
         {/* Vehicle Diagram - 3 columns */}
         <div className="lg:col-span-3">
-          <svg viewBox="0 0 360 580" className="w-full h-auto max-w-sm mx-auto" style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.08))" }}>
+          <svg viewBox="0 0 360 580" className="w-full h-auto max-w-sm mx-auto" style={{ filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.25))" }}>
             <defs>
               <marker id="impact-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
                 <polygon points="0 0, 8 4, 0 8" fill="#ef4444" />
@@ -187,7 +192,7 @@ export default function VehicleDamageVisualization({
                  C 230 555, 130 555, 130 540
                  L 115 500 L 105 450 L 100 380 L 100 200 L 105 130 L 115 80 Z"
               fill="none"
-              stroke="#374151"
+              stroke={isDark ? "#64748b" : "#374151"}
               strokeWidth="2.5"
             />
 
@@ -208,7 +213,7 @@ export default function VehicleDamageVisualization({
             <ellipse cx="235" cy="65" rx="12" ry="8" fill="none" stroke="#6b7280" strokeWidth="1" opacity="0.5" />
             {/* Grille */}
             <rect x="155" y="55" width="50" height="15" rx="3" fill="none" stroke="#6b7280" strokeWidth="0.8" opacity="0.4" />
-            <text x="180" y="110" textAnchor="middle" fontSize="11" fill="#374151" fontWeight="600" pointerEvents="none">FRONT</text>
+            <text x="180" y="110" textAnchor="middle" fontSize="11" fill={isDark ? "#e2e8f0" : "#374151"} fontWeight="600" pointerEvents="none">FRONT</text>
 
             {/* ── WINDSHIELD ── */}
             <path
@@ -225,7 +230,7 @@ export default function VehicleDamageVisualization({
             {/* Windshield lines */}
             <line x1="145" y1="145" x2="140" y2="190" stroke="#9ca3af" strokeWidth="0.5" opacity="0.4" />
             <line x1="215" y1="145" x2="220" y2="190" stroke="#9ca3af" strokeWidth="0.5" opacity="0.4" />
-            <text x="180" y="172" textAnchor="middle" fontSize="9" fill="#6b7280" pointerEvents="none">Windshield</text>
+            <text x="180" y="172" textAnchor="middle" fontSize="9" fill={isDark ? "#94a3b8" : "#64748b"} pointerEvents="none">Windshield</text>
 
             {/* ── LEFT SIDE ── */}
             <path
@@ -243,8 +248,8 @@ export default function VehicleDamageVisualization({
             <line x1="100" y1="250" x2="120" y2="250" stroke="#9ca3af" strokeWidth="0.8" opacity="0.5" />
             <line x1="100" y1="330" x2="120" y2="330" stroke="#9ca3af" strokeWidth="0.8" opacity="0.5" />
             {/* Side mirror */}
-            <ellipse cx="93" cy="210" rx="8" ry="5" fill={damagedZones.has("left_side") ? getZoneFill("left_side") : "#e5e7eb"} stroke="#9ca3af" strokeWidth="1" />
-            <text x="85" y="295" textAnchor="middle" fontSize="9" fill="#6b7280" transform="rotate(-90 85 295)" pointerEvents="none">LEFT (Driver)</text>
+            <ellipse cx="93" cy="210" rx="8" ry="5" fill={damagedZones.has("left_side") ? getZoneFill("left_side") : (isDark ? "#1e293b" : "#e2e8f0")} stroke={isDark ? "#475569" : "#94a3b8"} strokeWidth="1" />
+            <text x="85" y="295" textAnchor="middle" fontSize="9" fill={isDark ? "#94a3b8" : "#64748b"} transform="rotate(-90 85 295)" pointerEvents="none">LEFT (Driver)</text>
 
             {/* ── RIGHT SIDE ── */}
             <path
@@ -262,8 +267,8 @@ export default function VehicleDamageVisualization({
             <line x1="240" y1="250" x2="260" y2="250" stroke="#9ca3af" strokeWidth="0.8" opacity="0.5" />
             <line x1="240" y1="330" x2="260" y2="330" stroke="#9ca3af" strokeWidth="0.8" opacity="0.5" />
             {/* Side mirror */}
-            <ellipse cx="267" cy="210" rx="8" ry="5" fill={damagedZones.has("right_side") ? getZoneFill("right_side") : "#e5e7eb"} stroke="#9ca3af" strokeWidth="1" />
-            <text x="275" y="285" textAnchor="middle" fontSize="9" fill="#6b7280" transform="rotate(90 275 285)" pointerEvents="none">RIGHT (Passenger)</text>
+            <ellipse cx="267" cy="210" rx="8" ry="5" fill={damagedZones.has("right_side") ? getZoneFill("right_side") : (isDark ? "#1e293b" : "#e2e8f0")} stroke={isDark ? "#475569" : "#94a3b8"} strokeWidth="1" />
+            <text x="275" y="285" textAnchor="middle" fontSize="9" fill={isDark ? "#94a3b8" : "#64748b"} transform="rotate(90 275 285)" pointerEvents="none">RIGHT (Passenger)</text>
 
             {/* ── ROOF / CABIN ── */}
             <rect
@@ -281,7 +286,7 @@ export default function VehicleDamageVisualization({
             <rect x="140" y="220" width="30" height="35" rx="5" fill="none" stroke="#d1d5db" strokeWidth="0.8" />
             <rect x="190" y="220" width="30" height="35" rx="5" fill="none" stroke="#d1d5db" strokeWidth="0.8" />
             <rect x="135" y="290" width="90" height="35" rx="5" fill="none" stroke="#d1d5db" strokeWidth="0.8" />
-            <text x="180" y="355" textAnchor="middle" fontSize="10" fill="#6b7280" pointerEvents="none">CABIN / ROOF</text>
+            <text x="180" y="355" textAnchor="middle" fontSize="10" fill={isDark ? "#94a3b8" : "#64748b"} pointerEvents="none">CABIN / ROOF</text>
 
             {/* ── REAR GLASS ── */}
             <path
@@ -295,7 +300,7 @@ export default function VehicleDamageVisualization({
               className="cursor-pointer"
               filter={damagedZones.has("rear_glass") ? "url(#damage-glow)" : undefined}
             />
-            <text x="180" y="415" textAnchor="middle" fontSize="9" fill="#6b7280" pointerEvents="none">Rear Glass</text>
+            <text x="180" y="415" textAnchor="middle" fontSize="9" fill={isDark ? "#94a3b8" : "#64748b"} pointerEvents="none">Rear Glass</text>
 
             {/* ── REAR ZONE ── */}
             <path
@@ -312,13 +317,13 @@ export default function VehicleDamageVisualization({
             {/* Taillights */}
             <ellipse cx="130" cy="510" rx="10" ry="7" fill="none" stroke="#6b7280" strokeWidth="1" opacity="0.5" />
             <ellipse cx="230" cy="510" rx="10" ry="7" fill="none" stroke="#6b7280" strokeWidth="1" opacity="0.5" />
-            <text x="180" y="495" textAnchor="middle" fontSize="11" fill="#374151" fontWeight="600" pointerEvents="none">REAR</text>
+            <text x="180" y="495" textAnchor="middle" fontSize="11" fill={isDark ? "#e2e8f0" : "#374151"} fontWeight="600" pointerEvents="none">REAR</text>
 
             {/* ── WHEELS ── */}
-            <ellipse cx="95" cy="155" rx="14" ry="22" fill="#374151" opacity="0.15" stroke="#374151" strokeWidth="1.5" />
-            <ellipse cx="265" cy="155" rx="14" ry="22" fill="#374151" opacity="0.15" stroke="#374151" strokeWidth="1.5" />
-            <ellipse cx="95" cy="430" rx="14" ry="22" fill="#374151" opacity="0.15" stroke="#374151" strokeWidth="1.5" />
-            <ellipse cx="265" cy="430" rx="14" ry="22" fill="#374151" opacity="0.15" stroke="#374151" strokeWidth="1.5" />
+            <ellipse cx="95" cy="155" rx="14" ry="22" fill="#64748b" opacity="0.4" stroke="#64748b" strokeWidth="1.5" />
+            <ellipse cx="265" cy="155" rx="14" ry="22" fill="#64748b" opacity="0.4" stroke="#64748b" strokeWidth="1.5" />
+            <ellipse cx="95" cy="430" rx="14" ry="22" fill="#64748b" opacity="0.4" stroke="#64748b" strokeWidth="1.5" />
+            <ellipse cx="265" cy="430" rx="14" ry="22" fill="#64748b" opacity="0.4" stroke="#64748b" strokeWidth="1.5" />
 
             {/* ── IMPACT DIRECTION ARROWS ── */}
             {impactInfo && impactInfo.angle >= 0 && (() => {

@@ -12,12 +12,24 @@ import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
 interface VehicleValuationCardProps {
   claimId: number;
+  /** Pre-populated mileage from the claim form (vehicleMileage field) */
+  vehicleMileage?: string | null;
+  /** Vehicle year for year-only valuation fallback when mileage is missing */
+  vehicleYear?: string | number | null;
 }
 
-export default function VehicleValuationCard({ claimId }: VehicleValuationCardProps) {
+export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleYear }: VehicleValuationCardProps) {
   const { fmt } = useTenantCurrency();
-  const [mileage, setMileage] = useState("");
+  // Auto-populate mileage from claim form if available
+  const [mileage, setMileage] = useState(() => {
+    if (vehicleMileage) {
+      const parsed = parseInt(vehicleMileage.replace(/[^0-9]/g, ''));
+      return isNaN(parsed) ? '' : String(parsed);
+    }
+    return '';
+  });
   const [condition, setCondition] = useState<"excellent" | "good" | "fair" | "poor">("good");
+  const isMileageMissing = !vehicleMileage || vehicleMileage.trim() === '';
 
   // Get existing valuation
   const { data: valuation, refetch } = trpc.vehicleValuation.byClaim.useQuery({ claimId });
@@ -232,6 +244,19 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Missing mileage flag */}
+        {isMileageMissing && (
+          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-semibold text-amber-800 dark:text-amber-200">Mileage not recorded on claim form</p>
+              <p className="text-amber-700 dark:text-amber-300 text-xs mt-0.5">
+                Enter mileage manually below for accurate valuation.
+                {vehicleYear ? ` Year-based estimate available using ${vehicleYear} model year.` : ''}
+              </p>
+            </div>
+          </div>
+        )}
         <div>
           <Label htmlFor="mileage">
             Current Mileage (km) <span className="text-red-500">*</span>
@@ -244,6 +269,11 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
             placeholder="e.g., 120000"
             required
           />
+          {mileage && vehicleMileage && (
+            <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
+              <span>✓</span> Auto-populated from claim form
+            </p>
+          )}
         </div>
 
         <div>

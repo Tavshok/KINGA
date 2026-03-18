@@ -9939,3 +9939,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Wire auto-save in ClaimDecisionReport frontend (save once on first load)
 - [ ] Add snapshot history viewer panel to claim report
 - [ ] Write vitest tests for snapshot persistence
+
+## UI & Logic Fixes (Mar 18 2026)
+- [ ] Fix text contrast in dark mode and light mode (invisible text on coloured backgrounds)
+- [ ] Physics section: add SVG force vector diagram, impact direction arrows, energy dissipation bar
+- [ ] Auto-detect incident type from incident description text (server-side NLP keyword matching)
+- [ ] Restructure damage list: group by zone, severity badges, collapsible sections
+- [ ] Fix damage analysis diagram visibility (SVG/canvas not rendering)
+- [ ] Fix AI-analysed images not showing in the report
+- [ ] Mileage-aware valuation: read mileage from claim form, year-only fallback with missing-mileage flag

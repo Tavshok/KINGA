@@ -25,6 +25,7 @@ import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
+import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
@@ -1131,7 +1132,11 @@ export default function InsurerComparisonView() {
             </div>
           </div>
           <div className="comparison-section-body">
-            <VehicleValuationCard claimId={claimId} />
+            <VehicleValuationCard
+              claimId={claimId}
+              vehicleMileage={claim?.vehicleMileage ?? null}
+              vehicleYear={claim?.vehicleYear ?? null}
+            />
           </div>
         </div>
       </main>
@@ -1553,39 +1558,75 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         />
       </div>
 
-      {/* Detected Damage Components by Category */}
+      {/* Detected Damage Components — Grouped by Zone */}
       <div className="p-4 bg-card rounded-lg border border-border">
         <h4 className="font-semibold mb-4 flex items-center gap-2">
           <CheckCircle2 className="h-5 w-5 text-purple-600" />
           Detected Damage Components ({richComponents.length})
         </h4>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {richComponents.map((comp, idx) => {
-            const sev = (comp.severity ?? '').toLowerCase();
-            const sevColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
-              : sev === 'moderate' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
-              : sev === 'minor' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
-              : 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-200 border-purple-300 dark:border-purple-700';
-            const dotColor = sev === 'total_loss' || sev === 'severe' ? 'bg-red-500'
-              : sev === 'moderate' ? 'bg-amber-500'
-              : sev === 'minor' ? 'bg-emerald-500'
-              : 'bg-purple-500';
-            return (
-              <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
-                <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${dotColor}`}></div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
-                  {comp.location && <p className="text-xs text-muted-foreground capitalize">{comp.location}</p>}
-                </div>
-                {comp.severity && (
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${sevColor}`}>
-                    {sev === 'total_loss' ? 'TOTAL' : sev.toUpperCase()}
-                  </span>
-                )}
+        {(() => {
+          // Group components by zone
+          const zoneOrder = ['front', 'rear', 'left', 'right', 'structural', 'interior', 'other'];
+          const zoneLabels: Record<string, string> = {
+            front: '⬆ Front Zone', rear: '⬇ Rear Zone',
+            left: '← Left Side (Driver)', right: '→ Right Side (Passenger)',
+            structural: '🔩 Structural / Frame', interior: '🪑 Interior',
+            other: '📋 Other Components',
+          };
+          const zoneColors: Record<string, string> = {
+            front: 'border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/20',
+            rear: 'border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/20',
+            left: 'border-purple-300 dark:border-purple-700 bg-purple-50 dark:bg-purple-950/20',
+            right: 'border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/20',
+            structural: 'border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-950/20',
+            interior: 'border-teal-300 dark:border-teal-700 bg-teal-50 dark:bg-teal-950/20',
+            other: 'border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-950/20',
+          };
+          const getZone = (comp: {name: string; location?: string}) => {
+            const loc = (comp.location || comp.name).toLowerCase();
+            if (/front|bonnet|hood|bumper.*front|radiator|headlight|grille|engine/.test(loc)) return 'front';
+            if (/rear|boot|trunk|bumper.*rear|tail|exhaust|tow/.test(loc)) return 'rear';
+            if (/left|lhs|driver|l\/h/.test(loc)) return 'left';
+            if (/right|rhs|passenger|r\/h/.test(loc)) return 'right';
+            if (/frame|chassis|unibody|structural|pillar|sill|floor|subframe/.test(loc)) return 'structural';
+            if (/interior|seat|dashboard|airbag|glass|window|windscreen/.test(loc)) return 'interior';
+            return 'other';
+          };
+          const grouped: Record<string, typeof richComponents> = {};
+          richComponents.forEach(c => { const z = getZone(c); if (!grouped[z]) grouped[z] = []; grouped[z].push(c); });
+          return zoneOrder.filter(z => grouped[z]?.length).map(zone => (
+            <details key={zone} open className="mb-3">
+              <summary className={`flex items-center justify-between cursor-pointer px-3 py-2 rounded-lg border font-semibold text-sm select-none ${zoneColors[zone]}`}>
+                <span>{zoneLabels[zone]}</span>
+                <span className="text-xs font-normal opacity-70">{grouped[zone].length} component{grouped[zone].length !== 1 ? 's' : ''}</span>
+              </summary>
+              <div className="mt-2 grid gap-2 sm:grid-cols-2 pl-1">
+                {grouped[zone].map((comp, idx) => {
+                  const sev = (comp.severity ?? '').toLowerCase();
+                  const sevColor = sev === 'total_loss' || sev === 'severe'
+                    ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
+                    : sev === 'moderate' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
+                    : sev === 'minor' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600';
+                  return (
+                    <div key={idx} className="flex items-start gap-2 p-2.5 bg-card rounded border border-border">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
+                        {comp.location && <p className="text-xs text-muted-foreground capitalize mt-0.5">{comp.location}</p>}
+                        {comp.damageType && <p className="text-xs text-muted-foreground capitalize">{comp.damageType}</p>}
+                      </div>
+                      {comp.severity && (
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border shrink-0 ${sevColor}`}>
+                          {sev === 'total_loss' ? 'TOTAL' : sev.toUpperCase()}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            </details>
+          ));
+        })()}
       </div>
 
       {/* Inferred Hidden Damage — physics-based propagation with probability scoring */}
@@ -2038,6 +2079,41 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         </div>
       </div>
       
+      {/* ── Physics Engine: Impact Vector Diagram ── */}
+      {raw && (
+        <div className="p-4 bg-card rounded-lg border border-border">
+          <h4 className="font-semibold mb-3 flex items-center gap-2">
+            <Zap className="h-4 w-4 text-amber-500" />
+            Physics Engine — Impact Vector Diagram
+          </h4>
+          <p className="text-xs text-muted-foreground mb-4">
+            Force vectors computed from Newtonian mechanics (F = Δp/Δt). Arrow length ∝ peak force magnitude.
+          </p>
+          <VehicleImpactVectorDiagram
+            vehicleMake={claim?.vehicleMake ?? undefined}
+            vehicleModel={claim?.vehicleModel ?? undefined}
+            vehicleYear={claim?.vehicleYear ?? undefined}
+            accidentType={raw?.primaryImpactZone ?? raw?.collisionType ?? undefined}
+            impactSpeed={estimatedSpeed?.value ?? undefined}
+            impactForce={(impactForce?.magnitude ?? 0) / 1000}
+            impactPoint={raw?.primaryImpactZone ?? raw?.impactPoint?.primaryImpactZone ?? undefined}
+            damagedComponents={(() => {
+              try { const c = JSON.parse(aiAssessment?.damagedComponentsJson ?? '[]'); return Array.isArray(c) ? c.map((x: any) => typeof x === 'string' ? x : x?.name ?? '') : []; } catch { return []; }
+            })()}
+            damageConsistency={
+              (raw?.consistencyScore ?? 100) >= 80 ? 'consistent' :
+              (raw?.consistencyScore ?? 100) >= 50 ? 'questionable' : 'impossible'
+            }
+            physicsValidation={{
+              impactAngleDegrees: raw?.impactPoint?.impactAngle ?? raw?.impactAngle ?? 0,
+              calculatedImpactForceKN: (impactForce?.magnitude ?? 0) / 1000,
+              impactLocationNormalized: { relativeX: 0.5, relativeY: raw?.primaryImpactZone?.includes('rear') ? 0.9 : raw?.primaryImpactZone?.includes('front') ? 0.1 : 0.5 },
+            }}
+            confidenceScore={(raw?.consistencyScore ?? 50) / 100}
+          />
+        </div>
+      )}
+
       {/* Impact Force Vectors & Damage Propagation */}
       {raw && (
         <div className="grid gap-4 md:grid-cols-2">

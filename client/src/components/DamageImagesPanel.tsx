@@ -243,7 +243,20 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
     try {
       const parsed = JSON.parse(damagePhotosJson);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        photos = parsed;
+        // Handle both DamagePhoto[] objects and plain string[] URLs
+        if (typeof parsed[0] === 'string') {
+          // Plain URL array — convert to minimal DamagePhoto objects
+          photos = (parsed as string[]).map((url) => ({
+            imageUrl: url,
+            caption: "Damage photo",
+            detectedDamageArea: "",
+            detectedComponents: [],
+            source: "uploaded" as const,
+            classification: "damage_photo" as const,
+          }));
+        } else {
+          photos = parsed as DamagePhoto[];
+        }
       }
     } catch { /* ignore */ }
   }

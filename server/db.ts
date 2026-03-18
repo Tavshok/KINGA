@@ -639,8 +639,20 @@ export async function triggerAiAssessment(claimId: number) {
   if (claimRecord?.damage) {
     const d = claimRecord.damage;
     if (d.description) claimUpdate.incidentDescription = d.description;
-    if (d.incidentDate) claimUpdate.incidentDate = d.incidentDate;
-    if (d.incidentType) claimUpdate.incidentType = d.incidentType;
+  }
+  // incidentType lives in accidentDetails (DamageRecord has no incidentType field)
+  if (claimRecord?.accidentDetails) {
+    const a = claimRecord.accidentDetails;
+    if (a.date) claimUpdate.incidentDate = a.date;
+    if (a.incidentType && a.incidentType !== 'unknown') {
+      // Map CanonicalIncidentType → DB enum
+      const typeMap: Record<string, string> = {
+        collision: 'collision', theft: 'theft', vandalism: 'vandalism',
+        flood: 'flood', fire: 'fire', hijacking: 'hijacking',
+      };
+      const mapped = typeMap[a.incidentType];
+      if (mapped) claimUpdate.incidentType = mapped;
+    }
   }
   await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
 
