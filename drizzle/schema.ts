@@ -4156,3 +4156,44 @@ export const governanceAuditLog = mysqlTable("governance_audit_log", {
 ]);
 export type GovernanceAuditEntry = typeof governanceAuditLog.$inferSelect;
 export type InsertGovernanceAuditEntry = typeof governanceAuditLog.$inferInsert;
+
+// ─── Shadow Override Monitor ───────────────────────────────────────────────────
+// Passive observation table — NEVER used to block actions or trigger escalations.
+// Tracks per-user override frequency for baseline building only.
+export const shadowOverrideMonitor = mysqlTable("shadow_override_monitor", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: varchar("user_id", { length: 50 }).notNull(),
+  userName: varchar("user_name", { length: 100 }),
+  tenantId: varchar("tenant_id", { length: 50 }).notNull().default("default"),
+
+  // Rolling window metrics (computed at scan time)
+  overrides24h: int("overrides_24h").notNull().default(0),
+  overrides7d: int("overrides_7d").notNull().default(0),
+  overrides30d: int("overrides_30d").notNull().default(0),
+  totalOverrides: int("total_overrides").notNull().default(0),
+
+  // Pattern flags — observation only
+  unusualPatternDetected: tinyint("unusual_pattern_detected").notNull().default(0),
+  patternNotes: text("pattern_notes"),
+
+  // Spec-required output fields
+  overrideActivityDetected: tinyint("override_activity_detected").notNull().default(0),
+  recommendedAction: varchar("recommended_action", { length: 20 }).notNull().default("none"),
+  mode: varchar("mode", { length: 20 }).notNull().default("shadow"),
+
+  // Timestamps
+  lastScannedAt: bigint("last_scanned_at", { mode: "number" }).notNull(),
+  firstOverrideAt: bigint("first_override_at", { mode: "number" }),
+  lastOverrideAt: bigint("last_override_at", { mode: "number" }),
+
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+}, (table) => [
+  index("idx_som_user").on(table.userId),
+  index("idx_som_tenant").on(table.tenantId),
+  index("idx_som_scanned").on(table.lastScannedAt),
+  index("idx_som_activity").on(table.overrideActivityDetected),
+]);
+
+export type ShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferSelect;
+export type InsertShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferInsert;

@@ -20,7 +20,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   Shield, AlertTriangle, Users, FileText, Download, TrendingUp, TrendingDown,
-  Activity, Eye, Clock, DollarSign, UserCheck, AlertCircle, BarChart3, PieChart as PieChartIcon
+  Activity, Eye, Clock, DollarSign, UserCheck, AlertCircle, BarChart3, PieChart as PieChartIcon,
+  Radio, RefreshCw
 } from "lucide-react";
 import { 
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -30,6 +31,7 @@ import { toast } from "sonner";
 
 export default function GovernanceDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<"7d" | "30d" | "90d">("30d");
+  const [shadowScanning, setShadowScanning] = useState(false);
 
   // Fetch all governance data
   const { data: overrideByUserResponse, isLoading: overrideByUserLoading } = 
@@ -76,6 +78,21 @@ export default function GovernanceDashboard() {
   const roleChangesByDept = roleChangesByDeptResponse?.data || [];
   const roleElevation = roleElevationResponse?.data;
   const riskScore = riskScoreResponse?.data;
+
+  // Shadow override monitor
+  const { data: shadowObservations = [], refetch: refetchShadow, isLoading: shadowLoading } =
+    trpc.aiAssessments.getAllShadowObservations.useQuery();
+  const runShadowScanMutation = trpc.aiAssessments.runShadowScan.useMutation({
+    onSuccess: () => {
+      refetchShadow();
+      setShadowScanning(false);
+      toast.success("Shadow scan complete", { description: "Observations updated. No actions were taken." });
+    },
+    onError: () => {
+      setShadowScanning(false);
+      toast.error("Shadow scan failed");
+    },
+  });
 
   const exportPDFMutation = trpc.governanceDashboard.exportGovernancePDF.useMutation({
     onSuccess: (response) => {
@@ -302,7 +319,7 @@ export default function GovernanceDashboard() {
 
         {/* Main Dashboard Tabs */}
         <Tabs defaultValue="overrides" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 h-14">
+          <TabsList className="grid w-full grid-cols-4 h-14">
             <TabsTrigger value="overrides" className="text-base">
               <Shield className="h-5 w-5 mr-2" />
               Override Oversight
@@ -314,6 +331,10 @@ export default function GovernanceDashboard() {
             <TabsTrigger value="roles" className="text-base">
               <Users className="h-5 w-5 mr-2" />
               Role Change Oversight
+            </TabsTrigger>
+            <TabsTrigger value="shadow" className="text-base">
+              <Radio className="h-5 w-5 mr-2" />
+              Shadow Monitor
             </TabsTrigger>
           </TabsList>
 
@@ -683,6 +704,120 @@ export default function GovernanceDashboard() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* SHADOW OVERRIDE MONITOR TAB — observation only, no blocking */}
+          <TabsContent value="shadow" className="space-y-6 mt-6">
+            {/* Header banner */}
+            <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "oklch(0.20 0.06 260 / 0.6)", border: "1px solid oklch(0.45 0.18 260)" }}>
+              <Radio className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "oklch(0.75 0.18 260)" }} />
+              <div>
+                <p className="font-bold text-sm" style={{ color: "oklch(0.85 0.12 260)" }}>Shadow Mode — Observation Only</p>
+                <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                  This panel tracks override frequency per user for baseline building. It does not block actions, trigger escalations, or notify users.
+                  Recommended action is always <strong>none</strong>.
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-auto shrink-0"
+                disabled={shadowScanning}
+                onClick={() => { setShadowScanning(true); runShadowScanMutation.mutate(); }}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${shadowScanning ? 'animate-spin' : ''}`} />
+                {shadowScanning ? 'Scanning…' : 'Run Scan'}
+              </Button>
+            </div>
+
+            {/* Observations table */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Eye className="h-5 w-5" />
+                  Override Observations
+                </CardTitle>
+                <CardDescription>
+                  Latest per-user override metrics. Scan to refresh.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {shadowLoading ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">Loading observations…</div>
+                ) : shadowObservations.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground text-sm">
+                    No override observations yet. Click <strong>Run Scan</strong> to populate.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b" style={{ color: "var(--muted-foreground)" }}>
+                          <th className="text-left py-2 pr-4 font-semibold">User</th>
+                          <th className="text-right py-2 px-3 font-semibold">24h</th>
+                          <th className="text-right py-2 px-3 font-semibold">7d</th>
+                          <th className="text-right py-2 px-3 font-semibold">30d</th>
+                          <th className="text-right py-2 px-3 font-semibold">Total</th>
+                          <th className="text-left py-2 pl-3 font-semibold">Pattern</th>
+                          <th className="text-right py-2 pl-3 font-semibold">Mode</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {shadowObservations.map((obs, i) => (
+                          <tr key={i} className="border-b last:border-0" style={{ background: obs.pattern.unusual_detected ? "oklch(0.22 0.08 30 / 0.3)" : "transparent" }}>
+                            <td className="py-2.5 pr-4">
+                              <div className="font-medium" style={{ color: "var(--foreground)" }}>{obs.user_name ?? obs.user_id}</div>
+                              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{obs.user_id}</div>
+                            </td>
+                            <td className="text-right py-2.5 px-3 font-mono" style={{ color: obs.metrics.overrides_24h >= 5 ? "#fca5a5" : "var(--foreground)" }}>{obs.metrics.overrides_24h}</td>
+                            <td className="text-right py-2.5 px-3 font-mono" style={{ color: obs.metrics.overrides_7d >= 15 ? "#fca5a5" : "var(--foreground)" }}>{obs.metrics.overrides_7d}</td>
+                            <td className="text-right py-2.5 px-3 font-mono" style={{ color: "var(--foreground)" }}>{obs.metrics.overrides_30d}</td>
+                            <td className="text-right py-2.5 px-3 font-mono font-bold" style={{ color: "var(--foreground)" }}>{obs.metrics.total_overrides}</td>
+                            <td className="py-2.5 pl-3">
+                              {obs.pattern.unusual_detected ? (
+                                <Badge variant="destructive" className="text-xs">⚠ Unusual</Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-xs">Normal</Badge>
+                              )}
+                            </td>
+                            <td className="text-right py-2.5 pl-3">
+                              <Badge variant="secondary" className="text-xs font-mono">shadow</Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Spec JSON preview */}
+            {shadowObservations.length > 0 && (
+              <Card className="border-0 shadow-lg">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-sm">
+                    <FileText className="h-4 w-4" />
+                    Spec Output — First User
+                  </CardTitle>
+                  <CardDescription>Verbatim spec-compliant output for the first observed user.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <pre className="text-xs rounded-lg p-3 overflow-x-auto" style={{ background: "var(--muted)", color: "var(--foreground)" }}>
+                    {JSON.stringify({
+                      override_activity_detected: shadowObservations[0].override_activity_detected,
+                      user_id: shadowObservations[0].user_id,
+                      metrics: {
+                        overrides_24h: shadowObservations[0].metrics.overrides_24h,
+                        overrides_7d: shadowObservations[0].metrics.overrides_7d,
+                      },
+                      recommended_action: shadowObservations[0].recommended_action,
+                      mode: shadowObservations[0].mode,
+                    }, null, 2)}
+                  </pre>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
       </div>

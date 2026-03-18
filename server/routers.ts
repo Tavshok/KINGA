@@ -3135,6 +3135,31 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return generateAuditExport(input.claimId);
       }),
 
+    // ─── Shadow Override Monitor (passive observation only) ─────────────────
+
+    // Run a full shadow scan across all users who have ever overridden
+    runShadowScan: protectedProcedure
+      .mutation(async () => {
+        const { runFullShadowScan } = await import('./shadow-override-monitor');
+        // Shadow mode: no blocking, no escalation, no user notification
+        return runFullShadowScan();
+      }),
+
+    // Get the latest stored observation for a specific user
+    getShadowObservation: protectedProcedure
+      .input(z.object({ userId: z.string() }))
+      .query(async ({ input }) => {
+        const { getLatestObservation } = await import('./shadow-override-monitor');
+        return getLatestObservation(input.userId);
+      }),
+
+    // Get all stored shadow observations (latest per user)
+    getAllShadowObservations: protectedProcedure
+      .query(async () => {
+        const { getAllObservations } = await import('./shadow-override-monitor');
+        return getAllObservations();
+      }),
+
     // Get replay logs for a claim
     getReplayLogs: protectedProcedure
       .input(z.object({ claimId: z.string() }))
