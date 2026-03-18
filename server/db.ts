@@ -1575,6 +1575,181 @@ export interface DecisionSnapshotInput {
   };
 }
 
+// ─── Spec-compliant snapshot shape (snake_case, no nulls) ───────────────────
+
+export interface SpecSnapshot {
+  // Identity
+  claim_id: string;
+  snapshot_version: number;
+  created_at: number;          // Unix ms
+  created_by_user_id: string;
+
+  // Verdict
+  verdict_decision: string;    // FINALISE_CLAIM | REVIEW_REQUIRED | ESCALATE_INVESTIGATION
+  verdict_label: string;       // Human-readable label
+  verdict_primary_reason: string;
+  verdict_confidence: number;  // 0-100
+  verdict_color: string;       // green | amber | red
+
+  // Cost
+  cost_ai_estimate_cents: number;
+  cost_ai_estimate_display: number;  // dollars
+  cost_quoted_cents: number;
+  cost_quoted_display: number;       // dollars
+  cost_deviation_percent: number;
+  cost_fair_range_min_cents: number;
+  cost_fair_range_max_cents: number;
+  cost_fair_range_min_display: number;
+  cost_fair_range_max_display: number;
+  cost_verdict: string;              // FAIR | OVERPRICED | UNDERPRICED | NO_QUOTE
+
+  // Fraud
+  fraud_score: number;               // 0-100
+  fraud_level: string;               // minimal | low | moderate | high | elevated
+  fraud_level_label: string;
+  fraud_contributions: Array<{ factor: string; value: number }>;
+
+  // Physics
+  delta_v: number;                   // km/h
+  velocity_range: string;            // e.g. "40–60 km/h"
+  energy_kj: number;
+  force_kn: number;
+  physics_estimated: boolean;
+
+  // Damage
+  damage_zones: string[];
+  damage_severity: string;
+  consistency_score: number;         // 0-100
+
+  // Enforcement trace
+  enforcement_trace: Array<{
+    rule: string;
+    value: string | number;
+    threshold: string;
+    triggered: boolean;
+  }>;
+
+  // Confidence breakdown
+  confidence_breakdown: Array<{
+    factor: string;
+    penalty: number;
+  }>;
+
+  // Data quality
+  missing_fields: string[];
+  estimated_fields: string[];
+  extraction_confidence: number;     // 0-100
+}
+
+/** Map verdict decision key to human-readable label */
+function verdictLabel(decision: string): string {
+  if (decision === 'FINALISE_CLAIM') return 'FINALISE CLAIM';
+  if (decision === 'REVIEW_REQUIRED') return 'REVIEW REQUIRED';
+  if (decision === 'ESCALATE_INVESTIGATION') return 'ESCALATE INVESTIGATION';
+  return decision.replace(/_/g, ' ');
+}
+
+/** Map verdict decision to color band */
+function verdictColor(decision: string): string {
+  if (decision === 'FINALISE_CLAIM') return 'green';
+  if (decision === 'ESCALATE_INVESTIGATION') return 'red';
+  return 'amber';
+}
+
+/** Map fraud level key to display label */
+function fraudLevelLabel(level: string): string {
+  const map: Record<string, string> = {
+    minimal: 'Minimal',
+    low: 'Low',
+    moderate: 'Moderate',
+    high: 'High',
+    elevated: 'Elevated',
+    critical: 'Elevated', // backward compat
+  };
+  return map[level.toLowerCase()] ?? level.charAt(0).toUpperCase() + level.slice(1);
+}
+
+/**
+ * Build the spec-compliant snake_case snapshot object from the input.
+ * All fields are guaranteed non-null/non-undefined.
+ */
+export function buildSpecSnapshot(
+  input: DecisionSnapshotInput,
+  version: number,
+): SpecSnapshot {
+  const aiEstimateDollars = Math.round(input.cost.aiEstimate) / 100;
+  const quotedDollars = Math.round(input.cost.quoted) / 100;
+  const fairMinDollars = Math.round(input.cost.fairRangeMin) / 100;
+  const fairMaxDollars = Math.round(input.cost.fairRangeMax) / 100;
+
+  return {
+    // Identity
+    claim_id: input.claimId,
+    snapshot_version: version,
+    created_at: Date.now(),
+    created_by_user_id: input.createdByUserId ?? 'system',
+
+    // Verdict
+    verdict_decision: input.verdict.decision,
+    verdict_label: verdictLabel(input.verdict.decision),
+    verdict_primary_reason: input.verdict.primaryReason,
+    verdict_confidence: input.verdict.confidence,
+    verdict_color: verdictColor(input.verdict.decision),
+
+    // Cost
+    cost_ai_estimate_cents: Math.round(input.cost.aiEstimate),
+    cost_ai_estimate_display: aiEstimateDollars,
+    cost_quoted_cents: Math.round(input.cost.quoted),
+    cost_quoted_display: quotedDollars,
+    cost_deviation_percent: Math.round(input.cost.deviationPercent),
+    cost_fair_range_min_cents: Math.round(input.cost.fairRangeMin),
+    cost_fair_range_max_cents: Math.round(input.cost.fairRangeMax),
+    cost_fair_range_min_display: fairMinDollars,
+    cost_fair_range_max_display: fairMaxDollars,
+    cost_verdict: input.cost.verdict || 'FAIR',
+
+    // Fraud
+    fraud_score: input.fraud.score,
+    fraud_level: input.fraud.level || 'minimal',
+    fraud_level_label: fraudLevelLabel(input.fraud.level || 'minimal'),
+    fraud_contributions: input.fraud.contributions.map(c => ({
+      factor: c.factor,
+      value: c.value,
+    })),
+
+    // Physics
+    delta_v: input.physics.deltaV,
+    velocity_range: input.physics.velocityRange || 'Not calculated',
+    energy_kj: input.physics.energyKj,
+    force_kn: input.physics.forceKn,
+    physics_estimated: input.physics.estimated,
+
+    // Damage
+    damage_zones: input.damage.zones,
+    damage_severity: input.damage.severity || 'unknown',
+    consistency_score: input.damage.consistencyScore,
+
+    // Enforcement trace
+    enforcement_trace: input.enforcementTrace.map(t => ({
+      rule: t.rule,
+      value: t.value as string | number,
+      threshold: t.threshold,
+      triggered: t.triggered,
+    })),
+
+    // Confidence breakdown
+    confidence_breakdown: input.confidenceBreakdown.map(c => ({
+      factor: c.factor,
+      penalty: c.penalty,
+    })),
+
+    // Data quality
+    missing_fields: input.dataQuality.missingFields,
+    estimated_fields: input.dataQuality.estimatedFields,
+    extraction_confidence: input.dataQuality.extractionConfidence,
+  };
+}
+
 /**
  * Persist an immutable Decision Snapshot for a claim.
  * Snapshots are append-only — never updated after creation.
@@ -1629,6 +1804,9 @@ export async function saveDecisionSnapshot(input: DecisionSnapshotInput): Promis
     missingFieldsJson: JSON.stringify(input.dataQuality.missingFields),
     estimatedFieldsJson: JSON.stringify(input.dataQuality.estimatedFields),
     extractionConfidence: input.dataQuality.extractionConfidence,
+
+    // Verbatim spec-compliant JSON — single source of truth
+    snapshotJson: JSON.stringify(buildSpecSnapshot(input, nextVersion)),
   });
 
   return { id: Number((result as { insertId?: number }).insertId ?? 0), version: nextVersion };
@@ -1656,4 +1834,25 @@ export async function getLatestDecisionSnapshot(claimId: string): Promise<Decisi
     .orderBy(desc(decisionSnapshots.snapshotVersion))
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Get the latest spec-compliant snapshot JSON for a claim.
+ * Returns the parsed SpecSnapshot object, or null if no snapshot exists.
+ */
+export async function getLatestSnapshotJson(claimId: string): Promise<SpecSnapshot | null> {
+  const rows = await db
+    .select({ snapshotJson: decisionSnapshots.snapshotJson, snapshotVersion: decisionSnapshots.snapshotVersion })
+    .from(decisionSnapshots)
+    .where(eq(decisionSnapshots.claimId, claimId))
+    .orderBy(desc(decisionSnapshots.snapshotVersion))
+    .limit(1);
+  if (!rows[0]) return null;
+  const raw = rows[0].snapshotJson;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as SpecSnapshot;
+  } catch {
+    return null;
+  }
 }

@@ -2870,6 +2870,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return { success: true, snapshotId: result.id, version: result.version };
       }),
 
+    // Get the latest spec-compliant snapshot JSON for a claim (verbatim snake_case, no nulls)
+    getLatestSnapshot: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input }) => {
+        const { getLatestSnapshotJson } = await import('./db');
+        const snapshot = await getLatestSnapshotJson(input.claimId);
+        return snapshot ?? null;
+      }),
+
     // Retrieve all snapshots for a claim (audit history)
     getSnapshots: protectedProcedure
       .input(z.object({ claimId: z.string() }))

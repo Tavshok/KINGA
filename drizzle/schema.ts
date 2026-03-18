@@ -4026,6 +4026,9 @@ export const decisionSnapshots = mysqlTable("decision_snapshots", {
   missingFieldsJson: text("missing_fields_json").notNull(),    // JSON array of strings
   estimatedFieldsJson: text("estimated_fields_json").notNull(), // JSON array of strings
   extractionConfidence: int("extraction_confidence").notNull().default(0), // 0-100
+
+  // Verbatim spec-compliant JSON snapshot (snake_case, single source of truth)
+  snapshotJson: text("snapshot_json"),
 }, (table) => [
   index("idx_ds_claim").on(table.claimId),
   index("idx_ds_tenant").on(table.tenantId),

@@ -19,7 +19,7 @@ import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   ArrowLeft, Shield, Zap, DollarSign, Car, FileText,
-  TrendingUp, TrendingDown, Minus, RefreshCw, Printer
+  TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -944,7 +944,12 @@ export default function ClaimDecisionReport() {
     { claimId: String(claimId) },
     { enabled: !!claimId }
   );
+  const { data: latestSnapshot } = trpc.aiAssessments.getLatestSnapshot.useQuery(
+    { claimId: String(claimId) },
+    { enabled: !!claimId }
+  );
   const [showSnapshotHistory, setShowSnapshotHistory] = useState(false);
+  const [showSpecJson, setShowSpecJson] = useState(false);
 
   useEffect(() => {
     if (!enforcement || !aiAssessment || snapshotSaved.current) return;
@@ -1175,6 +1180,54 @@ export default function ClaimDecisionReport() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 7b. Spec JSON Viewer */}
+        {latestSnapshot && (
+          <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+            <button
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold"
+              style={{ background: "var(--card)", color: "var(--foreground)" }}
+              onClick={() => setShowSpecJson(v => !v)}
+            >
+              <span className="flex items-center gap-2" style={{ color: "var(--muted-foreground)" }}>
+                <Code className="inline h-3.5 w-3.5" />
+                Audit Snapshot — Spec JSON (v{latestSnapshot.snapshot_version})
+              </span>
+              {showSpecJson ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+            </button>
+            {showSpecJson && (
+              <div className="p-4" style={{ background: "var(--background)", borderTop: "1px solid var(--border)" }}>
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                    Immutable snapshot · snake_case · no null fields
+                  </p>
+                  <button
+                    className="text-xs px-2 py-1 rounded"
+                    style={{ background: "var(--muted)", color: "var(--foreground)" }}
+                    onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify(latestSnapshot, null, 2));
+                      toast.success("Snapshot JSON copied to clipboard");
+                    }}
+                  >
+                    Copy JSON
+                  </button>
+                </div>
+                <pre
+                  className="text-xs overflow-auto rounded p-3"
+                  style={{
+                    background: "oklch(0.15 0.02 250)",
+                    color: "#a5f3fc",
+                    maxHeight: "400px",
+                    fontFamily: "'Fira Code', 'Cascadia Code', monospace",
+                    lineHeight: "1.5",
+                  }}
+                >
+                  {JSON.stringify(latestSnapshot, null, 2)}
+                </pre>
               </div>
             )}
           </div>
