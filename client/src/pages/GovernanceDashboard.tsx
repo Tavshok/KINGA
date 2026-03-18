@@ -32,6 +32,46 @@ import { toast } from "sonner";
 export default function GovernanceDashboard() {
   const [selectedPeriod, setSelectedPeriod] = useState<"7d" | "30d" | "90d">("30d");
   const [shadowScanning, setShadowScanning] = useState(false);
+  const [shadowReportRole, setShadowReportRole] = useState<"claims_manager" | "risk_manager" | "executive">("executive");
+  const [shadowReportPeriod, setShadowReportPeriod] = useState<7 | 30>(7);
+  const [shadowReportGenerating, setShadowReportGenerating] = useState(false);
+  const [shadowReport, setShadowReport] = useState<{
+    report_type: string;
+    period: string;
+    key_metrics: {
+      total_overrides_period: number;
+      total_actions_period: number;
+      override_ratio_percent: number;
+      users_with_activity: number;
+      users_with_unusual_pattern: number;
+      highest_override_user: string | null;
+      highest_override_count: number;
+      per_user_breakdown?: Array<{
+        user_id: string; user_name: string | null;
+        overrides_7d: number; total_overrides: number;
+        unusual_pattern: boolean; pattern_notes: string;
+      }>;
+      distribution?: { zero_overrides: number; low_1_to_5: number; medium_6_to_14: number; high_15_plus: number };
+      trend_data?: Array<{ day: string; overrides: number }>;
+    };
+    trend: string;
+    interpretation: string;
+    mode: string;
+    recommended_action: string;
+    generated_at: string;
+  } | null>(null);
+
+  const generateShadowReportMutation = trpc.aiAssessments.generateShadowReport.useMutation({
+    onSuccess: (data) => {
+      setShadowReport(data);
+      setShadowReportGenerating(false);
+      toast.success(`Shadow report generated`, { description: `Role: ${data.report_type} · Period: ${data.period}` });
+    },
+    onError: (err) => {
+      setShadowReportGenerating(false);
+      toast.error(`Report generation failed: ${err.message}`);
+    },
+  });
 
   // Fetch all governance data
   const { data: overrideByUserResponse, isLoading: overrideByUserLoading } = 
@@ -818,6 +858,199 @@ export default function GovernanceDashboard() {
                 </CardContent>
               </Card>
             )}
+
+            {/* ─── Role-Based Shadow Reports ────────────────────────────────────────────── */}
+            <Card className="border-0 shadow-lg">
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <BarChart3 className="h-5 w-5" />
+                      Role-Based Shadow Reports
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      Generate an observation report tailored to a specific role. No enforcement language. Recommended action is always <strong>none</strong>.
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* Role selector */}
+                    <select
+                      value={shadowReportRole}
+                      onChange={(e) => setShadowReportRole(e.target.value as "claims_manager" | "risk_manager" | "executive")}
+                      className="text-xs rounded-md px-2 py-1.5 border"
+                      style={{ background: "var(--muted)", color: "var(--foreground)", borderColor: "var(--border)" }}
+                    >
+                      <option value="executive">Executive</option>
+                      <option value="risk_manager">Risk Manager</option>
+                      <option value="claims_manager">Claims Manager</option>
+                    </select>
+                    {/* Period selector */}
+                    <select
+                      value={shadowReportPeriod}
+                      onChange={(e) => setShadowReportPeriod(Number(e.target.value) as 7 | 30)}
+                      className="text-xs rounded-md px-2 py-1.5 border"
+                      style={{ background: "var(--muted)", color: "var(--foreground)", borderColor: "var(--border)" }}
+                    >
+                      <option value={7}>Last 7 days</option>
+                      <option value={30}>Last 30 days</option>
+                    </select>
+                    <Button
+                      size="sm"
+                      disabled={shadowReportGenerating}
+                      onClick={() => {
+                        setShadowReportGenerating(true);
+                        generateShadowReportMutation.mutate({ role: shadowReportRole, periodDays: shadowReportPeriod });
+                      }}
+                    >
+                      <Activity className={`h-3.5 w-3.5 mr-1.5 ${shadowReportGenerating ? 'animate-pulse' : ''}`} />
+                      {shadowReportGenerating ? 'Generating…' : 'Generate Report'}
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {!shadowReport ? (
+                  <div className="text-center py-10 text-muted-foreground text-sm">
+                    Select a role and period, then click <strong>Generate Report</strong> to produce a shadow monitoring report.
+                  </div>
+                ) : (
+                  <div className="space-y-5">
+                    {/* Report header */}
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Badge variant="secondary" className="text-xs font-mono uppercase">{shadowReport.report_type.replace('_', ' ')}</Badge>
+                      <Badge variant="outline" className="text-xs">{shadowReport.period}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">mode: {shadowReport.mode}</Badge>
+                      <Badge variant="outline" className="text-xs font-mono">action: {shadowReport.recommended_action}</Badge>
+                      <span className="text-xs ml-auto" style={{ color: "var(--muted-foreground)" }}>
+                        Generated {new Date(shadowReport.generated_at).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {/* Key metrics grid */}
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                      {[
+                        { label: "Overrides", value: shadowReport.key_metrics.total_overrides_period },
+                        { label: "Total Actions", value: shadowReport.key_metrics.total_actions_period },
+                        { label: "Override Ratio", value: `${shadowReport.key_metrics.override_ratio_percent}%` },
+                        { label: "Users Active", value: shadowReport.key_metrics.users_with_activity },
+                      ].map((m) => (
+                        <div key={m.label} className="rounded-lg p-3 text-center" style={{ background: "var(--muted)" }}>
+                          <p className="text-2xl font-bold" style={{ color: "var(--foreground)" }}>{m.value}</p>
+                          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{m.label}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Trend */}
+                    <div className="rounded-lg p-3" style={{ background: "oklch(0.20 0.06 260 / 0.4)", border: "1px solid oklch(0.40 0.12 260)" }}>
+                      <p className="text-xs font-semibold mb-1" style={{ color: "oklch(0.80 0.15 260)" }}>Trend</p>
+                      <p className="text-sm" style={{ color: "var(--foreground)" }}>{shadowReport.trend}</p>
+                    </div>
+
+                    {/* Interpretation */}
+                    <div className="rounded-lg p-3" style={{ background: "var(--muted)" }}>
+                      <p className="text-xs font-semibold mb-1" style={{ color: "var(--muted-foreground)" }}>Interpretation</p>
+                      <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{shadowReport.interpretation}</p>
+                    </div>
+
+                    {/* Trend sparkline (risk_manager only) */}
+                    {shadowReport.key_metrics.trend_data && shadowReport.key_metrics.trend_data.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "var(--muted-foreground)" }}>Override Frequency Trend</p>
+                        <ResponsiveContainer width="100%" height={120}>
+                          <BarChart data={shadowReport.key_metrics.trend_data} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                            <XAxis dataKey="day" tick={{ fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
+                            <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
+                            <Tooltip formatter={(v: number) => [v, "Overrides"]} labelFormatter={(l: string) => `Date: ${l}`} />
+                            <Bar dataKey="overrides" fill="oklch(0.65 0.18 260)" radius={[2, 2, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+
+                    {/* Distribution (risk_manager only) */}
+                    {shadowReport.key_metrics.distribution && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "var(--muted-foreground)" }}>Override Frequency Distribution</p>
+                        <div className="grid grid-cols-4 gap-2">
+                          {[
+                            { label: "Zero", value: shadowReport.key_metrics.distribution.zero_overrides, color: "#86efac" },
+                            { label: "Low (1–5)", value: shadowReport.key_metrics.distribution.low_1_to_5, color: "#fde68a" },
+                            { label: "Medium (6–14)", value: shadowReport.key_metrics.distribution.medium_6_to_14, color: "#fdba74" },
+                            { label: "High (15+)", value: shadowReport.key_metrics.distribution.high_15_plus, color: "#fca5a5" },
+                          ].map((d) => (
+                            <div key={d.label} className="rounded-lg p-2 text-center" style={{ background: "var(--muted)" }}>
+                              <p className="text-xl font-bold" style={{ color: d.color }}>{d.value}</p>
+                              <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{d.label}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Per-user breakdown (claims_manager only) */}
+                    {shadowReport.key_metrics.per_user_breakdown && shadowReport.key_metrics.per_user_breakdown.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "var(--muted-foreground)" }}>Per-User Breakdown</p>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b" style={{ color: "var(--muted-foreground)" }}>
+                                <th className="text-left py-2 pr-4 font-semibold">User</th>
+                                <th className="text-right py-2 px-3 font-semibold">7d</th>
+                                <th className="text-right py-2 px-3 font-semibold">Total</th>
+                                <th className="text-left py-2 pl-3 font-semibold">Pattern</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {shadowReport.key_metrics.per_user_breakdown.map((u, i) => (
+                                <tr key={i} className="border-b last:border-0" style={{ background: u.unusual_pattern ? "oklch(0.22 0.08 30 / 0.3)" : "transparent" }}>
+                                  <td className="py-2 pr-4">
+                                    <div className="font-medium" style={{ color: "var(--foreground)" }}>{u.user_name ?? u.user_id}</div>
+                                    <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{u.user_id}</div>
+                                  </td>
+                                  <td className="text-right py-2 px-3 font-mono" style={{ color: "var(--foreground)" }}>{u.overrides_7d}</td>
+                                  <td className="text-right py-2 px-3 font-mono font-bold" style={{ color: "var(--foreground)" }}>{u.total_overrides}</td>
+                                  <td className="py-2 pl-3">
+                                    {u.unusual_pattern
+                                      ? <Badge variant="destructive" className="text-xs">⚠ Unusual</Badge>
+                                      : <Badge variant="outline" className="text-xs">Normal</Badge>
+                                    }
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Spec JSON */}
+                    <details className="mt-2">
+                      <summary className="text-xs cursor-pointer" style={{ color: "var(--muted-foreground)" }}>View spec JSON output</summary>
+                      <pre className="text-xs rounded-lg p-3 mt-2 overflow-x-auto" style={{ background: "var(--muted)", color: "var(--foreground)" }}>
+                        {JSON.stringify({
+                          report_type: shadowReport.report_type,
+                          period: shadowReport.period,
+                          key_metrics: {
+                            total_overrides_period: shadowReport.key_metrics.total_overrides_period,
+                            total_actions_period: shadowReport.key_metrics.total_actions_period,
+                            override_ratio_percent: shadowReport.key_metrics.override_ratio_percent,
+                            users_with_activity: shadowReport.key_metrics.users_with_activity,
+                            users_with_unusual_pattern: shadowReport.key_metrics.users_with_unusual_pattern,
+                          },
+                          trend: shadowReport.trend,
+                          interpretation: shadowReport.interpretation,
+                          mode: shadowReport.mode,
+                          recommended_action: shadowReport.recommended_action,
+                          generated_at: shadowReport.generated_at,
+                        }, null, 2)}
+                      </pre>
+                    </details>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

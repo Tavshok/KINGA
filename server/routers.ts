@@ -3186,6 +3186,29 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return getAllObservations();
       }),
 
+    // ─── Shadow Monitoring Reports (role-based, observation only) ────────────
+
+    // Generate a shadow monitoring report for a specific role
+    generateShadowReport: protectedProcedure
+      .input(z.object({
+        role: z.enum(["claims_manager", "risk_manager", "executive"]),
+        periodDays: z.number().int().min(1).max(90).default(7),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateShadowReport } = await import('./shadow-report-generator');
+        return generateShadowReport(input.role, input.periodDays);
+      }),
+
+    // Generate all three role reports in a single call
+    generateAllShadowReports: protectedProcedure
+      .input(z.object({
+        periodDays: z.number().int().min(1).max(90).default(7),
+      }))
+      .mutation(async ({ input }) => {
+        const { generateAllShadowReports } = await import('./shadow-report-generator');
+        return generateAllShadowReports(input.periodDays);
+      }),
+
     // Get replay logs for a claim
     getReplayLogs: protectedProcedure
       .input(z.object({ claimId: z.string() }))
