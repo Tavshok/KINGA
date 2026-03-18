@@ -160,8 +160,8 @@ export default function ExecutiveAnalyticsCharts() {
     return (costBreakdown?.data ?? []).map((d: any) => ({
       status:        (d.status ?? "").replace(/_/g, " ").toUpperCase(),
       count:         Number(d.count       ?? 0),
-      avg_amount:    Number(d.avg_amount  ?? 0) / 100,
-      total_amount:  Number(d.total_amount ?? 0) / 100,
+      avg_amount:    Number(d.avg_amount  ?? 0),
+      total_amount:  Number(d.total_amount ?? 0),
     }));
   }, [costBreakdown]);
 

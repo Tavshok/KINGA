@@ -113,7 +113,7 @@ export default function PaymentVerification() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-emerald-600">
-              ${((pendingPayments?.reduce((sum: number, p: any) => sum + (p.paymentAmount || 0), 0) || 0) / 100).toFixed(2)}
+              ${((pendingPayments?.reduce((sum: number, p: any) => sum + (p.paymentAmount || 0), 0) || 0)).toFixed(2)}
             </div>
           </CardContent>
         </Card>
@@ -142,8 +142,8 @@ export default function PaymentVerification() {
       ) : (
         <div className="space-y-4">
           {pendingPayments.map((quote: any) => {
-            const monthlyPremium = (quote.premiumAmount / 100).toFixed(2);
-            const paymentAmount = ((quote.paymentAmount || 0) / 100).toFixed(2);
+            const monthlyPremium = quote.premiumAmount.toFixed(2);
+            const paymentAmount = (quote.paymentAmount || 0).toFixed(2);
             
             return (
               <Card key={quote.id} className="hover:shadow-lg transition-shadow">

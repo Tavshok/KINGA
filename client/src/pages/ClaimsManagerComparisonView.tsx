@@ -790,7 +790,7 @@ export default function ClaimsManagerComparisonView() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-slate-600 dark:text-muted-foreground">Lowest Quote</span>
                             <span className="font-bold text-green-600">
-                              ${((lowestQuote.quotedAmount || 0) / 100).toLocaleString()}
+                              ${(lowestQuote.quotedAmount || 0).toLocaleString()}
                             </span>
                           </div>
                         )}
@@ -798,7 +798,7 @@ export default function ClaimsManagerComparisonView() {
                           <div className="flex items-center justify-between">
                             <span className="text-sm text-slate-600 dark:text-muted-foreground">Selected Quote</span>
                             <span className="font-bold text-purple-600">
-                              ${((selectedQuote.quotedAmount || 0) / 100).toLocaleString()}
+                              ${(selectedQuote.quotedAmount || 0).toLocaleString()}
                             </span>
                           </div>
                         )}

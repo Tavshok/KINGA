@@ -93,13 +93,13 @@ export function ActivePolicyCard({ policy, onPolicyUpdated }: ActivePolicyCardPr
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">AI-Only Approval Limit</p>
               <p className="text-lg font-bold">
-                ${(Number(policy.maxAiOnlyApprovalAmount) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${Number(policy.maxAiOnlyApprovalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <div className="space-y-1">
               <p className="text-sm text-muted-foreground">Hybrid Approval Limit</p>
               <p className="text-lg font-bold">
-                ${(Number(policy.maxHybridApprovalAmount) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${Number(policy.maxHybridApprovalAmount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
           </div>
@@ -184,7 +184,7 @@ export function ActivePolicyCard({ policy, onPolicyUpdated }: ActivePolicyCardPr
             <div>
               <p className="text-muted-foreground">Manager Approval Above</p>
               <p className="font-medium">
-                ${(Number(policy.requireManagerApprovalAbove) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                ${Number(policy.requireManagerApprovalAbove).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </p>
             </div>
             <div>

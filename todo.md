@@ -9878,3 +9878,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix: re-uploading the same PDF shows "All duplicates detected" and skips — allow re-upload but tag with unique re-upload identifier
 - [x] Server: removed duplicate block, re-uploads now create new ingestion doc + claim with is_reupload flag and original_claim_id reference
 - [x] Frontend: updated toast messages to show re-upload info instead of blocking warning
+
+## AI Pipeline Issues (Critical)
+- [x] Fix: Cost display double-division bug — DB stores whole dollars ($1,070) but frontend divided by 100 again showing $10.70
+- [x] Fix: formatCurrency() and formatCurrencyWhole() no longer divide by 100 (DB already stores dollars)
+- [x] Fix: 62+ /100 divisions removed across 22+ frontend files (automated sweep)
+- [x] Fix: VehicleValuationCard remaining /100 divisions on conditionAdjustment and mileageAdjustment
+- [x] Fix: Vehicle info backfill — pipeline now writes vehicleMake, vehicleModel, vehicleYear, vehicleRegistration, vehicleVin, vehicleColor to claim record after AI assessment
+- [x] Fix: Incident info backfill — pipeline now writes incidentDescription, incidentDate, incidentType to claim record
+- [x] Fix: Physics pipeline-v2 flat format normalizer — converts flat DB format (impactForceKn, deltaVKmh, etc.) to nested _raw format the UI expects
+- [x] Fix: Physics panel now renders velocity, impact force, energy, delta-V, and direction from pipeline data
+- [x] Tests: 9 vitest tests for cost display, physics normalizer, and vehicle info backfill (all passing)
+- [ ] Note: Existing claims need "Re-run AI Assessment" to backfill vehicle info (only affects new assessments automatically)

@@ -173,7 +173,7 @@ export default function PanelBeaterPerformance() {
                         <span className="font-semibold">{pb.acceptanceRate}%</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        R{(pb.averageQuoteAmount / 100).toFixed(2)}
+                        ${pb.averageQuoteAmount.toFixed(2)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={pb.costCompetitivenessIndex >= 100 ? "default" : "secondary"}>
@@ -218,7 +218,7 @@ export default function PanelBeaterPerformance() {
                           <TableCell className="text-right">{trend.quotesSubmitted}</TableCell>
                           <TableCell className="text-right">{trend.acceptanceRate}%</TableCell>
                           <TableCell className="text-right">
-                            R{(trend.averageQuote / 100).toFixed(2)}
+                            ${trend.averageQuote.toFixed(2)}
                           </TableCell>
                         </TableRow>
                       ))}

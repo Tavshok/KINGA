@@ -150,19 +150,19 @@ export function PolicyComparisonView({ policies }: PolicyComparisonViewProps) {
                 "AI-Only Limit",
                 policy1.maxAiOnlyApprovalAmount,
                 policy2.maxAiOnlyApprovalAmount,
-                (v) => `${currencySymbol}${(Number(v) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                (v) => `${currencySymbol}${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               )}
               {renderComparison(
                 "Hybrid Limit",
                 policy1.maxHybridApprovalAmount,
                 policy2.maxHybridApprovalAmount,
-                (v) => `${currencySymbol}${(Number(v) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                (v) => `${currencySymbol}${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               )}
               {renderComparison(
                 "Manager Approval",
                 policy1.requireManagerApprovalAbove,
                 policy2.requireManagerApprovalAbove,
-                (v) => `${currencySymbol}${(Number(v) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                (v) => `${currencySymbol}${Number(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
               )}
             </div>
 

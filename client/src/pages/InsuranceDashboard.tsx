@@ -148,7 +148,7 @@ export default function InsuranceDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-primary">
-              ${((activePolicies.reduce((sum: number, p: any) => sum + (p.premiumAmount || 0), 0)) / 100 * 12).toFixed(0)}
+              ${((activePolicies.reduce((sum: number, p: any) => sum + (p.premiumAmount || 0), 0)) * 12).toFixed(0)}
             </div>
             <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Annual value</p>
           </CardContent>
@@ -175,7 +175,7 @@ export default function InsuranceDashboard() {
             />
           ) : (
             activePolicies.map((policy: any) => {
-              const monthlyPremium = (policy.premiumAmount / 100).toFixed(2);
+              const monthlyPremium = policy.premiumAmount.toFixed(2);
               const startDate = new Date(policy.coverageStartDate);
               const endDate = new Date(policy.coverageEndDate);
               const daysRemaining = Math.ceil((endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
@@ -208,7 +208,7 @@ export default function InsuranceDashboard() {
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600 dark:text-muted-foreground">Excess:</span>
-                            <span className="font-medium">${(policy.excessAmount || 0) / 100}</span>
+                            <span className="font-medium">${(policy.excessAmount || 0)}</span>
                           </div>
                         </div>
                       </div>
@@ -276,7 +276,7 @@ export default function InsuranceDashboard() {
             </Card>
           ) : (
             pendingQuotes.map((quote: any) => {
-              const monthlyPremium = (quote.premiumAmount / 100).toFixed(2);
+              const monthlyPremium = quote.premiumAmount.toFixed(2);
               const validUntil = new Date(quote.quoteValidUntil);
               const isExpired = validUntil < new Date();
               
@@ -341,7 +341,7 @@ export default function InsuranceDashboard() {
             </Card>
           ) : (
             rejectedQuotes.map((quote: any) => {
-              const monthlyPremium = (quote.premiumAmount / 100).toFixed(2);
+              const monthlyPremium = quote.premiumAmount.toFixed(2);
               
               return (
                 <Card key={quote.id} className="border-red-200 dark:border-red-800">

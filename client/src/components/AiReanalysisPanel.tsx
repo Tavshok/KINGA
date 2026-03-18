@@ -194,7 +194,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Estimated Cost</p>
-                    <p className="font-medium">R{((originalVersion.estimatedCost || 0) / 100).toFixed(2)}</p>
+                    <p className="font-medium">${(originalVersion.estimatedCost || 0).toFixed(2)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Fraud Risk</p>
@@ -243,7 +243,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Estimated Cost</p>
-                        <p className="font-medium">R{((version.estimatedCost || 0) / 100).toFixed(2)}</p>
+                        <p className="font-medium">${(version.estimatedCost || 0).toFixed(2)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Fraud Risk</p>
@@ -312,7 +312,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                     <p className="text-sm font-medium mb-2">Cost Difference</p>
                     <div className="flex items-center gap-2">
                       <span className="text-2xl font-bold">
-                        R{(Math.abs(comparison.differences.costDiff) / 100).toFixed(2)}
+                        ${Math.abs(comparison.differences.costDiff).toFixed(2)}
                       </span>
                       {comparison.differences.costDiff > 0 ? (
                         <Badge variant="destructive">
@@ -372,7 +372,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   <CardContent className="space-y-3 text-sm">
                     <div>
                       <p className="text-muted-foreground">Estimated Cost</p>
-                      <p className="font-medium">R{((comparison.assessment1.estimatedCost || 0) / 100).toFixed(2)}</p>
+                      <p className="font-medium">${(comparison.assessment1.estimatedCost || 0).toFixed(2)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Confidence Score</p>
@@ -406,7 +406,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   <CardContent className="space-y-3 text-sm">
                     <div>
                       <p className="text-muted-foreground">Estimated Cost</p>
-                      <p className="font-medium">R{((comparison.assessment2.estimatedCost || 0) / 100).toFixed(2)}</p>
+                      <p className="font-medium">${(comparison.assessment2.estimatedCost || 0).toFixed(2)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Confidence Score</p>

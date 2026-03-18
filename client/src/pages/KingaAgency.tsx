@@ -160,11 +160,11 @@ function QuotationsTab() {
                 {q.quotedPremium ? (
                   <div>
                     <p className="text-lg font-bold text-emerald-600">
-                      ${(q.quotedPremium / 100).toFixed(2)}/mo
+                      ${q.quotedPremium.toFixed(2)}/mo
                     </p>
                     {q.quotedAnnualPremium && (
                       <p className="text-xs text-muted-foreground">
-                        ${(q.quotedAnnualPremium / 100).toFixed(2)}/year
+                        ${q.quotedAnnualPremium.toFixed(2)}/year
                       </p>
                     )}
                   </div>
@@ -250,7 +250,7 @@ function PoliciesTab() {
                   {getStatusBadge(p.status)}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Premium: ${(p.premiumAmount / 100).toFixed(2)}/{p.premiumFrequency}
+                  Premium: ${p.premiumAmount.toFixed(2)}/{p.premiumFrequency}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Coverage: {new Date(p.coverageStartDate).toLocaleDateString()} - {new Date(p.coverageEndDate).toLocaleDateString()}

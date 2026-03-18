@@ -362,7 +362,7 @@ export default function InsurerComparisonView() {
   const fraudDetected = hasFraudIndicators();
 
   // Derive key metrics for the hero header
-  const aiCostCents = aiAssessment?.estimatedCost || 0;
+  const aiCostDollars = aiAssessment?.estimatedCost || 0;
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
   const quotedAmounts = quotes.map((q: any) => q.quotedAmount || 0);
   const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0;
@@ -430,11 +430,11 @@ export default function InsurerComparisonView() {
 
             {/* Hero KPI strip */}
             <div className="flex flex-wrap gap-3">
-              {aiCostCents > 0 && (
+              {aiCostDollars > 0 && (
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>AI Estimate</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.78 0.10 185)' }}>
-                    US${(aiCostCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    US${aiCostDollars.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
@@ -442,7 +442,7 @@ export default function InsurerComparisonView() {
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>Assessor</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.80 0.08 250)' }}>
-                    US${(assessorCostCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    US${assessorCostCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
@@ -450,7 +450,7 @@ export default function InsurerComparisonView() {
                 <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'oklch(0.18 0.02 250 / 0.6)', border: '1px solid oklch(0.30 0.02 250)' }}>
                   <p className="kpi-card-label" style={{ fontSize: '0.625rem' }}>Best Quote</p>
                   <p className="text-lg font-bold tabular-nums" style={{ color: 'oklch(0.82 0.14 165)' }}>
-                    US${(lowestQuoteCents / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    US${lowestQuoteCents.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                 </div>
               )}
@@ -938,7 +938,7 @@ export default function InsurerComparisonView() {
                 <div className="space-y-4">
                   {quotes.map((quote, idx) => (
                     <div key={quote.id} className="p-4 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-                      <p className="font-semibold mb-2" style={{ color: 'var(--foreground)' }}>{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      <p className="font-semibold mb-2" style={{ color: 'var(--foreground)' }}>{(quote as any).panelBeaterName || `Quote ${idx + 1}`} — US${(quote.quotedAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       {quote.lineItems && quote.lineItems.length > 0 ? (
                         <div className="space-y-2">
                           {quote.lineItems.map((item: any, i: number) => (
@@ -973,10 +973,10 @@ export default function InsurerComparisonView() {
             {quotes.length >= 2 && (() => {
               const chartData = quotes.map((q, i) => ({
                 name: (q as any).panelBeaterName || `Quote ${i + 1}`,
-                amount: (q.quotedAmount || 0) / 100,
+                amount: (q.quotedAmount || 0),
                 id: q.id,
               }));
-              const median = computeMedian(quotes.map(q => (q.quotedAmount || 0) / 100));
+              const median = computeMedian(quotes.map(q => (q.quotedAmount || 0)));
               const COLORS = [
                 'oklch(0.62 0.18 155)',
                 'oklch(0.60 0.18 230)',
@@ -1069,8 +1069,8 @@ export default function InsurerComparisonView() {
                     )}
                     {aiAssessment.repairToValueRatio && aiAssessment.estimatedVehicleValue && (
                       <div className="text-xs text-red-700 dark:text-red-300 mt-2 pt-2 border-t border-red-300 dark:border-red-700">
-                        <p>Repair Cost: US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
-                        <p>Vehicle Value: US${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                        <p>Repair Cost: US${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                        <p>Vehicle Value: US${(aiAssessment.estimatedVehicleValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                         <p className="font-semibold">Repair/Value Ratio: {aiAssessment.repairToValueRatio}%</p>
                       </div>
                     )}
@@ -1098,12 +1098,12 @@ export default function InsurerComparisonView() {
                   </div>
                   <div className="p-4 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>Estimated Repair Cost</p>
-                    <p className="text-2xl font-bold text-primary">US${((aiAssessment.estimatedCost || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+                    <p className="text-2xl font-bold text-primary">US${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
                     {aiAssessment.estimatedVehicleValue ? (
                       <div className="mt-2 space-y-1">
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Est. Vehicle Value</span>
-                          <span className="font-medium">US${((aiAssessment.estimatedVehicleValue || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                          <span className="font-medium">US${(aiAssessment.estimatedVehicleValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
                         </div>
                         <div className="flex justify-between text-sm">
                           <span className="text-muted-foreground">Repair/Value Ratio</span>
@@ -1251,7 +1251,7 @@ function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: an
                   <div>
                     <p className="font-medium">{(quote as any).panelBeaterName || `Panel Beater #${quote.panelBeaterId}`}</p>
                     <p className="text-sm text-muted-foreground">
-                      Quote: US${((quote.quotedAmount || 0) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })} • {quote.estimatedDuration} days
+                      Quote: US${(quote.quotedAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} • {quote.estimatedDuration} days
                     </p>
                   </div>
                   {selectedQuoteId === quote.id && (
@@ -1435,12 +1435,12 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
 
   // Cost breakdown by category (estimated) — use correct schema fields
   // All cost values are stored in cents — divide by 100 for display
-  const estimatedCostCents = aiAssessment.estimatedCost || 0;
-  const partsCostCents = aiAssessment.estimatedPartsCost || estimatedCostCents * 0.6;
-  const laborCostCents = aiAssessment.estimatedLaborCost || estimatedCostCents * 0.4;
-  const estimatedCost = estimatedCostCents / 100;
-  const partsCost = partsCostCents / 100;
-  const laborCost = laborCostCents / 100;
+  const estimatedCostDollars = aiAssessment.estimatedCost || 0;
+  const partsCostDollars = aiAssessment.estimatedPartsCost || estimatedCostDollars * 0.6;
+  const laborCostDollars = aiAssessment.estimatedLaborCost || estimatedCostDollars * 0.4;
+  const estimatedCost = estimatedCostDollars;
+  const partsCost = partsCostDollars;
+  const laborCost = laborCostDollars;
 
   // Render only the requested sub-section
   if (section === 'damage-map') {
@@ -1875,6 +1875,67 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
     physicsAnalysis = raw ? (typeof raw === 'string' ? JSON.parse(raw) : raw) : null;
   } catch { /* ignore */ }
   
+  // ── Normalise flat pipeline-v2 format to the nested _raw format the UI expects ──
+  if (physicsAnalysis && physicsAnalysis.physicsExecuted && !physicsAnalysis._raw) {
+    const p = physicsAnalysis;
+    const speedKmh = p.estimatedSpeedKmh || p.deltaVKmh || 0;
+    const forceKn = p.impactForceKn || 0;
+    const forceN = forceKn * 1000; // kN -> N
+    const direction = p.impactVector?.direction || 'unknown';
+    const angle = p.impactVector?.angle || 0;
+    const energyJ = p.energyDistribution?.kineticEnergyJ || p.energyDistribution?.energyDissipatedJ || 0;
+    const deltaV = p.deltaVKmh || 0;
+    const severity = p.accidentSeverity || 'minor';
+    const consistencyScore = p.damageConsistencyScore || 50;
+    
+    // Map collision direction to type
+    const dirToType: Record<string, string> = { front: 'frontal', rear: 'rear', left: 'side_driver', right: 'side_passenger' };
+    const collType = dirToType[direction] || direction;
+    
+    // Determine occupant injury risk from deltaV
+    const injuryRisk = deltaV > 40 ? 'high' : deltaV > 25 ? 'moderate' : 'low';
+    
+    physicsAnalysis = {
+      _raw: {
+        estimatedSpeed: {
+          value: speedKmh,
+          confidence: consistencyScore > 50 ? 75 : 55,
+          method: "Pipeline v2 physics engine",
+          confidenceInterval: [Math.round(speedKmh * 0.8), Math.round(speedKmh * 1.2)],
+        },
+        impactForce: {
+          magnitude: forceN || (forceKn > 0 ? forceKn * 1000 : Math.round(speedKmh * 80)),
+          confidence: consistencyScore > 50 ? 80 : 55,
+          duration: 0.08,
+        },
+        kineticEnergy: energyJ,
+        deltaV,
+        accidentSeverity: severity,
+        collisionType: collType,
+        primaryImpactZone: direction,
+        impactAngle: angle,
+        damageConsistency: { score: consistencyScore, label: consistencyScore > 70 ? 'Consistent' : consistencyScore > 40 ? 'Partial' : 'Inconsistent' },
+        fraudIndicators: {
+          impossibleDamagePatterns: [],
+          unrelatedDamage: [],
+          stagedAccidentIndicators: [],
+          severityMismatch: false,
+        },
+        occupantInjuryRisk: injuryRisk,
+        latentDamageProbability: p.latentDamageProbability || {},
+        reconstructionSummary: p.reconstructionSummary || '',
+      },
+      accidentSeverity: severity,
+      consistencyScore,
+      damagePropagationScore: consistencyScore,
+      fraudRiskScore: 0,
+      fraudIndicators: [],
+      occupantInjuryRisk: injuryRisk,
+      collisionType: collType,
+      reconstructionSummary: p.reconstructionSummary || '',
+    };
+  }
+
   if (!physicsAnalysis) {
     // ── Infer physics from available claim data when DB physics_analysis is NULL ──
     // This handles old assessments created before the physics pipeline was added.

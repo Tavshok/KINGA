@@ -157,11 +157,11 @@ export default function PanelBeaterQuoteForm({ claimId, panelBeaterId, onSuccess
       await createQuoteMutation.mutateAsync({
         claimId,
         panelBeaterId,
-        quotedAmount: Math.round(calculateTotal() * 100), // Store in cents (dollars × 100)
+        quotedAmount: Math.round(calculateTotal()), // Store in whole dollars
         estimatedDuration,
         itemizedBreakdown: lineItems.map(item => ({
           item: `${item.description} (${item.partNumber || 'N/A'}) - ${item.category}`,
-          cost: Math.round(item.quantity * item.unitPrice * 100) // cents
+          cost: Math.round(item.quantity * item.unitPrice) // whole dollars
         })),
         laborCost: Math.round(lineItems.filter(i => i.category === "labor").reduce((sum, i) => sum + i.quantity * i.unitPrice, 0) * 100),
         partsCost: Math.round(lineItems.filter(i => i.category !== "labor").reduce((sum, i) => sum + i.quantity * i.unitPrice, 0) * 100),

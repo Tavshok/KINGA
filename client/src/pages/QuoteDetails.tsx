@@ -123,7 +123,7 @@ export default function QuoteDetails() {
     );
   }
   
-  const monthlyPremium = quote.premiumAmount / 100;
+  const monthlyPremium = quote.premiumAmount;
   const annualPremium = monthlyPremium * 12;
   const validUntil = new Date(quote.quoteValidUntil);
   const isExpired = validUntil < new Date();
@@ -210,7 +210,7 @@ export default function QuoteDetails() {
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-muted-foreground">Excess Amount</span>
-              <span className="font-medium">${(quote.excessAmount || 0) / 100}</span>
+              <span className="font-medium">${(quote.excessAmount || 0)}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-gray-600 dark:text-muted-foreground">Driver Age</span>

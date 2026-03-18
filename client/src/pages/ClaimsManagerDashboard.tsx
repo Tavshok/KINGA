@@ -61,10 +61,10 @@ export default function ClaimsManagerDashboard() {
 
   useEffect(() => {
     if (selectedClaim && aiAssessment) {
-      const aiCost = aiAssessment.estimatedCost ? aiAssessment.estimatedCost / 100 : null;
-      const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost / 100 : null;
+      const aiCost = aiAssessment.estimatedCost ? aiAssessment.estimatedCost : null;
+      const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost : null;
       const avgQuoteCost = quotes && quotes.length > 0
-        ? quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length / 100
+        ? quotes.reduce((sum: number, q: any) => sum + (q.quotedAmount || 0), 0) / quotes.length
         : null;
 
       const calculateVariance = (v1: number | null, v2: number | null) => {
@@ -596,7 +596,7 @@ export default function ClaimsManagerDashboard() {
                       </span>
                       {claim.approvedAmount && (
                         <Badge variant="outline" className="text-xs text-green-700 dark:text-green-300">
-                          ${(claim.approvedAmount / 100).toLocaleString()}
+                          ${claim.approvedAmount.toLocaleString()}
                         </Badge>
                       )}
                     </div>
@@ -630,7 +630,7 @@ export default function ClaimsManagerDashboard() {
                   <>
                     Claim: <strong>{selectedClaim.claimNumber}</strong> — {selectedClaim.vehicleRegistration}
                     {selectedClaim.estimatedCost && (
-                      <> | Est. Cost: <strong>${(selectedClaim.estimatedCost / 100).toLocaleString()}</strong></>
+                      <> | Est. Cost: <strong>${selectedClaim.estimatedCost.toLocaleString()}</strong></>
                     )}
                   </>
                 )}

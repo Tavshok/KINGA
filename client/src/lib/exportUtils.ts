@@ -136,7 +136,7 @@ export async function exportAlertsToPDF(alerts: any, currencySymbol: string = 'U
       body: alerts.highValuePending.map((claim: any) => [
         claim.claimNumber,
         claim.vehicleRegistration,
-        `${currencySymbol}${((claim.estimatedCost || 0) / 100).toLocaleString()}`,
+        `${currencySymbol}${(claim.estimatedCost || 0).toLocaleString()}`,
       ]),
       theme: "grid",
       headStyles: { fillColor: [234, 179, 8] },

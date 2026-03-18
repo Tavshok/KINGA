@@ -115,7 +115,7 @@ export function CreatePolicyForm({ profiles, onPolicyCreated }: CreatePolicyForm
           <div className="space-y-1">
             <p className="text-xs text-muted-foreground">AI Approval Limit</p>
             <p className="text-lg font-bold">
-              ${(selectedProfile.maxAiOnlyApprovalAmount / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              ${selectedProfile.maxAiOnlyApprovalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
           </div>
           <div className="space-y-1">
@@ -170,8 +170,8 @@ export function CreatePolicyForm({ profiles, onPolicyCreated }: CreatePolicyForm
               <Input
                 id="aiLimit"
                 type="number"
-                placeholder={(selectedProfile.maxAiOnlyApprovalAmount / 100).toString()}
-                value={customizations.maxAiOnlyApprovalAmount ? customizations.maxAiOnlyApprovalAmount / 100 : ""}
+                placeholder={selectedProfile.maxAiOnlyApprovalAmount.toString()}
+                value={customizations.maxAiOnlyApprovalAmount ? customizations.maxAiOnlyApprovalAmount : ""}
                 onChange={(e) => setCustomizations({ 
                   ...customizations, 
                   maxAiOnlyApprovalAmount: Number(e.target.value) * 100 
@@ -183,8 +183,8 @@ export function CreatePolicyForm({ profiles, onPolicyCreated }: CreatePolicyForm
               <Input
                 id="hybridLimit"
                 type="number"
-                placeholder={(selectedProfile.maxHybridApprovalAmount / 100).toString()}
-                value={customizations.maxHybridApprovalAmount ? customizations.maxHybridApprovalAmount / 100 : ""}
+                placeholder={selectedProfile.maxHybridApprovalAmount.toString()}
+                value={customizations.maxHybridApprovalAmount ? customizations.maxHybridApprovalAmount : ""}
                 onChange={(e) => setCustomizations({ 
                   ...customizations, 
                   maxHybridApprovalAmount: Number(e.target.value) * 100 

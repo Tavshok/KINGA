@@ -43,10 +43,10 @@ export function exportClaimsToExcel(
       ? claim.fraudRiskScore >= 70 ? 'HIGH' : claim.fraudRiskScore >= 40 ? 'MEDIUM' : 'LOW'
       : 'N/A',
     [`Estimated Cost (${currencySymbol})`]: claim.estimatedCost 
-      ? `${currencySymbol}${(claim.estimatedCost / 100).toFixed(2)}` 
+      ? `${currencySymbol}${claim.estimatedCost.toFixed(2)}` 
       : 'Pending',
     [`Approved Amount (${currencySymbol})`]: claim.approvedAmount 
-      ? `${currencySymbol}${(claim.approvedAmount / 100).toFixed(2)}` 
+      ? `${currencySymbol}${claim.approvedAmount.toFixed(2)}` 
       : 'Pending',
     'Incident Type': claim.incidentType || 'N/A',
     'Incident Date': claim.incidentDate 

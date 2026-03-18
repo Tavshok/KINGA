@@ -493,7 +493,7 @@ function calculateFraudStatistics(claims: any[]) {
   // Calculate fraud cost impact (sum of high-risk claim amounts)
   const fraudCostImpact = claims
     .filter(c => (c.fraudRiskScore || 0) > 70)
-    .reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100; // Convert from cents
+    .reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0); // Already in whole dollars
   
   // Detection rate (percentage of claims with AI assessment completed)
   const assessedClaims = claims.filter(c => c.aiAssessmentCompleted).length;

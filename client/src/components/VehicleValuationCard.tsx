@@ -81,13 +81,13 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
             <div className="bg-primary/5 rounded-lg p-4">
               <Label className="text-muted-foreground text-sm">Estimated Market Value</Label>
               <p className="text-2xl font-bold text-primary/90">
-                ${(valuation.estimatedMarketValue / 100).toFixed(2)}
+                ${valuation.estimatedMarketValue.toFixed(2)}
               </p>
             </div>
             <div className="bg-green-50 dark:bg-green-950/30 rounded-lg p-4">
               <Label className="text-muted-foreground text-sm">Final Adjusted Value</Label>
               <p className="text-2xl font-bold text-green-700 dark:text-green-300">
-                ${((valuation.finalAdjustedValue ?? 0) / 100).toFixed(2)}
+                ${(valuation.finalAdjustedValue ?? 0).toFixed(2)}
               </p>
             </div>
           </div>
@@ -122,7 +122,7 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
                   <span>Condition Adjustment ({valuation.condition})</span>
                   <span className={(valuation.conditionAdjustment ?? 0) > 0 ? "text-green-600" : "text-red-600"}>
                     {(valuation.conditionAdjustment ?? 0) > 0 ? "+" : ""}
-                    ${((valuation.conditionAdjustment ?? 0) / 100).toFixed(2)}
+                    ${(valuation.conditionAdjustment ?? 0).toFixed(2)}
                   </span>
                 </div>
               )}
@@ -131,7 +131,7 @@ export default function VehicleValuationCard({ claimId }: VehicleValuationCardPr
                   <span>Mileage Adjustment ({valuation.mileage?.toLocaleString()} km)</span>
                   <span className={(valuation.mileageAdjustment ?? 0) > 0 ? "text-green-600" : "text-red-600"}>
                     {(valuation.mileageAdjustment ?? 0) > 0 ? "+" : ""}
-                    ${((valuation.mileageAdjustment ?? 0) / 100).toFixed(2)}
+                    ${(valuation.mileageAdjustment ?? 0).toFixed(2)}
                   </span>
                 </div>
               )}

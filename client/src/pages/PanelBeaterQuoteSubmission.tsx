@@ -89,8 +89,8 @@ export default function PanelBeaterQuoteSubmission() {
 
   const handlePdfExtracted = (data: any) => {
     // Populate form with extracted data
-    setLaborCost((data.laborCost / 100).toFixed(2));
-    setPartsCost((data.partsCost / 100).toFixed(2));
+    setLaborCost(data.laborCost.toFixed(2));
+    setPartsCost(data.partsCost.toFixed(2));
     setLaborHours(data.laborHours.toString());
     setEstimatedDuration(data.estimatedDuration.toString());
     setNotes(data.notes || "");
@@ -100,7 +100,7 @@ export default function PanelBeaterQuoteSubmission() {
       const newLineItems = data.components.map((comp: any, index: number) => ({
         id: Date.now().toString() + index,
         item: comp.name,
-        cost: ((comp.partCost + comp.laborCost) / 100).toFixed(2)
+        cost: (comp.partCost + comp.laborCost).toFixed(2)
       }));
       setLineItems(newLineItems);
     }

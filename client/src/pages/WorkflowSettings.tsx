@@ -173,7 +173,7 @@ export default function WorkflowSettings() {
               <Input
                 id="highValueThreshold"
                 type="number"
-                value={formData.highValueThreshold / 100}
+                value={formData.highValueThreshold}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -193,7 +193,7 @@ export default function WorkflowSettings() {
               <Input
                 id="executiveReviewThreshold"
                 type="number"
-                value={formData.executiveReviewThreshold / 100}
+                value={formData.executiveReviewThreshold}
                 onChange={(e) =>
                   setFormData({
                     ...formData,

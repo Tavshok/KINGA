@@ -112,7 +112,7 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
       ['Fraud Risk Level:', data.aiAssessment.fraudRiskLevel ?? 'Not Assessed'],
       ['Fraud Indicators:', data.aiAssessment.fraudIndicators ?? 'None'],
       ['Damage Types:', data.aiAssessment.detectedDamageTypes ?? 'N/A'],
-      ['AI Estimated Cost:', data.aiAssessment.estimatedCost ? `${currencySymbol}${(data.aiAssessment.estimatedCost / 100).toFixed(2)}` : 'N/A'],
+      ['AI Estimated Cost:', data.aiAssessment.estimatedCost ? `${currencySymbol}${data.aiAssessment.estimatedCost.toFixed(2)}` : 'N/A'],
     ];
 
     autoTable(doc, {
@@ -156,9 +156,9 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
     doc.setFont('helvetica', 'normal');
 
     const assessorInfo = [
-      ['Estimated Repair Cost:', `${currencySymbol}${(data.assessorEval.estimatedRepairCost / 100).toFixed(2)}`],
-      ['Labor Cost:', data.assessorEval.laborCost ? `${currencySymbol}${(data.assessorEval.laborCost / 100).toFixed(2)}` : 'N/A'],
-      ['Parts Cost:', data.assessorEval.partsCost ? `${currencySymbol}${(data.assessorEval.partsCost / 100).toFixed(2)}` : 'N/A'],
+      ['Estimated Repair Cost:', `${currencySymbol}${data.assessorEval.estimatedRepairCost.toFixed(2)}`],
+      ['Labor Cost:', data.assessorEval.laborCost ? `${currencySymbol}${data.assessorEval.laborCost.toFixed(2)}` : 'N/A'],
+      ['Parts Cost:', data.assessorEval.partsCost ? `${currencySymbol}${data.assessorEval.partsCost.toFixed(2)}` : 'N/A'],
       ['Estimated Duration:', `${data.assessorEval.estimatedDuration} days`],
       ['Fraud Risk Level:', (data.assessorEval.fraudRiskLevel || 'N/A').toUpperCase()],
     ];
@@ -224,7 +224,7 @@ export function exportClaimReportToPDF(data: ClaimReportData, currencySymbol: st
 
     const quoteTableData = data.quotes.map(quote => [
       quote.panelBeaterName || 'N/A',
-      `${currencySymbol}${(quote.amount / 100).toFixed(2)}`,
+      `${currencySymbol}${quote.amount.toFixed(2)}`,
       quote.status,
       new Date(quote.createdAt).toLocaleDateString(),
     ]);

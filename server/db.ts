@@ -603,16 +603,35 @@ export async function triggerAiAssessment(claimId: number) {
     }),
   });
 
-  // Update claim status to complete
+  // Update claim status to complete + backfill vehicle info from extraction
   const finalFraudScore = fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0;
-  await db.update(claims).set({
+  const claimUpdate: Record<string, any> = {
     aiAssessmentCompleted: 1,
     status: "assessment_complete",
     documentProcessingStatus: "extracted",
     fraudRiskScore: finalFraudScore,
     fraudFlags: fraudIndicatorsJson,
+    estimatedCost,
     updatedAt: new Date().toISOString(),
-  }).where(eq(claims.id, claimId));
+  };
+  // Backfill vehicle info from pipeline extraction (only if not already set)
+  if (claimRecord?.vehicle) {
+    const v = claimRecord.vehicle;
+    if (v.make) claimUpdate.vehicleMake = v.make;
+    if (v.model) claimUpdate.vehicleModel = v.model;
+    if (v.year) claimUpdate.vehicleYear = Number(v.year) || null;
+    if (v.registration) claimUpdate.vehicleRegistration = v.registration;
+    if (v.vin) claimUpdate.vehicleVin = v.vin;
+    if (v.color) claimUpdate.vehicleColor = v.color;
+  }
+  // Backfill incident info from pipeline extraction
+  if (claimRecord?.damage) {
+    const d = claimRecord.damage;
+    if (d.description) claimUpdate.incidentDescription = d.description;
+    if (d.incidentDate) claimUpdate.incidentDate = d.incidentDate;
+    if (d.incidentType) claimUpdate.incidentType = d.incidentType;
+  }
+  await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
 
   console.log(`[AI Assessment] Claim ${claimId} — Pipeline v2 complete. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 

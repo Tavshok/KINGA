@@ -42,12 +42,11 @@ export function getCurrencyConfig(): CurrencyConfig {
 
 /**
  * Format an amount in cents to display currency
- * @param amountInCents Amount in cents (e.g., 500000 = $5,000.00)
+ * @param amount Amount in whole currency units (e.g., 5000 = $5,000.00)
  * @param showSecondary Whether to show secondary currency
  * @returns Formatted currency string
  */
-export function formatCurrency(amountInCents: number, showSecondary: boolean = false): string {
-  const amount = amountInCents / 100;
+export function formatCurrency(amount: number, showSecondary: boolean = false): string {
   const primary = `${currentCurrency.primarySymbol}${amount.toLocaleString("en-US", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -67,11 +66,10 @@ export function formatCurrency(amountInCents: number, showSecondary: boolean = f
 
 /**
  * Format a currency amount without cents (for large numbers)
- * @param amountInCents Amount in cents
+ * @param amount Amount in whole currency units
  * @returns Formatted currency string without decimals
  */
-export function formatCurrencyWhole(amountInCents: number): string {
-  const amount = amountInCents / 100;
+export function formatCurrencyWhole(amount: number): string {
   return `${currentCurrency.primarySymbol}${amount.toLocaleString("en-US", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,

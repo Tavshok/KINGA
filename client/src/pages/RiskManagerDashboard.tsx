@@ -134,7 +134,7 @@ export default function RiskManagerDashboard() {
                           </div>
                           <div>
                             <span className="font-medium">Estimated Cost:</span> $
-                            {claim.estimatedCost ? (claim.estimatedCost / 100).toLocaleString() : "N/A"}
+                            {claim.estimatedCost ? claim.estimatedCost.toLocaleString() : "N/A"}
                           </div>
                           <div>
                             <span className="font-medium">Submitted:</span>{" "}
@@ -215,7 +215,7 @@ export default function RiskManagerDashboard() {
                             <span className="font-semibold">{c.claimNumber}</span>
                             {cost ? (
                               <Badge variant="destructive" className="text-xs">
-                                ${(cost / 100).toLocaleString()}
+                                ${cost.toLocaleString()}
                               </Badge>
                             ) : null}
                             <RiskBadge fraudRiskScore={c.fraudRiskScore} fraudFlags={c.fraudFlags} />

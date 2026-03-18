@@ -431,11 +431,11 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(9);
     if (ai.lowestQuote > 0) {
-      doc.text(`Lowest Quote:   ${currencySymbol}${(ai.lowestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      doc.text(`Lowest Quote:   ${currencySymbol}${ai.lowestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       yPos += 4;
-      doc.text(`Median Quote:   ${currencySymbol}${(ai.medianQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      doc.text(`Median Quote:   ${currencySymbol}${ai.medianQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       yPos += 4;
-      doc.text(`Highest Quote:  ${currencySymbol}${(ai.highestQuote / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+      doc.text(`Highest Quote:  ${currencySymbol}${ai.highestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       yPos += 4;
       doc.text(`Quote Spread:   ${ai.spreadPercent}%`, 26, yPos);
     } else {
@@ -445,7 +445,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
       doc.setTextColor(0, 0, 0);
       yPos += 4;
       if (ai.aiEstimatedCost && ai.aiEstimatedCost > 0) {
-        doc.text(`AI Estimated Cost: ${currencySymbol}${(ai.aiEstimatedCost / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
+        doc.text(`AI Estimated Cost: ${currencySymbol}${ai.aiEstimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 26, yPos);
       }
     }
     yPos += 7;
@@ -601,7 +601,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
-    doc.text(`Estimated Cost: ${currencySymbol}${(data.assessorEvaluation.estimatedCost / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
+    doc.text(`Estimated Cost: ${currencySymbol}${data.assessorEvaluation.estimatedCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, 20, yPos);
     yPos += 5;
     doc.text(`Duration: ${data.assessorEvaluation.estimatedDuration} days`, 20, yPos);
     yPos += 5;
@@ -620,7 +620,7 @@ export async function generateComparisonPDF(data: ClaimData, currencySymbol: str
     const tableData = data.quotes.map((quote, index) => [
       `Quote ${index + 1}`,
       quote.panelBeaterName,
-      `${currencySymbol}${(quote.totalCost / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      `${currencySymbol}${quote.totalCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
       `${quote.estimatedDuration} days`,
       quote.notes || 'N/A'
     ]);
@@ -1598,7 +1598,7 @@ export async function generateClaimSummaryPDF(claim: {
 
   doc.setFontSize(10);
   if (claim.estimatedCost != null) {
-    const costDisplay = (claim.estimatedCost / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const costDisplay = claim.estimatedCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     doc.setFont('helvetica', 'bold');
     doc.text('Estimated Repair Cost:', 22, yPos);
     doc.setFont('helvetica', 'normal');

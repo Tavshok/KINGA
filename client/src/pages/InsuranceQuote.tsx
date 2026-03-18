@@ -53,7 +53,7 @@ export default function InsuranceQuote() {
   // Submit quote request
   const quoteMutation = trpc.insurance.requestQuote.useMutation({
     onSuccess: (data) => {
-      toast.success(`Quote Generated! Your instant quote: $${(data.premiumAmount / 100).toFixed(2)}/month`);
+      toast.success(`Quote Generated! Your instant quote: $${data.premiumAmount.toFixed(2)}/month`);
       setLocation(`/insurance/quote/${data.quoteId}`);
     },
     onError: (error) => {
@@ -77,7 +77,7 @@ export default function InsuranceQuote() {
       setValue(result.estimatedValue.toString());
       setUseKingaEstimate(true);
       
-      toast.success(`KINGA estimates your vehicle at $${(result.estimatedValue / 100).toFixed(2)}`);
+      toast.success(`KINGA estimates your vehicle at $${result.estimatedValue.toFixed(2)}`);
     } catch (error: any) {
       toast.error(`Valuation Error: ${error.message}`);
     }
