@@ -72,6 +72,63 @@ export interface CriticalAlert {
   engine: string;
 }
 
+export interface CostVerdict {
+  /** AI estimated cost in USD */
+  aiEstimatedCost: number;
+  /** Highest quoted cost (0 if no quotes) */
+  quotedCost: number;
+  /** Fair cost range */
+  fairMin: number;
+  fairMax: number;
+  /** Deviation % = ((Quoted - AI) / AI) * 100 */
+  deviationPercent: number | null;
+  /** OVERPRICED | FAIR | UNDERPRICED | NO_QUOTE */
+  verdict: "OVERPRICED" | "FAIR" | "UNDERPRICED" | "NO_QUOTE";
+  /** Rule that determined the verdict */
+  ruleApplied: string;
+  /** Human-readable explanation */
+  explanation: string;
+}
+
+export interface ConfidenceBreakdown {
+  /** Final confidence score (0-100) */
+  score: number;
+  /** Starting value */
+  base: number;
+  /** Penalty factors applied */
+  penalties: Array<{ factor: string; deduction: number; reason: string }>;
+  /** Human-readable summary */
+  summary: string;
+}
+
+export type FinalDecision = "FINALISE_CLAIM" | "REVIEW_REQUIRED" | "ESCALATE_INVESTIGATION";
+
+export interface FinalDecisionResult {
+  decision: FinalDecision;
+  label: string;
+  color: "green" | "amber" | "red";
+  /** Ordered list of rules that triggered this decision */
+  ruleTrace: Array<{ rule: string; value: string | number; threshold: string; triggered: boolean }>;
+  /** Primary reason for the decision */
+  primaryReason: string;
+  /** Recommended next actions */
+  recommendedActions: string[];
+}
+
+export interface FraudScoreBreakdown {
+  /** Final adjusted fraud score */
+  totalScore: number;
+  /** Base score from AI pipeline */
+  baseScore: number;
+  /** Weighted component contributions */
+  components: Array<{ factor: string; contribution: number; weight: string }>;
+  /** Enforcement adjustments applied */
+  adjustments: Array<{ source: string; delta: number; reason: string }>;
+  /** Enforced label */
+  level: FraudLevelEnforced;
+  label: string;
+}
+
 export interface IntelligenceEnforcementResult {
   /** Corrected fraud level using strict 5-band mapping */
   fraudLevelEnforced: FraudLevelEnforced;
@@ -86,6 +143,14 @@ export interface IntelligenceEnforcementResult {
   directionFlag: DirectionDamageFlag;
   /** Cost benchmark (always populated) */
   costBenchmark: CostBenchmark;
+  /** Cost verdict with deviation calculation */
+  costVerdict: CostVerdict;
+  /** Weighted fraud score breakdown */
+  fraudScoreBreakdown: FraudScoreBreakdown;
+  /** Confidence score with penalty breakdown */
+  confidenceBreakdown: ConfidenceBreakdown;
+  /** Final claim decision with rule trace */
+  finalDecision: FinalDecisionResult;
   /** Top-3 critical alerts */
   alerts: CriticalAlert[];
   /** Additional fraud score adjustment from enforcement rules */
@@ -574,6 +639,287 @@ export function generateCriticalAlerts(params: {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 6. COST VERDICT ENFORCEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Computes cost deviation % and applies OVERPRICED/FAIR/UNDERPRICED verdict.
+ * Formula: deviation = ((Quoted - AI) / AI) * 100
+ * OVERPRICED if deviation > +15%, UNDERPRICED if < -15%, else FAIR.
+ */
+export function enforceCostVerdict(params: {
+  aiEstimatedCost: number;
+  quotedAmounts: number[];
+  fairMin: number;
+  fairMax: number;
+}): CostVerdict {
+  const { aiEstimatedCost, quotedAmounts, fairMin, fairMax } = params;
+
+  if (quotedAmounts.length === 0 || aiEstimatedCost <= 0) {
+    return {
+      aiEstimatedCost,
+      quotedCost: 0,
+      fairMin,
+      fairMax,
+      deviationPercent: null,
+      verdict: "NO_QUOTE",
+      ruleApplied: "No quotes submitted — verdict deferred",
+      explanation: `AI estimated cost is $${aiEstimatedCost.toLocaleString()}. Fair range: $${fairMin.toLocaleString()}–$${fairMax.toLocaleString()}. No panel beater quotes have been submitted yet.`,
+    };
+  }
+
+  const quotedCost = Math.max(...quotedAmounts);
+  const deviationPercent = Math.round(((quotedCost - aiEstimatedCost) / aiEstimatedCost) * 1000) / 10;
+
+  let verdict: CostVerdict["verdict"];
+  let ruleApplied: string;
+  let explanation: string;
+
+  if (deviationPercent > 15) {
+    verdict = "OVERPRICED";
+    ruleApplied = `Deviation ${deviationPercent}% > +15% threshold → OVERPRICED`;
+    explanation = `Highest quote of $${quotedCost.toLocaleString()} is ${deviationPercent}% above the AI estimate of $${aiEstimatedCost.toLocaleString()}. This exceeds the +15% overpricing threshold. Negotiate or seek an alternative quote.`;
+  } else if (deviationPercent < -15) {
+    verdict = "UNDERPRICED";
+    ruleApplied = `Deviation ${deviationPercent}% < -15% threshold → UNDERPRICED`;
+    explanation = `Highest quote of $${quotedCost.toLocaleString()} is ${Math.abs(deviationPercent)}% below the AI estimate of $${aiEstimatedCost.toLocaleString()}. This may indicate incomplete scope of work or missing components.`;
+  } else {
+    verdict = "FAIR";
+    ruleApplied = `Deviation ${deviationPercent}% within ±15% threshold → FAIR`;
+    explanation = `Highest quote of $${quotedCost.toLocaleString()} is within the acceptable ±15% range of the AI estimate ($${aiEstimatedCost.toLocaleString()}). Cost is reasonable.`;
+  }
+
+  return { aiEstimatedCost, quotedCost, fairMin, fairMax, deviationPercent, verdict, ruleApplied, explanation };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 7. CONFIDENCE SCORE ENFORCEMENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Computes a confidence score by starting at 100 and subtracting penalties.
+ * Penalties:
+ *   - Missing physics data (speed=0, force=0): -10
+ *   - Low damage consistency (<50%): -15
+ *   - High cost deviation (>30%): -10
+ *   - Weak extraction confidence (<70%): -10
+ */
+export function enforceConfidenceScore(params: {
+  hasRealPhysics: boolean;
+  consistencyScore: number;
+  costDeviationPercent: number | null;
+  extractionConfidence: number;
+  hasDirectionMismatch: boolean;
+}): ConfidenceBreakdown {
+  const { hasRealPhysics, consistencyScore, costDeviationPercent, extractionConfidence, hasDirectionMismatch } = params;
+
+  const base = 100;
+  const penalties: ConfidenceBreakdown["penalties"] = [];
+
+  if (!hasRealPhysics) {
+    penalties.push({ factor: "Missing physics data", deduction: 10, reason: "Velocity and force values not directly measured — estimated from delta-V" });
+  }
+  if (consistencyScore < 50) {
+    penalties.push({ factor: "Low damage consistency", deduction: 15, reason: `Damage consistency score of ${consistencyScore}% is below the 50% threshold` });
+  } else if (consistencyScore < 75) {
+    penalties.push({ factor: "Moderate damage consistency", deduction: 5, reason: `Damage consistency score of ${consistencyScore}% is below the 75% optimal threshold` });
+  }
+  if (costDeviationPercent !== null && Math.abs(costDeviationPercent) > 30) {
+    penalties.push({ factor: "High cost deviation", deduction: 10, reason: `Cost deviation of ${costDeviationPercent}% exceeds the ±30% confidence threshold` });
+  }
+  if (extractionConfidence < 70) {
+    penalties.push({ factor: "Weak document extraction", deduction: 10, reason: `Document extraction confidence of ${extractionConfidence}% is below the 70% threshold` });
+  }
+  if (hasDirectionMismatch) {
+    penalties.push({ factor: "Direction-damage mismatch", deduction: 5, reason: "Impact direction does not match detected damage zones" });
+  }
+
+  const totalDeduction = penalties.reduce((sum, p) => sum + p.deduction, 0);
+  const score = Math.max(0, base - totalDeduction);
+
+  const summary = penalties.length === 0
+    ? `Full confidence (${score}/100) — all data sources are consistent and complete.`
+    : `Confidence reduced to ${score}/100 due to: ${penalties.map(p => p.factor.toLowerCase()).join(", ")}.`;
+
+  return { score, base, penalties, summary };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 8. FRAUD SCORE BREAKDOWN
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Builds a weighted fraud score breakdown from available signals.
+ * Base score comes from the AI pipeline; enforcement rules add adjustments.
+ */
+export function buildFraudScoreBreakdown(params: {
+  baseScore: number;
+  fraudScoreBreakdownJson: Array<{ indicator: string; score: number }> | null;
+  consistencyAdjustment: number;
+  directionMismatchAdjustment: number;
+  costDeviationPercent: number | null;
+}): FraudScoreBreakdown {
+  const { baseScore, fraudScoreBreakdownJson, consistencyAdjustment, directionMismatchAdjustment, costDeviationPercent } = params;
+
+  // Build components from AI pipeline breakdown
+  const components: FraudScoreBreakdown["components"] = [];
+  if (fraudScoreBreakdownJson && fraudScoreBreakdownJson.length > 0) {
+    for (const item of fraudScoreBreakdownJson) {
+      components.push({
+        factor: item.indicator,
+        contribution: item.score,
+        weight: item.score >= 20 ? "HIGH" : item.score >= 10 ? "MEDIUM" : "LOW",
+      });
+    }
+  } else {
+    // No breakdown available — show base score as single component
+    components.push({ factor: "AI Pipeline Assessment", contribution: baseScore, weight: "BASE" });
+  }
+
+  // Build enforcement adjustments
+  const adjustments: FraudScoreBreakdown["adjustments"] = [];
+  if (consistencyAdjustment > 0) {
+    adjustments.push({ source: "Damage Consistency Enforcement", delta: consistencyAdjustment, reason: `Damage consistency below 50% threshold — +${consistencyAdjustment} points` });
+  }
+  if (directionMismatchAdjustment > 0) {
+    adjustments.push({ source: "Direction-Damage Mismatch", delta: directionMismatchAdjustment, reason: `Impact direction does not match damage zones — +${directionMismatchAdjustment} points` });
+  }
+  if (costDeviationPercent !== null && costDeviationPercent > 30) {
+    const costAdj = Math.min(10, Math.round((costDeviationPercent - 30) / 5));
+    adjustments.push({ source: "Cost Overpricing Signal", delta: costAdj, reason: `Quote ${costDeviationPercent}% above AI estimate — +${costAdj} points` });
+  }
+
+  const totalAdjustment = adjustments.reduce((sum, a) => sum + a.delta, 0);
+  const totalScore = Math.min(100, baseScore + totalAdjustment);
+  const { level, label } = enforceFraudLevel(totalScore);
+
+  return { totalScore, baseScore, components, adjustments, level, label };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 9. FINAL DECISION LOGIC
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Applies the mandatory FINALISE / REVIEW REQUIRED / ESCALATE INVESTIGATION
+ * decision logic with a full rule trace.
+ *
+ * ESCALATE if: fraud score > 60 OR severe inconsistency
+ * REVIEW if: fraud score 40-60 OR missing critical data
+ * FINALISE if: fraud score < 40 AND cost FAIR AND no major inconsistencies
+ */
+export function computeFinalDecision(params: {
+  fraudScore: number;
+  costVerdict: CostVerdict;
+  consistencyFlag: ImpactConsistencyFlag;
+  directionFlag: DirectionDamageFlag;
+  confidenceScore: number;
+  hasPhysicsData: boolean;
+}): FinalDecisionResult {
+  const { fraudScore, costVerdict, consistencyFlag, directionFlag, confidenceScore, hasPhysicsData } = params;
+
+  const ruleTrace: FinalDecisionResult["ruleTrace"] = [
+    {
+      rule: "Fraud Score Threshold (ESCALATE)",
+      value: fraudScore,
+      threshold: "> 60",
+      triggered: fraudScore > 60,
+    },
+    {
+      rule: "Severe Inconsistency (ESCALATE)",
+      value: consistencyFlag.anomalyLevel,
+      threshold: "anomalyLevel = high",
+      triggered: consistencyFlag.anomalyLevel === "high",
+    },
+    {
+      rule: "Fraud Score Threshold (REVIEW)",
+      value: fraudScore,
+      threshold: "40–60",
+      triggered: fraudScore >= 40 && fraudScore <= 60,
+    },
+    {
+      rule: "Missing Critical Data (REVIEW)",
+      value: hasPhysicsData ? "present" : "missing",
+      threshold: "physics data present",
+      triggered: !hasPhysicsData,
+    },
+    {
+      rule: "Cost Verdict (REVIEW)",
+      value: costVerdict.verdict,
+      threshold: "FAIR",
+      triggered: costVerdict.verdict === "OVERPRICED" || costVerdict.verdict === "UNDERPRICED",
+    },
+    {
+      rule: "Direction-Damage Mismatch (REVIEW)",
+      value: directionFlag.mismatch ? "mismatch" : "consistent",
+      threshold: "consistent",
+      triggered: directionFlag.mismatch,
+    },
+    {
+      rule: "Confidence Score (REVIEW)",
+      value: confidenceScore,
+      threshold: ">= 70",
+      triggered: confidenceScore < 70,
+    },
+  ];
+
+  // ESCALATE conditions
+  if (fraudScore > 60 || consistencyFlag.anomalyLevel === "high") {
+    const reasons = [];
+    if (fraudScore > 60) reasons.push(`fraud score of ${fraudScore}/100 exceeds the 60-point escalation threshold`);
+    if (consistencyFlag.anomalyLevel === "high") reasons.push(`damage consistency of ${consistencyFlag.score}% indicates a severe anomaly`);
+
+    return {
+      decision: "ESCALATE_INVESTIGATION",
+      label: "Escalate Investigation",
+      color: "red",
+      ruleTrace,
+      primaryReason: `Escalation triggered: ${reasons.join(" and ")}.`,
+      recommendedActions: [
+        "Refer to senior assessor or special investigations unit",
+        "Request independent physical inspection of the vehicle",
+        "Verify incident report with third-party witnesses or police records",
+        "Cross-check claimant history for prior claims",
+      ],
+    };
+  }
+
+  // REVIEW conditions
+  const reviewTriggers = ruleTrace.filter(r => r.triggered && r.rule.includes("REVIEW"));
+  if (reviewTriggers.length > 0) {
+    const triggerNames = reviewTriggers.map(r => r.rule.replace(" (REVIEW)", "")).join("; ");
+    return {
+      decision: "REVIEW_REQUIRED",
+      label: "Review Required",
+      color: "amber",
+      ruleTrace,
+      primaryReason: `Manual review required: ${triggerNames}.`,
+      recommendedActions: [
+        "Assign to internal assessor for manual verification",
+        reviewTriggers.some(r => r.rule.includes("Cost")) ? "Request revised quote from panel beater" : "Verify all supporting documentation",
+        reviewTriggers.some(r => r.rule.includes("Missing")) ? "Request additional accident reconstruction data" : "Confirm incident details with claimant",
+        "Document review findings before proceeding",
+      ],
+    };
+  }
+
+  // FINALISE conditions
+  return {
+    decision: "FINALISE_CLAIM",
+    label: "Finalise Claim",
+    color: "green",
+    ruleTrace,
+    primaryReason: `All decision rules passed: fraud score ${fraudScore}/100 (< 40), cost verdict ${costVerdict.verdict}, no major inconsistencies detected.`,
+    recommendedActions: [
+      "Approve claim for processing",
+      "Assign repair to selected panel beater",
+      "Issue repair authorisation",
+      "Schedule follow-up inspection on completion",
+    ],
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // MAIN ENFORCEMENT FUNCTION
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -594,6 +940,10 @@ export interface EnforcementInput {
   quotedAmounts: number[];
   vehicleMake: string;
   hasPreviousClaims: boolean;
+  /** Raw fraud score breakdown from AI pipeline (array of {indicator, score}) */
+  fraudScoreBreakdownJson?: Array<{ indicator: string; score: number }> | null;
+  /** Document extraction confidence from AI pipeline (0-100) */
+  extractionConfidence?: number;
 }
 
 export function applyIntelligenceEnforcement(input: EnforcementInput): IntelligenceEnforcementResult {
@@ -644,16 +994,54 @@ export function applyIntelligenceEnforcement(input: EnforcementInput): Intellige
     vehicleMake: input.vehicleMake,
   });
 
-  // 6. Fraud score adjustment from consistency anomaly
+  // 6. Fraud score adjustment from consistency anomaly and direction mismatch
   const fraudScoreAdjustment = consistencyFlag.fraudWeightIncrease
     + (directionFlag.mismatch ? 5 : 0);
+  const adjustedFraudScore = Math.min(100, input.fraudScore + fraudScoreAdjustment);
 
-  // 7. Critical alerts
+  // 7. Cost verdict with deviation calculation
+  const costVerdict = enforceCostVerdict({
+    aiEstimatedCost: input.aiEstimatedCost,
+    quotedAmounts: input.quotedAmounts,
+    fairMin: costBenchmark.estimatedFairMin,
+    fairMax: costBenchmark.estimatedFairMax,
+  });
+
+  // 8. Weighted fraud score breakdown
+  const fraudScoreBreakdown = buildFraudScoreBreakdown({
+    baseScore: input.fraudScore,
+    fraudScoreBreakdownJson: input.fraudScoreBreakdownJson ?? null,
+    consistencyAdjustment: consistencyFlag.fraudWeightIncrease,
+    directionMismatchAdjustment: directionFlag.mismatch ? 5 : 0,
+    costDeviationPercent: costVerdict.deviationPercent,
+  });
+
+  // 9. Confidence score breakdown
+  const hasRealPhysics = input.estimatedSpeedKmh > 0 && input.impactForceKn > 0;
+  const confidenceBreakdown = enforceConfidenceScore({
+    hasRealPhysics,
+    consistencyScore: input.consistencyScore,
+    costDeviationPercent: costVerdict.deviationPercent,
+    extractionConfidence: input.extractionConfidence ?? 75,
+    hasDirectionMismatch: directionFlag.mismatch,
+  });
+
+  // 10. Final decision with rule trace
+  const finalDecision = computeFinalDecision({
+    fraudScore: adjustedFraudScore,
+    costVerdict,
+    consistencyFlag,
+    directionFlag,
+    confidenceScore: confidenceBreakdown.score,
+    hasPhysicsData: hasRealPhysics || physicsEstimate !== null,
+  });
+
+  // 11. Critical alerts (using adjusted fraud score)
   const alerts = generateCriticalAlerts({
     consistencyFlag,
     directionFlag,
-    fraudScore: input.fraudScore + fraudScoreAdjustment,
-    fraudLevel: fraudLevelEnforced,
+    fraudScore: adjustedFraudScore,
+    fraudLevel: fraudScoreBreakdown.level,
     aiEstimatedCost: input.aiEstimatedCost,
     quotedAmounts: input.quotedAmounts,
     physicsEstimate,
@@ -664,13 +1052,17 @@ export function applyIntelligenceEnforcement(input: EnforcementInput): Intellige
   });
 
   return {
-    fraudLevelEnforced,
-    fraudLevelLabel,
+    fraudLevelEnforced: fraudScoreBreakdown.level,
+    fraudLevelLabel: fraudScoreBreakdown.label,
     physicsEstimate,
     physicsInsight,
     consistencyFlag,
     directionFlag,
     costBenchmark,
+    costVerdict,
+    fraudScoreBreakdown,
+    confidenceBreakdown,
+    finalDecision,
     alerts,
     fraudScoreAdjustment,
   };

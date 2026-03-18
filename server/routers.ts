@@ -2722,7 +2722,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             ? (typeof assessment.fraudScoreBreakdownJson === 'string' ? JSON.parse(assessment.fraudScoreBreakdownJson) : assessment.fraudScoreBreakdownJson)
             : null;
         } catch { /* ignore */ }
-        const fraudScore = fraudScoreBreakdown?.totalScore ?? 0;
+        // Extract fraud score — prefer the raw pipeline score over the breakdown total
+        // The breakdown JSON has {indicators: [{name, score}]} or [{indicator, score}] structure
+        let fraudIndicators: Array<{ indicator: string; score: number }> = [];
+        let fraudScore = assessment.fraudScore ?? 0;
+        if (fraudScoreBreakdown) {
+          // Try multiple JSON shapes from the AI pipeline
+          const indicators = fraudScoreBreakdown.indicators ?? fraudScoreBreakdown.breakdown ?? [];
+          if (Array.isArray(indicators)) {
+            fraudIndicators = indicators.map((item: any) => ({
+              indicator: item.indicator ?? item.name ?? item.factor ?? 'Unknown',
+              score: Number(item.score ?? item.value ?? item.contribution ?? 0),
+            }));
+          }
+          // Use pipeline total if available and > 0
+          if ((fraudScoreBreakdown.totalScore ?? 0) > 0) fraudScore = fraudScoreBreakdown.totalScore;
+        }
         const estimatedSpeedKmh = physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value ?? 0;
         const deltaVKmh = physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV ?? 0;
         const impactForceKn = physicsRaw?.impactForceKn ?? 0;
@@ -2732,8 +2747,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const consistencyScore = physicsRaw?.damageConsistencyScore ?? 50;
         const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';
         const aiEstimatedCost = (assessment.estimatedCost || 0) / 100; // cents → dollars
+        const extractionConfidence = assessment.confidenceScore ?? 75;
         const result = applyIntelligenceEnforcement({
-          fraudScore,
+          fraudScore: Number(fraudScore),
           fraudRiskLevel: assessment.fraudRiskLevel ?? 'low',
           estimatedSpeedKmh: Number(estimatedSpeedKmh),
           deltaVKmh: Number(deltaVKmh),
@@ -2749,6 +2765,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           quotedAmounts,
           vehicleMake: '',
           hasPreviousClaims: false,
+          fraudScoreBreakdownJson: fraudIndicators.length > 0 ? fraudIndicators : null,
+          extractionConfidence: Number(extractionConfidence),
         });
         return result;
       }),

@@ -34,12 +34,14 @@ interface EnforcementResult {
   physicsEstimate: {
     velocityRangeKmh: { min: number; max: number };
     estimatedVelocityKmh: number;
-    impactForceKn: { min: number; max: number };
-    energyKj: { min: number; max: number };
-    deltaVKmh: number;
+    estimatedForceKn: number;
+    estimatedEnergyKj: number;
+    impactForceKn?: { min: number; max: number };
+    energyKj?: { min: number; max: number };
+    deltaVKmh?: number;
     estimated: true;
     basis: string;
-    insight: string;
+    insight?: string;
   } | null;
   physicsInsight: string;
   consistencyFlag: {
@@ -64,6 +66,42 @@ interface EnforcementResult {
     labourProjection: number;
     basis: string;
     confidence: "low" | "medium" | "high";
+  };
+  /** NEW: cost verdict with deviation % */
+  costVerdict?: {
+    aiEstimatedCost: number;
+    quotedCost: number;
+    fairMin: number;
+    fairMax: number;
+    deviationPercent: number | null;
+    verdict: "OVERPRICED" | "FAIR" | "UNDERPRICED" | "NO_QUOTE";
+    ruleApplied: string;
+    explanation: string;
+  };
+  /** NEW: weighted fraud score breakdown */
+  fraudScoreBreakdown?: {
+    totalScore: number;
+    baseScore: number;
+    components: Array<{ factor: string; contribution: number; weight: string }>;
+    adjustments: Array<{ source: string; delta: number; reason: string }>;
+    level: string;
+    label: string;
+  };
+  /** NEW: confidence score with penalty breakdown */
+  confidenceBreakdown?: {
+    score: number;
+    base: number;
+    penalties: Array<{ factor: string; deduction: number; reason: string }>;
+    summary: string;
+  };
+  /** NEW: final decision with rule trace */
+  finalDecision?: {
+    decision: "FINALISE_CLAIM" | "REVIEW_REQUIRED" | "ESCALATE_INVESTIGATION";
+    label: string;
+    color: "green" | "amber" | "red";
+    ruleTrace: Array<{ rule: string; value: string | number; threshold: string; triggered: boolean }>;
+    primaryReason: string;
+    recommendedActions: string[];
   };
   alerts: Array<{
     id: string;
@@ -146,12 +184,108 @@ function computeCostVerdict(
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+// ─── Final Decision Banner ────────────────────────────────────────────────────
+
+function FinalDecisionBanner({ finalDecision, confidenceScore }: {
+  finalDecision: NonNullable<EnforcementResult["finalDecision"]>;
+  confidenceScore: number;
+}) {
+  const { decision, label, color, primaryReason } = finalDecision;
+  const cfg = {
+    green: { bg: "oklch(0.20 0.06 155 / 0.9)", border: "oklch(0.45 0.18 155)", text: "#10b981", Icon: CheckCircle },
+    amber: { bg: "oklch(0.22 0.08 60 / 0.9)",  border: "oklch(0.55 0.18 60)",  text: "#f59e0b", Icon: AlertTriangle },
+    red:   { bg: "oklch(0.20 0.10 25 / 0.9)",  border: "oklch(0.55 0.22 25)",  text: "#f87171", Icon: AlertTriangle },
+  }[color];
+  const decisionLabel = decision === "FINALISE_CLAIM" ? "FINALISE CLAIM" : decision === "REVIEW_REQUIRED" ? "REVIEW REQUIRED" : "ESCALATE INVESTIGATION";
+
+  return (
+    <div className="rounded-xl p-4 mb-3" style={{ background: cfg.bg, border: `2px solid ${cfg.border}` }}>
+      <div className="flex items-start gap-3">
+        <cfg.Icon className="h-6 w-6 shrink-0 mt-0.5" style={{ color: cfg.text }} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-3 flex-wrap mb-1">
+            <span className="text-lg font-black tracking-wide" style={{ color: cfg.text }}>{decisionLabel}</span>
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${cfg.text}20`, color: cfg.text }}>
+              Confidence {confidenceScore}/100
+            </span>
+          </div>
+          <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{primaryReason}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Confidence Breakdown Panel ───────────────────────────────────────────────
+
+function ConfidenceBreakdownPanel({ confidenceBreakdown }: { confidenceBreakdown: NonNullable<EnforcementResult["confidenceBreakdown"]> }) {
+  const { score, penalties, summary } = confidenceBreakdown;
+  const scoreColor = score >= 85 ? "#10b981" : score >= 70 ? "#f59e0b" : "#f87171";
+  return (
+    <div className="rounded-xl p-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+      <div className="flex items-center gap-2 mb-3">
+        <Zap className="h-4 w-4" style={{ color: scoreColor }} />
+        <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>Assessment Confidence</p>
+        <span className="ml-auto text-2xl font-black" style={{ color: scoreColor }}>{score}<span className="text-xs font-normal text-muted-foreground">/100</span></span>
+      </div>
+      <div className="relative h-2 rounded-full mb-2" style={{ background: "var(--muted)" }}>
+        <div className="absolute h-2 rounded-full transition-all" style={{ width: `${score}%`, background: scoreColor }} />
+      </div>
+      <p className="text-xs mb-2" style={{ color: "var(--muted-foreground)" }}>{summary}</p>
+      {penalties.length > 0 && (
+        <div className="space-y-1.5">
+          {penalties.map((p, i) => (
+            <div key={i} className="flex items-start gap-2 text-xs">
+              <span className="font-black shrink-0" style={{ color: "#f87171" }}>−{p.deduction}</span>
+              <span style={{ color: "var(--foreground)" }}>{p.factor}:</span>
+              <span style={{ color: "var(--muted-foreground)" }}>{p.reason}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Rule Trace Panel ─────────────────────────────────────────────────────────
+
+function RuleTracePanel({ ruleTrace }: { ruleTrace: NonNullable<EnforcementResult["finalDecision"]>["ruleTrace"] }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-xl mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+      <button className="w-full flex items-center justify-between p-4" onClick={() => setOpen(v => !v)}>
+        <div className="flex items-center gap-2">
+          <FileText className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Decision Rule Trace</p>
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+            {ruleTrace.filter(r => r.triggered).length} triggered
+          </span>
+        </div>
+        {open ? <ChevronUp className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} /> : <ChevronDown className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-1.5">
+          {ruleTrace.map((r, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs rounded px-2 py-1.5" style={{ background: r.triggered ? "oklch(0.72 0.18 60 / 0.08)" : "var(--muted)", border: r.triggered ? "1px solid oklch(0.72 0.18 60 / 0.35)" : "1px solid transparent" }}>
+              <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: r.triggered ? "#f59e0b" : "var(--muted-foreground)", color: r.triggered ? "#000" : "var(--background)" }}>{r.triggered ? "!" : "✓"}</span>
+              <span className="flex-1" style={{ color: "var(--foreground)" }}>{r.rule}</span>
+              <span className="font-mono px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "oklch(0.72 0.18 60 / 0.15)" : "var(--muted)", color: r.triggered ? "#f59e0b" : "var(--muted-foreground)" }}>{String(r.value)}</span>
+              <span style={{ color: "var(--muted-foreground)" }}>vs</span>
+              <span className="font-mono" style={{ color: "var(--muted-foreground)" }}>{r.threshold}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; enforcement: EnforcementResult; quotes: any[] }) {
   const riskLevel = enforcement.fraudLevelEnforced;
   const style = RISK_STYLE[riskLevel] ?? RISK_STYLE.moderate;
   const severityKey = assessment.structuralDamageSeverity ?? "unknown";
   const severity = SEVERITY_STYLE[severityKey] ?? SEVERITY_STYLE.unknown;
-  const confidence = assessment.confidenceScore ?? 0;
+  const confidence = enforcement.confidenceBreakdown?.score ?? assessment.confidenceScore ?? 0;
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100);
   const costVerdict = computeCostVerdict(
     assessment.estimatedCost ?? 0,
@@ -640,10 +774,14 @@ function CollapsibleTechnicalData({ assessment, enforcement }: { assessment: any
 
   const deltaV = pe?.deltaVKmh ?? physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV ?? 0;
   const forceDisplay = pe
-    ? `${pe.impactForceKn.min}–${pe.impactForceKn.max} kN (estimated)`
+    ? pe.impactForceKn
+      ? `${pe.impactForceKn.min}–${pe.impactForceKn.max} kN (estimated)`
+      : pe.estimatedForceKn ? `~${pe.estimatedForceKn.toFixed(1)} kN (estimated)` : "N/A"
     : physicsRaw?.impactForceKn ? `${physicsRaw.impactForceKn} kN` : "N/A";
   const energyDisplay = pe
-    ? `${pe.energyKj.min}–${pe.energyKj.max} kJ (estimated)`
+    ? pe.energyKj
+      ? `${pe.energyKj.min}–${pe.energyKj.max} kJ (estimated)`
+      : pe.estimatedEnergyKj ? `~${pe.estimatedEnergyKj.toFixed(0)} kJ (estimated)` : "N/A"
     : physicsRaw?.energyDistribution?.energyDissipatedKj ? `${physicsRaw.energyDistribution.energyDissipatedKj} kJ` : "N/A";
   const speedDisplay = pe
     ? `${pe.estimatedVelocityKmh} km/h (estimated, range: ${pe.velocityRangeKmh.min}–${pe.velocityRangeKmh.max})`
@@ -810,6 +948,15 @@ export default function ClaimDecisionReport() {
 
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
+
+        {/* 0. Final Decision Banner (FINALISE / REVIEW / ESCALATE) */}
+        {(enforcement as EnforcementResult).finalDecision && (
+          <FinalDecisionBanner
+            finalDecision={(enforcement as EnforcementResult).finalDecision!}
+            confidenceScore={(enforcement as EnforcementResult).confidenceBreakdown?.score ?? aiAssessment.confidenceScore ?? 75}
+          />
+        )}
+
         {/* 1. Verdict Banner */}
         <VerdictBanner assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
 
@@ -827,6 +974,16 @@ export default function ClaimDecisionReport() {
 
         {/* 5. Fraud & Risk Decision */}
         <FraudRiskDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
+
+        {/* 5b. Confidence Breakdown */}
+        {(enforcement as EnforcementResult).confidenceBreakdown && (
+          <ConfidenceBreakdownPanel confidenceBreakdown={(enforcement as EnforcementResult).confidenceBreakdown!} />
+        )}
+
+        {/* 5c. Rule Trace (collapsible) */}
+        {(enforcement as EnforcementResult).finalDecision?.ruleTrace?.length ? (
+          <RuleTracePanel ruleTrace={(enforcement as EnforcementResult).finalDecision!.ruleTrace} />
+        ) : null}
 
         {/* 6. Collapsible Technical Data */}
         <CollapsibleTechnicalData assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />

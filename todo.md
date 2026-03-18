@@ -9920,3 +9920,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Print CSS added to index.css (A4 page setup, hide nav/header, force colour printing)
 - [x] "Print / PDF" button added to InsurerComparisonView header (window.print() — renders page as-is)
 - [x] Existing "Download PDF" button (jsPDF) retained alongside new Print button
+
+## Decision Engine Quantitative Enforcement Upgrade
+- [ ] Rule 1: Cost Verdict — compute deviation %
+- [ ] Rule 2: Fraud Score — weighted breakdown
+- [ ] Rule 3: Damage Consistency — compute 0-100% score
+- [ ] Rule 4: Physics Enforcement — estimate KE and Force
+- [ ] Rule 5: Direction vs Damage cross-check
+- [ ] Rule 6: Confidence Score — start 100 subtract penalties
+- [ ] Rule 7: Final Decision — FINALISE/REVIEW/ESCALATE with trace
+- [ ] Frontend: show all calculations and decision trace
