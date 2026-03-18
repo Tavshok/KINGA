@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity } from "lucide-react";
+import { ArrowLeft, AlertTriangle, CheckCircle2, Loader2, Shield, Download, Zap, Activity, Printer } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
 import { useLocation, useRoute } from "wouter";
@@ -648,6 +648,16 @@ export default function InsurerComparisonView() {
               >
                 <Download className="mr-2 h-4 w-4" />
                 Download PDF
+              </Button>
+              {/* Print / Save as PDF — renders page exactly as displayed */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => window.print()}
+                title="Print or Save as PDF"
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Print / PDF
               </Button>
               <ThemeToggle />
               <Button 

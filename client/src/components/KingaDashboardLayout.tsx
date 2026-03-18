@@ -7,6 +7,7 @@ import { useLocation } from "wouter";
 import { ReactNode } from "react";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
+import ThemeToggle from "@/components/ThemeToggle";
 
 /**
  * KINGA Dashboard Layout Component
@@ -80,7 +81,10 @@ export default function KingaDashboardLayout({
             {/* Right: Actions, Notifications, User Profile */}
             <div className="flex items-center gap-3">
               {actions}
-              
+
+              {/* Dark / Light Mode Toggle */}
+              <ThemeToggle />
+
               {/* Notifications Bell */}
               <Button
                 variant="ghost"

@@ -18,6 +18,7 @@ import {
 import { useLocation } from "wouter";
 import { useEffect } from "react";
 import { useRoleDashboardRoute } from "@/components/RoleRouteGuard";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function PortalHub() {
   const { user, logout } = useAuth();
@@ -111,6 +112,7 @@ export default function PortalHub() {
               </div>
             </div>
             <div className="flex items-center gap-4">
+              <ThemeToggle />
               <div className="text-right">
                 <p className="text-sm font-medium text-secondary">{user?.name}</p>
                 <p className="text-xs text-muted-foreground capitalize">{user?.role}</p>

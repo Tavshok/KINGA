@@ -877,3 +877,49 @@
     background: oklch(0.50 0.02 250);
   }
 }
+/* ============================================================
+   PRINT / PDF EXPORT STYLES
+   Applied when user triggers window.print() or saves as PDF
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 15mm 12mm 15mm 12mm;
+  }
+
+  /* Hide non-print elements */
+  header,
+  nav,
+  .no-print,
+  [data-radix-popper-content-wrapper],
+  [role="dialog"],
+  [role="tooltip"] {
+    display: none !important;
+  }
+
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  main, .comparison-main {
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .comparison-section,
+  .comparison-card,
+  table,
+  tr {
+    page-break-inside: avoid;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

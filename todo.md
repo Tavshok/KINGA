@@ -9907,3 +9907,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] No raw JSON visible anywhere in the report
 - [x] TypeScript: 0 errors after rebuild
 - [ ] Test end-to-end with real claim data
+
+## Dark/Light Mode Toggle & PDF Export
+- [ ] Add dark/light mode toggle button to top navigation bar
+- [ ] PDF export button on claim report (InsurerComparisonView)
+- [ ] PDF export: use browser print API with print-specific CSS for clean output
+
+## Dark/Light Mode Toggle & PDF Export
+- [x] ThemeToggle added to KingaDashboardLayout header (all dashboard pages)
+- [x] ThemeToggle added to PortalHub header (entry page)
+- [x] ThemeToggle already present in InsurerComparisonView header
+- [x] Print CSS added to index.css (A4 page setup, hide nav/header, force colour printing)
+- [x] "Print / PDF" button added to InsurerComparisonView header (window.print() — renders page as-is)
+- [x] Existing "Download PDF" button (jsPDF) retained alongside new Print button
