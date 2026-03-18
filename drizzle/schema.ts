@@ -4029,12 +4029,97 @@ export const decisionSnapshots = mysqlTable("decision_snapshots", {
 
   // Verbatim spec-compliant JSON snapshot (snake_case, single source of truth)
   snapshotJson: text("snapshot_json"),
+
+  // Lifecycle state at the time this snapshot was created
+  lifecycleState: varchar("lifecycle_state", { length: 20 }).notNull().default("DRAFT"),
+  // True when this snapshot is the authoritative final record
+  isFinalSnapshot: tinyint("is_final_snapshot").notNull().default(0),
 }, (table) => [
   index("idx_ds_claim").on(table.claimId),
   index("idx_ds_tenant").on(table.tenantId),
   index("idx_ds_created").on(table.createdAt),
   index("idx_ds_verdict").on(table.verdictDecision),
+  index("idx_ds_lifecycle").on(table.lifecycleState),
 ]);
 
 export type DecisionSnapshot = typeof decisionSnapshots.$inferSelect;
 export type InsertDecisionSnapshot = typeof decisionSnapshots.$inferInsert;
+
+// ─── Claim Decision Lifecycle ─────────────────────────────────────────────────
+// One row per claim — tracks the current lifecycle state of the decision.
+// Separate from the claims table so it can be updated independently.
+
+export const claimDecisionLifecycle = mysqlTable("claim_decision_lifecycle", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: varchar("claim_id", { length: 50 }).notNull(),
+  tenantId: varchar("tenant_id", { length: 50 }).notNull(),
+
+  // Current lifecycle state: DRAFT | REVIEWED | FINALISED | LOCKED
+  lifecycleState: varchar("lifecycle_state", { length: 20 }).notNull().default("DRAFT"),
+
+  // Derived flags for quick access
+  isFinal: tinyint("is_final").notNull().default(0),
+  isLocked: tinyint("is_locked").notNull().default(0),
+
+  // FK → decision_snapshots.id — set when state = FINALISED
+  authoritativeSnapshotId: int("authoritative_snapshot_id"),
+
+  // Transition audit trail
+  draftedAt: bigint("drafted_at", { mode: "number" }),
+  reviewedAt: bigint("reviewed_at", { mode: "number" }),
+  reviewedByUserId: varchar("reviewed_by_user_id", { length: 50 }),
+  finalisedAt: bigint("finalised_at", { mode: "number" }),
+  finalisedByUserId: varchar("finalised_by_user_id", { length: 50 }),
+  lockedAt: bigint("locked_at", { mode: "number" }),
+  lockedByUserId: varchar("locked_by_user_id", { length: 50 }),
+
+  // The final decision selected by the user (FINALISE_CLAIM | REVIEW_REQUIRED | ESCALATE_INVESTIGATION)
+  finalDecisionChoice: varchar("final_decision_choice", { length: 50 }),
+
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+}, (table) => [
+  uniqueIndex("idx_cdl_claim_unique").on(table.claimId),
+  index("idx_cdl_tenant").on(table.tenantId),
+  index("idx_cdl_state").on(table.lifecycleState),
+]);
+
+export type ClaimDecisionLifecycle = typeof claimDecisionLifecycle.$inferSelect;
+export type InsertClaimDecisionLifecycle = typeof claimDecisionLifecycle.$inferInsert;
+
+// ─── Replay Logs ──────────────────────────────────────────────────────────────
+// Stores every replay result separately — never overwrites the original snapshot.
+
+export const replayLogs = mysqlTable("replay_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  claimId: varchar("claim_id", { length: 50 }).notNull(),
+  tenantId: varchar("tenant_id", { length: 50 }).notNull(),
+
+  // FK → decision_snapshots.id — the original snapshot that was replayed
+  originalSnapshotId: int("original_snapshot_id"),
+  originalSnapshotVersion: int("original_snapshot_version").notNull(),
+
+  // Replay output
+  originalVerdict: varchar("original_verdict", { length: 50 }).notNull(),
+  newVerdict: varchar("new_verdict", { length: 50 }).notNull(),
+  changed: tinyint("changed").notNull().default(0),
+  differencesJson: text("differences_json").notNull(), // JSON array of ReplayDifference
+  impactAnalysis: text("impact_analysis").notNull(),
+
+  // Full replay result JSON for audit
+  replayResultJson: text("replay_result_json").notNull(),
+
+  replayedAt: bigint("replayed_at", { mode: "number" }).notNull(),
+  replayedByUserId: varchar("replayed_by_user_id", { length: 50 }),
+
+  // Lifecycle state at the time of replay
+  lifecycleStateAtReplay: varchar("lifecycle_state_at_replay", { length: 20 }).notNull(),
+}, (table) => [
+  index("idx_rl_claim").on(table.claimId),
+  index("idx_rl_tenant").on(table.tenantId),
+  index("idx_rl_replayed_at").on(table.replayedAt),
+  index("idx_rl_changed").on(table.changed),
+]);
+
+export type ReplayLog = typeof replayLogs.$inferSelect;
+export type InsertReplayLog = typeof replayLogs.$inferInsert;

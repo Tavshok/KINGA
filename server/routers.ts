@@ -2861,13 +2861,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }))
       .mutation(async ({ input, ctx }) => {
         const { saveDecisionSnapshot } = await import('./db');
+        const { getOrCreateLifecycle } = await import('./decision-lifecycle');
         const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
         const result = await saveDecisionSnapshot({
           ...input,
           tenantId,
           createdByUserId: ctx.user?.id,
         });
-        return { success: true, snapshotId: result.id, version: result.version };
+        // Ensure lifecycle record exists (creates DRAFT if new)
+        const lifecycle = await getOrCreateLifecycle(input.claimId, tenantId);
+        return {
+          success: true,
+          snapshotId: result.id,
+          version: result.version,
+          lifecycle_state: lifecycle.lifecycle_state,
+          is_final: lifecycle.is_final,
+          is_locked: lifecycle.is_locked,
+        };
       }),
 
     // Get the latest spec-compliant snapshot JSON for a claim (verbatim snake_case, no nulls)
@@ -2893,9 +2903,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           hasPreviousClaims: z.boolean().optional(),
         }).optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { getLatestSnapshotJson } = await import('./db');
         const { replayDecision } = await import('./decision-replay');
+        const { getOrCreateLifecycle, isReplayAllowed, saveReplayLog } = await import('./decision-lifecycle');
+        const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
 
         // Fetch the original immutable snapshot
         const originalSnapshot = await getLatestSnapshotJson(input.claimId);
@@ -2903,9 +2915,123 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           throw new Error(`No snapshot found for claim ${input.claimId}`);
         }
 
+        // LIFECYCLE GUARD: replay is blocked when state = LOCKED
+        const lifecycle = await getOrCreateLifecycle(input.claimId, tenantId);
+        if (!isReplayAllowed(lifecycle.lifecycle_state)) {
+          throw new Error(
+            `Replay blocked: claim ${input.claimId} is LOCKED. ` +
+            `A LOCKED claim is an immutable legal record and cannot be replayed.`
+          );
+        }
+
         // Re-run current logic — original snapshot is NEVER modified
         const result = replayDecision(originalSnapshot, input.liveData);
+
+        // Persist replay result to replay_logs (never overwrites original snapshot)
+        await saveReplayLog({
+          claimId: input.claimId,
+          tenantId,
+          originalSnapshotVersion: originalSnapshot.snapshot_version,
+          originalVerdict: result.original_verdict,
+          newVerdict: result.new_verdict,
+          changed: result.changed,
+          differences: result.differences,
+          impactAnalysis: result.impact_analysis,
+          replayResult: result,
+          replayedByUserId: ctx.user?.id,
+          lifecycleStateAtReplay: lifecycle.lifecycle_state,
+        });
+
+        return {
+          ...result,
+          lifecycle_state: lifecycle.lifecycle_state,
+          is_final: lifecycle.is_final,
+          is_locked: lifecycle.is_locked,
+        };
+      }),
+
+    // ─── Lifecycle procedures ──────────────────────────────────────────────────
+
+    // Get the current lifecycle state for a claim
+    getLifecycle: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input, ctx }) => {
+        const { getOrCreateLifecycle } = await import('./decision-lifecycle');
+        const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+        return getOrCreateLifecycle(input.claimId, tenantId);
+      }),
+
+    // Mark the decision as REVIEWED (user has viewed/reviewed the decision)
+    markReviewed: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const { transitionLifecycle } = await import('./decision-lifecycle');
+        const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+        const result = await transitionLifecycle(input.claimId, tenantId, 'REVIEWED', {
+          userId: ctx.user?.id,
+        });
+        if (!result.success) throw new Error(result.error);
         return result;
+      }),
+
+    // Finalise the decision — creates authoritative snapshot, sets state = FINALISED
+    finaliseDecision: protectedProcedure
+      .input(z.object({
+        claimId: z.string(),
+        finalDecisionChoice: z.enum(['FINALISE_CLAIM', 'REVIEW_REQUIRED', 'ESCALATE_INVESTIGATION']),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { transitionLifecycle, markAuthoritativeSnapshot } = await import('./decision-lifecycle');
+        const { getLatestSnapshotJson, getDecisionSnapshots } = await import('./db');
+        const { getDb } = await import('./db');
+        const { decisionSnapshots } = await import('../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+
+        // Get the latest snapshot ID to mark as authoritative
+        const snapshots = await getDecisionSnapshots(input.claimId);
+        const latestSnapshot = snapshots[0]; // ordered by createdAt desc
+        if (!latestSnapshot) {
+          throw new Error(`No snapshot found for claim ${input.claimId}. Cannot finalise without a snapshot.`);
+        }
+
+        // Transition to FINALISED
+        const result = await transitionLifecycle(input.claimId, tenantId, 'FINALISED', {
+          userId: ctx.user?.id,
+          finalDecisionChoice: input.finalDecisionChoice,
+          authoritativeSnapshotId: latestSnapshot.id,
+        });
+        if (!result.success) throw new Error(result.error);
+
+        // Mark the snapshot as the authoritative final record
+        await markAuthoritativeSnapshot(latestSnapshot.id);
+
+        return {
+          ...result,
+          authoritative_snapshot_id: latestSnapshot.id,
+          final_decision_choice: input.finalDecisionChoice,
+        };
+      }),
+
+    // Lock the claim — immutable legal record, no further replays or recalculations
+    lockDecision: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .mutation(async ({ input, ctx }) => {
+        const { transitionLifecycle } = await import('./decision-lifecycle');
+        const tenantId = ctx.user?.tenantId ?? ctx.user?.id ?? 'unknown';
+        const result = await transitionLifecycle(input.claimId, tenantId, 'LOCKED', {
+          userId: ctx.user?.id,
+        });
+        if (!result.success) throw new Error(result.error);
+        return result;
+      }),
+
+    // Get replay logs for a claim
+    getReplayLogs: protectedProcedure
+      .input(z.object({ claimId: z.string() }))
+      .query(async ({ input }) => {
+        const { getReplayLogs } = await import('./decision-lifecycle');
+        return getReplayLogs(input.claimId);
       }),
 
     // Retrieve all snapshots for a claim (audit history)

@@ -19,7 +19,8 @@ import { trpc } from "@/lib/trpc";
 import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronUp,
   ArrowLeft, Shield, Zap, DollarSign, Car, FileText,
-  TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code, GitCompareArrows
+  TrendingUp, TrendingDown, Minus, RefreshCw, Printer, Code, GitCompareArrows,
+  Lock, Unlock, Eye, Gavel
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -959,11 +960,46 @@ export default function ClaimDecisionReport() {
     impact_analysis: string;
     replayed_at: string;
     original_snapshot_version: number;
+    lifecycle_state?: string;
+    is_final?: boolean;
+    is_locked?: boolean;
   }>(null);
+
+  // Lifecycle state
+  const { data: lifecycle, refetch: refetchLifecycle } = trpc.aiAssessments.getLifecycle.useQuery(
+    { claimId: String(claimId) },
+    { enabled: !!claimId }
+  );
+  const isLocked = lifecycle?.is_locked ?? false;
+  const isFinal = lifecycle?.is_final ?? false;
+  const lifecycleState = (lifecycle?.lifecycle_state ?? 'DRAFT') as string;
+
+  const markReviewedMutation = trpc.aiAssessments.markReviewed.useMutation({
+    onSuccess: () => { refetchLifecycle(); toast.success("Decision marked as Reviewed"); },
+    onError: (err) => toast.error(`Failed to mark reviewed: ${err.message}`),
+  });
+
+  const finaliseDecisionMutation = trpc.aiAssessments.finaliseDecision.useMutation({
+    onSuccess: (data) => {
+      refetchLifecycle();
+      toast.success(`Decision FINALISED — Authoritative snapshot #${data.authoritative_snapshot_id} created`);
+    },
+    onError: (err) => toast.error(`Finalise failed: ${err.message}`),
+  });
+
+  const lockDecisionMutation = trpc.aiAssessments.lockDecision.useMutation({
+    onSuccess: () => {
+      refetchLifecycle();
+      toast.success("Claim LOCKED — This is now an immutable legal record");
+    },
+    onError: (err) => toast.error(`Lock failed: ${err.message}`),
+  });
+
   const replayMutation = trpc.aiAssessments.replayDecision.useMutation({
     onSuccess: (data) => {
       setReplayResult(data);
       setShowReplay(true);
+      refetchLifecycle();
       if (data.changed) {
         toast.warning(`Logic drift detected — ${data.differences.length} field(s) changed`);
       } else {
@@ -1374,15 +1410,136 @@ export default function ClaimDecisionReport() {
           </div>
         )}
 
-        {/* 8. Action Bar */}
-        <div className="flex items-center justify-between p-4 rounded-xl" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
-          <div>
-            <p className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>Ready to decide?</p>
-            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Open the full report to approve, reject, or request more information.</p>
+        {/* 8. Lifecycle Status Bar */}
+        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLocked ? "oklch(0.65 0.2 30)" : isFinal ? "oklch(0.65 0.18 145)" : "var(--border)"}` }}>
+          {/* State progress track */}
+          <div className="flex items-stretch" style={{ background: "var(--muted)", minHeight: "44px" }}>
+            {(["DRAFT", "REVIEWED", "FINALISED", "LOCKED"] as const).map((state, i) => {
+              const stateOrder = ["DRAFT", "REVIEWED", "FINALISED", "LOCKED"];
+              const currentIdx = stateOrder.indexOf(lifecycleState);
+              const isActive = lifecycleState === state;
+              const isPast = stateOrder.indexOf(state) < currentIdx;
+              const stateIcons = { DRAFT: FileText, REVIEWED: Eye, FINALISED: Gavel, LOCKED: Lock };
+              const Icon = stateIcons[state];
+              return (
+                <div
+                  key={state}
+                  className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold px-2"
+                  style={{
+                    background: isActive
+                      ? state === "LOCKED" ? "oklch(0.35 0.12 30)" : state === "FINALISED" ? "oklch(0.25 0.08 145)" : "oklch(0.25 0.06 250)"
+                      : "transparent",
+                    color: isActive
+                      ? state === "LOCKED" ? "#fca5a5" : state === "FINALISED" ? "#86efac" : "#93c5fd"
+                      : isPast ? "var(--foreground)" : "var(--muted-foreground)",
+                    borderRight: i < 3 ? "1px solid var(--border)" : undefined,
+                    opacity: isPast ? 0.7 : 1,
+                  }}
+                >
+                  <Icon className="h-3 w-3" />
+                  {state}
+                  {isPast && <CheckCircle className="h-3 w-3" style={{ color: "#86efac" }} />}
+                </div>
+              );
+            })}
           </div>
-          <Button onClick={() => setLocation(`/insurer/claims/${claimId}/comparison`)}>
-            Open Full Report →
-          </Button>
+
+          {/* Action buttons */}
+          <div className="flex items-center justify-between gap-3 p-4" style={{ background: "var(--card)" }}>
+            <div>
+              {isLocked ? (
+                <div className="flex items-center gap-2">
+                  <Lock className="h-4 w-4" style={{ color: "#fca5a5" }} />
+                  <span className="text-sm font-semibold" style={{ color: "#fca5a5" }}>LOCKED — Immutable Legal Record</span>
+                </div>
+              ) : isFinal ? (
+                <div className="flex items-center gap-2">
+                  <Gavel className="h-4 w-4" style={{ color: "#86efac" }} />
+                  <span className="text-sm font-semibold" style={{ color: "#86efac" }}>FINALISED — {lifecycle?.final_decision_choice?.replace(/_/g, " ") ?? "Decision recorded"}</span>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>Decision Lifecycle</p>
+                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Advance the state to create an auditable decision trail.</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* REVIEWED button — only when DRAFT */}
+              {lifecycleState === "DRAFT" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={markReviewedMutation.isPending}
+                  onClick={() => markReviewedMutation.mutate({ claimId: String(claimId) })}
+                >
+                  <Eye className="h-3.5 w-3.5 mr-1" />
+                  Mark Reviewed
+                </Button>
+              )}
+
+              {/* FINALISE buttons — when DRAFT or REVIEWED */}
+              {(lifecycleState === "DRAFT" || lifecycleState === "REVIEWED") && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={finaliseDecisionMutation.isPending}
+                    onClick={() => finaliseDecisionMutation.mutate({ claimId: String(claimId), finalDecisionChoice: "REVIEW_REQUIRED" })}
+                  >
+                    <Gavel className="h-3.5 w-3.5 mr-1" />
+                    Review Required
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={finaliseDecisionMutation.isPending}
+                    onClick={() => finaliseDecisionMutation.mutate({ claimId: String(claimId), finalDecisionChoice: "FINALISE_CLAIM" })}
+                  >
+                    <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                    Finalise Claim
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={finaliseDecisionMutation.isPending}
+                    style={{ borderColor: "oklch(0.65 0.2 30)", color: "#fca5a5" }}
+                    onClick={() => finaliseDecisionMutation.mutate({ claimId: String(claimId), finalDecisionChoice: "ESCALATE_INVESTIGATION" })}
+                  >
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+                    Escalate
+                  </Button>
+                </>
+              )}
+
+              {/* LOCK button — only when FINALISED */}
+              {lifecycleState === "FINALISED" && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={lockDecisionMutation.isPending}
+                  style={{ borderColor: "oklch(0.65 0.2 30)", color: "#fca5a5" }}
+                  onClick={() => {
+                    if (confirm("Lock this claim? This action is irreversible. The snapshot becomes an immutable legal record and no further replays or recalculations will be allowed.")) {
+                      lockDecisionMutation.mutate({ claimId: String(claimId) });
+                    }
+                  }}
+                >
+                  <Lock className="h-3.5 w-3.5 mr-1" />
+                  Lock Decision
+                </Button>
+              )}
+
+              {/* Full Report link */}
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setLocation(`/insurer/claims/${claimId}/comparison`)}
+              >
+                Full Report →
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
