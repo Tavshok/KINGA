@@ -661,6 +661,15 @@ export default function InsurerComparisonView() {
                 Print / PDF
               </Button>
               <ThemeToggle />
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setLocation(`/insurer/claims/${claimId}/verdict`)}
+                title="Open the unified Decision Report"
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                Decision Report
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm"

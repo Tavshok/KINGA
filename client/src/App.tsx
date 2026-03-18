@@ -44,6 +44,7 @@ const InsurerDashboard = lazy(() => import("./pages/InsurerDashboard"));
 const InsurerClaimsTriage = lazy(() => import("./pages/InsurerClaimsTriage"));
 const InsurerClaimDetails = lazy(() => import("./pages/InsurerClaimDetails"));
 const InsurerComparisonView = lazy(() => import("./pages/InsurerComparisonView"));
+const ClaimDecisionReport = lazy(() => import("./pages/ClaimDecisionReport"));
 const InsurerQuoteComparison = lazy(() => import("./pages/InsurerQuoteComparison"));
 const InsurerExternalAssessmentUpload = lazy(() => import("@/pages/InsurerExternalAssessmentUpload"));
 const InsurerRoleSelection = lazy(() => import("./pages/InsurerRoleSelection"));
@@ -337,6 +338,12 @@ function Router() {
           <RedirectToPortal to="/insurer-portal/claims-processor" />
         </Route>
         
+        <Route path="/insurer/claims/:id/verdict">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <ClaimDecisionReport />
+          </ProtectedRoute>
+        </Route>
+
         <Route path="/insurer/claims/:id/comparison">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <InsurerComparisonView />
