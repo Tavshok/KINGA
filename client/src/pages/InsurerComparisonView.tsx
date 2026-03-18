@@ -135,6 +135,9 @@ export default function InsurerComparisonView() {
   // Utils for cache invalidation
   const utils = trpc.useUtils();
 
+  // Advanced physics toggle state — must be declared before any early returns
+  const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
+
   // Re-run AI assessment mutation (used in Claim Summary card)
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
@@ -360,9 +363,6 @@ export default function InsurerComparisonView() {
   };
 
   const fraudDetected = hasFraudIndicators();
-
-  // Advanced physics toggle state
-  const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
 
   // Derive key metrics for the hero header
   const aiCostDollars = aiAssessment?.estimatedCost || 0;
@@ -1930,24 +1930,30 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Velocity Estimate</p>
           <p className="text-2xl font-bold text-primary">
-            {estimatedSpeed?.value ?? 0} <span className="text-sm font-normal">km/h</span>
+            {(estimatedSpeed?.value ?? 0) > 0
+              ? <>{estimatedSpeed!.value} <span className="text-sm font-normal">km/h</span></>
+              : <span className="text-muted-foreground text-lg">N/A</span>}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Range: {estimatedSpeed?.confidenceInterval?.[0] ?? 0}–{estimatedSpeed?.confidenceInterval?.[1] ?? 0} km/h
+            {(estimatedSpeed?.value ?? 0) > 0
+              ? <>Range: {estimatedSpeed?.confidenceInterval?.[0] ?? 0}–{estimatedSpeed?.confidenceInterval?.[1] ?? 0} km/h</>
+              : 'Speed not in document'}
           </p>
-          <p className="text-xs text-muted-foreground">{estimatedSpeed?.method ?? "Campbell’s formula"}</p>
+          <p className="text-xs text-muted-foreground">{estimatedSpeed?.method ?? "Campbell's formula"}</p>
         </div>
 
         {/* 2. Impact Force */}
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Impact Force (F = Δp/Δt)</p>
           <p className="text-2xl font-bold text-primary">
-            {((impactForce?.magnitude ?? 0) / 1000).toFixed(1)} <span className="text-sm font-normal">kN</span>
+            {(impactForce?.magnitude ?? 0) > 0
+              ? <>{((impactForce!.magnitude) / 1000).toFixed(1)} <span className="text-sm font-normal">kN</span></>
+              : <span className="text-muted-foreground text-lg">N/A</span>}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            {Math.round(impactForce?.magnitude ?? 0).toLocaleString()} N
+            {(impactForce?.magnitude ?? 0) > 0 ? `${Math.round(impactForce!.magnitude).toLocaleString()} N` : 'Force not calculated'}
           </p>
-          <p className="text-xs text-muted-foreground">Δt = {impactForce?.duration ?? 0} ms</p>
+          <p className="text-xs text-muted-foreground">Δt = {(impactForce?.duration ?? 0) > 0 ? `${impactForce!.duration} ms` : 'N/A'}</p>
         </div>
 
         {/* 3. Impact Energy */}
@@ -1971,7 +1977,9 @@ function PhysicsValidationSection({ aiAssessment, quotes, claim, mode = 'all' }:
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-xs text-muted-foreground mb-1">Delta-V (Δv)</p>
           <p className="text-2xl font-bold text-red-600">
-            {raw?.deltaV ?? 0} <span className="text-sm font-normal">km/h</span>
+            {(raw?.deltaV ?? 0) > 0
+              ? <>{raw!.deltaV} <span className="text-sm font-normal">km/h</span></>
+              : <span className="text-muted-foreground text-lg">N/A</span>}
           </p>
           <p className="text-xs text-muted-foreground mt-1">
             Injury risk:{" "}

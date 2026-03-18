@@ -540,6 +540,13 @@ export async function triggerAiAssessment(claimId: number) {
     marketRegion: costAnalysis.marketRegion,
     currency: costAnalysis.currency,
   }) : null;
+  // Build repair intelligence and parts reconciliation JSON
+  const repairIntelligenceJson = costAnalysis?.repairIntelligence
+    ? JSON.stringify(costAnalysis.repairIntelligence)
+    : null;
+  const partsReconciliationJson = costAnalysis?.partsReconciliation
+    ? JSON.stringify(costAnalysis.partsReconciliation)
+    : null;
 
   // Build hidden damages JSON from physics latent damage probabilities
   const hiddenDamagesJson = physicsAnalysis && physicsAnalysis.physicsExecuted
@@ -589,6 +596,8 @@ export async function triggerAiAssessment(claimId: number) {
     currencyCode: costAnalysis?.currency || 'USD',
     inferredHiddenDamagesJson: hiddenDamagesJson,
     costIntelligenceJson,
+    repairIntelligenceJson,
+    partsReconciliationJson,
     damagePhotosJson: claimRecord ? JSON.stringify(claimRecord.damage.imageUrls) : '[]',
     pipelineRunSummary: JSON.stringify({
       stages: summary.stages,

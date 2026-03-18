@@ -159,6 +159,38 @@ export async function runCostOptimisationStage(
     const lowCents = Math.round(totalExpectedCents * 0.8);
     const highCents = Math.round(totalExpectedCents * 1.2);
 
+    // Build per-component repair intelligence
+    const repairIntelligence = damageAnalysis.damagedParts.map(comp => {
+      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate);
+      const action = comp.severity === "cosmetic" || comp.severity === "minor" ? "repair" : "replace";
+      return {
+        component: comp.name,
+        location: comp.location,
+        severity: comp.severity,
+        recommendedAction: action,
+        partsCost: Math.round(cost.partsCents / 100),
+        labourCost: Math.round(cost.labourCents / 100),
+        paintCost: Math.round(cost.paintCents / 100),
+        totalCost: Math.round((cost.partsCents + cost.labourCents + cost.paintCents) / 100),
+        currency,
+        notes: comp.damageType === "pre-accident damage" ? "Pre-accident damage — may not be covered" : null,
+      };
+    });
+
+    // Build parts reconciliation (quoted parts vs AI estimated)
+    const partsReconciliation = damageAnalysis.damagedParts.map(comp => {
+      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate);
+      const aiEstimate = Math.round((cost.partsCents + cost.labourCents) / 100);
+      return {
+        component: comp.name,
+        aiEstimate,
+        quotedAmount: null as number | null, // populated when quote is available
+        variance: null as number | null,
+        variancePct: null as number | null,
+        flag: null as string | null,
+      };
+    });
+
     const output: Stage9Output = {
       expectedRepairCostCents: totalExpectedCents,
       quoteDeviationPct,
@@ -174,6 +206,8 @@ export async function runCostOptimisationStage(
       labourRateUsdPerHour: labourRate,
       marketRegion: region,
       currency,
+      repairIntelligence,
+      partsReconciliation,
     };
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
@@ -207,6 +241,8 @@ export async function runCostOptimisationStage(
         labourRateUsdPerHour: 40,
         marketRegion: "DEFAULT",
         currency: "USD",
+        repairIntelligence: [],
+        partsReconciliation: [],
       },
       error: String(err),
       durationMs: Date.now() - start,

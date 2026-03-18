@@ -119,7 +119,7 @@ describe("PDF Image Extractor — Dual-Strategy Pipeline", () => {
     const pdftoppmCall = calls.find((c) => c.includes("pdftoppm"));
     expect(pdftoppmCall).toBeDefined();
     expect(pdftoppmCall).toContain("-png");
-    expect(pdftoppmCall).toContain("-r 200");
+    expect(pdftoppmCall).toContain("-r 150");
   });
 
   it("also runs pdfimages as a supplemental strategy", async () => {

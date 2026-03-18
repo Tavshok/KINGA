@@ -479,6 +479,28 @@ export interface Stage9Input {
   physicsAnalysis: Stage7Output;
 }
 
+export interface RepairIntelligenceItem {
+  component: string;
+  location: string;
+  severity: string;
+  recommendedAction: string;
+  partsCost: number;
+  labourCost: number;
+  paintCost: number;
+  totalCost: number;
+  currency: string;
+  notes: string | null;
+}
+
+export interface PartsReconciliationItem {
+  component: string;
+  aiEstimate: number;
+  quotedAmount: number | null;
+  variance: number | null;
+  variancePct: number | null;
+  flag: string | null;
+}
+
 export interface Stage9Output {
   expectedRepairCostCents: number;
   quoteDeviationPct: number | null;
@@ -497,6 +519,8 @@ export interface Stage9Output {
   labourRateUsdPerHour: number;
   marketRegion: string;
   currency: string;
+  repairIntelligence: RepairIntelligenceItem[];
+  partsReconciliation: PartsReconciliationItem[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
