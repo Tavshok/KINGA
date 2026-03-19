@@ -39,6 +39,7 @@ import { runFraudAnalysisStage } from "./stage-8-fraud";
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
+import { resolveSourceTruth, getResolvedDirection } from "./sourceTruthResolver";
 
 /**
  * Run the full self-healing pipeline.
@@ -164,10 +165,57 @@ export async function runPipelineV2(
   recordStage("6_damage_analysis", s6);
   stage6Data = s6.data; // Always has data (self-healing)
 
+  // ── SOURCE TRUTH RESOLUTION (Stage 6 → Stage 7) ─────────────────────
+  // Resolve direction/zone/severity conflicts across photo and document sources.
+  // Physics is not yet available; will re-resolve with full priority after Stage 7.
+  const preTruthResolution = resolveSourceTruth({
+    physicsOutput: null,
+    damageAnalysis: stage6Data,
+    claimRecord,
+  });
+  if (claimRecord && preTruthResolution.resolution_applied) {
+    claimRecord = {
+      ...claimRecord,
+      accidentDetails: {
+        ...claimRecord.accidentDetails,
+        collisionDirection: getResolvedDirection(preTruthResolution),
+      },
+    };
+    ctx.log(
+      "TruthResolver",
+      `Pre-physics: ${preTruthResolution.conflicts.length} conflict(s). Dominant: ${preTruthResolution.dominant_source}. ` +
+        preTruthResolution.conflicts.map((c) => `[${c.source}] ${c.issue} -> ${c.resolution}`).join(" | ")
+    );
+  }
+
   // ── STAGE 7: Physics Analysis ────────────────────────────────────────
   const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data!);
   recordStage("7_physics", s7);
   stage7Data = s7.data; // Always has data (self-healing)
+
+  // ── POST-PHYSICS TRUTH RE-RESOLUTION ─────────────────────────────────
+  // Now that physics output is available, re-resolve with all three sources.
+  // Physics (HIGH priority) overrides photo/document on any conflict.
+  // Downstream stages 8, 9, 9b, 10 MUST use the resolved claimRecord.
+  const postTruthResolution = resolveSourceTruth({
+    physicsOutput: stage7Data,
+    damageAnalysis: stage6Data,
+    claimRecord,
+  });
+  if (claimRecord && postTruthResolution.resolution_applied) {
+    claimRecord = {
+      ...claimRecord,
+      accidentDetails: {
+        ...claimRecord.accidentDetails,
+        collisionDirection: getResolvedDirection(postTruthResolution),
+      },
+    };
+    ctx.log(
+      "TruthResolver",
+      `Post-physics: ${postTruthResolution.conflicts.length} conflict(s). Dominant: ${postTruthResolution.dominant_source}. ` +
+        postTruthResolution.conflicts.map((c) => `[${c.source}] ${c.issue} -> ${c.resolution}`).join(" | ")
+    );
+  }
 
   // ── STAGE 8: Fraud Analysis ──────────────────────────────────────────
   const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!);
