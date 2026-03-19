@@ -4312,3 +4312,55 @@ export const weightAdjustmentLog = mysqlTable("weight_adjustment_log", {
 ]);
 export type WeightAdjustmentLogRow = typeof weightAdjustmentLog.$inferSelect;
 export type InsertWeightAdjustmentLog = typeof weightAdjustmentLog.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stage 41 — Benchmark Deviation Engine: persisted deviation results
+// ─────────────────────────────────────────────────────────────────────────────
+export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  // Classification keys used to select the benchmark
+  vehicleClass: mysqlEnum("vehicle_class", ["light", "medium", "heavy"]).notNull(),
+  damageType: varchar("damage_type", { length: 50 }).notNull(),
+  severity: mysqlEnum("severity", ["minor", "moderate", "severe"]).notNull(),
+  // Benchmark source at time of computation
+  benchmarkSource: mysqlEnum("benchmark_source", ["static", "blended", "live"]).notNull(),
+  comparableClaimCount: int("comparable_claim_count").notNull().default(0),
+  // Cost deviation
+  costValueCents: int("cost_value_cents"),
+  costBenchmarkLowCents: int("cost_benchmark_low_cents"),
+  costBenchmarkHighCents: int("cost_benchmark_high_cents"),
+  costBenchmarkMeanCents: int("cost_benchmark_mean_cents"),
+  costDeviationPct: decimal("cost_deviation_pct", { precision: 7, scale: 2 }).$type<number>(),
+  costDeviationFlag: tinyint("cost_deviation_flag").default(0),
+  costNarrative: text("cost_narrative"),
+  // Physics (delta-V) deviation
+  physicsValueKmh: decimal("physics_value_kmh", { precision: 7, scale: 2 }).$type<number>(),
+  physicsBenchmarkLowKmh: decimal("physics_benchmark_low_kmh", { precision: 7, scale: 2 }).$type<number>(),
+  physicsBenchmarkHighKmh: decimal("physics_benchmark_high_kmh", { precision: 7, scale: 2 }).$type<number>(),
+  physicsBenchmarkMeanKmh: decimal("physics_benchmark_mean_kmh", { precision: 7, scale: 2 }).$type<number>(),
+  physicsDeviationPct: decimal("physics_deviation_pct", { precision: 7, scale: 2 }).$type<number>(),
+  physicsDeviationFlag: tinyint("physics_deviation_flag").default(0),
+  physicsNarrative: text("physics_narrative"),
+  // Fraud score deviation
+  fraudValueScore: decimal("fraud_value_score", { precision: 6, scale: 4 }).$type<number>(),
+  fraudBenchmarkLow: decimal("fraud_benchmark_low", { precision: 6, scale: 4 }).$type<number>(),
+  fraudBenchmarkHigh: decimal("fraud_benchmark_high", { precision: 6, scale: 4 }).$type<number>(),
+  fraudBenchmarkMean: decimal("fraud_benchmark_mean", { precision: 6, scale: 4 }).$type<number>(),
+  fraudDeviationPct: decimal("fraud_deviation_pct", { precision: 7, scale: 2 }).$type<number>(),
+  fraudDeviationFlag: tinyint("fraud_deviation_flag").default(0),
+  fraudNarrative: text("fraud_narrative"),
+  // Overall flag
+  overallDeviationFlag: tinyint("overall_deviation_flag").default(0),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  index("idx_bmd_claim_id").on(table.claimId),
+  index("idx_bmd_tenant_id").on(table.tenantId),
+  index("idx_bmd_vehicle_class").on(table.vehicleClass),
+  index("idx_bmd_damage_type").on(table.damageType),
+  index("idx_bmd_overall_flag").on(table.overallDeviationFlag),
+  index("idx_bmd_created_at").on(table.createdAt),
+]);
+export type BenchmarkDeviationRow = typeof benchmarkDeviations.$inferSelect;
+export type InsertBenchmarkDeviation = typeof benchmarkDeviations.$inferInsert;

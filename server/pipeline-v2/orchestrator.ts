@@ -59,6 +59,12 @@ import {
   type EvidenceBundle,
 } from "./evidenceStrengthScorer";
 import { buildRealismBundle, type RealismBundle } from "./outputRealismValidator";
+import {
+  buildBenchmarkBundle,
+  type BenchmarkBundle,
+  type BenchmarkInputContext,
+  type LiveBenchmarkStats,
+} from "./benchmarkDeviationEngine";
 
 /**
  * Run the full self-healing pipeline.
@@ -96,6 +102,7 @@ export async function runPipelineV2(
   let causalChain: CausalChainOutput | null = null;
   let evidenceBundle: EvidenceBundle | null = null;
   let realismBundle: RealismBundle | null = null;
+  let benchmarkBundle: BenchmarkBundle | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
 
@@ -330,6 +337,27 @@ export async function runPipelineV2(
     }
   }
 
+  // ── STAGE 41: Benchmark Deviation Engine ──────────────────────────────
+  if (stage7Data && stage8Data && stage9Data) {
+    try {
+      const bCtx: BenchmarkInputContext = {
+        vehicleMassKg: claimRecord?.vehicle?.massKg ?? null,
+        vehicleMake: claimRecord?.vehicle?.make ?? null,
+        vehicleModel: claimRecord?.vehicle?.model ?? null,
+        vehicleYear: claimRecord?.vehicle?.year ?? null,
+        incidentType: claimRecord?.accidentDetails?.incidentType ?? null,
+        severity: stage7Data?.accidentSeverity ?? null,
+        impactDirection: stage7Data?.impactVector?.direction ?? null,
+        marketRegion: stage9Data?.marketRegion ?? null,
+      };
+      const liveStats: LiveBenchmarkStats = { comparableClaimCount: 0 };
+      benchmarkBundle = buildBenchmarkBundle(stage7Data, stage8Data, stage9Data, bCtx, liveStats);
+      ctx.log("Stage 41", `Benchmark bundle: source=${benchmarkBundle.benchmark_source}, cost_flag=${benchmarkBundle.cost.deviation_flag}(${benchmarkBundle.cost.deviation_percent.toFixed(1)}%), physics_flag=${benchmarkBundle.physics.deviation_flag}(${benchmarkBundle.physics.deviation_percent.toFixed(1)}%), fraud_flag=${benchmarkBundle.fraud.deviation_flag}(${benchmarkBundle.fraud.deviation_percent.toFixed(1)}%), overall=${benchmarkBundle.overall_deviation_flag}`);
+    } catch (err) {
+      ctx.log("Stage 41", `Benchmark deviation failed (non-fatal): ${String(err)}`);
+    }
+  }
+
   // ── STAGE 9b: Turnaround Time Analysis ─────────────────────────────────
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
   recordStage("9b_turnaround", s9b);
@@ -351,7 +379,7 @@ export async function runPipelineV2(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
-    causalChain, evidenceBundle, realismBundle
+    causalChain, evidenceBundle, realismBundle, benchmarkBundle
   );
 }
 
@@ -368,7 +396,8 @@ function buildResult(
   turnaroundAnalysis: TurnaroundTimeOutput | null = null,
   causalChain: CausalChainOutput | null = null,
   evidenceBundle: EvidenceBundle | null = null,
-  realismBundle: RealismBundle | null = null
+  realismBundle: RealismBundle | null = null,
+  benchmarkBundle: BenchmarkBundle | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -389,6 +418,7 @@ function buildResult(
     causalChain,
     evidenceBundle,
     realismBundle,
+    benchmarkBundle,
   };
 }
 
