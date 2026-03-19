@@ -3891,7 +3891,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           aiExtractedComponents,
         });
 
-        // Persist results
+        // Persist enrichment results
         await db.update(aiAssessments)
           .set({
             enrichedPhotosJson: JSON.stringify(result.enriched_photos),
@@ -3899,7 +3899,92 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           })
           .where(eq(aiAssessments.id, assessment.id));
 
-        return result;
+        // ─── Auto-trigger Stage 12: Damage Consistency Check ─────────────────
+        // After enrichment, attempt to run the consistency check automatically.
+        // The runDamageConsistencyCheck function enforces its own pre-conditions
+        // internally (document components, enriched photos, physics zone) and
+        // returns a pending_inputs result if any condition is unmet — so we
+        // can always call it safely here.
+        let consistencyResult: any = null;
+        try {
+          const { runDamageConsistencyCheck } = await import('./services/damageConsistency');
+          const { generateMismatchNarratives } = await import('./services/mismatchNarrative');
+
+          // Re-read the freshly persisted assessment so enrichedPhotosJson is current
+          const freshAssessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+
+          if (freshAssessment) {
+            consistencyResult = runDamageConsistencyCheck({
+              damagedComponentsJson: freshAssessment.damagedComponentsJson ?? null,
+              damageDescription: freshAssessment.damageDescription ?? null,
+              enrichedPhotosJson: freshAssessment.enrichedPhotosJson ?? null,
+              physicsAnalysisJson: freshAssessment.physicsAnalysis ?? null,
+              triggerSource: 'auto',
+            });
+
+            // Attach narratives when the check completed
+            if (consistencyResult.status === 'complete' && consistencyResult.mismatches.length > 0) {
+              try {
+                const narratives = await generateMismatchNarratives(consistencyResult.mismatches, { useLlm: false });
+                const mismatchesWithNarratives = consistencyResult.mismatches.map((m: any, i: number) => ({
+                  ...m,
+                  narrative: narratives[i]?.explanation ?? null,
+                  narrative_source: narratives[i]?.source ?? 'template',
+                }));
+                consistencyResult = { ...consistencyResult, mismatches: mismatchesWithNarratives };
+              } catch { /* narrative failure must not block the consistency result */ }
+            }
+
+            // Persist the consistency result
+            await db.update(aiAssessments)
+              .set({ consistencyCheckJson: JSON.stringify(consistencyResult) })
+              .where(eq(aiAssessments.id, freshAssessment.id));
+
+            // ─── Update fraud score if consistency check completed ────────────
+            // Only update when the check produced a complete result with
+            // high-severity mismatches — the weighted scorer handles the
+            // confidence-based weighting (HIGH→12, MEDIUM→5, LOW→0).
+            if (consistencyResult.status === 'complete') {
+              try {
+                const { computeWeightedFraudScore } = await import('./weighted-fraud-scoring');
+                const highSeverityMismatches = consistencyResult.mismatches.filter(
+                  (m: any) => m.severity === 'high'
+                );
+
+                if (highSeverityMismatches.length > 0) {
+                  // Build a minimal input using the consistency result
+                  const fraudInput = {
+                    consistencyScore: consistencyResult.consistency_score,
+                    multiSourceConflict: {
+                      confidence: consistencyResult.confidence as 'HIGH' | 'MEDIUM' | 'LOW',
+                      highSeverityMismatchCount: highSeverityMismatches.length,
+                      details: highSeverityMismatches.map((m: any) => m.details).join('; '),
+                    },
+                  };
+                  const fraudResult = computeWeightedFraudScore(fraudInput);
+
+                  // Persist the updated fraud score back to the assessment
+                  if (freshAssessment.fraudScore !== null && freshAssessment.fraudScore !== undefined) {
+                    // Blend: take the higher of the existing score and the new conflict penalty
+                    const conflictPenalty = fraudResult.contributions
+                      .find((c: any) => c.factor === 'Multi-Source Damage Conflict')?.value ?? 0;
+                    const updatedScore = Math.min(100, (freshAssessment.fraudScore as number) + conflictPenalty);
+                    await db.update(aiAssessments)
+                      .set({ fraudScore: updatedScore })
+                      .where(eq(aiAssessments.id, freshAssessment.id));
+                  }
+                }
+              } catch { /* fraud score update failure must not block the enrichment response */ }
+            }
+          }
+        } catch { /* auto-trigger failure must never block the enrichment response */ }
+
+        return {
+          ...result,
+          auto_consistency_check: consistencyResult
+            ? { status: consistencyResult.status, triggered: true }
+            : { status: 'skipped', triggered: false },
+        };
       }),
 
     /**
