@@ -140,7 +140,13 @@ describe("computeWeightedFraudScore", () => {
 
   // ─── Factor 7: Multi-Source Damage Conflict ───────────────────────────────
   describe("Factor 7: Multi-Source Damage Conflict", () => {
-    it("adds +12 when confidence is HIGH and there are high-severity mismatches", () => {
+
+    // ── Base weight rules ──────────────────────────────────────────────────
+    it("adds base weight when confidence is HIGH and no dampening applies (15% cap applies at low base)", () => {
+      // baseInput has score=0 before Factor 7, so no dampening triggers.
+      // However, the 15% cap still applies:
+      //   projected total = min(100, 0 + 12) = 12 → maxAllowed = 12 * 0.15 = 1.8
+      //   12 > 1.8 → cap applies → conflictValue = 1.8
       const result = computeWeightedFraudScore({
         ...baseInput,
         multiSourceConflict: {
@@ -149,11 +155,12 @@ describe("computeWeightedFraudScore", () => {
           details: "Photos show front damage, report says rear",
         },
       });
-      expect(result.score).toBe(12);
-      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 12 });
+      expect(result.score).toBe(1.8);
+      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 1.8 });
     });
 
-    it("adds +5 when confidence is MEDIUM and there are high-severity mismatches", () => {
+    it("adds base weight when confidence is MEDIUM and no dampening applies (15% cap applies at low base)", () => {
+      // projected total = min(100, 0 + 5) = 5 → maxAllowed = 5 * 0.15 = 0.75 → rounds to 0.8
       const result = computeWeightedFraudScore({
         ...baseInput,
         multiSourceConflict: {
@@ -162,8 +169,8 @@ describe("computeWeightedFraudScore", () => {
           details: "Physics zone conflicts with reported zone",
         },
       });
-      expect(result.score).toBe(5);
-      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 5 });
+      expect(result.score).toBe(0.8);
+      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 0.8 });
     });
 
     it("does NOT add any penalty when confidence is LOW", () => {
@@ -199,9 +206,69 @@ describe("computeWeightedFraudScore", () => {
       expect(conflictContrib?.triggered).toBe(false);
     });
 
-    it("combines with other factors and caps at 100", () => {
-      // Base factors: inconsistency(20) + cost(15) + direction(15) + repeat(20) + missing(10) = 80
-      // + conflict HIGH = +12 → total 92
+    // ── Dampening rule 1: base score before Factor 7 > 70 → −30% ──────────
+    it("applies −30% dampening when base score before Factor 7 exceeds 70", () => {
+      // inconsistency(20) + cost(15) + direction(15) + repeat(20) + missing(10) = 80 before F7
+      // HIGH base weight = 12 → after −30% = 8.4 → rounded = 8.4
+      // But 15% cap: projected total = min(100, 80 + 8.4) = 88.4 → maxAllowed = 88.4 * 0.15 = 13.26
+      // 8.4 < 13.26 → cap does NOT further reduce
+      const result = computeWeightedFraudScore({
+        consistencyScore: 20,    // +20
+        aiEstimatedCost: 1000,
+        quotedAmount: 2000,      // +15
+        impactDirection: "rear",
+        damageZones: ["front"],  // +15
+        hasPreviousClaims: true, // +20
+        missingDataCount: 5,     // +10
+        // base = 80 before Factor 7 → triggers −30% dampening
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 2,
+          details: "Zone mismatch",
+        },
+      });
+      const conflictContrib = result.contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictContrib).toBeDefined();
+      // base=80 → both dampening rules fire (base>70 AND 5 high-weight factors ≥10):
+      //   12 * 0.7 (−30%) * 0.8 (−20%) = 6.72 → rounds to 6.7
+      //   15% cap: (80 + 6.72) * 0.15 = 13.008 → 6.72 < 13.008 → cap does NOT apply
+      expect(conflictContrib!.value).toBe(6.7);
+      expect(result.score).toBe(86.7);
+    });
+
+    // ── Dampening rule 2: ≥2 high-weight factors (≥10) → −20% ────────────
+    it("applies −20% dampening when 2 or more high-weight factors are already triggered", () => {
+      // inconsistency(20) + repeat(20) = 40 before Factor 7 (2 factors with value ≥10)
+      // HIGH base weight = 12 → after −20% = 9.6
+      // 15% cap: projected total = min(100, 40 + 9.6) = 49.6 → maxAllowed = 49.6 * 0.15 = 7.44
+      // 9.6 > 7.44 → cap applies → conflictValue = 7.44 → rounded = 7.4
+      const result = computeWeightedFraudScore({
+        consistencyScore: 20,    // +20 (value ≥10)
+        aiEstimatedCost: 1000,
+        quotedAmount: 0,         // no cost deviation
+        impactDirection: "front",
+        damageZones: ["front"],  // no direction mismatch
+        hasPreviousClaims: true, // +20 (value ≥10) → 2 high-weight factors
+        missingDataCount: 0,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 1,
+          details: "Component mismatch",
+        },
+      });
+      const conflictContrib = result.contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictContrib).toBeDefined();
+      // After −20%: 12 * 0.8 = 9.6 → cap: (40+9.6)*0.15 = 7.44 → rounds to 7.4
+      expect(conflictContrib!.value).toBe(7.4);
+    });
+
+    // ── Both dampening rules apply simultaneously (multiplicative) ─────────
+    it("applies both dampening rules when base > 70 AND ≥2 high-weight factors", () => {
+      // inconsistency(20) + cost(15) + direction(15) + repeat(20) + missing(10) = 80
+      // 4 factors with value ≥10 → triggers both dampening rules
+      // HIGH base weight = 12 → after −30% = 8.4 → after −20% = 6.72
+      // 15% cap: projected total = min(100, 80 + 6.72) = 86.72 → maxAllowed = 86.72 * 0.15 = 13.008
+      // 6.72 < 13.008 → cap does NOT apply
       const result = computeWeightedFraudScore({
         consistencyScore: 20,
         aiEstimatedCost: 1000,
@@ -212,17 +279,49 @@ describe("computeWeightedFraudScore", () => {
         missingDataCount: 5,
         multiSourceConflict: {
           confidence: "HIGH",
-          highSeverityMismatchCount: 2,
-          details: "Zone mismatch across all three sources",
+          highSeverityMismatchCount: 3,
+          details: "All three sources disagree",
         },
       });
-      expect(result.score).toBe(92); // 80 + 12 = 92, below cap
-      expect(result.level).toBe("elevated"); // > 80
-      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 12 });
+      const conflictContrib = result.contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictContrib).toBeDefined();
+      // 12 * 0.7 * 0.8 = 6.72 → rounds to 6.7
+      expect(conflictContrib!.value).toBe(6.7);
+      expect(result.score).toBe(86.7);
     });
 
-    it("caps combined score at 100", () => {
-      // 80 (all base factors) + 15 (severity/physics) + 12 (conflict) = 107 → capped at 100
+    // ── 15% cap rule ──────────────────────────────────────────────────────
+    it("caps Factor 7 at 15% of total score when undampened weight would exceed it", () => {
+      // Only Factor 7 triggered (base = 0 before F7)
+      // HIGH base weight = 12
+      // No dampening (base = 0 ≤ 70, 0 high-weight factors)
+      // Projected total = min(100, 0 + 12) = 12 → maxAllowed = 12 * 0.15 = 1.8
+      // 12 > 1.8 → cap applies → conflictValue = 1.8
+      const result = computeWeightedFraudScore({
+        ...baseInput,
+        // Override to ensure truly zero base score
+        consistencyScore: 75,
+        quotedAmount: 0,
+        hasPreviousClaims: false,
+        missingDataCount: 0,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 1,
+          details: "Zone mismatch",
+        },
+      });
+      const conflictContrib = result.contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictContrib).toBeDefined();
+      // 15% cap: (0 + 12) * 0.15 = 1.8
+      expect(conflictContrib!.value).toBe(1.8);
+      expect(result.score).toBe(1.8);
+    });
+
+    // ── Combined score cap at 100 ─────────────────────────────────────────
+    it("caps combined score at 100 when all factors fire", () => {
+      // 80 (all base factors) + 15 (severity/physics) = 95 before Factor 7
+      // HIGH base weight = 12 → −30% (base > 70) = 8.4 → −20% (≥2 high-weight) = 6.72 → rounds to 6.7
+      // 95 + 6.7 = 101.7 → capped at 100
       const result = computeWeightedFraudScore({
         consistencyScore: 20,
         aiEstimatedCost: 1000,
@@ -248,6 +347,26 @@ describe("computeWeightedFraudScore", () => {
       const result = computeWeightedFraudScore({ ...baseInput });
       const factorNames = result.full_contributions.map(c => c.factor);
       expect(factorNames).toContain("Multi-Source Damage Conflict");
+    });
+
+    it("includes dampening note in detail when dampening was applied", () => {
+      // base > 70 → dampening note should appear
+      const result = computeWeightedFraudScore({
+        consistencyScore: 20,
+        aiEstimatedCost: 1000,
+        quotedAmount: 2000,
+        impactDirection: "rear",
+        damageZones: ["front"],
+        hasPreviousClaims: true,
+        missingDataCount: 5,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 1,
+          details: "Zone mismatch",
+        },
+      });
+      const conflictFull = result.full_contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictFull?.detail).toContain("dampening");
     });
   });
 

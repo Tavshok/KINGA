@@ -194,20 +194,61 @@ export function computeWeightedFraudScore(
   base += severityPhysicsValue;
 
   // Factor 7: Multi-source damage conflict (from Stage 12/13 consistency check)
-  // Rules:
-  //   confidence HIGH   + high-severity mismatches → +12 (range 10–15, default 12)
+  //
+  // Base weight:
+  //   confidence HIGH   + high-severity mismatches → +12
   //   confidence MEDIUM + high-severity mismatches → +5
   //   confidence LOW                               → ignored
+  //
+  // Dampening (applied sequentially, multiplicative):
+  //   If base score before Factor 7 > 70  → reduce weight by 30%
+  //   If ≥2 other factors already triggered with value ≥10 → reduce weight by 20%
+  //
+  // Cap:
+  //   Factor 7 contribution MUST NOT exceed 15% of the total fraud score
+  //   (evaluated after dampening, before final score cap at 100).
   const conflict = input.multiSourceConflict;
   const conflictTriggered =
     conflict !== undefined &&
     conflict.highSeverityMismatchCount > 0 &&
     (conflict.confidence === "HIGH" || conflict.confidence === "MEDIUM");
-  const conflictValue = conflictTriggered
-    ? conflict!.confidence === "HIGH"
-      ? 12  // default mid-range of 10–15
-      : 5   // MEDIUM confidence
-    : 0;
+
+  let conflictValue = 0;
+  let conflictDampeningNote = "";
+
+  if (conflictTriggered) {
+    // 1. Base weight
+    let rawWeight = conflict!.confidence === "HIGH" ? 12 : 5;
+
+    // 2a. Dampening: base score before Factor 7 > 70
+    const scoreBeforeFactor7 = base;
+    if (scoreBeforeFactor7 > 70) {
+      rawWeight = rawWeight * 0.7;  // −30%
+      conflictDampeningNote += " [−30% dampening: base score already >70]";
+    }
+
+    // 2b. Dampening: ≥2 other factors already triggered with value ≥10
+    const highWeightTriggeredCount = contributions.filter(
+      (c) => c.triggered && c.value >= 10
+    ).length;
+    if (highWeightTriggeredCount >= 2) {
+      rawWeight = rawWeight * 0.8;  // −20%
+      conflictDampeningNote += " [−20% dampening: multiple high-weight factors present]";
+    }
+
+    // 3. Cap: Factor 7 must not exceed 15% of the projected total score
+    //    Projected total = base + rawWeight (before final 100-cap)
+    const projectedTotal = Math.min(100, base + rawWeight);
+    const maxAllowed = projectedTotal * 0.15;
+    if (rawWeight > maxAllowed) {
+      rawWeight = maxAllowed;
+      conflictDampeningNote += " [capped at 15% of total score]";
+    }
+
+    // Round to 1 decimal place for clean display
+    conflictValue = Math.round(rawWeight * 10) / 10;
+  }
+
   contributions.push({
     factor: "Multi-Source Damage Conflict",
     value: conflictValue,
@@ -215,7 +256,9 @@ export function computeWeightedFraudScore(
     detail: conflictTriggered
       ? `Damage evidence is inconsistent across document, photos, and physics analysis ` +
         `(${conflict!.highSeverityMismatchCount} high-severity mismatch${conflict!.highSeverityMismatchCount > 1 ? "es" : ""}, ` +
-        `consistency check confidence: ${conflict!.confidence}). ${conflict!.details}`
+        `consistency check confidence: ${conflict!.confidence}).` +
+        (conflictDampeningNote ? ` Weight adjusted:${conflictDampeningNote}.` : "") +
+        ` ${conflict!.details}`
       : conflict?.confidence === "LOW"
       ? "Multi-source conflict detected but confidence is LOW — signal not applied."
       : "No high-severity multi-source damage conflict detected.",
@@ -223,7 +266,7 @@ export function computeWeightedFraudScore(
   base += conflictValue;
 
   // Cap at 100
-  const score = Math.min(100, base);
+  const score = Math.min(100, Math.round(base * 10) / 10);
   const level = scoreToLevel(score);
 
   // Contributions array: only triggered factors (as required by spec)
