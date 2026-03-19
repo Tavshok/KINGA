@@ -17,6 +17,8 @@ import type { DamageMismatch, MismatchType } from "./damageConsistency";
 import { getDb } from "../db";
 import { narrativeVersions } from "../../drizzle/schema";
 import { eq, and } from "drizzle-orm";
+import { evaluateEnrichmentGate } from "./enrichmentGate";
+import type { EnrichmentGateInput } from "./enrichmentGate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -269,8 +271,8 @@ async function persistNarrativeVersion(
   ctx: NarrativePersistContext
 ): Promise<{ id: number; version: number }> {
   const db = await getDb();
+  if (!db) throw new Error('Database not available');
   const now = Date.now();
-
   // Find the highest existing version for this mismatch index
   const existing = await db
     .select({ version: narrativeVersions.version })
@@ -340,6 +342,7 @@ export async function getNarrativeVersionHistory(
   assessmentId: number
 ): Promise<typeof narrativeVersions.$inferSelect[]> {
   const db = await getDb();
+  if (!db) return [];
   return db
     .select()
     .from(narrativeVersions)
@@ -352,6 +355,9 @@ export interface GenerateNarrativesOptions {
    * Whether to use the LLM for enrichment.
    * Defaults to false (template-only) to keep latency predictable.
    * Set to true when called from an async background job.
+   *
+   * When `enrichmentGateContext` is also provided, `useLlm: true` is treated
+   * as a request to enrich — but the gate may still suppress it per its rules.
    */
   useLlm?: boolean;
   /**
@@ -360,6 +366,25 @@ export interface GenerateNarrativesOptions {
    * When omitted, no DB writes occur (pure in-memory generation).
    */
   persistContext?: NarrativePersistContext;
+  /**
+   * Stage 25 — LLM Enrichment Gate context.
+   *
+   * When provided alongside `useLlm: true`, the gate evaluates two conditions
+   * before allowing enrichment to proceed:
+   *   1. currentVersionSource === "template"  (never been LLM-enriched)
+   *   2. negative feedback rate > 0.20        (adjusters are dismissing the narrative)
+   *
+   * If neither condition is met, enrichment is skipped for that mismatch,
+   * preserving the existing LLM-generated narrative and avoiding version churn.
+   *
+   * When omitted, the gate is bypassed and `useLlm` controls enrichment directly.
+   */
+  enrichmentGateContext?: {
+    /** Per-mismatch-type annotation counts, keyed by mismatch type string */
+    annotationCountsByType: Record<string, { confirmed: number; dismissed: number }>;
+    /** The source of the current active narrative version, keyed by mismatch index */
+    currentVersionSourceByIndex: Record<number, string>;
+  };
 }
 
 /**
@@ -377,7 +402,8 @@ export async function generateMismatchNarratives(
 
   const results: MismatchNarrative[] = [];
 
-  for (const m of mismatches) {
+  for (let mismatchIdx = 0; mismatchIdx < mismatches.length; mismatchIdx++) {
+    const m = mismatches[mismatchIdx];
     let explanation: string;
     let source: "template" | "llm" = "template";
     let preserves_meaning: boolean | undefined;
@@ -385,7 +411,24 @@ export async function generateMismatchNarratives(
     // Always generate the deterministic base narrative first.
     const baseNarrative = templateNarrative(m);
 
-    if (useLlm) {
+    // ── Stage 25: LLM Enrichment Gate ──────────────────────────────────────
+    // When a gate context is provided, evaluate whether enrichment should run
+    // for this specific mismatch before invoking the LLM.
+    let effectiveUseLlm = useLlm;
+    if (useLlm && options.enrichmentGateContext) {
+      const counts = options.enrichmentGateContext.annotationCountsByType[m.type] ?? { confirmed: 0, dismissed: 0 };
+      const currentSource = options.enrichmentGateContext.currentVersionSourceByIndex[mismatchIdx] ?? "template";
+      const gateInput: EnrichmentGateInput = {
+        currentVersionSource: currentSource,
+        confirmedCount: counts.confirmed,
+        dismissedCount: counts.dismissed,
+      };
+      const gateResult = evaluateEnrichmentGate(gateInput);
+      effectiveUseLlm = gateResult.shouldEnrich;
+    }
+    // ── End Gate ────────────────────────────────────────────────────────────
+
+    if (effectiveUseLlm) {
       // Pass the base narrative to the LLM so it can only clarify/simplify it.
       const llmResult = await llmNarrative(m, baseNarrative);
 
@@ -407,8 +450,9 @@ export async function generateMismatchNarratives(
     // Always generate the deterministic external-safe narrative first.
     const baseExternal = externalTemplate(m);
 
-    // Optionally enrich the external narrative via LLM (same useLlm gate).
-    const external_narrative = useLlm
+    // Optionally enrich the external narrative via LLM (same gate as internal narrative).
+    // Uses effectiveUseLlm so the enrichment gate applies to both internal and external.
+    const external_narrative = effectiveUseLlm
       ? await llmExternalNarrative(m, baseExternal)
       : baseExternal;
 

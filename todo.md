@@ -9979,3 +9979,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Build consistencyConfidence.ts: three-signal scoring engine (confirmation rate, data completeness, mismatch frequency)
 - [x] Integrate confidence into runConsistencyCheck return value
 - [x] Add unit tests: all three signals, band thresholds (HIGH/MEDIUM/LOW)
+
+## LLM Enrichment Gate (Stage 25)
+- [x] Audit narrative versioning code for LLM enrichment call sites and version/feedback data shape
+- [x] Build enrichmentGate.ts: two-condition gate (source=="template" OR negative_rate>0.2)
+- [x] Integrate gate into routers.ts enrichment call sites
+- [x] Add unit tests: all gate conditions and edge cases
