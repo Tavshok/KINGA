@@ -3674,6 +3674,24 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Get assessor evaluation for repair cost
         const evaluation = await getAssessorEvaluationByClaimId(input.claimId);
         const repairCost = evaluation?.estimatedRepairCost;
+
+        // ── Mileage resolution ────────────────────────────────────────────────
+        // If the user did not supply a mileage, estimate it from vehicle year/type.
+        // The estimate carries LOW confidence and reduces the overall valuation
+        // confidence score by 20 points.
+        const { estimateMileageFromYear } = await import("./services/mileageEstimation");
+        let resolvedMileage: number | undefined = input.mileage;
+        let mileageEstimation: ReturnType<typeof estimateMileageFromYear> | null = null;
+        if (!resolvedMileage) {
+          const vehicleYear = claim.vehicleYear || new Date().getFullYear();
+          mileageEstimation = estimateMileageFromYear(
+            vehicleYear,
+            claim.vehicleMake,
+            claim.vehicleModel,
+          );
+          resolvedMileage = mileageEstimation.assumed_mileage_used;
+        }
+
         // Import valuation service
         const { valuateVehicle } = await import("./services/vehicleValuation");
         // Perform valuation
@@ -3682,12 +3700,22 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             make: claim.vehicleMake || '',
             model: claim.vehicleModel || '',
             year: claim.vehicleYear || new Date().getFullYear(),
-            mileage: input.mileage,
+            mileage: resolvedMileage,
             condition: input.condition,
             country: 'Zimbabwe',
           },
           repairCost ?? undefined
         );
+
+        // Apply confidence penalty when mileage was estimated
+        if (mileageEstimation) {
+          valuation.confidenceScore = Math.max(10, (valuation.confidenceScore ?? 50) - 20);
+          valuation.notes = [
+            `⚠️ MILEAGE ESTIMATED: ${mileageEstimation.warning_message}`,
+            `Estimated range: ${mileageEstimation.estimated_mileage_range[0].toLocaleString()}–${mileageEstimation.estimated_mileage_range[1].toLocaleString()} km (midpoint ${mileageEstimation.assumed_mileage_used.toLocaleString()} km used)`,
+            ...valuation.notes,
+          ];
+        }
 
         // Save valuation to database
         const valuationId = await createVehicleMarketValuation({
@@ -3696,7 +3724,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           vehicleModel: claim.vehicleModel || '',
           vehicleYear: claim.vehicleYear || new Date().getFullYear(),
           vehicleRegistration: claim.vehicleRegistration,
-          mileage: input.mileage,
+          mileage: resolvedMileage,
           condition: input.condition,
           estimatedMarketValue: valuation.estimatedMarketValue,
           valuationMethod: valuation.valuationMethod,
@@ -3723,10 +3751,20 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           action: "vehicle_valuation_completed",
           entityType: "valuation",
           entityId: valuationId,
-          changeDescription: `Vehicle valued at $${(valuation.finalAdjustedValue / 100).toFixed(2)}${valuation.isTotalLoss ? ' - TOTAL LOSS' : ''}`,
+          changeDescription: `Vehicle valued at $${(valuation.finalAdjustedValue / 100).toFixed(2)}${valuation.isTotalLoss ? ' - TOTAL LOSS' : ''}${mileageEstimation ? ' (mileage estimated)' : ''}`,
         });
 
-        return valuation;
+        // Return valuation enriched with mileage estimation metadata
+        return {
+          ...valuation,
+          mileageEstimation: mileageEstimation ? {
+            estimated_mileage_range: mileageEstimation.estimated_mileage_range,
+            assumed_mileage_used: mileageEstimation.assumed_mileage_used,
+            confidence: mileageEstimation.confidence,
+            source: mileageEstimation.source,
+            warning_message: mileageEstimation.warning_message,
+          } : null,
+        };
       }),
 
     // Get valuation by claim ID

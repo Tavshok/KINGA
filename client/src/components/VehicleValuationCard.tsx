@@ -52,14 +52,16 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
   });
 
   const handleTriggerValuation = () => {
-    if (!mileage || isNaN(parseInt(mileage))) {
-      toast.error("Please enter a valid mileage");
+    // Mileage is now optional — server will estimate from vehicle year if omitted
+    const parsedMileage = mileage ? parseInt(mileage) : undefined;
+    if (mileage && isNaN(parseInt(mileage))) {
+      toast.error("Please enter a valid mileage or leave blank for year-based estimation");
       return;
     }
 
     triggerValuation.mutate({
       claimId,
-      mileage: parseInt(mileage),
+      mileage: parsedMileage,
       condition,
     });
   };
@@ -67,6 +69,14 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
   if (valuation) {
     const priceRange = valuation.priceRange;
     const notes = valuation.notes || [];
+    // Mileage estimation metadata returned by the trigger mutation
+    const mileageEst = (valuation as any).mileageEstimation as {
+      estimated_mileage_range: [number, number];
+      assumed_mileage_used: number;
+      confidence: 'LOW';
+      source: string;
+      warning_message: string;
+    } | null | undefined;
 
     return (
       <Card className={valuation.isTotalLoss ? "border-red-500 border-2" : ""}>
@@ -88,6 +98,26 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Mileage estimation warning — shown when no actual mileage was provided */}
+          {mileageEst && (
+            <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                  Mileage Estimated — Confidence Reduced
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  No odometer reading was provided. Mileage was estimated at{' '}
+                  <strong>{mileageEst.assumed_mileage_used.toLocaleString()} km</strong>{' '}
+                  (range: {mileageEst.estimated_mileage_range[0].toLocaleString()}–{mileageEst.estimated_mileage_range[1].toLocaleString()} km)
+                  based on vehicle age and type.
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  Valuation confidence has been reduced by 20 points. Supply the actual odometer reading and re-run to improve accuracy.
+                </p>
+              </div>
+            </div>
+          )}
           {/* Market Value Summary */}
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-primary/5 rounded-lg p-4">
@@ -259,19 +289,24 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
         )}
         <div>
           <Label htmlFor="mileage">
-            Current Mileage (km) <span className="text-red-500">*</span>
+            Current Mileage (km)
+            <span className="ml-1 text-xs font-normal text-muted-foreground">(optional — estimated from year if blank)</span>
           </Label>
           <Input
             id="mileage"
             type="number"
             value={mileage}
             onChange={(e) => setMileage(e.target.value)}
-            placeholder="e.g., 120000"
-            required
+            placeholder={vehicleYear ? `Leave blank to estimate from ${vehicleYear} model year` : 'e.g., 120000'}
           />
           {mileage && vehicleMileage && (
             <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-1 flex items-center gap-1">
               <span>✓</span> Auto-populated from claim form
+            </p>
+          )}
+          {!mileage && vehicleYear && (
+            <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
+              Year-based estimation will be used ({vehicleYear} model year). Confidence will be reduced.
             </p>
           )}
         </div>
