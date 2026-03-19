@@ -9985,3 +9985,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Build enrichmentGate.ts: two-condition gate (source=="template" OR negative_rate>0.2)
 - [x] Integrate gate into routers.ts enrichment call sites
 - [x] Add unit tests: all gate conditions and edge cases
+
+## Defensive Engine Output Contracts (Stage 26)
+- [ ] Audit all five engine output shapes for null/missing-field paths
+- [ ] Build engineFallback.ts: shared fallback factory and field-marking utilities
+- [ ] Apply fallback contracts to physics and damage engines
+- [ ] Apply fallback contracts to cost, fraud, and reconstruction engines
+- [ ] Add unit tests for all five engines covering missing-input and low-confidence paths

@@ -7,6 +7,7 @@
  * NEVER halts — produces baseline fraud assessment even with missing data.
  */
 
+import { ensureFraudContract } from "./engineFallback";
 import type {
   PipelineContext,
   StageResult,
@@ -231,7 +232,8 @@ export async function runFraudAnalysisStage(
     const fraudRiskScore = Math.min(100, totalIndicatorScore);
     const fraudRiskLevel = scoreToLevel(fraudRiskScore);
 
-    const output: Stage8Output = {
+    // Stage 26: apply defensive contract — ensure score, level, and at least 1 indicator
+    const output = ensureFraudContract({
       fraudRiskScore,
       fraudRiskLevel,
       indicators: allIndicators,
@@ -241,7 +243,7 @@ export async function runFraudAnalysisStage(
       vehicleClaimHistory: { flagged: false, notes: "No vehicle claim history data available." },
       damageConsistencyScore: consistency.score,
       damageConsistencyNotes: consistency.notes,
-    };
+    }, isDegraded ? "degraded_analysis" : "success");
 
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);
 
@@ -257,24 +259,10 @@ export async function runFraudAnalysisStage(
   } catch (err) {
     ctx.log("Stage 8", `Fraud analysis failed: ${String(err)} — producing baseline assessment`);
 
+    // Stage 26: apply defensive contract — mark all fallback fields
     return {
       status: "degraded",
-      data: {
-        fraudRiskScore: 50,
-        fraudRiskLevel: "medium",
-        indicators: [{
-          indicator: "analysis_failure",
-          category: "system",
-          score: 50,
-          description: `Fraud analysis engine failed: ${String(err)}. Defaulting to medium risk for manual review.`,
-        }],
-        quoteDeviation: null,
-        repairerHistory: { flagged: false, notes: "Analysis failed." },
-        claimantClaimFrequency: { flagged: false, notes: "Analysis failed." },
-        vehicleClaimHistory: { flagged: false, notes: "Analysis failed." },
-        damageConsistencyScore: 50,
-        damageConsistencyNotes: "Unable to assess — analysis engine failed.",
-      },
+      data: ensureFraudContract({}, `engine_failure: ${String(err)}`),
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,

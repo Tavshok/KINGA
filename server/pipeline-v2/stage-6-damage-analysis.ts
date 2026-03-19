@@ -11,6 +11,7 @@
  * NEVER halts — if no damage data exists, produces empty analysis with assumptions.
  */
 
+import { ensureDamageContract } from "./engineFallback";
 import type {
   PipelineContext,
   StageResult,
@@ -172,13 +173,15 @@ export async function runDamageAnalysisStage(
     const structuralDamageDetected = claimRecord.accidentDetails.structuralDamage ||
       damagedParts.some(p => /frame|chassis|subframe|pillar|rail|structural|unibody/.test((p.name || "").toLowerCase()));
 
-    const output: Stage6Output = {
+    // Stage 26: apply defensive contract — ensure at least 1 zone or explicit sentinel
+    const rawOutput: Stage6Output = {
       damagedParts,
       damageZones,
       overallSeverityScore,
       structuralDamageDetected,
       totalDamageArea: claimRecord.accidentDetails.totalDamageAreaM2 || 0,
     };
+    const output = ensureDamageContract(rawOutput, isDegraded ? "inferred_components" : "success");
 
     ctx.log("Stage 6", `Damage analysis complete. ${damagedParts.length} parts, ${damageZones.length} zones, severity: ${overallSeverityScore}/100, structural: ${structuralDamageDetected}`);
 
@@ -192,24 +195,22 @@ export async function runDamageAnalysisStage(
       degraded: isDegraded,
     };
   } catch (err) {
-    ctx.log("Stage 6", `Damage analysis failed: ${String(err)} — producing empty analysis`);
+    ctx.log("Stage 6", `Damage analysis failed: ${String(err)} — producing fallback analysis`);
+
+    // Stage 26: apply defensive contract — NEVER return empty damageZones
+    // Rule: at least 1 zone OR explicit "no visible damage detected" sentinel
+    const fallbackOutput = ensureDamageContract({}, `engine_failure: ${String(err)}`);
 
     return {
       status: "degraded",
-      data: {
-        damagedParts: [],
-        damageZones: [],
-        overallSeverityScore: 0,
-        structuralDamageDetected: false,
-        totalDamageArea: 0,
-      },
+      data: fallbackOutput,
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
       assumptions: [{
         field: "damageAnalysis",
-        assumedValue: "empty",
-        reason: `Damage analysis failed: ${String(err)}. Producing empty analysis.`,
+        assumedValue: "fallback_sentinel_zone",
+        reason: `Damage analysis failed: ${String(err)}. Producing fallback output with sentinel zone — further review required.`,
         strategy: "default_value",
         confidence: 5,
         stage: "Stage 6",
@@ -218,7 +219,7 @@ export async function runDamageAnalysisStage(
         target: "damage_analysis_error",
         strategy: "default_value",
         success: true,
-        description: `Damage analysis error caught. Producing empty analysis to allow pipeline to continue.`,
+        description: `Damage analysis error caught. Fallback output produced with sentinel zone to ensure UI renderability.`,
       }],
       degraded: true,
     };

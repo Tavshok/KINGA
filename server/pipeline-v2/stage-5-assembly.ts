@@ -32,6 +32,7 @@ import {
   inferVehicleBodyType,
   inferPowertrainType,
 } from "../pipeline/types";
+import { markFallback } from "./engineFallback";
 
 export async function runAssemblyStage(
   ctx: PipelineContext,
@@ -275,7 +276,8 @@ export async function runAssemblyStage(
     ctx.log("Stage 5", `Assembly failed: ${String(err)} — producing minimal ClaimRecord`);
 
     // Self-healing: produce a minimal ClaimRecord from DB fields only
-    const minimalRecord: ClaimRecord = {
+    // Stage 26: apply defensive contract — mark all fallback fields on the minimal record
+    const minimalRecord: ClaimRecord & { _fallback?: object } = {
       claimId: ctx.claimId,
       tenantId: ctx.tenantId,
       vehicle: {
@@ -303,6 +305,7 @@ export async function runAssemblyStage(
       },
       dataQuality: { completenessScore: 0, missingFields: ["all"], validationIssues: [] },
       marketRegion: "ZW",
+      _fallback: markFallback({}, `engine_failure: ${String(err)}`),
       assumptions: [{
         field: "claimRecord",
         assumedValue: "minimal_from_db",

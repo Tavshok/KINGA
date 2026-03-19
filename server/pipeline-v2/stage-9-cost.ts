@@ -8,6 +8,7 @@
  * NEVER halts — produces estimated costs even with minimal data.
  */
 
+import { ensureCostContract } from "./engineFallback";
 import type {
   PipelineContext,
   StageResult,
@@ -191,7 +192,8 @@ export async function runCostOptimisationStage(
       };
     });
 
-    const output: Stage9Output = {
+    // Stage 26: apply defensive contract — add top-level ai_estimate, parts, labour, fair_range
+    const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
@@ -208,7 +210,7 @@ export async function runCostOptimisationStage(
       currency,
       repairIntelligence,
       partsReconciliation,
-    };
+    }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
 
@@ -224,26 +226,10 @@ export async function runCostOptimisationStage(
   } catch (err) {
     ctx.log("Stage 9", `Cost optimisation failed: ${String(err)} — producing baseline estimate`);
 
+    // Stage 26: apply defensive contract — mark all fallback fields, add top-level required fields
     return {
       status: "degraded",
-      data: {
-        expectedRepairCostCents: 350000,
-        quoteDeviationPct: null,
-        recommendedCostRange: { lowCents: 280000, highCents: 420000 },
-        savingsOpportunityCents: 0,
-        breakdown: {
-          partsCostCents: 200000,
-          labourCostCents: 100000,
-          paintCostCents: 50000,
-          hiddenDamageCostCents: 0,
-          totalCents: 350000,
-        },
-        labourRateUsdPerHour: 40,
-        marketRegion: "DEFAULT",
-        currency: "USD",
-        repairIntelligence: [],
-        partsReconciliation: [],
-      },
+      data: ensureCostContract({}, `engine_failure: ${String(err)}`),
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,

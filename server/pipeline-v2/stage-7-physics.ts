@@ -8,6 +8,7 @@
  * NEVER halts — if physics engine fails, produces estimated output from damage data.
  */
 
+import { ensurePhysicsContract } from "./engineFallback";
 import type {
   PipelineContext,
   StageResult,
@@ -150,9 +151,11 @@ export async function runPhysicsStage(
 
   if (!isCollision) {
     ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${claimRecord.accidentDetails.incidentType}", not collision`);
+    // Stage 26: apply defensive contract — skipped output must still be complete
+    const skippedOutput = ensurePhysicsContract(buildDefaultPhysicsOutput(false), "engine_skipped");
     return {
       status: "skipped",
-      data: buildDefaultPhysicsOutput(false),
+      data: skippedOutput,
       durationMs: Date.now() - start,
       savedToDb: false,
       assumptions: [],
@@ -219,6 +222,8 @@ export async function runPhysicsStage(
 
     // Self-healing: estimate physics from damage data
     const estimated = estimatePhysicsFromDamage(claimRecord, damageAnalysis, assumptions);
+    // Stage 26: apply defensive contract — mark all estimated fields
+    const contractedEstimate = ensurePhysicsContract(estimated, `engine_failure: ${String(err)}`);
     recoveryActions.push({
       target: "physicsAnalysis",
       strategy: "industry_average",
@@ -229,7 +234,7 @@ export async function runPhysicsStage(
 
     return {
       status: "degraded",
-      data: estimated,
+      data: contractedEstimate,
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,
