@@ -3883,13 +3883,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         const { runDamageConsistencyCheck } = await import('./services/damageConsistency');
 
+        // Manual trigger always passes triggerSource: 'manual'
         const result = runDamageConsistencyCheck({
           damagedComponentsJson: assessment.damagedComponentsJson ?? null,
           damageDescription: assessment.damageDescription ?? null,
           enrichedPhotosJson: assessment.enrichedPhotosJson ?? null,
           physicsAnalysisJson: assessment.physicsAnalysis ?? null,
+          triggerSource: 'manual',
         });
 
+        // Always persist the result — including pending_inputs so the UI
+        // can display which conditions are still missing.
         await db.update(aiAssessments)
           .set({ consistencyCheckJson: JSON.stringify(result) })
           .where(eq(aiAssessments.id, assessment.id));

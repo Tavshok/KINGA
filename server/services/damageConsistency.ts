@@ -30,7 +30,17 @@ export interface DamageMismatch {
   component?: string;
 }
 
+export type ConsistencyCheckStatus = "complete" | "pending_inputs";
+
+/** Returned when pre-conditions are not met — check is not run */
+export interface PendingInputsResult {
+  status: "pending_inputs";
+  missing_conditions: string[];
+  checked_at: string;
+}
+
 export interface ConsistencyCheckResult {
+  status: "complete";
   consistency_score: number;          // 0–100 (100 = fully consistent)
   confidence: "HIGH" | "MEDIUM" | "LOW";
   mismatches: DamageMismatch[];
@@ -40,7 +50,10 @@ export interface ConsistencyCheckResult {
     physics: { primaryZone: string | null; available: boolean };
   };
   checked_at: string;                 // ISO timestamp
+  source: "auto" | "manual";          // how the check was triggered
 }
+
+export type ConsistencyCheckOutput = ConsistencyCheckResult | PendingInputsResult;
 
 // ─── Zone normalisation ───────────────────────────────────────────────────────
 
@@ -355,9 +368,72 @@ export interface ConsistencyCheckInput {
   enrichedPhotosJson: string | null;
   /** JSON string: PhysicsAnalysisResult from Stage 3 */
   physicsAnalysisJson: string | null;
+  /**
+   * Whether the check was triggered automatically by the pipeline ("auto")
+   * or manually by a user ("manual"). Defaults to "manual".
+   */
+  triggerSource?: "auto" | "manual";
 }
 
-export function runDamageConsistencyCheck(input: ConsistencyCheckInput): ConsistencyCheckResult {
+// ─── Pre-condition guard ──────────────────────────────────────────────────────
+
+/**
+ * Evaluates whether all three pre-conditions are met before running the check.
+ *
+ * Conditions:
+ *   1. document_extraction.status == "complete"  → damagedComponentsJson has ≥1 component
+ *   2. photo_enrichment.count >= 1               → enrichedPhotosJson has ≥1 enriched photo
+ *   3. physics_analysis.primary_zone exists      → physicsAnalysisJson has a primaryImpactZone
+ *
+ * Returns null when all conditions pass, or a PendingInputsResult when any fail.
+ */
+export function checkPreConditions(input: ConsistencyCheckInput): PendingInputsResult | null {
+  const missing: string[] = [];
+
+  // Condition 1: document extraction complete
+  let docComplete = false;
+  if (input.damagedComponentsJson) {
+    try {
+      const parsed = JSON.parse(input.damagedComponentsJson);
+      if (Array.isArray(parsed) && parsed.length > 0) docComplete = true;
+    } catch { /* invalid JSON */ }
+  }
+  if (!docComplete) missing.push("document_extraction.status != complete (no extracted components)");
+
+  // Condition 2: at least one enriched photo
+  let photoCount = 0;
+  if (input.enrichedPhotosJson) {
+    try {
+      const photos = JSON.parse(input.enrichedPhotosJson);
+      if (Array.isArray(photos)) photoCount = photos.length;
+    } catch { /* invalid JSON */ }
+  }
+  if (photoCount < 1) missing.push("photo_enrichment.count < 1 (no enriched photos)");
+
+  // Condition 3: physics primary zone present
+  let physicsZonePresent = false;
+  if (input.physicsAnalysisJson) {
+    try {
+      const physics = JSON.parse(input.physicsAnalysisJson);
+      if (physics?.primaryImpactZone && typeof physics.primaryImpactZone === "string") {
+        physicsZonePresent = true;
+      }
+    } catch { /* invalid JSON */ }
+  }
+  if (!physicsZonePresent) missing.push("physics_analysis.primary_zone missing");
+
+  if (missing.length > 0) {
+    return {
+      status: "pending_inputs",
+      missing_conditions: missing,
+      checked_at: new Date().toISOString(),
+    };
+  }
+
+  return null; // all conditions met
+}
+
+export function runDamageConsistencyCheck(input: ConsistencyCheckInput): ConsistencyCheckOutput {
   const doc = parseDocumentSource(input.damagedComponentsJson, input.damageDescription);
   const photo = parsePhotoSource(input.enrichedPhotosJson);
   const physics = parsePhysicsSource(input.physicsAnalysisJson);
@@ -392,7 +468,12 @@ export function runDamageConsistencyCheck(input: ConsistencyCheckInput): Consist
   const score = calculateScore(mismatches, physics.consistencyScore);
   const confidence = scoreToConfidence(score, docAvailable, photoAvailable);
 
+  // Run pre-condition guard
+  const pendingResult = checkPreConditions(input);
+  if (pendingResult) return pendingResult;
+
   return {
+    status: "complete",
     consistency_score: score,
     confidence,
     mismatches,
@@ -402,5 +483,6 @@ export function runDamageConsistencyCheck(input: ConsistencyCheckInput): Consist
       physics: { primaryZone: physics.primaryZone, available: physicsAvailable },
     },
     checked_at: new Date().toISOString(),
+    source: input.triggerSource ?? "manual",
   };
 }

@@ -54,12 +54,22 @@ interface SourceSummary {
 }
 
 interface ConsistencyCheckResult {
+  status: "complete";
   consistency_score: number;
   confidence: "HIGH" | "MEDIUM" | "LOW";
   mismatches: DamageMismatch[];
   source_summary: SourceSummary;
   checked_at: string;
+  source?: "auto" | "manual";
 }
+
+interface PendingInputsResult {
+  status: "pending_inputs";
+  missing_conditions: string[];
+  checked_at: string;
+}
+
+type ConsistencyCheckOutput = ConsistencyCheckResult | PendingInputsResult;
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -70,9 +80,17 @@ interface DamageConsistencyPanelProps {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function parseResult(json: string | null | undefined): ConsistencyCheckResult | null {
+function parseResult(json: string | null | undefined): ConsistencyCheckOutput | null {
   if (!json) return null;
   try { return JSON.parse(json); } catch { return null; }
+}
+
+function isComplete(r: ConsistencyCheckOutput): r is ConsistencyCheckResult {
+  return r.status === "complete";
+}
+
+function isPending(r: ConsistencyCheckOutput): r is PendingInputsResult {
+  return r.status === "pending_inputs";
 }
 
 const SEVERITY_CONFIG: Record<MismatchSeverity, { label: string; classes: string; dot: string }> = {
@@ -172,7 +190,7 @@ function SourceChip({
 export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: DamageConsistencyPanelProps) {
   const { user } = useAuth();
   const utils = trpc.useUtils();
-  const [localResult, setLocalResult] = useState<ConsistencyCheckResult | null>(null);
+  const [localResult, setLocalResult] = useState<ConsistencyCheckOutput | null>(null);
 
   const storedResult = parseResult(consistencyCheckJson);
   const result = localResult ?? storedResult;
@@ -180,12 +198,18 @@ export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: Damage
   const canRun = user?.role === "assessor" || user?.role === "insurer" || user?.role === "admin";
 
   const runMutation = (trpc.aiAssessments as any).runConsistencyCheck.useMutation({
-    onSuccess: (data: ConsistencyCheckResult) => {
+    onSuccess: (data: ConsistencyCheckOutput) => {
       setLocalResult(data);
       utils.aiAssessments.byClaim.invalidate({ claimId });
-      toast.success("Consistency check complete", {
-        description: `Score: ${data.consistency_score}/100 — ${data.mismatches.length} issue(s) found`,
-      });
+      if (isComplete(data)) {
+        toast.success("Consistency check complete", {
+          description: `Score: ${data.consistency_score}/100 — ${data.mismatches.length} issue(s) found`,
+        });
+      } else {
+        toast.warning("Consistency check pending", {
+          description: `${data.missing_conditions.length} condition(s) not yet met`,
+        });
+      }
     },
     onError: (err: any) => {
       toast.error(`Consistency check failed: ${err.message}`);
@@ -197,8 +221,11 @@ export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: Damage
     runMutation.mutate({ claimId });
   };
 
-  const highCount = result?.mismatches.filter(m => m.severity === "high").length ?? 0;
-  const medCount = result?.mismatches.filter(m => m.severity === "medium").length ?? 0;
+  const completeResult = result && isComplete(result) ? result : null;
+  const pendingResult = result && isPending(result) ? result : null;
+
+  const highCount = completeResult?.mismatches.filter(m => m.severity === "high").length ?? 0;
+  const medCount = completeResult?.mismatches.filter(m => m.severity === "medium").length ?? 0;
 
   return (
     <div className="space-y-4">
@@ -255,44 +282,81 @@ export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: Damage
         </div>
       )}
 
-      {/* Result */}
-      {result && !runMutation.isPending && (
+      {/* Pending inputs state */}
+      {pendingResult && !runMutation.isPending && (
+        <div
+          className="p-4 rounded-lg space-y-3"
+          style={{ background: "var(--muted)", border: "1px solid var(--border)" }}
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500 flex-shrink-0" />
+            <p className="text-sm font-semibold text-amber-600 dark:text-amber-400">
+              Check not run — inputs pending
+            </p>
+          </div>
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+            The consistency check requires all three data sources to be ready before it can run.
+            The following conditions are not yet met:
+          </p>
+          <ul className="space-y-1.5">
+            {pendingResult.missing_conditions.map((cond, i) => (
+              <li key={i} className="flex items-start gap-2">
+                <span className="mt-0.5 h-1.5 w-1.5 rounded-full bg-amber-500 flex-shrink-0" style={{ marginTop: "6px" }} />
+                <span className="text-xs font-mono" style={{ color: "var(--foreground)" }}>{cond}</span>
+              </li>
+            ))}
+          </ul>
+          {pendingResult.checked_at && (
+            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+              Last checked {new Date(pendingResult.checked_at).toLocaleString()}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Complete result */}
+      {completeResult && !runMutation.isPending && (
         <div className="space-y-4">
           {/* Score + confidence */}
           <div
             className="p-4 rounded-lg"
             style={{ background: "var(--card)", border: "1px solid var(--border)" }}
           >
-            <ScoreGauge score={result.consistency_score} />
-            <div className="flex items-center gap-2 mt-3">
+            <ScoreGauge score={completeResult.consistency_score} />
+            <div className="flex items-center gap-2 mt-3 flex-wrap">
               <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Confidence:</span>
               <Badge
                 variant="outline"
                 className={
-                  result.confidence === "HIGH"
+                  completeResult.confidence === "HIGH"
                     ? "text-emerald-600 dark:text-emerald-400 border-emerald-300 dark:border-emerald-700"
-                    : result.confidence === "MEDIUM"
+                    : completeResult.confidence === "MEDIUM"
                     ? "text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-700"
                     : "text-red-600 dark:text-red-400 border-red-300 dark:border-red-700"
                 }
               >
-                {result.confidence}
+                {completeResult.confidence}
               </Badge>
-              {result.mismatches.length > 0 && (
+              {completeResult.source && (
+                <Badge variant="outline" className="text-xs text-blue-600 dark:text-blue-400 border-blue-300 dark:border-blue-700">
+                  {completeResult.source === "auto" ? "⚡ auto" : "👤 manual"}
+                </Badge>
+              )}
+              {completeResult.mismatches.length > 0 && (
                 <span className="text-xs ml-auto" style={{ color: "var(--muted-foreground)" }}>
                   {highCount > 0 && <span className="text-red-600 dark:text-red-400 font-medium">{highCount} high</span>}
                   {highCount > 0 && medCount > 0 && <span className="mx-1">·</span>}
                   {medCount > 0 && <span className="text-amber-600 dark:text-amber-400 font-medium">{medCount} medium</span>}
-                  {(highCount > 0 || medCount > 0) && result.mismatches.length - highCount - medCount > 0 && <span className="mx-1">·</span>}
-                  {result.mismatches.length - highCount - medCount > 0 && (
-                    <span>{result.mismatches.length - highCount - medCount} low</span>
+                  {(highCount > 0 || medCount > 0) && completeResult.mismatches.length - highCount - medCount > 0 && <span className="mx-1">·</span>}
+                  {completeResult.mismatches.length - highCount - medCount > 0 && (
+                    <span>{completeResult.mismatches.length - highCount - medCount} low</span>
                   )}
                 </span>
               )}
             </div>
-            {result.checked_at && (
+            {completeResult.checked_at && (
               <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
-                Checked {new Date(result.checked_at).toLocaleString()}
+                Checked {new Date(completeResult.checked_at).toLocaleString()}
               </p>
             )}
           </div>
@@ -306,30 +370,30 @@ export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: Damage
               <SourceChip
                 icon={FileText}
                 label="Document"
-                available={result.source_summary.document.available}
+                available={completeResult.source_summary.document.available}
                 detail={
-                  result.source_summary.document.available
-                    ? `${result.source_summary.document.components.length} component(s), zones: ${result.source_summary.document.zones.join(", ") || "inferred"}`
+                  completeResult.source_summary.document.available
+                    ? `${completeResult.source_summary.document.components.length} component(s), zones: ${completeResult.source_summary.document.zones.join(", ") || "inferred"}`
                     : "No extracted components"
                 }
               />
               <SourceChip
                 icon={Camera}
                 label="Photos"
-                available={result.source_summary.photos.available}
+                available={completeResult.source_summary.photos.available}
                 detail={
-                  result.source_summary.photos.available
-                    ? `${result.source_summary.photos.components.length} component(s), zones: ${result.source_summary.photos.zones.join(", ") || "unknown"}`
+                  completeResult.source_summary.photos.available
+                    ? `${completeResult.source_summary.photos.components.length} component(s), zones: ${completeResult.source_summary.photos.zones.join(", ") || "unknown"}`
                     : "No enriched photos"
                 }
               />
               <SourceChip
                 icon={Zap}
                 label="Physics"
-                available={result.source_summary.physics.available}
+                available={completeResult.source_summary.physics.available}
                 detail={
-                  result.source_summary.physics.available
-                    ? `Primary zone: ${result.source_summary.physics.primaryZone}`
+                  completeResult.source_summary.physics.available
+                    ? `Primary zone: ${completeResult.source_summary.physics.primaryZone}`
                     : "No physics analysis"
                 }
               />
@@ -337,13 +401,13 @@ export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: Damage
           </div>
 
           {/* Mismatches */}
-          {result.mismatches.length > 0 ? (
+          {completeResult.mismatches.length > 0 ? (
             <div>
               <p className="text-xs font-semibold mb-2" style={{ color: "var(--muted-foreground)" }}>
-                MISMATCHES ({result.mismatches.length})
+                MISMATCHES ({completeResult.mismatches.length})
               </p>
               <div className="space-y-2">
-                {result.mismatches.map((m, i) => {
+                {completeResult.mismatches.map((m: DamageMismatch, i: number) => {
                   const cfg = SEVERITY_CONFIG[m.severity];
                   return (
                     <div
@@ -355,7 +419,7 @@ export function DamageConsistencyPanel({ claimId, consistencyCheckJson }: Damage
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
-                            {TYPE_LABELS[m.type] ?? m.type}
+                            {TYPE_LABELS[m.type as MismatchType] ?? m.type}
                           </span>
                           <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${cfg.classes}`}>
                             {cfg.label}
