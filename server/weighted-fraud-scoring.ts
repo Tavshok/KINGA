@@ -50,6 +50,20 @@ export interface FraudScoringInput {
   aiConfidence?: number;
   /** Optional: AI-extracted fraud indicators for context */
   aiIndicators?: Array<{ label: string; points: number }>;
+  /**
+   * Optional: multi-source damage conflict signal from the consistency check.
+   * Only injected when the check has status "complete" AND has at least one
+   * high-severity mismatch.
+   *
+   * confidence "HIGH"   → weight 10–15 (use 12 as default)
+   * confidence "MEDIUM" → weight 5
+   * confidence "LOW"    → ignored (do not inject)
+   */
+  multiSourceConflict?: {
+    confidence: "HIGH" | "MEDIUM" | "LOW";
+    highSeverityMismatchCount: number;
+    details: string;
+  };
 }
 
 // ─── Level mapping (strict 5-band) ───────────────────────────────────────────
@@ -178,6 +192,35 @@ export function computeWeightedFraudScore(
       : "Damage severity is consistent with available physics data.",
   });
   base += severityPhysicsValue;
+
+  // Factor 7: Multi-source damage conflict (from Stage 12/13 consistency check)
+  // Rules:
+  //   confidence HIGH   + high-severity mismatches → +12 (range 10–15, default 12)
+  //   confidence MEDIUM + high-severity mismatches → +5
+  //   confidence LOW                               → ignored
+  const conflict = input.multiSourceConflict;
+  const conflictTriggered =
+    conflict !== undefined &&
+    conflict.highSeverityMismatchCount > 0 &&
+    (conflict.confidence === "HIGH" || conflict.confidence === "MEDIUM");
+  const conflictValue = conflictTriggered
+    ? conflict!.confidence === "HIGH"
+      ? 12  // default mid-range of 10–15
+      : 5   // MEDIUM confidence
+    : 0;
+  contributions.push({
+    factor: "Multi-Source Damage Conflict",
+    value: conflictValue,
+    triggered: conflictTriggered,
+    detail: conflictTriggered
+      ? `Damage evidence is inconsistent across document, photos, and physics analysis ` +
+        `(${conflict!.highSeverityMismatchCount} high-severity mismatch${conflict!.highSeverityMismatchCount > 1 ? "es" : ""}, ` +
+        `consistency check confidence: ${conflict!.confidence}). ${conflict!.details}`
+      : conflict?.confidence === "LOW"
+      ? "Multi-source conflict detected but confidence is LOW — signal not applied."
+      : "No high-severity multi-source damage conflict detected.",
+  });
+  base += conflictValue;
 
   // Cap at 100
   const score = Math.min(100, base);

@@ -2796,6 +2796,39 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const damageZones = damagedComponents.length > 0
           ? damagedComponents.map((c: string) => c.toLowerCase())
           : impactDirection !== 'unknown' ? [impactDirection] : [];
+
+        // Build multi-source conflict signal from Stage 12/13 consistency check result
+        // Only inject when: status == "complete" AND at least one high-severity mismatch
+        // confidence HIGH → weight 12, MEDIUM → weight 5, LOW → ignored
+        let multiSourceConflict: { confidence: "HIGH" | "MEDIUM" | "LOW"; highSeverityMismatchCount: number; details: string } | undefined;
+        try {
+          const consistencyRaw = assessment.consistencyCheckJson
+            ? (typeof assessment.consistencyCheckJson === 'string'
+                ? JSON.parse(assessment.consistencyCheckJson)
+                : assessment.consistencyCheckJson)
+            : null;
+          if (
+            consistencyRaw &&
+            consistencyRaw.status === 'complete' &&
+            Array.isArray(consistencyRaw.mismatches)
+          ) {
+            const highMismatches = consistencyRaw.mismatches.filter(
+              (m: any) => m.severity === 'high'
+            );
+            const checkConfidence: 'HIGH' | 'MEDIUM' | 'LOW' = consistencyRaw.confidence ?? 'LOW';
+            if (highMismatches.length > 0 && checkConfidence !== 'LOW') {
+              multiSourceConflict = {
+                confidence: checkConfidence,
+                highSeverityMismatchCount: highMismatches.length,
+                details: highMismatches
+                  .map((m: any) => m.details)
+                  .slice(0, 2) // include up to 2 details in the fraud explanation
+                  .join('; '),
+              };
+            }
+          }
+        } catch { /* ignore parse errors — signal simply won't be injected */ }
+
         const weightedFraud = computeWeightedFraudScore({
           consistencyScore: Number(consistencyScore),
           aiEstimatedCost,
@@ -2805,6 +2838,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           hasPreviousClaims: false, // TODO: wire to claims history lookup
           missingDataCount,
           aiIndicators: fraudIndicators.map(i => ({ label: i.indicator, points: i.score })),
+          multiSourceConflict,
         });
         return { ...result, costExtraction, weightedFraud };
       }),

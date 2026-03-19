@@ -138,6 +138,119 @@ describe("computeWeightedFraudScore", () => {
     expect(factorNames).toContain("Missing Data");
   });
 
+  // ─── Factor 7: Multi-Source Damage Conflict ───────────────────────────────
+  describe("Factor 7: Multi-Source Damage Conflict", () => {
+    it("adds +12 when confidence is HIGH and there are high-severity mismatches", () => {
+      const result = computeWeightedFraudScore({
+        ...baseInput,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 2,
+          details: "Photos show front damage, report says rear",
+        },
+      });
+      expect(result.score).toBe(12);
+      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 12 });
+    });
+
+    it("adds +5 when confidence is MEDIUM and there are high-severity mismatches", () => {
+      const result = computeWeightedFraudScore({
+        ...baseInput,
+        multiSourceConflict: {
+          confidence: "MEDIUM",
+          highSeverityMismatchCount: 1,
+          details: "Physics zone conflicts with reported zone",
+        },
+      });
+      expect(result.score).toBe(5);
+      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 5 });
+    });
+
+    it("does NOT add any penalty when confidence is LOW", () => {
+      const result = computeWeightedFraudScore({
+        ...baseInput,
+        multiSourceConflict: {
+          confidence: "LOW",
+          highSeverityMismatchCount: 3,
+          details: "Low confidence — ignored",
+        },
+      });
+      expect(result.score).toBe(0);
+      const conflictContrib = result.contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictContrib).toBeUndefined(); // not in triggered contributions
+    });
+
+    it("does NOT add penalty when highSeverityMismatchCount is 0 even with HIGH confidence", () => {
+      const result = computeWeightedFraudScore({
+        ...baseInput,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 0,
+          details: "No high-severity mismatches",
+        },
+      });
+      expect(result.score).toBe(0);
+    });
+
+    it("does NOT add penalty when multiSourceConflict is undefined", () => {
+      const result = computeWeightedFraudScore({ ...baseInput });
+      expect(result.score).toBe(0);
+      const conflictContrib = result.full_contributions.find(c => c.factor === "Multi-Source Damage Conflict");
+      expect(conflictContrib?.triggered).toBe(false);
+    });
+
+    it("combines with other factors and caps at 100", () => {
+      // Base factors: inconsistency(20) + cost(15) + direction(15) + repeat(20) + missing(10) = 80
+      // + conflict HIGH = +12 → total 92
+      const result = computeWeightedFraudScore({
+        consistencyScore: 20,
+        aiEstimatedCost: 1000,
+        quotedAmount: 2000,
+        impactDirection: "rear",
+        damageZones: ["front"],
+        hasPreviousClaims: true,
+        missingDataCount: 5,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 2,
+          details: "Zone mismatch across all three sources",
+        },
+      });
+      expect(result.score).toBe(92); // 80 + 12 = 92, below cap
+      expect(result.level).toBe("elevated"); // > 80
+      expect(result.contributions).toContainEqual({ factor: "Multi-Source Damage Conflict", value: 12 });
+    });
+
+    it("caps combined score at 100", () => {
+      // 80 (all base factors) + 15 (severity/physics) + 12 (conflict) = 107 → capped at 100
+      const result = computeWeightedFraudScore({
+        consistencyScore: 20,
+        aiEstimatedCost: 1000,
+        quotedAmount: 2000,
+        impactDirection: "rear",
+        damageZones: ["front"],
+        hasPreviousClaims: true,
+        missingDataCount: 5,
+        damageSeverity: "catastrophic",
+        deltaVKmh: 0,
+        aiConfidence: 40,
+        multiSourceConflict: {
+          confidence: "HIGH",
+          highSeverityMismatchCount: 3,
+          details: "All three sources disagree",
+        },
+      });
+      expect(result.score).toBe(100);
+      expect(result.level).toBe("elevated");
+    });
+
+    it("includes factor in full_contributions even when not triggered", () => {
+      const result = computeWeightedFraudScore({ ...baseInput });
+      const factorNames = result.full_contributions.map(c => c.factor);
+      expect(factorNames).toContain("Multi-Source Damage Conflict");
+    });
+  });
+
   it("returns contributions array with only triggered factors", () => {
     const result = computeWeightedFraudScore({ ...baseInput, hasPreviousClaims: true, missingDataCount: 2 });
     expect(result.contributions).toHaveLength(2);
