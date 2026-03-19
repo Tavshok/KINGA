@@ -46,6 +46,10 @@ import {
   buildCoherenceFraudInput,
   type DamagePhysicsCoherenceResult,
 } from "./damagePhysicsCoherence";
+import {
+  validateCostRealism,
+  mergeValidatedCost,
+} from "./costRealismValidator";
 
 /**
  * Run the full self-healing pipeline.
@@ -253,6 +257,23 @@ export async function runPipelineV2(
   const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!);
   recordStage("9_cost", s9);
   stage9Data = s9.data; // Always has data (self-healing)
+
+  // ── STAGE 36: Cost Realism Validation ────────────────────────────────
+  try {
+    const componentCount = stage6Data?.damagedParts?.length ?? 0;
+    const overallSeverity = stage7Data?.accidentSeverity ?? null;
+    const costValidation = validateCostRealism(
+      stage9Data,
+      componentCount,
+      overallSeverity
+    );
+    if (stage9Data) {
+      stage9Data = mergeValidatedCost(stage9Data, costValidation) as typeof stage9Data;
+    }
+    ctx.log("Stage 36", `Cost realism: validated=${costValidation.validated_cost}, adjustments=${costValidation.adjustments_applied}, confidence=×${costValidation.confidence_multiplier.toFixed(2)}. ${costValidation.summary}`);
+  } catch (err) {
+    ctx.log("Stage 36", `Cost realism validation failed (non-fatal): ${String(err)}`);
+  }
 
   // ── STAGE 9b: Turnaround Time Analysis ───────────────────────────────
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
