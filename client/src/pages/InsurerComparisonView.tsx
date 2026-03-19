@@ -26,6 +26,8 @@ import FraudScorePanel from "@/components/FraudScorePanel";
 import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
+import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
+import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
@@ -139,6 +141,9 @@ export default function InsurerComparisonView() {
 
   // Advanced physics toggle state — must be declared before any early returns
   const [showAdvancedPhysics, setShowAdvancedPhysics] = useState(false);
+
+  // Incident type override dialog state
+  const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
 
   // Re-run AI assessment mutation (used in Claim Summary card)
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
@@ -740,7 +745,33 @@ export default function InsurerComparisonView() {
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incident Type</p>
-                <p className="font-medium capitalize">{(claim as any).incidentType || <span className="text-muted-foreground italic">N/A</span>}</p>
+                <div className="flex items-center gap-2">
+                  <span className="font-medium capitalize">
+                    {(claim as any).incidentType || <span className="text-muted-foreground italic">N/A</span>}
+                  </span>
+                  {/* Override badge — shown when type has been manually corrected */}
+                  {(claim as any).incidentTypeOverridden === 1 && (
+                    <Badge variant="outline" className="text-xs px-1.5 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
+                      overridden
+                    </Badge>
+                  )}
+                  {/* Override button — only for assessors, insurers, admins */}
+                  {user && ['assessor', 'insurer', 'admin'].includes((user as any).role) && (
+                    <button
+                      onClick={() => setOverrideDialogOpen(true)}
+                      className="ml-1 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      title="Override incident type"
+                    >
+                      <Pencil className="h-3 w-3" />
+                    </button>
+                  )}
+                </div>
+                {/* AI-detected original value — shown only after an override */}
+                {(claim as any).incidentTypeOverridden === 1 && (claim as any).aiDetectedIncidentType && (
+                  <p className="text-xs text-muted-foreground">
+                    AI detected: <span className="capitalize">{(claim as any).aiDetectedIncidentType}</span>
+                  </p>
+                )}
               </div>
               {(claim as any).vehicleColor && (
                 <div className="space-y-1">
@@ -1137,15 +1168,29 @@ export default function InsurerComparisonView() {
               vehicleMileage={claim?.vehicleMileage ?? null}
               vehicleYear={claim?.vehicleYear ?? null}
             />
-          </div>
+           </div>
         </div>
       </main>
+
+      {/* Incident Type Override Dialog */}
+      {claim && (
+        <IncidentTypeOverrideDialog
+          open={overrideDialogOpen}
+          onOpenChange={setOverrideDialogOpen}
+          claimId={claimId}
+          currentIncidentType={(claim as any).incidentType}
+          aiDetectedType={(claim as any).aiDetectedIncidentType}
+          isAlreadyOverridden={!!(claim as any).incidentTypeOverridden}
+          onSuccess={() => {
+            utils.claims.getById.invalidate({ id: claimId });
+            utils.aiAssessments.byClaim.invalidate({ claimId });
+          }}
+        />
+      )}
     </div>
   );
 }
-
-
-// Claim Approval Component
+// Claim Approval Componentt
 function ClaimApprovalSection({ claimId, quotes }: { claimId: number; quotes: any[] }) {
   const [selectedQuoteId, setSelectedQuoteId] = useState<number | null>(null);
   const utils = trpc.useUtils();
@@ -2487,6 +2532,7 @@ function ExecutiveSummaryInline({
           </div>
         </div>
       )}
+
     </div>
   );
 }

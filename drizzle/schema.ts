@@ -731,6 +731,19 @@ export const claims = mysqlTable("claims", {
 	driverRegistryId: int("driver_registry_id"),
 	// FK → drivers.id — set after pipeline upserts the third-party driver record
 	thirdPartyDriverRegistryId: int("third_party_driver_registry_id"),
+	// ── Incident type override ────────────────────────────────────────────────
+	// Preserves the original AI-detected incident type when an adjuster overrides it.
+	aiDetectedIncidentType: mysqlEnum("ai_detected_incident_type", ['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
+	// Set to 1 when an adjuster has manually overridden the AI-detected incident type.
+	incidentTypeOverridden: tinyint("incident_type_overridden").default(0).notNull(),
+	// Free-text reason supplied by the adjuster when overriding incident type.
+	incidentTypeOverrideReason: text("incident_type_override_reason"),
+	// FK → users.id — who performed the override.
+	incidentTypeOverriddenBy: int("incident_type_overridden_by"),
+	// Timestamp of the most recent override.
+	incidentTypeOverriddenAt: timestamp("incident_type_overridden_at", { mode: 'string' }),
+	// JSON blob: result of re-running impact direction + damage consistency checks after override.
+	incidentTypeRevalidationJson: text("incident_type_revalidation_json"),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),

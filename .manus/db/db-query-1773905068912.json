@@ -1,0 +1,9 @@
+{
+  "query": "\nALTER TABLE claims\n  ADD COLUMN IF NOT EXISTS ai_detected_incident_type ENUM('collision','theft','hail','fire','vandalism','flood','hijacking','other') NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_overridden TINYINT NOT NULL DEFAULT 0,\n  ADD COLUMN IF NOT EXISTS incident_type_override_reason TEXT NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_overridden_by INT NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_overridden_at TIMESTAMP NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_revalidation_json TEXT NULL;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nALTER TABLE claims\n  ADD COLUMN IF NOT EXISTS ai_detected_incident_type ENUM('collision','theft','hail','fire','vandalism','flood','hijacking','other') NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_overridden TINYINT NOT NULL DEFAULT 0,\n  ADD COLUMN IF NOT EXISTS incident_type_override_reason TEXT NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_overridden_by INT NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_overridden_at TIMESTAMP NULL,\n  ADD COLUMN IF NOT EXISTS incident_type_revalidation_json TEXT NULL;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 2035
+}

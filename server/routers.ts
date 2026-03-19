@@ -3785,6 +3785,138 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
   // (admin router procedures moved to server/routers/admin.ts)
 
+  /**
+   * Incident Type Override Router
+   *
+   * Allows assessors/insurers/admins to manually override the AI-detected
+   * incident type, preserving the original value and re-running downstream
+   * impact direction and damage consistency validations.
+   */
+  incidentType: router({
+    /**
+     * Override the incident type for a claim.
+     *
+     * @param claimId   - Claim to update
+     * @param newType   - The corrected incident type
+     * @param reason    - Mandatory reason for the override
+     */
+    override: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        newType: z.enum(['collision','theft','hail','fire','vandalism','flood','hijacking','other']),
+        reason: z.string().min(5, 'Please provide a reason of at least 5 characters'),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may override incident type' });
+        }
+
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) throw new TRPCError({ code: 'NOT_FOUND', message: 'Claim not found' });
+
+        const previousType = claim.incidentType;
+
+        // ── 1. Fetch AI assessment for re-validation context ──────────────
+        const aiAssessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+
+        // Extract damage zones from physics analysis if available
+        let damageZones: string[] = [];
+        let damagedComponents: string[] = [];
+        if (aiAssessment) {
+          try {
+            if (aiAssessment.physicsAnalysisParsed?.impactZones) {
+              damageZones = aiAssessment.physicsAnalysisParsed.impactZones.map(
+                (z: any) => (typeof z === 'string' ? z : z?.zone ?? z?.name ?? '')
+              ).filter(Boolean);
+            }
+          } catch { /* ignore parse errors */ }
+          try {
+            if (aiAssessment.damagedComponentsJson) {
+              const parsed = JSON.parse(aiAssessment.damagedComponentsJson);
+              damagedComponents = Array.isArray(parsed)
+                ? parsed.map((c: any) => (typeof c === 'string' ? c : c?.name ?? c?.component ?? '')).filter(Boolean)
+                : [];
+            }
+          } catch { /* ignore parse errors */ }
+        }
+
+        // ── 2. Run re-validation ──────────────────────────────────────────
+        const { revalidateIncidentType } = await import('./services/incidentTypeRevalidation');
+        const revalidation = await revalidateIncidentType({
+          newIncidentType: input.newType,
+          incidentDescription: claim.incidentDescription,
+          damageZones,
+          damagedComponents,
+          aiAssessmentSummary: aiAssessment?.damageDescription,
+        });
+
+        // ── 3. Persist override + revalidation result ─────────────────────
+        const db = await getDb();
+        if (!db) throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Database unavailable' });
+
+        await db.update(claims).set({
+          incidentType: input.newType,
+          // Preserve original AI value only on first override
+          aiDetectedIncidentType: claim.incidentTypeOverridden
+            ? (claim.aiDetectedIncidentType ?? previousType)
+            : previousType,
+          incidentTypeOverridden: 1,
+          incidentTypeOverrideReason: input.reason,
+          incidentTypeOverriddenBy: ctx.user.id,
+          incidentTypeOverriddenAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+          incidentTypeRevalidationJson: JSON.stringify(revalidation),
+        } as any).where(eq(claims.id, input.claimId));
+
+        // ── 4. Audit trail ────────────────────────────────────────────────
+        await createAuditEntry({
+          claimId: input.claimId,
+          userId: ctx.user.id,
+          action: 'incident_type_overridden',
+          entityType: 'claim',
+          entityId: input.claimId,
+          previousValue: previousType ?? undefined,
+          newValue: input.newType,
+          changeDescription:
+            `Incident type changed from "${previousType ?? 'unknown'}" to "${input.newType}" ` +
+            `by ${ctx.user.role}. Reason: ${input.reason}. ` +
+            `Re-validation: ${revalidation.overallStatus.toUpperCase()}`,
+        });
+
+        return {
+          success: true,
+          previousType,
+          newType: input.newType,
+          aiDetectedType: claim.incidentTypeOverridden
+            ? (claim.aiDetectedIncidentType ?? previousType)
+            : previousType,
+          revalidation,
+        };
+      }),
+
+    /**
+     * Get the current incident type override status for a claim.
+     */
+    getOverrideStatus: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        const tenantId = ctx.user?.role === 'admin' ? undefined : (ctx.user?.tenantId || 'default');
+        const claim = await getClaimById(input.claimId, tenantId);
+        if (!claim) return null;
+        return {
+          incidentType: claim.incidentType,
+          isOverridden: !!(claim as any).incidentTypeOverridden,
+          aiDetectedType: (claim as any).aiDetectedIncidentType ?? null,
+          overrideReason: (claim as any).incidentTypeOverrideReason ?? null,
+          overriddenAt: (claim as any).incidentTypeOverriddenAt ?? null,
+          revalidation: (claim as any).incidentTypeRevalidationJson
+            ? JSON.parse((claim as any).incidentTypeRevalidationJson)
+            : null,
+        };
+      }),
+  }),
+
   // Audit trail operations
   audit: router({
     byClaim: protectedProcedure
