@@ -468,9 +468,13 @@ export function runDamageConsistencyCheck(input: ConsistencyCheckInput): Consist
   const score = calculateScore(mismatches, physics.consistencyScore);
   const confidence = scoreToConfidence(score, docAvailable, photoAvailable);
 
-  // Run pre-condition guard
-  const pendingResult = checkPreConditions(input);
-  if (pendingResult) return pendingResult;
+  // Run pre-condition guard only for auto-triggered calls.
+  // Manual calls (and direct service calls without a triggerSource) always compute
+  // and return a complete result regardless of source availability.
+  if (input.triggerSource === "auto") {
+    const pendingResult = checkPreConditions(input);
+    if (pendingResult) return pendingResult;
+  }
 
   return {
     status: "complete",

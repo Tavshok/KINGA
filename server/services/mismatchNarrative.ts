@@ -20,8 +20,9 @@ import type { DamageMismatch, MismatchType } from "./damageConsistency";
 export interface MismatchNarrative {
   mismatch_type: MismatchType;
   severity: "low" | "medium" | "high";
-  explanation: string;           // 1–2 sentences: what / why / check
-  source: "template" | "llm";   // how the narrative was generated
+  explanation: string;           // 1–2 sentences: what / why / check (internal)
+  external_narrative: string;   // neutral, non-accusatory version for external sharing
+  source: "template" | "llm";   // how the internal narrative was generated
   preserves_meaning?: boolean;   // true when LLM confirms meaning is preserved
 }
 
@@ -282,16 +283,188 @@ export async function generateMismatchNarratives(
       explanation = baseNarrative;
     }
 
-    results.push({
+    // Always generate the deterministic external-safe narrative first.
+    const baseExternal = externalTemplate(m);
+
+    // Optionally enrich the external narrative via LLM (same useLlm gate).
+    const external_narrative = useLlm
+      ? await llmExternalNarrative(m, baseExternal)
+      : baseExternal;
+
+    const narrative: MismatchNarrative = {
       mismatch_type: m.type,
       severity: m.severity,
       explanation,
+      external_narrative,
       source,
-      ...(preserves_meaning !== undefined ? { preserves_meaning } : {}),
-    });
+    };
+    if (preserves_meaning !== undefined) {
+      narrative.preserves_meaning = preserves_meaning;
+    }
+    results.push(narrative);
   }
 
   return results;
+}
+
+// ─── External-safe narrative ──────────────────────────────────────────────────────────
+
+/**
+ * Deterministic external-safe template for each mismatch type.
+ * Uses neutral, non-accusatory phrasing suitable for sharing with claimants
+ * and third parties. No investigative or fraud-implying language.
+ */
+function externalTemplate(m: DamageMismatch): string {
+  switch (m.type) {
+    case "zone_mismatch": {
+      const a = m.source_a ?? "one area";
+      const b = m.source_b ?? "another area";
+      return `An inconsistency has been observed between the ${a} zone referenced in the claim documentation and the ${b} zone identified in the submitted evidence. Further review is recommended to verify the affected area.`;
+    }
+    case "component_unreported": {
+      const c = m.component ?? "a component";
+      return `${c.charAt(0).toUpperCase() + c.slice(1)} has been identified in the submitted evidence but does not appear in the claim documentation. Verification of the documented damage scope is recommended.`;
+    }
+    case "component_not_visible": {
+      const c = m.component ?? "A component";
+      return `${c.charAt(0).toUpperCase() + c.slice(1)} referenced in the claim documentation requires verification, as corresponding visual evidence was not identified in the submitted images. Further documentation may be required.`;
+    }
+    case "severity_mismatch": {
+      const a = m.source_a ?? "one source";
+      const b = m.source_b ?? "another source";
+      return `An inconsistency has been observed in the severity assessment between ${a} and ${b}. Further review is recommended to confirm the extent of damage.`;
+    }
+    case "physics_zone_conflict": {
+      const a = m.source_a ?? "the reported impact zone";
+      const b = m.source_b ?? "the physics analysis zone";
+      return `An inconsistency has been observed between the reported impact zone (${a}) and the technical analysis result (${b}). Further review is recommended to confirm the impact location.`;
+    }
+    case "photo_zone_conflict": {
+      const a = m.source_a ?? "the reported zone";
+      const b = m.source_b ?? "the photo evidence zone";
+      return `An inconsistency has been observed between the zone referenced in the claim (${a}) and the zone identified in the submitted photographs (${b}). Further review is recommended.`;
+    }
+    case "no_photo_evidence": {
+      const c = m.component ?? "reported damage";
+      return `Visual evidence for ${c} could not be identified in the submitted photographs. Submission of additional supporting images is recommended to complete the assessment.`;
+    }
+    case "no_document_evidence": {
+      const c = m.component ?? "identified damage";
+      return `${c.charAt(0).toUpperCase() + c.slice(1)} identified in the submitted evidence requires verification against the claim documentation. Additional documentation may be required.`;
+    }
+    default:
+      return "An inconsistency has been observed in the submitted claim evidence. Further review is recommended.";
+  }
+}
+
+/** Structured output returned by the external narrative LLM call */
+interface ExternalNarrativeLlmResult {
+  external_narrative: string;
+}
+
+/**
+ * Uses the LLM to produce a more fluent external-safe narrative.
+ * Strictly enforces neutral, non-accusatory language rules.
+ * Falls back to the deterministic template on any error.
+ */
+async function llmExternalNarrative(
+  m: DamageMismatch,
+  baseExternal: string
+): Promise<string> {
+  try {
+    const { invokeLLM } = await import("../_core/llm");
+
+    const systemPrompt = [
+      `You are an insurance communications specialist. Your task is to convert an internal`,
+      `claims assessment note into external-safe language suitable for sharing with claimants`,
+      `and third parties.`,
+      ``,
+      `STRICT RULES (violations will cause the output to be discarded):`,
+      `  1. REMOVE all investigative tone — do not imply the claimant is dishonest.`,
+      `  2. AVOID any language that implies fraud, misrepresentation, or deliberate omission.`,
+      `  3. Use ONLY neutral phrasing such as:`,
+      `       - "requires verification"`,
+      `       - "inconsistency observed"`,
+      `       - "further review recommended"`,
+      `       - "additional documentation may be required"`,
+      `  4. DO NOT introduce new facts, zones, or components not present in the base text.`,
+      `  5. Output MUST be exactly 1–2 sentences.`,
+      `  6. Use professional, plain English. No bullet points, headers, or markdown.`,
+      `  7. Total output MUST NOT exceed 60 words.`,
+      `  8. Do NOT start with "I", "We", or any first-person pronoun.`,
+    ].join("\n");
+
+    const userPrompt = [
+      `Mismatch type: ${m.type}`,
+      `Severity: ${m.severity}`,
+      m.source_a ? `  Source A: ${m.source_a}` : "",
+      m.source_b ? `  Source B: ${m.source_b}` : "",
+      m.component ? `  Component: ${m.component}` : "",
+      ``,
+      `Base external narrative (do NOT contradict this):`,
+      `"${baseExternal}"`,
+      ``,
+      `Return the external narrative as JSON.`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "external_narrative",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              external_narrative: {
+                type: "string",
+                description:
+                  "Neutral, non-accusatory 1–2 sentence narrative for external sharing. Must not imply fraud or investigative intent.",
+              },
+            },
+            required: ["external_narrative"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const rawContent = response?.choices?.[0]?.message?.content;
+    const jsonText: string =
+      typeof rawContent === "string" ? rawContent.trim() : "";
+
+    if (!jsonText) return baseExternal;
+
+    const parsed: ExternalNarrativeLlmResult = JSON.parse(jsonText);
+    const text = parsed.external_narrative?.trim() ?? "";
+
+    // Sanity checks: length and no forbidden investigative phrases
+    const FORBIDDEN = [
+      /\bfraud\b/i,
+      /\bmisrepresent/i,
+      /\bdishonest/i,
+      /\bdeliberate/i,
+      /\bsuspect/i,
+      /\bfalse\b/i,
+      /\bfabricate/i,
+      /\binvestigat/i,
+    ];
+    const hasForbidden = FORBIDDEN.some((re) => re.test(text));
+
+    if (hasForbidden || text.length < 20 || text.length > 500) {
+      return baseExternal;
+    }
+
+    return text;
+  } catch {
+    return baseExternal;
+  }
 }
 
 /**

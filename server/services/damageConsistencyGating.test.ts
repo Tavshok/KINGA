@@ -121,12 +121,14 @@ describe("checkPreConditions", () => {
 // ─── runDamageConsistencyCheck with gating ────────────────────────────────────
 
 describe("runDamageConsistencyCheck gating", () => {
-  it("returns pending_inputs when conditions are not met", () => {
+  it("returns pending_inputs when conditions are not met (auto trigger)", () => {
+    // Pre-condition guard only fires for auto-triggered calls
     const result = runDamageConsistencyCheck({
       damagedComponentsJson: null,
       damageDescription: null,
       enrichedPhotosJson: null,
       physicsAnalysisJson: null,
+      triggerSource: "auto",
     });
     expect(result.status).toBe("pending_inputs");
   });
@@ -169,11 +171,12 @@ describe("runDamageConsistencyCheck gating", () => {
     }
   });
 
-  it("does not run check when only 2 of 3 conditions are met", () => {
-    // Missing physics
+  it("does not run check when only 2 of 3 conditions are met (auto trigger)", () => {
+    // Missing physics — guard only fires for auto-triggered calls
     const result = runDamageConsistencyCheck({
       ...FULL_INPUT,
       physicsAnalysisJson: null,
+      triggerSource: "auto",
     });
     expect(result.status).toBe("pending_inputs");
     if (result.status === "pending_inputs") {
