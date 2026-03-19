@@ -1,0 +1,406 @@
+/**
+ * Damage Consistency Engine
+ *
+ * Compares three independent damage evidence sources:
+ *   1. Document-extracted damage  (damagedComponentsJson + damageDescription from AI assessment)
+ *   2. Photo-detected damage      (enrichedPhotosJson from Stage 11 photo enrichment)
+ *   3. Physics impact zone        (physicsAnalysis.primaryImpactZone + damageConsistency)
+ *
+ * Produces a consistency_score (0–100) and a typed mismatches[] list.
+ */
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type MismatchType =
+  | "zone_mismatch"
+  | "component_unreported"
+  | "component_not_visible"
+  | "severity_mismatch"
+  | "physics_zone_conflict"
+  | "photo_zone_conflict"
+  | "no_photo_evidence"
+  | "no_document_evidence";
+
+export interface DamageMismatch {
+  type: MismatchType;
+  severity: "low" | "medium" | "high";
+  details: string;
+  source_a?: string;
+  source_b?: string;
+  component?: string;
+}
+
+export interface ConsistencyCheckResult {
+  consistency_score: number;          // 0–100 (100 = fully consistent)
+  confidence: "HIGH" | "MEDIUM" | "LOW";
+  mismatches: DamageMismatch[];
+  source_summary: {
+    document: { zones: string[]; components: string[]; available: boolean };
+    photos: { zones: string[]; components: string[]; available: boolean };
+    physics: { primaryZone: string | null; available: boolean };
+  };
+  checked_at: string;                 // ISO timestamp
+}
+
+// ─── Zone normalisation ───────────────────────────────────────────────────────
+
+const ZONE_ALIASES: Record<string, string> = {
+  front: "front", frontal: "front", "front-end": "front", hood: "front",
+  bumper_front: "front", "front bumper": "front",
+  rear: "rear", back: "rear", "rear-end": "rear", trunk: "rear",
+  bumper_rear: "rear", "rear bumper": "rear",
+  left: "left", driver: "left", "driver side": "left", "left side": "left",
+  right: "right", passenger: "right", "passenger side": "right", "right side": "right",
+  side: "side",
+  roof: "roof", top: "roof",
+  undercarriage: "undercarriage", underbody: "undercarriage", floor: "undercarriage",
+  interior: "interior", cabin: "interior",
+};
+
+function normaliseZone(raw: string): string {
+  const lower = raw.toLowerCase().trim();
+  for (const [alias, canonical] of Object.entries(ZONE_ALIASES)) {
+    if (lower.includes(alias)) return canonical;
+  }
+  return lower;
+}
+
+/** Infer likely impact zone from a component name */
+function zoneFromComponent(component: string): string | null {
+  const c = component.toLowerCase();
+  if (/front bumper|hood|grille|headlight|radiator|front fender|front wheel/.test(c)) return "front";
+  if (/rear bumper|trunk|tail|rear fender|rear wheel|spare/.test(c)) return "rear";
+  if (/left door|driver door|left fender|left mirror|left quarter/.test(c)) return "left";
+  if (/right door|passenger door|right fender|right mirror|right quarter/.test(c)) return "right";
+  if (/roof|sunroof|moonroof/.test(c)) return "roof";
+  if (/floor|underbody|frame|subframe|axle|suspension/.test(c)) return "undercarriage";
+  if (/door|window|glass|mirror/.test(c)) return "side";
+  return null;
+}
+
+/** Zones considered adjacent (damage can legitimately spread) */
+const ADJACENT_ZONES: Record<string, string[]> = {
+  front: ["left", "right", "undercarriage"],
+  rear: ["left", "right", "undercarriage"],
+  left: ["front", "rear", "roof"],
+  right: ["front", "rear", "roof"],
+  roof: ["left", "right"],
+  undercarriage: ["front", "rear"],
+  side: ["left", "right", "front", "rear"],
+  interior: ["roof", "side"],
+};
+
+function zonesConflict(zoneA: string, zoneB: string): boolean {
+  if (zoneA === zoneB) return false;
+  if (zoneA === "side" || zoneB === "side") return false; // "side" is ambiguous
+  const adj = ADJACENT_ZONES[zoneA] ?? [];
+  return !adj.includes(zoneB);
+}
+
+// ─── Source parsers ───────────────────────────────────────────────────────────
+
+interface DocumentSource {
+  zones: string[];
+  components: string[];
+}
+
+function parseDocumentSource(
+  damagedComponentsJson: string | null,
+  damageDescription: string | null,
+): DocumentSource {
+  const components: string[] = [];
+
+  if (damagedComponentsJson) {
+    try {
+      const parsed = JSON.parse(damagedComponentsJson);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (typeof item === "string") components.push(item);
+          else if (item?.name) components.push(item.name);
+          else if (item?.component) components.push(item.component);
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Also extract component mentions from free-text description
+  if (damageDescription) {
+    const keywords = [
+      "bumper", "hood", "fender", "door", "windshield", "headlight", "taillight",
+      "mirror", "trunk", "roof", "quarter panel", "grille", "radiator", "frame",
+      "airbag", "window", "glass", "wheel", "tire",
+    ];
+    for (const kw of keywords) {
+      if (damageDescription.toLowerCase().includes(kw) && !components.some(c => c.toLowerCase().includes(kw))) {
+        components.push(kw);
+      }
+    }
+  }
+
+  const zones = Array.from(new Set(
+    components.map(zoneFromComponent).filter((z): z is string => z !== null).map(normaliseZone)
+  ));
+
+  return { zones, components };
+}
+
+interface PhotoSource {
+  zones: string[];
+  components: string[];
+}
+
+function parsePhotoSource(enrichedPhotosJson: string | null): PhotoSource {
+  if (!enrichedPhotosJson) return { zones: [], components: [] };
+
+  try {
+    const photos: any[] = JSON.parse(enrichedPhotosJson);
+    const zones: string[] = [];
+    const components: string[] = [];
+
+    for (const photo of photos) {
+      if (photo?.impactZone && photo.impactZone !== "unknown") {
+        zones.push(normaliseZone(photo.impactZone));
+      }
+      if (Array.isArray(photo?.detectedComponents)) {
+        for (const c of photo.detectedComponents) {
+          if (typeof c === "string" && !components.includes(c)) components.push(c);
+        }
+      }
+    }
+
+    return { zones: Array.from(new Set(zones)), components };
+  } catch {
+    return { zones: [], components: [] };
+  }
+}
+
+interface PhysicsSource {
+  primaryZone: string | null;
+  consistencyScore: number | null;
+  inconsistencies: string[];
+}
+
+function parsePhysicsSource(physicsAnalysisJson: string | null): PhysicsSource {
+  if (!physicsAnalysisJson) return { primaryZone: null, consistencyScore: null, inconsistencies: [] };
+
+  try {
+    const physics = typeof physicsAnalysisJson === "string"
+      ? JSON.parse(physicsAnalysisJson)
+      : physicsAnalysisJson;
+
+    return {
+      primaryZone: physics?.primaryImpactZone
+        ? normaliseZone(physics.primaryImpactZone.split("_")[0])
+        : null,
+      consistencyScore: physics?.damageConsistency?.score ?? null,
+      inconsistencies: physics?.damageConsistency?.inconsistencies ?? [],
+    };
+  } catch {
+    return { primaryZone: null, consistencyScore: null, inconsistencies: [] };
+  }
+}
+
+// ─── Mismatch detectors ───────────────────────────────────────────────────────
+
+function detectZoneMismatches(
+  docZones: string[],
+  photoZones: string[],
+  physicsZone: string | null,
+  mismatches: DamageMismatch[],
+): void {
+  // 1. Photo vs Document zone conflict
+  for (const photoZone of photoZones) {
+    const hasDocMatch = docZones.length === 0 || docZones.some(dz => !zonesConflict(dz, photoZone));
+    if (!hasDocMatch) {
+      mismatches.push({
+        type: "zone_mismatch",
+        severity: "high",
+        details: `Photos show ${photoZone} damage, but document describes damage in ${docZones.join(", ")}`,
+        source_a: "photos",
+        source_b: "document",
+      });
+    }
+  }
+
+  // 2. Physics zone vs Document zone conflict
+  if (physicsZone && docZones.length > 0) {
+    const hasDocMatch = docZones.some(dz => !zonesConflict(dz, physicsZone));
+    if (!hasDocMatch) {
+      mismatches.push({
+        type: "physics_zone_conflict",
+        severity: "high",
+        details: `Physics engine indicates ${physicsZone} impact, but document describes damage in ${docZones.join(", ")}`,
+        source_a: "physics",
+        source_b: "document",
+      });
+    }
+  }
+
+  // 3. Physics zone vs Photo zone conflict
+  if (physicsZone && photoZones.length > 0) {
+    const hasPhotoMatch = photoZones.some(pz => !zonesConflict(pz, physicsZone));
+    if (!hasPhotoMatch) {
+      mismatches.push({
+        type: "photo_zone_conflict",
+        severity: "medium",
+        details: `Physics engine indicates ${physicsZone} impact, but photos show damage in ${photoZones.join(", ")}`,
+        source_a: "physics",
+        source_b: "photos",
+      });
+    }
+  }
+}
+
+function detectComponentMismatches(
+  docComponents: string[],
+  photoComponents: string[],
+  mismatches: DamageMismatch[],
+): void {
+  // Components visible in photos but absent from document
+  for (const photoComp of photoComponents) {
+    const photoLower = photoComp.toLowerCase();
+    const inDoc = docComponents.some(dc => {
+      const dcLower = dc.toLowerCase();
+      return dcLower.includes(photoLower) || photoLower.includes(dcLower);
+    });
+    if (!inDoc && docComponents.length > 0) {
+      mismatches.push({
+        type: "component_unreported",
+        severity: "medium",
+        details: `"${photoComp}" detected in photos but not mentioned in claim document`,
+        source_a: "photos",
+        source_b: "document",
+        component: photoComp,
+      });
+    }
+  }
+
+  // Components in document but no photo evidence
+  for (const docComp of docComponents) {
+    const docLower = docComp.toLowerCase();
+    const inPhoto = photoComponents.some(pc => {
+      const pcLower = pc.toLowerCase();
+      return pcLower.includes(docLower) || docLower.includes(pcLower);
+    });
+    if (!inPhoto && photoComponents.length > 0) {
+      mismatches.push({
+        type: "no_photo_evidence",
+        severity: "low",
+        details: `"${docComp}" mentioned in document but not detected in any photo`,
+        source_a: "document",
+        source_b: "photos",
+        component: docComp,
+      });
+    }
+  }
+}
+
+function detectMissingSourceMismatches(
+  docAvailable: boolean,
+  photoAvailable: boolean,
+  physicsAvailable: boolean,
+  mismatches: DamageMismatch[],
+): void {
+  if (!photoAvailable && docAvailable) {
+    mismatches.push({
+      type: "no_photo_evidence",
+      severity: "low",
+      details: "No enriched photo data available — photo-to-document cross-check skipped",
+    });
+  }
+  if (!docAvailable && photoAvailable) {
+    mismatches.push({
+      type: "no_document_evidence",
+      severity: "low",
+      details: "No document-extracted components available — document-to-photo cross-check skipped",
+    });
+  }
+}
+
+// ─── Score calculator ─────────────────────────────────────────────────────────
+
+const MISMATCH_PENALTIES: Record<DamageMismatch["severity"], number> = {
+  high: 25,
+  medium: 12,
+  low: 5,
+};
+
+function calculateScore(mismatches: DamageMismatch[], physicsScore: number | null): number {
+  const penalty = mismatches.reduce((sum, m) => sum + MISMATCH_PENALTIES[m.severity], 0);
+  let base = 100 - penalty;
+
+  // Blend in physics engine's own consistency score if available
+  if (physicsScore !== null) {
+    base = Math.round(base * 0.7 + physicsScore * 0.3);
+  }
+
+  return Math.max(0, Math.min(100, base));
+}
+
+function scoreToConfidence(score: number, docAvailable: boolean, photoAvailable: boolean): ConsistencyCheckResult["confidence"] {
+  if (!docAvailable || !photoAvailable) return "LOW";
+  if (score >= 75) return "HIGH";
+  if (score >= 50) return "MEDIUM";
+  return "LOW";
+}
+
+// ─── Public API ───────────────────────────────────────────────────────────────
+
+export interface ConsistencyCheckInput {
+  /** JSON string: array of component objects or strings from AI assessment */
+  damagedComponentsJson: string | null;
+  /** Free-text damage description from AI assessment */
+  damageDescription: string | null;
+  /** JSON string: array of EnrichedPhoto objects from Stage 11 */
+  enrichedPhotosJson: string | null;
+  /** JSON string: PhysicsAnalysisResult from Stage 3 */
+  physicsAnalysisJson: string | null;
+}
+
+export function runDamageConsistencyCheck(input: ConsistencyCheckInput): ConsistencyCheckResult {
+  const doc = parseDocumentSource(input.damagedComponentsJson, input.damageDescription);
+  const photo = parsePhotoSource(input.enrichedPhotosJson);
+  const physics = parsePhysicsSource(input.physicsAnalysisJson);
+
+  const docAvailable = doc.components.length > 0;
+  const photoAvailable = photo.zones.length > 0 || photo.components.length > 0;
+  const physicsAvailable = physics.primaryZone !== null;
+
+  const mismatches: DamageMismatch[] = [];
+
+  detectMissingSourceMismatches(docAvailable, photoAvailable, physicsAvailable, mismatches);
+
+  if (docAvailable || photoAvailable || physicsAvailable) {
+    detectZoneMismatches(doc.zones, photo.zones, physics.primaryZone, mismatches);
+    if (docAvailable && photoAvailable) {
+      detectComponentMismatches(doc.components, photo.components, mismatches);
+    }
+  }
+
+  // Incorporate physics engine's own inconsistency flags as low-severity mismatches
+  for (const inconsistency of physics.inconsistencies) {
+    if (!mismatches.some(m => m.details.includes(inconsistency))) {
+      mismatches.push({
+        type: "physics_zone_conflict",
+        severity: "low",
+        details: inconsistency,
+        source_a: "physics",
+      });
+    }
+  }
+
+  const score = calculateScore(mismatches, physics.consistencyScore);
+  const confidence = scoreToConfidence(score, docAvailable, photoAvailable);
+
+  return {
+    consistency_score: score,
+    confidence,
+    mismatches,
+    source_summary: {
+      document: { zones: doc.zones, components: doc.components, available: docAvailable },
+      photos: { zones: photo.zones, components: photo.components, available: photoAvailable },
+      physics: { primaryZone: physics.primaryZone, available: physicsAvailable },
+    },
+    checked_at: new Date().toISOString(),
+  };
+}

@@ -27,6 +27,7 @@ import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPa
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
+import { DamageConsistencyPanel } from "@/components/DamageConsistencyPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
@@ -886,6 +887,11 @@ export default function InsurerComparisonView() {
                 })()}
                 {/* Structural vs cosmetic breakdown */}
                 <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-analysis" />
+                {/* Three-source damage consistency check */}
+                <DamageConsistencyPanel
+                  claimId={claim?.id}
+                  consistencyCheckJson={(aiAssessment as any)?.consistencyCheckJson ?? null}
+                />
               </div>
             ) : (
               <div className="flex items-center gap-3 py-6">

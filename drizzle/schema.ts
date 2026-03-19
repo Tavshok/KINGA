@@ -82,6 +82,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   enrichedPhotosJson: text("enriched_photos_json"),
   // Stage 11 output: cross-check inconsistencies between photo findings and reported damage
   photoInconsistenciesJson: text("photo_inconsistencies_json"),
+  // Stage 12 output: three-source damage consistency check (JSON ConsistencyCheckResult)
+  consistencyCheckJson: text("consistency_check_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

@@ -3867,11 +3867,39 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         return result;
       }),
+
+    /**
+     * Stage 12: Three-source damage consistency check
+     *
+     * Compares document-extracted damage, photo-detected damage, and physics
+     * impact zone to produce a consistency_score and typed mismatches[].
+     * Stores the result in consistencyCheckJson on the aiAssessment record.
+     */
+    runConsistencyCheck: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .mutation(async ({ input, ctx }) => {
+        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No AI assessment found for this claim' });
+
+        const { runDamageConsistencyCheck } = await import('./services/damageConsistency');
+
+        const result = runDamageConsistencyCheck({
+          damagedComponentsJson: assessment.damagedComponentsJson ?? null,
+          damageDescription: assessment.damageDescription ?? null,
+          enrichedPhotosJson: assessment.enrichedPhotosJson ?? null,
+          physicsAnalysisJson: assessment.physicsAnalysis ?? null,
+        });
+
+        await db.update(aiAssessments)
+          .set({ consistencyCheckJson: JSON.stringify(result) })
+          .where(eq(aiAssessments.id, assessment.id));
+
+        return result;
+      }),
   }),
   // (admin router procedures moved to server/routers/admin.ts)
-
   /**
-   * Incident Type Override Router
+   * Incident Type Override Routerr
    *
    * Allows assessors/insurers/admins to manually override the AI-detected
    * incident type, preserving the original value and re-running downstream
