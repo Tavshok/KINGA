@@ -9992,3 +9992,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Apply fallback contracts to physics and damage engines
 - [ ] Apply fallback contracts to cost, fraud, and reconstruction engines
 - [ ] Add unit tests for all five engines covering missing-input and low-confidence paths
+
+## Stage 27: API Response Validation & Auto-Healing Layer
+- [ ] Stage 27: Build apiResponseValidator.ts with field contract, auto-map, and correction logger
+- [ ] Stage 27: Integrate validator as tRPC middleware on all claim analysis procedures
+- [ ] Stage 27: Add unit tests for all mapping rules, auto-heal paths, and block conditions

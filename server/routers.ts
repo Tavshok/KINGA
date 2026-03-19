@@ -109,6 +109,7 @@ import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
 import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
+import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -1149,7 +1150,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             }
           }
 
-          return {
+          // Stage 27: validate and auto-heal before sending to frontend
+          const claimDetailRaw = {
             ...claim,
             currencyCode: resolvedCurrencyCode,
             // PDF URL from source document (for image display fallback)
@@ -1160,6 +1162,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               ? parsePhysicsAnalysis(aiAssessment.physicsAnalysis)
               : null
           };
+          return validateClaimDetailResponse(claimDetailRaw as Record<string, unknown>, claim.id) as typeof claimDetailRaw;
         }
         
         return claim;
@@ -2840,7 +2843,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           aiIndicators: fraudIndicators.map(i => ({ label: i.indicator, points: i.score })),
           multiSourceConflict,
         });
-        return { ...result, costExtraction, weightedFraud };
+        // Stage 27: validate and auto-heal before sending to frontend
+        const rawResponse = { ...result, costExtraction, weightedFraud };
+        return validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
       }),
 
     // Save an immutable Decision Snapshot — called once per decision render
