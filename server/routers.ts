@@ -110,6 +110,7 @@ import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
+import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
 export const appRouter = router({
@@ -4293,16 +4294,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           });
         }
 
-        // Generate narrative
+         // Generate narrative
         const narrative = await generateReportNarrative(intelligence, input.role);
-
+        // ── Stage 31: Pre-export sanitisation ──────────────────────────────
+        const sanitiseResult = sanitiseReportNarrative(narrative as unknown as Record<string, string>);
+        if (!sanitiseResult.safe) {
+          const blockErr = buildBlockError(sanitiseResult.blockedPhrases);
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: blockErr.message,
+            cause: blockErr,
+          });
+        }
+        const safeNarrative = sanitiseResult.sanitised as unknown as typeof narrative;
+        // ───────────────────────────────────────────────────────────────────
         // Generate visualizations
         const visualizations = generateReportVisualizations(intelligence);
-
         // Generate PDF
         const pdfBuffer = await generateReportPDF(
           intelligence,
-          narrative,
+          safeNarrative,
           visualizations,
           {
             role: input.role,
@@ -4310,11 +4321,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             includeSupportingEvidence: input.includeSupportingEvidence,
           }
         );
-
         // Return as base64
         return {
           pdf: pdfBuffer.toString('base64'),
           filename: `${intelligence.claim.claimNumber}-${input.role}-report.pdf`,
+          sanitisationCorrections: sanitiseResult.corrections,
         };
       }),
 
@@ -4399,14 +4410,25 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Cast intelligence data
         const intelligence = snapshot.intelligenceData as any;
         
-        // Generate narrative and visualizations from snapshot
+         // Generate narrative and visualizations from snapshot
         const narrative = await generateReportNarrative(intelligence, snapshot.reportType);
+        // ── Stage 31: Pre-export sanitisation ──────────────────────────────
+        const sanitiseResult = sanitiseReportNarrative(narrative as unknown as Record<string, string>);
+        if (!sanitiseResult.safe) {
+          const blockErr = buildBlockError(sanitiseResult.blockedPhrases);
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: blockErr.message,
+            cause: blockErr,
+          });
+        }
+        const safeNarrative = sanitiseResult.sanitised as unknown as typeof narrative;
+        // ───────────────────────────────────────────────────────────────────
         const visualizations = generateReportVisualizations(intelligence);
-
         // Generate PDF
         const pdfBuffer = await generateReportPDF(
           intelligence,
-          narrative,
+          safeNarrative,
           visualizations,
           {
             role: snapshot.reportType,

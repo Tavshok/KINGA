@@ -10016,3 +10016,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Extend consistencyConfidence.ts: conflict penalty, clamp, band remap, coherence enforcement
 - [ ] Update damageConsistency.ts integration to pass high_severity_count and physics_available
 - [ ] Add Stage 30 unit tests (conflict penalty, clamp boundaries, band remap, coherence)
+
+## Stage 31: Pre-Export Text Sanitisation Layer
+- [x] Stage 31: Build externalReportSanitiser.ts with forbidden term registry and replacement engine
+- [x] Stage 31: Implement tone enforcement and export block for unresolvable phrases
+- [x] Stage 31: Integrate sanitiser into report export procedure in routers.ts
+- [x] Stage 31: Add unit tests covering all forbidden terms, replacements, tone check, and block condition
