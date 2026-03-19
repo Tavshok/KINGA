@@ -3477,63 +3477,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
   }),
 
-  /**
-   * Notifications Router
-   * Handles real-time notifications for users about claim events,
-   * assignments, quotes, fraud detection, and status changes
-   */
-  notifications: router({
-    // Get all notifications for current user
-    list: protectedProcedure
-      .input(z.object({ limit: z.number().optional() }))
-      .query(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        
-        const { getNotificationsByUser } = await import("./db");
-        return await getNotificationsByUser(ctx.user.id, input.limit || 50);
-      }),
-
-    // Get unread notification count
-    unreadCount: protectedProcedure
-      .query(async ({ ctx }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        
-        const { getUnreadNotificationCount } = await import("./db");
-        return { count: await getUnreadNotificationCount(ctx.user.id) };
-      }),
-
-    // Mark notification as read
-    markAsRead: protectedProcedure
-      .input(z.object({ notificationId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        
-        const { markNotificationAsRead } = await import("./db");
-        await markNotificationAsRead(input.notificationId);
-        return { success: true };
-      }),
-
-    // Mark all notifications as read
-    markAllAsRead: protectedProcedure
-      .mutation(async ({ ctx }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        
-        const { markAllNotificationsAsRead } = await import("./db");
-        await markAllNotificationsAsRead(ctx.user.id);
-        return { success: true };
-      }),
-
-    // Delete a notification
-    delete: protectedProcedure
-      .input(z.object({ notificationId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        if (!ctx.user) throw new Error("Not authenticated");
-        
-        const { deleteNotification } = await import("./db");
-        await deleteNotification(input.notificationId);
-        return { success: true };
-      }),
-  }),
 
   /**
    * Police Reports Router
@@ -4038,6 +3981,66 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         return resultWithNarratives;
       }),
+
+    /**
+     * Record an adjuster annotation (confirm/dismiss) on a specific mismatch.
+     */
+    annotate: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        assessmentId: z.number(),
+        mismatchType: z.string(),
+        mismatchIndex: z.number().default(0),
+        action: z.enum(['confirm', 'dismiss']),
+        note: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        if (!['assessor', 'insurer', 'admin'].includes(ctx.user.role)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may annotate mismatches' });
+        }
+        const { recordAnnotation } = await import('./services/mismatchAnnotation');
+        const result = await recordAnnotation({
+          claimId: input.claimId,
+          assessmentId: input.assessmentId,
+          mismatchType: input.mismatchType as any,
+          mismatchIndex: input.mismatchIndex,
+          action: input.action,
+          note: input.note,
+          userId: ctx.user.id,
+          userRole: ctx.user.role,
+        });
+        return { success: true, annotationId: result.id };
+      }),
+
+    /**
+     * Get annotation stats for a specific claim.
+     */
+    getClaimStats: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const { getClaimAnnotationStats, getClaimAnnotations } = await import('./services/mismatchAnnotation');
+        const [stats, annotations] = await Promise.all([
+          getClaimAnnotationStats(input.claimId),
+          getClaimAnnotations(input.claimId),
+        ]);
+        return { stats, annotations };
+      }),
+
+    /**
+     * Get global adaptive weights across all claims.
+     * Admin-only — returns system-wide confirmation rates and weight multipliers.
+     */
+    getAdaptiveWeights: protectedProcedure
+      .query(async ({ ctx }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins may view global adaptive weights' });
+        }
+        const { getAdaptiveWeights } = await import('./services/mismatchAnnotation');
+        return getAdaptiveWeights();
+      }),
   }),
   // (admin router procedures moved to server/routers/admin.ts)
   /**
@@ -4169,114 +4172,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             ? JSON.parse((claim as any).incidentTypeRevalidationJson)
             : null,
         };
-      }),
-  }),
-
-  // Audit trail operations
-  audit: router({
-    byClaim: protectedProcedure
-      .input(z.object({ claimId: z.number() }))
-      .query(async ({ input }) => {
-        return await getAuditTrailByClaimId(input.claimId);
-      }),
-  }),
-
-  /**
-   * Panel Beater Analytics Router
-   * 
-   * Comprehensive performance analytics for panel beaters:
-   * - Quote acceptance rates
-   * - Cost competitiveness
-   * - Turnaround time metrics
-   * - Quality and reliability scores
-   */
-  panelBeaterAnalytics: router({
-    /**
-     * Get All Panel Beater Performance Metrics
-     * 
-     * Returns comprehensive performance data for all panel beaters.
-     * 
-     * @returns Array of panel beater performance metrics
-     */
-    getAllPerformance: protectedProcedure
-      .query(async ({ ctx }) => {
-        const { getAllPanelBeaterPerformance } = await import('./panel-beater-analytics');
-        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
-        return await getAllPanelBeaterPerformance(tenantId);
-      }),
-
-    /**
-     * Get Single Panel Beater Performance
-     * 
-     * Returns detailed performance metrics for a specific panel beater.
-     * 
-     * @param panelBeaterId - ID of the panel beater
-     * @returns Panel beater performance metrics
-     */
-    getPerformance: protectedProcedure
-      .input(z.object({
-        panelBeaterId: z.number(),
-      }))
-      .query(async ({ input, ctx }) => {
-        const { getPanelBeaterPerformance } = await import('./panel-beater-analytics');
-        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
-        return await getPanelBeaterPerformance(input.panelBeaterId, tenantId);
-      }),
-
-    /**
-     * Get Top Performing Panel Beaters
-     * 
-     * Returns the top N panel beaters based on composite performance score.
-     * 
-     * @param limit - Number of top performers to return (default: 5)
-     * @returns Array of top panel beater performance metrics
-     */
-    getTopPerformers: protectedProcedure
-      .input(z.object({
-        limit: z.number().default(5),
-      }))
-      .query(async ({ input, ctx }) => {
-        const { getTopPanelBeaters } = await import('./panel-beater-analytics');
-        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
-        return await getTopPanelBeaters(input.limit, tenantId);
-      }),
-
-    /**
-     * Get Panel Beater Performance Trends
-     * 
-     * Returns historical performance trends for a panel beater.
-     * 
-     * @param panelBeaterId - ID of the panel beater
-     * @param months - Number of months to include (default: 6)
-     * @returns Array of monthly performance data
-     */
-    getTrends: protectedProcedure
-      .input(z.object({
-        panelBeaterId: z.number(),
-        months: z.number().default(6),
-      }))
-      .query(async ({ input, ctx }) => {
-        const { getPanelBeaterTrends } = await import('./panel-beater-analytics');
-        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
-        return await getPanelBeaterTrends(input.panelBeaterId, input.months, tenantId);
-      }),
-
-    /**
-     * Compare Panel Beaters
-     * 
-     * Returns side-by-side performance comparison for multiple panel beaters.
-     * 
-     * @param panelBeaterIds - Array of panel beater IDs to compare
-     * @returns Array of panel beater performance metrics
-     */
-    compare: protectedProcedure
-      .input(z.object({
-        panelBeaterIds: z.array(z.number()),
-      }))
-      .query(async ({ input, ctx }) => {
-        const { comparePanelBeaters } = await import('./panel-beater-analytics');
-        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
-        return await comparePanelBeaters(input.panelBeaterIds, tenantId);
       }),
   }),
 

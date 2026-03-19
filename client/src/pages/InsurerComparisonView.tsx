@@ -890,6 +890,7 @@ export default function InsurerComparisonView() {
                 {/* Three-source damage consistency check */}
                 <DamageConsistencyPanel
                   claimId={claim?.id}
+                  assessmentId={(aiAssessment as any)?.id}
                   consistencyCheckJson={(aiAssessment as any)?.consistencyCheckJson ?? null}
                 />
               </div>

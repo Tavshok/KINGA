@@ -4216,3 +4216,32 @@ export const shadowOverrideMonitor = mysqlTable("shadow_override_monitor", {
 
 export type ShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferSelect;
 export type InsertShadowOverrideMonitor = typeof shadowOverrideMonitor.$inferInsert;
+
+// ─── Mismatch Annotation Tracking ────────────────────────────────────────────
+// Records adjuster confirm/dismiss actions on individual damage mismatches.
+// Used to compute per-type confirmation rates and adaptively calibrate
+// consistency scoring weights over time.
+export const mismatchAnnotations = mysqlTable("mismatch_annotations", {
+  id: int().autoincrement().notNull().primaryKey(),
+  // Claim and assessment context
+  claimId: int("claim_id").notNull(),
+  assessmentId: int("assessment_id").notNull(),
+  // Mismatch identification
+  mismatchType: varchar("mismatch_type", { length: 64 }).notNull(),
+  mismatchIndex: int("mismatch_index").notNull().default(0), // position in mismatches[]
+  // Adjuster decision
+  action: mysqlEnum("action", ["confirm", "dismiss"]).notNull(),
+  note: text("note"), // optional adjuster comment
+  // Who made the annotation
+  userId: int("user_id").notNull(),
+  userRole: varchar("user_role", { length: 64 }),
+  // Timestamps
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+}, (table) => [
+  index("idx_ma_claim").on(table.claimId),
+  index("idx_ma_type").on(table.mismatchType),
+  index("idx_ma_user").on(table.userId),
+  index("idx_ma_action").on(table.action),
+]);
+export type MismatchAnnotation = typeof mismatchAnnotations.$inferSelect;
+export type InsertMismatchAnnotation = typeof mismatchAnnotations.$inferInsert;

@@ -1,0 +1,9 @@
+{
+  "query": "\nCREATE TABLE IF NOT EXISTS `mismatch_annotations` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `claim_id` int NOT NULL,\n  `assessment_id` int NOT NULL,\n  `mismatch_type` varchar(64) NOT NULL,\n  `mismatch_index` int NOT NULL DEFAULT 0,\n  `action` enum('confirm','dismiss') NOT NULL,\n  `note` text,\n  `user_id` int NOT NULL,\n  `user_role` varchar(64),\n  `created_at` bigint NOT NULL,\n  INDEX `idx_ma_claim` (`claim_id`),\n  INDEX `idx_ma_type` (`mismatch_type`),\n  INDEX `idx_ma_user` (`user_id`),\n  INDEX `idx_ma_action` (`action`)\n);\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nCREATE TABLE IF NOT EXISTS `mismatch_annotations` (\n  `id` int NOT NULL AUTO_INCREMENT PRIMARY KEY,\n  `claim_id` int NOT NULL,\n  `assessment_id` int NOT NULL,\n  `mismatch_type` varchar(64) NOT NULL,\n  `mismatch_index` int NOT NULL DEFAULT 0,\n  `action` enum('confirm','dismiss') NOT NULL,\n  `note` text,\n  `user_id` int NOT NULL,\n  `user_role` varchar(64),\n  `created_at` bigint NOT NULL,\n  INDEX `idx_ma_claim` (`claim_id`),\n  INDEX `idx_ma_type` (`mismatch_type`),\n  INDEX `idx_ma_user` (`user_id`),\n  INDEX `idx_ma_action` (`action`)\n);\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 830
+}
