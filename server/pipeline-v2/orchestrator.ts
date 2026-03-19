@@ -65,6 +65,10 @@ import {
   type BenchmarkInputContext,
   type LiveBenchmarkStats,
 } from "./benchmarkDeviationEngine";
+import {
+  computeConsensus,
+  type ConsensusResult,
+} from "./crossEngineConsensus";
 
 /**
  * Run the full self-healing pipeline.
@@ -103,6 +107,7 @@ export async function runPipelineV2(
   let evidenceBundle: EvidenceBundle | null = null;
   let realismBundle: RealismBundle | null = null;
   let benchmarkBundle: BenchmarkBundle | null = null;
+  let consensusResult: ConsensusResult | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
 
@@ -358,6 +363,20 @@ export async function runPipelineV2(
     }
   }
 
+  // ── STAGE 42: Cross-Engine Consensus Scorer ───────────────────────────
+  try {
+    consensusResult = computeConsensus(
+      claimRecord,
+      stage6Data,
+      stage7Data,
+      stage8Data,
+      coherenceResult,
+    );
+    ctx.log("Stage 42", `Consensus: score=${consensusResult.consensus_score}, label=${consensusResult.consensus_label}, conflict=${consensusResult.conflict_present}, conflicts=${consensusResult.conflict_dimension_count}`);
+  } catch (err) {
+    ctx.log("Stage 42", `Cross-engine consensus failed (non-fatal): ${String(err)}`);
+  }
+
   // ── STAGE 9b: Turnaround Time Analysis ─────────────────────────────────
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
   recordStage("9b_turnaround", s9b);
@@ -379,7 +398,7 @@ export async function runPipelineV2(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
-    causalChain, evidenceBundle, realismBundle, benchmarkBundle
+    causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult
   );
 }
 
@@ -397,7 +416,8 @@ function buildResult(
   causalChain: CausalChainOutput | null = null,
   evidenceBundle: EvidenceBundle | null = null,
   realismBundle: RealismBundle | null = null,
-  benchmarkBundle: BenchmarkBundle | null = null
+  benchmarkBundle: BenchmarkBundle | null = null,
+  consensusResult: ConsensusResult | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -419,6 +439,7 @@ function buildResult(
     evidenceBundle,
     realismBundle,
     benchmarkBundle,
+    consensusResult,
   };
 }
 
