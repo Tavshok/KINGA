@@ -22,6 +22,7 @@ export interface MismatchNarrative {
   severity: "low" | "medium" | "high";
   explanation: string;           // 1–2 sentences: what / why / check
   source: "template" | "llm";   // how the narrative was generated
+  preserves_meaning?: boolean;   // true when LLM confirms meaning is preserved
 }
 
 // ─── Template engine ──────────────────────────────────────────────────────────
@@ -106,52 +107,125 @@ function templateNarrative(m: DamageMismatch): string {
 
 // ─── LLM enrichment ──────────────────────────────────────────────────────────
 
+/** Structured output returned by the LLM enrichment call */
+interface LlmEnrichmentResult {
+  enriched_narrative: string;
+  preserves_meaning: boolean;
+}
+
 /**
  * Uses the LLM to produce a more fluent, context-aware narrative for a single
- * mismatch. Falls back to the template on any error.
+ * mismatch. Operates under strict constraints:
+ *   1. MUST NOT contradict the base narrative
+ *   2. MUST NOT introduce new facts
+ *   3. May only clarify, simplify, or improve readability
+ *   4. Output must be exactly 2 sentences
+ *   5. Neutral, professional insurance-report tone
+ *
+ * Returns a structured { enriched_narrative, preserves_meaning } object.
+ * Falls back to the template on any error or when preserves_meaning is false.
  */
-async function llmNarrative(m: DamageMismatch): Promise<string> {
+async function llmNarrative(
+  m: DamageMismatch,
+  baseNarrative: string
+): Promise<{ text: string; preserves_meaning: boolean }> {
   try {
     const { invokeLLM } = await import("../_core/llm");
-    const prompt = [
-      `You are an insurance claims assessor writing a concise finding note.`,
+
+    const systemPrompt = [
+      `You are an insurance claims language editor. Your only task is to improve the`,
+      `readability of a pre-written finding note — you MUST NOT add, remove, or contradict`,
+      `any information already present in the base narrative.`,
       ``,
-      `A damage consistency check found the following mismatch:`,
-      `  Type: ${m.type}`,
-      `  Severity: ${m.severity}`,
+      `STRICT RULES (violations will cause the output to be discarded):`,
+      `  1. DO NOT contradict the base narrative.`,
+      `  2. DO NOT introduce any new facts, zones, components, or conclusions.`,
+      `  3. Only clarify, simplify, or improve sentence flow.`,
+      `  4. Output MUST be exactly 2 sentences.`,
+      `  5. Use neutral, professional language suitable for an insurance report.`,
+      `  6. Do NOT start with "I", "The system", or any first-person pronoun.`,
+      `  7. Do NOT use bullet points, headers, or markdown formatting.`,
+      `  8. Total output MUST NOT exceed 60 words.`,
+      ``,
+      `After producing the enriched narrative, set "preserves_meaning" to true ONLY if`,
+      `you are certain the enriched narrative does not contradict or extend the base narrative.`,
+      `If in doubt, set it to false.`,
+    ].join("\n");
+
+    const userPrompt = [
+      `Mismatch type: ${m.type}`,
+      `Severity: ${m.severity}`,
+      `Evidence summary:`,
       `  Details: ${m.details}`,
       m.source_a ? `  Source A: ${m.source_a}` : "",
       m.source_b ? `  Source B: ${m.source_b}` : "",
       m.component ? `  Component: ${m.component}` : "",
       ``,
-      `Write exactly 2 sentences:`,
-      `  Sentence 1: What is inconsistent (be specific, use the details above).`,
-      `  Sentence 2: Why it matters for the claim AND what the assessor should check.`,
+      `Base narrative (do NOT contradict this):`,
+      `"${baseNarrative}"`,
       ``,
-      `Rules:`,
-      `  - Do NOT start with "I" or "The system".`,
-      `  - Use plain, professional language suitable for an insurance report.`,
-      `  - Do NOT exceed 60 words total.`,
-      `  - Do NOT add bullet points, headers, or markdown.`,
+      `Return the enriched narrative and preserves_meaning flag as JSON.`,
     ]
       .filter(Boolean)
       .join("\n");
 
     const response = await invokeLLM({
-      messages: [{ role: "user", content: prompt }],
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "mismatch_narrative_enrichment",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              enriched_narrative: {
+                type: "string",
+                description:
+                  "The improved 2-sentence narrative. Must not contradict or extend the base narrative.",
+              },
+              preserves_meaning: {
+                type: "boolean",
+                description:
+                  "True only if the enriched narrative preserves the full meaning of the base narrative without contradiction.",
+              },
+            },
+            required: ["enriched_narrative", "preserves_meaning"],
+            additionalProperties: false,
+          },
+        },
+      },
     });
 
     const rawContent = response?.choices?.[0]?.message?.content;
-    const text: string =
+    const jsonText: string =
       typeof rawContent === "string" ? rawContent.trim() : "";
 
-    // Sanity check: must be at least 20 chars and no more than 400 chars
-    if (text.length >= 20 && text.length <= 400) {
-      return text;
+    if (!jsonText) {
+      return { text: baseNarrative, preserves_meaning: false };
     }
-    return templateNarrative(m);
+
+    const parsed: LlmEnrichmentResult = JSON.parse(jsonText);
+
+    // Guard: reject if preserves_meaning is false or narrative is too short/long
+    if (
+      !parsed.preserves_meaning ||
+      typeof parsed.enriched_narrative !== "string" ||
+      parsed.enriched_narrative.length < 20 ||
+      parsed.enriched_narrative.length > 500
+    ) {
+      return { text: baseNarrative, preserves_meaning: false };
+    }
+
+    return {
+      text: parsed.enriched_narrative.trim(),
+      preserves_meaning: true,
+    };
   } catch {
-    return templateNarrative(m);
+    return { text: baseNarrative, preserves_meaning: false };
   }
 }
 
@@ -184,19 +258,28 @@ export async function generateMismatchNarratives(
   for (const m of mismatches) {
     let explanation: string;
     let source: "template" | "llm" = "template";
+    let preserves_meaning: boolean | undefined;
+
+    // Always generate the deterministic base narrative first.
+    const baseNarrative = templateNarrative(m);
 
     if (useLlm) {
-      const llmText = await llmNarrative(m);
-      // If LLM returned something different from the template, mark as llm
-      const templateText = templateNarrative(m);
-      if (llmText !== templateText) {
-        explanation = llmText;
+      // Pass the base narrative to the LLM so it can only clarify/simplify it.
+      const llmResult = await llmNarrative(m, baseNarrative);
+
+      if (llmResult.preserves_meaning && llmResult.text !== baseNarrative) {
+        // LLM produced a valid, meaning-preserving enrichment.
+        explanation = llmResult.text;
         source = "llm";
+        preserves_meaning = true;
       } else {
-        explanation = templateText;
+        // LLM failed the meaning-preservation check or returned the same text;
+        // fall back to the deterministic template.
+        explanation = baseNarrative;
+        preserves_meaning = false;
       }
     } else {
-      explanation = templateNarrative(m);
+      explanation = baseNarrative;
     }
 
     results.push({
@@ -204,6 +287,7 @@ export async function generateMismatchNarratives(
       severity: m.severity,
       explanation,
       source,
+      ...(preserves_meaning !== undefined ? { preserves_meaning } : {}),
     });
   }
 

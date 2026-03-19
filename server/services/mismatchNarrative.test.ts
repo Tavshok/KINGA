@@ -119,17 +119,88 @@ describe("generateMismatchNarratives — template engine (useLlm: false)", () =>
       expect(r.explanation.trimEnd()).toMatch(/[.!?]$/);
     }
   });
-});
+});// ─── LLM enrichment tests ──────────────────────────────────────────────────────────
 
-// ─── LLM fallback tests ───────────────────────────────────────────────────────
-
-describe("generateMismatchNarratives — LLM fallback", () => {
+describe("generateMismatchNarratives — LLM enrichment (JSON schema output)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
+  // ── Happy path: LLM returns valid JSON with preserves_meaning: true ────────
+  it("uses LLM narrative when preserves_meaning is true and text differs from template", async () => {
+    const enrichedText = "Front-end damage detected in submitted images does not correspond to the rear impact described in the claim. This inconsistency warrants a physical inspection to confirm the actual impact zone.";
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          enriched_narrative: enrichedText,
+          preserves_meaning: true,
+        }) } }],
+      }),
+    }));
+
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+
+    expect(result.source).toBe("llm");
+    expect(result.explanation).toBe(enrichedText);
+    expect(result.preserves_meaning).toBe(true);
+  });
+
+  it("enriched narrative has at most 2 sentences", async () => {
+    const twoSentences = "Damage photos show front-zone impact, while the claim document describes a rear impact. A physical inspection is recommended to confirm the actual impact location.";
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          enriched_narrative: twoSentences,
+          preserves_meaning: true,
+        }) } }],
+      }),
+    }));
+
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+
+    // Count sentences by splitting on sentence-ending punctuation
+    const sentences = result.explanation.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0);
+    expect(sentences.length).toBeLessThanOrEqual(2);
+  });
+
+  // ── Fallback: preserves_meaning is false ─────────────────────────────────
+  it("falls back to template when preserves_meaning is false", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          enriched_narrative: "Some narrative that contradicts the base.",
+          preserves_meaning: false,
+        }) } }],
+      }),
+    }));
+
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+
+    expect(result.source).toBe("template");
+    expect(result.preserves_meaning).toBe(false);
+  });
+
+  it("sets preserves_meaning: false on the result when LLM fails the check", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          enriched_narrative: "Contradictory narrative.",
+          preserves_meaning: false,
+        }) } }],
+      }),
+    }));
+
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("component_unreported")], { useLlm: true });
+
+    expect(result.preserves_meaning).toBe(false);
+  });
+
+  // ── Fallback: LLM errors ──────────────────────────────────────────────────────
   it("falls back to template when LLM module throws", async () => {
-    // Mock the dynamic import to throw
     vi.doMock("../_core/llm", () => {
       throw new Error("LLM unavailable");
     });
@@ -141,7 +212,7 @@ describe("generateMismatchNarratives — LLM fallback", () => {
     expect(result.explanation.length).toBeGreaterThan(20);
   });
 
-  it("falls back to template when LLM returns empty string", async () => {
+  it("falls back to template when LLM returns empty JSON content", async () => {
     vi.doMock("../_core/llm", () => ({
       invokeLLM: vi.fn().mockResolvedValue({
         choices: [{ message: { content: "" } }],
@@ -151,14 +222,13 @@ describe("generateMismatchNarratives — LLM fallback", () => {
     const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
     const [result] = await gen([mismatch("component_unreported")], { useLlm: true });
 
-    // Empty string is < 20 chars so template is used
     expect(result.source).toBe("template");
   });
 
-  it("falls back to template when LLM returns content > 400 chars", async () => {
+  it("falls back to template when LLM returns invalid JSON", async () => {
     vi.doMock("../_core/llm", () => ({
       invokeLLM: vi.fn().mockResolvedValue({
-        choices: [{ message: { content: "x".repeat(401) } }],
+        choices: [{ message: { content: "not valid json" } }],
       }),
     }));
 
@@ -167,8 +237,29 @@ describe("generateMismatchNarratives — LLM fallback", () => {
 
     expect(result.source).toBe("template");
   });
-});
 
+  it("falls back to template when enriched_narrative exceeds 500 chars", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          enriched_narrative: "x".repeat(501),
+          preserves_meaning: true,
+        }) } }],
+      }),
+    }));
+
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("no_photo_evidence")], { useLlm: true });
+
+    expect(result.source).toBe("template");
+  });
+
+  it("does NOT set preserves_meaning on template-only results (useLlm: false)", async () => {
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: false });
+    expect(result.preserves_meaning).toBeUndefined();
+  });
+});
 // ─── generateSingleNarrative ──────────────────────────────────────────────────
 
 describe("generateSingleNarrative", () => {
