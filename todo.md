@@ -10027,3 +10027,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Stage 32: Build calibrationStabilityGuard.ts with variance calculation and freeze logic
 - [x] Stage 32: Integrate guard into getAdaptiveWeights before multiplier application
 - [x] Stage 32: Add unit tests for variance, freeze, lock log, and stable passthrough
+
+## Stage 34 — Physics Numerical Output Contract
+- [ ] Build physicsNumericalContract.ts: speed estimation, force/energy, vehicle mass defaults, estimated flag
+- [ ] Integrate into stage-7-physics.ts happy path and fallback path
+- [ ] Add Stage 34 unit tests

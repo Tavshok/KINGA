@@ -9,6 +9,10 @@
  */
 
 import { ensurePhysicsContract } from "./engineFallback";
+import {
+  applyPhysicsNumericalContract,
+  mergeNumericalContract,
+} from "./physicsNumericalContract";
 import type {
   PipelineContext,
   StageResult,
@@ -180,20 +184,35 @@ export async function runPhysicsStage(
     const deltaVKmh = physicsResult.deltaV || 0;
     const decelerationG = physicsResult.decelerationG || 0;
 
+    // Stage 34: Apply numerical contract — fill any zero/missing values with
+    // vehicle-class-based estimates so output is always fully numerical.
+    const numericalContract = applyPhysicsNumericalContract({
+      deltaVKmh,
+      speedKmh: estimatedSpeedKmh,
+      massKg: claimRecord.vehicle.massKg,
+      bodyType: claimRecord.vehicle.bodyType,
+      crushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
+    });
+    const merged = mergeNumericalContract(
+      {
+        deltaVKmh,
+        estimatedSpeedKmh,
+        impactForceKn,
+        energyDistribution: { kineticEnergyJ, energyDissipatedJ, energyDissipatedKj: energyDissipatedJ / 1000 },
+      },
+      numericalContract
+    );
+
     const output: Stage7Output = {
-      impactForceKn,
+      impactForceKn: merged.impactForceKn,
       impactVector: {
         direction: claimRecord.accidentDetails.collisionDirection,
-        magnitude: impactForceN,
+        magnitude: merged.impactForceKn * 1000,
         angle: physicsResult.impactForce?.direction || 0,
       },
-      energyDistribution: {
-        kineticEnergyJ,
-        energyDissipatedJ,
-        energyDissipatedKj: energyDissipatedJ / 1000,
-      },
-      estimatedSpeedKmh,
-      deltaVKmh,
+      energyDistribution: merged.energyDistribution,
+      estimatedSpeedKmh: merged.estimatedSpeedKmh,
+      deltaVKmh: merged.deltaVKmh,
       decelerationG,
       accidentSeverity: mapSeverity(physicsResult.accidentSeverity || "moderate"),
       accidentReconstructionSummary: buildReconstructionSummary(
@@ -222,8 +241,32 @@ export async function runPhysicsStage(
 
     // Self-healing: estimate physics from damage data
     const estimated = estimatePhysicsFromDamage(claimRecord, damageAnalysis, assumptions);
+    // Stage 34: Apply numerical contract to the fallback estimate too
+    const fallbackNumerical = applyPhysicsNumericalContract({
+      deltaVKmh: estimated.deltaVKmh,
+      speedKmh: estimated.estimatedSpeedKmh,
+      massKg: claimRecord.vehicle.massKg,
+      bodyType: claimRecord.vehicle.bodyType,
+      crushDepthM: inferCrushDepth(damageAnalysis, claimRecord),
+    });
+    const fallbackMerged = mergeNumericalContract(
+      {
+        deltaVKmh: estimated.deltaVKmh,
+        estimatedSpeedKmh: estimated.estimatedSpeedKmh,
+        impactForceKn: estimated.impactForceKn,
+        energyDistribution: estimated.energyDistribution,
+      },
+      fallbackNumerical
+    );
+    const patchedEstimate = {
+      ...estimated,
+      deltaVKmh: fallbackMerged.deltaVKmh,
+      estimatedSpeedKmh: fallbackMerged.estimatedSpeedKmh,
+      impactForceKn: fallbackMerged.impactForceKn,
+      energyDistribution: fallbackMerged.energyDistribution,
+    };
     // Stage 26: apply defensive contract — mark all estimated fields
-    const contractedEstimate = ensurePhysicsContract(estimated, `engine_failure: ${String(err)}`);
+    const contractedEstimate = ensurePhysicsContract(patchedEstimate, `engine_failure: ${String(err)}`);
     recoveryActions.push({
       target: "physicsAnalysis",
       strategy: "industry_average",
