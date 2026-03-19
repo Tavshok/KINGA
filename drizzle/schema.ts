@@ -4279,3 +4279,36 @@ export const narrativeVersions = mysqlTable("narrative_versions", {
 ]);
 export type NarrativeVersion = typeof narrativeVersions.$inferSelect;
 export type InsertNarrativeVersion = typeof narrativeVersions.$inferInsert;
+
+// ─── Weight Adjustment Log ────────────────────────────────────────────────────
+// Immutable audit trail of every adaptive weight calibration event.
+// Written by getAdaptiveWeights() whenever a non-neutral, sample-sufficient
+// adjustment fires. Never updated or deleted — append-only.
+//
+// Stage 23 rules enforced at write time:
+//   1. Only written when total_annotations >= 20 (MIN_SAMPLE_SIZE)
+//   2. new_multiplier is already clamped to [0.75, 1.20]
+//   3. new_multiplier is already smoothed: (0.7 × old) + (0.3 × raw)
+export const weightAdjustmentLog = mysqlTable("weight_adjustment_log", {
+  id: int().autoincrement().notNull().primaryKey(),
+  // Which mismatch type was adjusted
+  mismatchType: varchar("mismatch_type", { length: 64 }).notNull(),
+  // Multiplier values
+  oldMultiplier: decimal("old_multiplier", { precision: 7, scale: 4 }).notNull().$type<number>(),
+  rawMultiplier: decimal("raw_multiplier", { precision: 7, scale: 4 }).notNull().$type<number>(),
+  newMultiplier: decimal("new_multiplier", { precision: 7, scale: 4 }).notNull().$type<number>(),
+  // Annotation statistics at the time of adjustment
+  totalAnnotations: int("total_annotations").notNull(),
+  confirmationRate: decimal("confirmation_rate", { precision: 6, scale: 4 }).notNull().$type<number>(),
+  sensitivityDirection: mysqlEnum("sensitivity_direction", ["increase", "decrease"]).notNull(),
+  // Human-readable explanation of why the adjustment fired
+  reason: text("reason").notNull(),
+  // When the adjustment was computed (Unix ms)
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+}, (table) => [
+  index("idx_wal_type").on(table.mismatchType),
+  index("idx_wal_created_at").on(table.createdAt),
+  index("idx_wal_direction").on(table.sensitivityDirection),
+]);
+export type WeightAdjustmentLogRow = typeof weightAdjustmentLog.$inferSelect;
+export type InsertWeightAdjustmentLog = typeof weightAdjustmentLog.$inferInsert;

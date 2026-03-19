@@ -4043,6 +4043,29 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       }),
 
     /**
+     * Get the weight adjustment log.
+     * Admin-only — returns the timestamped audit trail of every adaptive
+     * weight calibration event (Stage 23).
+     * Optionally filtered by mismatch_type; defaults to most recent 100 entries.
+     */
+    getWeightAdjustmentLog: protectedProcedure
+      .input(z.object({
+        mismatchType: z.string().optional(),
+        limit: z.number().int().min(1).max(500).default(100),
+      }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        if (ctx.user.role !== 'admin') {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins may view the weight adjustment log' });
+        }
+        const { getWeightAdjustmentLog } = await import('./services/mismatchAnnotation');
+        return getWeightAdjustmentLog(
+          input.mismatchType as any,
+          input.limit,
+        );
+      }),
+
+    /**
      * Get the full version history for all mismatch narratives in an assessment.
      * Returns rows ordered by mismatch_index ASC, version ASC.
      */

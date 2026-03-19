@@ -9958,3 +9958,18 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add unit tests: verify no suspicion words appear in external narratives for all 8 types
 - [x] Add unit tests: verify score/weight/confidence words absent from external narratives
 - [x] Add unit tests: verify LLM fallback still produces compliant external narrative
+
+## Adaptive Weight Calibration Rules (Stage 23)
+- [x] Audit mismatchAnnotation.ts getAdaptiveWeights for current multiplier logic
+- [x] Add minimum sample size gate: skip adjustment if total_annotations < 20
+- [x] Clamp multiplier to [0.75, 1.20] range
+- [x] Apply smoothing: new_weight = (0.7 * current) + (0.3 * suggested)
+- [x] Add weight_adjustment_log table to schema (mismatch_type, old_multiplier, new_multiplier, raw_multiplier, total_annotations, timestamp, reason)
+- [x] Push schema migration
+- [x] Persist every adjustment to weight_adjustment_log
+- [x] Add getWeightAdjustmentLog tRPC procedure
+- [x] Add unit tests: sample gate blocks adjustment when < 20 annotations
+- [x] Add unit tests: multiplier clamped to 0.75 lower bound
+- [x] Add unit tests: multiplier clamped to 1.20 upper bound
+- [x] Add unit tests: smoothing formula applied correctly
+- [x] Add unit tests: log entry written on every adjustment
