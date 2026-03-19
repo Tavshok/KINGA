@@ -26,6 +26,12 @@ import type {
   MissingDocument,
 } from "./types";
 import type { CausalChainOutput } from "./causalChainBuilder";
+import {
+  buildDamageNarrative,
+  buildPhysicsNarrative,
+  buildFraudNarrative,
+  buildCostNarrative,
+} from "./narrativeEngine";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
@@ -317,6 +323,19 @@ export async function runReportGenerationStage(
     const fraudSection = buildFraudSection(fraudAnalysis);
     const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);
     const imageSection = buildImageSection(claimRecord);
+    // Stage 39 — evidence-anchored narratives (no hedging, OEC structure)
+    const damageNarrative = damageAnalysis
+      ? buildDamageNarrative(damageAnalysis, claimRecord.damage.imageUrls ?? [], claimRecord.damage.description)
+      : null;
+    const physicsNarrative = physicsAnalysis
+      ? buildPhysicsNarrative(physicsAnalysis)
+      : null;
+    const fraudNarrative = fraudAnalysis
+      ? buildFraudNarrative(fraudAnalysis)
+      : null;
+    const costNarrative = costAnalysis
+      ? buildCostNarrative(costAnalysis, claimRecord.repairQuote.quoteTotalCents)
+      : null;
 
     // Track which sections are degraded
     const unavailableSections: string[] = [];
@@ -357,10 +376,22 @@ export async function runReportGenerationStage(
       missingDocumentCount: missingDocuments.length,
       sections: {
         claimSummary: claimSummary.content,
-        damageAnalysis: damageSection.content,
-        physicsReconstruction: physicsSection.content,
-        costOptimisation: costSection.content,
-        fraudRiskIndicators: fraudSection.content,
+        damageAnalysis: {
+          ...damageSection.content,
+          ...(damageNarrative ? { narrative: damageNarrative.full_text, narrative_sentences: damageNarrative.sentences } : {}),
+        },
+        physicsReconstruction: {
+          ...physicsSection.content,
+          ...(physicsNarrative ? { narrative: physicsNarrative.full_text, narrative_sentences: physicsNarrative.sentences } : {}),
+        },
+        costOptimisation: {
+          ...costSection.content,
+          ...(costNarrative ? { narrative: costNarrative.full_text, narrative_sentences: costNarrative.sentences } : {}),
+        },
+        fraudRiskIndicators: {
+          ...fraudSection.content,
+          ...(fraudNarrative ? { narrative: fraudNarrative.full_text, narrative_sentences: fraudNarrative.sentences } : {}),
+        },
         turnaroundTimeEstimate: turnaroundSection.content,
         supportingImages: imageSection.content,
         ...(causalChain ? {
