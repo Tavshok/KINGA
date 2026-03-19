@@ -9,7 +9,7 @@
  *   - Per-claim annotation stats showing confirmation rates
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -401,12 +401,31 @@ export function DamageConsistencyPanel({ claimId, assessmentId, consistencyCheck
   const [localResult, setLocalResult] = useState<ConsistencyCheckOutput | null>(null);
   // Track per-mismatch annotation actions locally for instant UI feedback
   const [localAnnotations, setLocalAnnotations] = useState<Record<string, "confirm" | "dismiss">>({});
+  const [expandedHistory, setExpandedHistory] = useState<Record<number, boolean>>({});
 
   const storedResult = parseResult(consistencyCheckJson);
   const result = localResult ?? storedResult;
 
   const canRun = user?.role === "assessor" || user?.role === "insurer" || user?.role === "admin";
   const canAnnotate = canRun;
+
+  // Load narrative version history for this assessment
+  const { data: versionHistoryData } = (trpc.aiAssessments as any).getNarrativeVersionHistory.useQuery(
+    { assessmentId },
+    { enabled: !!assessmentId && canAnnotate }
+  );
+
+  // Group version history rows by mismatch_index for quick lookup
+  const versionsByIndex = useMemo(() => {
+    const map: Record<number, any[]> = {};
+    if (Array.isArray(versionHistoryData)) {
+      for (const row of versionHistoryData) {
+        if (!map[row.mismatchIndex]) map[row.mismatchIndex] = [];
+        map[row.mismatchIndex].push(row);
+      }
+    }
+    return map;
+  }, [versionHistoryData]);
 
   // Load existing annotations for this claim
   const { data: claimStatsData } = (trpc.aiAssessments as any).getClaimStats.useQuery(
@@ -704,6 +723,41 @@ export function DamageConsistencyPanel({ claimId, assessmentId, consistencyCheck
                             <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
                               {m.details}
                             </p>
+                          )}
+
+                          {/* Version history strip */}
+                          {canAnnotate && versionsByIndex[i] && versionsByIndex[i].length > 1 && (
+                            <div className="mt-2">
+                              <button
+                                onClick={() => setExpandedHistory(prev => ({ ...prev, [i]: !prev[i] }))}
+                                className="text-xs flex items-center gap-1"
+                                style={{ color: "var(--muted-foreground)" }}
+                              >
+                                <span>{expandedHistory[i] ? "▾" : "▸"}</span>
+                                {versionsByIndex[i].length} version{versionsByIndex[i].length !== 1 ? "s" : ""} — click to {expandedHistory[i] ? "collapse" : "view history"}
+                              </button>
+                              {expandedHistory[i] && (
+                                <div className="mt-1 pl-2 border-l-2 border-slate-200 dark:border-slate-700 space-y-1">
+                                  {versionsByIndex[i].map((v: any) => (
+                                    <div key={v.id} className="text-xs py-0.5">
+                                      <span className={`font-medium mr-1 ${v.isActive ? 'text-emerald-600 dark:text-emerald-400' : ''}`} style={{ color: v.isActive ? undefined : "var(--muted-foreground)" }}>
+                                        v{v.version}
+                                      </span>
+                                      <span className="px-1 py-0.5 rounded text-[10px] mr-1" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                                        {v.source}
+                                      </span>
+                                      {v.isActive && <span className="text-[10px] text-emerald-600 dark:text-emerald-400 mr-1">● active</span>}
+                                      <span style={{ color: "var(--muted-foreground)" }}>
+                                        {new Date(v.createdAt).toLocaleString()}
+                                      </span>
+                                      <p className="mt-0.5 leading-relaxed" style={{ color: "var(--foreground)" }}>
+                                        {v.enrichedNarrative ?? v.baseNarrative}
+                                      </p>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
                           )}
 
                           {/* Annotation controls */}

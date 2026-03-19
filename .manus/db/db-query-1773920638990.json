@@ -1,0 +1,9 @@
+{
+  "query": "CREATE TABLE IF NOT EXISTS `narrative_versions` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `claim_id` int NOT NULL,\n  `assessment_id` int NOT NULL,\n  `mismatch_index` int NOT NULL,\n  `mismatch_type` varchar(64) NOT NULL,\n  `version` int NOT NULL DEFAULT 1,\n  `is_active` tinyint NOT NULL DEFAULT 1,\n  `base_narrative` text NOT NULL,\n  `enriched_narrative` text,\n  `external_narrative` text,\n  `preserves_meaning` tinyint,\n  `source` varchar(64) NOT NULL,\n  `created_at` bigint NOT NULL,\n  `created_by` int,\n  PRIMARY KEY (`id`),\n  KEY `idx_nv_claim` (`claim_id`),\n  KEY `idx_nv_assessment` (`assessment_id`),\n  KEY `idx_nv_type` (`mismatch_type`),\n  KEY `idx_nv_active` (`is_active`)\n);",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute CREATE TABLE IF NOT EXISTS `narrative_versions` (\n  `id` int NOT NULL AUTO_INCREMENT,\n  `claim_id` int NOT NULL,\n  `assessment_id` int NOT NULL,\n  `mismatch_index` int NOT NULL,\n  `mismatch_type` varchar(64) NOT NULL,\n  `version` int NOT NULL DEFAULT 1,\n  `is_active` tinyint NOT NULL DEFAULT 1,\n  `base_narrative` text NOT NULL,\n  `enriched_narrative` text,\n  `external_narrative` text,\n  `preserves_meaning` tinyint,\n  `source` varchar(64) NOT NULL,\n  `created_at` bigint NOT NULL,\n  `created_by` int,\n  PRIMARY KEY (`id`),\n  KEY `idx_nv_claim` (`claim_id`),\n  KEY `idx_nv_assessment` (`assessment_id`),\n  KEY `idx_nv_type` (`mismatch_type`),\n  KEY `idx_nv_active` (`is_active`)\n);",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 1908
+}

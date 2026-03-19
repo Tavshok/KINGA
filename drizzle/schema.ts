@@ -4245,3 +4245,37 @@ export const mismatchAnnotations = mysqlTable("mismatch_annotations", {
 ]);
 export type MismatchAnnotation = typeof mismatchAnnotations.$inferSelect;
 export type InsertMismatchAnnotation = typeof mismatchAnnotations.$inferInsert;
+
+// ─── Mismatch Narrative Versions ─────────────────────────────────────────────
+// Stores versioned narratives for each mismatch in a consistency check.
+// Each row is an immutable version; active_version pointer is stored in
+// the parent consistencyCheckJson. LLM enrichment appends new versions
+// without overwriting previous ones.
+export const narrativeVersions = mysqlTable("narrative_versions", {
+  id: int().autoincrement().notNull().primaryKey(),
+  // Context
+  claimId: int("claim_id").notNull(),
+  assessmentId: int("assessment_id").notNull(),
+  mismatchIndex: int("mismatch_index").notNull(),  // position in mismatches[]
+  mismatchType: varchar("mismatch_type", { length: 64 }).notNull(),
+  // Version tracking
+  version: int("version").notNull().default(1),    // starts at 1, increments
+  isActive: tinyint("is_active").notNull().default(1), // 1 = active version
+  // Narrative content
+  baseNarrative: text("base_narrative").notNull(),
+  enrichedNarrative: text("enriched_narrative"),   // null until LLM runs
+  externalNarrative: text("external_narrative"),   // null until generated
+  preservesMeaning: tinyint("preserves_meaning"),  // 1/0/null
+  // Source tracking
+  source: varchar("source", { length: 64 }).notNull(), // "template" | "llm_background" | "manual"
+  // Metadata
+  createdAt: bigint("created_at", { mode: "number" }).notNull(),
+  createdBy: int("created_by"),                    // userId if manual
+}, (table) => [
+  index("idx_nv_claim").on(table.claimId),
+  index("idx_nv_assessment").on(table.assessmentId),
+  index("idx_nv_type").on(table.mismatchType),
+  index("idx_nv_active").on(table.isActive),
+]);
+export type NarrativeVersion = typeof narrativeVersions.$inferSelect;
+export type InsertNarrativeVersion = typeof narrativeVersions.$inferInsert;

@@ -4041,6 +4041,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { getAdaptiveWeights } = await import('./services/mismatchAnnotation');
         return getAdaptiveWeights();
       }),
+
+    /**
+     * Get the full version history for all mismatch narratives in an assessment.
+     * Returns rows ordered by mismatch_index ASC, version ASC.
+     */
+    getNarrativeVersionHistory: protectedProcedure
+      .input(z.object({ assessmentId: z.number() }))
+      .query(async ({ input }) => {
+        const { getNarrativeVersionHistory } = await import('./services/mismatchNarrative');
+        return getNarrativeVersionHistory(input.assessmentId);
+      }),
   }),
   // (admin router procedures moved to server/routers/admin.ts)
   /**

@@ -14,16 +14,40 @@
  */
 
 import type { DamageMismatch, MismatchType } from "./damageConsistency";
+import { getDb } from "../db";
+import { narrativeVersions } from "../../drizzle/schema";
+import { eq, and } from "drizzle-orm";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+// ─── Versioned narrative context ────────────────────────────────────────────
+
+/**
+ * Optional context for persisting versioned narrative records to the DB.
+ * When provided, each generated narrative is stored as a new version row
+ * in `narrative_versions`, with the previous active version deactivated.
+ */
+export interface NarrativePersistContext {
+  claimId: number;
+  assessmentId: number;
+  /** Source tag written to the version row. Defaults to "template" or "llm_background" */
+  source?: "template" | "llm_background" | "manual";
+  /** userId of the person triggering generation (null for automated runs) */
+  createdBy?: number | null;
+}
 
 export interface MismatchNarrative {
   mismatch_type: MismatchType;
   severity: "low" | "medium" | "high";
   explanation: string;           // 1–2 sentences: what / why / check (internal)
+  base_narrative: string;        // always the deterministic template output
   external_narrative: string;   // neutral, non-accusatory version for external sharing
   source: "template" | "llm";   // how the internal narrative was generated
   preserves_meaning?: boolean;   // true when LLM confirms meaning is preserved
+  /** DB row id of the active version record (set when persist context is provided) */
+  active_version_id?: number;
+  /** Incremented version number of the active record */
+  version?: number;
 }
 
 // ─── Template engine ──────────────────────────────────────────────────────────
@@ -232,6 +256,97 @@ async function llmNarrative(
 
 // ─── Public API ───────────────────────────────────────────────────────────────
 
+// ─── Versioned persistence helpers ──────────────────────────────────────────
+
+/**
+ * Deactivates all existing active versions for a given mismatch index,
+ * then inserts a new version row and returns its id and version number.
+ */
+async function persistNarrativeVersion(
+  mismatchIndex: number,
+  mismatch: DamageMismatch,
+  narrative: Omit<MismatchNarrative, "active_version_id" | "version">,
+  ctx: NarrativePersistContext
+): Promise<{ id: number; version: number }> {
+  const db = getDb();
+  const now = Date.now();
+
+  // Find the highest existing version for this mismatch index
+  const existing = await db
+    .select({ version: narrativeVersions.version })
+    .from(narrativeVersions)
+    .where(
+      and(
+        eq(narrativeVersions.assessmentId, ctx.assessmentId),
+        eq(narrativeVersions.mismatchIndex, mismatchIndex)
+      )
+    )
+    .orderBy(narrativeVersions.version);
+
+  const nextVersion =
+    existing.length > 0
+      ? Math.max(...existing.map((r) => r.version)) + 1
+      : 1;
+
+  // Deactivate all previous active versions for this mismatch
+  if (existing.length > 0) {
+    await db
+      .update(narrativeVersions)
+      .set({ isActive: 0 })
+      .where(
+        and(
+          eq(narrativeVersions.assessmentId, ctx.assessmentId),
+          eq(narrativeVersions.mismatchIndex, mismatchIndex),
+          eq(narrativeVersions.isActive, 1)
+        )
+      );
+  }
+
+  // Insert the new active version
+  const source = ctx.source ?? (narrative.source === "llm" ? "llm_background" : "template");
+
+  const [result] = await db
+    .insert(narrativeVersions)
+    .values({
+      claimId: ctx.claimId,
+      assessmentId: ctx.assessmentId,
+      mismatchIndex,
+      mismatchType: mismatch.type,
+      version: nextVersion,
+      isActive: 1,
+      baseNarrative: narrative.base_narrative,
+      enrichedNarrative: narrative.source === "llm" ? narrative.explanation : null,
+      externalNarrative: narrative.external_narrative,
+      preservesMeaning:
+        narrative.preserves_meaning === true
+          ? 1
+          : narrative.preserves_meaning === false
+          ? 0
+          : null,
+      source,
+      createdAt: now,
+      createdBy: ctx.createdBy ?? null,
+    })
+    .$returningId();
+
+  return { id: (result as { id: number }).id, version: nextVersion };
+}
+
+/**
+ * Retrieves all narrative versions for a given assessment, ordered by
+ * mismatch_index ASC, version ASC. Used for the audit history view.
+ */
+export async function getNarrativeVersionHistory(
+  assessmentId: number
+): Promise<typeof narrativeVersions.$inferSelect[]> {
+  const db = getDb();
+  return db
+    .select()
+    .from(narrativeVersions)
+    .where(eq(narrativeVersions.assessmentId, assessmentId))
+    .orderBy(narrativeVersions.mismatchIndex, narrativeVersions.version);
+}
+
 export interface GenerateNarrativesOptions {
   /**
    * Whether to use the LLM for enrichment.
@@ -239,6 +354,12 @@ export interface GenerateNarrativesOptions {
    * Set to true when called from an async background job.
    */
   useLlm?: boolean;
+  /**
+   * When provided, each generated narrative is persisted as a new version
+   * row in `narrative_versions`. Previous active versions are deactivated.
+   * When omitted, no DB writes occur (pure in-memory generation).
+   */
+  persistContext?: NarrativePersistContext;
 }
 
 /**
@@ -295,12 +416,30 @@ export async function generateMismatchNarratives(
       mismatch_type: m.type,
       severity: m.severity,
       explanation,
+      base_narrative: baseNarrative,
       external_narrative,
       source,
     };
     if (preserves_meaning !== undefined) {
       narrative.preserves_meaning = preserves_meaning;
     }
+
+    // Persist versioned record if context is provided
+    if (options.persistContext) {
+      try {
+        const { id, version } = await persistNarrativeVersion(
+          results.length, // mismatch index = current position
+          m,
+          narrative,
+          options.persistContext
+        );
+        narrative.active_version_id = id;
+        narrative.version = version;
+      } catch {
+        // Persistence failure must not block narrative generation
+      }
+    }
+
     results.push(narrative);
   }
 
