@@ -10032,3 +10032,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Build physicsNumericalContract.ts: speed estimation, force/energy, vehicle mass defaults, estimated flag
 - [ ] Integrate into stage-7-physics.ts happy path and fallback path
 - [ ] Add Stage 34 unit tests
+
+## Stage 35: Damage-Physics Coherence Validator
+- [ ] Stage 35: Build damagePhysicsCoherence.ts with zone-direction mapping and mismatch detection
+- [ ] Stage 35: Integrate coherence validator into orchestrator between Stage 7 and Stage 8
+- [ ] Stage 35: Add unit tests for all mapping rules and mismatch types

@@ -40,6 +40,12 @@ import { runCostOptimisationStage } from "./stage-9-cost";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
 import { resolveSourceTruth, getResolvedDirection } from "./sourceTruthResolver";
+import {
+  validateDamagePhysicsCoherence,
+  buildCoherenceConsistencyInput,
+  buildCoherenceFraudInput,
+  type DamagePhysicsCoherenceResult,
+} from "./damagePhysicsCoherence";
 
 /**
  * Run the full self-healing pipeline.
@@ -214,6 +220,27 @@ export async function runPipelineV2(
       "TruthResolver",
       `Post-physics: ${postTruthResolution.conflicts.length} conflict(s). Dominant: ${postTruthResolution.dominant_source}. ` +
         postTruthResolution.conflicts.map((c) => `[${c.source}] ${c.issue} -> ${c.resolution}`).join(" | ")
+    );
+  }
+
+  // ── STAGE 35: Damage-Physics Coherence Validation ───────────────────
+  // Validates that detected damage zones are physically consistent with the
+  // impact direction from Stage 7. Results feed into consistency and fraud engines.
+  const coherenceResult: DamagePhysicsCoherenceResult = validateDamagePhysicsCoherence(
+    stage6Data,
+    stage7Data
+  );
+  if (coherenceResult.has_mismatch) {
+    const consistencyInput = buildCoherenceConsistencyInput(coherenceResult);
+    const fraudInput = buildCoherenceFraudInput(coherenceResult);
+    ctx.log(
+      "CoherenceValidator",
+      `${coherenceResult.mismatches.length} zone-direction mismatch(es). ` +
+        `High-severity: ${coherenceResult.high_severity_mismatch_count}. ` +
+        `Confidence reduction: ×${coherenceResult.confidence_reduction_factor}. ` +
+        `Fraud penalty: ${coherenceResult.fraud_penalty_triggered}. ` +
+        `ConsistencyInput.highSeverityCount=${consistencyInput.highSeverityMismatchCount}. ` +
+        `FraudInput.highConflicts=${fraudInput.high_severity_conflicts.length}.`
     );
   }
 
