@@ -24,6 +24,7 @@ import {
 } from "../../drizzle/schema";
 import { eq, sql, desc } from "drizzle-orm";
 import type { MismatchType } from "./damageConsistency";
+import { checkCalibrationStability } from "./calibrationStabilityGuard";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -294,11 +295,31 @@ export async function getAdaptiveWeights(tenantFilter?: string): Promise<Adaptiv
   // Sort by total_annotations descending for readability
   adjustments.sort((a, b) => b.total_annotations - a.total_annotations);
 
-  // Rule 4: Persist a log entry for every non-neutral, sample-sufficient adjustment
+  // Rule 4 (Stage 23) + Rule 5 (Stage 32): Stability guard then persist log
+  // For each non-neutral, sample-sufficient adjustment:
+  //   a) Run the calibration stability guard (variance check over last 10 adjustments)
+  //   b) If frozen → use the previous multiplier, log the lock event
+  //   c) If stable → apply the new multiplier and log normally
   const now = Date.now();
   for (const stat of adjustments) {
     const adj = stat.system_adjustment;
     if (adj.sample_size_sufficient && adj.sensitivity_direction !== "neutral") {
+      // ── Stage 32: Stability guard ──────────────────────────────────────────
+      const guardResult = await checkCalibrationStability(
+        stat.mismatch_type,
+        adj.weight_multiplier
+      );
+
+      // If the guard froze the adjustment, override the effective multiplier
+      // on the stat object so downstream consumers see the frozen value.
+      if (guardResult.frozen) {
+        adj.weight_multiplier = guardResult.effective_multiplier;
+        adj.reason = guardResult.reason; // "Calibration unstable — locked"
+        // The guard itself already wrote the lock log entry — skip normal log
+        continue;
+      }
+
+      // ── Stage 23: Normal adjustment log ───────────────────────────────────
       try {
         const logRow: InsertWeightAdjustmentLog = {
           mismatchType: stat.mismatch_type,

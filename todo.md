@@ -10022,3 +10022,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Stage 31: Implement tone enforcement and export block for unresolvable phrases
 - [x] Stage 31: Integrate sanitiser into report export procedure in routers.ts
 - [x] Stage 31: Add unit tests covering all forbidden terms, replacements, tone check, and block condition
+
+## Stage 32: Calibration Stability Guard
+- [x] Stage 32: Build calibrationStabilityGuard.ts with variance calculation and freeze logic
+- [x] Stage 32: Integrate guard into getAdaptiveWeights before multiplier application
+- [x] Stage 32: Add unit tests for variance, freeze, lock log, and stable passthrough
