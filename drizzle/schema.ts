@@ -78,6 +78,10 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   confidenceScoreBreakdownJson: text("confidence_score_breakdown_json"),
   // Pipeline run health: JSON array of PipelineStageHealth objects (status, duration, error per stage)
   pipelineRunSummary: text("pipeline_run_summary"),
+  // Stage 11 output: per-image vision enrichment (JSON array of EnrichedPhoto objects)
+  enrichedPhotosJson: text("enriched_photos_json"),
+  // Stage 11 output: cross-check inconsistencies between photo findings and reported damage
+  photoInconsistenciesJson: text("photo_inconsistencies_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

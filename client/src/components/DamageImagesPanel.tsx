@@ -1,44 +1,90 @@
 /**
  * DamageImagesPanel
  *
- * Renders damage photos extracted from PDF documents or uploaded by users.
- * Supports two data sources:
- *   1. damagePhotosJson — AI-classified DamagePhoto[] objects with metadata
- *   2. damagePhotos     — raw string[] of photo URLs (fallback)
+ * Renders damage photos with two tiers of metadata:
+ *   Tier 1 — AI-classified DamagePhoto[] (from earlier pipeline stages)
+ *   Tier 2 — Vision-enriched EnrichedPhoto[] (Stage 11 photo enrichment)
  *
- * Features:
- *   - Impact zone badge (front / rear / left / right / roof / undercarriage)
+ * When enrichment data is available, each card shows:
+ *   - Impact zone badge
  *   - Detected component chips with severity colour coding
- *   - Source badge (PDF embedded / PDF page render / uploaded)
- *   - Full-screen lightbox with caption and component list
- *   - Graceful fallback for images that fail to load
+ *   - Confidence score pill
+ *   - Image quality indicator
+ *   - AI-generated caption
+ *
+ * An "Analyse Photos" button triggers Stage 11 enrichment for assessors/
+ * insurers/admins. An inconsistency panel shows cross-check findings.
  */
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { X, ZoomIn, Camera, FileText, Upload } from "lucide-react";
+import { X, ZoomIn, Camera, FileText, Upload, Sparkles, AlertTriangle, CheckCircle2, Loader2 } from "lucide-react";
 import type { DamagePhoto } from "../../../shared/damage-photo-types";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
-// ─── Severity colour map ─────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+interface EnrichedPhoto {
+  url: string;
+  index: number;
+  impactZone: string;
+  detectedComponents: string[];
+  severity: 'minor' | 'moderate' | 'severe' | 'critical';
+  confidenceScore: number;
+  caption: string;
+  imageQuality: 'good' | 'poor' | 'unusable';
+  enrichedAt: string;
+}
+
+interface PhotoInconsistency {
+  photoIndex: number;
+  photoUrl: string;
+  type: 'zone_mismatch' | 'component_mismatch' | 'severity_mismatch' | 'unreported_damage';
+  description: string;
+  severity: 'low' | 'medium' | 'high';
+  photoFinding: string;
+  reportedValue: string;
+}
+
+// ─── Colour maps ──────────────────────────────────────────────────────────────
+
 const SEVERITY_COLOURS: Record<string, string> = {
-  minor:       "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700",
-  moderate:    "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700",
-  severe:      "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
-  total_loss:  "bg-red-900 text-white border-red-900",
+  minor:      "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-700",
+  moderate:   "bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200 border-orange-300 dark:border-orange-700",
+  severe:     "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700",
+  critical:   "bg-red-900 text-white border-red-900",
+  total_loss: "bg-red-900 text-white border-red-900",
 };
 
-// ─── Impact zone colour map ───────────────────────────────────────────────────
 const ZONE_COLOURS: Record<string, string> = {
   front:         "bg-red-600 text-white",
   rear:          "bg-red-600 text-white",
   left:          "bg-orange-500 text-white",
+  left_side:     "bg-orange-500 text-white",
   right:         "bg-orange-500 text-white",
+  right_side:    "bg-orange-500 text-white",
   roof:          "bg-purple-600 text-white",
   undercarriage: "bg-gray-700 text-white",
+  underbody:     "bg-gray-700 text-white",
+  interior:      "bg-blue-600 text-white",
+  engine_bay:    "bg-amber-600 text-white",
   unknown:       "bg-gray-400 text-white",
 };
 
-// ─── Source icon / label ──────────────────────────────────────────────────────
+const INCONSISTENCY_COLOURS: Record<string, string> = {
+  high:   "border-red-400 bg-red-50 dark:bg-red-950/20 text-red-700 dark:text-red-300",
+  medium: "border-amber-400 bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300",
+  low:    "border-blue-300 bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300",
+};
+
+const CONFIDENCE_COLOUR = (score: number) =>
+  score >= 75 ? "text-green-600 dark:text-green-400"
+  : score >= 50 ? "text-amber-600 dark:text-amber-400"
+  : "text-red-500 dark:text-red-400";
+
+// ─── Source badge ─────────────────────────────────────────────────────────────
+
 function SourceBadge({ source }: { source?: string }) {
   if (!source) return null;
   if (source === "pdf_embedded") return (
@@ -58,94 +104,102 @@ function SourceBadge({ source }: { source?: string }) {
   );
 }
 
-// ─── Lightbox ────────────────────────────────────────────────────────────────
-interface LightboxProps {
-  photo: DamagePhoto;
-  onClose: () => void;
+// ─── Enriched photo card ──────────────────────────────────────────────────────
+
+interface EnrichedCardProps {
+  photo: EnrichedPhoto;
+  onOpen: () => void;
 }
 
-function Lightbox({ photo, onClose }: LightboxProps) {
+function EnrichedPhotoCard({ photo, onOpen }: EnrichedCardProps) {
+  const [imgError, setImgError] = useState(false);
+  const zone = photo.impactZone?.replace(/_/g, ' ');
+  const topComponents = photo.detectedComponents.slice(0, 3);
+  const moreCount = photo.detectedComponents.length - topComponents.length;
+
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="relative max-w-4xl w-full bg-white dark:bg-card rounded-xl overflow-hidden shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white">
-          <div className="flex items-center gap-2 flex-wrap">
-            {photo.impactZone && (
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded uppercase tracking-wide ${ZONE_COLOURS[photo.impactZone.zone] || ZONE_COLOURS.unknown}`}>
-                {photo.impactZone.zone} impact
+    <div className="relative rounded-xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
+      {/* Image */}
+      <div className="relative h-44 bg-muted overflow-hidden cursor-pointer" onClick={onOpen}>
+        {imgError ? (
+          <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
+            <Camera className="w-8 h-8" />
+            <span className="text-xs">Image unavailable</span>
+          </div>
+        ) : (
+          <img
+            src={photo.url}
+            alt={photo.caption || `Damage photo ${photo.index + 1}`}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => setImgError(true)}
+          />
+        )}
+        {/* Zoom overlay */}
+        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
+          <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
+        </div>
+        {/* Impact zone — top-left */}
+        {zone && zone !== 'unknown' && (
+          <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide shadow ${ZONE_COLOURS[photo.impactZone] || ZONE_COLOURS.unknown}`}>
+            {zone}
+          </div>
+        )}
+        {/* Confidence — top-right */}
+        <div className={`absolute top-2 right-2 text-xs font-bold px-1.5 py-0.5 rounded bg-black/60 ${CONFIDENCE_COLOUR(photo.confidenceScore)}`}>
+          {photo.confidenceScore}%
+        </div>
+        {/* Image quality warning */}
+        {photo.imageQuality !== 'good' && (
+          <div className="absolute bottom-2 right-2 text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded">
+            {photo.imageQuality === 'unusable' ? 'Unusable' : 'Poor quality'}
+          </div>
+        )}
+      </div>
+
+      {/* Metadata footer */}
+      <div className="p-2 space-y-1.5">
+        {/* Severity badge */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`text-xs border rounded px-1.5 py-0.5 font-semibold ${SEVERITY_COLOURS[photo.severity] || SEVERITY_COLOURS.minor}`}>
+            {photo.severity}
+          </span>
+          <span className="flex items-center gap-0.5 text-xs text-muted-foreground">
+            <Sparkles className="w-3 h-3" /> AI enriched
+          </span>
+        </div>
+
+        {/* Caption */}
+        {photo.caption && (
+          <p className="text-xs text-foreground/80 font-medium line-clamp-2">{photo.caption}</p>
+        )}
+
+        {/* Component chips */}
+        {topComponents.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {topComponents.map((comp, i) => (
+              <span key={i} className="text-xs border border-border rounded px-1.5 py-0.5 bg-muted text-foreground/80">
+                {comp}
               </span>
-            )}
-            <SourceBadge source={photo.source} />
-            {photo.pageNumber && (
-              <span className="text-xs text-gray-400 dark:text-muted-foreground/70">Page {photo.pageNumber}</span>
+            ))}
+            {moreCount > 0 && (
+              <span className="text-xs text-muted-foreground px-1">+{moreCount} more</span>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20 dark:bg-card/20">
-            <X className="w-5 h-5" />
-          </Button>
-        </div>
-
-        {/* Image */}
-        <div className="relative bg-gray-100 dark:bg-muted">
-          <img
-            src={photo.imageUrl}
-            alt={photo.caption || "Damage photo"}
-            className="w-full max-h-[60vh] object-contain"
-          />
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 space-y-3">
-          {photo.caption && (
-            <p className="text-sm font-medium text-foreground">{photo.caption}</p>
-          )}
-          {photo.detectedDamageArea && (
-            <p className="text-sm text-foreground/80">
-              <span className="font-semibold">Damage area: </span>{photo.detectedDamageArea}
-            </p>
-          )}
-          {photo.detectedComponents && (photo.detectedComponents ?? []).length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Detected components</p>
-              <div className="flex flex-wrap gap-1.5">
-                {(photo.detectedComponents ?? []).map((comp, i) => (
-                  <span
-                    key={i}
-                    className={`text-xs border rounded px-2 py-0.5 font-medium ${SEVERITY_COLOURS[comp.severity] || SEVERITY_COLOURS.minor}`}
-                  >
-                    {comp.name}
-                    {comp.severity !== "minor" && (
-                      <span className="ml-1 opacity-70">({comp.severity})</span>
-                    )}
-                  </span>
-                ))}
-              </div>
-            </div>
-          )}
-          {photo.overallAssessment && (
-            <p className="text-xs text-muted-foreground italic border-t pt-2">{photo.overallAssessment}</p>
-          )}
-        </div>
+        )}
       </div>
     </div>
   );
 }
 
-// ─── Photo card ───────────────────────────────────────────────────────────────
-interface PhotoCardProps {
+// ─── Legacy DamagePhoto card (Tier 1) ────────────────────────────────────────
+
+interface LegacyCardProps {
   photo: DamagePhoto;
   index: number;
   onOpen: () => void;
 }
 
-function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
+function LegacyPhotoCard({ photo, index, onOpen }: LegacyCardProps) {
   const [imgError, setImgError] = useState(false);
   const zone = photo.impactZone?.zone;
   const topComponents = (photo.detectedComponents || []).slice(0, 3);
@@ -153,7 +207,6 @@ function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
 
   return (
     <div className="relative rounded-xl overflow-hidden border border-border bg-card shadow-sm hover:shadow-md transition-shadow group">
-      {/* Image area */}
       <div className="relative h-44 bg-muted overflow-hidden cursor-pointer" onClick={onOpen}>
         {imgError ? (
           <div className="flex flex-col items-center justify-center h-full text-muted-foreground gap-2">
@@ -168,56 +221,35 @@ function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
             onError={() => setImgError(true)}
           />
         )}
-
-        {/* Zoom overlay */}
         <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
           <ZoomIn className="w-8 h-8 text-white drop-shadow-lg" />
         </div>
-
-        {/* Impact zone badge — top-left */}
         {zone && zone !== "unknown" && (
           <div className={`absolute top-2 left-2 text-xs font-bold px-2 py-0.5 rounded uppercase tracking-wide shadow ${ZONE_COLOURS[zone] || ZONE_COLOURS.unknown}`}>
             {zone}
           </div>
         )}
-
-        {/* Page number — top-right */}
         {photo.pageNumber && (
           <div className="absolute top-2 right-2 text-xs bg-black/60 text-white px-1.5 py-0.5 rounded">
             p.{photo.pageNumber}
           </div>
         )}
       </div>
-
-      {/* Metadata footer */}
       <div className="p-2 space-y-1.5">
-        {/* Source + classification */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <SourceBadge source={photo.source} />
-          {photo.classification === "document" && (
-            <Badge variant="outline" className="text-xs text-muted-foreground">Document</Badge>
-          )}
         </div>
-
-        {/* Caption */}
         {photo.detectedDamageArea && (
           <p className="text-xs text-foreground/80 font-medium line-clamp-1">{photo.detectedDamageArea}</p>
         )}
-
-        {/* Component chips */}
         {topComponents.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {topComponents.map((comp, i) => (
-              <span
-                key={i}
-                className={`text-xs border rounded px-1.5 py-0.5 ${SEVERITY_COLOURS[comp.severity] || SEVERITY_COLOURS.minor}`}
-              >
+              <span key={i} className={`text-xs border rounded px-1.5 py-0.5 ${SEVERITY_COLOURS[comp.severity] || SEVERITY_COLOURS.minor}`}>
                 {comp.name}
               </span>
             ))}
-            {moreCount > 0 && (
-              <span className="text-xs text-muted-foreground px-1">+{moreCount} more</span>
-            )}
+            {moreCount > 0 && <span className="text-xs text-muted-foreground px-1">+{moreCount} more</span>}
           </div>
         )}
       </div>
@@ -225,28 +257,217 @@ function PhotoCard({ photo, index, onOpen }: PhotoCardProps) {
   );
 }
 
+// ─── Enriched lightbox ────────────────────────────────────────────────────────
+
+function EnrichedLightbox({ photo, onClose }: { photo: EnrichedPhoto; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+      <div className="relative max-w-4xl w-full bg-white dark:bg-card rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white">
+          <div className="flex items-center gap-2 flex-wrap">
+            {photo.impactZone && photo.impactZone !== 'unknown' && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded uppercase tracking-wide ${ZONE_COLOURS[photo.impactZone] || ZONE_COLOURS.unknown}`}>
+                {photo.impactZone.replace(/_/g, ' ')} impact
+              </span>
+            )}
+            <span className={`text-xs font-bold ${CONFIDENCE_COLOUR(photo.confidenceScore)}`}>
+              {photo.confidenceScore}% confidence
+            </span>
+            <span className={`text-xs border rounded px-1.5 py-0.5 ${SEVERITY_COLOURS[photo.severity]}`}>
+              {photo.severity}
+            </span>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20">
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+        <div className="relative bg-gray-100 dark:bg-muted">
+          <img src={photo.url} alt={photo.caption || "Damage photo"} className="w-full max-h-[60vh] object-contain" />
+        </div>
+        <div className="p-4 space-y-3">
+          {photo.caption && <p className="text-sm font-medium text-foreground">{photo.caption}</p>}
+          {photo.detectedComponents.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Detected components</p>
+              <div className="flex flex-wrap gap-1.5">
+                {photo.detectedComponents.map((comp, i) => (
+                  <span key={i} className="text-xs border border-border rounded px-2 py-0.5 bg-muted text-foreground/80">{comp}</span>
+                ))}
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground border-t pt-2">
+            Enriched by vision AI · {new Date(photo.enrichedAt).toLocaleString()}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Legacy lightbox ──────────────────────────────────────────────────────────
+
+function LegacyLightbox({ photo, onClose }: { photo: DamagePhoto; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
+      <div className="relative max-w-4xl w-full bg-white dark:bg-card rounded-xl overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 bg-gray-900 text-white">
+          <div className="flex items-center gap-2 flex-wrap">
+            {photo.impactZone && (
+              <span className={`text-xs font-semibold px-2 py-0.5 rounded uppercase tracking-wide ${ZONE_COLOURS[photo.impactZone.zone] || ZONE_COLOURS.unknown}`}>
+                {photo.impactZone.zone} impact
+              </span>
+            )}
+            <SourceBadge source={photo.source} />
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20">
+            <X className="w-5 h-5" />
+          </Button>
+        </div>
+        <div className="relative bg-gray-100 dark:bg-muted">
+          <img src={photo.imageUrl} alt={photo.caption || "Damage photo"} className="w-full max-h-[60vh] object-contain" />
+        </div>
+        <div className="p-4 space-y-3">
+          {photo.caption && <p className="text-sm font-medium text-foreground">{photo.caption}</p>}
+          {photo.detectedDamageArea && (
+            <p className="text-sm text-foreground/80"><span className="font-semibold">Damage area: </span>{photo.detectedDamageArea}</p>
+          )}
+          {photo.detectedComponents && photo.detectedComponents.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Detected components</p>
+              <div className="flex flex-wrap gap-1.5">
+                {photo.detectedComponents.map((comp, i) => (
+                  <span key={i} className={`text-xs border rounded px-2 py-0.5 font-medium ${SEVERITY_COLOURS[comp.severity] || SEVERITY_COLOURS.minor}`}>
+                    {comp.name}{comp.severity !== "minor" && <span className="ml-1 opacity-70">({comp.severity})</span>}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {photo.overallAssessment && (
+            <p className="text-xs text-muted-foreground italic border-t pt-2">{photo.overallAssessment}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Inconsistency panel ──────────────────────────────────────────────────────
+
+function InconsistencyPanel({ inconsistencies }: { inconsistencies: PhotoInconsistency[] }) {
+  const [expanded, setExpanded] = useState(false);
+  if (inconsistencies.length === 0) {
+    return (
+      <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 border border-green-300 dark:border-green-700 rounded-lg px-3 py-2 bg-green-50 dark:bg-green-950/20 mt-4">
+        <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+        All photo findings are consistent with the reported damage and AI assessment.
+      </div>
+    );
+  }
+
+  const highCount = inconsistencies.filter(i => i.severity === 'high').length;
+  const medCount  = inconsistencies.filter(i => i.severity === 'medium').length;
+
+  return (
+    <div className="mt-4 border border-amber-300 dark:border-amber-700 rounded-lg overflow-hidden">
+      <button
+        className="w-full flex items-center justify-between px-3 py-2 bg-amber-50 dark:bg-amber-950/20 text-left"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
+          <span className="text-sm font-semibold text-amber-700 dark:text-amber-300">
+            {inconsistencies.length} photo inconsistenc{inconsistencies.length !== 1 ? 'ies' : 'y'} detected
+          </span>
+          {highCount > 0 && (
+            <span className="text-xs bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 rounded px-1.5 py-0.5">
+              {highCount} high
+            </span>
+          )}
+          {medCount > 0 && (
+            <span className="text-xs bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 rounded px-1.5 py-0.5">
+              {medCount} medium
+            </span>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground">{expanded ? '▲ Hide' : '▼ Show'}</span>
+      </button>
+
+      {expanded && (
+        <div className="p-3 space-y-2 bg-card">
+          {inconsistencies.map((inc, i) => (
+            <div key={i} className={`rounded-lg border p-2.5 text-xs ${INCONSISTENCY_COLOURS[inc.severity]}`}>
+              <div className="flex items-start justify-between gap-2">
+                <p className="font-semibold">{inc.description}</p>
+                <span className="flex-shrink-0 text-xs uppercase font-bold opacity-70">{inc.type.replace(/_/g, ' ')}</span>
+              </div>
+              <div className="mt-1.5 grid grid-cols-2 gap-2 opacity-80">
+                <div><span className="font-semibold">Found in photo: </span>{inc.photoFinding}</div>
+                <div><span className="font-semibold">Expected: </span>{inc.reportedValue}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
+
 interface DamageImagesPanelProps {
   /** AI-classified DamagePhoto[] JSON string from aiAssessments.damagePhotosJson */
   damagePhotosJson?: string | null;
   /** Raw photo URL array JSON string from claims.damagePhotos (fallback) */
   rawDamagePhotos?: string | null;
+  /** Vision-enriched EnrichedPhoto[] JSON string from aiAssessments.enrichedPhotosJson */
+  enrichedPhotosJson?: string | null;
+  /** Cross-check inconsistencies JSON string from aiAssessments.photoInconsistenciesJson */
+  photoInconsistenciesJson?: string | null;
+  /** Claim ID — required to trigger enrichment */
+  claimId?: number;
 }
 
-export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageImagesPanelProps) {
-  const [lightboxPhoto, setLightboxPhoto] = useState<DamagePhoto | null>(null);
+export function DamageImagesPanel({
+  damagePhotosJson,
+  rawDamagePhotos,
+  enrichedPhotosJson,
+  photoInconsistenciesJson,
+  claimId,
+}: DamageImagesPanelProps) {
+  const { user } = useAuth();
+  const utils = trpc.useUtils();
+  const [lightboxEnriched, setLightboxEnriched] = useState<EnrichedPhoto | null>(null);
+  const [lightboxLegacy, setLightboxLegacy] = useState<DamagePhoto | null>(null);
   const [showAll, setShowAll] = useState(false);
 
-  // Parse photos — prefer AI-classified, fall back to raw URLs
-  let photos: DamagePhoto[] = [];
+  // Parse enriched photos (Stage 11)
+  let enrichedPhotos: EnrichedPhoto[] = [];
+  if (enrichedPhotosJson) {
+    try {
+      const parsed = JSON.parse(enrichedPhotosJson);
+      if (Array.isArray(parsed)) enrichedPhotos = parsed;
+    } catch { /* ignore */ }
+  }
+
+  // Parse inconsistencies
+  let inconsistencies: PhotoInconsistency[] = [];
+  if (photoInconsistenciesJson) {
+    try {
+      const parsed = JSON.parse(photoInconsistenciesJson);
+      if (Array.isArray(parsed)) inconsistencies = parsed;
+    } catch { /* ignore */ }
+  }
+
+  // Parse legacy DamagePhoto[] (Tier 1)
+  let legacyPhotos: DamagePhoto[] = [];
   if (damagePhotosJson) {
     try {
       const parsed = JSON.parse(damagePhotosJson);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        // Handle both DamagePhoto[] objects and plain string[] URLs
         if (typeof parsed[0] === 'string') {
-          // Plain URL array — convert to minimal DamagePhoto objects
-          photos = (parsed as string[]).map((url) => ({
+          legacyPhotos = (parsed as string[]).map(url => ({
             imageUrl: url,
             caption: "Damage photo",
             detectedDamageArea: "",
@@ -255,18 +476,16 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
             classification: "damage_photo" as const,
           }));
         } else {
-          photos = parsed as DamagePhoto[];
+          legacyPhotos = parsed as DamagePhoto[];
         }
       }
     } catch { /* ignore */ }
   }
-
-  // Fallback: convert raw URL strings to minimal DamagePhoto objects
-  if (photos.length === 0 && rawDamagePhotos) {
+  if (legacyPhotos.length === 0 && rawDamagePhotos) {
     try {
       const raw = JSON.parse(rawDamagePhotos);
       if (Array.isArray(raw)) {
-        photos = raw.map((url: string) => ({
+        legacyPhotos = raw.map((url: string) => ({
           imageUrl: url,
           caption: "Uploaded damage photo",
           detectedDamageArea: "",
@@ -278,59 +497,106 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
     } catch { /* ignore */ }
   }
 
-  if (photos.length === 0) return null;
+  // Enrichment mutation
+  const enrichMutation = (trpc.aiAssessments as any).enrichPhotos.useMutation({
+    onSuccess: () => {
+      if (claimId) utils.aiAssessments.byClaim.invalidate({ claimId });
+    },
+  });
 
-  // Separate damage photos from document pages for display
-  const damageOnly = photos.filter(p => p.classification !== "document");
-  const docPages   = photos.filter(p => p.classification === "document");
-  const displayPhotos = damageOnly.length > 0 ? damageOnly : photos;
+  const canEnrich = claimId && user && ['admin', 'insurer', 'assessor'].includes(user.role ?? '');
+  const hasEnriched = enrichedPhotos.length > 0;
+
+  // Decide which photos to display
+  const useEnriched = hasEnriched;
+  const displayPhotos = useEnriched
+    ? enrichedPhotos.filter(p => p.imageQuality !== 'unusable')
+    : legacyPhotos.filter(p => p.classification !== "document");
+  const docPages = useEnriched ? [] : legacyPhotos.filter(p => p.classification === "document");
+
+  if (displayPhotos.length === 0 && legacyPhotos.length === 0) return null;
+
   const visiblePhotos = showAll ? displayPhotos : displayPhotos.slice(0, 8);
 
   // Stats
-  const zoneCount: Record<string, number> = {};
-  for (const p of damageOnly) {
-    const z = p.impactZone?.zone || "unknown";
-    zoneCount[z] = (zoneCount[z] || 0) + 1;
-  }
-  const allComponents = damageOnly.flatMap(p => p.detectedComponents || []);
-  const severeCount = allComponents.filter(c => c.severity === "severe" || c.severity === "total_loss").length;
+  const totalPhotos = useEnriched ? enrichedPhotos.length : legacyPhotos.filter(p => p.classification !== "document").length;
+  const avgConfidence = useEnriched && enrichedPhotos.length > 0
+    ? Math.round(enrichedPhotos.reduce((s, p) => s + p.confidenceScore, 0) / enrichedPhotos.length)
+    : null;
 
   return (
     <>
-      {/* Stats bar */}
-      <div className="flex flex-wrap gap-2 mb-4">
-        <Badge variant="outline" className="gap-1">
-          <Camera className="w-3 h-3" />
-          {damageOnly.length} damage photo{damageOnly.length !== 1 ? "s" : ""}
-        </Badge>
-        {docPages.length > 0 && (
-          <Badge variant="outline" className="gap-1 text-muted-foreground">
-            <FileText className="w-3 h-3" />
-            {docPages.length} document page{docPages.length !== 1 ? "s" : ""}
+      {/* Header row: stats + Analyse button */}
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="gap-1">
+            <Camera className="w-3 h-3" />
+            {totalPhotos} photo{totalPhotos !== 1 ? "s" : ""}
           </Badge>
-        )}
-        {Object.entries(zoneCount).filter(([z]) => z !== "unknown").map(([zone, count]) => (
-          <span key={zone} className={`text-xs font-semibold px-2 py-0.5 rounded uppercase tracking-wide ${ZONE_COLOURS[zone] || ZONE_COLOURS.unknown}`}>
-            {zone} ×{count}
-          </span>
-        ))}
-        {severeCount > 0 && (
-          <Badge className="bg-red-600 text-white gap-1">
-            {severeCount} severe component{severeCount !== 1 ? "s" : ""}
-          </Badge>
+          {hasEnriched && avgConfidence !== null && (
+            <Badge variant="outline" className={`gap-1 ${CONFIDENCE_COLOUR(avgConfidence)}`}>
+              <Sparkles className="w-3 h-3" />
+              Avg confidence: {avgConfidence}%
+            </Badge>
+          )}
+          {hasEnriched && inconsistencies.length > 0 && (
+            <Badge className="bg-amber-500 text-white gap-1">
+              <AlertTriangle className="w-3 h-3" />
+              {inconsistencies.length} inconsistenc{inconsistencies.length !== 1 ? 'ies' : 'y'}
+            </Badge>
+          )}
+          {hasEnriched && inconsistencies.length === 0 && (
+            <Badge className="bg-green-600 text-white gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Consistent
+            </Badge>
+          )}
+        </div>
+
+        {canEnrich && (
+          <Button
+            size="sm"
+            variant={hasEnriched ? "outline" : "default"}
+            disabled={enrichMutation.isPending}
+            onClick={() => enrichMutation.mutate({ claimId: claimId! })}
+            className="gap-1.5"
+          >
+            {enrichMutation.isPending ? (
+              <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Analysing…</>
+            ) : hasEnriched ? (
+              <><Sparkles className="w-3.5 h-3.5" /> Re-analyse Photos</>
+            ) : (
+              <><Sparkles className="w-3.5 h-3.5" /> Analyse Photos</>
+            )}
+          </Button>
         )}
       </div>
 
+      {/* Error message */}
+      {enrichMutation.isError && (
+        <div className="mb-3 text-sm text-red-600 dark:text-red-400 border border-red-300 dark:border-red-700 rounded px-3 py-2 bg-red-50 dark:bg-red-950/20">
+          Photo analysis failed: {enrichMutation.error?.message ?? 'Unknown error'}
+        </div>
+      )}
+
       {/* Photo grid */}
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-        {visiblePhotos.map((photo, idx) => (
-          <PhotoCard
-            key={idx}
-            photo={photo}
-            index={idx}
-            onOpen={() => setLightboxPhoto(photo)}
-          />
-        ))}
+        {useEnriched
+          ? (visiblePhotos as EnrichedPhoto[]).map((photo, idx) => (
+              <EnrichedPhotoCard
+                key={idx}
+                photo={photo}
+                onOpen={() => setLightboxEnriched(photo)}
+              />
+            ))
+          : (visiblePhotos as DamagePhoto[]).map((photo, idx) => (
+              <LegacyPhotoCard
+                key={idx}
+                photo={photo}
+                index={idx}
+                onOpen={() => setLightboxLegacy(photo)}
+              />
+            ))
+        }
       </div>
 
       {/* Show more / less */}
@@ -342,30 +608,30 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
         </div>
       )}
 
-      {/* Document pages toggle */}
-      {docPages.length > 0 && damageOnly.length > 0 && (
+      {/* Document pages (legacy only) */}
+      {docPages.length > 0 && (
         <div className="mt-4 pt-3 border-t">
-          <p className="text-xs text-gray-500 dark:text-muted-foreground mb-2">
-            {docPages.length} document page{docPages.length !== 1 ? "s" : ""} also extracted (quote sheets, police reports, assessor forms)
+          <p className="text-xs text-muted-foreground mb-2">
+            {docPages.length} document page{docPages.length !== 1 ? "s" : ""} also extracted
           </p>
           <div className="grid gap-2 grid-cols-3 md:grid-cols-5">
             {docPages.slice(0, 5).map((photo, idx) => (
               <div
                 key={idx}
-                className="relative rounded border border-gray-200 dark:border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
-                onClick={() => setLightboxPhoto(photo)}
+                className="relative rounded border border-border overflow-hidden cursor-pointer hover:opacity-80 transition-opacity"
+                onClick={() => setLightboxLegacy(photo)}
               >
                 <img
                   src={photo.imageUrl}
                   alt={`Document page ${idx + 1}`}
                   className="w-full h-20 object-cover"
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
                 />
-                <p className="text-xs text-center text-gray-500 dark:text-muted-foreground py-0.5">p.{photo.pageNumber || idx + 1}</p>
+                <p className="text-xs text-center text-muted-foreground py-0.5">p.{photo.pageNumber || idx + 1}</p>
               </div>
             ))}
             {docPages.length > 5 && (
-              <div className="flex items-center justify-center text-xs text-gray-400 dark:text-muted-foreground/70">
+              <div className="flex items-center justify-center text-xs text-muted-foreground/70">
                 +{docPages.length - 5} more
               </div>
             )}
@@ -373,9 +639,15 @@ export function DamageImagesPanel({ damagePhotosJson, rawDamagePhotos }: DamageI
         </div>
       )}
 
-      {/* Lightbox */}
-      {lightboxPhoto && (
-        <Lightbox photo={lightboxPhoto} onClose={() => setLightboxPhoto(null)} />
+      {/* Inconsistency panel (shown after enrichment) */}
+      {hasEnriched && <InconsistencyPanel inconsistencies={inconsistencies} />}
+
+      {/* Lightboxes */}
+      {lightboxEnriched && (
+        <EnrichedLightbox photo={lightboxEnriched} onClose={() => setLightboxEnriched(null)} />
+      )}
+      {lightboxLegacy && (
+        <LegacyLightbox photo={lightboxLegacy} onClose={() => setLightboxLegacy(null)} />
       )}
     </>
   );

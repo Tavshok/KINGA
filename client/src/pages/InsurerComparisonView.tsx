@@ -872,7 +872,17 @@ export default function InsurerComparisonView() {
                     return false;
                   })();
                   if (!hasPhotos) return null;
-                  return <DamageImagesPanel damagePhotosJson={damagePhotosJson} rawDamagePhotos={rawDamagePhotos} />;
+                  const enrichedPhotosJson = (aiAssessment as any)?.enrichedPhotosJson ?? null;
+                  const photoInconsistenciesJson = (aiAssessment as any)?.photoInconsistenciesJson ?? null;
+                  return (
+                    <DamageImagesPanel
+                      damagePhotosJson={damagePhotosJson}
+                      rawDamagePhotos={rawDamagePhotos}
+                      enrichedPhotosJson={enrichedPhotosJson}
+                      photoInconsistenciesJson={photoInconsistenciesJson}
+                      claimId={claim?.id}
+                    />
+                  );
                 })()}
                 {/* Structural vs cosmetic breakdown */}
                 <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-analysis" />

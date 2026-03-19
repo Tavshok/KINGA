@@ -3779,10 +3779,95 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           ...valuation,
           priceRange: valuation.priceRange ? JSON.parse(valuation.priceRange) : null,
           notes: valuation.notes ? valuation.notes.split('\n') : [],
-        };
+         };
+      }),
+
+    /**
+     * Stage 11 — Enrich damage photos with vision AI analysis.
+     *
+     * Runs per-image vision analysis on all uploaded damage photos for a claim,
+     * assigns confidence scores, and cross-checks findings against the reported
+     * damage description and AI-extracted components.
+     *
+     * Results are stored in enrichedPhotosJson and photoInconsistenciesJson
+     * on the aiAssessments record.
+     */
+    enrichPhotos: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new Error('Not authenticated');
+        const allowedRoles = ['admin', 'insurer', 'assessor'];
+        if (!allowedRoles.includes(ctx.user.role)) {
+          throw new Error('Insufficient permissions to run photo enrichment');
+        }
+
+        const { getDb } = await import('./db');
+        const { aiAssessments, claims } = await import('../drizzle/schema');
+        const { eq } = await import('drizzle-orm');
+        const { enrichDamagePhotos } = await import('./services/photoEnrichment');
+
+        const db = await getDb();
+        if (!db) throw new Error('Database not available');
+
+        // Load the claim and its latest AI assessment
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        const { getAiAssessmentByClaimId, getClaimById } = await import('./db');
+        const [assessment, claim] = await Promise.all([
+          getAiAssessmentByClaimId(input.claimId, tenantId),
+          getClaimById(input.claimId, tenantId),
+        ]);
+
+        if (!assessment) throw new Error('No AI assessment found for this claim');
+        if (!claim) throw new Error('Claim not found');
+
+        // Extract photo URLs from damagePhotosJson
+        let photoUrls: string[] = [];
+        if (assessment.damagePhotosJson) {
+          try {
+            const parsed = JSON.parse(assessment.damagePhotosJson);
+            if (Array.isArray(parsed)) {
+              photoUrls = parsed.map((p: any) =>
+                typeof p === 'string' ? p : (p.imageUrl || p.url || '')
+              ).filter(Boolean);
+            }
+          } catch { /* ignore parse errors */ }
+        }
+
+        if (photoUrls.length === 0) {
+          return { enriched_photos: [], inconsistencies: [], summary: { totalPhotos: 0, analyzedPhotos: 0, unusablePhotos: 0, inconsistencyCount: 0, averageConfidence: 0 } };
+        }
+
+        // Extract AI-extracted components from damagedComponentsJson
+        let aiExtractedComponents: string[] = [];
+        if (assessment.damagedComponentsJson) {
+          try {
+            const parsed = JSON.parse(assessment.damagedComponentsJson);
+            if (Array.isArray(parsed)) {
+              aiExtractedComponents = parsed.map((c: any) =>
+                typeof c === 'string' ? c : (c.name || c.component || '')
+              ).filter(Boolean);
+            }
+          } catch { /* ignore */ }
+        }
+
+        // Run enrichment
+        const result = await enrichDamagePhotos({
+          photoUrls,
+          reportedDamageDescription: claim.damageDescription ?? assessment.damageDescription,
+          aiExtractedComponents,
+        });
+
+        // Persist results
+        await db.update(aiAssessments)
+          .set({
+            enrichedPhotosJson: JSON.stringify(result.enriched_photos),
+            photoInconsistenciesJson: JSON.stringify(result.inconsistencies),
+          })
+          .where(eq(aiAssessments.id, assessment.id));
+
+        return result;
       }),
   }),
-
   // (admin router procedures moved to server/routers/admin.ts)
 
   /**
