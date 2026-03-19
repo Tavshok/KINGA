@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Zap } from "lucide-react";
 import { clamp } from "@/lib/mathUtils";
+import { DegradedModeBanner } from "@/components/DegradedModeBanner";
+import { useVectorDiagramGuard } from "@/hooks/useVisualDataGuard";
 
 /**
  * Physics Validation Data (from backend)
@@ -199,11 +201,19 @@ export function VehicleImpactVectorDiagramQuantitative({
   };
 
   const config = getQuantitativeImpactConfig();
+
+  // Stage 28: Defensive rendering guard — direction + magnitude required
+  const vectorGuard = useVectorDiagramGuard({
+    direction: physicsValidation?.principalDirectionOfForce ?? impactPoint ?? accidentType ?? null,
+    magnitude: calculatedImpactForceKN ?? null,
+    accidentType: accidentType ?? null,
+  });
   
   // Calculate vector thickness based on impact force (quantitative scaling)
   // Formula: thickness = force / 20, clamped between 2-10px
-  const vectorThickness = calculatedImpactForceKN 
-    ? clamp(calculatedImpactForceKN / 20, 2, 10) 
+  const effectiveForce = calculatedImpactForceKN ?? vectorGuard.resolvedMagnitude;
+  const vectorThickness = effectiveForce 
+    ? clamp(effectiveForce / 20, 2, 10) 
     : 3; // Fallback to 3px if missing
   
   // Get damage zones from components
@@ -262,6 +272,18 @@ export function VehicleImpactVectorDiagramQuantitative({
           )}
         </div>
       </div>
+
+      {/* Stage 28: Show degraded mode banner when vector data is missing */}
+      {vectorGuard.isDegraded && vectorGuard.degradedLabel && (
+        <DegradedModeBanner
+          label={vectorGuard.degradedLabel}
+          detail={[
+            vectorGuard.isDirectionEstimated ? "Direction inferred from accident type" : null,
+            vectorGuard.isMagnitudeEstimated ? "Force estimated from typical impact" : null,
+          ].filter(Boolean).join("; ") || undefined}
+          size="md"
+        />
+      )}
 
       {/* Impact Metrics Summary */}
       <div className="grid grid-cols-2 gap-3 mb-4">

@@ -3,6 +3,8 @@ import { calculateAllZoneSeverities, getSeverityColor, getSeverityDescription, t
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { AlertTriangle, ArrowRight, Shield, Target } from "lucide-react";
+import { DegradedModeBanner } from "@/components/DegradedModeBanner";
+import { useDamageMapGuard } from "@/hooks/useVisualDataGuard";
 
 interface VehicleDamageVisualizationProps {
   damagedComponents: string[];
@@ -49,10 +51,23 @@ export default function VehicleDamageVisualization({
   const [hoveredZone, setHoveredZone] = useState<string | null>(null);
   const [selectedZone, setSelectedZone] = useState<string | null>(null);
 
+  // Stage 28: Defensive rendering — NEVER hide component due to missing data
+  const damageGuard = useDamageMapGuard({
+    zones: [],
+    damagedComponents,
+    accidentType,
+  });
+  // Use guard-resolved components so fallback placeholder is always available
+  const effectiveComponents = damageGuard.isDegraded ? damageGuard.resolvedComponents : damagedComponents;
+
   // Determine which zones are damaged
   const damagedZones = useMemo(() => {
     const zones = new Set<string>();
-    damagedComponents.forEach(component => {
+    // When degraded, seed with the guard's resolved fallback zones
+    if (damageGuard.isDegraded) {
+      damageGuard.resolvedZones.forEach(z => zones.add(z));
+    }
+    effectiveComponents.forEach(component => {
       const lowerComp = component.toLowerCase();
       Object.entries(COMPONENT_TO_ZONE).forEach(([zone, keywords]) => {
         if (keywords.some(keyword => lowerComp.includes(keyword) || keyword.includes(lowerComp))) {
@@ -166,6 +181,14 @@ export default function VehicleDamageVisualization({
         <Badge variant="secondary">{damagedZones.size} zones affected</Badge>
         {impactInfo && <Badge variant="outline" className="gap-1"><ArrowRight className="w-3 h-3" />{impactInfo.label}</Badge>}
       </div>
+      {/* Stage 28: Show degraded mode banner when data is missing */}
+      {damageGuard.isDegraded && damageGuard.degradedLabel && (
+        <DegradedModeBanner
+          label={damageGuard.degradedLabel}
+          detail="Damage zones are inferred from accident type. Upload damage photos or components for precise mapping."
+          size="md"
+        />
+      )}
 
       <div className="grid lg:grid-cols-5 gap-6">
         {/* Vehicle Diagram - 3 columns */}

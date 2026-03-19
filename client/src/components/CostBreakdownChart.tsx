@@ -1,6 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Wrench, Package, Users, PaintBucket, Truck, MoreHorizontal } from "lucide-react";
+import { DegradedModeBanner } from "@/components/DegradedModeBanner";
+import { useCostGraphGuard } from "@/hooks/useVisualDataGuard";
 
 interface ItemizedCost {
   description: string;
@@ -44,14 +46,34 @@ const categoryColors: Record<string, string> = {
 };
 
 export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", isEstimated = false }: CostBreakdownChartProps) {
+  // Stage 28: Defensive rendering guard — ai_estimate + fair_range required
+  const costGuard = useCostGraphGuard({
+    aiEstimate: breakdown.total > 0 ? breakdown.total : null,
+    fairRange: null, // fair_range not in legacy CostBreakdown; guard derives it from total
+    parts: breakdown.parts > 0 ? breakdown.parts : null,
+    labour: breakdown.labor > 0 ? breakdown.labor : null,
+  });
+
+  // Use guard-resolved values when breakdown is empty
+  const effectiveBreakdown = costGuard.isDegraded
+    ? {
+        ...breakdown,
+        labor: costGuard.resolvedLabour,
+        parts: costGuard.resolvedParts,
+        materials: 0,
+        other: 0,
+        total: costGuard.resolvedAiEstimate,
+      }
+    : breakdown;
+
   // Build categories from breakdown, filtering out zero values
   const allCategories = [
-    { key: 'labor', label: 'Labor', value: breakdown.labor },
-    { key: 'parts', label: 'Parts', value: breakdown.parts },
-    { key: 'materials', label: 'Materials', value: breakdown.materials },
-    { key: 'paint', label: 'Paint', value: breakdown.paint || 0 },
-    { key: 'sublet', label: 'Sublet', value: breakdown.sublet || 0 },
-    { key: 'other', label: 'Other', value: breakdown.other },
+    { key: 'labor', label: 'Labor', value: effectiveBreakdown.labor },
+    { key: 'parts', label: 'Parts', value: effectiveBreakdown.parts },
+    { key: 'materials', label: 'Materials', value: effectiveBreakdown.materials },
+    { key: 'paint', label: 'Paint', value: effectiveBreakdown.paint || 0 },
+    { key: 'sublet', label: 'Sublet', value: effectiveBreakdown.sublet || 0 },
+    { key: 'other', label: 'Other', value: effectiveBreakdown.other },
   ].filter(c => c.value > 0);
 
   const maxValue = Math.max(...allCategories.map(c => c.value));
@@ -81,11 +103,20 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
         )}
       </div>
 
+      {/* Stage 28: Show degraded mode banner when cost data is missing */}
+      {costGuard.isDegraded && costGuard.degradedLabel && (
+        <DegradedModeBanner
+          label={costGuard.degradedLabel}
+          detail="Cost breakdown estimated using industry-standard parts/labour ratios. Upload an assessor report for precise figures."
+          size="md"
+        />
+      )}
+
       {/* Total Cost */}
       <div className="mb-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-lg">
         <p className="text-sm text-gray-600 dark:text-muted-foreground mb-1">Total Estimated Cost</p>
         <p className="text-4xl font-bold text-green-600">
-          {currency}{breakdown.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          {currency}{effectiveBreakdown.total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </p>
       </div>
 

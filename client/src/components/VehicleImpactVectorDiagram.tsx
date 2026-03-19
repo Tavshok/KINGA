@@ -2,6 +2,8 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Zap } from "lucide-react";
 import { clamp, getConfidenceColor, formatConfidenceScore } from "@/lib/mathUtils";
+import { DegradedModeBanner } from "@/components/DegradedModeBanner";
+import { usePhysicsDiagramGuard } from "@/hooks/useVisualDataGuard";
 
 /**
  * Physics Validation Data (from backend quantitative physics engine)
@@ -197,17 +199,25 @@ export function VehicleImpactVectorDiagram({
   // Use quantitative calculation if available, otherwise fall back to legacy
   const config = getQuantitativeImpactConfig() || getLegacyImpactConfig();
   
+  // Stage 28: Defensive rendering guard — direction + delta_v required
+  const physicsGuard = usePhysicsDiagramGuard({
+    direction: impactPoint ?? accidentType ?? null,
+    deltaV: impactSpeed ?? null,
+    impactForce: impactForce ?? null,
+    accidentType: accidentType ?? null,
+  });
+
   // Calculate vector thickness based on impact force
   // Quantitative: force-scaled, Legacy: generic scaling
   const vectorThickness = physicsValidation
     ? clamp(physicsValidation.calculatedImpactForceKN / 15, 2, 8)
-    : impactForce
-    ? clamp(impactForce / 10, 2, 6)
+    : physicsGuard.resolvedImpactForce
+    ? clamp(physicsGuard.resolvedImpactForce / 10, 2, 6)
     : 3;
   
-  // Use quantitative force if available, otherwise fall back to legacy
-  const displayForce = physicsValidation?.calculatedImpactForceKN ?? impactForce;
-  const displaySpeed = impactSpeed;
+  // Use quantitative force if available, otherwise fall back to guard-resolved values
+  const displayForce = physicsValidation?.calculatedImpactForceKN ?? physicsGuard.resolvedImpactForce;
+  const displaySpeed = physicsGuard.resolvedDeltaV;
   const displayAngle = physicsValidation?.impactAngleDegrees;
   
   // Get damage zones from components
@@ -274,6 +284,18 @@ export function VehicleImpactVectorDiagram({
           )}
         </div>
       </div>
+
+      {/* Stage 28: Show degraded mode banner when physics data is missing */}
+      {physicsGuard.isDegraded && physicsGuard.degradedLabel && (
+        <DegradedModeBanner
+          label={physicsGuard.degradedLabel}
+          detail={[
+            physicsGuard.isDirectionEstimated ? "Direction inferred from accident type" : null,
+            physicsGuard.isDeltaVEstimated ? "Speed estimated from typical impact" : null,
+          ].filter(Boolean).join("; ") || undefined}
+          size="md"
+        />
+      )}
 
       {/* Impact Metrics Summary */}
       <div className="grid grid-cols-2 gap-3 mb-4">

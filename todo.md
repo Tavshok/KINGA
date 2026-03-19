@@ -9997,3 +9997,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Stage 27: Build apiResponseValidator.ts with field contract, auto-map, and correction logger
 - [ ] Stage 27: Integrate validator as tRPC middleware on all claim analysis procedures
 - [ ] Stage 27: Add unit tests for all mapping rules, auto-heal paths, and block conditions
+
+## Stage 28: Defensive Visual Rendering (2026-03-19)
+- [x] Audit all four visual components for null/blank rendering paths
+- [x] Build useVisualDataGuard.ts hook with per-component data readiness checks
+- [x] Build DegradedModeBanner.tsx shared component
+- [x] Apply defensive rendering to VehicleDamageVisualization (Damage Map)
+- [x] Apply defensive rendering to VehicleImpactVectorDiagram (Physics Diagram)
+- [x] Apply defensive rendering to VehicleImpactVectorDiagramQuantitative (Vector Diagram)
+- [x] Apply defensive rendering to CostBreakdownChart (Cost Graph)
