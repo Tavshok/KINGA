@@ -25,6 +25,7 @@ import type {
   RecoveryAction,
   MissingDocument,
 } from "./types";
+import type { CausalChainOutput } from "./causalChainBuilder";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
@@ -297,7 +298,8 @@ export async function runReportGenerationStage(
   fraudAnalysis: Stage8Output | null,
   costAnalysis: Stage9Output | null,
   turnaroundAnalysis: TurnaroundTimeOutput | null,
-  allAssumptions: Assumption[]
+  allAssumptions: Assumption[],
+  causalChain?: CausalChainOutput | null
 ): Promise<StageResult<Stage10Output>> {
   const start = Date.now();
   ctx.log("Stage 10", "Report generation starting");
@@ -361,6 +363,17 @@ export async function runReportGenerationStage(
         fraudRiskIndicators: fraudSection.content,
         turnaroundTimeEstimate: turnaroundSection.content,
         supportingImages: imageSection.content,
+        ...(causalChain ? {
+          decisionReport: {
+            causal_chain: causalChain.causal_chain,
+            chain_summary: causalChain.chain_summary,
+            decision_outcome: causalChain.decision_outcome,
+            escalation_required: causalChain.escalation_required,
+            step_count: causalChain.step_count,
+            critical_step_count: causalChain.critical_step_count,
+            warning_step_count: causalChain.warning_step_count,
+          },
+        } : {}),
       },
     };
 

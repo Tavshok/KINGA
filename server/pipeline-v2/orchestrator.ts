@@ -50,6 +50,10 @@ import {
   validateCostRealism,
   mergeValidatedCost,
 } from "./costRealismValidator";
+import {
+  buildCausalChain,
+  type CausalChainOutput,
+} from "./causalChainBuilder";
 
 /**
  * Run the full self-healing pipeline.
@@ -84,6 +88,7 @@ export async function runPipelineV2(
   let stage8Data: Stage8Output | null = null;
   let stage9Data: Stage9Output | null = null;
   let stage9bData: TurnaroundTimeOutput | null = null;
+  let causalChain: CausalChainOutput | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
 
@@ -275,6 +280,22 @@ export async function runPipelineV2(
     ctx.log("Stage 36", `Cost realism validation failed (non-fatal): ${String(err)}`);
   }
 
+  // ── STAGE 37: Causal Chain Builder ──────────────────────────────────────
+  try {
+    const preliminaryConfidence = claimRecord?.dataQuality?.completenessScore ?? 50;
+    causalChain = buildCausalChain(
+      claimRecord,
+      stage6Data,
+      stage7Data,
+      stage8Data,
+      stage9Data,
+      preliminaryConfidence
+    );
+    ctx.log("Stage 37", `Causal chain built: ${causalChain.step_count} steps, outcome=${causalChain.decision_outcome}, escalation=${causalChain.escalation_required}, critical=${causalChain.critical_step_count}`);
+  } catch (err) {
+    ctx.log("Stage 37", `Causal chain build failed (non-fatal): ${String(err)}`);
+  }
+
   // ── STAGE 9b: Turnaround Time Analysis ───────────────────────────────
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
   recordStage("9b_turnaround", s9b);
@@ -284,7 +305,8 @@ export async function runPipelineV2(
   const s10 = await runReportGenerationStage(
     ctx, claimRecord,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
-    allAssumptions
+    allAssumptions,
+    causalChain
   );
   recordStage("10_report", s10);
   stage10Data = s10.data;
@@ -294,7 +316,8 @@ export async function runPipelineV2(
   return buildResult(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
-    stage6Data, stage7Data, stage8Data, stage9Data, stage9bData
+    stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
+    causalChain
   );
 }
 
@@ -308,7 +331,8 @@ function buildResult(
   physicsAnalysis: Stage7Output | null,
   fraudAnalysis: Stage8Output | null,
   costAnalysis: Stage9Output | null,
-  turnaroundAnalysis: TurnaroundTimeOutput | null = null
+  turnaroundAnalysis: TurnaroundTimeOutput | null = null,
+  causalChain: CausalChainOutput | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -326,6 +350,7 @@ function buildResult(
     fraudAnalysis,
     costAnalysis,
     turnaroundAnalysis,
+    causalChain,
   };
 }
 
