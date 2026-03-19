@@ -3926,13 +3926,32 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           triggerSource: 'manual',
         });
 
+        // Generate natural-language narratives for each mismatch when the
+        // check completed successfully. Template engine only (useLlm: false)
+        // to keep response latency predictable; LLM enrichment can be added
+        // as a background job in a future iteration.
+        let resultWithNarratives: typeof result = result;
+        if (result.status === 'complete' && result.mismatches.length > 0) {
+          try {
+            const { generateMismatchNarratives } = await import('./services/mismatchNarrative');
+            const narratives = await generateMismatchNarratives(result.mismatches, { useLlm: false });
+            // Attach narrative to each mismatch by index
+            const mismatchesWithNarratives = result.mismatches.map((m, i) => ({
+              ...m,
+              narrative: narratives[i]?.explanation ?? null,
+              narrative_source: narratives[i]?.source ?? 'template',
+            }));
+            resultWithNarratives = { ...result, mismatches: mismatchesWithNarratives } as typeof result;
+          } catch { /* narrative generation failure must not block the consistency result */ }
+        }
+
         // Always persist the result — including pending_inputs so the UI
         // can display which conditions are still missing.
         await db.update(aiAssessments)
-          .set({ consistencyCheckJson: JSON.stringify(result) })
+          .set({ consistencyCheckJson: JSON.stringify(resultWithNarratives) })
           .where(eq(aiAssessments.id, assessment.id));
 
-        return result;
+        return resultWithNarratives;
       }),
   }),
   // (admin router procedures moved to server/routers/admin.ts)
