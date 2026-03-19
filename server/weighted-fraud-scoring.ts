@@ -10,7 +10,13 @@
  *   Direction mismatch    (impact ≠ damage)   → +15
  *   Repeat claim          (prior claim exists)→ +20
  *   Missing data          (key fields absent) → +10
+ *   Severity vs Physics   (severe + no data)  → +15
+ *   Multi-source conflict (Stage 29 governed) → up to 15% of total
  */
+import {
+  computeConsistencyFraudPenalty,
+  type PenaltyAuditEntry,
+} from "./services/consistencyFraudPenalty";
 
 export interface FraudContribution {
   factor: string;
@@ -25,6 +31,10 @@ export interface WeightedFraudResult {
   contributions: Array<{ factor: string; value: number }>;
   full_contributions: FraudContribution[];
   explanation: string;
+  /** Stage 29: per-mismatch audit log from the consistency fraud penalty module */
+  penalty_audit_log?: PenaltyAuditEntry[];
+  /** Stage 29: human-readable summary of the consistency penalty decision */
+  penalty_summary?: string;
 }
 
 export interface FraudScoringInput {
@@ -64,6 +74,11 @@ export interface FraudScoringInput {
     highSeverityMismatchCount: number;
     details: string;
   };
+  /**
+   * Stage 29: Full consistency_check_json document for governed penalty computation.
+   * When provided, this takes precedence over multiSourceConflict for Factor 7.
+   */
+  consistencyCheckJson?: import("./services/consistencyFraudPenalty").ConsistencyCheckJson | null;
 }
 
 // ─── Level mapping (strict 5-band) ───────────────────────────────────────────
@@ -193,75 +208,57 @@ export function computeWeightedFraudScore(
   });
   base += severityPhysicsValue;
 
-  // Factor 7: Multi-source damage conflict (from Stage 12/13 consistency check)
+  // Factor 7: Multi-source damage conflict (Stage 29 governed module)
   //
-  // Base weight:
-  //   confidence HIGH   + high-severity mismatches → +12
-  //   confidence MEDIUM + high-severity mismatches → +5
-  //   confidence LOW                               → ignored
-  //
-  // Dampening (applied sequentially, multiplicative):
-  //   If base score before Factor 7 > 70  → reduce weight by 30%
-  //   If ≥2 other factors already triggered with value ≥10 → reduce weight by 20%
-  //
-  // Cap:
-  //   Factor 7 contribution MUST NOT exceed 15% of the total fraud score
-  //   (evaluated after dampening, before final score cap at 100).
-  const conflict = input.multiSourceConflict;
-  const conflictTriggered =
-    conflict !== undefined &&
-    conflict.highSeverityMismatchCount > 0 &&
-    (conflict.confidence === "HIGH" || conflict.confidence === "MEDIUM");
+  // Delegates to computeConsistencyFraudPenalty which enforces:
+  //   Rule 1 — status gate (only "complete" checks)
+  //   Rule 2 — severity gate (high_severity_mismatches >= 1)
+  //   Rule 3 — dampening (base > 70 → −30%; multiple high factors → −20%)
+  //   Rule 4 — cap (≤15% of total fraud score)
+  //   Rule 5 — per-mismatch audit log
+  const highWeightTriggeredCount = contributions.filter(
+    (c) => c.triggered && c.value >= 10
+  ).length;
 
-  let conflictValue = 0;
-  let conflictDampeningNote = "";
-
-  if (conflictTriggered) {
-    // 1. Base weight
-    let rawWeight = conflict!.confidence === "HIGH" ? 12 : 5;
-
-    // 2a. Dampening: base score before Factor 7 > 70
-    const scoreBeforeFactor7 = base;
-    if (scoreBeforeFactor7 > 70) {
-      rawWeight = rawWeight * 0.7;  // −30%
-      conflictDampeningNote += " [−30% dampening: base score already >70]";
+  // Use full consistencyCheckJson when available (Stage 29 path),
+  // otherwise fall back to the legacy multiSourceConflict signal.
+  let penaltyResult;
+  if (input.consistencyCheckJson !== undefined) {
+    penaltyResult = computeConsistencyFraudPenalty(
+      input.consistencyCheckJson ?? null,
+      base,
+      highWeightTriggeredCount
+    );
+  } else {
+    // Legacy path: reconstruct a minimal ConsistencyCheckJson from multiSourceConflict
+    const conflict = input.multiSourceConflict;
+    if (conflict && conflict.highSeverityMismatchCount > 0) {
+      const fakeMismatches = Array.from(
+        { length: conflict.highSeverityMismatchCount },
+        (_, i) => ({
+          mismatch_type: `mismatch_${i + 1}`,
+          severity: "high" as const,
+          details: conflict.details,
+        })
+      );
+      penaltyResult = computeConsistencyFraudPenalty(
+        { status: "complete", confidence: conflict.confidence, mismatches: fakeMismatches },
+        base,
+        highWeightTriggeredCount
+      );
+    } else {
+      penaltyResult = computeConsistencyFraudPenalty(null, base, highWeightTriggeredCount);
     }
-
-    // 2b. Dampening: ≥2 other factors already triggered with value ≥10
-    const highWeightTriggeredCount = contributions.filter(
-      (c) => c.triggered && c.value >= 10
-    ).length;
-    if (highWeightTriggeredCount >= 2) {
-      rawWeight = rawWeight * 0.8;  // −20%
-      conflictDampeningNote += " [−20% dampening: multiple high-weight factors present]";
-    }
-
-    // 3. Cap: Factor 7 must not exceed 15% of the projected total score
-    //    Projected total = base + rawWeight (before final 100-cap)
-    const projectedTotal = Math.min(100, base + rawWeight);
-    const maxAllowed = projectedTotal * 0.15;
-    if (rawWeight > maxAllowed) {
-      rawWeight = maxAllowed;
-      conflictDampeningNote += " [capped at 15% of total score]";
-    }
-
-    // Round to 1 decimal place for clean display
-    conflictValue = Math.round(rawWeight * 10) / 10;
   }
+
+  const conflictValue = penaltyResult.total_penalty;
+  const conflictTriggered = conflictValue > 0;
 
   contributions.push({
     factor: "Multi-Source Damage Conflict",
     value: conflictValue,
     triggered: conflictTriggered,
-    detail: conflictTriggered
-      ? `Damage evidence is inconsistent across document, photos, and physics analysis ` +
-        `(${conflict!.highSeverityMismatchCount} high-severity mismatch${conflict!.highSeverityMismatchCount > 1 ? "es" : ""}, ` +
-        `consistency check confidence: ${conflict!.confidence}).` +
-        (conflictDampeningNote ? ` Weight adjusted:${conflictDampeningNote}.` : "") +
-        ` ${conflict!.details}`
-      : conflict?.confidence === "LOW"
-      ? "Multi-source conflict detected but confidence is LOW — signal not applied."
-      : "No high-severity multi-source damage conflict detected.",
+    detail: penaltyResult.summary,
   });
   base += conflictValue;
 
@@ -299,6 +296,9 @@ export function computeWeightedFraudScore(
     contributions: triggeredContributions,
     full_contributions: contributions,
     explanation,
+    // Stage 29: expose the governed penalty audit log
+    penalty_audit_log: penaltyResult.audit_log,
+    penalty_summary: penaltyResult.summary,
   };
 }
 

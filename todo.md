@@ -10006,3 +10006,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Apply defensive rendering to VehicleImpactVectorDiagram (Physics Diagram)
 - [x] Apply defensive rendering to VehicleImpactVectorDiagramQuantitative (Vector Diagram)
 - [x] Apply defensive rendering to CostBreakdownChart (Cost Graph)
+
+## Stage 29: Governed Consistency-to-Fraud Penalty (2026-03-19)
+- [x] Build consistencyFraudPenalty.ts: status gate, high-severity trigger, dampening, cap, audit log
+- [ ] Integrate into fraud scoring engine
+- [ ] Add unit tests for all five rules
