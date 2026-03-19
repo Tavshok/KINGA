@@ -54,6 +54,10 @@ import {
   buildCausalChain,
   type CausalChainOutput,
 } from "./causalChainBuilder";
+import {
+  computeEvidenceBundle,
+  type EvidenceBundle,
+} from "./evidenceStrengthScorer";
 
 /**
  * Run the full self-healing pipeline.
@@ -89,6 +93,7 @@ export async function runPipelineV2(
   let stage9Data: Stage9Output | null = null;
   let stage9bData: TurnaroundTimeOutput | null = null;
   let causalChain: CausalChainOutput | null = null;
+  let evidenceBundle: EvidenceBundle | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
 
@@ -296,6 +301,22 @@ export async function runPipelineV2(
     ctx.log("Stage 37", `Causal chain build failed (non-fatal): ${String(err)}`);
   }
 
+  // ── STAGE 38: Evidence Strength Scorer ──────────────────────────────────
+  if (claimRecord && stage6Data && stage7Data && stage8Data && stage9Data) {
+    try {
+      evidenceBundle = computeEvidenceBundle(
+        claimRecord,
+        stage6Data,
+        stage7Data,
+        stage8Data,
+        stage9Data
+      );
+      ctx.log("Stage 38", `Evidence bundle computed: composite=${evidenceBundle.composite.evidence_label}(${evidenceBundle.composite.evidence_strength.toFixed(2)}), damage=${evidenceBundle.damage.evidence_label}, physics=${evidenceBundle.physics.evidence_label}, fraud=${evidenceBundle.fraud.evidence_label}, cost=${evidenceBundle.cost.evidence_label}`);
+    } catch (err) {
+      ctx.log("Stage 38", `Evidence scoring failed (non-fatal): ${String(err)}`);
+    }
+  }
+
   // ── STAGE 9b: Turnaround Time Analysis ───────────────────────────────
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
   recordStage("9b_turnaround", s9b);
@@ -317,7 +338,7 @@ export async function runPipelineV2(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
-    causalChain
+    causalChain, evidenceBundle
   );
 }
 
@@ -332,7 +353,8 @@ function buildResult(
   fraudAnalysis: Stage8Output | null,
   costAnalysis: Stage9Output | null,
   turnaroundAnalysis: TurnaroundTimeOutput | null = null,
-  causalChain: CausalChainOutput | null = null
+  causalChain: CausalChainOutput | null = null,
+  evidenceBundle: EvidenceBundle | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -351,6 +373,7 @@ function buildResult(
     costAnalysis,
     turnaroundAnalysis,
     causalChain,
+    evidenceBundle,
   };
 }
 
