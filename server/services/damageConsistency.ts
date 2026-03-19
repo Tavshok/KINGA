@@ -478,6 +478,9 @@ export async function runDamageConsistencyCheck(input: ConsistencyCheckInput): P
   const confidence = scoreToConfidence(score, docAvailable, photoAvailable);
 
   // Stage 24: three-signal calibrated confidence
+  // Stage 30: pass high-severity count and severe-mismatch flag for post-scoring rules
+  const highSeverityCount = mismatches.filter((m) => m.severity === "high").length;
+  const hasSevereMismatch = highSeverityCount > 0;
   const { computeConsistencyConfidence } = await import("./consistencyConfidence");
   const calibrated = computeConsistencyConfidence({
     detectedMismatchTypes: mismatches.map((m) => m.type),
@@ -488,6 +491,9 @@ export async function runDamageConsistencyCheck(input: ConsistencyCheckInput): P
       physics: physicsAvailable,
     },
     annotationStats: input.annotationStats,
+    // Stage 30 additions
+    highSeverityMismatchCount: highSeverityCount,
+    hasSevereMismatch,
   });
 
   // Run pre-condition guard only for auto-triggered calls.

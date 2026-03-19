@@ -10011,3 +10011,8 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Build consistencyFraudPenalty.ts: status gate, high-severity trigger, dampening, cap, audit log
 - [ ] Integrate into fraud scoring engine
 - [ ] Add unit tests for all five rules
+
+## Stage 30: Confidence Post-Scoring Rules
+- [ ] Extend consistencyConfidence.ts: conflict penalty, clamp, band remap, coherence enforcement
+- [ ] Update damageConsistency.ts integration to pass high_severity_count and physics_available
+- [ ] Add Stage 30 unit tests (conflict penalty, clamp boundaries, band remap, coherence)
