@@ -7,6 +7,13 @@
  *   - LLM fallback: when LLM throws, template is returned with source: "template"
  *   - generateSingleNarrative convenience wrapper
  *   - Empty array input returns empty array
+ *   - External narrative hardening (Stage 22):
+ *       - No suspicion language in any external narrative
+ *       - No scoring / internal logic references
+ *       - No wrongdoing implication
+ *       - Always contains a neutral anchor phrase
+ *       - LLM post-generation guard rejects forbidden phrases
+ *       - LLM post-generation guard rejects output missing neutral anchor
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
@@ -32,6 +39,17 @@ function mismatch(
   };
 }
 
+const ALL_TYPES: DamageMismatch["type"][] = [
+  "zone_mismatch",
+  "component_unreported",
+  "component_not_visible",
+  "severity_mismatch",
+  "physics_zone_conflict",
+  "photo_zone_conflict",
+  "no_photo_evidence",
+  "no_document_evidence",
+];
+
 // ─── Template engine tests ────────────────────────────────────────────────────
 
 describe("generateMismatchNarratives — template engine (useLlm: false)", () => {
@@ -49,17 +67,6 @@ describe("generateMismatchNarratives — template engine (useLlm: false)", () =>
     expect(result).toHaveLength(2);
   });
 
-  const ALL_TYPES: DamageMismatch["type"][] = [
-    "zone_mismatch",
-    "component_unreported",
-    "component_not_visible",
-    "severity_mismatch",
-    "physics_zone_conflict",
-    "photo_zone_conflict",
-    "no_photo_evidence",
-    "no_document_evidence",
-  ];
-
   for (const type of ALL_TYPES) {
     it(`produces a non-empty explanation for type: ${type}`, async () => {
       const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
@@ -72,7 +79,7 @@ describe("generateMismatchNarratives — template engine (useLlm: false)", () =>
   it("includes source_a in zone_mismatch narrative", async () => {
     const m = mismatch("zone_mismatch", "high", { source_a: "front", source_b: "rear" });
     const [result] = await generateMismatchNarratives([m], { useLlm: false });
-    // Narrative should mention the zone values
+    // Internal explanation should mention the zone values
     expect(result.explanation.toLowerCase()).toMatch(/front|rear/);
   });
 
@@ -119,7 +126,9 @@ describe("generateMismatchNarratives — template engine (useLlm: false)", () =>
       expect(r.explanation.trimEnd()).toMatch(/[.!?]$/);
     }
   });
-});// ─── LLM enrichment tests ──────────────────────────────────────────────────────────
+});
+
+// ─── LLM enrichment tests ──────────────────────────────────────────────────────────
 
 describe("generateMismatchNarratives — LLM enrichment (JSON schema output)", () => {
   beforeEach(() => {
@@ -260,6 +269,7 @@ describe("generateMismatchNarratives — LLM enrichment (JSON schema output)", (
     expect(result.preserves_meaning).toBeUndefined();
   });
 });
+
 // ─── generateSingleNarrative ──────────────────────────────────────────────────
 
 describe("generateSingleNarrative", () => {
@@ -276,83 +286,97 @@ describe("generateSingleNarrative", () => {
   });
 });
 
-// ─── External narrative tests ─────────────────────────────────────────────────
+// ─── External narrative — Stage 22 hardened tests ────────────────────────────
+//
+// Three absolute rules:
+//   A) No suspicion language
+//   B) No scoring / internal logic references
+//   C) No wrongdoing implication
+//   + Must contain a neutral anchor phrase
 
-describe("external_narrative — template engine", () => {
-  const ALL_TYPES: DamageMismatch["type"][] = [
-    "zone_mismatch",
-    "component_unreported",
-    "component_not_visible",
-    "severity_mismatch",
-    "physics_zone_conflict",
-    "photo_zone_conflict",
-    "no_photo_evidence",
-    "no_document_evidence",
+describe("external_narrative — Stage 22 hardened rules", () => {
+
+  // ── A) Suspicion language — must never appear ─────────────────────────────
+  const SUSPICION_PATTERNS: [string, RegExp][] = [
+    ["fraud",                /\bfraud(ulent)?\b/i],
+    ["misrepresent",         /\bmisrepresent/i],
+    ["misreporting",         /\bmisreport/i],
+    ["dishonest",            /\bdishonest/i],
+    ["deliberate",           /\bdeliberate/i],
+    ["intentional",          /\bintentional/i],
+    ["suspect",              /\bsuspect(ed|ious)?\b/i],
+    ["false",                /\bfalse\b/i],
+    ["fabricate",            /\bfabricat/i],
+    ["tamper",               /\btamper/i],
+    ["conceal",              /\bconceal/i],
+    ["omit",                 /\bomit(ted|ting)?\b/i],
+    ["undisclosed",          /\bundisclos/i],
+    ["inflated",             /\binflat/i],
+    ["exaggerated",          /\bexaggerat/i],
+    ["staged",               /\bstaged?\b/i],
+    ["collusion",            /\bcollusion\b/i],
+    ["deceptive",            /\bdecepti/i],
+    ["misleading",           /\bmislead/i],
+    ["forged",               /\bforged?\b/i],
+    ["scheme",               /\bscheme\b/i],
+    ["pre-existing condition", /\bpre[- ]existing condition\b/i],
   ];
 
-  // Forbidden investigative phrases that must NOT appear in external narratives
-  const FORBIDDEN_PATTERNS = [
-    /\bfraud\b/i,
-    /\bmisrepresent/i,
-    /\bdishonest/i,
-    /\bdeliberate/i,
-    /\bsuspect/i,
-    /\bfalse\b/i,
-    /\bfabricate/i,
-    /\binvestigat/i,
+  for (const type of ALL_TYPES) {
+    for (const [label, pattern] of SUSPICION_PATTERNS) {
+      it(`external_narrative for ${type} must NOT contain suspicion word: "${label}"`, async () => {
+        const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
+        expect(result.external_narrative).not.toMatch(pattern);
+      });
+    }
+  }
+
+  // ── B) Scoring / internal logic — must never appear ───────────────────────
+  const SCORING_PATTERNS: [string, RegExp][] = [
+    ["score",             /\bscore\b/i],
+    ["weight",            /\bweight(ed)?\b/i],
+    ["confidence",        /\bconfidence\b/i],
+    ["severity level",    /\bseverity (level|score|rating)\b/i],
+    ["high/medium/low risk", /\b(high|medium|low)[- ]risk\b/i],
+    ["physics engine",    /\bphysics engine\b/i],
+    ["delta-V",           /\bdelta[- ]?v\b/i],
+    ["impact vector",     /\bimpact vector\b/i],
+    ["consistency check", /\bconsistency (check|score)\b/i],
+    ["algorithm",         /\balgorithm\b/i],
+    ["machine learning",  /\bmachine learning\b/i],
+    ["fraud score",       /\bfraud score\b/i],
+    ["risk score",        /\brisk score\b/i],
+    ["penalty",           /\bpenalty\b/i],
+    ["AI analysis",       /\bai analysis\b/i],
+    ["investigat",        /\binvestigat/i],
   ];
 
+  for (const type of ALL_TYPES) {
+    for (const [label, pattern] of SCORING_PATTERNS) {
+      it(`external_narrative for ${type} must NOT contain internal logic term: "${label}"`, async () => {
+        const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
+        expect(result.external_narrative).not.toMatch(pattern);
+      });
+    }
+  }
+
+  // ── C) Neutral anchor phrase — must always appear ─────────────────────────
+  const NEUTRAL_ANCHOR = /further review (is )?(required|recommended)|additional verification (is )?needed|additional documentation may be required/i;
+
+  for (const type of ALL_TYPES) {
+    it(`external_narrative for ${type} must contain a neutral anchor phrase`, async () => {
+      const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
+      expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+    });
+  }
+
+  // ── Non-empty and ends with punctuation ───────────────────────────────────
   for (const type of ALL_TYPES) {
     it(`produces a non-empty external_narrative for type: ${type}`, async () => {
       const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
       expect(result.external_narrative.length).toBeGreaterThan(20);
     });
-
-    it(`external_narrative for ${type} contains no forbidden investigative phrases`, async () => {
-      const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
-      for (const pattern of FORBIDDEN_PATTERNS) {
-        expect(result.external_narrative).not.toMatch(pattern);
-      }
-    });
   }
-
-  it("external_narrative for zone_mismatch includes zone values", async () => {
-    const m = mismatch("zone_mismatch", "high", { source_a: "front", source_b: "rear" });
-    const [result] = await generateMismatchNarratives([m], { useLlm: false });
-    expect(result.external_narrative.toLowerCase()).toMatch(/front|rear/);
-  });
-
-  it("external_narrative for component_unreported includes component name", async () => {
-    const m = mismatch("component_unreported", "medium", { component: "radiator" });
-    const [result] = await generateMismatchNarratives([m], { useLlm: false });
-    expect(result.external_narrative.toLowerCase()).toContain("radiator");
-  });
-
-  it("external_narrative for no_photo_evidence includes component name", async () => {
-    const m = mismatch("no_photo_evidence", "low", { component: "rear bumper" });
-    const [result] = await generateMismatchNarratives([m], { useLlm: false });
-    expect(result.external_narrative.toLowerCase()).toContain("rear bumper");
-  });
-
-  it("external_narrative uses neutral phrasing keywords", async () => {
-    // Matches any of the approved neutral phrases used across all 8 templates
-    const NEUTRAL_PATTERNS = [
-      /requires verification|verification of|inconsistency.*observed|further review|additional documentation|submission of additional/i,
-    ];
-    for (const type of ALL_TYPES) {
-      const [result] = await generateMismatchNarratives([mismatch(type)], { useLlm: false });
-      const hasNeutral = NEUTRAL_PATTERNS.some((p) => p.test(result.external_narrative));
-      expect(hasNeutral).toBe(true);
-    }
-  });
-
-  it("external_narrative is different from internal explanation", async () => {
-    // The internal explanation is investigative; the external should differ in tone
-    const m = mismatch("zone_mismatch", "high", { source_a: "front", source_b: "rear" });
-    const [result] = await generateMismatchNarratives([m], { useLlm: false });
-    // They should not be identical (different phrasing strategy)
-    expect(result.external_narrative).not.toBe(result.explanation);
-  });
 
   it("all external narratives end with a period", async () => {
     const results = await generateMismatchNarratives(
@@ -363,40 +387,222 @@ describe("external_narrative — template engine", () => {
       expect(r.external_narrative.trimEnd()).toMatch(/[.!?]$/);
     }
   });
+
+  // ── Component name preserved in external narrative ────────────────────────
+  it("external_narrative for component_unreported includes component name", async () => {
+    const m = mismatch("component_unreported", "medium", { component: "radiator" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    expect(result.external_narrative.toLowerCase()).toContain("radiator");
+  });
+
+  it("external_narrative for component_not_visible includes component name", async () => {
+    const m = mismatch("component_not_visible", "medium", { component: "rear bumper" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    expect(result.external_narrative.toLowerCase()).toContain("rear bumper");
+  });
+
+  it("external_narrative for no_photo_evidence includes component name", async () => {
+    const m = mismatch("no_photo_evidence", "low", { component: "rear bumper" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    expect(result.external_narrative.toLowerCase()).toContain("rear bumper");
+  });
+
+  // ── Zone_mismatch external narrative must NOT expose raw source labels ─────
+  it("zone_mismatch external_narrative does NOT expose raw internal source labels", async () => {
+    const m = mismatch("zone_mismatch", "high", { source_a: "Document", source_b: "Photo" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    // The new template uses generic "area" language — it must not include raw source labels
+    expect(result.external_narrative).not.toMatch(/\bDocument\b/);
+    expect(result.external_narrative).not.toMatch(/\bPhoto\b/);
+  });
+
+  // ── severity_mismatch external narrative must NOT expose source labels ─────
+  it("severity_mismatch external_narrative does NOT expose internal source labels", async () => {
+    const m = mismatch("severity_mismatch", "high", { source_a: "minor", source_b: "severe" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    // Should not expose the raw severity labels from internal sources
+    expect(result.external_narrative).not.toMatch(/\bminor\b/i);
+    expect(result.external_narrative).not.toMatch(/\bsevere\b/i);
+  });
+
+  // ── physics_zone_conflict must NOT expose "physics analysis" label ─────────
+  it("physics_zone_conflict external_narrative does NOT mention physics analysis", async () => {
+    const m = mismatch("physics_zone_conflict", "high", { source_a: "rear", source_b: "front" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    expect(result.external_narrative).not.toMatch(/physics analysis/i);
+    expect(result.external_narrative).not.toMatch(/physics engine/i);
+    expect(result.external_narrative).not.toMatch(/delta[- ]?v/i);
+  });
+
+  // ── External narrative must differ from internal explanation ──────────────
+  it("external_narrative is different from internal explanation", async () => {
+    const m = mismatch("zone_mismatch", "high", { source_a: "front", source_b: "rear" });
+    const [result] = await generateMismatchNarratives([m], { useLlm: false });
+    expect(result.external_narrative).not.toBe(result.explanation);
+  });
 });
 
-describe("external_narrative — LLM fallback", () => {
+// ─── External narrative — LLM post-generation guard ──────────────────────────
+
+describe("external_narrative — LLM post-generation guard (Stage 22)", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
-  it("falls back to template external narrative when LLM returns forbidden phrase", async () => {
+  it("falls back to template when LLM external narrative contains 'fraud'", async () => {
     vi.doMock("../_core/llm", () => ({
       invokeLLM: vi.fn().mockResolvedValue({
         choices: [{ message: { content: JSON.stringify({
           enriched_narrative: "Damage photos show front-zone impact.",
           preserves_meaning: true,
-          external_narrative: "The claimant appears to have fabricated the damage report.",
+          external_narrative: "The claimant appears to have committed fraud.",
         }) } }],
       }),
     }));
-
     const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
     const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
-
-    // The external_narrative must NOT contain "fabricated" — should fall back to template
-    expect(result.external_narrative).not.toMatch(/fabricat/i);
+    expect(result.external_narrative).not.toMatch(/\bfraud\b/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
   });
 
-  it("falls back to template external narrative when LLM throws", async () => {
+  it("falls back to template when LLM external narrative contains 'misrepresent'", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "The claimant may have misrepresented the damage location.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+    expect(result.external_narrative).not.toMatch(/misrepresent/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative contains 'score'", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "The fraud score for this claim is elevated. Further review is required.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+    expect(result.external_narrative).not.toMatch(/\bscore\b/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative contains 'delta-V'", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "The delta-V calculation indicates a different impact zone. Further review is required.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("physics_zone_conflict")], { useLlm: true });
+    expect(result.external_narrative).not.toMatch(/delta[- ]?v/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative contains 'confidence'", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "The confidence level for this assessment is low. Further review is required.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("severity_mismatch")], { useLlm: true });
+    expect(result.external_narrative).not.toMatch(/\bconfidence\b/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative contains 'investigat'", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "This claim requires investigation. Further review is recommended.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("no_photo_evidence")], { useLlm: true });
+    expect(result.external_narrative).not.toMatch(/\binvestigat/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative contains 'tamper'", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "Evidence of tampering has been observed. Further review is required.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("component_unreported")], { useLlm: true });
+    expect(result.external_narrative).not.toMatch(/\btamper/i);
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative has no neutral anchor phrase", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "A discrepancy was noted between the submitted documents.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+    // No neutral anchor → must fall back to template which always has one
+    expect(result.external_narrative).toMatch(NEUTRAL_ANCHOR);
+  });
+
+  it("falls back to template when LLM external narrative is too short (<20 chars)", async () => {
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          external_narrative: "Short.",
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+    expect(result.external_narrative.length).toBeGreaterThan(20);
+  });
+
+  it("falls back to template when LLM external narrative throws", async () => {
     vi.doMock("../_core/llm", () => {
       throw new Error("LLM unavailable");
     });
-
     const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
     const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
-
     expect(result.external_narrative.length).toBeGreaterThan(20);
     expect(result.external_narrative).not.toMatch(/\bfraud\b/i);
   });
+
+  it("accepts valid LLM external narrative that passes all guards", async () => {
+    const validExternal = "An inconsistency has been observed between the submitted evidence and the claim documentation. Further review is required to confirm the affected area.";
+    vi.doMock("../_core/llm", () => ({
+      invokeLLM: vi.fn().mockResolvedValue({
+        choices: [{ message: { content: JSON.stringify({
+          enriched_narrative: "Damage photos show front-zone impact.",
+          preserves_meaning: true,
+          external_narrative: validExternal,
+        }) } }],
+      }),
+    }));
+    const { generateMismatchNarratives: gen } = await import("./mismatchNarrative");
+    const [result] = await gen([mismatch("zone_mismatch")], { useLlm: true });
+    // Should use the LLM output since it passes all guards
+    expect(result.external_narrative).toBe(validExternal);
+  });
 });
+
+// Helper constant for neutral anchor check (reused across describe blocks)
+const NEUTRAL_ANCHOR = /further review (is )?(required|recommended)|additional verification (is )?needed|additional documentation may be required/i;

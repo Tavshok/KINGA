@@ -268,7 +268,7 @@ async function persistNarrativeVersion(
   narrative: Omit<MismatchNarrative, "active_version_id" | "version">,
   ctx: NarrativePersistContext
 ): Promise<{ id: number; version: number }> {
-  const db = getDb();
+  const db = await getDb();
   const now = Date.now();
 
   // Find the highest existing version for this mismatch index
@@ -339,7 +339,7 @@ async function persistNarrativeVersion(
 export async function getNarrativeVersionHistory(
   assessmentId: number
 ): Promise<typeof narrativeVersions.$inferSelect[]> {
-  const db = getDb();
+  const db = await getDb();
   return db
     .select()
     .from(narrativeVersions)
@@ -450,49 +450,90 @@ export async function generateMismatchNarratives(
 
 /**
  * Deterministic external-safe template for each mismatch type.
- * Uses neutral, non-accusatory phrasing suitable for sharing with claimants
- * and third parties. No investigative or fraud-implying language.
+ *
+ * Rules enforced in every template:
+ *   1. NO suspicion language (fraud, misrepresent, undisclosed, omit, conceal,
+ *      tamper, inflate, exaggerate, pre-existing condition, misreporting)
+ *   2. NO scoring or confidence references (score, weight, confidence,
+ *      high/medium/low severity, risk level, factor, penalty)
+ *   3. NO internal logic references (physics engine, delta-V, impact vector,
+ *      consistency check, algorithm, AI analysis, machine learning)
+ *   4. NEVER imply wrongdoing — passive, neutral phrasing only
+ *   5. Always include one of:
+ *        - "further review required"
+ *        - "further review is recommended"
+ *        - "additional verification needed"
+ *        - "additional documentation may be required"
  */
 function externalTemplate(m: DamageMismatch): string {
   switch (m.type) {
     case "zone_mismatch": {
-      const a = m.source_a ?? "one area";
-      const b = m.source_b ?? "another area";
-      return `An inconsistency has been observed between the ${a} zone referenced in the claim documentation and the ${b} zone identified in the submitted evidence. Further review is recommended to verify the affected area.`;
+      return (
+        `An inconsistency has been observed between the area referenced in the claim ` +
+        `documentation and the area identified in the submitted evidence. ` +
+        `Further review is required to confirm the affected area before the assessment can be completed.`
+      );
     }
     case "component_unreported": {
-      const c = m.component ?? "a component";
-      return `${c.charAt(0).toUpperCase() + c.slice(1)} has been identified in the submitted evidence but does not appear in the claim documentation. Verification of the documented damage scope is recommended.`;
+      const c = m.component
+        ? `${m.component.charAt(0).toUpperCase()}${m.component.slice(1)}`
+        : "A component";
+      return (
+        `${c} identified in the submitted evidence requires additional verification ` +
+        `against the claim documentation. ` +
+        `Further review is recommended to confirm the full scope of the assessment.`
+      );
     }
     case "component_not_visible": {
-      const c = m.component ?? "A component";
-      return `${c.charAt(0).toUpperCase() + c.slice(1)} referenced in the claim documentation requires verification, as corresponding visual evidence was not identified in the submitted images. Further documentation may be required.`;
+      const c = m.component
+        ? `${m.component.charAt(0).toUpperCase()}${m.component.slice(1)}`
+        : "A component";
+      return (
+        `${c} referenced in the claim documentation requires additional verification. ` +
+        `Further review is recommended — please submit supporting photographic evidence ` +
+        `for this item to allow the assessment to proceed.`
+      );
     }
     case "severity_mismatch": {
-      const a = m.source_a ?? "one source";
-      const b = m.source_b ?? "another source";
-      return `An inconsistency has been observed in the severity assessment between ${a} and ${b}. Further review is recommended to confirm the extent of damage.`;
+      return (
+        `An inconsistency has been observed in the damage assessment for this area. ` +
+        `Further review is required to confirm the extent of the damage before the assessment can be finalised.`
+      );
     }
     case "physics_zone_conflict": {
-      const a = m.source_a ?? "the reported impact zone";
-      const b = m.source_b ?? "the physics analysis zone";
-      return `An inconsistency has been observed between the reported impact zone (${a}) and the technical analysis result (${b}). Further review is recommended to confirm the impact location.`;
+      return (
+        `An inconsistency has been observed between the impact area described in the claim ` +
+        `and the area identified through the technical review. ` +
+        `Additional verification is needed to confirm the impact location.`
+      );
     }
     case "photo_zone_conflict": {
-      const a = m.source_a ?? "the reported zone";
-      const b = m.source_b ?? "the photo evidence zone";
-      return `An inconsistency has been observed between the zone referenced in the claim (${a}) and the zone identified in the submitted photographs (${b}). Further review is recommended.`;
+      return (
+        `An inconsistency has been observed between the area referenced in the claim ` +
+        `and the area identified in the submitted photographs. ` +
+        `Further review is required to confirm the affected area.`
+      );
     }
     case "no_photo_evidence": {
-      const c = m.component ?? "reported damage";
-      return `Visual evidence for ${c} could not be identified in the submitted photographs. Submission of additional supporting images is recommended to complete the assessment.`;
+      const c = m.component ?? "the reported damage area";
+      return (
+        `Supporting photographic evidence for ${c} could not be identified in the submitted images. ` +
+        `Additional verification is needed — please submit clear photographs of the relevant area ` +
+        `to allow the assessment to proceed.`
+      );
     }
     case "no_document_evidence": {
-      const c = m.component ?? "identified damage";
-      return `${c.charAt(0).toUpperCase() + c.slice(1)} identified in the submitted evidence requires verification against the claim documentation. Additional documentation may be required.`;
+      return (
+        `An item identified in the submitted evidence requires additional verification ` +
+        `against the claim documentation. ` +
+        `Further review is recommended to confirm the documented scope of the claim.`
+      );
     }
     default:
-      return "An inconsistency has been observed in the submitted claim evidence. Further review is recommended.";
+      return (
+        `An inconsistency has been observed in the submitted claim evidence. ` +
+        `Further review is required before the assessment can be completed.`
+      );
   }
 }
 
@@ -503,8 +544,14 @@ interface ExternalNarrativeLlmResult {
 
 /**
  * Uses the LLM to produce a more fluent external-safe narrative.
- * Strictly enforces neutral, non-accusatory language rules.
- * Falls back to the deterministic template on any error.
+ *
+ * The system prompt enforces three absolute categories of prohibition:
+ *   A) Suspicion language — fraud, misrepresent, dishonest, deliberate, tamper, etc.
+ *   B) Scoring / internal logic — score, weight, confidence, physics engine, delta-V, etc.
+ *   C) Wrongdoing implication — any phrasing that suggests the claimant acted improperly
+ *
+ * A post-generation guard regex list independently validates the output before
+ * returning it. Any violation causes a silent fallback to the deterministic template.
  */
 async function llmExternalNarrative(
   m: DamageMismatch,
@@ -514,39 +561,48 @@ async function llmExternalNarrative(
     const { invokeLLM } = await import("../_core/llm");
 
     const systemPrompt = [
-      `You are an insurance communications specialist. Your task is to convert an internal`,
-      `claims assessment note into external-safe language suitable for sharing with claimants`,
-      `and third parties.`,
+      `You are an insurance communications specialist. Your only task is to improve the`,
+      `readability of a pre-written external-safe claim note that will be shared directly`,
+      `with the claimant and third parties. You must not change the meaning or add information.`,
       ``,
-      `STRICT RULES (violations will cause the output to be discarded):`,
-      `  1. REMOVE all investigative tone — do not imply the claimant is dishonest.`,
-      `  2. AVOID any language that implies fraud, misrepresentation, or deliberate omission.`,
-      `  3. Use ONLY neutral phrasing such as:`,
-      `       - "requires verification"`,
-      `       - "inconsistency observed"`,
-      `       - "further review recommended"`,
-      `       - "additional documentation may be required"`,
-      `  4. DO NOT introduce new facts, zones, or components not present in the base text.`,
-      `  5. Output MUST be exactly 1–2 sentences.`,
-      `  6. Use professional, plain English. No bullet points, headers, or markdown.`,
-      `  7. Total output MUST NOT exceed 60 words.`,
-      `  8. Do NOT start with "I", "We", or any first-person pronoun.`,
+      `ABSOLUTE PROHIBITIONS — any violation will cause the output to be DISCARDED:`,
+      ``,
+      `  A) SUSPICION LANGUAGE — NEVER use any of these words or their variants:`,
+      `       fraud, fraudulent, misrepresent, misreporting, dishonest, deliberate,`,
+      `       intentional, fabricate, tamper, conceal, omit, undisclosed, suspicious,`,
+      `       suspect, false, forged, inflated, exaggerated, staged, collusion, scheme,`,
+      `       deceptive, misleading, pre-existing condition.`,
+      ``,
+      `  B) SCORING / INTERNAL LOGIC — NEVER reference:`,
+      `       score, weight, confidence, severity level, high/medium/low risk, factor,`,
+      `       physics engine, delta-V, impact vector, consistency check, algorithm,`,
+      `       machine learning, AI analysis, fraud score, risk score, penalty.`,
+      ``,
+      `  C) WRONGDOING — NEVER imply the claimant acted improperly. Use passive voice only.`,
+      `     Do NOT write anything that could be read as an accusation or allegation.`,
+      ``,
+      `REQUIRED — the output MUST include at least one of these neutral anchor phrases:`,
+      `    "further review required"`,
+      `    "further review is recommended"`,
+      `    "additional verification needed"`,
+      `    "additional verification is needed"`,
+      `    "additional documentation may be required"`,
+      ``,
+      `FORMATTING RULES:`,
+      `  1. Output MUST be exactly 1–2 sentences.`,
+      `  2. Total output MUST NOT exceed 60 words.`,
+      `  3. Professional, plain English. No bullet points, headers, or markdown.`,
+      `  4. Do NOT start with "I", "We", or any first-person pronoun.`,
+      `  5. DO NOT introduce new facts, zones, components, or conclusions.`,
+      `  6. DO NOT contradict the base narrative.`,
     ].join("\n");
 
     const userPrompt = [
-      `Mismatch type: ${m.type}`,
-      `Severity: ${m.severity}`,
-      m.source_a ? `  Source A: ${m.source_a}` : "",
-      m.source_b ? `  Source B: ${m.source_b}` : "",
-      m.component ? `  Component: ${m.component}` : "",
-      ``,
       `Base external narrative (do NOT contradict this):`,
       `"${baseExternal}"`,
       ``,
-      `Return the external narrative as JSON.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+      `Return the improved external narrative as JSON.`,
+    ].join("\n");
 
     const response = await invokeLLM({
       messages: [
@@ -564,7 +620,12 @@ async function llmExternalNarrative(
               external_narrative: {
                 type: "string",
                 description:
-                  "Neutral, non-accusatory 1–2 sentence narrative for external sharing. Must not imply fraud or investigative intent.",
+                  "Neutral 1–2 sentence narrative for external sharing with claimants. " +
+                  "MUST include 'further review required', 'further review is recommended', " +
+                  "'additional verification needed', or 'additional documentation may be required'. " +
+                  "MUST NOT contain: fraud, score, weight, confidence, misrepresent, suspect, " +
+                  "deliberate, false, omit, conceal, tamper, inflate, physics engine, delta-V, " +
+                  "impact vector, algorithm, risk score, or any language implying wrongdoing.",
               },
             },
             required: ["external_narrative"],
@@ -583,20 +644,64 @@ async function llmExternalNarrative(
     const parsed: ExternalNarrativeLlmResult = JSON.parse(jsonText);
     const text = parsed.external_narrative?.trim() ?? "";
 
-    // Sanity checks: length and no forbidden investigative phrases
-    const FORBIDDEN = [
-      /\bfraud\b/i,
+    // ── Post-generation guard ─────────────────────────────────────────────────
+    // Mirrors the system-prompt prohibitions. Intentionally broad — false
+    // positives fall back to the safe template, which is the correct behaviour.
+    const FORBIDDEN_PATTERNS: RegExp[] = [
+      // A) Suspicion / wrongdoing language
+      /\bfraud(ulent)?\b/i,
       /\bmisrepresent/i,
       /\bdishonest/i,
       /\bdeliberate/i,
-      /\bsuspect/i,
+      /\bintentional/i,
+      /\bsuspect(ed|ious)?\b/i,
       /\bfalse\b/i,
-      /\bfabricate/i,
+      /\bfabricat/i,
+      /\btamper/i,
+      /\bconceal/i,
+      /\bomit(ted|ting)?\b/i,
+      /\bundisclos/i,
+      /\binflat/i,
+      /\bexaggerat/i,
+      /\bstaged?\b/i,
+      /\bcollusion\b/i,
+      /\bdecepti/i,
+      /\bmislead/i,
+      /\bmisreport/i,
+      /\bforged?\b/i,
+      /\bscheme\b/i,
+      /\bpre[- ]existing condition\b/i,
+      // B) Scoring / internal logic references
+      /\bscore\b/i,
+      /\bweight(ed)?\b/i,
+      /\bconfidence\b/i,
+      /\bseverity (level|score|rating)\b/i,
+      /\b(high|medium|low)[- ]risk\b/i,
+      /\bphysics engine\b/i,
+      /\bdelta[- ]?v\b/i,
+      /\bimpact vector\b/i,
+      /\bconsistency (check|score)\b/i,
+      /\balgorithm\b/i,
+      /\bmachine learning\b/i,
+      /\bfraud score\b/i,
+      /\brisk score\b/i,
+      /\bpenalty\b/i,
+      /\bai analysis\b/i,
+      // C) Investigative tone
       /\binvestigat/i,
     ];
-    const hasForbidden = FORBIDDEN.some((re) => re.test(text));
 
-    if (hasForbidden || text.length < 20 || text.length > 500) {
+    // Also require at least one neutral anchor phrase
+    const REQUIRED_NEUTRAL: RegExp[] = [
+      /further review (is )?(required|recommended)/i,
+      /additional verification (is )?needed/i,
+      /additional documentation may be required/i,
+    ];
+
+    const hasForbidden = FORBIDDEN_PATTERNS.some((re) => re.test(text));
+    const hasNeutral = REQUIRED_NEUTRAL.some((re) => re.test(text));
+
+    if (hasForbidden || !hasNeutral || text.length < 20 || text.length > 500) {
       return baseExternal;
     }
 

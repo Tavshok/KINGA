@@ -9948,3 +9948,13 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Fix damage analysis diagram visibility (SVG/canvas not rendering)
 - [ ] Fix AI-analysed images not showing in the report
 - [ ] Mileage-aware valuation: read mileage from claim form, year-only fallback with missing-mileage flag
+
+## External Narrative Hardening (Stage 22)
+- [x] Audit mismatchNarrative.ts for suspicion language, scoring refs, and internal logic in external narratives
+- [x] Update all 8 mismatch-type template strings in convertToExternalSafe() to use only neutral phrasing
+- [x] Replace any score/confidence/weight references in external templates
+- [x] Update LLM system prompt for external narratives with explicit prohibitions list
+- [x] Update JSON schema description fields to reinforce neutral tone
+- [x] Add unit tests: verify no suspicion words appear in external narratives for all 8 types
+- [x] Add unit tests: verify score/weight/confidence words absent from external narratives
+- [x] Add unit tests: verify LLM fallback still produces compliant external narrative
