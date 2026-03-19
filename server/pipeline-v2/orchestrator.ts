@@ -58,6 +58,7 @@ import {
   computeEvidenceBundle,
   type EvidenceBundle,
 } from "./evidenceStrengthScorer";
+import { buildRealismBundle, type RealismBundle } from "./outputRealismValidator";
 
 /**
  * Run the full self-healing pipeline.
@@ -94,6 +95,7 @@ export async function runPipelineV2(
   let stage9bData: TurnaroundTimeOutput | null = null;
   let causalChain: CausalChainOutput | null = null;
   let evidenceBundle: EvidenceBundle | null = null;
+  let realismBundle: RealismBundle | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
 
@@ -315,9 +317,20 @@ export async function runPipelineV2(
     } catch (err) {
       ctx.log("Stage 38", `Evidence scoring failed (non-fatal): ${String(err)}`);
     }
+  }  // ── STAGE 40: Output Realism Validator ─────────────────────────────────
+  if (stage7Data && stage8Data && stage9Data) {
+    try {
+      const componentCount = stage6Data?.damageZones?.reduce(
+        (acc, z) => acc + (z.componentCount ?? 0), 0
+      ) ?? 0;
+      realismBundle = buildRealismBundle(stage7Data, stage9Data, stage8Data, componentCount);
+      ctx.log("Stage 40", `Realism bundle: overall=${realismBundle.overall_realism_flag}, confidence_multiplier=${realismBundle.overall_confidence_multiplier.toFixed(3)}, physics=${realismBundle.physics.realism_flag}, cost=${realismBundle.cost.realism_flag}, fraud=${realismBundle.fraud.realism_flag}`);
+    } catch (err) {
+      ctx.log("Stage 40", `Realism validation failed (non-fatal): ${String(err)}`);
+    }
   }
 
-  // ── STAGE 9b: Turnaround Time Analysis ───────────────────────────────
+  // ── STAGE 9b: Turnaround Time Analysis ─────────────────────────────────
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
   recordStage("9b_turnaround", s9b);
   stage9bData = s9b.data; // Always has data (self-healing)
@@ -338,7 +351,7 @@ export async function runPipelineV2(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
-    causalChain, evidenceBundle
+    causalChain, evidenceBundle, realismBundle
   );
 }
 
@@ -354,7 +367,8 @@ function buildResult(
   costAnalysis: Stage9Output | null,
   turnaroundAnalysis: TurnaroundTimeOutput | null = null,
   causalChain: CausalChainOutput | null = null,
-  evidenceBundle: EvidenceBundle | null = null
+  evidenceBundle: EvidenceBundle | null = null,
+  realismBundle: RealismBundle | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -374,6 +388,7 @@ function buildResult(
     turnaroundAnalysis,
     causalChain,
     evidenceBundle,
+    realismBundle,
   };
 }
 
