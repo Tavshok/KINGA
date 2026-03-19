@@ -24,6 +24,7 @@ import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCar
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
+import AdvancedAnalyticsPanel from "@/components/AdvancedAnalyticsPanel";
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
@@ -1095,6 +1096,21 @@ export default function InsurerComparisonView() {
           </div>
         )}
 
+        {/* ══ SECTION 6c: ADVANCED ANALYTICS (Stage 35-42) ══ */}
+        {aiAssessment && (
+          <div className="comparison-section">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'oklch(0.42 0.20 260)' }}>⚙</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Advanced Analytics</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Causal chain · evidence bundle · realism validation · benchmark deviation · cross-engine consensus (Stages 35–42)</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
+              <AdvancedAnalyticsPanel aiAssessment={aiAssessment} />
+            </div>
+          </div>
+        )}
         {/* ══ SECTION 7: OPERATIONAL PERFORMANCE ══ */}
         <div className="comparison-section">
           <div className="comparison-section-header">
@@ -1361,13 +1377,13 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
       const parsed = JSON.parse(aiAssessment.inferredHiddenDamagesJson);
       if (!Array.isArray(parsed) || parsed.length === 0) return null;
       return parsed.map((h: any): HiddenDamageItem => ({
-        component: h.component || h.name || String(h),
+        component: h.component || h.name || (h.system ? h.system.charAt(0).toUpperCase() + h.system.slice(1) + ' System' : String(h)),
         reason: h.reason || h.description || 'Inferred from impact physics',
         confidence: h.confidenceLabel || h.confidence || h.confidenceLevel ||
           (h.probability >= 70 ? 'High' : h.probability >= 40 ? 'Medium' : 'Low'),
         probability: typeof h.probability === 'number' ? h.probability : undefined,
         propagationStep: typeof h.propagationStep === 'number' ? h.propagationStep : undefined,
-        chain: h.chain || undefined,
+        chain: h.chain || h.system || 'general',
       }));
     } catch { return null; }
   })();
@@ -1503,7 +1519,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                 <div key={idx} className="flex items-start gap-2 p-2.5 bg-purple-50 dark:bg-purple-950/30 rounded-lg border border-purple-200 dark:border-purple-800">
                   <div className={`mt-1 w-2 h-2 rounded-full shrink-0 ${dotColor}`}></div>
                   <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
+                    <p className="text-sm font-medium capitalize leading-tight text-foreground">{comp.name}</p>
                     {comp.location && <p className="text-xs text-muted-foreground capitalize">{comp.location}</p>}
                     {comp.damageType && <p className="text-xs text-muted-foreground capitalize">{comp.damageType}</p>}
                   </div>
@@ -1550,7 +1566,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
               {inferredHiddenDamage.map((item, idx) => (
                 <div key={idx} className="p-3 bg-card rounded border border-orange-200/50">
                   <div className="flex items-start justify-between mb-1">
-                    <p className="font-medium text-sm">{item.component}</p>
+                    <p className="font-medium text-sm text-foreground">{item.component}</p>
                     <Badge 
                       className={
                         item.confidence === 'High' ? 'bg-red-600' :
@@ -1673,7 +1689,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                   return (
                     <div key={idx} className="flex items-start gap-2 p-2.5 bg-card rounded border border-border">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium capitalize leading-tight">{comp.name}</p>
+                        <p className="text-sm font-medium capitalize leading-tight text-foreground">{comp.name}</p>
                         {comp.location && <p className="text-xs text-muted-foreground capitalize mt-0.5">{comp.location}</p>}
                         {comp.damageType && <p className="text-xs text-muted-foreground capitalize">{comp.damageType}</p>}
                       </div>

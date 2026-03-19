@@ -53,6 +53,8 @@ const RISK_CONFIG: Record<string, {
   // Legacy aliases — map to elevated for backward compatibility
   critical: { label: "Elevated Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
   very_high:{ label: "Elevated Risk", color: "bg-red-700",     bgColor: "bg-red-50 dark:bg-red-950/30",       borderColor: "border-red-300 dark:border-red-800",      gaugeColor: "#dc2626", textColor: "text-red-700 dark:text-red-300" },
+  // Pipeline uses 'medium' — alias to moderate
+  medium:   { label: "Moderate Risk",  color: "bg-amber-600",   bgColor: "bg-amber-50 dark:bg-amber-950/30",    borderColor: "border-amber-200 dark:border-amber-800",   gaugeColor: "#f59e0b", textColor: "text-amber-700 dark:text-amber-300" },
 };
 
 // ─── Indicator icon mapping ───────────────────────────────────────────────────
@@ -220,12 +222,40 @@ interface FraudScorePanelProps {
 }
 
 export default function FraudScorePanel({ aiAssessment }: FraudScorePanelProps) {
-  // Parse fraudScoreBreakdownJson
+  // Parse fraudScoreBreakdownJson — normalize multiple pipeline output formats
   let breakdown: FraudScoreBreakdown | null = null;
   try {
     const raw = (aiAssessment as any)?.fraudScoreBreakdownJson;
     if (raw) {
-      breakdown = typeof raw === "string" ? JSON.parse(raw) : raw;
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      // Normalize: handle {overallScore, level, indicators} format from pipeline
+      const totalScore = parsed.totalScore ?? parsed.overallScore ?? parsed.score ?? 0;
+      const riskLevel = parsed.riskLevel ?? parsed.level ?? (aiAssessment as any)?.fraudRiskLevel ?? 'minimal';
+      // Normalize indicators: handle {indicator, score, description} format
+      const rawIndicators = parsed.indicators ?? parsed.breakdown ?? [];
+      const indicators: IndicatorResult[] = Array.isArray(rawIndicators)
+        ? rawIndicators.map((item: any, idx: number) => ({
+            id: item.id ?? item.indicator ?? `ind_${idx}`,
+            name: item.name ?? item.indicator ?? item.factor ?? `Indicator ${idx + 1}`,
+            maxPoints: item.maxPoints ?? item.max_points ?? 20,
+            score: Number(item.score ?? item.value ?? item.contribution ?? 0),
+            triggered: item.triggered ?? (Number(item.score ?? 0) > 0),
+            signals: item.signals ?? [],
+            summary: item.summary ?? item.description ?? '',
+          }))
+        : [];
+      breakdown = {
+        totalScore,
+        riskLevel,
+        triggeredIndicatorCount: parsed.triggeredIndicatorCount ?? indicators.filter(i => i.triggered).length,
+        concentrationAlert: parsed.concentrationAlert ?? false,
+        concentrationIndicator: parsed.concentrationIndicator,
+        escalated: parsed.escalated ?? false,
+        escalationReason: parsed.escalationReason,
+        indicators,
+        triggeredSignals: parsed.triggeredSignals ?? [],
+        recommendedActions: parsed.recommendedActions ?? [],
+      };
     }
   } catch { /* ignore */ }
 

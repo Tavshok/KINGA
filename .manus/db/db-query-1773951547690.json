@@ -1,0 +1,28 @@
+{
+  "query": "SELECT estimated_cost, estimated_parts_cost, estimated_labor_cost, repair_to_value_ratio FROM ai_assessments LIMIT 3;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT estimated_cost, estimated_parts_cost, estimated_labor_cost, repair_to_value_ratio FROM ai_assessments LIMIT 3;",
+  "rows": [
+    {
+      "estimated_cost": "0",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL"
+    },
+    {
+      "estimated_cost": "1518",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL"
+    },
+    {
+      "estimated_cost": "1523",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "estimated_cost\testimated_parts_cost\testimated_labor_cost\trepair_to_value_ratio\n0\tNULL\tNULL\tNULL\n1518\tNULL\tNULL\tNULL\n1523\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 55
+}

@@ -2,7 +2,6 @@ import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -17,15 +16,20 @@ import { TrendingUp, TrendingDown, Award, DollarSign, Clock, CheckCircle } from 
 export default function PanelBeaterPerformance() {
   const [selectedPanelBeater, setSelectedPanelBeater] = useState<number | null>(null);
 
-  // Fetch all panel beater performance data
-  const { data: allPerformance, isLoading } = trpc.panelBeaterAnalytics.getAllPerformance.useQuery();
-  const { data: topPerformers } = trpc.panelBeaterAnalytics.getTopPerformers.useQuery({ limit: 5 });
+  // getAllPerformance returns { success, data: PanelBeaterPerformance[], pagination }
+  const { data: allPerformanceResponse, isLoading } = trpc.panelBeaterAnalytics.getAllPerformance.useQuery({ page: 1, limit: 100 });
+  const allPerformance = allPerformanceResponse?.data ?? [];
 
-  // Fetch trends for selected panel beater
-  const { data: trends } = trpc.panelBeaterAnalytics.getTrends.useQuery(
-    { panelBeaterId: selectedPanelBeater!, months: 6 },
+  // getTopPanelBeaters returns { success, data: ComparisonResult[], rankBy }
+  const { data: topPerformersResponse } = trpc.panelBeaterAnalytics.getTopPanelBeaters.useQuery({ limit: 5 });
+  const topPerformers = topPerformersResponse?.data ?? [];
+
+  // getTrends returns { success, data: TrendDataPoint[], timeRange, groupBy, panelBeaterId }
+  const { data: trendsResponse } = trpc.panelBeaterAnalytics.getTrends.useQuery(
+    { panelBeaterId: selectedPanelBeater ?? undefined, timeRange: "90d", groupBy: "month" },
     { enabled: selectedPanelBeater !== null }
   );
+  const trends = trendsResponse?.data ?? null;
 
   if (isLoading) {
     return (
@@ -78,21 +82,21 @@ export default function PanelBeaterPerformance() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{allPerformance?.length || 0}</div>
+                <div className="text-3xl font-bold">{allPerformance.length}</div>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Average Acceptance Rate
+                  Average Completion Rate
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {allPerformance && allPerformance.length > 0
+                  {allPerformance.length > 0
                     ? Math.round(
-                        allPerformance.reduce((sum, p) => sum + p.acceptanceRate, 0) /
+                        allPerformance.reduce((sum: number, p: any) => sum + (p.completionRate ?? 0), 0) /
                           allPerformance.length
                       )
                     : 0}
@@ -104,14 +108,14 @@ export default function PanelBeaterPerformance() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Avg Turnaround Time
+                  Avg Repair Time
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {allPerformance && allPerformance.length > 0
+                  {allPerformance.length > 0
                     ? Math.round(
-                        allPerformance.reduce((sum, p) => sum + p.averageTurnaroundDays, 0) /
+                        allPerformance.reduce((sum: number, p: any) => sum + (p.avgRepairTimeDays ?? 0), 0) /
                           allPerformance.length
                       )
                     : 0}{" "}
@@ -123,12 +127,12 @@ export default function PanelBeaterPerformance() {
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium text-muted-foreground">
-                  Total Repairs Completed
+                  Total Claims Completed
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {allPerformance?.reduce((sum, p) => sum + p.totalRepairsCompleted, 0) || 0}
+                  {allPerformance.reduce((sum: number, p: any) => sum + (p.totalClaimsCompleted ?? 0), 0)}
                 </div>
               </CardContent>
             </Card>
@@ -148,15 +152,14 @@ export default function PanelBeaterPerformance() {
                   <TableRow>
                     <TableHead>Panel Beater</TableHead>
                     <TableHead className="text-right">Quotes Submitted</TableHead>
-                    <TableHead className="text-right">Acceptance Rate</TableHead>
+                    <TableHead className="text-right">Completion Rate</TableHead>
                     <TableHead className="text-right">Avg Quote</TableHead>
-                    <TableHead className="text-right">Cost Index</TableHead>
-                    <TableHead className="text-right">Avg Turnaround</TableHead>
+                    <TableHead className="text-right">Avg Repair Time</TableHead>
                     <TableHead>Performance</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {allPerformance?.map((pb) => (
+                  {allPerformance.map((pb: any) => (
                     <TableRow
                       key={pb.panelBeaterId}
                       className="cursor-pointer hover:bg-muted/50"
@@ -164,26 +167,28 @@ export default function PanelBeaterPerformance() {
                     >
                       <TableCell className="font-medium">
                         <div>
-                          <div>{pb.businessName}</div>
+                          <div>{pb.businessName || pb.panelBeaterName}</div>
                           <div className="text-sm text-muted-foreground">{pb.panelBeaterName}</div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-right">{pb.totalQuotesSubmitted}</TableCell>
+                      <TableCell className="text-right">{pb.totalQuotesSubmitted ?? 0}</TableCell>
                       <TableCell className="text-right">
-                        <span className="font-semibold">{pb.acceptanceRate}%</span>
+                        <span className="font-semibold">{pb.completionRate ?? 0}%</span>
                       </TableCell>
                       <TableCell className="text-right">
-                        ${pb.averageQuoteAmount.toFixed(2)}
+                        US${(pb.avgQuoteAmount ?? pb.avgCostPerClaim ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={pb.costCompetitivenessIndex >= 100 ? "default" : "secondary"}>
-                          {pb.costCompetitivenessIndex}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">{pb.averageTurnaroundDays} days</TableCell>
-                      <TableCell>{getPerformanceBadge(pb.acceptanceRate, 70)}</TableCell>
+                      <TableCell className="text-right">{pb.avgRepairTimeDays ?? 0} days</TableCell>
+                      <TableCell>{getPerformanceBadge(pb.completionRate ?? 0, 70)}</TableCell>
                     </TableRow>
                   ))}
+                  {allPerformance.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                        No panel beater data available yet
+                      </TableCell>
+                    </TableRow>
+                  )}
                 </TableBody>
               </Table>
             </CardContent>
@@ -191,34 +196,34 @@ export default function PanelBeaterPerformance() {
         </TabsContent>
 
         <TabsContent value="detailed" className="space-y-6">
-          {selectedPanelBeater && trends ? (
+          {selectedPanelBeater && trends && trends.length > 0 ? (
             <>
               <Card>
                 <CardHeader>
-                  <CardTitle>Performance Trends (Last 6 Months)</CardTitle>
+                  <CardTitle>Performance Trends (Last 3 Months)</CardTitle>
                   <CardDescription>
                     Monthly performance metrics for{" "}
-                    {allPerformance?.find((p) => p.panelBeaterId === selectedPanelBeater)?.businessName}
+                    {allPerformance.find((p: any) => p.panelBeaterId === selectedPanelBeater)?.businessName}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Month</TableHead>
-                        <TableHead className="text-right">Quotes Submitted</TableHead>
-                        <TableHead className="text-right">Acceptance Rate</TableHead>
-                        <TableHead className="text-right">Average Quote</TableHead>
+                        <TableHead>Period</TableHead>
+                        <TableHead className="text-right">Claims Completed</TableHead>
+                        <TableHead className="text-right">Completion Rate</TableHead>
+                        <TableHead className="text-right">Avg Cost</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {trends.map((trend) => (
-                        <TableRow key={trend.month}>
-                          <TableCell className="font-medium">{trend.month}</TableCell>
-                          <TableCell className="text-right">{trend.quotesSubmitted}</TableCell>
-                          <TableCell className="text-right">{trend.acceptanceRate}%</TableCell>
+                      {trends.map((trend: any, idx: number) => (
+                        <TableRow key={trend.period ?? idx}>
+                          <TableCell className="font-medium">{trend.period}</TableCell>
+                          <TableCell className="text-right">{trend.claimsCompleted ?? 0}</TableCell>
+                          <TableCell className="text-right">{trend.completionRate ?? 0}%</TableCell>
                           <TableCell className="text-right">
-                            ${trend.averageQuote.toFixed(2)}
+                            US${(trend.avgCost ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -231,7 +236,9 @@ export default function PanelBeaterPerformance() {
             <Card>
               <CardContent className="py-12">
                 <div className="text-center text-muted-foreground">
-                  Select a panel beater from the Overview tab to view detailed trends
+                  {selectedPanelBeater
+                    ? "No trend data available for this panel beater yet"
+                    : "Select a panel beater from the Overview tab to view detailed trends"}
                 </div>
               </CardContent>
             </Card>
@@ -240,7 +247,7 @@ export default function PanelBeaterPerformance() {
 
         <TabsContent value="top-performers" className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {topPerformers?.map((pb, index) => (
+            {topPerformers.map((pb: any, index: number) => (
               <Card key={pb.panelBeaterId} className="relative overflow-hidden">
                 {index === 0 && (
                   <div className="absolute top-0 right-0 p-2">
@@ -253,43 +260,47 @@ export default function PanelBeaterPerformance() {
                     <Badge variant="outline">Rank {index + 1}</Badge>
                   </CardTitle>
                   <CardDescription className="text-lg font-semibold text-foreground">
-                    {pb.businessName}
+                    {pb.businessName || pb.panelBeaterName}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <CheckCircle className="w-4 h-4 text-green-500" />
-                      <span className="text-sm text-muted-foreground">Acceptance Rate</span>
+                      <span className="text-sm text-muted-foreground">Completion Rate</span>
                     </div>
-                    <span className="font-semibold">{pb.acceptanceRate}%</span>
+                    <span className="font-semibold">{pb.completionRate ?? 0}%</span>
                   </div>
-
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-primary/80" />
-                      <span className="text-sm text-muted-foreground">Cost Index</span>
+                      <span className="text-sm text-muted-foreground">Avg Cost/Claim</span>
                     </div>
-                    <Badge variant={pb.costCompetitivenessIndex >= 100 ? "default" : "secondary"}>
-                      {pb.costCompetitivenessIndex}
-                    </Badge>
+                    <span className="font-semibold">
+                      US${(pb.avgCostPerClaim ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </span>
                   </div>
-
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <Clock className="w-4 h-4 text-orange-500" />
-                      <span className="text-sm text-muted-foreground">Avg Turnaround</span>
+                      <span className="text-sm text-muted-foreground">Avg Repair Time</span>
                     </div>
-                    <span className="font-semibold">{pb.averageTurnaroundDays} days</span>
+                    <span className="font-semibold">{pb.avgRepairTimeDays ?? 0} days</span>
                   </div>
-
                   <div className="pt-4 border-t">
-                    <div className="text-sm text-muted-foreground">Total Repairs</div>
-                    <div className="text-2xl font-bold">{pb.totalRepairsCompleted}</div>
+                    <div className="text-sm text-muted-foreground">Claims Completed</div>
+                    <div className="text-2xl font-bold">{pb.totalClaimsCompleted ?? 0}</div>
                   </div>
                 </CardContent>
               </Card>
             ))}
+            {topPerformers.length === 0 && (
+              <Card className="col-span-3">
+                <CardContent className="py-12 text-center text-muted-foreground">
+                  No top performer data available yet
+                </CardContent>
+              </Card>
+            )}
           </div>
         </TabsContent>
       </Tabs>

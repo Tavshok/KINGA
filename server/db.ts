@@ -471,7 +471,7 @@ export async function triggerAiAssessment(claimId: number) {
   const result = await runPipelineV2(pipelineCtx);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
-  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary } = result;
+  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult } = result;
 
   // Map fraud risk level to DB enum
   const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical' | 'elevated'> = {
@@ -551,13 +551,14 @@ export async function triggerAiAssessment(claimId: number) {
     : null;
 
   // Build hidden damages JSON from physics latent damage probabilities
+  // latentDamageProbability values are already on a 0-100 scale (not 0-1)
   const hiddenDamagesJson = physicsAnalysis && physicsAnalysis.physicsExecuted
     ? JSON.stringify(Object.entries(physicsAnalysis.latentDamageProbability)
-        .filter(([_, prob]) => (prob as number) > 0.1)
+        .filter(([_, prob]) => (prob as number) > 10) // filter: > 10% (0-100 scale)
         .map(([system, prob]) => ({
           system,
-          probability: prob,
-          description: `Potential hidden damage to ${system} system (${((prob as number) * 100).toFixed(0)}% probability)`,
+          probability: prob, // already 0-100
+          description: `Potential hidden damage to ${system} system (${(prob as number).toFixed(0)}% probability)`,
         })))
     : '[]';
 
@@ -612,6 +613,12 @@ export async function triggerAiAssessment(claimId: number) {
         bottlenecks: turnaroundAnalysis.bottlenecks,
       } : null,
     }),
+    // Stage 35-42: Advanced analytics
+    causalChainJson: causalChain ? JSON.stringify(causalChain) : null,
+    evidenceBundleJson: evidenceBundle ? JSON.stringify(evidenceBundle) : null,
+    realismBundleJson: realismBundle ? JSON.stringify(realismBundle) : null,
+    benchmarkBundleJson: benchmarkBundle ? JSON.stringify(benchmarkBundle) : null,
+    consensusResultJson: consensusResult ? JSON.stringify(consensusResult) : null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

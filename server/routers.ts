@@ -1409,7 +1409,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   await createNotification({
                     userId: asyncUserId,
                     title: "AI Assessment Complete",
-                    message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}`,
+                    message: `AI damage assessment completed for claim ${claim.claimNumber}. Estimated cost: $${(aiAssessment.estimatedCost || 0).toFixed(2)}`,
                     type: "assessment_completed",
                     claimId: input.claimId,
                     entityType: "ai_assessment",
@@ -2750,7 +2750,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const accidentSeverity = (physicsRaw?.accidentSeverity ?? assessment.structuralDamageSeverity ?? 'minor') as string;
         const consistencyScore = physicsRaw?.damageConsistencyScore ?? 50;
         const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';
-        const aiEstimatedCost = (assessment.estimatedCost || 0) / 100; // cents → dollars
+        const aiEstimatedCost = (assessment.estimatedCost || 0); // already in dollars (stored as whole currency units)
         const extractionConfidence = assessment.confidenceScore ?? 75;
         const result = applyIntelligenceEnforcement({
           fraudScore: Number(fraudScore),
@@ -2774,8 +2774,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         // Run the Cost Extraction Engine for guaranteed populated cost object
         const { extractCosts } = await import('./cost-extraction-engine');
-        const aiPartsCost = (assessment.estimatedPartsCost || 0) / 100; // cents → dollars
-        const aiLabourCost = (assessment.estimatedLaborCost || 0) / 100; // cents → dollars
+        const aiPartsCost = (assessment.estimatedPartsCost || 0); // already in dollars
+        const aiLabourCost = (assessment.estimatedLaborCost || 0); // already in dollars
         const costExtraction = extractCosts({
           aiEstimatedCost,
           aiPartsCost,
@@ -2845,7 +2845,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           multiSourceConflict,
         });
         // Stage 27: validate and auto-heal before sending to frontend
-        const rawResponse = { ...result, costExtraction, weightedFraud };
+        // Include claimId so the AI_ASSESSMENT_CONTRACT critical field check passes
+        const rawResponse = { ...result, costExtraction, weightedFraud, claimId: input.claimId };
         return validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
       }),
 
@@ -3736,6 +3737,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           entityId: valuationId,
           changeDescription: `Vehicle valued at $${(valuation.finalAdjustedValue / 100).toFixed(2)}${valuation.isTotalLoss ? ' - TOTAL LOSS' : ''}${mileageEstimation ? ' (mileage estimated)' : ''}`,
         });
+
+        // Sync vehicle market value to claims table for repair ratio calculation
+        await getDb().update(claims).set({ vehicleMarketValue: valuation.finalAdjustedValue }).where(eq(claims.id, input.claimId));
 
         // Return valuation enriched with mileage estimation metadata
         return {

@@ -1,0 +1,50 @@
+{
+  "query": "SELECT id, estimated_cost, estimated_parts_cost, estimated_labor_cost, repair_to_value_ratio, fraud_risk_level FROM ai_assessments WHERE estimated_cost > 1000 ORDER BY id DESC LIMIT 5;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, estimated_cost, estimated_parts_cost, estimated_labor_cost, repair_to_value_ratio, fraud_risk_level FROM ai_assessments WHERE estimated_cost > 1000 ORDER BY id DESC LIMIT 5;",
+  "rows": [
+    {
+      "id": "2010001",
+      "estimated_cost": "56800",
+      "estimated_parts_cost": "34080",
+      "estimated_labor_cost": "22720",
+      "repair_to_value_ratio": "NULL",
+      "fraud_risk_level": "medium"
+    },
+    {
+      "id": "1980010",
+      "estimated_cost": "80000",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL",
+      "fraud_risk_level": "medium"
+    },
+    {
+      "id": "1980009",
+      "estimated_cost": "50000",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL",
+      "fraud_risk_level": "low"
+    },
+    {
+      "id": "1980007",
+      "estimated_cost": "145000",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL",
+      "fraud_risk_level": "low"
+    },
+    {
+      "id": "1980005",
+      "estimated_cost": "145000",
+      "estimated_parts_cost": "NULL",
+      "estimated_labor_cost": "NULL",
+      "repair_to_value_ratio": "NULL",
+      "fraud_risk_level": "low"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\testimated_cost\testimated_parts_cost\testimated_labor_cost\trepair_to_value_ratio\tfraud_risk_level\n2010001\t56800\t34080\t22720\tNULL\tmedium\n1980010\t80000\tNULL\tNULL\tNULL\tmedium\n1980009\t50000\tNULL\tNULL\tNULL\tlow\n1980007\t145000\tNULL\tNULL\tNULL\tlow\n1980005\t145000\tNULL\tNULL\tNULL\tlow\n",
+  "stderr": "",
+  "execution_time_ms": 66
+}

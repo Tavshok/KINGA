@@ -1,0 +1,16 @@
+{
+  "query": "SELECT estimated_market_value, final_adjusted_value, condition_adjustment, mileage_adjustment FROM vehicle_market_valuations ORDER BY id DESC LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT estimated_market_value, final_adjusted_value, condition_adjustment, mileage_adjustment FROM vehicle_market_valuations ORDER BY id DESC LIMIT 1;",
+  "rows": [
+    {
+      "estimated_market_value": "3850000",
+      "final_adjusted_value": "3850115",
+      "condition_adjustment": "0",
+      "mileage_adjustment": "115"
+    }
+  ],
+  "messages": [],
+  "stdout": "estimated_market_value\tfinal_adjusted_value\tcondition_adjustment\tmileage_adjustment\n3850000\t3850115\t0\t115\n",
+  "stderr": "",
+  "execution_time_ms": 56
+}

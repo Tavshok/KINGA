@@ -41,7 +41,7 @@ export default function KingaDashboardLayout({
   const [, setLocation] = useLocation();
 
   // Fetch unread notifications count
-  const { data: notifications } = trpc.notifications.list.useQuery(
+  const { data: notifications } = trpc.notifications.getAll.useQuery(
     { limit: 100 },
     { refetchInterval: 30000 }
   );

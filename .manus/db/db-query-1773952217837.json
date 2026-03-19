@@ -1,0 +1,16 @@
+{
+  "query": "SHOW TABLES LIKE '%valuat%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW TABLES LIKE '%valuat%';",
+  "rows": [
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%valuat%)": "assessor_evaluations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%valuat%)": "vehicle_market_valuations"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_YbS42LwGroxbVepAMjk4bS (%valuat%)\nassessor_evaluations\nvehicle_market_valuations\n",
+  "stderr": "",
+  "execution_time_ms": 59
+}

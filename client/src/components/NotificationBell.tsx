@@ -21,7 +21,7 @@ export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   
   // Query unread notification count
-  const { data: unreadData, refetch } = trpc.notifications.unreadCount.useQuery(
+  const { data: unreadData, refetch } = trpc.notifications.getUnreadCount.useQuery(
     undefined,
     {
       refetchInterval: 30000, // Refresh every 30 seconds
@@ -29,7 +29,7 @@ export function NotificationBell() {
     }
   );
 
-  const unreadCount = unreadData?.count || 0;
+  const unreadCount = (unreadData as any)?.count || 0;
 
   // Refetch when popover opens
   useEffect(() => {

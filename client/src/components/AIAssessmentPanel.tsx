@@ -109,13 +109,13 @@ export default function AIAssessmentPanel({
             <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
               <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Estimated Cost</p>
               <p className="text-lg font-bold text-slate-900 dark:text-foreground">
-                {fmt(aiAssessment.estimatedCost || 0)}
+                {fmt((aiAssessment.estimatedCost || 0) * 100)}
               </p>
             </div>
             <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
               <p className="text-xs text-slate-600 dark:text-muted-foreground">Market Range</p>
               <p className="text-lg font-bold text-slate-900 dark:text-foreground">
-                {fmt(Math.round((aiAssessment.estimatedCost || 0) * 0.9))} - {fmt(Math.round((aiAssessment.estimatedCost || 0) * 1.1))}
+                {fmt(Math.round((aiAssessment.estimatedCost || 0) * 0.9) * 100)} - {fmt(Math.round((aiAssessment.estimatedCost || 0) * 1.1) * 100)}
               </p>
               <p className="text-xs text-slate-500 dark:text-muted-foreground">±10% variance</p>
             </div>
@@ -187,11 +187,11 @@ export default function AIAssessmentPanel({
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div>
                       <span className="text-slate-500 dark:text-muted-foreground block text-xs">Impact Force</span>
-                      <span className="font-semibold">{(phys.impactForce ?? 0).toFixed(1)} kN</span>
+                      <span className="font-semibold">{typeof phys.impactForce === 'object' ? (phys.impactForce?.magnitude ?? 0).toFixed(1) : (Number(phys.impactForce) || 0).toFixed(1)} kN</span>
                     </div>
                     <div>
                       <span className="text-slate-500 dark:text-muted-foreground block text-xs">Est. Speed</span>
-                      <span className="font-semibold">{(phys.estimatedSpeed ?? 0).toFixed(0)} km/h</span>
+                      <span className="font-semibold">{typeof phys.estimatedSpeed === 'object' ? (phys.estimatedSpeed?.value ?? 0).toFixed(0) : (Number(phys.estimatedSpeed) || 0).toFixed(0)} km/h</span>
                     </div>
                     <div>
                       <span className="text-slate-500 dark:text-muted-foreground block text-xs">Impact Angle</span>

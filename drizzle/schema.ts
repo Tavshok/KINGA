@@ -84,6 +84,20 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   photoInconsistenciesJson: text("photo_inconsistencies_json"),
   // Stage 12 output: three-source damage consistency check (JSON ConsistencyCheckResult)
   consistencyCheckJson: text("consistency_check_json"),
+  // Stage 35 output: damage-physics coherence validation (JSON DamagePhysicsCoherenceResult)
+  coherenceResultJson: text("coherence_result_json"),
+  // Stage 36 output: cost realism validation (JSON CostValidationResult)
+  costRealismJson: text("cost_realism_json"),
+  // Stage 37 output: causal chain (JSON CausalChainOutput)
+  causalChainJson: text("causal_chain_json"),
+  // Stage 38 output: evidence bundle (JSON EvidenceBundle)
+  evidenceBundleJson: text("evidence_bundle_json"),
+  // Stage 40 output: realism bundle (JSON RealismBundle)
+  realismBundleJson: text("realism_bundle_json"),
+  // Stage 41 output: benchmark bundle (JSON BenchmarkBundle)
+  benchmarkBundleJson: text("benchmark_bundle_json"),
+  // Stage 42 output: cross-engine consensus (JSON ConsensusResult)
+  consensusResultJson: text("consensus_result_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

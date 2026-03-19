@@ -32,32 +32,29 @@ export function NotificationList({ onClose }: NotificationListProps) {
   const utils = trpc.useUtils();
 
   // Fetch notifications
-  const { data: notifications = [], isLoading } = trpc.notifications.list.useQuery({ limit: 20 });
+  const { data: notifications = [], isLoading } = trpc.notifications.getAll.useQuery({ limit: 20 });
 
   // Mark as read mutation
   const markAsRead = trpc.notifications.markAsRead.useMutation({
     onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
+      utils.notifications.getAll.invalidate();
+      utils.notifications.getUnreadCount.invalidate();
     },
   });
 
   // Mark all as read mutation
   const markAllAsRead = trpc.notifications.markAllAsRead.useMutation({
     onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
+      utils.notifications.getAll.invalidate();
+      utils.notifications.getUnreadCount.invalidate();
       toast.success("All notifications marked as read");
     },
   });
 
-  // Delete notification mutation
-  const deleteNotification = trpc.notifications.delete.useMutation({
-    onSuccess: () => {
-      utils.notifications.list.invalidate();
-      utils.notifications.unreadCount.invalidate();
-    },
-  });
+  // Delete notification - not available, use markAsRead instead
+  const deleteNotification = { mutate: (args: { notificationId: number }) => {
+    markAsRead.mutate({ notificationId: args.notificationId });
+  } };
 
   const handleNotificationClick = (notification: typeof notifications[0]) => {
     // Mark as read
@@ -149,7 +146,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
           </div>
         ) : (
           <div className="divide-y">
-            {notifications.map((notification) => (
+            {notifications.map((notification: any) => (
               <div
                 key={notification.id}
                 className={`p-4 hover:bg-accent/50 cursor-pointer transition-colors ${
