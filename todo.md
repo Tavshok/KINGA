@@ -9973,3 +9973,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Add unit tests: multiplier clamped to 1.20 upper bound
 - [x] Add unit tests: smoothing formula applied correctly
 - [x] Add unit tests: log entry written on every adjustment
+
+## Consistency Confidence Scoring (Stage 24)
+- [x] Audit damageConsistency.ts for current confidence output
+- [x] Build consistencyConfidence.ts: three-signal scoring engine (confirmation rate, data completeness, mismatch frequency)
+- [x] Integrate confidence into runConsistencyCheck return value
+- [x] Add unit tests: all three signals, band thresholds (HIGH/MEDIUM/LOW)

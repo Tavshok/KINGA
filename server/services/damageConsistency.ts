@@ -43,6 +43,8 @@ export interface ConsistencyCheckResult {
   status: "complete";
   consistency_score: number;          // 0–100 (100 = fully consistent)
   confidence: "HIGH" | "MEDIUM" | "LOW";
+  /** Calibrated composite score in [0.00, 1.00] from three-signal engine */
+  confidence_score: number;
   mismatches: DamageMismatch[];
   source_summary: {
     document: { zones: string[]; components: string[]; available: boolean };
@@ -373,6 +375,12 @@ export interface ConsistencyCheckInput {
    * or manually by a user ("manual"). Defaults to "manual".
    */
   triggerSource?: "auto" | "manual";
+  /**
+   * Per-type annotation statistics from the adaptive weight engine.
+   * When provided, the confidence engine uses actual historical confirmation
+   * rates for Signal A. When omitted, Signal A defaults to 0.5 (neutral).
+   */
+  annotationStats?: import("./mismatchAnnotation").MismatchTypeStats[];
 }
 
 // ─── Pre-condition guard ──────────────────────────────────────────────────────
@@ -433,7 +441,7 @@ export function checkPreConditions(input: ConsistencyCheckInput): PendingInputsR
   return null; // all conditions met
 }
 
-export function runDamageConsistencyCheck(input: ConsistencyCheckInput): ConsistencyCheckOutput {
+export async function runDamageConsistencyCheck(input: ConsistencyCheckInput): Promise<ConsistencyCheckOutput> {
   const doc = parseDocumentSource(input.damagedComponentsJson, input.damageDescription);
   const photo = parsePhotoSource(input.enrichedPhotosJson);
   const physics = parsePhysicsSource(input.physicsAnalysisJson);
@@ -466,7 +474,21 @@ export function runDamageConsistencyCheck(input: ConsistencyCheckInput): Consist
   }
 
   const score = calculateScore(mismatches, physics.consistencyScore);
+  // Legacy band (kept for backward compatibility)
   const confidence = scoreToConfidence(score, docAvailable, photoAvailable);
+
+  // Stage 24: three-signal calibrated confidence
+  const { computeConsistencyConfidence } = await import("./consistencyConfidence");
+  const calibrated = computeConsistencyConfidence({
+    detectedMismatchTypes: mismatches.map((m) => m.type),
+    mismatchCount: mismatches.length,
+    sourcesAvailable: {
+      document: docAvailable,
+      photos: photoAvailable,
+      physics: physicsAvailable,
+    },
+    annotationStats: input.annotationStats,
+  });
 
   // Run pre-condition guard only for auto-triggered calls.
   // Manual calls (and direct service calls without a triggerSource) always compute
@@ -479,7 +501,8 @@ export function runDamageConsistencyCheck(input: ConsistencyCheckInput): Consist
   return {
     status: "complete",
     consistency_score: score,
-    confidence,
+    confidence: calibrated.confidence,
+    confidence_score: calibrated.confidence_score,
     mismatches,
     source_summary: {
       document: { zones: doc.zones, components: doc.components, available: docAvailable },
