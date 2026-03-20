@@ -132,7 +132,21 @@ Return data in strict JSON format.`,
         content: [
           {
             type: "text" as const,
-            text: `Extract structured claim data from this document.\n\nPre-extracted text for reference:\n${rawText.substring(0, 3000)}`,
+            text: `INPUT DOCUMENT TEXT:
+${rawText.substring(0, 3000)}
+
+TASK:
+Extract the following fields:
+
+- incidentDescription (full narrative)
+- reportedCause (short label if stated, else null)
+- dateOfIncident
+- location
+- involvedParties
+- costEstimate
+- vehicleDetails (make, model, registration if present)
+
+Return JSON only.`,
           },
           {
             type: "file_url" as const,
