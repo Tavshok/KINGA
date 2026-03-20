@@ -109,19 +109,23 @@ async function extractFieldsFromPdf(
     messages: [
       {
         role: "system",
-        content: `You are a structured data extraction system for insurance claims.
+        content: `You are a structured insurance document extraction engine.
 
-RULES:
-- Extract ONLY information that is explicitly present in the document.
-- If a field is not present, return null — NEVER guess or infer.
-- For monetary values, convert to cents (multiply by 100). If the currency is ZAR, USD, or other, still convert to cents.
-- For dates, use YYYY-MM-DD format.
-- For damaged components, list each component separately with its damage type and severity.
-- Severity must be one of: minor, moderate, severe, catastrophic.
-- Repair action must be one of: repair, replace, refinish.
+Your task is to extract ONLY factual information from a claim document.
 
-The document may be a claim form, police report, repair quote, or assessment report.
-Extract all available structured fields.`,
+Rules:
+- Do NOT infer missing information
+- Do NOT guess unclear values
+- If a field is not explicitly present, return null
+- Preserve original meaning of the text
+- Be precise and conservative
+- For monetary values, convert to cents (multiply by 100)
+- For dates, use YYYY-MM-DD format
+- For damaged components, list each component separately with its damage type and severity
+- Severity must be one of: minor, moderate, severe, catastrophic
+- Repair action must be one of: repair, replace, refinish
+
+Return data in strict JSON format.`,
       },
       {
         role: "user",
