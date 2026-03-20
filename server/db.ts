@@ -572,6 +572,31 @@ export async function triggerAiAssessment(claimId: number) {
   const estimatedPartsCost = costAnalysis ? Math.round(costAnalysis.breakdown.partsCostCents / 100) : 0;
   const estimatedLaborCost = costAnalysis ? Math.round(costAnalysis.breakdown.labourCostCents / 100) : 0;
 
+  // ── TOTAL LOSS DETECTION ─────────────────────────────────────────────────
+  // Fetch the vehicle market value from the valuations table (stored in cents).
+  // Standard industry threshold: repair cost ≥ 75% of market value = total loss.
+  let vehicleMarketValueCents: number | null = null;
+  try {
+    const [valRow] = await db.select({ v: vehicleMarketValuations.estimatedMarketValue })
+      .from(vehicleMarketValuations)
+      .where(eq(vehicleMarketValuations.claimId, claimId))
+      .limit(1);
+    if (valRow?.v) vehicleMarketValueCents = Number(valRow.v);
+  } catch { /* non-fatal */ }
+  // Also check the claim's own vehicle_market_value field (in cents)
+  if (!vehicleMarketValueCents && (claim as any).vehicleMarketValue) {
+    vehicleMarketValueCents = Number((claim as any).vehicleMarketValue);
+  }
+  const vehicleMarketValueDollars = vehicleMarketValueCents ? vehicleMarketValueCents / 100 : null;
+  const repairToValueRatio = (vehicleMarketValueDollars && vehicleMarketValueDollars > 0 && estimatedCost > 0)
+    ? Math.round((estimatedCost / vehicleMarketValueDollars) * 100)
+    : null;
+  // Total loss: repair cost ≥ 75% of vehicle market value
+  const totalLossIndicated = (repairToValueRatio !== null && repairToValueRatio >= 75) ? 1 : 0;
+  if (totalLossIndicated) {
+    console.log(`[AI Assessment] Claim ${claimId}: TOTAL LOSS indicated — repair $${estimatedCost} vs vehicle value $${vehicleMarketValueDollars?.toFixed(0)} (${repairToValueRatio}%)`);
+  }
+
   // Delete any previous assessment for this claim
   await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
 
@@ -590,7 +615,8 @@ export async function triggerAiAssessment(claimId: number) {
     fraudScoreBreakdownJson,
     modelVersion: 'pipeline-v2',
     processingTime: summary.totalDurationMs,
-    totalLossIndicated: 0,
+    totalLossIndicated,
+    repairToValueRatio,
     structuralDamageSeverity: dbStructuralSeverity,
     damagedComponentsJson,
     physicsAnalysis: physicsJson,

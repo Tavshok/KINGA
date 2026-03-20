@@ -988,21 +988,52 @@ export default function InsurerComparisonView() {
           <div className="comparison-section-body">
             <div className="space-y-4">
               {/* AI cost summary row */}
-              {aiAssessment && (
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  {[
-                    { label: 'AI Estimated Total', value: `US$${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
-                    { label: 'Parts Cost', value: `US$${(aiAssessment.estimatedPartsCost || (aiAssessment.estimatedCost || 0) * 0.6).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
-                    { label: 'Labour Cost', value: `US$${(aiAssessment.estimatedLaborCost || (aiAssessment.estimatedCost || 0) * 0.4).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
-                    { label: 'Repair/Value Ratio', value: aiAssessment.repairToValueRatio ? `${aiAssessment.repairToValueRatio}%` : 'N/A', highlight: (aiAssessment.repairToValueRatio || 0) > 70 },
-                  ].map(({ label, value, highlight }) => (
-                    <div key={label} className="p-3 rounded-lg" style={{ background: highlight ? 'oklch(0.55 0.22 25 / 0.15)' : 'var(--card)', border: `1px solid ${highlight ? 'oklch(0.55 0.22 25 / 0.4)' : 'var(--border)'}` }}>
-                      <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                      <p className={`text-lg font-bold ${highlight ? 'text-red-400' : 'text-primary'}`}>{value}</p>
+              {aiAssessment && (() => {
+                const isTotalLossHere = aiAssessment.totalLossIndicated === 1;
+                const hasNoQuotes = quotes.length === 0;
+                // Derive vehicle value in dollars from ratio (ratio = repair/value * 100)
+                const vehicleValueDollars = (aiAssessment.repairToValueRatio && aiAssessment.repairToValueRatio > 0 && aiAssessment.estimatedCost)
+                  ? Math.round((aiAssessment.estimatedCost / aiAssessment.repairToValueRatio) * 100)
+                  : null;
+                return (
+                  <>
+                    {/* Total loss alert banner */}
+                    {isTotalLossHere && (
+                      <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-red-500" style={{ background: 'oklch(0.55 0.22 25 / 0.12)' }}>
+                        <span className="text-2xl flex-shrink-0">🚨</span>
+                        <div>
+                          <p className="font-bold text-red-400 text-base mb-1">TOTAL LOSS — REPAIR NOT VIABLE</p>
+                          <p className="text-sm text-red-300">
+                            AI estimated repair cost of <strong>US${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> exceeds vehicle market value
+                            {vehicleValueDollars ? <> of <strong>US${vehicleValueDollars.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></> : null} at <strong>{aiAssessment.repairToValueRatio}%</strong> of vehicle value.
+                            Industry threshold for total loss is 75%. This vehicle should be written off, not repaired.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    {/* No quotes notice */}
+                    {hasNoQuotes && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'oklch(0.72 0.18 60 / 0.12)', border: '1px solid oklch(0.72 0.18 60 / 0.4)' }}>
+                        <span className="text-amber-400 text-sm">⚠</span>
+                        <p className="text-xs text-amber-400">No panel beater quotes submitted — cost breakdown below is AI-estimated from damage analysis only, not from a real invoice.</p>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {[
+                        { label: 'AI Estimated Total', value: `US$${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: isTotalLossHere },
+                        { label: hasNoQuotes ? 'Est. Parts (AI)' : 'Parts Cost', value: `US$${(aiAssessment.estimatedPartsCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
+                        { label: hasNoQuotes ? 'Est. Labour (AI)' : 'Labour Cost', value: `US$${(aiAssessment.estimatedLaborCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
+                        { label: 'Repair/Value Ratio', value: aiAssessment.repairToValueRatio ? `${aiAssessment.repairToValueRatio}%` : 'N/A', highlight: (aiAssessment.repairToValueRatio || 0) >= 75 },
+                      ].map(({ label, value, highlight }) => (
+                        <div key={label} className="p-3 rounded-lg" style={{ background: highlight ? 'oklch(0.55 0.22 25 / 0.15)' : 'var(--card)', border: `1px solid ${highlight ? 'oklch(0.55 0.22 25 / 0.4)' : 'var(--border)'}` }}>
+                          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
+                          <p className={`text-lg font-bold ${highlight ? 'text-red-400' : 'text-primary'}`}>{value}</p>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  </>
+                );
+              })()}
               {/* Quote comparison chart */}
               {quotes.length >= 2 && (() => {
                 const chartData = quotes.map((q, i) => ({

@@ -10037,3 +10037,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Stage 35: Build damagePhysicsCoherence.ts with zone-direction mapping and mismatch detection
 - [ ] Stage 35: Integrate coherence validator into orchestrator between Stage 7 and Stage 8
 - [ ] Stage 35: Add unit tests for all mapping rules and mismatch types
+
+## Cost Accuracy & Total Loss Fixes
+- [ ] Fix parts/labour cost breakdown to read from actual quote line items (not hardcoded 60/40 split)
+- [ ] Implement total loss detection: flag when AI estimated repair cost exceeds vehicle market value
+- [ ] Surface total loss warning prominently in InsurerComparisonView when repair > vehicle value
+- [ ] Fix pipeline to store repair_to_value_ratio correctly and trigger total loss flag automatically
+- [ ] Remove the hardcoded 60/40 DB fix — derive from real quote data instead
