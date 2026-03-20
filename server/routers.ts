@@ -884,6 +884,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         }
         
         const claimNumber = `CLM-${nanoid(10).toUpperCase()}`;
+
+        // Normalise the claimant's description before storing
+        const { normaliseIncidentDescription } = await import("./services/intakeDescriptionNormaliser");
+        const normResult = await normaliseIncidentDescription(input.incidentDescription);
         
         await createClaim({
           claimantId: claimant.id,
@@ -894,6 +898,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           vehicleRegistration: input.vehicleRegistration,
           incidentDate: new Date(input.incidentDate),
           incidentDescription: input.incidentDescription,
+          normalisedDescription: normResult.normalisedText !== input.incidentDescription ? normResult.normalisedText : null,
+          reportedCauseLabel: normResult.reportedCauseLabel,
           incidentLocation: input.incidentLocation,
           damagePhotos: JSON.stringify(input.damagePhotos),
           policyNumber: input.policyNumber,
@@ -994,9 +1000,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             });
           }
         }
-        // ─────────────────────────────────────────────────────────────────────
-
+         // ─────────────────────────────────────────────────────────────────────
         const claimNumber = `CLM-${nanoid(10).toUpperCase()}`;
+
+        // Normalise the claimant's description before storing
+        const { normaliseIncidentDescription } = await import("./services/intakeDescriptionNormaliser");
+        const normResult = await normaliseIncidentDescription(input.incidentDescription);
 
         await createClaim({
           claimantId: ctx.user.id,
@@ -1007,6 +1016,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           vehicleRegistration: input.vehicleRegistration,
           incidentDate: new Date(input.incidentDate),
           incidentDescription: input.incidentDescription,
+          normalisedDescription: normResult.normalisedText !== input.incidentDescription ? normResult.normalisedText : null,
+          reportedCauseLabel: normResult.reportedCauseLabel,
           incidentLocation: input.incidentLocation,
           damagePhotos: JSON.stringify(input.damagePhotos),
           policyNumber: input.policyNumber,

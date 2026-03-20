@@ -667,6 +667,10 @@ export const claims = mysqlTable("claims", {
 	vehicleRegistration: varchar("vehicle_registration", { length: 50 }),
 	incidentDate: timestamp("incident_date", { mode: 'string' }),
 	incidentDescription: text("incident_description"),
+	/** Cleaned, structured version produced by the intake description normaliser (LLM). Null if normalisation has not run or failed. */
+	normalisedDescription: text("normalised_description"),
+	/** Short cause label extracted by the intake normaliser (e.g. 'frontal collision', 'animal strike'). Null if not identifiable. */
+	reportedCauseLabel: varchar("reported_cause_label", { length: 100 }),
 	incidentLocation: text("incident_location"),
 	damagePhotos: text("damage_photos"),
 	policyNumber: varchar("policy_number", { length: 100 }),
