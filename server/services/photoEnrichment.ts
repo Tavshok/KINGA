@@ -86,14 +86,20 @@ async function analyzePhoto(
     '- Use precise mechanical terms where possible';
 
   const userPrompt =
-    'Analyse this vehicle damage photo. Identify:\n' +
-    '1. The primary impact zone (e.g. "front", "rear", "left_side", "right_side", "roof", "underbody", "interior", "engine_bay")\n' +
-    '2. All damaged components visible (e.g. ["front bumper", "hood", "left headlight"])\n' +
-    '3. Overall damage severity: minor | moderate | severe | critical\n' +
-    '4. Your confidence score 0–100 (deduct for poor image quality, obstructions, or ambiguity)\n' +
-    '5. A one-sentence caption describing what the photo shows\n' +
-    '6. Image quality: good | poor | unusable\n\n' +
-    'Return JSON only.';
+    'INPUT:\n' +
+    'Vehicle damage images\n\n' +
+    'TASK:\n' +
+    'Summarize visible damage including:\n' +
+    '- damaged areas (front, rear, side)\n' +
+    '- components affected (bumper, hood, doors, etc. use the right terminology)\n' +
+    '- severity (minor, moderate, severe)\n' +
+    '- any notable patterns (localized, widespread, directional)\n\n' +
+    'Also identify:\n' +
+    '- primary impact zone: front | rear | left_side | right_side | roof | underbody | interior | engine_bay\n' +
+    '- image quality: good | poor | unusable\n' +
+    '- confidence score 0–100 (deduct for poor image quality, obstructions, or ambiguity)\n' +
+    '- a one-sentence objective caption of what the photo shows\n\n' +
+    'Return structured JSON.';
 
   try {
     const response = await invokeLLM({
