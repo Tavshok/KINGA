@@ -19,6 +19,8 @@ export interface NormalisedDescription {
   meaningPreserved: boolean;
   /** Short label for the reported cause if identifiable, else null */
   reportedCauseLabel: string | null;
+  /** Key facts extracted from the description as a bullet list */
+  keyFacts: string[];
   /** Confidence score 0-100 for the normalisation quality */
   confidence: number;
 }
@@ -44,6 +46,7 @@ export async function normaliseIncidentDescription(
     originalText: rawDescription,
     meaningPreserved: true,
     reportedCauseLabel: null,
+    keyFacts: [],
     confidence: 0,
   };
 
@@ -53,16 +56,15 @@ export async function normaliseIncidentDescription(
 
   const userPrompt = [
     "INPUT:",
-    "Claimant's incident description:",
-    `"${rawDescription}"`,
+    `${rawDescription}`,
     "",
     "TASK:",
-    "1. Rewrite the description in clear, professional language while preserving all stated facts.",
-    "2. Identify a short reported cause label if explicitly stated (e.g. 'frontal collision', 'animal strike', 'rear-end collision', 'hail damage'), else return null.",
-    "3. Set meaningPreserved to true only if you are certain no facts were altered.",
-    "4. Set confidence (0-100) based on how clearly the original description was written.",
+    "Produce:",
+    "1. Cleaned incident description",
+    "2. Extracted reported cause (if clear, else null)",
+    "3. Key facts (bullet list)",
     "",
-    "Return structured JSON only.",
+    "Return JSON.",
   ].join("\n");
 
   try {
@@ -81,25 +83,31 @@ export async function normaliseIncidentDescription(
             properties: {
               normalisedText: {
                 type: "string",
-                description: "Cleaned, professional version of the description",
-              },
-              meaningPreserved: {
-                type: "boolean",
-                description: "True only if no facts were altered",
+                description: "Cleaned, professional version of the incident description",
               },
               reportedCauseLabel: {
                 type: ["string", "null"],
-                description: "Short cause label if explicitly stated, else null",
+                description: "Short cause label if explicitly stated (e.g. 'animal strike', 'rear-end collision'), else null",
+              },
+              keyFacts: {
+                type: "array",
+                items: { type: "string" },
+                description: "Bullet list of key facts extracted from the description",
+              },
+              meaningPreserved: {
+                type: "boolean",
+                description: "True only if no facts were altered during cleaning",
               },
               confidence: {
                 type: "integer",
-                description: "Quality confidence 0-100",
+                description: "Quality confidence 0-100 based on clarity of the original description",
               },
             },
             required: [
               "normalisedText",
-              "meaningPreserved",
               "reportedCauseLabel",
+              "keyFacts",
+              "meaningPreserved",
               "confidence",
             ],
             additionalProperties: false,
@@ -115,16 +123,19 @@ export async function normaliseIncidentDescription(
       typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent)
     ) as {
       normalisedText: string;
-      meaningPreserved: boolean;
       reportedCauseLabel: string | null;
+      keyFacts: string[];
+      meaningPreserved: boolean;
       confidence: number;
     };
 
-    // Safety check: if meaning was not preserved, fall back to original
+    // Safety check: if meaning was not preserved, fall back to original text
+    // but still capture the extracted metadata
     if (!parsed.meaningPreserved) {
       return {
         ...fallback,
         reportedCauseLabel: parsed.reportedCauseLabel,
+        keyFacts: Array.isArray(parsed.keyFacts) ? parsed.keyFacts : [],
         confidence: parsed.confidence,
       };
     }
@@ -134,6 +145,7 @@ export async function normaliseIncidentDescription(
       originalText: rawDescription,
       meaningPreserved: parsed.meaningPreserved,
       reportedCauseLabel: parsed.reportedCauseLabel,
+      keyFacts: Array.isArray(parsed.keyFacts) ? parsed.keyFacts : [],
       confidence: parsed.confidence,
     };
   } catch (err) {
