@@ -378,6 +378,13 @@ function CausalVerdictSection({ data }: { data: any }) {
           </div>
         </div>
       )}
+      {/* Constraint Narrative */}
+      {data.constraintNarrative && (
+        <div className="rounded-lg bg-muted/20 border border-border/50 p-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Forensic Constraint Analysis</p>
+          <p className="text-sm text-foreground leading-relaxed">{data.constraintNarrative}</p>
+        </div>
+      )}
       {/* Physics Constraint Validation */}
       {data.constraintValidation && Array.isArray(data.constraintValidation.results) && data.constraintValidation.results.length > 0 && (
         <div>

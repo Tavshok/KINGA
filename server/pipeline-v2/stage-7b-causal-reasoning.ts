@@ -78,6 +78,8 @@ export interface CausalVerdict {
   llmUsed: boolean;
   /** Physics constraint validation results */
   constraintValidation: ConstraintValidation | null;
+  /** Technical narrative explaining why the inferred cause is valid or invalid based on constraint results */
+  constraintNarrative: string | null;
   /** ISO timestamp */
   generatedAt: string;
 }
@@ -219,6 +221,7 @@ function buildFallbackVerdict(
     reasoningTrace: "LLM call failed; keyword fallback applied.",
     llmUsed: false,
     constraintValidation: null,
+    constraintNarrative: null,
     generatedAt: new Date().toISOString(),
   };
 }
@@ -474,6 +477,61 @@ function checkConstraints(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Constraint Narrative — Forensic Vehicle Damage Expert
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Calls the LLM as a forensic vehicle damage expert to explain why the inferred
+ * cause is valid or invalid, based strictly on the constraint validation results.
+ * References failed constraints by ID. Returns null on failure.
+ */
+async function generateConstraintNarrative(
+  inferredCause: string,
+  constraintValidation: ConstraintValidation
+): Promise<string | null> {
+  if (constraintValidation.constraints.length === 0) return null;
+
+  const constraintSummary = constraintValidation.results.map(r => {
+    const status = r.satisfied ? "PASS" : "FAIL";
+    return `[${status}] ${r.constraint.id} (${r.constraint.severity}): ${r.constraint.description}\n  Expected: ${r.constraint.expectedValue}\n  Observed: ${r.actualValue}\n  Confidence: ${r.confidence}%`;
+  }).join("\n\n");
+
+  const systemPrompt = `You are a forensic vehicle damage expert.
+
+You must explain why an inferred incident cause is valid or invalid based strictly on constraint validation results.
+
+Rules:
+- Base reasoning ONLY on constraint results
+- Explicitly reference failed constraints by their ID
+- Do NOT introduce new assumptions
+- Be concise and technical
+- If constraints fail, clearly state why the cause is physically inconsistent`;
+
+  const userPrompt = `Inferred Cause: ${inferredCause}
+
+Constraint Validation Results:
+${constraintSummary}
+
+Summary: ${constraintValidation.failedCount} of ${constraintValidation.constraints.length} constraints failed. Penalty applied: ${constraintValidation.penaltyApplied} points. Critical failures: ${constraintValidation.criticalFailures}.
+
+Explain in 2–4 sentences whether the inferred cause is physically consistent with the constraint evidence. Reference failed constraints by ID.`;
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+    const rawContent = response.choices?.[0]?.message?.content;
+    const text = typeof rawContent === "string" ? rawContent.trim() : null;
+    return text && text.length > 10 ? text : null;
+  } catch {
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Main engine
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -712,6 +770,9 @@ RETURN:
     );
     const constraintValidation = checkConstraints(constraints, physics, damage);
 
+    // Generate the forensic constraint narrative
+    const constraintNarrative = await generateConstraintNarrative(inferredCause, constraintValidation);
+
     // Apply constraint penalty to plausibility score
     const penalisedScore = Math.max(0, llmScore - constraintValidation.penaltyApplied);
     const finalScore = penalisedScore;
@@ -759,6 +820,7 @@ RETURN:
       reasoningTrace: parsed.reasoningTrace || "",
       llmUsed: true,
       constraintValidation,
+      constraintNarrative,
       generatedAt: new Date().toISOString(),
     };
   } catch (err) {
