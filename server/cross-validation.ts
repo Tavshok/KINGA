@@ -163,9 +163,15 @@ async function analyzePhotoForDamage(
       messages: [
         {
           role: "system",
-          content: `You are an expert automotive damage assessor analyzing vehicle damage photos for an insurance claim cross-validation system.
+          content: `You are a vehicle damage analysis assistant.
 
-Your task: Identify ALL visible damage in this photo with precise part names.
+Your task is to describe visible damage objectively.
+
+Rules:
+- Only describe what is visible
+- Do NOT infer cause
+- Do NOT speculate about unseen areas
+- Use precise mechanical terms where possible
 
 Use these EXACT part naming conventions:
 - Front Bumper, Rear Bumper (include sub-parts: cover, reinforcement bar, energy absorber)
@@ -183,7 +189,7 @@ Use these EXACT part naming conventions:
 - Bull Bar / Nudge Bar, Canopy (Bakkie)
 - Radiator Assembly, Suspension, Wheels & Tyres
 
-For each damaged part, assess severity:
+For each damaged part, assess severity based on what is visible:
 - minor: Scratches, small dents, scuffs
 - moderate: Medium dents, cracked plastic, misalignment
 - severe: Large deformation, broken components, structural bending

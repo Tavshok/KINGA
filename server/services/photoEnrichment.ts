@@ -77,9 +77,13 @@ async function analyzePhoto(
   index: number,
 ): Promise<EnrichedPhoto> {
   const systemPrompt =
-    'You are an expert motor vehicle damage assessor with 20 years of experience. ' +
-    'Analyse the provided vehicle damage photo and respond ONLY with valid JSON ' +
-    'matching the schema exactly.';
+    'You are a vehicle damage analysis assistant.\n\n' +
+    'Your task is to describe visible damage objectively.\n\n' +
+    'Rules:\n' +
+    '- Only describe what is visible\n' +
+    '- Do NOT infer cause\n' +
+    '- Do NOT speculate about unseen areas\n' +
+    '- Use precise mechanical terms where possible';
 
   const userPrompt =
     'Analyse this vehicle damage photo. Identify:\n' +
