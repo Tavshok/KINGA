@@ -100,6 +100,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   consensusResultJson: text("consensus_result_json"),
   // Stage 7b output: causal reasoning verdict (JSON CausalVerdict)
   causalVerdictJson: text("causal_verdict_json"),
+  // Adjuster constraint overrides: JSON map of constraintId → { accepted: boolean, explanation: string, overriddenBy: number, overriddenAt: string }
+  constraintOverridesJson: text("constraint_overrides_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
@@ -671,6 +673,8 @@ export const claims = mysqlTable("claims", {
 	normalisedDescription: text("normalised_description"),
 	/** Short cause label extracted by the intake normaliser (e.g. 'frontal collision', 'animal strike'). Null if not identifiable. */
 	reportedCauseLabel: varchar("reported_cause_label", { length: 100 }),
+	/** JSON array of key facts extracted by the intake normaliser (e.g. ["Vehicle was stationary", "Impact from rear"]). Null if not run. */
+	keyFactsJson: text("key_facts_json"),
 	incidentLocation: text("incident_location"),
 	damagePhotos: text("damage_photos"),
 	policyNumber: varchar("policy_number", { length: 100 }),

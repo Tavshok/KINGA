@@ -9,10 +9,14 @@
  *   Stage 41 — Benchmark Deviation
  *   Stage 42 — Cross-Engine Consensus
  */
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { trpc } from "@/lib/trpc";
+import { useAuth } from "@/_core/hooks/useAuth";
 
 interface AdvancedAnalyticsPanelProps {
   aiAssessment: any;
+  claimId?: number;
 }
 
 function safeParse(raw: any): any {
@@ -387,65 +391,173 @@ function CausalVerdictSection({ data }: { data: any }) {
       )}
       {/* Physics Constraint Validation */}
       {data.constraintValidation && Array.isArray(data.constraintValidation.results) && data.constraintValidation.results.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Physics Constraint Validation</p>
-            <div className="flex items-center gap-2">
-              {data.constraintValidation.criticalFailures > 0 && (
-                <span className="inline-flex items-center rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-xs font-semibold text-red-400">
-                  {data.constraintValidation.criticalFailures} critical
-                </span>
-              )}
-              {data.constraintValidation.failedCount > 0 && (
-                <span className="inline-flex items-center rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-xs font-semibold text-orange-400">
-                  {data.constraintValidation.failedCount} failed
-                </span>
-              )}
-              {data.constraintValidation.penaltyApplied > 0 && (
-                <span className="text-xs text-muted-foreground">−{data.constraintValidation.penaltyApplied}pts penalty</span>
-              )}
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            {data.constraintValidation.results.map((r: any, i: number) => (
-              <div key={i} className={`rounded border p-2 flex items-start gap-2 ${
-                r.satisfied
-                  ? "bg-emerald-500/5 border-emerald-500/20"
-                  : r.constraint?.severity === "critical" ? "bg-red-500/10 border-red-500/30"
-                  : r.constraint?.severity === "major" ? "bg-orange-500/10 border-orange-500/30"
-                  : "bg-amber-500/5 border-amber-500/20"
-              }`}>
-                <span className={`text-sm mt-0.5 shrink-0 ${r.satisfied ? "text-emerald-400" : severityColor(r.constraint?.severity)}`}>
-                  {r.satisfied ? "✓" : "✗"}
+        <ConstraintValidationSection
+          constraintValidation={data.constraintValidation}
+          claimId={data._claimId}
+          overrides={data._overrides ?? {}}
+          onOverrideSuccess={data._onOverrideSuccess}
+          canOverride={data._canOverride ?? false}
+          severityColor={severityColor}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Constraint Validation with Override UI ────────────────────────────────────
+function ConstraintValidationSection({
+  constraintValidation,
+  claimId,
+  overrides,
+  onOverrideSuccess,
+  canOverride,
+  severityColor,
+}: {
+  constraintValidation: any;
+  claimId?: number;
+  overrides: Record<string, any>;
+  onOverrideSuccess?: () => void;
+  canOverride: boolean;
+  severityColor: (s: string) => string;
+}) {
+  const [expandedConstraint, setExpandedConstraint] = useState<string | null>(null);
+  const [explanations, setExplanations] = useState<Record<string, string>>({});
+  const [successIds, setSuccessIds] = useState<Set<string>>(new Set());
+
+  const acceptMutation = trpc.claims.acceptConstraint.useMutation({
+    onSuccess: (data: any) => {
+      setSuccessIds(prev => { const next = new Set(Array.from(prev)); next.add(data.constraintId); return next; });
+      setExpandedConstraint(null);
+      onOverrideSuccess?.();
+    },
+  });
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Physics Constraint Validation</p>
+        <div className="flex items-center gap-2">
+          {constraintValidation.criticalFailures > 0 && (
+            <span className="inline-flex items-center rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-xs font-semibold text-red-400">
+              {constraintValidation.criticalFailures} critical
+            </span>
+          )}
+          {constraintValidation.failedCount > 0 && (
+            <span className="inline-flex items-center rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-xs font-semibold text-orange-400">
+              {constraintValidation.failedCount} failed
+            </span>
+          )}
+          {constraintValidation.penaltyApplied > 0 && (
+            <span className="text-xs text-muted-foreground">−{constraintValidation.penaltyApplied}pts penalty</span>
+          )}
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        {constraintValidation.results.map((r: any, i: number) => {
+          const cid = r.constraint?.id ?? `c_${i}`;
+          const override = overrides[cid];
+          const isAccepted = !!override?.accepted || successIds.has(cid);
+          const isExpanded = expandedConstraint === cid;
+          return (
+            <div key={i} className={`rounded border p-2 ${
+              isAccepted
+                ? "bg-blue-500/5 border-blue-500/20"
+                : r.satisfied
+                ? "bg-emerald-500/5 border-emerald-500/20"
+                : r.constraint?.severity === "critical" ? "bg-red-500/10 border-red-500/30"
+                : r.constraint?.severity === "major" ? "bg-orange-500/10 border-orange-500/30"
+                : "bg-amber-500/5 border-amber-500/20"
+            }`}>
+              <div className="flex items-start gap-2">
+                <span className={`text-sm mt-0.5 shrink-0 ${
+                  isAccepted ? "text-blue-400" :
+                  r.satisfied ? "text-emerald-400" :
+                  severityColor(r.constraint?.severity)
+                }`}>
+                  {isAccepted ? "✓̲" : r.satisfied ? "✓" : "✗"}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-1.5 mb-0.5">
+                  <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
                     <span className="text-xs font-mono text-muted-foreground">{r.constraint?.id}</span>
-                    <span className={`text-xs font-semibold ${severityColor(r.constraint?.severity)}`}>
-                      {(r.constraint?.severity || "").toUpperCase()}
+                    <span className={`text-xs font-semibold ${isAccepted ? "text-blue-400" : severityColor(r.constraint?.severity)}`}>
+                      {isAccepted ? "ACCEPTED" : (r.constraint?.severity || "").toUpperCase()}
                     </span>
                     <span className="text-xs text-muted-foreground capitalize">[{(r.constraint?.type || "").replace(/_/g, " ")}]</span>
                   </div>
                   <p className="text-xs text-foreground">{r.constraint?.description}</p>
-                  {!r.satisfied && (
+                  {!r.satisfied && !isAccepted && (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       <span className="font-medium">Expected:</span> {r.constraint?.expectedValue} &nbsp;
                       <span className="font-medium">Observed:</span> {r.actualValue}
                     </p>
                   )}
+                  {isAccepted && override && (
+                    <p className="text-xs text-blue-300 mt-0.5 italic">
+                      Accepted by {override.overriddenByName} — &ldquo;{override.explanation}&rdquo;
+                    </p>
+                  )}
+                  {/* Override form for failed, unaccepted constraints */}
+                  {!r.satisfied && !isAccepted && canOverride && claimId && (
+                    <div className="mt-1.5">
+                      {!isExpanded ? (
+                        <button
+                          onClick={() => setExpandedConstraint(cid)}
+                          className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+                        >
+                          Accept with explanation
+                        </button>
+                      ) : (
+                        <div className="mt-1.5 space-y-1.5">
+                          <textarea
+                            className="w-full text-xs rounded border border-border bg-background text-foreground p-1.5 resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                            rows={2}
+                            placeholder="Explain why this constraint can be accepted (e.g. 'Vehicle was already damaged in this area prior to incident')"
+                            value={explanations[cid] ?? ""}
+                            onChange={e => setExplanations(prev => ({ ...prev, [cid]: e.target.value }))}
+                          />
+                          <div className="flex items-center gap-2">
+                            <button
+                              disabled={!explanations[cid] || explanations[cid].length < 5 || acceptMutation.isPending}
+                              onClick={() => acceptMutation.mutate({ claimId: claimId!, constraintId: cid, explanation: explanations[cid] })}
+                              className="text-xs rounded bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-2 py-1"
+                            >
+                              {acceptMutation.isPending ? "Saving..." : "Confirm"}
+                            </button>
+                            <button
+                              onClick={() => setExpandedConstraint(null)}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                          {acceptMutation.error && (
+                            <p className="text-xs text-red-400">{acceptMutation.error.message}</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <span className="text-xs text-muted-foreground shrink-0">{r.confidence}%</span>
               </div>
-            ))}
-          </div>
-        </div>
-      )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 // ── Main Panel ────────────────────────────────────────────────────────────────
-export default function AdvancedAnalyticsPanel({ aiAssessment }: AdvancedAnalyticsPanelProps) {
+export default function AdvancedAnalyticsPanel({ aiAssessment, claimId }: AdvancedAnalyticsPanelProps) {
   if (!aiAssessment) return null;
+
+  const { user } = useAuth();
+  const canOverride = !!(user && ['assessor', 'insurer', 'admin'].includes(user.role));
+  const utils = trpc.useUtils();
+  const { data: overrides = {} } = trpc.claims.getConstraintOverrides.useQuery(
+    { claimId: claimId! },
+    { enabled: !!claimId }
+  );
 
   const causalVerdict = safeParse(aiAssessment.causalVerdictJson);
   const causalChain = safeParse(aiAssessment.causalChainJson);
@@ -466,13 +578,22 @@ export default function AdvancedAnalyticsPanel({ aiAssessment }: AdvancedAnalyti
     );
   }
 
+  // Inject override context into causalVerdict data so CausalVerdictSection can pass it down
+  const causalVerdictWithCtx = causalVerdict ? {
+    ...causalVerdict,
+    _claimId: claimId,
+    _overrides: overrides,
+    _canOverride: canOverride,
+    _onOverrideSuccess: () => utils.claims.getConstraintOverrides.invalidate({ claimId: claimId! }),
+  } : null;
+
   const sections = [
     {
       id: "causal_verdict",
       label: "Causal Reasoning Verdict",
       stage: "7b",
       icon: "🧠",
-      data: causalVerdict,
+      data: causalVerdictWithCtx,
       render: (d: any) => <CausalVerdictSection data={d} />,
     },
     {

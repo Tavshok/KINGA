@@ -1138,7 +1138,7 @@ export default function InsurerComparisonView() {
               </div>
             </div>
             <div className="comparison-section-body">
-              <AdvancedAnalyticsPanel aiAssessment={aiAssessment} />
+              <AdvancedAnalyticsPanel aiAssessment={aiAssessment} claimId={claimId} />
             </div>
           </div>
         )}

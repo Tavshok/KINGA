@@ -900,6 +900,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           incidentDescription: input.incidentDescription,
           normalisedDescription: normResult.normalisedText !== input.incidentDescription ? normResult.normalisedText : null,
           reportedCauseLabel: normResult.reportedCauseLabel,
+          keyFactsJson: normResult.keyFacts.length > 0 ? JSON.stringify(normResult.keyFacts) : null,
           incidentLocation: input.incidentLocation,
           damagePhotos: JSON.stringify(input.damagePhotos),
           policyNumber: input.policyNumber,
@@ -1018,6 +1019,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           incidentDescription: input.incidentDescription,
           normalisedDescription: normResult.normalisedText !== input.incidentDescription ? normResult.normalisedText : null,
           reportedCauseLabel: normResult.reportedCauseLabel,
+          keyFactsJson: normResult.keyFacts.length > 0 ? JSON.stringify(normResult.keyFacts) : null,
           incidentLocation: input.incidentLocation,
           damagePhotos: JSON.stringify(input.damagePhotos),
           policyNumber: input.policyNumber,
@@ -1989,6 +1991,62 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
 
         return { success: true, currencyCode: input.currencyCode };
+      }),
+    /**
+     * Accept a failed physics constraint with an adjuster explanation.
+     * Marks the constraint as "accepted with explanation" so it no longer
+     * triggers automatic fraud escalation. The override is persisted in
+     * constraint_overrides_json on the ai_assessments record.
+     *
+     * Only assessors, insurers, and admins may accept constraints.
+     */
+    acceptConstraint: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        constraintId: z.string().min(1),
+        explanation: z.string().min(5, 'Explanation must be at least 5 characters'),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const allowedRoles = ['assessor', 'insurer', 'admin'];
+        if (!allowedRoles.includes(ctx.user.role)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Only assessors, insurers, and admins may accept constraints' });
+        }
+        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        if (!assessment) throw new TRPCError({ code: 'NOT_FOUND', message: 'No AI assessment found for this claim' });
+
+        const existing: Record<string, any> = assessment.constraintOverridesJson
+          ? JSON.parse(assessment.constraintOverridesJson)
+          : {};
+
+        existing[input.constraintId] = {
+          accepted: true,
+          explanation: input.explanation,
+          overriddenBy: ctx.user.id,
+          overriddenByName: ctx.user.name ?? ctx.user.email ?? 'Unknown',
+          overriddenAt: new Date().toISOString(),
+        };
+
+        await db.update(aiAssessments)
+          .set({ constraintOverridesJson: JSON.stringify(existing) })
+          .where(eq(aiAssessments.id, assessment.id));
+
+        return { success: true, constraintId: input.constraintId, overrides: existing };
+      }),
+
+    /**
+     * Get all constraint overrides for a claim's AI assessment.
+     * Returns the full override map keyed by constraintId.
+     */
+    getConstraintOverrides: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const assessment = await getAiAssessmentByClaimId(input.claimId);
+        if (!assessment) return {};
+        return assessment.constraintOverridesJson
+          ? JSON.parse(assessment.constraintOverridesJson)
+          : {};
       }),
   }),
   // Assessor operationss
@@ -4096,6 +4154,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { getNarrativeVersionHistory } = await import('./services/mismatchNarrative');
         return getNarrativeVersionHistory(input.assessmentId);
       }),
+
   }),
   // (admin router procedures moved to server/routers/admin.ts)
   /**

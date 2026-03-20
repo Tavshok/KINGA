@@ -10044,3 +10044,16 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Surface total loss warning prominently in InsurerComparisonView when repair > vehicle value
 - [ ] Fix pipeline to store repair_to_value_ratio correctly and trigger total loss flag automatically
 - [ ] Remove the hardcoded 60/40 DB fix — derive from real quote data instead
+
+## Sprint: Mar 20 2026 — Backend & NLP Enhancements
+
+- [x] Persist keyFactsJson to claims table (schema + SQL migration + both claim creation paths)
+- [x] Feed downstream fraud/cost scores back into Stage 7b re-run (orchestrator updated)
+- [x] Add constraintOverridesJson column to ai_assessments table
+- [x] Add acceptConstraint and getConstraintOverrides tRPC procedures to claims router
+- [x] Add constraint override UI in AdvancedAnalyticsPanel (accept with explanation, badge, history)
+- [x] Pass claimId from InsurerComparisonView to AdvancedAnalyticsPanel
+- [x] Write regression tests for contradictory claims (11 tests in damageConsistency.contradictory.test.ts)
+- [x] Extend NLP vocabulary with African wildlife (30+ species) in pipeline/types.ts, assessment-processor.ts, stage-5-assembly.ts, intakeDescriptionNormaliser.ts
+- [x] Extend NLP vocabulary with regional road hazards (corrugated road, gravel road, sand drift, wash-away, donga, speed hump, etc.)
+- [x] Add local terminology preservation to intake normaliser (bakkie, robot, kombi, spaza, etc.)

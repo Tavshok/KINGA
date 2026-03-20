@@ -324,7 +324,29 @@ export function classifyIncidentType(raw: string): CanonicalIncidentType {
     r.includes("kudu") || r.includes("warthog") || r.includes("baboon") ||
     r.includes("deer") || r.includes("impala") || r.includes("zebra") ||
     r.includes("buffalo") || r.includes("elephant") || r.includes("horse") ||
-    r.includes("pig") || r.includes("sheep") || r.includes("cattle")
+    r.includes("pig") || r.includes("sheep") || r.includes("cattle") ||
+    // Extended African wildlife vocabulary
+    r.includes("nyala") || r.includes("eland") || r.includes("bushbuck") ||
+    r.includes("wildebeest") || r.includes("gnu") || r.includes("springbok") ||
+    r.includes("gemsbok") || r.includes("oryx") || r.includes("steenbok") ||
+    r.includes("duiker") || r.includes("mongoose") || r.includes("porcupine") ||
+    r.includes("vervet") || r.includes("monkey") || r.includes("dassie") ||
+    r.includes("rock rabbit") || r.includes("hyrax") || r.includes("bushpig") ||
+    r.includes("warthog") || r.includes("waterbuck") || r.includes("reedbuck") ||
+    r.includes("caracal") || r.includes("jackal") || r.includes("hyena") ||
+    r.includes("cheetah") || r.includes("leopard") || r.includes("lion") ||
+    r.includes("rhino") || r.includes("hippo") || r.includes("giraffe") ||
+    r.includes("ostrich") || r.includes("guinea fowl") || r.includes("hadeda") ||
+    // Regional road hazards — Southern/East Africa
+    r.includes("pothole") || r.includes("ditch") || r.includes("tree") ||
+    r.includes("pole") || r.includes("wall") || r.includes("fence") ||
+    r.includes("corrugated") || r.includes("gravel road") || r.includes("dirt road") ||
+    r.includes("sand drift") || r.includes("wash-away") || r.includes("washaway") ||
+    r.includes("flooded drift") || r.includes("drift") || r.includes("donga") ||
+    r.includes("dongas") || r.includes("speed hump") || r.includes("speed bump") ||
+    r.includes("road works") || r.includes("roadworks") || r.includes("unmarked") ||
+    r.includes("loose gravel") || r.includes("slippery") || r.includes("muddy") ||
+    r.includes("flooded road") || r.includes("submerged road") || r.includes("bridge")
   ) return "collision";
   return "unknown";
 }

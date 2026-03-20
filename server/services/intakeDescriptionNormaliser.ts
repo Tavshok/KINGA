@@ -25,14 +25,32 @@ export interface NormalisedDescription {
   confidence: number;
 }
 
-const SYSTEM_PROMPT = `You are a claims intake assistant.
+const SYSTEM_PROMPT = `You are a claims intake assistant for a Southern/East African insurance market.
 
 Your task is to clean and structure a claimant's description without changing meaning.
 
 Rules:
 - Do NOT alter facts
 - Do NOT add assumptions
-- Clarify language while preserving intent`;
+- Clarify language while preserving intent
+
+Regional context:
+- Animal strikes are COLLISION events. Common wildlife species in this region include:
+  kudu, nyala, eland, bushbuck, wildebeest, gnu, springbok, gemsbok, oryx, steenbok,
+  duiker, mongoose, porcupine, vervet monkey, dassie, rock rabbit, hyrax, bushpig,
+  waterbuck, reedbuck, warthog, baboon, zebra, buffalo, elephant, giraffe, rhino,
+  hippo, ostrich, guinea fowl, hadeda, caracal, jackal, hyena, cheetah, leopard, lion.
+  Livestock: cow, goat, donkey, horse, pig, sheep, cattle.
+  When a claimant mentions any of these animals, classify as 'animal strike'.
+
+- Regional road hazards are COLLISION events. These include:
+  potholes, ditches, corrugated roads, gravel roads, dirt roads, sand drifts,
+  wash-aways (washaways), flooded drifts, dongas, speed humps, speed bumps,
+  loose gravel, muddy roads, flooded roads, submerged roads, unmarked hazards.
+  When a claimant mentions any of these, classify as a road hazard collision.
+
+- Preserve local terminology: 'bakkie' (pickup truck), 'robot' (traffic light),
+  'spaza' (informal shop), 'kombi' (minibus taxi), 'braai' (barbecue), etc.`;
 
 /**
  * Normalise a claimant's free-text incident description.

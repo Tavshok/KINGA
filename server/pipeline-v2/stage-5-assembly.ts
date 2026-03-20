@@ -426,7 +426,7 @@ async function inferIncidentFromDescriptionLLM(description: string): Promise<{
           role: "system",
           content: `You are an insurance claim incident classifier. Given an accident description, determine:
 1. incidentType: one of "collision" | "theft" | "vandalism" | "flood" | "fire" | "unknown"
-   - "collision" covers ANY physical impact: vehicle vs vehicle, vehicle vs animal (cow, goat, kudu, pedestrian, cyclist, etc.), vehicle vs object (tree, pole, wall, barrier, ditch), single-vehicle rollover, etc.
+   - "collision" covers ANY physical impact: vehicle vs vehicle, vehicle vs animal (cow, goat, kudu, nyala, eland, bushbuck, wildebeest, gnu, springbok, gemsbok, oryx, steenbok, duiker, warthog, baboon, zebra, buffalo, elephant, giraffe, rhino, hippo, ostrich, guinea fowl, hadeda, mongoose, porcupine, vervet monkey, dassie, rock rabbit, hyrax, bushpig, waterbuck, reedbuck, caracal, jackal, hyena, cheetah, leopard, lion, deer, horse, donkey, sheep, cattle, pedestrian, cyclist, etc.), vehicle vs object (tree, pole, wall, barrier, ditch, pothole, corrugated road, gravel road, sand drift, wash-away, donga, speed hump), single-vehicle rollover, etc.
    - "theft" covers stolen vehicle, hijacking, attempted theft
    - "vandalism" covers deliberate damage, break-in, malicious damage
    - "flood" covers water damage, hail, storm

@@ -326,7 +326,44 @@ export async function runPipelineV2(
   recordStage("9_cost", s9);
   stage9Data = s9.data; // Always has data (self-healing)
 
-  // ── STAGE 36: Cost Realism Validation ────────────────────────────────
+  // ── STAGE 7b RE-RUN: Causal Reasoning with Downstream Scores ─────────────
+  // After Stages 8 (fraud) and 9 (cost) complete, re-run Stage 7b with the
+  // fraud risk score, fraud indicators, and quote deviation populated in
+  // precomputedScores. This gives the causal engine a complete forensic picture.
+  if (stage8Data && stage9Data) {
+    try {
+      const enrichedPhotosJsonRerun: string | null = (ctx as any).enrichedPhotosJson ?? null;
+      const precomputedScores = {
+        damageConsistencyScore: stage8Data.damageConsistencyScore ?? null,
+        fraudRiskScore: stage8Data.fraudRiskScore ?? null,
+        fraudRiskLevel: stage8Data.fraudRiskLevel ?? null,
+        fraudIndicators: stage8Data.indicators?.map((i: any) => i.indicator ?? i.description ?? String(i)) ?? [],
+        quoteDeviationPct: stage9Data.quoteDeviationPct ?? null,
+        estimatedCostCents: stage9Data.expectedRepairCostCents ?? null,
+        currency: stage9Data.currency ?? null,
+      };
+      const updatedVerdict = await runCausalReasoningEngine(
+        claimRecord!,
+        stage6Data,
+        stage7Data,
+        enrichedPhotosJsonRerun,
+        precomputedScores
+      );
+      causalVerdict = updatedVerdict;
+      ctx.log(
+        "Stage 7b (re-run)",
+        `Updated causal verdict with downstream scores: ` +
+        `plausibility=${causalVerdict.plausibilityScore}% (${causalVerdict.plausibilityBand}), ` +
+        `fraudFlag=${causalVerdict.flagForFraud}, ` +
+        `fraudScore=${precomputedScores.fraudRiskScore ?? 'N/A'}, ` +
+        `quoteDeviation=${precomputedScores.quoteDeviationPct != null ? precomputedScores.quoteDeviationPct.toFixed(1) + '%' : 'N/A'}`
+      );
+    } catch (err) {
+      ctx.log("Stage 7b (re-run)", `Re-run with downstream scores failed (non-fatal): ${String(err)}`);
+    }
+  }
+
+  // ── STAGE 36: Cost Realism Validationn ────────────────────────────────
   try {
     const componentCount = stage6Data?.damagedParts?.length ?? 0;
     const overallSeverity = stage7Data?.accidentSeverity ?? null;
