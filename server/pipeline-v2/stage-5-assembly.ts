@@ -149,20 +149,67 @@ export async function runAssemblyStage(
     let incidentType: CanonicalIncidentType;
     if (rawIncidentType) {
       incidentType = classifyIncidentType(rawIncidentType);
+      // If classifyIncidentType returned "unknown", try NLP inference from description
+      if (incidentType === "unknown") {
+        const descForType = v.accidentDescription || ctx.claim.incidentDescription || "";
+        const nlpType = classifyIncidentType(descForType);
+        if (nlpType !== "unknown") {
+          incidentType = nlpType;
+          assumptions.push({
+            field: "accidentDetails.incidentType",
+            assumedValue: nlpType,
+            reason: `Incident type "${rawIncidentType}" was unrecognised. Inferred "${nlpType}" from incident description.`,
+            strategy: "contextual_inference",
+            confidence: 60,
+            stage: "Stage 5",
+          });
+        }
+      }
     } else {
-      incidentType = "collision"; // Default assumption
-      isDegraded = true;
-      assumptions.push({
-        field: "accidentDetails.incidentType",
-        assumedValue: "collision",
-        reason: "Incident type not found in any source. Defaulting to 'collision' as most common claim type.",
-        strategy: "industry_average",
-        confidence: 50,
-        stage: "Stage 5",
-      });
+      // Try NLP inference from description before defaulting
+      const descForType = v.accidentDescription || ctx.claim.incidentDescription || "";
+      const nlpType = descForType ? classifyIncidentType(descForType) : "unknown";
+      if (nlpType !== "unknown") {
+        incidentType = nlpType;
+        assumptions.push({
+          field: "accidentDetails.incidentType",
+          assumedValue: nlpType,
+          reason: `Incident type not found in structured fields. Inferred "${nlpType}" from incident description.`,
+          strategy: "contextual_inference",
+          confidence: 60,
+          stage: "Stage 5",
+        });
+      } else {
+        incidentType = "collision"; // Default assumption
+        isDegraded = true;
+        assumptions.push({
+          field: "accidentDetails.incidentType",
+          assumedValue: "collision",
+          reason: "Incident type not found in any source. Defaulting to 'collision' as most common claim type.",
+          strategy: "industry_average",
+          confidence: 50,
+          stage: "Stage 5",
+        });
+      }
     }
-
-    const collisionDirection = classifyCollisionDirection(v.accidentType || "unknown");
+    // Classify collision direction: first try the structured accidentType field,
+    // then fall back to NLP inference from the incident description.
+    let collisionDirection = classifyCollisionDirection(v.accidentType || "unknown");
+    if (collisionDirection === "unknown") {
+      const descriptionText = v.accidentDescription || ctx.claim.incidentDescription || "";
+      const inferred = inferCollisionDirectionFromDescription(descriptionText);
+      if (inferred !== "unknown") {
+        collisionDirection = inferred;
+        assumptions.push({
+          field: "accidentDetails.collisionDirection",
+          assumedValue: inferred,
+          reason: `Collision direction not explicitly stated. Inferred "${inferred}" from incident description: "${descriptionText.substring(0, 100)}".`,
+          strategy: "contextual_inference",
+          confidence: 55,
+          stage: "Stage 5",
+        });
+      }
+    }
 
     // Estimate speed if missing but we have damage indicators
     let estimatedSpeed = v.estimatedSpeedKmh || null;
@@ -349,5 +396,47 @@ function classifyCollisionDirection(raw: string): CollisionDirection {
   if (r === "side_passenger" || r === "passenger_side" || r === "right") return "side_passenger";
   if (r === "rollover" || r === "roll_over" || r === "overturn") return "rollover";
   if (r === "multi_impact" || r === "multiple" || r === "multi") return "multi_impact";
+  return "unknown";
+}
+
+/**
+ * Infer collision direction from free-text incident description.
+ * Used as fallback when accidentType field is null or "unknown".
+ * Handles non-standard scenarios: animal strikes, off-road, single-vehicle.
+ */
+function inferCollisionDirectionFromDescription(description: string): CollisionDirection {
+  const d = (description || "").toLowerCase();
+  // Rollover / overturn indicators
+  if (
+    d.includes("roll") || d.includes("overturn") || d.includes("flip") ||
+    d.includes("topple") || d.includes("capsize")
+  ) return "rollover";
+  // Rear-end indicators
+  if (
+    d.includes("rear") || d.includes("behind") || d.includes("from behind") ||
+    d.includes("back of") || d.includes("tailgat")
+  ) return "rear";
+  // Side-driver (left) indicators
+  if (
+    d.includes("driver side") || d.includes("left side") ||
+    d.includes("driver's side") || d.includes("scratched on the left") ||
+    d.includes("hit on the left")
+  ) return "side_driver";
+  // Side-passenger (right) indicators
+  if (
+    d.includes("passenger side") || d.includes("right side") ||
+    d.includes("passenger's side") || d.includes("scratched on the right") ||
+    d.includes("hit on the right")
+  ) return "side_passenger";
+  // Frontal indicators: bull bar, bonnet, front, head-on, animal strike (typically frontal)
+  if (
+    d.includes("bull bar") || d.includes("bonnet") || d.includes("front") ||
+    d.includes("head-on") || d.includes("head on") || d.includes("windscreen") ||
+    d.includes("windshield") || d.includes("grille") || d.includes("bumper") ||
+    d.includes("cow") || d.includes("goat") || d.includes("donkey") ||
+    d.includes("animal") || d.includes("livestock") ||
+    d.includes("tree") || d.includes("pole") || d.includes("wall") ||
+    d.includes("fence") || d.includes("ditch") || d.includes("pothole")
+  ) return "frontal";
   return "unknown";
 }

@@ -4,7 +4,8 @@
  * STAGE 7 — PHYSICS ANALYSIS ENGINE (Self-Healing)
  *
  * Computes accident physics from ClaimRecord + Stage 6 damage analysis.
- * GATED: Only runs when incidentType === "collision".
+ * GATED: Runs when incidentType is "collision" or "unknown" (physical damage events).
+ * Skipped for non-physical types: theft, fire, flood, vandalism.
  * NEVER halts — if physics engine fails, produces estimated output from damage data.
  */
 
@@ -148,13 +149,15 @@ export async function runPhysicsStage(
   damageAnalysis: Stage6Output
 ): Promise<StageResult<Stage7Output>> {
   const start = Date.now();
-  const isCollision = claimRecord.accidentDetails.incidentType === "collision";
-
+  // Run physics for collision AND unknown incident types.
+  // "unknown" often means classification failed but the claim is still a physical damage event.
+  // Non-physical types (theft, fire, flood, vandalism) are explicitly excluded.
+  const incidentType = claimRecord.accidentDetails.incidentType;
+  const isPhysicalDamage = incidentType === "collision" || incidentType === "unknown";
   const assumptions: Assumption[] = [];
   const recoveryActions: RecoveryAction[] = [];
-
-  if (!isCollision) {
-    ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${claimRecord.accidentDetails.incidentType}", not collision`);
+  if (!isPhysicalDamage) {
+    ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${incidentType}" (non-physical damage event)`);
     // Stage 26: apply defensive contract — skipped output must still be complete
     const skippedOutput = ensurePhysicsContract(buildDefaultPhysicsOutput(false), "engine_skipped");
     return {

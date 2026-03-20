@@ -306,6 +306,18 @@ export function classifyIncidentType(raw: string): CanonicalIncidentType {
   if (r === "vandalism" || r === "malicious") return "vandalism";
   if (r === "flood" || r === "water" || r === "hail") return "flood";
   if (r === "fire" || r === "burn") return "fire";
+  // "other" from DB enum — treat as collision (most common physical damage type)
+  if (r === "other") return "collision";
+  // NLP fallback: detect collision-like descriptions (animal strikes, off-road, single-vehicle)
+  if (
+    r.includes("hit") || r.includes("struck") || r.includes("crash") ||
+    r.includes("collid") || r.includes("impact") || r.includes("ran into") ||
+    r.includes("ran off") || r.includes("veered") || r.includes("rolled") ||
+    r.includes("overturned") || r.includes("animal") || r.includes("cow") ||
+    r.includes("goat") || r.includes("donkey") || r.includes("pedestrian") ||
+    r.includes("pothole") || r.includes("ditch") || r.includes("tree") ||
+    r.includes("pole") || r.includes("wall") || r.includes("fence")
+  ) return "collision";
   return "unknown";
 }
 
