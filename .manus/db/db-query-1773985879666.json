@@ -1,0 +1,58 @@
+{
+  "query": "SHOW TABLES LIKE '%claim%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW TABLES LIKE '%claim%';",
+  "rows": [
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_comments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_confidence_scores"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_decision_lifecycle"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_events"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_intelligence_dataset"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_involvement_tracking"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_review_queue"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claim_routing_decisions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claimant_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "cross_claim_signals"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "driver_claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "historical_claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "policy_claim_links"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)": "similar_claims_clusters"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_YbS42LwGroxbVepAMjk4bS (%claim%)\nclaim_comments\nclaim_confidence_scores\nclaim_decision_lifecycle\nclaim_documents\nclaim_events\nclaim_intelligence_dataset\nclaim_involvement_tracking\nclaim_review_queue\nclaim_routing_decisions\nclaimant_history\nclaims\ncross_claim_signals\ndriver_claims\nhistorical_claims\npolicy_claim_links\nsimilar_claims_clusters\n",
+  "stderr": "",
+  "execution_time_ms": 53
+}

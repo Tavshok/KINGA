@@ -1,0 +1,22 @@
+{
+  "query": "SELECT id, claim_id, estimated_cost, confidence_score, fraud_risk_level, fraud_score_breakdown_json, total_loss_indicated, repair_to_value_ratio, structural_damage_severity, created_at FROM ai_assessments WHERE claim_id = 2640001 ORDER BY id DESC LIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_id, estimated_cost, confidence_score, fraud_risk_level, fraud_score_breakdown_json, total_loss_indicated, repair_to_value_ratio, structural_damage_severity, created_at FROM ai_assessments WHERE claim_id = 2640001 ORDER BY id DESC LIMIT 1;",
+  "rows": [
+    {
+      "id": "2010001",
+      "claim_id": "2640001",
+      "estimated_cost": "522812",
+      "confidence_score": "91",
+      "fraud_risk_level": "medium",
+      "fraud_score_breakdown_json": "{\"overallScore\":45,\"level\":\"medium\",\"indicators\":[{\"indicator\":\"excessive_damage_count\",\"category\":\"pattern\",\"score\":15,\"description\":\"Unusually high number of damaged components (31).\"},{\"indicator\":\"high_cost_per_component\",\"category\":\"financial\",\"score\":15,\"description\":\"Average cost per damaged component (16864.90) exceeds typical range.\"},{\"indicator\":\"no_damage_photos\",\"category\":\"documentation\",\"score\":15,\"description\":\"No damage photographs provided with the claim.\"}],\"damageConsistency\":{\"score\":50,\"notes\":\"High component count may indicate pre-existing damage.\"}}",
+      "total_loss_indicated": "0",
+      "repair_to_value_ratio": "44",
+      "structural_damage_severity": "minor",
+      "created_at": "2026-03-19 19:39:41"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_id\testimated_cost\tconfidence_score\tfraud_risk_level\tfraud_score_breakdown_json\ttotal_loss_indicated\trepair_to_value_ratio\tstructural_damage_severity\tcreated_at\n2010001\t2640001\t522812\t91\tmedium\t{\"overallScore\":45,\"level\":\"medium\",\"indicators\":[{\"indicator\":\"excessive_damage_count\",\"category\":\"pattern\",\"score\":15,\"description\":\"Unusually high number of damaged components (31).\"},{\"indicator\":\"high_cost_per_component\",\"category\":\"financial\",\"score\":15,\"description\":\"Average cost per damaged component (16864.90) exceeds typical range.\"},{\"indicator\":\"no_damage_photos\",\"category\":\"documentation\",\"score\":15,\"description\":\"No damage photographs provided with the claim.\"}],\"damageConsistency\":{\"score\":50,\"notes\":\"High component count may indicate pre-existing damage.\"}}\t0\t44\tminor\t2026-03-19 19:39:41\n",
+  "stderr": "",
+  "execution_time_ms": 54
+}

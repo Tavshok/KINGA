@@ -396,6 +396,8 @@ function classifyCollisionDirection(raw: string): CollisionDirection {
   if (r === "side_passenger" || r === "passenger_side" || r === "right") return "side_passenger";
   if (r === "rollover" || r === "roll_over" || r === "overturn") return "rollover";
   if (r === "multi_impact" || r === "multiple" || r === "multi") return "multi_impact";
+  // Animal strikes are always frontal — the vehicle hits the animal head-on
+  if (r === "animal_strike" || r === "animal_damage" || r === "animal") return "frontal";
   return "unknown";
 }
 

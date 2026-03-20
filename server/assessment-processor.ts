@@ -296,6 +296,8 @@ const VEHICLE_MASSES: Record<string, number> = {
 const TYPICAL_SPEEDS: Record<string, [number, number]> = {
   rear_end: [20, 60], side_impact: [30, 80], head_on: [40, 100],
   parking_lot: [5, 20], highway: [80, 120], rollover: [40, 100],
+  // Animal strikes: typically occur at rural road speeds (40–120 km/h)
+  animal_strike: [40, 120], animal_damage: [40, 120],
 };
 
 const SEVERITY_ENERGY_RANGES: Record<string, [number, number]> = {
@@ -307,6 +309,8 @@ const EXPECTED_DAMAGE_LOCATIONS: Record<string, string[]> = {
   rear_end: ['rear'], side_impact: ['left_side', 'right_side'],
   head_on: ['front'], parking_lot: ['rear', 'front', 'left_side', 'right_side'],
   highway: ['front', 'rear'],
+  // Animal strikes: bull bar, bonnet, grille, windscreen — always frontal
+  animal_strike: ['front'], animal_damage: ['front'],
 };
 
 const GRAVITY = 9.81;
@@ -320,7 +324,11 @@ const CRUMPLE_DISTANCE = 0.5; // meters
 const NON_COLLISION_TYPES = new Set([
   'theft', 'break_in', 'vandalism', 'hijacking', 'forced_entry',
   'attempted_theft', 'fire', 'hail', 'flood', 'storm', 'falling_object',
-  'animal_damage', 'malicious_damage', 'burglary',
+  'malicious_damage', 'burglary',
+  // NOTE: animal_damage / animal_strike is intentionally excluded from this set.
+  // A vehicle striking a large animal (cow, goat, donkey, kudu, deer, etc.) is a
+  // genuine frontal collision event with real kinetic energy and structural impact.
+  // It must be routed through the physics engine, not treated as a non-collision.
 ]);
 
 /** Keywords in accident descriptions that indicate non-collision incidents */
@@ -333,7 +341,9 @@ const NON_COLLISION_KEYWORDS: Record<string, string[]> = {
   hail: ['hail', 'hailstorm', 'hail damage', 'dents from hail'],
   flood: ['flood', 'submerged', 'water damage', 'waterlogged', 'inundated'],
   storm: ['storm', 'wind damage', 'tree fell', 'branch fell', 'lightning'],
-  animal_damage: ['animal', 'hit a deer', 'hit an animal', 'bird strike'],
+  // animal_damage / animal_strike removed from non-collision keywords.
+  // Animal strikes are frontal collisions — they must go through physics validation.
+  // 'bird strike' at speed is also a collision event (windscreen, bonnet damage).
   stationary: ['stationary', 'parked', 'was parked', 'standing still', 'not moving', 'vehicle was with'],
 };
 
@@ -936,7 +946,7 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
             assessorName: { type: "string", description: "Name of the assessor or assessment company" },
             repairerName: { type: "string", description: "Name of the repair shop or panel beater" },
             estimatedSpeed: { type: "number", description: "Estimated impact speed km/h. For non-collision incidents (theft, break-in, vandalism, fire, hail, flood), set to 0. Only infer speed for actual vehicle collisions." },
-            accidentType: { type: "string", description: "Classify the incident type. Collision types: rear_end, side_impact, head_on, parking_lot, highway, rollover. Non-collision types: theft, break_in, vandalism, hijacking, forced_entry, attempted_theft, fire, hail, flood, storm, falling_object, animal_damage. Use 'other' only if none of these fit. IMPORTANT: Read the accident description carefully - if it describes a break-in, theft, vandalism, or any non-collision event, classify accordingly even if the LLM extraction schema defaults to collision types." },
+            accidentType: { type: "string", description: "Classify the incident type. Collision types: rear_end, side_impact, head_on, parking_lot, highway, rollover, animal_strike. Non-collision types: theft, break_in, vandalism, hijacking, forced_entry, attempted_theft, fire, hail, flood, storm, falling_object. CRITICAL: Animal strikes (cow, goat, donkey, kudu, deer, warthog, baboon, etc.) are COLLISION events — use 'animal_strike', NOT a non-collision type. Animal strikes cause real frontal impact force and must go through physics validation. Use 'other' only if none of these fit." },
             damagedComponents: { 
               type: "array",
               items: { type: "string" },

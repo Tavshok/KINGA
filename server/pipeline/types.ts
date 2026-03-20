@@ -300,7 +300,9 @@ export function classifyIncidentType(raw: string): CanonicalIncidentType {
   if (
     r === "collision" || r === "frontal" || r === "rear" || r === "side" ||
     r === "side_driver" || r === "side_passenger" || r === "rollover" ||
-    r === "multi_impact" || r === "accident"
+    r === "multi_impact" || r === "accident" ||
+    // Animal strikes are collision events — frontal impact with real kinetic force
+    r === "animal_strike" || r === "animal_damage"
   ) return "collision";
   if (r === "theft" || r === "hijacking" || r === "stolen") return "theft";
   if (r === "vandalism" || r === "malicious") return "vandalism";
@@ -313,10 +315,16 @@ export function classifyIncidentType(raw: string): CanonicalIncidentType {
     r.includes("hit") || r.includes("struck") || r.includes("crash") ||
     r.includes("collid") || r.includes("impact") || r.includes("ran into") ||
     r.includes("ran off") || r.includes("veered") || r.includes("rolled") ||
-    r.includes("overturned") || r.includes("animal") || r.includes("cow") ||
-    r.includes("goat") || r.includes("donkey") || r.includes("pedestrian") ||
+    r.includes("overturned") || r.includes("pedestrian") ||
     r.includes("pothole") || r.includes("ditch") || r.includes("tree") ||
-    r.includes("pole") || r.includes("wall") || r.includes("fence")
+    r.includes("pole") || r.includes("wall") || r.includes("fence") ||
+    // Animal strikes — common in Southern/East Africa
+    r.includes("animal") || r.includes("livestock") ||
+    r.includes("cow") || r.includes("goat") || r.includes("donkey") ||
+    r.includes("kudu") || r.includes("warthog") || r.includes("baboon") ||
+    r.includes("deer") || r.includes("impala") || r.includes("zebra") ||
+    r.includes("buffalo") || r.includes("elephant") || r.includes("horse") ||
+    r.includes("pig") || r.includes("sheep") || r.includes("cattle")
   ) return "collision";
   return "unknown";
 }
