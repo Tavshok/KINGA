@@ -491,10 +491,18 @@ async function generateConstraintNarrative(
 ): Promise<string | null> {
   if (constraintValidation.constraints.length === 0) return null;
 
+  // Build the structured constraint validation block
   const constraintSummary = constraintValidation.results.map(r => {
     const status = r.satisfied ? "PASS" : "FAIL";
     return `[${status}] ${r.constraint.id} (${r.constraint.severity}): ${r.constraint.description}\n  Expected: ${r.constraint.expectedValue}\n  Observed: ${r.actualValue}\n  Confidence: ${r.confidence}%`;
   }).join("\n\n");
+
+  // Derive validity status from constraint results
+  const validityStatus = constraintValidation.criticalFailures > 0
+    ? `INVALID — ${constraintValidation.criticalFailures} critical constraint(s) failed. Penalty: −${constraintValidation.penaltyApplied} points.`
+    : constraintValidation.failedCount > 0
+    ? `PARTIALLY VALID — ${constraintValidation.failedCount} of ${constraintValidation.constraints.length} constraint(s) failed. Penalty: −${constraintValidation.penaltyApplied} points.`
+    : `VALID — All ${constraintValidation.constraints.length} constraint(s) passed.`;
 
   const systemPrompt = `You are a forensic vehicle damage expert.
 
@@ -507,14 +515,19 @@ Rules:
 - Be concise and technical
 - If constraints fail, clearly state why the cause is physically inconsistent`;
 
-  const userPrompt = `Inferred Cause: ${inferredCause}
+  const userPrompt = `INPUT:
+
+Inferred Cause:
+${inferredCause}
 
 Constraint Validation Results:
 ${constraintSummary}
 
-Summary: ${constraintValidation.failedCount} of ${constraintValidation.constraints.length} constraints failed. Penalty applied: ${constraintValidation.penaltyApplied} points. Critical failures: ${constraintValidation.criticalFailures}.
+Validity Status:
+${validityStatus}
 
-Explain in 2–4 sentences whether the inferred cause is physically consistent with the constraint evidence. Reference failed constraints by ID.`;
+TASK:
+Write a clear forensic explanation of whether the cause is valid or invalid, and why.`;
 
   try {
     const response = await invokeLLM({
