@@ -378,6 +378,61 @@ function CausalVerdictSection({ data }: { data: any }) {
           </div>
         </div>
       )}
+      {/* Physics Constraint Validation */}
+      {data.constraintValidation && Array.isArray(data.constraintValidation.results) && data.constraintValidation.results.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Physics Constraint Validation</p>
+            <div className="flex items-center gap-2">
+              {data.constraintValidation.criticalFailures > 0 && (
+                <span className="inline-flex items-center rounded border border-red-500/30 bg-red-500/10 px-1.5 py-0.5 text-xs font-semibold text-red-400">
+                  {data.constraintValidation.criticalFailures} critical
+                </span>
+              )}
+              {data.constraintValidation.failedCount > 0 && (
+                <span className="inline-flex items-center rounded border border-orange-500/30 bg-orange-500/10 px-1.5 py-0.5 text-xs font-semibold text-orange-400">
+                  {data.constraintValidation.failedCount} failed
+                </span>
+              )}
+              {data.constraintValidation.penaltyApplied > 0 && (
+                <span className="text-xs text-muted-foreground">−{data.constraintValidation.penaltyApplied}pts penalty</span>
+              )}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            {data.constraintValidation.results.map((r: any, i: number) => (
+              <div key={i} className={`rounded border p-2 flex items-start gap-2 ${
+                r.satisfied
+                  ? "bg-emerald-500/5 border-emerald-500/20"
+                  : r.constraint?.severity === "critical" ? "bg-red-500/10 border-red-500/30"
+                  : r.constraint?.severity === "major" ? "bg-orange-500/10 border-orange-500/30"
+                  : "bg-amber-500/5 border-amber-500/20"
+              }`}>
+                <span className={`text-sm mt-0.5 shrink-0 ${r.satisfied ? "text-emerald-400" : severityColor(r.constraint?.severity)}`}>
+                  {r.satisfied ? "✓" : "✗"}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 mb-0.5">
+                    <span className="text-xs font-mono text-muted-foreground">{r.constraint?.id}</span>
+                    <span className={`text-xs font-semibold ${severityColor(r.constraint?.severity)}`}>
+                      {(r.constraint?.severity || "").toUpperCase()}
+                    </span>
+                    <span className="text-xs text-muted-foreground capitalize">[{(r.constraint?.type || "").replace(/_/g, " ")}]</span>
+                  </div>
+                  <p className="text-xs text-foreground">{r.constraint?.description}</p>
+                  {!r.satisfied && (
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      <span className="font-medium">Expected:</span> {r.constraint?.expectedValue} &nbsp;
+                      <span className="font-medium">Observed:</span> {r.actualValue}
+                    </p>
+                  )}
+                </div>
+                <span className="text-xs text-muted-foreground shrink-0">{r.confidence}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

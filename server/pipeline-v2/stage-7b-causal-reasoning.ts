@@ -76,6 +76,8 @@ export interface CausalVerdict {
   reasoningTrace: string;
   /** Whether the LLM was used or keyword fallback was applied */
   llmUsed: boolean;
+  /** Physics constraint validation results */
+  constraintValidation: ConstraintValidation | null;
   /** ISO timestamp */
   generatedAt: string;
 }
@@ -84,6 +86,50 @@ export interface AlternativeCause {
   cause: string;
   plausibilityScore: number; // 0–100
   reasoning: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Physics Constraint Validation Layer
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * A structural physics constraint that MUST be true for a given incident cause.
+ * Defined by the forensic mechanical analyst LLM call before the main verdict.
+ */
+export interface PhysicsConstraint {
+  /** Unique identifier for this constraint */
+  id: string;
+  /** Plain-English description of the required physical condition */
+  description: string;
+  /** The type of constraint being checked */
+  type: "damage_location" | "damage_absence" | "physics_direction" | "physics_range" | "damage_pattern";
+  /** The expected value or condition that must be present */
+  expectedValue: string;
+  /** How critical this constraint is to the causal hypothesis */
+  severity: "critical" | "major" | "moderate" | "minor";
+}
+
+/** Result of checking a single constraint against the actual evidence */
+export interface ConstraintCheckResult {
+  constraint: PhysicsConstraint;
+  /** Whether the constraint is satisfied by the actual evidence */
+  satisfied: boolean;
+  /** What was actually observed in the evidence */
+  actualValue: string;
+  /** Confidence in this check result (0–100) */
+  confidence: number;
+}
+
+/** Summary of all constraint checks for a causal hypothesis */
+export interface ConstraintValidation {
+  constraints: PhysicsConstraint[];
+  results: ConstraintCheckResult[];
+  /** Number of constraints that failed */
+  failedCount: number;
+  /** Number of critical constraints that failed */
+  criticalFailures: number;
+  /** Score penalty applied to plausibility based on constraint failures (0–100) */
+  penaltyApplied: number;
 }
 
 /** Optional precomputed scores passed into the engine for richer context */
@@ -172,7 +218,234 @@ function buildFallbackVerdict(
     fraudFlagReason: null,
     reasoningTrace: "LLM call failed; keyword fallback applied.",
     llmUsed: false,
+    constraintValidation: null,
     generatedAt: new Date().toISOString(),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constraint Definition — Forensic Mechanical Analyst
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Calls the LLM as a forensic mechanical analyst to define the physical and
+ * structural conditions that MUST be true for the given incident cause to be valid.
+ * Returns an empty list if the cause is ambiguous.
+ */
+async function definePhysicsConstraints(
+  inferredCause: string,
+  collisionDirection: string,
+  vehicleInfo: string,
+  physicsContext: string
+): Promise<PhysicsConstraint[]> {
+  const constraintSystemPrompt = `You are a forensic mechanical analyst.
+
+Your task is to define the physical and structural conditions that MUST be true for a given incident cause to be valid.
+
+Rules:
+- Only include conditions that are physically necessary
+- Do NOT include optional or probabilistic observations
+- Focus on impact direction, damage location, and structural response
+- Be precise and minimal
+- Do not explain, only define constraints
+
+Each constraint must include:
+- id (short snake_case string)
+- description (one sentence, what must be physically true)
+- type (damage_location | damage_absence | physics_direction | physics_range | damage_pattern)
+- expectedValue (precise, measurable or observable condition)
+- severity (critical | major | moderate | minor)
+
+If the cause is ambiguous, return an empty constraints array.
+
+Return ONLY valid JSON. No markdown, no text outside the JSON object.`;
+
+  const constraintUserPrompt = `Vehicle: ${vehicleInfo}
+Inferred cause: ${inferredCause}
+Collision direction: ${collisionDirection}
+Physics context:
+${physicsContext}
+
+Define the minimum set of physical constraints that MUST be satisfied for this cause to be valid.`;
+
+  const constraintSchema = {
+    type: "json_schema" as const,
+    json_schema: {
+      name: "physics_constraints",
+      strict: true,
+      schema: {
+        type: "object",
+        properties: {
+          constraints: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                id: { type: "string" },
+                description: { type: "string" },
+                type: { type: "string" },
+                expectedValue: { type: "string" },
+                severity: { type: "string" },
+              },
+              required: ["id", "description", "type", "expectedValue", "severity"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["constraints"],
+        additionalProperties: false,
+      },
+    },
+  };
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: constraintSystemPrompt },
+        { role: "user", content: constraintUserPrompt },
+      ],
+      response_format: constraintSchema,
+    });
+    const rawContent = response.choices?.[0]?.message?.content;
+    const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");
+    const parsed = JSON.parse(content);
+    const validTypes = ["damage_location", "damage_absence", "physics_direction", "physics_range", "damage_pattern"];
+    const validSeverities = ["critical", "major", "moderate", "minor"];
+    return (Array.isArray(parsed.constraints) ? parsed.constraints : []).filter(
+      (c: PhysicsConstraint) =>
+        c.id && c.description && validTypes.includes(c.type) && c.expectedValue && validSeverities.includes(c.severity)
+    );
+  } catch {
+    return [];
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Constraint Checker — validates actual evidence against defined constraints
+// ─────────────────────────────────────────────────────────────────────────────
+
+function checkConstraints(
+  constraints: PhysicsConstraint[],
+  physics: Stage7Output | null,
+  damage: Stage6Output | null
+): ConstraintValidation {
+  if (constraints.length === 0) {
+    return { constraints: [], results: [], failedCount: 0, criticalFailures: 0, penaltyApplied: 0 };
+  }
+
+  const actualDirection = physics?.impactVector?.direction?.toLowerCase() ?? "unknown";
+  const actualSpeedKmh = physics?.estimatedSpeedKmh ?? null;
+  const actualForceKn = physics?.impactForceKn ?? null;
+  const damagedZonesArr = (damage?.damageZones ?? []).map(z => z.zone?.toLowerCase() ?? "");
+  const damagedComponentsArr = (damage?.damagedParts ?? []).map(p => (p.location ?? p.name ?? "").toLowerCase());
+  const damagedZones = new Set<string>(damagedZonesArr);
+  const damagedComponents = new Set<string>(damagedComponentsArr);
+
+  const results: ConstraintCheckResult[] = constraints.map(c => {
+    const expected = c.expectedValue.toLowerCase();
+    let satisfied = false;
+    let actualValue = "not determinable";
+    let confidence = 60;
+
+    switch (c.type) {
+      case "physics_direction": {
+        satisfied = actualDirection !== "unknown" && expected.includes(actualDirection);
+        actualValue = `Impact direction: ${actualDirection}`;
+        confidence = actualDirection !== "unknown" ? 90 : 30;
+        break;
+      }
+      case "physics_range": {
+        // Parse expected value like "speed > 20 km/h" or "force < 500 kN"
+        const speedMatch = expected.match(/(speed|velocity)\s*([<>]=?)\s*(\d+)/);
+        const forceMatch = expected.match(/force\s*([<>]=?)\s*(\d+)/);
+        if (speedMatch && actualSpeedKmh !== null) {
+          const op = speedMatch[2];
+          const val = parseFloat(speedMatch[3]);
+          satisfied = op === ">" ? actualSpeedKmh > val :
+                      op === ">=" ? actualSpeedKmh >= val :
+                      op === "<" ? actualSpeedKmh < val :
+                      op === "<=" ? actualSpeedKmh <= val : false;
+          actualValue = `Speed: ${actualSpeedKmh.toFixed(1)} km/h`;
+          confidence = 85;
+        } else if (forceMatch && actualForceKn !== null) {
+          const op = forceMatch[1];
+          const val = parseFloat(forceMatch[2]);
+          satisfied = op === ">" ? actualForceKn > val :
+                      op === ">=" ? actualForceKn >= val :
+                      op === "<" ? actualForceKn < val :
+                      op === "<=" ? actualForceKn <= val : false;
+          actualValue = `Impact force: ${actualForceKn.toFixed(1)} kN`;
+          confidence = 85;
+        } else {
+          satisfied = false;
+          actualValue = "Physics data insufficient to evaluate range constraint";
+          confidence = 20;
+        }
+        break;
+      }
+      case "damage_location": {
+        // Check if any damaged zone or component matches the expected location
+        const zoneMatch = damagedZonesArr.some(z => expected.includes(z) || z.includes(expected.split(" ")[0]));
+        const compMatch = damagedComponentsArr.some(c2 => expected.includes(c2.split(" ")[0]) || c2.includes(expected.split(" ")[0]));
+        satisfied = zoneMatch || compMatch;
+        actualValue = damagedZones.size > 0 ? damagedZonesArr.join(", ") : "No damage zones recorded";
+        actualValue = `Damaged zones: ${actualValue}`;
+        confidence = damage ? 75 : 25;
+        break;
+      }
+      case "damage_absence": {
+        // Constraint requires that a specific zone is NOT damaged
+        const zoneAbsent = !damagedZonesArr.some(z => expected.includes(z) || z.includes(expected.split(" ")[0]));
+        const compAbsent = !damagedComponentsArr.some(c2 => expected.includes(c2.split(" ")[0]) || c2.includes(expected.split(" ")[0]));
+        satisfied = zoneAbsent && compAbsent;
+        actualValue = damagedZones.size > 0 ? `Damaged zones: ${damagedZonesArr.join(", ")}` : "No damage zones recorded";
+        confidence = damage ? 70 : 25;
+        break;
+      }
+      case "damage_pattern": {
+        // Pattern constraints are evaluated at lower confidence — structural deformation, crumple zones etc.
+        const structuralExpected = expected.includes("structural") || expected.includes("deform") || expected.includes("crumple");
+        if (structuralExpected) {
+          satisfied = damage?.structuralDamageDetected ?? false;
+          actualValue = damage?.structuralDamageDetected ? "Structural damage detected" : "No structural damage detected";
+          confidence = damage ? 70 : 20;
+        } else {
+          // Generic pattern — check component count as proxy for energy dissipation
+          const componentCount = damage?.damagedParts?.length ?? 0;
+          const highEnergy = expected.includes("multiple") || expected.includes("extensive");
+          satisfied = highEnergy ? componentCount >= 5 : componentCount >= 1;
+          actualValue = `${componentCount} damaged components recorded`;
+          confidence = 60;
+        }
+        break;
+      }
+      default:
+        satisfied = false;
+        actualValue = "Unknown constraint type";
+        confidence = 0;
+    }
+
+    return { constraint: c, satisfied, actualValue, confidence };
+  });
+
+  const failed = results.filter(r => !r.satisfied);
+  const criticalFailures = failed.filter(r => r.constraint.severity === "critical").length;
+  const majorFailures = failed.filter(r => r.constraint.severity === "major").length;
+  const moderateFailures = failed.filter(r => r.constraint.severity === "moderate").length;
+  const minorFailures = failed.filter(r => r.constraint.severity === "minor").length;
+
+  // Penalty: critical=30, major=15, moderate=8, minor=3 — capped at 80
+  const penaltyApplied = Math.min(
+    80,
+    criticalFailures * 30 + majorFailures * 15 + moderateFailures * 8 + minorFailures * 3
+  );
+
+  return {
+    constraints,
+    results,
+    failedCount: failed.length,
+    criticalFailures,
+    penaltyApplied,
   };
 }
 
@@ -391,17 +664,60 @@ RETURN:
     const validPhysicsAlignment = ["consistent", "partially_consistent", "inconsistent", "not_applicable"];
     const validImageAlignment = ["consistent", "partially_consistent", "inconsistent", "no_photos"];
 
-    const score = typeof parsed.plausibilityScore === "number"
+    const llmScore = typeof parsed.plausibilityScore === "number"
       ? Math.min(100, Math.max(0, parsed.plausibilityScore))
       : 50;
 
+    const inferredDirection = validDirections.includes(parsed.inferredCollisionDirection)
+      ? parsed.inferredCollisionDirection as CollisionDirection
+      : "unknown" as CollisionDirection;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // CONSTRAINT VALIDATION LAYER
+    // Ask the forensic mechanical analyst to define necessary physical constraints
+    // for the inferred cause, then check them against the actual evidence.
+    // ─────────────────────────────────────────────────────────────────────────────
+    const inferredCause = parsed.inferredCause || "Could not determine cause";
+    const constraints = await definePhysicsConstraints(
+      inferredCause,
+      inferredDirection,
+      vehicleInfo,
+      physicsContext
+    );
+    const constraintValidation = checkConstraints(constraints, physics, damage);
+
+    // Apply constraint penalty to plausibility score
+    const penalisedScore = Math.max(0, llmScore - constraintValidation.penaltyApplied);
+    const finalScore = penalisedScore;
+
+    // Convert failed constraints into additional contradictions
+    const constraintContradictions: CausalContradiction[] = constraintValidation.results
+      .filter(r => !r.satisfied)
+      .map(r => ({
+        source_a: "physics_constraint",
+        source_b: "observed_damage",
+        description: `Constraint "${r.constraint.id}" failed: ${r.constraint.description} Expected: ${r.constraint.expectedValue}. Observed: ${r.actualValue}.`,
+        severity: r.constraint.severity,
+        implication: `This constraint failure ${r.constraint.severity === "critical" || r.constraint.severity === "major" ? "undermines" : "weakens"} the causal hypothesis. Confidence in check: ${r.confidence}%.`,
+      }));
+
+    const allContradictions: CausalContradiction[] = [
+      ...(Array.isArray(parsed.contradictions) ? parsed.contradictions : []),
+      ...constraintContradictions,
+    ];
+
+    // Escalate fraud flag if critical constraint failures exist
+    const hasCriticalConstraintFailure = constraintValidation.criticalFailures > 0;
+    const fraudFlagged = (typeof parsed.flagForFraud === "boolean" ? parsed.flagForFraud : false) || hasCriticalConstraintFailure;
+    const fraudReason = fraudFlagged
+      ? (parsed.fraudFlagReason || (hasCriticalConstraintFailure ? `${constraintValidation.criticalFailures} critical physics constraint(s) failed, making the stated cause physically implausible.` : null))
+      : null;
+
     return {
-      inferredCause: parsed.inferredCause || "Could not determine cause",
-      plausibilityScore: score,
-      plausibilityBand: plausibilityBand(score),
-      inferredCollisionDirection: validDirections.includes(parsed.inferredCollisionDirection)
-        ? parsed.inferredCollisionDirection
-        : "unknown",
+      inferredCause,
+      plausibilityScore: finalScore,
+      plausibilityBand: plausibilityBand(finalScore),
+      inferredCollisionDirection: inferredDirection,
       physicsAlignment: validPhysicsAlignment.includes(parsed.physicsAlignment)
         ? parsed.physicsAlignment
         : "not_applicable",
@@ -409,13 +725,14 @@ RETURN:
         ? parsed.imageAlignment
         : "no_photos",
       supportingEvidence: Array.isArray(parsed.supportingEvidence) ? parsed.supportingEvidence : [],
-      contradictions: Array.isArray(parsed.contradictions) ? parsed.contradictions : [],
+      contradictions: allContradictions,
       alternativeCauses: Array.isArray(parsed.alternativeCauses) ? parsed.alternativeCauses : [],
       narrativeVerdict: parsed.narrativeVerdict || "No verdict generated.",
-      flagForFraud: typeof parsed.flagForFraud === "boolean" ? parsed.flagForFraud : false,
-      fraudFlagReason: parsed.fraudFlagReason || null,
+      flagForFraud: fraudFlagged,
+      fraudFlagReason: fraudReason,
       reasoningTrace: parsed.reasoningTrace || "",
       llmUsed: true,
+      constraintValidation,
       generatedAt: new Date().toISOString(),
     };
   } catch (err) {
