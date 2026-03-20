@@ -236,7 +236,9 @@ async function definePhysicsConstraints(
   inferredCause: string,
   collisionDirection: string,
   vehicleInfo: string,
-  physicsContext: string
+  physicsContext: string,
+  damageSummary: string,
+  imageSummary: string
 ): Promise<PhysicsConstraint[]> {
   const constraintSystemPrompt = `You are a forensic mechanical analyst.
 
@@ -258,16 +260,31 @@ Each constraint must include:
 
 If the cause is ambiguous, return an empty constraints array.
 
-Return ONLY valid JSON. No markdown, no text outside the JSON object.`;
+Return ONLY a JSON array of constraints. No wrapper object, no markdown, no text outside the JSON array.`;
 
-  const constraintUserPrompt = `Vehicle: ${vehicleInfo}
-Inferred cause: ${inferredCause}
-Collision direction: ${collisionDirection}
-Physics context:
-${physicsContext}
+  // Build the user prompt using the exact structured template
+  const physicsSummary = physicsContext;
+  const constraintUserPrompt = `INPUT:
 
-Define the minimum set of physical constraints that MUST be satisfied for this cause to be valid.`;
+Inferred Cause:
+${inferredCause}
 
+Physics Output:
+${physicsSummary}
+
+Damage Components:
+${damageSummary}
+
+Image Summary:
+${imageSummary}
+
+TASK:
+Define the required physical constraints that must be true for this cause to be valid.
+
+Return ONLY a JSON array of constraints.`;
+
+  // JSON schema must wrap the array in an object for strict mode compatibility.
+  // The system prompt instructs the model to return a bare array; we handle both cases in parsing.
   const constraintSchema = {
     type: "json_schema" as const,
     json_schema: {
@@ -298,6 +315,9 @@ Define the minimum set of physical constraints that MUST be satisfied for this c
     },
   };
 
+  const validTypes = ["damage_location", "damage_absence", "physics_direction", "physics_range", "damage_pattern"];
+  const validSeverities = ["critical", "major", "moderate", "minor"];
+
   try {
     const response = await invokeLLM({
       messages: [
@@ -307,11 +327,15 @@ Define the minimum set of physical constraints that MUST be satisfied for this c
       response_format: constraintSchema,
     });
     const rawContent = response.choices?.[0]?.message?.content;
-    const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");
+    const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "[]");
     const parsed = JSON.parse(content);
-    const validTypes = ["damage_location", "damage_absence", "physics_direction", "physics_range", "damage_pattern"];
-    const validSeverities = ["critical", "major", "moderate", "minor"];
-    return (Array.isArray(parsed.constraints) ? parsed.constraints : []).filter(
+    // Handle both bare array and wrapped object responses
+    const items: PhysicsConstraint[] = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray(parsed.constraints)
+        ? parsed.constraints
+        : [];
+    return items.filter(
       (c: PhysicsConstraint) =>
         c.id && c.description && validTypes.includes(c.type) && c.expectedValue && validSeverities.includes(c.severity)
     );
@@ -682,7 +706,9 @@ RETURN:
       inferredCause,
       inferredDirection,
       vehicleInfo,
-      physicsContext
+      physicsContext,
+      damageContext,
+      photoContext
     );
     const constraintValidation = checkConstraints(constraints, physics, damage);
 
