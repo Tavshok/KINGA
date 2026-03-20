@@ -33,6 +33,7 @@ import {
   inferPowertrainType,
 } from "../pipeline/types";
 import { markFallback } from "./engineFallback";
+import { invokeLLM } from "../_core/llm";
 
 export async function runAssemblyStage(
   ctx: PipelineContext,
@@ -402,43 +403,133 @@ function classifyCollisionDirection(raw: string): CollisionDirection {
 }
 
 /**
- * Infer collision direction from free-text incident description.
- * Used as fallback when accidentType field is null or "unknown".
- * Handles non-standard scenarios: animal strikes, off-road, single-vehicle.
+ * LLM-based semantic incident inference.
+ * Reads the raw accident description and infers incidentType, collisionDirection,
+ * and whether physics should run — from MEANING, not keyword matching.
+ * Handles any scenario: animal strikes, pedestrians, off-road, single-vehicle,
+ * multi-vehicle, theft, vandalism, fire, flood, etc.
+ */
+async function inferIncidentFromDescriptionLLM(description: string): Promise<{
+  incidentType: CanonicalIncidentType;
+  collisionDirection: CollisionDirection;
+  isCollision: boolean;
+  reasoning: string;
+  confidence: number;
+}> {
+  if (!description || description.trim().length < 5) {
+    return { incidentType: "collision", collisionDirection: "unknown", isCollision: true, reasoning: "No description provided; defaulting to collision.", confidence: 30 };
+  }
+  try {
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are an insurance claim incident classifier. Given an accident description, determine:
+1. incidentType: one of "collision" | "theft" | "vandalism" | "flood" | "fire" | "unknown"
+   - "collision" covers ANY physical impact: vehicle vs vehicle, vehicle vs animal (cow, goat, kudu, pedestrian, cyclist, etc.), vehicle vs object (tree, pole, wall, barrier, ditch), single-vehicle rollover, etc.
+   - "theft" covers stolen vehicle, hijacking, attempted theft
+   - "vandalism" covers deliberate damage, break-in, malicious damage
+   - "flood" covers water damage, hail, storm
+   - "fire" covers fire, burn
+2. collisionDirection: one of "frontal" | "rear" | "side_driver" | "side_passenger" | "rollover" | "multi_impact" | "unknown"
+   - Infer from context: what part of the vehicle was struck? What direction was the vehicle moving?
+   - "frontal": front of vehicle struck something (head-on, ran into object/animal, bull bar impact)
+   - "rear": rear of vehicle struck or was struck from behind
+   - "side_driver": left side of vehicle (driver's side in right-hand-drive countries)
+   - "side_passenger": right side of vehicle (passenger's side in right-hand-drive countries)
+   - "rollover": vehicle rolled over or overturned
+   - "multi_impact": multiple distinct impact zones
+   - "unknown": genuinely cannot determine from the description
+3. isCollision: true if physics engine should run (any impact event), false for theft/vandalism/fire/flood
+4. reasoning: one sentence explaining your classification
+5. confidence: integer 0-100
+
+Return ONLY valid JSON matching the schema. No markdown, no explanation outside JSON.`,
+        },
+        {
+          role: "user",
+          content: `Classify this accident description:\n\n"${description.substring(0, 500)}"`,
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "incident_inference",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              incidentType: { type: "string" },
+              collisionDirection: { type: "string" },
+              isCollision: { type: "boolean" },
+              reasoning: { type: "string" },
+              confidence: { type: "integer" },
+            },
+            required: ["incidentType", "collisionDirection", "isCollision", "reasoning", "confidence"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+    const rawContent = response.choices?.[0]?.message?.content;
+    const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");
+    const parsed = JSON.parse(content);
+    // Validate and normalise the LLM output
+    const validIncidentTypes: CanonicalIncidentType[] = ["collision", "theft", "vandalism", "flood", "fire", "unknown"];
+    const validDirections: CollisionDirection[] = ["frontal", "rear", "side_driver", "side_passenger", "rollover", "multi_impact", "unknown"];
+    return {
+      incidentType: validIncidentTypes.includes(parsed.incidentType) ? parsed.incidentType : "collision",
+      collisionDirection: validDirections.includes(parsed.collisionDirection) ? parsed.collisionDirection : "unknown",
+      isCollision: typeof parsed.isCollision === "boolean" ? parsed.isCollision : true,
+      reasoning: parsed.reasoning || "LLM inference",
+      confidence: typeof parsed.confidence === "number" ? Math.min(100, Math.max(0, parsed.confidence)) : 70,
+    };
+  } catch (err) {
+    // LLM call failed — fall back to keyword heuristics
+    return inferIncidentFromDescriptionKeywords(description);
+  }
+}
+
+/**
+ * Keyword-based incident inference.
+ * OFFLINE FALLBACK ONLY — used when the LLM call fails.
+ * Not the primary path; do not add keywords here to fix classification issues.
+ */
+function inferIncidentFromDescriptionKeywords(description: string): {
+  incidentType: CanonicalIncidentType;
+  collisionDirection: CollisionDirection;
+  isCollision: boolean;
+  reasoning: string;
+  confidence: number;
+} {
+  const d = (description || "").toLowerCase();
+  // Non-collision checks first
+  if (d.includes("stolen") || d.includes("theft") || d.includes("hijack") || d.includes("carjack")) {
+    return { incidentType: "theft", collisionDirection: "unknown", isCollision: false, reasoning: "Keyword match: theft/hijacking", confidence: 70 };
+  }
+  if (d.includes("fire") || d.includes("burnt") || d.includes("burned")) {
+    return { incidentType: "fire", collisionDirection: "unknown", isCollision: false, reasoning: "Keyword match: fire", confidence: 70 };
+  }
+  if (d.includes("flood") || d.includes("hail") || d.includes("submerged")) {
+    return { incidentType: "flood", collisionDirection: "unknown", isCollision: false, reasoning: "Keyword match: flood/hail", confidence: 70 };
+  }
+  if (d.includes("vandal") || d.includes("broke into") || d.includes("break-in")) {
+    return { incidentType: "vandalism", collisionDirection: "unknown", isCollision: false, reasoning: "Keyword match: vandalism/break-in", confidence: 70 };
+  }
+  // Direction heuristics for collision
+  let dir: CollisionDirection = "unknown";
+  if (d.includes("roll") || d.includes("overturn") || d.includes("flip")) dir = "rollover";
+  else if (d.includes("rear") || d.includes("behind") || d.includes("from behind")) dir = "rear";
+  else if (d.includes("driver side") || d.includes("left side") || d.includes("driver's side")) dir = "side_driver";
+  else if (d.includes("passenger side") || d.includes("right side") || d.includes("passenger's side")) dir = "side_passenger";
+  else if (d.includes("front") || d.includes("bonnet") || d.includes("bull bar") || d.includes("windscreen") || d.includes("grille")) dir = "frontal";
+  return { incidentType: "collision", collisionDirection: dir, isCollision: true, reasoning: "Keyword fallback: collision assumed", confidence: 45 };
+}
+
+/**
+ * @deprecated Use inferIncidentFromDescriptionLLM instead.
+ * Kept for backward compatibility with unit tests.
  */
 function inferCollisionDirectionFromDescription(description: string): CollisionDirection {
-  const d = (description || "").toLowerCase();
-  // Rollover / overturn indicators
-  if (
-    d.includes("roll") || d.includes("overturn") || d.includes("flip") ||
-    d.includes("topple") || d.includes("capsize")
-  ) return "rollover";
-  // Rear-end indicators
-  if (
-    d.includes("rear") || d.includes("behind") || d.includes("from behind") ||
-    d.includes("back of") || d.includes("tailgat")
-  ) return "rear";
-  // Side-driver (left) indicators
-  if (
-    d.includes("driver side") || d.includes("left side") ||
-    d.includes("driver's side") || d.includes("scratched on the left") ||
-    d.includes("hit on the left")
-  ) return "side_driver";
-  // Side-passenger (right) indicators
-  if (
-    d.includes("passenger side") || d.includes("right side") ||
-    d.includes("passenger's side") || d.includes("scratched on the right") ||
-    d.includes("hit on the right")
-  ) return "side_passenger";
-  // Frontal indicators: bull bar, bonnet, front, head-on, animal strike (typically frontal)
-  if (
-    d.includes("bull bar") || d.includes("bonnet") || d.includes("front") ||
-    d.includes("head-on") || d.includes("head on") || d.includes("windscreen") ||
-    d.includes("windshield") || d.includes("grille") || d.includes("bumper") ||
-    d.includes("cow") || d.includes("goat") || d.includes("donkey") ||
-    d.includes("animal") || d.includes("livestock") ||
-    d.includes("tree") || d.includes("pole") || d.includes("wall") ||
-    d.includes("fence") || d.includes("ditch") || d.includes("pothole")
-  ) return "frontal";
-  return "unknown";
+  return inferIncidentFromDescriptionKeywords(description).collisionDirection;
 }

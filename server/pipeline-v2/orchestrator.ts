@@ -69,6 +69,10 @@ import {
   computeConsensus,
   type ConsensusResult,
 } from "./crossEngineConsensus";
+import {
+  runCausalReasoningEngine,
+  type CausalVerdict,
+} from "./stage-7b-causal-reasoning";
 
 /**
  * Run the full self-healing pipeline.
@@ -85,6 +89,7 @@ export async function runPipelineV2(
   fraudAnalysis: Stage8Output | null;
   costAnalysis: Stage9Output | null;
   turnaroundAnalysis: TurnaroundTimeOutput | null;
+  causalVerdict: CausalVerdict | null;
 }> {
   const pipelineStart = Date.now();
   const stages: Record<string, PipelineStageSummary> = {};
@@ -108,6 +113,7 @@ export async function runPipelineV2(
   let realismBundle: RealismBundle | null = null;
   let benchmarkBundle: BenchmarkBundle | null = null;
   let consensusResult: ConsensusResult | null = null;
+  let causalVerdict: CausalVerdict | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
 
@@ -226,6 +232,44 @@ export async function runPipelineV2(
   const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data!);
   recordStage("7_physics", s7);
   stage7Data = s7.data; // Always has data (self-healing)
+
+  // ── STAGE 7b: Causal Reasoning Engine ──────────────────────────────────
+  // Reads description + photos + physics + damage components and produces a
+  // structured causal verdict: inferred cause, plausibility score, evidence,
+  // contradictions, and an adjuster-style narrative conclusion.
+  try {
+    const enrichedPhotosJson: string | null = (ctx as any).enrichedPhotosJson ?? null;
+    causalVerdict = await runCausalReasoningEngine(
+      claimRecord!,
+      stage6Data,
+      stage7Data,
+      enrichedPhotosJson
+    );
+    ctx.log(
+      "Stage 7b",
+      `Causal verdict: cause="${causalVerdict.inferredCause.substring(0, 80)}", ` +
+      `plausibility=${causalVerdict.plausibilityScore}% (${causalVerdict.plausibilityBand}), ` +
+      `direction=${causalVerdict.inferredCollisionDirection}, ` +
+      `physics=${causalVerdict.physicsAlignment}, images=${causalVerdict.imageAlignment}, ` +
+      `fraudFlag=${causalVerdict.flagForFraud}, llmUsed=${causalVerdict.llmUsed}`
+    );
+    // If causal engine inferred a better collision direction, update claimRecord
+    if (
+      causalVerdict.inferredCollisionDirection !== "unknown" &&
+      claimRecord?.accidentDetails?.collisionDirection === "unknown"
+    ) {
+      claimRecord = {
+        ...claimRecord,
+        accidentDetails: {
+          ...claimRecord.accidentDetails,
+          collisionDirection: causalVerdict.inferredCollisionDirection,
+        },
+      };
+      ctx.log("Stage 7b", `Updated collision direction to '${causalVerdict.inferredCollisionDirection}' from causal reasoning.`);
+    }
+  } catch (err) {
+    ctx.log("Stage 7b", `Causal reasoning engine failed (non-fatal): ${String(err)}`);
+  }
 
   // ── POST-PHYSICS TRUTH RE-RESOLUTION ─────────────────────────────────
   // Now that physics output is available, re-resolve with all three sources.
@@ -398,7 +442,8 @@ export async function runPipelineV2(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
-    causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult
+    causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
+    causalVerdict
   );
 }
 
@@ -417,7 +462,8 @@ function buildResult(
   evidenceBundle: EvidenceBundle | null = null,
   realismBundle: RealismBundle | null = null,
   benchmarkBundle: BenchmarkBundle | null = null,
-  consensusResult: ConsensusResult | null = null
+  consensusResult: ConsensusResult | null = null,
+  causalVerdict: CausalVerdict | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -440,6 +486,7 @@ function buildResult(
     realismBundle,
     benchmarkBundle,
     consensusResult,
+    causalVerdict,
   };
 }
 

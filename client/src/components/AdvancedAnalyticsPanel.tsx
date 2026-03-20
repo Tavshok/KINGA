@@ -249,17 +249,129 @@ function ConsensusSection({ data }: { data: any }) {
   );
 }
 
+// ── Stage 7b: Causal Verdict ─────────────────────────────────────────────────
+function CausalVerdictSection({ data }: { data: any }) {
+  if (!data) return null;
+  const plausibilityColor =
+    data.plausibilityBand === "very_high" || data.plausibilityBand === "high" ? "text-emerald-400" :
+    data.plausibilityBand === "moderate" ? "text-amber-400" :
+    data.plausibilityBand === "low" ? "text-orange-400" :
+    "text-red-400";
+  const alignmentBadge = (v: string) => {
+    const map: Record<string, string> = {
+      consistent: "bg-emerald-500/20 text-emerald-400 border-emerald-500/30",
+      partially_consistent: "bg-amber-500/20 text-amber-400 border-amber-500/30",
+      inconsistent: "bg-red-500/20 text-red-400 border-red-500/30",
+      not_applicable: "bg-muted/50 text-muted-foreground border-border",
+      no_photos: "bg-muted/50 text-muted-foreground border-border",
+    };
+    return map[v] || map.not_applicable;
+  };
+  const severityColor = (s: string) =>
+    s === "critical" ? "text-red-400" :
+    s === "major" ? "text-orange-400" :
+    s === "moderate" ? "text-amber-400" :
+    "text-muted-foreground";
+  return (
+    <div className="space-y-4">
+      {/* Inferred Cause + Plausibility */}
+      <div className="rounded-lg bg-muted/30 border border-border/50 p-3 space-y-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1">
+            <p className="text-xs text-muted-foreground mb-1">Inferred Cause</p>
+            <p className="text-sm font-medium text-foreground">{data.inferredCause}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-xs text-muted-foreground mb-1">Plausibility</p>
+            <p className={`text-xl font-bold ${plausibilityColor}`}>{data.plausibilityScore}%</p>
+            <p className={`text-xs capitalize ${plausibilityColor}`}>{(data.plausibilityBand || "").replace(/_/g, " ")}</p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Direction:</span>
+            <span className="text-xs font-semibold text-foreground capitalize">{(data.inferredCollisionDirection || "unknown").replace(/_/g, " ")}</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Physics:</span>
+            <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-semibold ${alignmentBadge(data.physicsAlignment)}`}>
+              {(data.physicsAlignment || "").replace(/_/g, " ")}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-muted-foreground">Images:</span>
+            <span className={`inline-flex items-center rounded border px-1.5 py-0.5 text-xs font-semibold ${alignmentBadge(data.imageAlignment)}`}>
+              {(data.imageAlignment || "").replace(/_/g, " ")}
+            </span>
+          </div>
+        </div>
+      </div>
+      {/* Narrative Verdict */}
+      {data.narrativeVerdict && (
+        <div className="rounded-lg bg-muted/20 border border-border/50 p-3">
+          <p className="text-xs text-muted-foreground mb-1.5">Adjuster Narrative</p>
+          <p className="text-sm text-foreground leading-relaxed italic">&ldquo;{data.narrativeVerdict}&rdquo;</p>
+        </div>
+      )}
+      {/* Fraud Flag */}
+      {data.flagForFraud && (
+        <div className="rounded-lg bg-red-500/10 border border-red-500/30 p-3 flex items-start gap-2">
+          <span className="text-red-400 text-base mt-0.5">⚠</span>
+          <div>
+            <p className="text-xs font-semibold text-red-400 mb-0.5">Fraud Flag Raised by Causal Engine</p>
+            <p className="text-xs text-red-300">{data.fraudFlagReason}</p>
+          </div>
+        </div>
+      )}
+      {/* Supporting Evidence */}
+      {Array.isArray(data.supportingEvidence) && data.supportingEvidence.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Supporting Evidence</p>
+          <div className="space-y-1.5">
+            {data.supportingEvidence.map((e: any, i: number) => (
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className={e.supports_claim ? "text-emerald-400 mt-0.5" : "text-red-400 mt-0.5"}>●</span>
+                <span className="text-muted-foreground capitalize shrink-0">[{(e.source || "").replace(/_/g, " ")}]</span>
+                <span className="text-foreground flex-1">{e.finding}</span>
+                <span className="text-muted-foreground shrink-0">{e.confidence}%</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {/* Contradictions */}
+      {Array.isArray(data.contradictions) && data.contradictions.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Contradictions</p>
+          <div className="space-y-2">
+            {data.contradictions.map((c: any, i: number) => (
+              <div key={i} className="rounded bg-orange-500/10 border border-orange-500/20 p-2.5">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className={`text-xs font-semibold ${severityColor(c.severity)}`}>{(c.severity || "").toUpperCase()}</span>
+                  <span className="text-xs text-muted-foreground">{c.source_a} vs {c.source_b}</span>
+                </div>
+                <p className="text-xs text-foreground">{c.description}</p>
+                {c.implication && <p className="text-xs text-muted-foreground mt-0.5 italic">{c.implication}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // ── Main Panel ────────────────────────────────────────────────────────────────
 export default function AdvancedAnalyticsPanel({ aiAssessment }: AdvancedAnalyticsPanelProps) {
   if (!aiAssessment) return null;
 
+  const causalVerdict = safeParse(aiAssessment.causalVerdictJson);
   const causalChain = safeParse(aiAssessment.causalChainJson);
   const evidenceBundle = safeParse(aiAssessment.evidenceBundleJson);
   const realismBundle = safeParse(aiAssessment.realismBundleJson);
   const benchmarkBundle = safeParse(aiAssessment.benchmarkBundleJson);
   const consensusResult = safeParse(aiAssessment.consensusResultJson);
 
-  const hasData = causalChain || evidenceBundle || realismBundle || benchmarkBundle || consensusResult;
+  const hasData = causalVerdict || causalChain || evidenceBundle || realismBundle || benchmarkBundle || consensusResult;
 
   if (!hasData) {
     return (
@@ -272,6 +384,14 @@ export default function AdvancedAnalyticsPanel({ aiAssessment }: AdvancedAnalyti
   }
 
   const sections = [
+    {
+      id: "causal_verdict",
+      label: "Causal Reasoning Verdict",
+      stage: "7b",
+      icon: "🧠",
+      data: causalVerdict,
+      render: (d: any) => <CausalVerdictSection data={d} />,
+    },
     {
       id: "consensus",
       label: "Cross-Engine Consensus",

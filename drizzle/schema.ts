@@ -98,6 +98,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   benchmarkBundleJson: text("benchmark_bundle_json"),
   // Stage 42 output: cross-engine consensus (JSON ConsensusResult)
   consensusResultJson: text("consensus_result_json"),
+  // Stage 7b output: causal reasoning verdict (JSON CausalVerdict)
+  causalVerdictJson: text("causal_verdict_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
