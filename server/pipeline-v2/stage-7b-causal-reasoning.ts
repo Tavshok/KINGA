@@ -64,6 +64,8 @@ export interface CausalVerdict {
   supportingEvidence: CausalEvidence[];
   /** Contradictions between sources */
   contradictions: CausalContradiction[];
+  /** At least 2 alternative explanations for the damage, with plausibility scores */
+  alternativeCauses: AlternativeCause[];
   /** Adjuster-style narrative verdict paragraph */
   narrativeVerdict: string;
   /** Whether this verdict should trigger a fraud flag */
@@ -76,6 +78,24 @@ export interface CausalVerdict {
   llmUsed: boolean;
   /** ISO timestamp */
   generatedAt: string;
+}
+
+export interface AlternativeCause {
+  cause: string;
+  plausibilityScore: number; // 0–100
+  reasoning: string;
+}
+
+/** Optional precomputed scores passed into the engine for richer context */
+export interface PrecomputedScores {
+  damageConsistencyScore?: number | null;
+  fraudRiskScore?: number | null;
+  fraudRiskLevel?: string | null;
+  fraudIndicators?: string[];
+  quoteDeviationPct?: number | null;
+  repairToValueRatio?: number | null;
+  estimatedCostCents?: number | null;
+  currency?: string | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -146,6 +166,7 @@ function buildFallbackVerdict(
     imageAlignment: "no_photos",
     supportingEvidence: [],
     contradictions: [],
+    alternativeCauses: [],
     narrativeVerdict: "Causal reasoning engine could not complete LLM analysis. Manual adjuster review is recommended.",
     flagForFraud: false,
     fraudFlagReason: null,
@@ -167,11 +188,27 @@ function buildFallbackVerdict(
  * cause is consistent with the observed evidence — and produces a structured
  * verdict with supporting evidence, contradictions, and a narrative conclusion.
  */
+function formatScoringBlock(physics: Stage7Output | null, scores: PrecomputedScores | null): string {
+  const lines: string[] = [];
+  const physicsConsistency = physics?.damageConsistencyScore ?? scores?.damageConsistencyScore;
+  if (physicsConsistency != null) lines.push(`Damage consistency score (physics engine): ${physicsConsistency}/100`);
+  if (scores?.fraudRiskScore != null) lines.push(`Fraud risk score (pre-computed): ${scores.fraudRiskScore}/100 (${scores.fraudRiskLevel ?? "unknown"})`);
+  if (scores?.fraudIndicators && scores.fraudIndicators.length > 0) lines.push(`Fraud indicators raised: ${scores.fraudIndicators.join("; ")}`);
+  if (scores?.quoteDeviationPct != null) lines.push(`Quote deviation from AI estimate: ${scores.quoteDeviationPct > 0 ? "+" : ""}${scores.quoteDeviationPct.toFixed(1)}%`);
+  if (scores?.repairToValueRatio != null) lines.push(`Repair-to-value ratio: ${(scores.repairToValueRatio * 100).toFixed(1)}%`);
+  if (scores?.estimatedCostCents != null && scores.currency) {
+    const amount = (scores.estimatedCostCents / 100).toFixed(2);
+    lines.push(`AI estimated repair cost: ${scores.currency} ${amount}`);
+  }
+  return lines.length > 0 ? lines.join("\n") : "No precomputed scores available.";
+}
+
 export async function runCausalReasoningEngine(
   claimRecord: ClaimRecord,
   damage: Stage6Output | null,
   physics: Stage7Output | null,
-  enrichedPhotosJson: string | null
+  enrichedPhotosJson: string | null,
+  precomputedScores?: PrecomputedScores | null
 ): Promise<CausalVerdict> {
   const description = claimRecord.accidentDetails?.description ?? "";
   const vehicleInfo = `${claimRecord.vehicle?.year ?? ""} ${claimRecord.vehicle?.make ?? ""} ${claimRecord.vehicle?.model ?? ""}`.trim() || "Unknown vehicle";
@@ -181,6 +218,7 @@ export async function runCausalReasoningEngine(
   const physicsContext = physics ? formatPhysicsContext(physics) : "Physics analysis not available (non-collision or engine skipped).";
   const damageContext = damage ? formatDamageContext(damage) : "Damage analysis not available.";
   const { text: photoContext, imageUrls } = formatEnrichedPhotos(enrichedPhotosJson);
+  const scoringBlock = formatScoringBlock(physics, precomputedScores ?? null);
 
   const systemPrompt = `You are a forensic vehicle incident analyst.
 
@@ -221,23 +259,37 @@ Scoring guidance:
 
 Return ONLY valid JSON. No markdown, no text outside the JSON object.`;
 
-  const userPrompt = `CLAIM ANALYSIS REQUEST
+  const userPrompt = `Vehicle: ${vehicleInfo}${massKg ? ` (${massKg} kg)` : ""}
 
-Vehicle: ${vehicleInfo}${massKg ? ` (${massKg} kg)` : ""}
+INPUT:
 
-CLAIMANT'S ACCOUNT:
-"${description || "No incident description provided."}"
+1. Incident Description:
+${description || "No incident description provided."}
 
-PHYSICS RECONSTRUCTION:
+2. Physics Output:
 ${physicsContext}
 
-DAMAGE COMPONENTS & ZONES:
-${damageContext}
-
-DAMAGE PHOTOGRAPHS (AI-analysed):
+3. Image Analysis:
 ${photoContext}
 
-Please perform a full causal reasoning analysis and return the structured verdict.`;
+4. Damage Components:
+${damageContext}
+
+5. Precomputed Scores:
+${scoringBlock}
+
+TASK:
+Determine the most plausible cause of the incident.
+
+RETURN:
+- Inferred cause
+- Plausibility score (0–100)
+- Alignment across all sources
+- Supporting evidence
+- Contradictions (with severity)
+- Alternative causes (at least 2)
+- Fraud flag (if applicable)
+- Adjuster narrative`;
 
   const jsonSchema = {
     type: "json_schema" as const,
@@ -281,6 +333,20 @@ Please perform a full causal reasoning analysis and return the structured verdic
               additionalProperties: false,
             },
           },
+          alternativeCauses: {
+            type: "array",
+            description: "At least 2 alternative explanations for the damage, each with a plausibility score and reasoning",
+            items: {
+              type: "object",
+              properties: {
+                cause: { type: "string" },
+                plausibilityScore: { type: "integer" },
+                reasoning: { type: "string" },
+              },
+              required: ["cause", "plausibilityScore", "reasoning"],
+              additionalProperties: false,
+            },
+          },
           narrativeVerdict: { type: "string", description: "Adjuster-style narrative verdict paragraph (3-5 sentences)" },
           flagForFraud: { type: "boolean", description: "Whether this verdict warrants a fraud investigation flag" },
           fraudFlagReason: { type: "string", description: "Reason for fraud flag, or empty string if not flagged" },
@@ -289,7 +355,7 @@ Please perform a full causal reasoning analysis and return the structured verdic
         required: [
           "inferredCause", "plausibilityScore", "inferredCollisionDirection",
           "physicsAlignment", "imageAlignment", "supportingEvidence",
-          "contradictions", "narrativeVerdict", "flagForFraud",
+          "contradictions", "alternativeCauses", "narrativeVerdict", "flagForFraud",
           "fraudFlagReason", "reasoningTrace",
         ],
         additionalProperties: false,
@@ -344,6 +410,7 @@ Please perform a full causal reasoning analysis and return the structured verdic
         : "no_photos",
       supportingEvidence: Array.isArray(parsed.supportingEvidence) ? parsed.supportingEvidence : [],
       contradictions: Array.isArray(parsed.contradictions) ? parsed.contradictions : [],
+      alternativeCauses: Array.isArray(parsed.alternativeCauses) ? parsed.alternativeCauses : [],
       narrativeVerdict: parsed.narrativeVerdict || "No verdict generated.",
       flagForFraud: typeof parsed.flagForFraud === "boolean" ? parsed.flagForFraud : false,
       fraudFlagReason: parsed.fraudFlagReason || null,

@@ -357,6 +357,27 @@ function CausalVerdictSection({ data }: { data: any }) {
           </div>
         </div>
       )}
+      {/* Alternative Causes */}
+      {Array.isArray(data.alternativeCauses) && data.alternativeCauses.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Alternative Causes</p>
+          <div className="space-y-2">
+            {data.alternativeCauses.map((a: any, i: number) => (
+              <div key={i} className="rounded bg-muted/20 border border-border/40 p-2.5">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="text-xs font-medium text-foreground flex-1">{a.cause}</p>
+                  <span className={`text-xs font-bold shrink-0 ${
+                    a.plausibilityScore >= 65 ? "text-emerald-400" :
+                    a.plausibilityScore >= 40 ? "text-amber-400" :
+                    "text-muted-foreground"
+                  }`}>{a.plausibilityScore}%</span>
+                </div>
+                {a.reasoning && <p className="text-xs text-muted-foreground italic leading-snug">{a.reasoning}</p>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
