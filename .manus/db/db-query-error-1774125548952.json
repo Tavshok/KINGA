@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT\n  a.repair_intelligence_json,\n  a.cost_intelligence_json,\n  a.fraud_score_breakdown_json,\n  a.physics_analysis_json,\n  a.causal_verdict_json,\n  a.damage_analysis_json,\n  a.summary_narrative,\n  a.key_findings_json,\n  c.incident_description,\n  c.normalised_description\nFROM ai_assessments a\nJOIN claims c ON c.id = a.claim_id\nWHERE a.claim_id = 2730001\nLIMIT 1;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT\n  a.repair_intelligence_json,\n  a.cost_intelligence_json,\n  a.fraud_score_breakdown_json,\n  a.physics_analysis_json,\n  a.causal_verdict_json,\n  a.damage_analysis_json,\n  a.summary_narrative,\n  a.key_findings_json,\n  c.incident_description,\n  c.normalised_description\nFROM ai_assessments a\nJOIN claims c ON c.id = a.claim_id\nWHERE a.claim_id = 2730001\nLIMIT 1;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'a.physics_analysis_json' in 'field list'"
+  ]
+}

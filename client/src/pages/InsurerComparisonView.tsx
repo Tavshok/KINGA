@@ -25,6 +25,7 @@ import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
 import AdvancedAnalyticsPanel from "@/components/AdvancedAnalyticsPanel";
+import ForensicDecisionPanel from "@/components/ForensicDecisionPanel";
 import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
@@ -1139,6 +1140,21 @@ export default function InsurerComparisonView() {
             </div>
             <div className="comparison-section-body">
               <AdvancedAnalyticsPanel aiAssessment={aiAssessment} claimId={claimId} />
+            </div>
+          </div>
+        )}
+        {/* ══ SECTION 6d: FORENSIC DECISION MODEL ══ */}
+        {aiAssessment && (
+          <div className="comparison-section">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'oklch(0.38 0.18 145)' }}>✓</span>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Decision-Ready Model</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Claim truth · physics · damage zones · cost intelligence · evidence integrity · narrative · actions</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
+              <ForensicDecisionPanel aiAssessment={aiAssessment} claim={claim} />
             </div>
           </div>
         )}

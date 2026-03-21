@@ -1,0 +1,242 @@
+{
+  "query": "SHOW COLUMNS FROM ai_assessments WHERE Type LIKE '%text%' OR Type LIKE '%json%';",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SHOW COLUMNS FROM ai_assessments WHERE Type LIKE '%text%' OR Type LIKE '%json%';",
+  "rows": [
+    {
+      "Field": "damage_description",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "detected_damage_types",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_indicators",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fraud_score_breakdown_json",
+      "Type": "longtext",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "total_loss_reasoning",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "damaged_components_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "physics_analysis",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "graph_urls",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "reanalysis_reason",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "forensic_analysis",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "inferred_hidden_damages_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "repair_intelligence_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "parts_reconciliation_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "cost_intelligence_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "damage_photos_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "confidence_score_breakdown_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "pipeline_run_summary",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "enriched_photos_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "photo_inconsistencies_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "consistency_check_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "coherence_result_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "cost_realism_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "causal_chain_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "evidence_bundle_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "realism_bundle_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "benchmark_bundle_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "consensus_result_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "causal_verdict_json",
+      "Type": "longtext",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "constraint_overrides_json",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\ndamage_description\ttext\tYES\t\tNULL\t\ndetected_damage_types\ttext\tYES\t\tNULL\t\nfraud_indicators\ttext\tYES\t\tNULL\t\nfraud_score_breakdown_json\tlongtext\tYES\t\tNULL\t\ntotal_loss_reasoning\ttext\tYES\t\tNULL\t\ndamaged_components_json\ttext\tYES\t\tNULL\t\nphysics_analysis\ttext\tYES\t\tNULL\t\ngraph_urls\ttext\tYES\t\tNULL\t\nreanalysis_reason\ttext\tYES\t\tNULL\t\nforensic_analysis\ttext\tYES\t\tNULL\t\ninferred_hidden_damages_json\ttext\tYES\t\tNULL\t\nrepair_intelligence_json\ttext\tYES\t\tNULL\t\nparts_reconciliation_json\ttext\tYES\t\tNULL\t\ncost_intelligence_json\ttext\tYES\t\tNULL\t\ndamage_photos_json\ttext\tYES\t\tNULL\t\nconfidence_score_breakdown_json\ttext\tYES\t\tNULL\t\npipeline_run_summary\ttext\tYES\t\tNULL\t\nenriched_photos_json\ttext\tYES\t\tNULL\t\nphoto_inconsistencies_json\ttext\tYES\t\tNULL\t\nconsistency_check_json\ttext\tYES\t\tNULL\t\ncoherence_result_json\ttext\tYES\t\tNULL\t\ncost_realism_json\ttext\tYES\t\tNULL\t\ncausal_chain_json\ttext\tYES\t\tNULL\t\nevidence_bundle_json\ttext\tYES\t\tNULL\t\nrealism_bundle_json\ttext\tYES\t\tNULL\t\nbenchmark_bundle_json\ttext\tYES\t\tNULL\t\nconsensus_result_json\ttext\tYES\t\tNULL\t\ncausal_verdict_json\tlongtext\tYES\t\tNULL\t\nconstraint_overrides_json\ttext\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 495
+}
