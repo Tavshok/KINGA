@@ -1,0 +1,226 @@
+{
+  "query": "\nSHOW COLUMNS FROM claim_documents;\nSHOW COLUMNS FROM agency_documents;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSHOW COLUMNS FROM claim_documents;\nSHOW COLUMNS FROM agency_documents;\n",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "claim_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "uploaded_by",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_name",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_key",
+      "Type": "varchar(500)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_url",
+      "Type": "text",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_size",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "mime_type",
+      "Type": "varchar(100)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "document_title",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "document_description",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "document_category",
+      "Type": "enum('damage_photo','repair_quote','invoice','police_report','medical_report','insurance_policy','correspondence','other')",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "other",
+      "Extra": ""
+    },
+    {
+      "Field": "visible_to_roles",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updated_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "Field",
+      "Type": "Type",
+      "Null": "Null",
+      "Key": "Key",
+      "Default": "Default",
+      "Extra": "Extra"
+    },
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "tenant_id",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "quotation_request_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "policy_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "document_type",
+      "Type": "enum('id_document','drivers_license','vehicle_registration','proof_of_address','bank_statement','vehicle_photos','previous_policy','claims_history','other')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "title",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_name",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_url",
+      "Type": "text",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_size",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "mime_type",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "uploaded_by",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\nclaim_id\tint\tNO\tMUL\tNULL\t\nuploaded_by\tint\tNO\tMUL\tNULL\t\nfile_name\tvarchar(255)\tNO\t\tNULL\t\nfile_key\tvarchar(500)\tNO\t\tNULL\t\nfile_url\ttext\tNO\t\tNULL\t\nfile_size\tint\tNO\t\tNULL\t\nmime_type\tvarchar(100)\tNO\t\tNULL\t\ndocument_title\tvarchar(255)\tYES\t\tNULL\t\ndocument_description\ttext\tYES\t\tNULL\t\ndocument_category\tenum('damage_photo','repair_quote','invoice','police_report','medical_report','insurance_policy','correspondence','other')\tNO\tMUL\tother\t\nvisible_to_roles\ttext\tYES\t\tNULL\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nField\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\ntenant_id\tvarchar(255)\tYES\t\tNULL\t\nquotation_request_id\tint\tYES\t\tNULL\t\npolicy_id\tint\tYES\t\tNULL\t\ndocument_type\tenum('id_document','drivers_license','vehicle_registration','proof_of_address','bank_statement','vehicle_photos','previous_policy','claims_history','other')\tNO\t\tNULL\t\ntitle\tvarchar(255)\tNO\t\tNULL\t\nfile_name\tvarchar(255)\tNO\t\tNULL\t\nfile_url\ttext\tNO\t\tNULL\t\nfile_size\tint\tYES\t\tNULL\t\nmime_type\tvarchar(100)\tYES\t\tNULL\t\nuploaded_by\tint\tNO\t\tNULL\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\n",
+  "stderr": "",
+  "execution_time_ms": 392
+}

@@ -1,0 +1,121 @@
+{
+  "query": "\nSELECT column_name FROM information_schema.columns \nWHERE table_schema = DATABASE() \n  AND table_name = 'ai_assessments'\n  AND ordinal_position > 20\nORDER BY ordinal_position;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT column_name FROM information_schema.columns \nWHERE table_schema = DATABASE() \n  AND table_name = 'ai_assessments'\n  AND ordinal_position > 20\nORDER BY ordinal_position;\n",
+  "rows": [
+    {
+      "column_name": "graph_urls"
+    },
+    {
+      "column_name": "tenant_id"
+    },
+    {
+      "column_name": "is_reanalysis"
+    },
+    {
+      "column_name": "triggered_by"
+    },
+    {
+      "column_name": "triggered_role"
+    },
+    {
+      "column_name": "previous_assessment_id"
+    },
+    {
+      "column_name": "reanalysis_reason"
+    },
+    {
+      "column_name": "version_number"
+    },
+    {
+      "column_name": "physics_deviation_score"
+    },
+    {
+      "column_name": "forensic_analysis"
+    },
+    {
+      "column_name": "parts_cost"
+    },
+    {
+      "column_name": "labor_cost"
+    },
+    {
+      "column_name": "accident_type"
+    },
+    {
+      "column_name": "structural_damage"
+    },
+    {
+      "column_name": "airbag_deployment"
+    },
+    {
+      "column_name": "estimated_parts_cost"
+    },
+    {
+      "column_name": "estimated_labor_cost"
+    },
+    {
+      "column_name": "currency_code"
+    },
+    {
+      "column_name": "inferred_hidden_damages_json"
+    },
+    {
+      "column_name": "repair_intelligence_json"
+    },
+    {
+      "column_name": "parts_reconciliation_json"
+    },
+    {
+      "column_name": "cost_intelligence_json"
+    },
+    {
+      "column_name": "damage_photos_json"
+    },
+    {
+      "column_name": "confidence_score_breakdown_json"
+    },
+    {
+      "column_name": "pipeline_run_summary"
+    },
+    {
+      "column_name": "enriched_photos_json"
+    },
+    {
+      "column_name": "photo_inconsistencies_json"
+    },
+    {
+      "column_name": "consistency_check_json"
+    },
+    {
+      "column_name": "coherence_result_json"
+    },
+    {
+      "column_name": "cost_realism_json"
+    },
+    {
+      "column_name": "causal_chain_json"
+    },
+    {
+      "column_name": "evidence_bundle_json"
+    },
+    {
+      "column_name": "realism_bundle_json"
+    },
+    {
+      "column_name": "benchmark_bundle_json"
+    },
+    {
+      "column_name": "consensus_result_json"
+    },
+    {
+      "column_name": "causal_verdict_json"
+    },
+    {
+      "column_name": "constraint_overrides_json"
+    }
+  ],
+  "messages": [],
+  "stdout": "column_name\ngraph_urls\ntenant_id\nis_reanalysis\ntriggered_by\ntriggered_role\nprevious_assessment_id\nreanalysis_reason\nversion_number\nphysics_deviation_score\nforensic_analysis\nparts_cost\nlabor_cost\naccident_type\nstructural_damage\nairbag_deployment\nestimated_parts_cost\nestimated_labor_cost\ncurrency_code\ninferred_hidden_damages_json\nrepair_intelligence_json\nparts_reconciliation_json\ncost_intelligence_json\ndamage_photos_json\nconfidence_score_breakdown_json\npipeline_run_summary\nenriched_photos_json\nphoto_inconsistencies_json\nconsistency_check_json\ncoherence_result_json\ncost_realism_json\ncausal_chain_json\nevidence_bundle_json\nrealism_bundle_json\nbenchmark_bundle_json\nconsensus_result_json\ncausal_verdict_json\nconstraint_overrides_json\n",
+  "stderr": "",
+  "execution_time_ms": 368
+}

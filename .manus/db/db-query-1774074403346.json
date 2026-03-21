@@ -1,0 +1,338 @@
+{
+  "query": "\nDESCRIBE historical_claims;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nDESCRIBE historical_claims;\n",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "tenant_id",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "batch_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "MUL",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "claim_reference",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "policy_number",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_make",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_model",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_year",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_registration",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_vin",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "vehicle_color",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "incident_date",
+      "Type": "date",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "incident_location",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "incident_description",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "accident_type",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "estimated_speed",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "claimant_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "claimant_id_number",
+      "Type": "varchar(50)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "claimant_contact",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "total_panel_beater_quote",
+      "Type": "decimal(12,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "total_assessor_estimate",
+      "Type": "decimal(12,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "total_ai_estimate",
+      "Type": "decimal(12,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "final_approved_cost",
+      "Type": "decimal(12,2)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "repair_decision",
+      "Type": "enum('repair','total_loss','cash_settlement','rejected')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assessor_name",
+      "Type": "varchar(255)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "assessor_license_number",
+      "Type": "varchar(100)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "pipeline_status",
+      "Type": "enum('pending','documents_uploaded','classification_complete','extraction_complete','ground_truth_captured','variance_calculated','complete','failed')",
+      "Null": "NO",
+      "Key": "MUL",
+      "Default": "pending",
+      "Extra": ""
+    },
+    {
+      "Field": "data_quality_score",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fields_extracted",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "fields_missing",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "manual_corrections",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "total_documents",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "extraction_log",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "last_error",
+      "Type": "text",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "retry_count",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "updated_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": "DEFAULT_GENERATED on update CURRENT_TIMESTAMP"
+    },
+    {
+      "Field": "replay_mode",
+      "Type": "tinyint",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "last_replayed_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "replay_count",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "damage_photos_json",
+      "Type": "json",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\ntenant_id\tvarchar(64)\tNO\tMUL\tNULL\t\nbatch_id\tint\tYES\tMUL\tNULL\t\nclaim_reference\tvarchar(100)\tYES\t\tNULL\t\npolicy_number\tvarchar(100)\tYES\t\tNULL\t\nvehicle_make\tvarchar(100)\tYES\t\tNULL\t\nvehicle_model\tvarchar(100)\tYES\t\tNULL\t\nvehicle_year\tint\tYES\t\tNULL\t\nvehicle_registration\tvarchar(50)\tYES\t\tNULL\t\nvehicle_vin\tvarchar(50)\tYES\t\tNULL\t\nvehicle_color\tvarchar(50)\tYES\t\tNULL\t\nincident_date\tdate\tYES\t\tNULL\t\nincident_location\ttext\tYES\t\tNULL\t\nincident_description\ttext\tYES\t\tNULL\t\naccident_type\tvarchar(100)\tYES\t\tNULL\t\nestimated_speed\tint\tYES\t\tNULL\t\nclaimant_name\tvarchar(255)\tYES\t\tNULL\t\nclaimant_id_number\tvarchar(50)\tYES\t\tNULL\t\nclaimant_contact\tvarchar(100)\tYES\t\tNULL\t\ntotal_panel_beater_quote\tdecimal(12,2)\tYES\t\tNULL\t\ntotal_assessor_estimate\tdecimal(12,2)\tYES\t\tNULL\t\ntotal_ai_estimate\tdecimal(12,2)\tYES\t\tNULL\t\nfinal_approved_cost\tdecimal(12,2)\tYES\t\tNULL\t\nrepair_decision\tenum('repair','total_loss','cash_settlement','rejected')\tYES\t\tNULL\t\nassessor_name\tvarchar(255)\tYES\t\tNULL\t\nassessor_license_number\tvarchar(100)\tYES\t\tNULL\t\npipeline_status\tenum('pending','documents_uploaded','classification_complete','extraction_complete','ground_truth_captured','variance_calculated','complete','failed')\tNO\tMUL\tpending\t\ndata_quality_score\tint\tYES\t\tNULL\t\nfields_extracted\tint\tYES\t\tNULL\t\nfields_missing\tint\tYES\t\tNULL\t\nmanual_corrections\tint\tYES\t\t0\t\ntotal_documents\tint\tYES\t\t0\t\nextraction_log\tjson\tYES\t\tNULL\t\nlast_error\ttext\tYES\t\tNULL\t\nretry_count\tint\tYES\t\t0\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nupdated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\tDEFAULT_GENERATED on update CURRENT_TIMESTAMP\nreplay_mode\ttinyint\tNO\t\t0\t\nlast_replayed_at\ttimestamp\tYES\t\tNULL\t\nreplay_count\tint\tNO\t\t0\t\ndamage_photos_json\tjson\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 358
+}

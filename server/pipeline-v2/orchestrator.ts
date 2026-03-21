@@ -317,12 +317,14 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 8: Fraud Analysis ──────────────────────────────────────────
-  const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!);
+  // Pass stage3Data so fraud engine can use inputRecovery (images_present flag)
+  const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined);
   recordStage("8_fraud", s8);
   stage8Data = s8.data; // Always has data (self-healing)
 
   // ── STAGE 9: Cost Optimisation ───────────────────────────────────────
-  const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!);
+  // Pass stage3Data so cost engine can use inputRecovery.recovered_quote when quoteTotalCents is missing
+  const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined);
   recordStage("9_cost", s9);
   stage9Data = s9.data; // Always has data (self-healing)
 

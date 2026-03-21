@@ -1,0 +1,210 @@
+{
+  "query": "\nSHOW COLUMNS FROM ingestion_documents;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSHOW COLUMNS FROM ingestion_documents;\n",
+  "rows": [
+    {
+      "Field": "id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "PRI",
+      "Default": "NULL",
+      "Extra": "auto_increment"
+    },
+    {
+      "Field": "tenant_id",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "batch_id",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "document_id",
+      "Type": "varchar(36)",
+      "Null": "NO",
+      "Key": "UNI",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "original_filename",
+      "Type": "varchar(500)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "file_size_bytes",
+      "Type": "int",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "mime_type",
+      "Type": "varchar(100)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "s3_bucket",
+      "Type": "varchar(255)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "s3_key",
+      "Type": "varchar(1024)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "s3_url",
+      "Type": "varchar(2048)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "sha256_hash",
+      "Type": "varchar(64)",
+      "Null": "NO",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "hash_verified",
+      "Type": "tinyint",
+      "Null": "NO",
+      "Key": "",
+      "Default": "0",
+      "Extra": ""
+    },
+    {
+      "Field": "document_type",
+      "Type": "enum('claim_form','police_report','damage_image','repair_quote','assessor_report','supporting_evidence','unknown')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "classification_confidence",
+      "Type": "decimal(5,4)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "classification_method",
+      "Type": "enum('ai_model','rule_based','manual_override')",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "extraction_status",
+      "Type": "enum('pending','processing','completed','failed')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "pending",
+      "Extra": ""
+    },
+    {
+      "Field": "extraction_started_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "extraction_completed_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "validation_status",
+      "Type": "enum('pending','in_review','approved','rejected')",
+      "Null": "NO",
+      "Key": "",
+      "Default": "pending",
+      "Extra": ""
+    },
+    {
+      "Field": "validated_by_user_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "validated_at",
+      "Type": "timestamp",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "page_count",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "language_detected",
+      "Type": "varchar(10)",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    },
+    {
+      "Field": "created_at",
+      "Type": "timestamp",
+      "Null": "NO",
+      "Key": "",
+      "Default": "CURRENT_TIMESTAMP",
+      "Extra": ""
+    },
+    {
+      "Field": "historical_claim_id",
+      "Type": "int",
+      "Null": "YES",
+      "Key": "",
+      "Default": "NULL",
+      "Extra": ""
+    }
+  ],
+  "messages": [],
+  "stdout": "Field\tType\tNull\tKey\tDefault\tExtra\nid\tint\tNO\tPRI\tNULL\tauto_increment\ntenant_id\tvarchar(64)\tNO\t\tNULL\t\nbatch_id\tint\tNO\t\tNULL\t\ndocument_id\tvarchar(36)\tNO\tUNI\tNULL\t\noriginal_filename\tvarchar(500)\tNO\t\tNULL\t\nfile_size_bytes\tint\tNO\t\tNULL\t\nmime_type\tvarchar(100)\tNO\t\tNULL\t\ns3_bucket\tvarchar(255)\tNO\t\tNULL\t\ns3_key\tvarchar(1024)\tNO\t\tNULL\t\ns3_url\tvarchar(2048)\tNO\t\tNULL\t\nsha256_hash\tvarchar(64)\tNO\t\tNULL\t\nhash_verified\ttinyint\tNO\t\t0\t\ndocument_type\tenum('claim_form','police_report','damage_image','repair_quote','assessor_report','supporting_evidence','unknown')\tYES\t\tNULL\t\nclassification_confidence\tdecimal(5,4)\tYES\t\tNULL\t\nclassification_method\tenum('ai_model','rule_based','manual_override')\tYES\t\tNULL\t\nextraction_status\tenum('pending','processing','completed','failed')\tNO\t\tpending\t\nextraction_started_at\ttimestamp\tYES\t\tNULL\t\nextraction_completed_at\ttimestamp\tYES\t\tNULL\t\nvalidation_status\tenum('pending','in_review','approved','rejected')\tNO\t\tpending\t\nvalidated_by_user_id\tint\tYES\t\tNULL\t\nvalidated_at\ttimestamp\tYES\t\tNULL\t\npage_count\tint\tYES\t\tNULL\t\nlanguage_detected\tvarchar(10)\tYES\t\tNULL\t\ncreated_at\ttimestamp\tNO\t\tCURRENT_TIMESTAMP\t\nhistorical_claim_id\tint\tYES\t\tNULL\t\n",
+  "stderr": "",
+  "execution_time_ms": 346
+}

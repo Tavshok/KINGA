@@ -244,9 +244,49 @@ export interface ExtractedClaimFields {
 export interface Stage3Output {
   /** One extraction per document */
   perDocumentExtractions: ExtractedClaimFields[];
+  /** Input recovery output — populated after the 5-step recovery pass */
+  inputRecovery?: InputRecoveryOutput;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
+// INPUT RECOVERY OUTPUT (produced at end of Stage 3)
+// ────────────────────────────────────────────────────────────────────────────────
+
+export interface RecoveredQuote {
+  total: number;        // USD
+  parts: number | null;
+  labour: number | null;
+  confidence: "high" | "medium" | "low";
+  source: string;       // e.g. "agreed_cost", "original_quote", "lowest_of_three"
+}
+
+export interface DamageHints {
+  zones: string[];       // e.g. ["front", "rear"]
+  components: string[];  // e.g. ["bumper", "grille", "bonnet"]
+}
+
+export type InputRecoveryFailureFlag =
+  | "ocr_failure"
+  | "quote_not_mapped"
+  | "description_not_mapped"
+  | "images_not_processed";
+
+export interface InputRecoveryOutput {
+  /** STEP 1 — Accident description recovered from raw text */
+  accident_description: string | null;
+  /** STEP 2 — Quote figures recovered from raw text */
+  recovered_quote: RecoveredQuote | null;
+  /** STEP 3 — Whether images are present in the document set */
+  images_present: boolean;
+  /** STEP 4 — Damage keywords extracted from text */
+  damage_hints: DamageHints;
+  /** STEP 5 — Failure flags for downstream consumers */
+  failure_flags: InputRecoveryFailureFlag[];
+  /** Timestamp of this recovery pass */
+  recovered_at: string;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
 // STAGE 4 — DATA VALIDATION
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,493 @@
+{
+  "query": "\nSHOW TABLES;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSHOW TABLES;\n",
+  "rows": [
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "__drizzle_migrations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "access_denial_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "agency_clients"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "agency_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "ai_assessments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "ai_prediction_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "anonymization_audit_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "appointments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "approval_workflow"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_deviation_metrics"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_evaluations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_insurer_relationships"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_marketplace_reviews"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessor_subscriptions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "assessors"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "audit_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "audit_trail"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "automation_audit_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "automation_policies"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "benchmark_deviations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_comments"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_confidence_scores"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_decision_lifecycle"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_events"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_intelligence_dataset"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_involvement_tracking"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_review_queue"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claim_routing_decisions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claimant_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "commission_records"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "cost_components"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "country_repair_index"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "cross_claim_signals"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "currency_exchange_rates"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "customer_consent"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "customer_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "dataset_access_grants"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "decision_snapshots"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "document_naming_templates"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "document_versions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "driver_claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "drivers"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "email_verification_tokens"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "entity_relationships"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "extracted_document_data"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "extracted_repair_items"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fast_track_config"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fast_track_routing_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "federated_learning_metadata"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "final_approval_records"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_accounts"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_audit_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_drivers"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_incident_reports"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_risk_scores"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleet_vehicles"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fleets"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fraud_alerts"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fraud_indicators"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "fraud_rules"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "global_anonymized_dataset"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "governance_audit_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "governance_notifications"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "governance_violation_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "historical_claims"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "historical_replay_results"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "ingestion_batches"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "ingestion_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurance_audit_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurance_carriers"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurance_policies"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurance_products"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurance_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurer_marketplace_links"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurer_marketplace_relationships"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurer_quote_requests"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "insurer_tenants"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "iso_audit_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "maintenance_alerts"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "maintenance_records"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "maintenance_schedules"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "marketplace_profiles"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "marketplace_transactions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "mismatch_annotations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "model_training_audit_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "model_training_queue"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "model_version_registry"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "multi_reference_truth"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "narrative_versions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "notification_events"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "notifications"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "organizations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "panel_beater_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "panel_beaters"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "part_stratification"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "parts_pricing_audit_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "parts_pricing_baseline"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "parts_pricing_overrides"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "pdf_reports"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "platform_governance_limits"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "platform_observability"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "police_reports"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "policy_claim_links"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "policy_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "policy_endorsements"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "pre_accident_damage"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "quality_metrics"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "quotation_requests"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "quote_line_items"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "quote_optimisation_results"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "rate_limit_tracking"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "reference_dataset"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "regional_benchmarks"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "regional_pricing_multipliers"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "registration_requests"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "repair_cost_intelligence"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "repair_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "replay_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "report_access_audit"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "report_links"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "report_snapshots"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "risk_register"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "role_assignment_audit"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "routing_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "routing_threshold_config"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "service_providers"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "service_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "service_requests"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "shadow_override_monitor"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "similar_claims_clusters"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "super_audit_sessions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "supplier_performance_metrics"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "supplier_quote_line_items"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "supplier_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "system_errors"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "tenant_invitations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "tenant_isolation_violations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "tenant_role_configs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "tenant_workflow_configs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "tenants"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "third_party_vehicles"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "training_data_scores"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "training_dataset"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "training_records"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "usage_events"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "user_invitations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "users"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "variance_datasets"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_condition_assessment"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_damage_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_history"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_market_valuations"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_mileage_logs"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "vehicle_registry"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "weight_adjustment_log"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "workflow_audit_trail"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "workflow_configuration"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS": "workflow_states"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_YbS42LwGroxbVepAMjk4bS\n__drizzle_migrations\naccess_denial_log\nagency_clients\nagency_documents\nai_assessments\nai_prediction_logs\nanonymization_audit_log\nappointments\napproval_workflow\nassessor_deviation_metrics\nassessor_evaluations\nassessor_insurer_relationships\nassessor_marketplace_reviews\nassessor_subscriptions\nassessors\naudit_logs\naudit_trail\nautomation_audit_log\nautomation_policies\nbenchmark_deviations\nclaim_comments\nclaim_confidence_scores\nclaim_decision_lifecycle\nclaim_documents\nclaim_events\nclaim_intelligence_dataset\nclaim_involvement_tracking\nclaim_review_queue\nclaim_routing_decisions\nclaimant_history\nclaims\ncommission_records\ncost_components\ncountry_repair_index\ncross_claim_signals\ncurrency_exchange_rates\ncustomer_consent\ncustomer_documents\ndataset_access_grants\ndecision_snapshots\ndocument_naming_templates\ndocument_versions\ndriver_claims\ndrivers\nemail_verification_tokens\nentity_relationships\nextracted_document_data\nextracted_repair_items\nfast_track_config\nfast_track_routing_log\nfederated_learning_metadata\nfinal_approval_records\nfleet_accounts\nfleet_audit_logs\nfleet_documents\nfleet_drivers\nfleet_incident_reports\nfleet_risk_scores\nfleet_vehicles\nfleets\nfraud_alerts\nfraud_indicators\nfraud_rules\nglobal_anonymized_dataset\ngovernance_audit_log\ngovernance_notifications\ngovernance_violation_log\nhistorical_claims\nhistorical_replay_results\ningestion_batches\ningestion_documents\ninsurance_audit_logs\ninsurance_carriers\ninsurance_policies\ninsurance_products\ninsurance_quotes\ninsurer_marketplace_links\ninsurer_marketplace_relationships\ninsurer_quote_requests\ninsurer_tenants\niso_audit_logs\nmaintenance_alerts\nmaintenance_records\nmaintenance_schedules\nmarketplace_profiles\nmarketplace_transactions\nmismatch_annotations\nmodel_training_audit_log\nmodel_training_queue\nmodel_version_registry\nmulti_reference_truth\nnarrative_versions\nnotification_events\nnotifications\norganizations\npanel_beater_quotes\npanel_beaters\npart_stratification\nparts_pricing_audit_log\nparts_pricing_baseline\nparts_pricing_overrides\npdf_reports\nplatform_governance_limits\nplatform_observability\npolice_reports\npolicy_claim_links\npolicy_documents\npolicy_endorsements\npre_accident_damage\nquality_metrics\nquotation_requests\nquote_line_items\nquote_optimisation_results\nrate_limit_tracking\nreference_dataset\nregional_benchmarks\nregional_pricing_multipliers\nregistration_requests\nrepair_cost_intelligence\nrepair_history\nreplay_logs\nreport_access_audit\nreport_links\nreport_snapshots\nrisk_register\nrole_assignment_audit\nrouting_history\nrouting_threshold_config\nservice_providers\nservice_quotes\nservice_requests\nshadow_override_monitor\nsimilar_claims_clusters\nsuper_audit_sessions\nsupplier_performance_metrics\nsupplier_quote_line_items\nsupplier_quotes\nsystem_errors\ntenant_invitations\ntenant_isolation_violations\ntenant_role_configs\ntenant_workflow_configs\ntenants\nthird_party_vehicles\ntraining_data_scores\ntraining_dataset\ntraining_records\nusage_events\nuser_invitations\nusers\nvariance_datasets\nvehicle_condition_assessment\nvehicle_damage_history\nvehicle_history\nvehicle_market_valuations\nvehicle_mileage_logs\nvehicle_registry\nweight_adjustment_log\nworkflow_audit_trail\nworkflow_configuration\nworkflow_states\n",
+  "stderr": "",
+  "execution_time_ms": 360
+}

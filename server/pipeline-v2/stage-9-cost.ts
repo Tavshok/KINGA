@@ -13,6 +13,7 @@ import type {
   PipelineContext,
   StageResult,
   ClaimRecord,
+  Stage3Output,
   Stage6Output,
   Stage7Output,
   Stage9Output,
@@ -80,7 +81,8 @@ export async function runCostOptimisationStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
   damageAnalysis: Stage6Output,
-  physicsAnalysis: Stage7Output
+  physicsAnalysis: Stage7Output,
+  stage3?: Stage3Output
 ): Promise<StageResult<Stage9Output>> {
   const start = Date.now();
   ctx.log("Stage 9", "Cost optimisation starting");
@@ -146,7 +148,22 @@ export async function runCostOptimisationStage(
 
     const totalExpectedCents = totalPartsCents + totalLabourCents + totalPaintCents + hiddenDamageCents;
 
-    const quotedCents = claimRecord.repairQuote.quoteTotalCents;
+    // FIX (2026-03-21): If the claim record has no quote (quoteTotalCents is null/0)
+    // but the input recovery pass found a quote in the raw document text, use the
+    // recovered value so quoteDeviationPct is calculated against the correct baseline.
+    let quotedCents = claimRecord.repairQuote.quoteTotalCents;
+    if ((!quotedCents || quotedCents <= 0) && stage3?.inputRecovery?.recovered_quote) {
+      const rq = stage3.inputRecovery.recovered_quote;
+      quotedCents = Math.round(rq.total * 100); // convert USD to cents
+      ctx.log("Stage 9", `Quote not in ClaimRecord — using recovered quote: USD ${rq.total} (${rq.confidence}, source: ${rq.source})`);
+      recoveryActions.push({
+        target: "quotedCents",
+        strategy: "cross_document_search",
+        success: true,
+        description: `quoteTotalCents was null. Recovered from input recovery: USD ${rq.total} (confidence: ${rq.confidence}, source: ${rq.source}).`,
+        recoveredValue: quotedCents,
+      });
+    }
     let quoteDeviationPct: number | null = null;
     let savingsOpportunityCents = 0;
 

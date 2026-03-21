@@ -1,0 +1,73 @@
+{
+  "query": "\nSHOW TABLES LIKE '%document%';\nSHOW TABLES LIKE '%quote%';\nSHOW TABLES LIKE '%ocr%';\nSHOW TABLES LIKE '%extracted%';\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSHOW TABLES LIKE '%document%';\nSHOW TABLES LIKE '%quote%';\nSHOW TABLES LIKE '%ocr%';\nSHOW TABLES LIKE '%extracted%';\n",
+  "rows": [
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "agency_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "claim_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "customer_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "document_naming_templates"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "document_versions"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "extracted_document_data"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "fleet_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "ingestion_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "policy_documents"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "Tables_in_YbS42LwGroxbVepAMjk4bS (%quote%)"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "insurance_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "insurer_quote_requests"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "panel_beater_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "quote_line_items"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "quote_optimisation_results"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "service_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "supplier_quote_line_items"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "supplier_quotes"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "Tables_in_YbS42LwGroxbVepAMjk4bS (%extracted%)"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "extracted_document_data"
+    },
+    {
+      "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)": "extracted_repair_items"
+    }
+  ],
+  "messages": [],
+  "stdout": "Tables_in_YbS42LwGroxbVepAMjk4bS (%document%)\nagency_documents\nclaim_documents\ncustomer_documents\ndocument_naming_templates\ndocument_versions\nextracted_document_data\nfleet_documents\ningestion_documents\npolicy_documents\nTables_in_YbS42LwGroxbVepAMjk4bS (%quote%)\ninsurance_quotes\ninsurer_quote_requests\npanel_beater_quotes\nquote_line_items\nquote_optimisation_results\nservice_quotes\nsupplier_quote_line_items\nsupplier_quotes\nTables_in_YbS42LwGroxbVepAMjk4bS (%extracted%)\nextracted_document_data\nextracted_repair_items\n",
+  "stderr": "",
+  "execution_time_ms": 498
+}

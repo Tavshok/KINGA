@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT column_name FROM information_schema.columns \nWHERE table_schema = DATABASE() \n  AND table_name = 'ai_assessments'\n  AND column_name LIKE '%quote%'\nORDER BY ordinal_position;\n\nSELECT column_name FROM information_schema.columns \nWHERE table_schema = DATABASE() \n  AND table_name = 'ai_assessments'\n  AND column_name LIKE '%source%'\nORDER BY ordinal_position;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT column_name FROM information_schema.columns \nWHERE table_schema = DATABASE() \n  AND table_name = 'ai_assessments'\n  AND column_name LIKE '%quote%'\nORDER BY ordinal_position;\n\nSELECT column_name FROM information_schema.columns \nWHERE table_schema = DATABASE() \n  AND table_name = 'ai_assessments'\n  AND column_name LIKE '%source%'\nORDER BY ordinal_position;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 403
+}

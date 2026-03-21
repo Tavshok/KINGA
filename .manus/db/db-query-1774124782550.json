@@ -1,0 +1,18 @@
+{
+  "query": "SELECT id, claim_id, fraud_indicators, fraud_risk_level, fraud_score_breakdown_json, cost_intelligence_json\nFROM ai_assessments\nWHERE claim_id = 2730001\nLIMIT 1;",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute SELECT id, claim_id, fraud_indicators, fraud_risk_level, fraud_score_breakdown_json, cost_intelligence_json\nFROM ai_assessments\nWHERE claim_id = 2730001\nLIMIT 1;",
+  "rows": [
+    {
+      "id": "2100001",
+      "claim_id": "2730001",
+      "fraud_indicators": "[\"No damage photographs provided with the claim.\"]",
+      "fraud_risk_level": "low",
+      "fraud_score_breakdown_json": "{\"overallScore\":15,\"level\":\"minimal\",\"indicators\":[{\"indicator\":\"no_damage_photos\",\"category\":\"documentation\",\"score\":15,\"description\":\"No damage photographs provided with the claim.\"}],\"damageConsistency\":{\"score\":50,\"notes\":\"Damage patterns are consistent with reported incident.\"}}",
+      "cost_intelligence_json": "{\"expectedRepairCostCents\":342000,\"quoteDeviationPct\":-24.678362573099417,\"recommendedRange\":{\"lowCents\":273600,\"highCents\":410400},\"savingsOpportunityCents\":0,\"breakdown\":{\"partsCostCents\":252000,\"labourCostCents\":90000,\"paintCostCents\":0,\"hiddenDamageCostCents\":0,\"totalCents\":342000},\"labourRateUsdPerHour\":25,\"marketRegion\":\"ZW\",\"currency\":\"USD\"}"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_id\tfraud_indicators\tfraud_risk_level\tfraud_score_breakdown_json\tcost_intelligence_json\n2100001\t2730001\t[\"No damage photographs provided with the claim.\"]\tlow\t{\"overallScore\":15,\"level\":\"minimal\",\"indicators\":[{\"indicator\":\"no_damage_photos\",\"category\":\"documentation\",\"score\":15,\"description\":\"No damage photographs provided with the claim.\"}],\"damageConsistency\":{\"score\":50,\"notes\":\"Damage patterns are consistent with reported incident.\"}}\t{\"expectedRepairCostCents\":342000,\"quoteDeviationPct\":-24.678362573099417,\"recommendedRange\":{\"lowCents\":273600,\"highCents\":410400},\"savingsOpportunityCents\":0,\"breakdown\":{\"partsCostCents\":252000,\"labourCostCents\":90000,\"paintCostCents\":0,\"hiddenDamageCostCents\":0,\"totalCents\":342000},\"labourRateUsdPerHour\":25,\"marketRegion\":\"ZW\",\"currency\":\"USD\"}\n",
+  "stderr": "",
+  "execution_time_ms": 445
+}

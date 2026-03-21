@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT \n  a.id AS assessment_id,\n  a.claim_id,\n  LEFT(a.damage_description, 200) AS damage_desc_preview,\n  LEFT(a.forensic_analysis, 200) AS forensic_preview,\n  a.fraud_risk_level,\n  a.structural_damage_severity,\n  a.estimated_cost,\n  a.created_at\nFROM ai_assessments a\nWHERE a.damage_description LIKE '%mandava%'\n   OR a.damage_description LIKE '%Mandava%'\n   OR a.damage_description LIKE '%school%'\n   OR a.damage_description LIKE '%School%'\n   OR a.forensic_analysis LIKE '%mandava%'\n   OR a.forensic_analysis LIKE '%Mandava%'\n   OR a.forensic_analysis LIKE '%school%'\n   OR a.causal_chain_json LIKE '%mandava%'\n   OR a.causal_chain_json LIKE '%school%'\nORDER BY a.created_at DESC\nLIMIT 10;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  a.id AS assessment_id,\n  a.claim_id,\n  LEFT(a.damage_description, 200) AS damage_desc_preview,\n  LEFT(a.forensic_analysis, 200) AS forensic_preview,\n  a.fraud_risk_level,\n  a.structural_damage_severity,\n  a.estimated_cost,\n  a.created_at\nFROM ai_assessments a\nWHERE a.damage_description LIKE '%mandava%'\n   OR a.damage_description LIKE '%Mandava%'\n   OR a.damage_description LIKE '%school%'\n   OR a.damage_description LIKE '%School%'\n   OR a.forensic_analysis LIKE '%mandava%'\n   OR a.forensic_analysis LIKE '%Mandava%'\n   OR a.forensic_analysis LIKE '%school%'\n   OR a.causal_chain_json LIKE '%mandava%'\n   OR a.causal_chain_json LIKE '%school%'\nORDER BY a.created_at DESC\nLIMIT 10;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 385
+}

@@ -1,0 +1,9 @@
+{
+  "query": "\nSELECT \n  h.id,\n  h.claim_reference,\n  h.vehicle_make,\n  h.vehicle_model,\n  h.vehicle_registration,\n  h.accident_type,\n  LEFT(h.incident_description, 300) AS incident_desc,\n  h.incident_location,\n  h.claimant_name,\n  h.created_at\nFROM historical_claims h\nWHERE \n  LOWER(h.incident_description) LIKE '%cow%'\n  OR LOWER(h.incident_description) LIKE '%animal%'\n  OR LOWER(h.incident_description) LIKE '%zig%'\n  OR LOWER(h.incident_location) LIKE '%zig%'\n  OR LOWER(h.claimant_name) LIKE '%mandava%'\n  OR LOWER(h.claim_reference) LIKE '%mandava%'\nORDER BY h.created_at DESC\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  h.id,\n  h.claim_reference,\n  h.vehicle_make,\n  h.vehicle_model,\n  h.vehicle_registration,\n  h.accident_type,\n  LEFT(h.incident_description, 300) AS incident_desc,\n  h.incident_location,\n  h.claimant_name,\n  h.created_at\nFROM historical_claims h\nWHERE \n  LOWER(h.incident_description) LIKE '%cow%'\n  OR LOWER(h.incident_description) LIKE '%animal%'\n  OR LOWER(h.incident_description) LIKE '%zig%'\n  OR LOWER(h.incident_location) LIKE '%zig%'\n  OR LOWER(h.claimant_name) LIKE '%mandava%'\n  OR LOWER(h.claim_reference) LIKE '%mandava%'\nORDER BY h.created_at DESC\nLIMIT 20;\n",
+  "rows": [],
+  "messages": [],
+  "stdout": "",
+  "stderr": "",
+  "execution_time_ms": 378
+}

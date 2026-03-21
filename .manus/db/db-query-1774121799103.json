@@ -1,0 +1,23 @@
+{
+  "query": "\nSELECT id, claim_number, vehicle_registration, status, source_document_id,\n       incident_description, normalised_description, reported_cause_label, key_facts_json,\n       incident_location, damage_photos\nFROM claims \nWHERE id = 2730001;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT id, claim_number, vehicle_registration, status, source_document_id,\n       incident_description, normalised_description, reported_cause_label, key_facts_json,\n       incident_location, damage_photos\nFROM claims \nWHERE id = 2730001;\n",
+  "rows": [
+    {
+      "id": "2730001",
+      "claim_number": "DOC-20260321-2DE0978C",
+      "vehicle_registration": "AEX 6208",
+      "status": "assessment_complete",
+      "source_document_id": "630001",
+      "incident_description": "Vehicle sustained damages on the RHS Tail Lamp, Rear Bumper, Rear Bumper Sensors, Front Bumper Slides, Grille, Diff Connectors, Front Bumper, Tow Hinge, Tail Gate, RHS Loading Panel, Radiator Support Panel and Rear End Piece. Excluded Tail Gate Locks and Inner Front Bumper Frame as not accident related.",
+      "normalised_description": "NULL",
+      "reported_cause_label": "NULL",
+      "key_facts_json": "NULL",
+      "incident_location": "NULL",
+      "damage_photos": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tclaim_number\tvehicle_registration\tstatus\tsource_document_id\tincident_description\tnormalised_description\treported_cause_label\tkey_facts_json\tincident_location\tdamage_photos\n2730001\tDOC-20260321-2DE0978C\tAEX 6208\tassessment_complete\t630001\tVehicle sustained damages on the RHS Tail Lamp, Rear Bumper, Rear Bumper Sensors, Front Bumper Slides, Grille, Diff Connectors, Front Bumper, Tow Hinge, Tail Gate, RHS Loading Panel, Radiator Support Panel and Rear End Piece. Excluded Tail Gate Locks and Inner Front Bumper Frame as not accident related.\tNULL\tNULL\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 356
+}

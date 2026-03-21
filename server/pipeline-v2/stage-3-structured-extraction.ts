@@ -18,6 +18,10 @@ import type {
   ExtractedClaimFields,
   Assumption,
   RecoveryAction,
+  InputRecoveryOutput,
+  InputRecoveryFailureFlag,
+  RecoveredQuote,
+  DamageHints,
 } from "./types";
 import { invokeLLM } from "../_core/llm";
 
@@ -132,19 +136,23 @@ Return data in strict JSON format.`,
         content: [
           {
             type: "text" as const,
-            text: `INPUT DOCUMENT TEXT:
-${rawText.substring(0, 3000)}
+            text: `INPUT DOCUMENT TEXT (first 4000 chars):
+${rawText.substring(0, 4000)}
 
-TASK:
-Extract the following fields:
+TASK: Extract ALL fields from the schema above.
 
-- incidentDescription (full narrative)
-- reportedCause (short label if stated, else null)
-- dateOfIncident
-- location
-- involvedParties
-- costEstimate
-- vehicleDetails (make, model, registration if present)
+CRITICAL COST EXTRACTION RULES:
+- quoteTotalCents: use the LOWEST or AGREED/ADJUSTED cost figure (in cents). If an assessor negotiated a lower amount, use that. If only one figure exists, use it.
+- labourCostCents / partsCostCents: extract from any itemised breakdown.
+- Convert all monetary values to cents (multiply USD/ZWL figure by 100).
+
+CRITICAL IMAGE DETECTION RULES:
+- If the document contains embedded photographs, damage images, or references to attached photos, note this in damageDescription.
+- Extract damagedComponents from any itemised repair list, even if no photos are present.
+
+CRITICAL DESCRIPTION RULES:
+- accidentDescription: extract the FULL narrative of how the accident occurred, verbatim if possible.
+- damageDescription: extract the complete list of damaged parts and repair actions.
 
 Return JSON only.`,
           },
@@ -258,6 +266,175 @@ function emptyExtraction(): ExtractedClaimFields {
   return mapToExtractedFields({}, -1);
 }
 
+// ============================================================================
+// 5-STEP INPUT RECOVERY (runs after LLM extraction, before stage output)
+// Recovers missing structured inputs from raw OCR text and document metadata.
+// Does NOT modify original extraction — produces a parallel recovery object.
+// ============================================================================
+
+const DAMAGE_ZONE_KEYWORDS: Record<string, string> = {
+  front: "front", rear: "rear", back: "rear", side: "side",
+  left: "left", right: "right", roof: "roof", undercarriage: "undercarriage",
+  bonnet: "front", hood: "front", boot: "rear", trunk: "rear",
+  door: "side", fender: "side", quarter: "side",
+};
+
+const DAMAGE_COMPONENT_KEYWORDS = [
+  "bumper", "grille", "bonnet", "hood", "fender", "door", "panel",
+  "headlight", "taillight", "windscreen", "windshield", "glass",
+  "mirror", "wheel", "tyre", "rim", "suspension", "chassis",
+  "radiator", "engine", "gearbox", "transmission", "axle",
+  "boot", "trunk", "roof", "pillar", "sill", "quarter panel",
+  "fog light", "indicator", "wiper", "spoiler", "diffuser",
+];
+
+/**
+ * STEP 2 — Quote recovery: scan raw text for currency values and repair totals.
+ * Prioritises agreed/adjusted cost over original quote.
+ */
+function recoverQuoteFromText(rawText: string): RecoveredQuote | null {
+  if (!rawText || rawText.trim().length < 20) return null;
+
+  // Patterns for monetary values: USD 1,234.56 / $1234.56 / 1 234.56 / 1,234.56
+  const currencyPattern = /(?:USD|\$|ZWL|ZWD)?\s*([0-9]{1,3}(?:[,\s][0-9]{3})*(?:\.[0-9]{1,2})?)/gi;
+
+  // Priority 1: agreed / adjusted / net cost (assessor negotiated)
+  const agreedPatterns = [
+    /(?:agreed|adjusted|net|accepted|approved|authorised|authorized)\s+(?:cost|amount|total|value)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:cost\s+agreed|amount\s+agreed|total\s+agreed)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:repair\s+cost|repair\s+total)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+  ];
+
+  // Priority 2: original quote total
+  const quotePatterns = [
+    /(?:total|grand\s+total|quote\s+total|total\s+cost)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+    /(?:amount|sum)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi,
+  ];
+
+  // Labour and parts
+  const labourPattern = /(?:labour|labor)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi;
+  const partsPattern = /(?:parts|spares|materials)[:\s]+(?:USD|\$)?\s*([0-9][0-9,\s.]+)/gi;
+
+  function extractFirst(patterns: RegExp[], text: string): number | null {
+    for (const pat of patterns) {
+      pat.lastIndex = 0;
+      const m = pat.exec(text);
+      if (m) {
+        const val = parseFloat(m[1].replace(/[,\s]/g, ""));
+        if (!isNaN(val) && val > 0) return val;
+      }
+    }
+    return null;
+  }
+
+  const agreedTotal = extractFirst(agreedPatterns, rawText);
+  const quoteTotal = extractFirst(quotePatterns, rawText);
+  const labour = extractFirst([labourPattern], rawText);
+  const parts = extractFirst([partsPattern], rawText);
+
+  const total = agreedTotal ?? quoteTotal;
+  if (!total) return null;
+
+  return {
+    total,
+    parts: parts ?? null,
+    labour: labour ?? null,
+    confidence: agreedTotal ? "high" : quoteTotal ? "medium" : "low",
+    source: agreedTotal ? "agreed_cost" : "original_quote",
+  };
+}
+
+/**
+ * STEP 4 — Damage hint extraction: extract zone and component keywords from text.
+ */
+function extractDamageHints(rawText: string): DamageHints {
+  const lower = rawText.toLowerCase();
+  const zones = new Set<string>();
+  const components = new Set<string>();
+
+  for (const [keyword, zone] of Object.entries(DAMAGE_ZONE_KEYWORDS)) {
+    if (lower.includes(keyword)) zones.add(zone);
+  }
+  for (const component of DAMAGE_COMPONENT_KEYWORDS) {
+    if (lower.includes(component)) components.add(component);
+  }
+
+  return {
+    zones: Array.from(zones),
+    components: Array.from(components),
+  };
+}
+
+/**
+ * Run the full 5-step input recovery pass against all extracted texts and document metadata.
+ * Returns a structured InputRecoveryOutput without modifying original extraction data.
+ */
+function runInputRecovery(
+  stage1: Stage1Output,
+  stage2: Stage2Output,
+  perDocumentExtractions: ExtractedClaimFields[]
+): InputRecoveryOutput {
+  const allText = stage2.extractedTexts.map(t => t.rawText).join("\n");
+  const flags: InputRecoveryFailureFlag[] = [];
+
+  // STEP 1 — Accident description recovery
+  const hasDescription = perDocumentExtractions.some(e => e.accidentDescription && e.accidentDescription.trim().length > 10);
+  let accident_description: string | null = null;
+  if (!hasDescription) {
+    // Attempt regex recovery from raw text
+    const descPatterns = [
+      /(?:circumstances|description of accident|how did the accident occur|incident description|narrative)[:\s]+([^\n]{20,500})/gi,
+      /(?:the insured|the driver|the vehicle)[^.]{0,20}(?:collided|struck|hit|ran into|was involved)[^.]{10,300}\./gi,
+    ];
+    for (const pat of descPatterns) {
+      const m = pat.exec(allText);
+      if (m) {
+        accident_description = m[0].trim().substring(0, 500);
+        break;
+      }
+    }
+    if (!accident_description) flags.push("description_not_mapped");
+  } else {
+    accident_description = perDocumentExtractions.find(e => e.accidentDescription)?.accidentDescription ?? null;
+  }
+
+  // STEP 2 — Quote recovery
+  const hasQuote = perDocumentExtractions.some(e => e.quoteTotalCents && e.quoteTotalCents > 0);
+  const recovered_quote = recoverQuoteFromText(allText);
+  if (!hasQuote && !recovered_quote) flags.push("quote_not_mapped");
+
+  // STEP 3 — Image presence detection
+  const images_present =
+    stage1.documents.some(d => d.containsImages || d.imageUrls.length > 0) ||
+    perDocumentExtractions.some(e => e.uploadedImageUrls.length > 0) ||
+    /(?:photo|image|picture|photograph|fig\.|figure)/i.test(allText);
+
+  if (!images_present) {
+    // images truly absent — no flag needed, absence is valid
+  } else if (stage1.documents.every(d => d.imageUrls.length === 0)) {
+    // images present in document but not extracted into imageUrls pipeline
+    flags.push("images_not_processed");
+  }
+
+  // STEP 4 — Damage hint extraction
+  const damage_hints = extractDamageHints(allText);
+
+  // STEP 5 — OCR failure detection
+  const totalTextLength = allText.replace(/\s/g, "").length;
+  if (totalTextLength < 100 && stage1.documents.length > 0) {
+    flags.push("ocr_failure");
+  }
+
+  return {
+    accident_description,
+    recovered_quote,
+    images_present,
+    damage_hints,
+    failure_flags: flags,
+    recovered_at: new Date().toISOString(),
+  };
+}
+
 export async function runStructuredExtractionStage(
   ctx: PipelineContext,
   stage1: Stage1Output,
@@ -349,8 +526,27 @@ export async function runStructuredExtractionStage(
       });
     }
 
+    // Run 5-step input recovery pass
+    let inputRecovery;
+    try {
+      inputRecovery = runInputRecovery(stage1, stage2, perDocumentExtractions);
+      ctx.log("Stage 3", `Input recovery complete. Quote recovered: ${inputRecovery.recovered_quote ? `USD ${inputRecovery.recovered_quote.total} (${inputRecovery.recovered_quote.confidence})` : 'none'}. Images present: ${inputRecovery.images_present}. Flags: ${inputRecovery.failure_flags.join(", ") || "none"}.`);
+      if (inputRecovery.failure_flags.length > 0) {
+        isDegraded = true;
+        recoveryActions.push({
+          target: "input_recovery",
+          strategy: "partial_data",
+          success: true,
+          description: `Input recovery flagged: ${inputRecovery.failure_flags.join(", ")}. Downstream stages should use recovered values where available.`,
+        });
+      }
+    } catch (recErr) {
+      ctx.log("Stage 3", `Input recovery failed: ${String(recErr)} — skipping`);
+    }
+
     const output: Stage3Output = {
       perDocumentExtractions,
+      inputRecovery,
     };
 
     ctx.log("Stage 3", `Structured extraction complete. ${perDocumentExtractions.length} extraction(s) produced.`);

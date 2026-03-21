@@ -1,0 +1,15 @@
+{
+  "query": "\nSELECT MIN(id) AS min_id, MAX(id) AS max_id, COUNT(*) AS total_claims FROM claims;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT MIN(id) AS min_id, MAX(id) AS max_id, COUNT(*) AS total_claims FROM claims;\n",
+  "rows": [
+    {
+      "min_id": "2700093",
+      "max_id": "2700172",
+      "total_claims": "51"
+    }
+  ],
+  "messages": [],
+  "stdout": "min_id\tmax_id\ttotal_claims\n2700093\t2700172\t51\n",
+  "stderr": "",
+  "execution_time_ms": 387
+}

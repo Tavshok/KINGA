@@ -12,6 +12,7 @@ import type {
   PipelineContext,
   StageResult,
   ClaimRecord,
+  Stage3Output,
   Stage6Output,
   Stage7Output,
   Stage8Output,
@@ -19,6 +20,7 @@ import type {
   FraudRiskLevel,
   Assumption,
   RecoveryAction,
+  InputRecoveryOutput,
 } from "./types";
 
 function scoreToLevel(score: number): FraudRiskLevel {
@@ -122,7 +124,10 @@ function analyseQuoteDeviation(claimRecord: ClaimRecord): {
   return { deviation: null, indicators };
 }
 
-function analyseDocumentation(claimRecord: ClaimRecord): FraudIndicator[] {
+function analyseDocumentation(
+  claimRecord: ClaimRecord,
+  inputRecovery?: InputRecoveryOutput
+): FraudIndicator[] {
   const indicators: FraudIndicator[] = [];
 
   if (!claimRecord.policeReport.reportNumber) {
@@ -135,12 +140,26 @@ function analyseDocumentation(claimRecord: ClaimRecord): FraudIndicator[] {
   }
 
   if (claimRecord.damage.imageUrls.length === 0) {
-    indicators.push({
-      indicator: "no_damage_photos",
-      category: "documentation",
-      score: 15,
-      description: "No damage photographs provided with the claim.",
-    });
+    // FIX (2026-03-21): If input recovery detected images present in the source
+    // document (e.g. embedded in a PDF) but they were never extracted into the
+    // imageUrls pipeline, the correct indicator is "photos_not_ingested" (score 5)
+    // rather than "no_damage_photos" (score 15). The former is a system gap;
+    // the latter implies the claimant failed to provide evidence.
+    if (inputRecovery?.images_present) {
+      indicators.push({
+        indicator: "photos_not_ingested",
+        category: "documentation",
+        score: 5,
+        description: "Damage photographs detected in source document but not yet processed through the photo analysis pipeline. Manual review recommended.",
+      });
+    } else {
+      indicators.push({
+        indicator: "no_damage_photos",
+        category: "documentation",
+        score: 15,
+        description: "No damage photographs provided with the claim.",
+      });
+    }
   }
 
   if (claimRecord.dataQuality.completenessScore < 50) {
@@ -159,7 +178,8 @@ export async function runFraudAnalysisStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
   damageAnalysis: Stage6Output,
-  physicsAnalysis: Stage7Output
+  physicsAnalysis: Stage7Output,
+  stage3?: Stage3Output
 ): Promise<StageResult<Stage8Output>> {
   const start = Date.now();
   ctx.log("Stage 8", "Fraud analysis starting");
@@ -203,7 +223,7 @@ export async function runFraudAnalysisStage(
 
     // 3. Documentation
     try {
-      const docIndicators = analyseDocumentation(claimRecord);
+      const docIndicators = analyseDocumentation(claimRecord, stage3?.inputRecovery);
       allIndicators.push(...docIndicators);
     } catch (e) {
       isDegraded = true;

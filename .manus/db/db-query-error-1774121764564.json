@@ -1,0 +1,8 @@
+{
+  "query": "\nSELECT id, claim_id, document_category, document_title, document_url, file_size, mime_type, created_at\nFROM claim_documents \nWHERE claim_id = 2730001;\n\nSELECT id, document_type, document_url, ocr_text, processing_status, created_at\nFROM agency_documents\nWHERE id = 630001;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT id, claim_id, document_category, document_title, document_url, file_size, mime_type, created_at\nFROM claim_documents \nWHERE claim_id = 2730001;\n\nSELECT id, document_type, document_url, ocr_text, processing_status, created_at\nFROM agency_documents\nWHERE id = 630001;\n",
+  "returncode": 1,
+  "logs": [
+    "ERROR 1054 (42S22) at line 2: Unknown column 'document_url' in 'field list'"
+  ]
+}

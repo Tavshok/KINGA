@@ -1,0 +1,49 @@
+{
+  "query": "\nSELECT \n  a.id AS assessment_id,\n  a.claim_id,\n  a.estimated_cost,\n  a.fraud_risk_level,\n  a.structural_damage_severity,\n  a.confidence_score,\n  (CASE WHEN a.repair_intelligence_json IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_repair_intel,\n  (CASE WHEN a.physics_analysis IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_physics,\n  (CASE WHEN a.cost_intelligence_json IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_cost_intel,\n  (CASE WHEN a.damaged_components_json IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_components,\n  a.created_at\nFROM ai_assessments a\nWHERE a.claim_id BETWEEN 2700093 AND 2700172\nORDER BY a.created_at DESC\nLIMIT 20;\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  a.id AS assessment_id,\n  a.claim_id,\n  a.estimated_cost,\n  a.fraud_risk_level,\n  a.structural_damage_severity,\n  a.confidence_score,\n  (CASE WHEN a.repair_intelligence_json IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_repair_intel,\n  (CASE WHEN a.physics_analysis IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_physics,\n  (CASE WHEN a.cost_intelligence_json IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_cost_intel,\n  (CASE WHEN a.damaged_components_json IS NOT NULL THEN 'YES' ELSE 'NO' END) AS has_components,\n  a.created_at\nFROM ai_assessments a\nWHERE a.claim_id BETWEEN 2700093 AND 2700172\nORDER BY a.created_at DESC\nLIMIT 20;\n",
+  "rows": [
+    {
+      "assessment_id": "2070007",
+      "claim_id": "2700168",
+      "estimated_cost": "145000",
+      "fraud_risk_level": "low",
+      "structural_damage_severity": "none",
+      "confidence_score": "85",
+      "has_repair_intel": "NO",
+      "has_physics": "NO",
+      "has_cost_intel": "NO",
+      "has_components": "NO",
+      "created_at": "2026-03-20 16:22:07"
+    },
+    {
+      "assessment_id": "2070005",
+      "claim_id": "2700166",
+      "estimated_cost": "145000",
+      "fraud_risk_level": "low",
+      "structural_damage_severity": "none",
+      "confidence_score": "85",
+      "has_repair_intel": "NO",
+      "has_physics": "NO",
+      "has_cost_intel": "NO",
+      "has_components": "NO",
+      "created_at": "2026-03-20 16:22:07"
+    },
+    {
+      "assessment_id": "2070004",
+      "claim_id": "2700165",
+      "estimated_cost": "145000",
+      "fraud_risk_level": "low",
+      "structural_damage_severity": "none",
+      "confidence_score": "85",
+      "has_repair_intel": "NO",
+      "has_physics": "NO",
+      "has_cost_intel": "NO",
+      "has_components": "NO",
+      "created_at": "2026-03-20 16:22:06"
+    }
+  ],
+  "messages": [],
+  "stdout": "assessment_id\tclaim_id\testimated_cost\tfraud_risk_level\tstructural_damage_severity\tconfidence_score\thas_repair_intel\thas_physics\thas_cost_intel\thas_components\tcreated_at\n2070007\t2700168\t145000\tlow\tnone\t85\tNO\tNO\tNO\tNO\t2026-03-20 16:22:07\n2070005\t2700166\t145000\tlow\tnone\t85\tNO\tNO\tNO\tNO\t2026-03-20 16:22:07\n2070004\t2700165\t145000\tlow\tnone\t85\tNO\tNO\tNO\tNO\t2026-03-20 16:22:06\n",
+  "stderr": "",
+  "execution_time_ms": 368
+}

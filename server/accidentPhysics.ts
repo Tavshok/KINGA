@@ -307,12 +307,17 @@ function estimateImpactSpeed(
   const stiffness = getVehicleStiffness(vehicle);
   
   // Campbell's formula: V = √(2 * E / m)
-  // where E = energy absorbed, m = mass
+  // where E = energy absorbed (Joules), m = mass (kg)
   // E = 0.5 * k * C²
-  // where k = stiffness coefficient, C = crush depth
-  
+  // where k = stiffness coefficient (N/m), C = crush depth (m)
+  //
+  // FIX (2026-03-21): getVehicleStiffness() returns values in kN/m.
+  // Must convert to N/m before computing energy, otherwise energy is in kJ
+  // and estimated speed is underestimated by a factor of sqrt(1000) ≈ 31.6×,
+  // causing all moderate/severe claims to be misclassified as "minor".
+  const stiffnessNm = stiffness * 1000; // convert kN/m → N/m
   const crushDepth = damage.maxCrushDepth; // meters
-  const energyAbsorbed = 0.5 * stiffness * Math.pow(crushDepth, 2);
+  const energyAbsorbed = 0.5 * stiffnessNm * Math.pow(crushDepth, 2); // Joules
   
   // Speed in m/s
   const speedMS = Math.sqrt((2 * energyAbsorbed) / vehicle.mass);
