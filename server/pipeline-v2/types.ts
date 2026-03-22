@@ -584,6 +584,15 @@ export interface Stage9Output {
     missing: Array<{ component: string; is_structural: boolean; reason: string }>;
     extra: Array<{ component: string; reason: string }>;
   } | null;
+  alignmentResult: {
+    alignment_status: "FULLY_ALIGNED" | "PARTIALLY_ALIGNED" | "MISALIGNED";
+    critical_missing: Array<{ component: string; reason: string; is_structural: boolean; expected_zone: string }>;
+    unrelated_items: Array<{ component: string; reason: string; is_structural: boolean; risk_level: "low" | "medium" | "high" }>;
+    engineering_comment: string;
+    coverage_ratio: number;
+    structural_coverage_ratio: number;
+    physics_zones_covered: boolean;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

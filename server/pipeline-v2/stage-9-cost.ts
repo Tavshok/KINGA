@@ -10,6 +10,7 @@
 
 import { ensureCostContract } from "./engineFallback";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
+import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import type {
   PipelineContext,
   StageResult,
@@ -232,6 +233,15 @@ export async function runCostOptimisationStage(
       };
     });
 
+    // Step 2: Run mechanical alignment evaluation
+    const physicsSummaryText =
+      (claimRecord as unknown as Record<string, unknown>).accidentDescription as string ||
+      stage3?.inputRecovery?.accident_description ||
+      "Unknown impact";
+    const alignmentResult = quoteComponents.length > 0
+      ? evaluateMechanicalAlignment(damageComponentNames, quoteComponents, physicsSummaryText)
+      : null;
+
     // Attach the full reconciliation summary to the output
     const reconciliationSummary = reconciliation ? {
       matched_count: reconciliation.matched.length,
@@ -248,6 +258,7 @@ export async function runCostOptimisationStage(
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
+      alignmentResult,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
       savingsOpportunityCents,
