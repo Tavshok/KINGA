@@ -133,6 +133,9 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     // validatedOutcomeJson is stored directly on aiAssessment
     return safeParse(aiAssessment?.validatedOutcomeJson) ?? null;
   }, [aiAssessment?.validatedOutcomeJson]);
+  const caseSignature = useMemo(() => {
+    return safeParse(aiAssessment?.caseSignatureJson) ?? null;
+  }, [aiAssessment?.caseSignatureJson]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
@@ -249,6 +252,23 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
 
   return (
     <div className="space-y-4">
+
+      {/* ── CASE SIGNATURE BANNER ─────────────────────────────────────────── */}
+      {caseSignature && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-3" style={{ background: "oklch(0.22 0.015 260 / 0.7)", border: "1px solid oklch(0.45 0.06 260 / 0.4)" }}>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Case Signature</span>
+            <code className="rounded px-2 py-0.5 text-sm font-mono font-bold text-sky-300" style={{ background: "oklch(0.28 0.04 220 / 0.5)" }}>{caseSignature.case_signature}</code>
+          </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-xs text-muted-foreground">Grouping Key</span>
+            <code className="rounded px-2 py-0.5 text-xs font-mono text-slate-300" style={{ background: "oklch(0.28 0.02 260 / 0.4)" }}>{caseSignature.grouping_key}</code>
+          </div>
+          {caseSignature.metadata?.similar_cases_expected != null && (
+            <span className="text-xs text-muted-foreground ml-2">{caseSignature.metadata.similar_cases_expected} similar cases expected</span>
+          )}
+        </div>
+      )}
 
       {/* ── 0. CONFIDENCE AGGREGATION ─────────────────────────────────────── */}
       {confidenceAggregation && (

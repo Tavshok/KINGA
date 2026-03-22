@@ -104,6 +104,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   constraintOverridesJson: text("constraint_overrides_json"),
   // Stage 11 output: validated outcome recorder (learning gate) — JSON ValidatedOutcomeResult
   validatedOutcomeJson: text("validated_outcome_json"),
+  caseSignatureJson: text("case_signature_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

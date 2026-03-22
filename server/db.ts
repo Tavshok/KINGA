@@ -471,7 +471,7 @@ export async function triggerAiAssessment(claimId: number) {
   const result = await runPipelineV2(pipelineCtx);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
-  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome } = result;
+  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature } = result;
 
   // Map fraud risk level to DB enum
   const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical' | 'elevated'> = {
@@ -653,6 +653,7 @@ export async function triggerAiAssessment(claimId: number) {
     consensusResultJson: consensusResult ? JSON.stringify(consensusResult) : null,
     causalVerdictJson: causalVerdict ? JSON.stringify(causalVerdict) : null,
     validatedOutcomeJson: validatedOutcome ? JSON.stringify(validatedOutcome) : null,
+    caseSignatureJson: caseSignature ? JSON.stringify(caseSignature) : null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

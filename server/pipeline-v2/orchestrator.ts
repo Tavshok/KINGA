@@ -84,6 +84,11 @@ import {
   recordValidatedOutcome,
   type ValidatedOutcomeResult,
 } from "./validatedOutcomeRecorder";
+import {
+  generateCaseSignature,
+  inferCostTier,
+  type CaseSignatureOutput,
+} from "./caseSignatureGenerator";
 
 /**
  * Run the full self-healing pipeline.
@@ -129,6 +134,7 @@ export async function runPipelineV2(
   let claimRecord: ClaimRecord | null = null;
   let evidenceRegistryData: EvidenceRegistry | null = null;
   let validatedOutcomeResult: ValidatedOutcomeResult | null = null;
+  let caseSignatureResult: CaseSignatureOutput | null = null;
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
@@ -577,6 +583,31 @@ export async function runPipelineV2(
     }
   }
 
+  // ── STAGE 11.5: Case Signature Generator ────────────────────────────────
+  // Generates a standardised case signature for grouping and learning.
+  try {
+    const costTier = stage9Data?.costDecision?.true_cost_usd != null
+      ? inferCostTier(stage9Data.costDecision.true_cost_usd)
+      : null;
+    caseSignatureResult = generateCaseSignature({
+      vehicle_type: claimRecord?.vehicle?.make
+        ? `${claimRecord.vehicle.make} ${claimRecord.vehicle.model}`
+        : null,
+      scenario_type: claimRecord?.accidentDetails?.incidentType ?? null,
+      impact_direction: stage7Data?.impactVector?.direction
+        ?? claimRecord?.accidentDetails?.collisionDirection
+        ?? null,
+      severity: (stage7Data?.severityConsensus as any)?.final_severity
+        ?? stage7Data?.accidentSeverity
+        ?? null,
+      component_count: stage6Data?.damagedParts?.length ?? null,
+      cost_tier: costTier ?? null,
+    });
+    ctx.log("Stage11.5", `Case signature: ${caseSignatureResult.case_signature}`);
+  } catch (err) {
+    ctx.log("Stage11.5", `Case signature error: ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   ctx.log("Pipeline", `Pipeline complete. Total: ${Date.now() - pipelineStart}ms, Assumptions: ${allAssumptions.length}, Recoveries: ${allRecoveryActions.length}`);
 
   return buildResult(
@@ -584,7 +615,7 @@ export async function runPipelineV2(
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
-    causalVerdict, evidenceRegistryData, validatedOutcomeResult
+    causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult
   );
 }
 
@@ -606,7 +637,8 @@ function buildResult(
   consensusResult: ConsensusResult | null = null,
   causalVerdict: CausalVerdict | null = null,
   evidenceRegistry: EvidenceRegistry | null = null,
-  validatedOutcome: ValidatedOutcomeResult | null = null
+  validatedOutcome: ValidatedOutcomeResult | null = null,
+  caseSignature: CaseSignatureOutput | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -632,6 +664,7 @@ function buildResult(
     causalVerdict,
     evidenceRegistry,
     validatedOutcome,
+    caseSignature,
   };
 }
 
