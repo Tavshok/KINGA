@@ -618,6 +618,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       resolved: false,
     }],
     fieldValidation: null,
+    consistencyCheck: null,
   };
 }
 

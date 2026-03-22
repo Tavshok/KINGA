@@ -328,6 +328,11 @@ export interface Stage4Output {
    * stated values and AI-inferred values.
    */
   fieldValidation: import("./fieldValidationEngine").FieldValidationResult | null;
+  /**
+   * Pre-analysis consistency check result.
+   * If proceed = false, downstream models must not issue a final decision.
+   */
+  consistencyCheck: import("./claimConsistencyChecker").ConsistencyCheckResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

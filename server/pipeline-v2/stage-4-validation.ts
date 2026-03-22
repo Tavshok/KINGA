@@ -21,6 +21,8 @@ import type {
 } from "./types";
 import { validateFields, extractSpeedFromText } from "./fieldValidationEngine";
 import type { FieldValidationResult } from "./fieldValidationEngine";
+import { checkClaimConsistency } from "./claimConsistencyChecker";
+import type { ConsistencyCheckResult } from "./claimConsistencyChecker";
 
 const CRITICAL_FIELDS: Array<{ field: keyof ExtractedClaimFields; label: string; severity: "critical" | "warning" }> = [
   { field: "vehicleMake", label: "Vehicle make", severity: "critical" },
@@ -385,12 +387,51 @@ export async function runValidationStage(
       ctx.log("Stage 4", `Field validation engine error (non-fatal): ${String(fvErr)}`);
     }
 
+    // Step 7b: Claim Consistency Checker — pre-analysis gate
+    let consistencyCheck: ConsistencyCheckResult | null = null;
+    try {
+      const fv = fieldValidation;
+      consistencyCheck = checkClaimConsistency({
+        // Speed: prefer field validation result, then raw extracted value
+        stated_speed_kmh: fv?.validated_fields.speed_kmh.source !== "inferred"
+          ? (fv?.validated_fields.speed_kmh.value ?? validatedFields.estimatedSpeedKmh ?? undefined)
+          : (validatedFields.estimatedSpeedKmh ?? undefined),
+        estimated_speed_kmh: fv?.validated_fields.speed_kmh.source === "inferred"
+          ? (fv?.validated_fields.speed_kmh.value ?? undefined)
+          : undefined,
+        // Incident type: prefer field validation result
+        classified_incident_type: fv?.validated_fields.incident_type.value ?? validatedFields.incidentType ?? undefined,
+        claim_form_incident_type: validatedFields.incidentType ?? undefined,
+        narrative_text: validatedFields.accidentDescription ?? undefined,
+        // Damage: from extracted fields
+        airbag_deployed: validatedFields.airbagDeployment ?? undefined,
+      });
+      if (!consistencyCheck.proceed) {
+        ctx.log("Stage 4", `Consistency check BLOCKED: ${consistencyCheck.critical_conflicts.length} HIGH conflict(s) — ${consistencyCheck.critical_conflicts.filter(c => c.severity === "HIGH").map(c => c.type).join(", ")}`);
+        for (const conflict of consistencyCheck.critical_conflicts.filter(c => c.severity === "HIGH")) {
+          issues.push({
+            field: conflict.type,
+            severity: "critical",
+            message: `[CONSISTENCY BLOCK] ${conflict.description}`,
+            secondaryExtractionAttempted: false,
+            resolved: false,
+          });
+        }
+      } else {
+        const medCount = consistencyCheck.critical_conflicts.filter(c => c.severity === "MEDIUM").length;
+        ctx.log("Stage 4", `Consistency check PASSED${medCount > 0 ? ` (${medCount} MEDIUM conflict(s) for review)` : ""}`);
+      }
+    } catch (ccErr) {
+      ctx.log("Stage 4", `Consistency checker error (non-fatal): ${String(ccErr)}`);
+    }
+
     const output: Stage4Output = {
       validatedFields,
       issues,
       completenessScore,
       missingFields: missingAfter,
       fieldValidation,
+      consistencyCheck,
     };
 
     ctx.log("Stage 4", `Validation complete. Completeness: ${completenessScore}%. Missing: ${missingAfter.length}. Assumptions: ${assumptions.length}`);
@@ -421,6 +462,7 @@ export async function runValidationStage(
         completenessScore: 0,
         missingFields: CRITICAL_FIELDS.map(f => f.field),
         fieldValidation: null,
+        consistencyCheck: null,
       },
       error: String(err),
       durationMs: Date.now() - start,
