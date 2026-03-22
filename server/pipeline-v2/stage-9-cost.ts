@@ -341,6 +341,7 @@ export async function runCostOptimisationStage(
     const costDecision = (() => {
       try {
         return runCostDecision({
+          cost_mode: agreedCostUsd ? "POST_ASSESSMENT" : "PRE_ASSESSMENT",
           agreed_cost_usd: agreedCostUsd,
           optimised_cost: quoteOptimisation ? {
             optimised_cost_usd: quoteOptimisation.optimised_cost_usd,

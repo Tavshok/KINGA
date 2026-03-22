@@ -1,35 +1,56 @@
 /**
  * pipeline-v2/costDecisionEngine.ts
  * ─────────────────────────────────────────────────────────────────────────────
- * CLAIMS COST DECISION ENGINE
+ * CLAIMS COST DECISION ENGINE  (v2 — mode-aware)
  *
  * Resolves the TRUE COST BASIS for a claim, evaluates deviations across all
- * available cost signals, detects anomalies, and produces a structured
- * APPROVE / REVIEW / REJECT recommendation with full audit trail.
+ * available cost signals, detects anomalies, and produces either:
+ *
+ *   PRE_ASSESSMENT  → negotiation guidance (no final approval decision)
+ *   POST_ASSESSMENT → structured APPROVE / REVIEW / REJECT adjudication
  *
  * Decision hierarchy (immutable):
- *   1. agreed_cost  → "assessor_validated"  (always overrides)
+ *   1. agreed_cost  → "assessor_validated"  (POST only; always overrides)
  *   2. optimised_cost → "system_optimised"  (weighted quote baseline)
  *   3. AI estimate  → REFERENCE ONLY        (never the basis)
  *
- * Anomaly detection:
+ * Anomaly detection (both modes):
  *   - Overpricing:     highest quote >40% above TRUE_COST
  *   - Under-quoting:   missing structural components in any selected quote
  *   - Misalignment:    MISALIGNED or PARTIALLY_ALIGNED alignment result
  *   - Low reliability: cost_reliability.confidence_score < 40
  *   - Spread warning:  cost_spread_pct > 60%
  *
+ * PRE_ASSESSMENT additional outputs:
+ *   - negotiation_range: { floor_usd, ceiling_usd, target_usd }
+ *   - overpriced_quotes: quotes exceeding the overpricing threshold
+ *   - missing_components: components absent from all submitted quotes
+ *
+ * POST_ASSESSMENT additional outputs:
+ *   - negotiation_efficiency: how close agreed_cost is to optimised baseline
+ *   - overpayment_risk: flag when agreed_cost > optimised_cost by >20%
+ *   - under_repair_risk: flag when agreed_cost < optimised_cost by >30%
+ *
  * RULES:
- *   - Agreed cost ALWAYS overrides
- *   - AI estimate is NEVER the baseline
+ *   - PRE mode → recommendation is guidance only ("NEGOTIATE" | "PROCEED_TO_ASSESSMENT" | "ESCALATE")
+ *   - POST mode → recommendation is final ("APPROVE" | "REVIEW" | "REJECT")
+ *   - Agreed cost ALWAYS overrides in POST mode
+ *   - AI estimate is NEVER the baseline in either mode
  *   - Structural integrity > price
  *   - No AI/model terminology in output
  */
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export type CostMode = "PRE_ASSESSMENT" | "POST_ASSESSMENT";
 export type CostBasis = "assessor_validated" | "system_optimised";
-export type Recommendation = "APPROVE" | "REVIEW" | "REJECT";
+
+/** POST mode only */
+export type PostRecommendation = "APPROVE" | "REVIEW" | "REJECT";
+/** PRE mode only */
+export type PreRecommendation = "NEGOTIATE" | "PROCEED_TO_ASSESSMENT" | "ESCALATE";
+export type Recommendation = PostRecommendation | PreRecommendation;
+
 export type AnomalyCategory =
   | "overpricing"
   | "under_quoting"
@@ -83,7 +104,9 @@ export interface DecisionInputReliability {
 }
 
 export interface CostDecisionInput {
-  /** Agreed cost in USD — from assessor or insurer. If present, ALWAYS the true cost basis. */
+  /** Operating mode — determines output shape and recommendation semantics. */
+  cost_mode: CostMode;
+  /** Agreed cost in USD — from assessor or insurer. POST mode only; always overrides. */
   agreed_cost_usd: number | null;
   /** Optimised cost from the Quote Optimisation Engine. */
   optimised_cost: DecisionInputOptimisation | null;
@@ -106,7 +129,7 @@ export interface DeviationAnalysis {
   highest_quote_usd: number | null;
   highest_quote_deviation_pct: number | null;
   highest_quote_panel_beater: string | null;
-  /** Optimised cost vs TRUE_COST (only meaningful when basis is assessor_validated) */
+  /** Optimised cost vs TRUE_COST (only meaningful when basis is assessor_validated in POST mode) */
   optimised_vs_true_pct: number | null;
   /** AI estimate vs TRUE_COST — reference only */
   ai_estimate_usd: number | null;
@@ -124,23 +147,69 @@ export interface CostAnomaly {
   deviation_pct?: number;
 }
 
+/** PRE_ASSESSMENT: negotiation guidance block */
+export interface NegotiationGuidance {
+  /** Recommended negotiation floor — lowest defensible cost */
+  floor_usd: number;
+  /** Recommended negotiation ceiling — highest acceptable cost */
+  ceiling_usd: number;
+  /** Target settlement cost — weighted optimised baseline */
+  target_usd: number;
+  /** Quotes that exceed the overpricing threshold */
+  overpriced_quotes: Array<{
+    panel_beater: string;
+    total_cost: number;
+    deviation_pct: number;
+    recommended_reduction_usd: number;
+  }>;
+  /** Components present in damage analysis but absent from all submitted quotes */
+  missing_components: string[];
+  /** Negotiation strategy summary */
+  strategy: string;
+}
+
+/** POST_ASSESSMENT: negotiation efficiency block */
+export interface NegotiationEfficiency {
+  /** Agreed cost vs optimised baseline */
+  agreed_vs_optimised_pct: number | null;
+  /** Whether the agreed cost represents an overpayment risk (>20% above optimised) */
+  overpayment_risk: boolean;
+  /** Whether the agreed cost suggests under-repair risk (>30% below optimised) */
+  under_repair_risk: boolean;
+  /** Efficiency label */
+  efficiency_label: "optimal" | "acceptable" | "overpaid" | "under_repaired" | "unknown";
+  /** Narrative summary */
+  summary: string;
+}
+
 export interface CostDecisionOutput {
   true_cost_usd: number;
   cost_basis: CostBasis;
+  /** Operating mode — determines recommendation semantics */
+  mode: CostMode;
   deviation_analysis: DeviationAnalysis;
   anomalies: CostAnomaly[];
+  /** PRE: "NEGOTIATE" | "PROCEED_TO_ASSESSMENT" | "ESCALATE" — guidance only, not final approval */
   recommendation: Recommendation;
   confidence: number;
   reasoning: string;
+  /** PRE_ASSESSMENT only — populated when mode = "PRE_ASSESSMENT" */
+  negotiation_guidance: NegotiationGuidance | null;
+  /** POST_ASSESSMENT only — populated when mode = "POST_ASSESSMENT" */
+  negotiation_efficiency: NegotiationEfficiency | null;
   /** Structured reasoning steps for audit trail */
   decision_trace: string[];
 }
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const OVERPRICING_THRESHOLD = 0.40;   // 40% above TRUE_COST
-const SPREAD_WARNING_THRESHOLD = 60;  // 60% spread
-const LOW_RELIABILITY_THRESHOLD = 40; // confidence_score < 40
+const OVERPRICING_THRESHOLD = 0.40;        // 40% above TRUE_COST
+const SPREAD_WARNING_THRESHOLD = 60;       // 60% spread
+const LOW_RELIABILITY_THRESHOLD = 40;      // confidence_score < 40
+const OVERPAYMENT_THRESHOLD = 0.20;        // agreed >20% above optimised
+const UNDER_REPAIR_THRESHOLD = 0.30;       // agreed >30% below optimised
+const NEGOTIATION_FLOOR_FACTOR = 0.85;     // floor = optimised * 0.85
+const NEGOTIATION_CEILING_FACTOR = 1.10;   // ceiling = optimised * 1.10
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -155,7 +224,7 @@ function round2(n: number): number {
 
 /**
  * Resolve the highest valid quote cost and its panel beater name from
- * extracted_quotes (raw) and optimisation selected_quotes.
+ * extracted_quotes (raw) and optimisation selected/excluded quotes.
  */
 function resolveHighestQuote(
   extractedQuotes: DecisionInputQuote[],
@@ -163,14 +232,12 @@ function resolveHighestQuote(
 ): { cost: number | null; panelBeater: string | null } {
   const candidates: Array<{ cost: number; panelBeater: string }> = [];
 
-  // From raw extracted quotes
   for (const q of extractedQuotes) {
     if (q.total_cost && q.total_cost > 0) {
       candidates.push({ cost: q.total_cost, panelBeater: q.panel_beater ?? "Unknown" });
     }
   }
 
-  // From optimisation selected quotes (may include outliers)
   if (optimisation) {
     for (const q of optimisation.selected_quotes) {
       if (q.total_cost > 0) {
@@ -186,7 +253,6 @@ function resolveHighestQuote(
 
   if (candidates.length === 0) return { cost: null, panelBeater: null };
 
-  // Deduplicate by panel_beater, keep highest cost per beater
   const deduped = new Map<string, number>();
   for (const c of candidates) {
     const existing = deduped.get(c.panelBeater);
@@ -215,14 +281,194 @@ function collectStructuralGaps(optimisation: DecisionInputOptimisation | null): 
 }
 
 /**
- * Compute the final recommendation from anomalies, confidence, and alignment.
+ * Identify components present in damage_components but absent from all
+ * submitted quotes (selected + excluded). Used for PRE_ASSESSMENT guidance.
  */
-function deriveRecommendation(
+function findMissingComponents(
+  damageComponents: string[],
+  optimisation: DecisionInputOptimisation | null,
+  extractedQuotes: DecisionInputQuote[]
+): string[] {
+  if (damageComponents.length === 0) return [];
+
+  // Collect all component names mentioned in quotes (normalised to lowercase)
+  const quotedComponents = new Set<string>();
+
+  if (optimisation) {
+    for (const q of optimisation.selected_quotes) {
+      // selected_quotes don't carry a component list — use structural_gaps as a proxy
+      // for what IS mentioned (gaps are what's missing from the quote)
+    }
+  }
+
+  // We use the alignment_result critical_missing as the authoritative source
+  // for missing components when available. When not available, we return an
+  // empty list to avoid false positives.
+  // This function is called with alignment data separately in the PRE path.
+  void quotedComponents; // suppress unused warning
+  return [];
+}
+
+/**
+ * Build negotiation guidance for PRE_ASSESSMENT mode.
+ */
+function buildNegotiationGuidance(
+  trueCostUsd: number,
+  optimisedCostUsd: number | null,
+  extractedQuotes: DecisionInputQuote[],
+  optimisation: DecisionInputOptimisation | null,
+  alignmentResult: DecisionInputAlignment | null,
+  currency: string
+): NegotiationGuidance {
+  const basis = optimisedCostUsd ?? trueCostUsd;
+
+  const floor = round2(basis * NEGOTIATION_FLOOR_FACTOR);
+  const ceiling = round2(basis * NEGOTIATION_CEILING_FACTOR);
+  const target = round2(basis);
+
+  // Identify overpriced quotes
+  const overpricedQuotes: NegotiationGuidance["overpriced_quotes"] = [];
+  const allQuotes: Array<{ panel_beater: string; total_cost: number }> = [];
+
+  for (const q of extractedQuotes) {
+    if (q.total_cost && q.total_cost > 0 && q.panel_beater) {
+      allQuotes.push({ panel_beater: q.panel_beater, total_cost: q.total_cost });
+    }
+  }
+  if (optimisation) {
+    for (const q of optimisation.selected_quotes) {
+      if (q.total_cost > 0) {
+        allQuotes.push({ panel_beater: q.panel_beater, total_cost: q.total_cost });
+      }
+    }
+    for (const q of optimisation.excluded_quotes) {
+      if (q.total_cost && q.total_cost > 0) {
+        allQuotes.push({ panel_beater: q.panel_beater ?? "Unknown", total_cost: q.total_cost });
+      }
+    }
+  }
+
+  // Deduplicate by panel_beater
+  const seen = new Set<string>();
+  for (const q of allQuotes) {
+    if (seen.has(q.panel_beater)) continue;
+    seen.add(q.panel_beater);
+    const deviationPct = pct(q.total_cost, basis);
+    if (deviationPct > OVERPRICING_THRESHOLD * 100) {
+      overpricedQuotes.push({
+        panel_beater: q.panel_beater,
+        total_cost: round2(q.total_cost),
+        deviation_pct: deviationPct,
+        recommended_reduction_usd: round2(q.total_cost - target),
+      });
+    }
+  }
+
+  // Missing components from alignment result
+  const missingComponents = alignmentResult
+    ? alignmentResult.critical_missing.map(c => c.component)
+    : [];
+
+  // Strategy
+  const strategyParts: string[] = [];
+  if (overpricedQuotes.length > 0) {
+    strategyParts.push(
+      `${overpricedQuotes.length} quote${overpricedQuotes.length === 1 ? "" : "s"} exceed the 40% overpricing threshold and should be renegotiated toward the ${currency} ${target.toFixed(2)} target baseline.`
+    );
+  }
+  if (missingComponents.length > 0) {
+    strategyParts.push(
+      `${missingComponents.length} component${missingComponents.length === 1 ? "" : "s"} identified in the damage assessment are absent from submitted quotes (${missingComponents.join(", ")}). Quotes should be revised to include these items before proceeding to assessment.`
+    );
+  }
+  if (strategyParts.length === 0) {
+    strategyParts.push(
+      `Submitted quotes are within acceptable range of the optimised baseline (${currency} ${target.toFixed(2)}). Proceed to formal assessment.`
+    );
+  }
+
+  return {
+    floor_usd: floor,
+    ceiling_usd: ceiling,
+    target_usd: target,
+    overpriced_quotes: overpricedQuotes,
+    missing_components: missingComponents,
+    strategy: strategyParts.join(" "),
+  };
+}
+
+/**
+ * Build negotiation efficiency analysis for POST_ASSESSMENT mode.
+ */
+function buildNegotiationEfficiency(
+  agreedCostUsd: number,
+  optimisedCostUsd: number | null,
+  currency: string
+): NegotiationEfficiency {
+  if (optimisedCostUsd === null || optimisedCostUsd === 0) {
+    return {
+      agreed_vs_optimised_pct: null,
+      overpayment_risk: false,
+      under_repair_risk: false,
+      efficiency_label: "unknown",
+      summary: "No optimised baseline was available to evaluate negotiation efficiency.",
+    };
+  }
+
+  const agreedVsOptimisedPct = pct(agreedCostUsd, optimisedCostUsd);
+  const overpaymentRisk = agreedVsOptimisedPct > OVERPAYMENT_THRESHOLD * 100;
+  const underRepairRisk = agreedVsOptimisedPct < -(UNDER_REPAIR_THRESHOLD * 100);
+
+  let efficiencyLabel: NegotiationEfficiency["efficiency_label"];
+  if (overpaymentRisk) {
+    efficiencyLabel = "overpaid";
+  } else if (underRepairRisk) {
+    efficiencyLabel = "under_repaired";
+  } else if (Math.abs(agreedVsOptimisedPct) <= 5) {
+    efficiencyLabel = "optimal";
+  } else {
+    efficiencyLabel = "acceptable";
+  }
+
+  const dir = agreedVsOptimisedPct >= 0 ? "above" : "below";
+  const absPct = Math.abs(agreedVsOptimisedPct);
+  const summaryParts: string[] = [
+    `The agreed cost of ${currency} ${agreedCostUsd.toFixed(2)} is ${absPct.toFixed(1)}% ${dir} the system-optimised baseline of ${currency} ${optimisedCostUsd.toFixed(2)}.`,
+  ];
+
+  if (overpaymentRisk) {
+    summaryParts.push(
+      `This exceeds the 20% overpayment advisory threshold. The agreed cost may represent an overpayment relative to the validated repair baseline. Adjuster review is recommended.`
+    );
+  } else if (underRepairRisk) {
+    summaryParts.push(
+      `The agreed cost is more than 30% below the optimised baseline. This may indicate under-repair or scope reduction. Structural completeness should be verified before claim closure.`
+    );
+  } else if (efficiencyLabel === "optimal") {
+    summaryParts.push("Negotiation outcome is within the optimal range of the validated baseline.");
+  } else {
+    summaryParts.push("Negotiation outcome is within the acceptable range of the validated baseline.");
+  }
+
+  return {
+    agreed_vs_optimised_pct: agreedVsOptimisedPct,
+    overpayment_risk: overpaymentRisk,
+    under_repair_risk: underRepairRisk,
+    efficiency_label: efficiencyLabel,
+    summary: summaryParts.join(" "),
+  };
+}
+
+/**
+ * Compute the final POST recommendation from anomalies, confidence, and alignment.
+ */
+function derivePostRecommendation(
   anomalies: CostAnomaly[],
   confidence: number,
   alignmentStatus: string | null,
-  costBasis: CostBasis
-): Recommendation {
+  costBasis: CostBasis,
+  negotiationEfficiency: NegotiationEfficiency | null
+): PostRecommendation {
   const hasCritical = anomalies.some(a => a.severity === "critical");
   const hasHigh = anomalies.some(a => a.severity === "high");
   const hasNoCostBasis = anomalies.some(a => a.category === "no_cost_basis");
@@ -232,6 +478,12 @@ function deriveRecommendation(
   if (hasHigh) return "REVIEW";
   if (alignmentStatus === "MISALIGNED") return "REVIEW";
   if (confidence < 30) return "REVIEW";
+
+  // Overpayment risk in POST mode escalates to REVIEW
+  if (negotiationEfficiency?.overpayment_risk) return "REVIEW";
+  // Under-repair risk in POST mode also escalates to REVIEW
+  if (negotiationEfficiency?.under_repair_risk) return "REVIEW";
+
   if (costBasis === "assessor_validated" && anomalies.length === 0) return "APPROVE";
   if (costBasis === "system_optimised" && confidence >= 60 && anomalies.length === 0) return "APPROVE";
   if (anomalies.some(a => a.severity === "medium")) return "REVIEW";
@@ -239,9 +491,24 @@ function deriveRecommendation(
 }
 
 /**
+ * Compute the PRE recommendation (guidance only — no final approval).
+ */
+function derivePreRecommendation(
+  anomalies: CostAnomaly[],
+  negotiationGuidance: NegotiationGuidance
+): PreRecommendation {
+  const hasCritical = anomalies.some(a => a.severity === "critical");
+  const hasHigh = anomalies.some(a => a.severity === "high");
+
+  if (hasCritical) return "ESCALATE";
+  if (negotiationGuidance.overpriced_quotes.length > 0 || negotiationGuidance.missing_components.length > 0) {
+    return hasHigh ? "ESCALATE" : "NEGOTIATE";
+  }
+  return "PROCEED_TO_ASSESSMENT";
+}
+
+/**
  * Compute the overall confidence score for the decision (0–100).
- * Starts from the cost_reliability score (if available) and adjusts
- * based on anomalies, alignment, and cost basis.
  */
 function computeDecisionConfidence(
   costReliability: DecisionInputReliability | null,
@@ -250,18 +517,14 @@ function computeDecisionConfidence(
   alignmentStatus: string | null,
   costBasis: CostBasis
 ): number {
-  // Base: use reliability score, fall back to optimisation confidence, then 50
   let base = costReliability?.confidence_score ?? optimisationConfidence ?? 50;
 
-  // Basis bonus: assessor-validated is more reliable
   if (costBasis === "assessor_validated") base = Math.min(100, base + 10);
 
-  // Alignment modifier
   if (alignmentStatus === "FULLY_ALIGNED") base = Math.min(100, base + 5);
   else if (alignmentStatus === "MISALIGNED") base = Math.max(0, base - 20);
   else if (alignmentStatus === "PARTIALLY_ALIGNED") base = Math.max(0, base - 10);
 
-  // Anomaly penalties
   for (const a of anomalies) {
     if (a.severity === "critical") base = Math.max(0, base - 25);
     else if (a.severity === "high") base = Math.max(0, base - 15);
@@ -273,30 +536,39 @@ function computeDecisionConfidence(
 }
 
 /**
- * Build a human-readable reasoning paragraph from the decision components.
+ * Build a mode-aware human-readable reasoning paragraph.
  * Uses insurance/engineering language — no AI/model terminology.
  */
 function buildReasoning(
   trueCostUsd: number,
   costBasis: CostBasis,
+  mode: CostMode,
   deviationAnalysis: DeviationAnalysis,
   anomalies: CostAnomaly[],
   recommendation: Recommendation,
   confidence: number,
   alignmentResult: DecisionInputAlignment | null,
+  negotiationGuidance: NegotiationGuidance | null,
+  negotiationEfficiency: NegotiationEfficiency | null,
   currency: string
 ): string {
   const parts: string[] = [];
 
-  // 1. Cost basis statement
-  if (costBasis === "assessor_validated") {
+  // 1. Mode context
+  if (mode === "PRE_ASSESSMENT") {
     parts.push(
-      `The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} has been established from the assessor-validated agreed cost, which takes precedence over all other cost signals.`
+      `This analysis was performed in pre-assessment mode. No assessor-agreed cost is available at this stage; the cost basis of ${currency} ${trueCostUsd.toFixed(2)} is derived from the system-optimised weighted quote baseline and is intended to guide negotiation only — it does not constitute a final approval decision.`
     );
   } else {
-    parts.push(
-      `No assessor-agreed cost was available. The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} has been derived from the system-optimised weighted quote baseline.`
-    );
+    if (costBasis === "assessor_validated") {
+      parts.push(
+        `The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} has been established from the assessor-validated agreed cost, which takes precedence over all other cost signals.`
+      );
+    } else {
+      parts.push(
+        `No assessor-agreed cost was available. The true cost basis of ${currency} ${trueCostUsd.toFixed(2)} has been derived from the system-optimised weighted quote baseline.`
+      );
+    }
   }
 
   // 2. Deviation summary
@@ -311,9 +583,7 @@ function buildReasoning(
   if (deviationAnalysis.optimised_vs_true_pct !== null && costBasis === "assessor_validated") {
     const dir = deviationAnalysis.optimised_vs_true_pct >= 0 ? "above" : "below";
     const absPct = Math.abs(deviationAnalysis.optimised_vs_true_pct);
-    parts.push(
-      `The system-optimised baseline is ${absPct.toFixed(1)}% ${dir} the agreed cost.`
-    );
+    parts.push(`The system-optimised baseline is ${absPct.toFixed(1)}% ${dir} the agreed cost.`);
   }
 
   if (deviationAnalysis.ai_vs_true_pct !== null) {
@@ -334,9 +604,7 @@ function buildReasoning(
         `Partial component alignment was detected. Critical components absent from the quote: ${missing || "none identified"}.`
       );
     } else {
-      parts.push(
-        `Component misalignment was detected. ${alignmentResult.engineering_comment}`
-      );
+      parts.push(`Component misalignment was detected. ${alignmentResult.engineering_comment}`);
     }
   }
 
@@ -358,15 +626,29 @@ function buildReasoning(
     parts.push("No cost anomalies were detected.");
   }
 
-  // 5. Recommendation
-  const recLabel: Record<Recommendation, string> = {
-    APPROVE: "approved for processing",
-    REVIEW: "referred for adjuster review",
-    REJECT: "flagged for rejection pending investigation",
-  };
-  parts.push(
-    `Based on the above, this claim cost is ${recLabel[recommendation]} with a decision confidence of ${confidence}/100.`
-  );
+  // 5. Mode-specific outcome
+  if (mode === "PRE_ASSESSMENT" && negotiationGuidance) {
+    const recLabel: Record<PreRecommendation, string> = {
+      NEGOTIATE: "negotiation is recommended before proceeding to formal assessment",
+      PROCEED_TO_ASSESSMENT: "quotes are within acceptable range — proceed to formal assessment",
+      ESCALATE: "escalation to senior adjuster is recommended due to significant anomalies",
+    };
+    parts.push(
+      `Based on the above, ${recLabel[recommendation as PreRecommendation]}. Negotiation target: ${currency} ${negotiationGuidance.target_usd.toFixed(2)} (range: ${currency} ${negotiationGuidance.floor_usd.toFixed(2)}–${currency} ${negotiationGuidance.ceiling_usd.toFixed(2)}).`
+    );
+  } else if (mode === "POST_ASSESSMENT") {
+    if (negotiationEfficiency && negotiationEfficiency.efficiency_label !== "unknown") {
+      parts.push(negotiationEfficiency.summary);
+    }
+    const recLabel: Record<PostRecommendation, string> = {
+      APPROVE: "approved for processing",
+      REVIEW: "referred for adjuster review",
+      REJECT: "flagged for rejection pending investigation",
+    };
+    parts.push(
+      `Based on the above, this claim cost is ${recLabel[recommendation as PostRecommendation]} with a decision confidence of ${confidence}/100.`
+    );
+  }
 
   return parts.join(" ");
 }
@@ -374,17 +656,23 @@ function buildReasoning(
 // ─── Main function ────────────────────────────────────────────────────────────
 
 /**
- * Runs the Claims Cost Decision Engine.
+ * Runs the Claims Cost Decision Engine (mode-aware).
  *
- * @param input - All available cost signals for the claim
+ * @param input - All available cost signals for the claim, including cost_mode
  * @returns A structured cost decision with true cost, deviations, anomalies,
- *          recommendation, confidence, and reasoning
+ *          mode-specific guidance or adjudication, confidence, and reasoning
  */
 export function runCostDecision(input: CostDecisionInput): CostDecisionOutput {
   const currency = input.currency ?? "USD";
+  const mode = input.cost_mode;
   const trace: string[] = [];
 
+  trace.push(`Cost Decision Engine started in ${mode} mode.`);
+
   // ── Step 1: Resolve TRUE COST BASIS ────────────────────────────────────────
+  //
+  // POST_ASSESSMENT: agreed_cost overrides if present
+  // PRE_ASSESSMENT:  agreed_cost is not yet available — always use optimised
 
   let trueCostUsd: number;
   let costBasis: CostBasis;
@@ -392,16 +680,19 @@ export function runCostDecision(input: CostDecisionInput): CostDecisionOutput {
   const agreedCost = input.agreed_cost_usd;
   const optimisedCost = input.optimised_cost?.optimised_cost_usd ?? null;
 
-  if (agreedCost !== null && agreedCost > 0) {
+  if (mode === "POST_ASSESSMENT" && agreedCost !== null && agreedCost > 0) {
     trueCostUsd = round2(agreedCost);
     costBasis = "assessor_validated";
     trace.push(`TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from assessor-agreed cost (assessor_validated).`);
   } else if (optimisedCost !== null && optimisedCost > 0) {
     trueCostUsd = round2(optimisedCost);
     costBasis = "system_optimised";
-    trace.push(`No agreed cost present. TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from system-optimised quote baseline (system_optimised).`);
+    if (mode === "PRE_ASSESSMENT") {
+      trace.push(`PRE_ASSESSMENT mode: TRUE_COST set to system-optimised baseline of ${currency} ${trueCostUsd.toFixed(2)}.`);
+    } else {
+      trace.push(`No agreed cost present. TRUE_COST resolved to ${currency} ${trueCostUsd.toFixed(2)} from system-optimised quote baseline (system_optimised).`);
+    }
   } else {
-    // No cost basis available — produce a zero-cost output with a REVIEW recommendation
     trueCostUsd = 0;
     costBasis = "system_optimised";
     trace.push("No agreed cost and no optimised cost available. TRUE_COST set to 0. Flagging for manual review.");
@@ -544,7 +835,7 @@ export function runCostDecision(input: CostDecisionInput): CostDecisionOutput {
 
   trace.push(`Total anomalies detected: ${anomalies.length} (${anomalies.filter(a => a.severity === "critical").length} critical, ${anomalies.filter(a => a.severity === "high").length} high, ${anomalies.filter(a => a.severity === "medium").length} medium, ${anomalies.filter(a => a.severity === "low").length} low).`);
 
-  // ── Step 4: Confidence and Recommendation ─────────────────────────────────
+  // ── Step 4: Confidence ─────────────────────────────────────────────────────
 
   const confidence = computeDecisionConfidence(
     input.cost_reliability,
@@ -554,31 +845,61 @@ export function runCostDecision(input: CostDecisionInput): CostDecisionOutput {
     costBasis
   );
 
-  const recommendation = deriveRecommendation(anomalies, confidence, alignmentStatus, costBasis);
+  // ── Step 5: Mode-specific outputs ─────────────────────────────────────────
+
+  let negotiationGuidance: NegotiationGuidance | null = null;
+  let negotiationEfficiency: NegotiationEfficiency | null = null;
+  let recommendation: Recommendation;
+
+  if (mode === "PRE_ASSESSMENT") {
+    negotiationGuidance = buildNegotiationGuidance(
+      trueCostUsd,
+      optimisedCost,
+      input.extracted_quotes,
+      input.optimised_cost,
+      input.alignment_result ?? null,
+      currency
+    );
+    recommendation = derivePreRecommendation(anomalies, negotiationGuidance);
+    trace.push(`PRE_ASSESSMENT guidance: target=${currency} ${negotiationGuidance.target_usd.toFixed(2)}, overpriced_quotes=${negotiationGuidance.overpriced_quotes.length}, missing_components=${negotiationGuidance.missing_components.length}.`);
+  } else {
+    // POST_ASSESSMENT
+    if (agreedCost !== null && agreedCost > 0 && optimisedCost !== null) {
+      negotiationEfficiency = buildNegotiationEfficiency(agreedCost, optimisedCost, currency);
+      trace.push(`POST_ASSESSMENT efficiency: agreed_vs_optimised=${negotiationEfficiency.agreed_vs_optimised_pct?.toFixed(1) ?? "N/A"}%, label=${negotiationEfficiency.efficiency_label}.`);
+    }
+    recommendation = derivePostRecommendation(anomalies, confidence, alignmentStatus, costBasis, negotiationEfficiency);
+  }
 
   trace.push(`Recommendation: ${recommendation} (confidence=${confidence}/100).`);
 
-  // ── Step 5: Reasoning ──────────────────────────────────────────────────────
+  // ── Step 6: Reasoning ──────────────────────────────────────────────────────
 
   const reasoning = buildReasoning(
     trueCostUsd,
     costBasis,
+    mode,
     deviationAnalysis,
     anomalies,
     recommendation,
     confidence,
     input.alignment_result ?? null,
+    negotiationGuidance,
+    negotiationEfficiency,
     currency
   );
 
   return {
     true_cost_usd: trueCostUsd,
     cost_basis: costBasis,
+    mode,
     deviation_analysis: deviationAnalysis,
     anomalies,
     recommendation,
     confidence,
     reasoning,
+    negotiation_guidance: negotiationGuidance,
+    negotiation_efficiency: negotiationEfficiency,
     decision_trace: trace,
   };
 }

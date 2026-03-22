@@ -617,6 +617,7 @@ export interface Stage9Output {
   costDecision: {
     true_cost_usd: number;
     cost_basis: "assessor_validated" | "system_optimised";
+    mode: "PRE_ASSESSMENT" | "POST_ASSESSMENT";
     deviation_analysis: {
       highest_quote_usd: number | null;
       highest_quote_deviation_pct: number | null;
@@ -634,10 +635,25 @@ export interface Stage9Output {
       affected_components?: string[];
       deviation_pct?: number;
     }>;
-    recommendation: "APPROVE" | "REVIEW" | "REJECT";
+    recommendation: "APPROVE" | "REVIEW" | "REJECT" | "NEGOTIATE" | "PROCEED_TO_ASSESSMENT" | "ESCALATE";
     confidence: number;
     reasoning: string;
     decision_trace: string[];
+    negotiation_guidance: {
+      target_usd: number;
+      floor_usd: number;
+      ceiling_usd: number;
+      overpriced_quotes: Array<{ panel_beater: string; total_cost: number; deviation_pct: number; recommended_reduction_usd: number }>;
+      missing_components: string[];
+      strategy: string;
+    } | null;
+    negotiation_efficiency: {
+      agreed_vs_optimised_pct: number | null;
+      efficiency_label: "optimal" | "acceptable" | "overpaid" | "under_repaired" | "unknown";
+      overpayment_risk: boolean;
+      under_repair_risk: boolean;
+      summary: string;
+    } | null;
   } | null;
   /** Stage 9b: Quote Optimisation Engine output — weighted baseline cost from multiple quotes */
   quoteOptimisation: {
