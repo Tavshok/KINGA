@@ -70,6 +70,7 @@ export type DocumentType =
 
 export type CanonicalIncidentType =
   | "collision"
+  | "animal_strike"
   | "theft"
   | "vandalism"
   | "flood"
@@ -519,6 +520,8 @@ export interface Stage7Output {
   };
   /** Whether physics engine was actually run (false for non-collision) */
   physicsExecuted: boolean;
+  /** Animal strike physics result — populated when incident_type = animal_strike */
+  animalStrikePhysics?: import('./animalStrikePhysicsEngine').AnimalStrikePhysicsOutput | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

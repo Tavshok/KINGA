@@ -153,10 +153,92 @@ export async function runPhysicsStage(
   // "unknown" often means classification failed but the claim is still a physical damage event.
   // Non-physical types (theft, fire, flood, vandalism) are explicitly excluded.
   const incidentType = claimRecord.accidentDetails.incidentType;
+  const isAnimalStrike = incidentType === "animal_strike";
   const isPhysicalDamage = incidentType === "collision" || incidentType === "unknown";
   const assumptions: Assumption[] = [];
   const recoveryActions: RecoveryAction[] = [];
-  if (!isPhysicalDamage) {
+
+  // ── ANIMAL STRIKE ROUTING ──────────────────────────────────────────────────
+  // When incident type is confirmed as animal_strike, use the dedicated
+  // Animal Strike Physics Engine instead of the vehicle-collision model.
+  // This is the direct fix for the Mazda BT-50 audit failure.
+  if (isAnimalStrike) {
+    ctx.log("Stage 7", "Animal strike detected — routing to Animal Strike Physics Engine");
+    try {
+      const { runAnimalStrikePhysics } = await import("./animalStrikePhysicsEngine");
+      const speedKmh = claimRecord.accidentDetails.estimatedSpeedKmh || 60;
+      const damageComponents = damageAnalysis.damagedParts.map(p => p.name);
+      const hasBullbar: "true" | "false" | "unknown" = "unknown";
+
+      // Infer animal category from narrative
+      const narrative = (claimRecord.accidentDetails.description || "").toLowerCase();
+      let animalCategory: import('./animalStrikePhysicsEngine').AnimalCategory = "unknown";
+      if (narrative.includes("cow") || narrative.includes("cattle") || narrative.includes("bull")) animalCategory = "cattle";
+      else if (narrative.includes("horse")) animalCategory = "horse";
+      else if (narrative.includes("donkey")) animalCategory = "donkey";
+      else if (narrative.includes("goat")) animalCategory = "goat";
+      else if (narrative.includes("sheep")) animalCategory = "sheep";
+      else if (narrative.includes("pig")) animalCategory = "pig";
+      else if (narrative.includes("dog")) animalCategory = "dog";
+
+      const animalResult = runAnimalStrikePhysics({
+        speed_kmh: speedKmh,
+        vehicle_type: claimRecord.vehicle.bodyType,
+        damage_components: damageComponents,
+        presence_of_bullbar: hasBullbar as any,
+        animal_category: animalCategory,
+        airbags_deployed: claimRecord.accidentDetails.airbagDeployment === true,
+        seatbelts_triggered: false,
+      });
+
+      // Map animal strike output to Stage7Output format
+      const animalOutput: Stage7Output = {
+        impactForceKn: animalResult.impact_force_kn,
+        impactVector: {
+          direction: claimRecord.accidentDetails.collisionDirection,
+          magnitude: animalResult.impact_force_kn * 1000,
+          angle: 0,
+        },
+        energyDistribution: {
+          kineticEnergyJ: animalResult.energy_absorbed_kj * 1000,
+          energyDissipatedJ: animalResult.energy_absorbed_kj * 1000,
+          energyDissipatedKj: animalResult.energy_absorbed_kj,
+        },
+        estimatedSpeedKmh: speedKmh,
+        deltaVKmh: animalResult.delta_v_kmh,
+        decelerationG: animalResult.peak_deceleration_g,
+        accidentSeverity: animalResult.impact_severity as any,
+        accidentReconstructionSummary: animalResult.reasoning,
+        damageConsistencyScore: animalResult.plausibility_score,
+        latentDamageProbability: {
+          engine: animalResult.impact_severity === "catastrophic" ? 0.4 : animalResult.impact_severity === "severe" ? 0.25 : 0.1,
+          transmission: 0.05,
+          suspension: animalResult.impact_severity === "catastrophic" ? 0.3 : 0.1,
+          frame: animalResult.impact_severity === "catastrophic" ? 0.35 : animalResult.impact_severity === "severe" ? 0.15 : 0.05,
+          electrical: 0.1,
+        },
+        physicsExecuted: true,
+        animalStrikePhysics: animalResult,
+      };
+
+      ctx.log("Stage 7", `Animal strike physics complete. Severity: ${animalResult.impact_severity}, Delta-V: ${animalResult.delta_v_kmh.toFixed(1)} km/h, Force: ${animalResult.impact_force_kn.toFixed(1)} kN, Plausibility: ${animalResult.plausibility_score}`);
+
+      return {
+        status: "success",
+        data: animalOutput,
+        durationMs: Date.now() - start,
+        savedToDb: false,
+        assumptions: [],
+        recoveryActions: [],
+        degraded: false,
+      };
+    } catch (err) {
+      ctx.log("Stage 7", `Animal strike physics engine failed: ${String(err)} — falling through to vehicle collision engine`);
+      // Fall through to standard collision physics as a safety net
+    }
+  }
+
+  if (!isPhysicalDamage && !isAnimalStrike) {
     ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${incidentType}" (non-physical damage event)`);
     // Stage 26: apply defensive contract — skipped output must still be complete
     const skippedOutput = ensurePhysicsContract(buildDefaultPhysicsOutput(false), "engine_skipped");
