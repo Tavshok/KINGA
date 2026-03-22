@@ -11,7 +11,7 @@
  *   7. Actions Required
  */
 import { useMemo } from "react";
-import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
@@ -104,6 +104,11 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const { fmt } = useTenantCurrency();
 
   const physics = useMemo(() => safeParse(aiAssessment?.physicsAnalysis), [aiAssessment?.physicsAnalysis]);
+  const damagePattern = useMemo(() => {
+    // damagePatternValidation is nested inside physicsAnalysis
+    const p = safeParse(aiAssessment?.physicsAnalysis);
+    return p?.damagePatternValidation ?? null;
+  }, [aiAssessment?.physicsAnalysis]);
   const costIntel = useMemo(() => safeParse(aiAssessment?.costIntelligenceJson), [aiAssessment?.costIntelligenceJson]);
   const fraudBreakdown = useMemo(() => safeParse(aiAssessment?.fraudScoreBreakdownJson), [aiAssessment?.fraudScoreBreakdownJson]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
@@ -392,8 +397,139 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         )}
       </Section>
 
-      {/* ── 4. COST INTELLIGENCE ─────────────────────────────────────────────── */}
-      <Section icon={<DollarSign className="h-4 w-4" />} title="Cost Intelligence" subtitle="AI estimate vs. agreed cost vs. market value">
+      {/* ── 3b. DAMAGE PATTERN VALIDATION ─────────────────────────────────────────────────── */}
+      {damagePattern ? (
+        <Section
+          icon={<Layers className="h-4 w-4" />}
+          title="Damage Pattern Validation"
+          subtitle={`Scenario: ${(physics?.animalStrikePhysics ? 'animal_strike' : (safeParse(aiAssessment?.claimRecord)?.accidentDetails?.incidentType ?? 'unknown')).replace(/_/g, ' ')} — ${damagePattern.pattern_match} match`}
+        >
+          {/* Match strength header */}
+          <div className="flex items-center gap-3 mb-4">
+            {damagePattern.pattern_match === 'STRONG' && <ShieldCheck className="h-8 w-8 text-emerald-400 flex-shrink-0" />}
+            {damagePattern.pattern_match === 'MODERATE' && <ShieldCheck className="h-8 w-8 text-amber-400 flex-shrink-0" />}
+            {damagePattern.pattern_match === 'WEAK' && <ShieldAlert className="h-8 w-8 text-orange-400 flex-shrink-0" />}
+            {damagePattern.pattern_match === 'NONE' && <ShieldX className="h-8 w-8 text-red-400 flex-shrink-0" />}
+            <div>
+              <div className="flex items-center gap-2">
+                <span className={`text-2xl font-black ${
+                  damagePattern.pattern_match === 'STRONG' ? 'text-emerald-400' :
+                  damagePattern.pattern_match === 'MODERATE' ? 'text-amber-400' :
+                  damagePattern.pattern_match === 'WEAK' ? 'text-orange-400' : 'text-red-400'
+                }`}>{damagePattern.pattern_match}</span>
+                <span className="text-xs text-muted-foreground">pattern match</span>
+              </div>
+              <div className="flex items-center gap-2 mt-1">
+                <div className="w-32 h-2 rounded-full bg-border/30">
+                  <div
+                    className="h-2 rounded-full"
+                    style={{
+                      width: `${damagePattern.confidence}%`,
+                      background: damagePattern.confidence >= 70 ? '#4ade80' : damagePattern.confidence >= 40 ? '#fbbf24' : '#f97316'
+                    }}
+                  />
+                </div>
+                <span className="text-xs text-muted-foreground">{damagePattern.confidence}/100 confidence</span>
+              </div>
+            </div>
+            {/* Structural damage badge */}
+            {damagePattern.structural_damage_detected && (
+              <span className="ml-auto text-xs px-2 py-1 rounded border border-red-400/40 text-red-400 font-semibold flex-shrink-0">
+                STRUCTURAL
+              </span>
+            )}
+          </div>
+
+          {/* Coverage metrics */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="rounded-lg p-3 border border-border/40" style={{ background: 'oklch(0.22 0.02 260 / 0.5)' }}>
+              <p className="text-xs text-muted-foreground mb-1">Primary Coverage</p>
+              <div className="flex items-end gap-1">
+                <span className="text-xl font-bold text-foreground">{damagePattern.validation_detail.primary_coverage_pct}%</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-border/30 mt-1">
+                <div className="h-1.5 rounded-full" style={{ width: `${damagePattern.validation_detail.primary_coverage_pct}%`, background: '#3b82f6' }} />
+              </div>
+              {damagePattern.validation_detail.matched_primary.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1 truncate">{damagePattern.validation_detail.matched_primary.slice(0, 3).join(', ')}</p>
+              )}
+            </div>
+            <div className="rounded-lg p-3 border border-border/40" style={{ background: 'oklch(0.22 0.02 260 / 0.5)' }}>
+              <p className="text-xs text-muted-foreground mb-1">Secondary Coverage</p>
+              <div className="flex items-end gap-1">
+                <span className="text-xl font-bold text-foreground">{damagePattern.validation_detail.secondary_coverage_pct}%</span>
+              </div>
+              <div className="w-full h-1.5 rounded-full bg-border/30 mt-1">
+                <div className="h-1.5 rounded-full" style={{ width: `${damagePattern.validation_detail.secondary_coverage_pct}%`, background: '#a855f7' }} />
+              </div>
+              {damagePattern.validation_detail.matched_secondary.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-1 truncate">{damagePattern.validation_detail.matched_secondary.slice(0, 3).join(', ')}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Image contradiction alert */}
+          {damagePattern.validation_detail.image_contradiction && (
+            <div className="rounded-lg p-3 mb-3 border border-red-500/40" style={{ background: 'oklch(0.55 0.22 25 / 0.10)' }}>
+              <div className="flex items-center gap-2 mb-1">
+                <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
+                <span className="text-xs font-bold text-red-400">IMAGE CONTRADICTION DETECTED</span>
+              </div>
+              <p className="text-xs text-muted-foreground pl-6">
+                {damagePattern.validation_detail.image_contradiction_reason ?? 'Image-detected zones do not match the reported damage pattern.'}
+              </p>
+            </div>
+          )}
+
+          {/* Missing expected components */}
+          {damagePattern.missing_expected_components.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-muted-foreground mb-1">Missing Expected Components</p>
+              <div className="flex flex-wrap gap-1">
+                {damagePattern.missing_expected_components.map((c: string, i: number) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded border border-amber-400/30 text-amber-400">{c}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Unexpected components */}
+          {damagePattern.unexpected_components.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-muted-foreground mb-1">Unexpected Components</p>
+              <div className="flex flex-wrap gap-1">
+                {damagePattern.unexpected_components.slice(0, 6).map((c: string, i: number) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded border border-blue-400/30 text-blue-400">{c}</span>
+                ))}
+                {damagePattern.unexpected_components.length > 6 && (
+                  <span className="text-xs text-muted-foreground">+{damagePattern.unexpected_components.length - 6} more</span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Structural components found */}
+          {damagePattern.validation_detail.structural_components_found.length > 0 && (
+            <div className="rounded-lg p-3 border border-red-400/30" style={{ background: 'oklch(0.55 0.22 25 / 0.08)' }}>
+              <p className="text-xs font-semibold text-red-400 mb-1">Structural Components Identified</p>
+              <div className="flex flex-wrap gap-1">
+                {damagePattern.validation_detail.structural_components_found.map((c: string, i: number) => (
+                  <span key={i} className="text-xs px-2 py-0.5 rounded border border-red-400/30 text-red-400">{c}</span>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Structural damage increases repair severity and cost estimates.</p>
+            </div>
+          )}
+
+          {/* Reasoning */}
+          <details className="mt-3">
+            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Engine reasoning →</summary>
+            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{damagePattern.reasoning}</p>
+          </details>
+        </Section>
+      ) : null}
+
+      {/* ── 4. COST INTELLIGENCE ────────────────────────────────────────────────────────── */}  <Section icon={<DollarSign className="h-4 w-4" />} title="Cost Intelligence" subtitle="AI estimate vs. agreed cost vs. market value">
         <div className="space-y-3">
           {/* Comparison bars */}
           {[
