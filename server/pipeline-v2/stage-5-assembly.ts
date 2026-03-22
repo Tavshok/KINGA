@@ -33,6 +33,7 @@ import {
   inferPowertrainType,
 } from "../pipeline/types";
 import { classifyIncident } from "./incidentClassificationEngine";
+import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
 
@@ -323,7 +324,37 @@ export async function runAssemblyStage(
       assumptions,
     };
 
-    const output: Stage5Output = { claimRecord };
+    // ── Step 5b: Scenario Engine Selection ─────────────────────────────────
+    let scenarioSelection: Stage5Output["scenarioSelection"] = null;
+    try {
+      const incidentClassification = accidentDetails.incidentClassification;
+      const scenarioInput = {
+        incident_type: incidentType as string,
+        vehicle_type: (vehicle.bodyType as string) || undefined,
+        context_clues: (accidentDetails.location
+          ? [accidentDetails.location.toLowerCase().includes("highway") ? "highway"
+            : accidentDetails.location.toLowerCase().includes("rural") ? "rural"
+            : "urban"]
+          : []) as import("./scenarioEngineSelector").ContextClue[],
+        driver_narrative: accidentDetails.description || undefined,
+        damage_description: damage.description || undefined,
+      };
+      const sel = selectScenarioEngine(scenarioInput);
+      scenarioSelection = {
+        selected_engine: sel.selected_engine,
+        detected_sub_type: sel.detected_sub_type,
+        confidence: sel.confidence,
+        reasoning: sel.reasoning,
+        is_minor_claim: sel.is_minor_claim,
+        requires_specialist: sel.requires_specialist,
+        engine_parameters: sel.engine_parameters as unknown as Record<string, unknown>,
+      };
+      ctx.log("Stage 5", `Scenario engine selected: ${sel.selected_engine} (sub-type: ${sel.detected_sub_type}, confidence: ${sel.confidence})`);
+    } catch (selErr) {
+      ctx.log("Stage 5", `Scenario engine selection failed: ${String(selErr)} — proceeding without selection`);
+    }
+
+    const output: Stage5Output = { claimRecord, scenarioSelection };
 
     ctx.log("Stage 5", `Assembly complete. Vehicle: ${effectiveMake} ${effectiveModel} (${year || 'unknown year'}), Mass: ${massResult.massKg}kg (${massResult.tier}), Incident: ${incidentType}, Components: ${damage.components.length}, Completeness: ${stage4.completenessScore}%, Assumptions: ${assumptions.length}`);
 
@@ -383,7 +414,7 @@ export async function runAssemblyStage(
 
     return {
       status: "degraded",
-      data: { claimRecord: minimalRecord },
+      data: { claimRecord: minimalRecord, scenarioSelection: null },
       error: String(err),
       durationMs: Date.now() - start,
       savedToDb: false,

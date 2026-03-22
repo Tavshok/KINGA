@@ -439,6 +439,15 @@ export interface ClaimRecord {
 
 export interface Stage5Output {
   claimRecord: ClaimRecord;
+  scenarioSelection: {
+    selected_engine: string;
+    detected_sub_type: string;
+    confidence: number;
+    reasoning: string;
+    is_minor_claim: boolean;
+    requires_specialist: boolean;
+    engine_parameters: Record<string, unknown>;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
