@@ -9,6 +9,8 @@
  */
 
 import { ensureCostContract } from "./engineFallback";
+import { extractCostLearningRecord } from "./costLearningRecorder";
+import { insertCostLearningRecord } from "../db";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
@@ -323,6 +325,37 @@ export async function runCostOptimisationStage(
     }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
+
+    // Step 5: Extract and persist cost intelligence learning record
+    try {
+      const learningRecord = extractCostLearningRecord({
+        claimId: claimRecord.claimId,
+        vehicleType: claimRecord.vehicle.bodyType,
+        vehicleMake: claimRecord.vehicle.make,
+        vehicleModel: claimRecord.vehicle.model,
+        damageComponents: damageAnalysis.damagedParts
+          .filter(p => ["cosmetic","minor","moderate","severe","catastrophic"].includes(p.severity))
+          .map(p => ({
+            name: p.name,
+            severity: p.severity as "cosmetic" | "minor" | "moderate" | "severe" | "catastrophic",
+            repairAction: (p.severity === "cosmetic" || p.severity === "minor" ? "repair" : "replace") as "repair" | "replace",
+            estimatedCostCents: (() => {
+              const c = estimateComponentCost(p.name, p.severity, "replace", labourRate);
+              return c.partsCents + c.labourCents;
+            })(),
+          })),
+        finalCostCents: quotedCents ?? null,
+        selectedQuoteComponents: quoteComponents,
+        collisionDirection: claimRecord.accidentDetails.collisionDirection,
+        marketRegion: region,
+      });
+      // Fire-and-forget persistence — never block the pipeline
+      insertCostLearningRecord(learningRecord, claimRecord.tenantId ? String(claimRecord.tenantId) : null)
+        .catch(e => ctx.log("Stage 9", `Cost learning record persistence failed: ${String(e)}`));
+      ctx.log("Stage 9", `Cost learning record extracted: ${learningRecord.case_signature}, drivers: [${learningRecord.high_cost_drivers.join(", ")}]`);
+    } catch (learningErr) {
+      ctx.log("Stage 9", `Cost learning extraction failed (non-fatal): ${String(learningErr)}`);
+    }
 
     return {
       status: isDegraded ? "degraded" : "success",

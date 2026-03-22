@@ -1902,3 +1902,52 @@ export async function getLatestSnapshotJson(claimId: string): Promise<SpecSnapsh
     return null;
   }
 }
+
+// ============================================================================
+// COST INTELLIGENCE LEARNING RECORDS
+// ============================================================================
+
+import type { CostLearningRecord } from "./pipeline-v2/costLearningRecorder";
+
+/**
+ * Persist a CostLearningRecord extracted from Stage 9 to the database.
+ * Safe to call fire-and-forget — errors are logged but never thrown.
+ */
+export async function insertCostLearningRecord(
+  record: CostLearningRecord,
+  tenantId?: string | null
+): Promise<number | null> {
+  const db = await getDb();
+  if (!db) {
+    console.warn("[CostLearning] Database not available — skipping record persistence");
+    return null;
+  }
+
+  try {
+    const { costLearningRecords } = await import("../drizzle/schema");
+    const result = await db.insert(costLearningRecords).values({
+      claimId: typeof record.claim_id === "number" ? record.claim_id : parseInt(String(record.claim_id), 10),
+      tenantId: tenantId ?? null,
+      vehicleDescriptor: record.vehicle_descriptor.slice(0, 255),
+      collisionDirection: record.collision_direction.slice(0, 50),
+      marketRegion: record.market_region.slice(0, 10),
+      caseSignature: record.case_signature.slice(0, 100),
+      componentCount: record.component_count,
+      structuralComponentCount: record.structural_component_count,
+      finalCostUsdCents: record.final_cost_usd !== null ? Math.round(record.final_cost_usd * 100) : null,
+      costIsAgreed: record.cost_is_agreed ? 1 : 0,
+      quoteCoverageRatioPct: Math.round(record.quote_coverage_ratio * 100),
+      highCostDriversJson: JSON.stringify(record.high_cost_drivers),
+      componentWeightingJson: JSON.stringify(record.component_weighting),
+      componentDetailJson: JSON.stringify(record.component_detail),
+      qualityFlagsJson: JSON.stringify(record.quality_flags),
+      recordedAt: record.recorded_at,
+    });
+    const insertId = (result as any)[0]?.insertId ?? null;
+    console.log(`[CostLearning] Record persisted for claim ${record.claim_id} (id: ${insertId}, signature: ${record.case_signature})`);
+    return insertId;
+  } catch (err) {
+    console.warn(`[CostLearning] Failed to persist record for claim ${record.claim_id}:`, err);
+    return null;
+  }
+}

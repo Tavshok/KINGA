@@ -4388,3 +4388,51 @@ export const benchmarkDeviations = mysqlTable("benchmark_deviations", {
 ]);
 export type BenchmarkDeviationRow = typeof benchmarkDeviations.$inferSelect;
 export type InsertBenchmarkDeviation = typeof benchmarkDeviations.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// COST INTELLIGENCE LEARNING RECORDS
+// Stores generalised cost patterns extracted from processed claims for
+// longitudinal cost model calibration. One record per processed claim.
+// ─────────────────────────────────────────────────────────────────────────────
+export const costLearningRecords = mysqlTable("cost_learning_records", {
+  id: int().autoincrement().notNull(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }),
+  // Vehicle descriptor: "make model body_type" (lowercase, normalised)
+  vehicleDescriptor: varchar("vehicle_descriptor", { length: 255 }).notNull(),
+  // Collision direction: frontal, rear, side_driver, etc.
+  collisionDirection: varchar("collision_direction", { length: 50 }).notNull(),
+  // Market region: ZW, ZA, US, etc.
+  marketRegion: varchar("market_region", { length: 10 }).notNull().default("DEFAULT"),
+  // Short human-readable case descriptor: e.g. "pickup_rear_moderate_8c_high"
+  caseSignature: varchar("case_signature", { length: 100 }).notNull(),
+  // Number of damage components in the claim
+  componentCount: int("component_count").notNull().default(0),
+  // Number of structural components
+  structuralComponentCount: int("structural_component_count").notNull().default(0),
+  // Final agreed/quoted cost in USD cents (null if not available)
+  finalCostUsdCents: int("final_cost_usd_cents"),
+  // Whether the final cost was from an assessor-agreed figure
+  costIsAgreed: tinyint("cost_is_agreed").notNull().default(0),
+  // Quote coverage ratio: matched_quote_components / damage_components (0.0–1.0, stored as 0–100)
+  quoteCoverageRatioPct: int("quote_coverage_ratio_pct").notNull().default(0),
+  // JSON: string[] — component names that are high-cost drivers (≥15% of total)
+  highCostDriversJson: text("high_cost_drivers_json").notNull().default("[]"),
+  // JSON: Record<string, number> — component_name → relative_weight (0.0–1.0)
+  componentWeightingJson: text("component_weighting_json").notNull().default("{}"),
+  // JSON: ComponentWeightEntry[] — full detail with is_structural, severity, repair_action
+  componentDetailJson: text("component_detail_json").notNull().default("[]"),
+  // JSON: string[] — data quality flags (no_final_cost, no_quote_components, etc.)
+  qualityFlagsJson: text("quality_flags_json").notNull().default("[]"),
+  recordedAt: timestamp("recorded_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  index("idx_clr_claim_id").on(table.claimId),
+  index("idx_clr_tenant_id").on(table.tenantId),
+  index("idx_clr_case_signature").on(table.caseSignature),
+  index("idx_clr_vehicle_descriptor").on(table.vehicleDescriptor),
+  index("idx_clr_collision_direction").on(table.collisionDirection),
+  index("idx_clr_recorded_at").on(table.recordedAt),
+]);
+export type CostLearningRecordRow = typeof costLearningRecords.$inferSelect;
+export type InsertCostLearningRecord = typeof costLearningRecords.$inferInsert;
