@@ -617,6 +617,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       secondaryExtractionAttempted: false,
       resolved: false,
     }],
+    fieldValidation: null,
   };
 }
 

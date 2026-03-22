@@ -19,6 +19,8 @@ import type {
   Assumption,
   RecoveryAction,
 } from "./types";
+import { validateFields, extractSpeedFromText } from "./fieldValidationEngine";
+import type { FieldValidationResult } from "./fieldValidationEngine";
 
 const CRITICAL_FIELDS: Array<{ field: keyof ExtractedClaimFields; label: string; severity: "critical" | "warning" }> = [
   { field: "vehicleMake", label: "Vehicle make", severity: "critical" },
@@ -342,11 +344,53 @@ export async function runValidationStage(
 
     const completenessScore = Math.round((presentFields / totalFields) * 100);
 
+    // Step 7a: Field Validation Engine — source-priority arbitration for focus fields
+    let fieldValidation: FieldValidationResult | null = null;
+    try {
+      fieldValidation = validateFields({
+        // speed_kmh — prefer claim form, then narrative text
+        speed_claim_form: validatedFields.estimatedSpeedKmh ?? undefined,
+        narrative_text: validatedFields.accidentDescription ?? undefined,
+        // incident_type — prefer claim form, then damage description
+        incident_type_claim_form: validatedFields.incidentType ?? undefined,
+        incident_type_narrative: (() => {
+          const desc = (validatedFields.accidentDescription || "").toLowerCase();
+          if (/\bcow\b|\bgoat\b|\bdonkey\b|\bhorse\b|\bpig\b|\bdog\b|\bcat\b|\blivestock\b|\banimal\b|\bwildlife\b/i.test(desc)) return "animal_strike";
+          if (/collid|crash|hit|struck|impact|rear.end|head.on|t.bone/i.test(desc)) return "vehicle_collision";
+          if (/stol|theft|hijack|break.in/i.test(desc)) return "theft";
+          if (/vandal|scratch|key|graffiti/i.test(desc)) return "vandalism";
+          if (/flood|water|submerge/i.test(desc)) return "flood";
+          if (/fire|burn|ignit/i.test(desc)) return "fire";
+          return undefined;
+        })(),
+        // repair_cost — prefer claim form (quoteTotalCents / 100), then assessor
+        repair_cost_claim_form: validatedFields.quoteTotalCents != null ? validatedFields.quoteTotalCents / 100 : undefined,
+        // market_value — not typically on claim form; leave for downstream
+      });
+      if (fieldValidation.conflicts.length > 0) {
+        ctx.log("Stage 4", `Field validation: ${fieldValidation.conflicts.length} conflict(s) detected — ${fieldValidation.conflicts.map((c) => c.field).join(", ")}`);
+        for (const conflict of fieldValidation.conflicts) {
+          issues.push({
+            field: conflict.field,
+            severity: "warning",
+            message: `Source conflict on "${conflict.field}": ${conflict.resolution}`,
+            secondaryExtractionAttempted: true,
+            resolved: true,
+          });
+        }
+      } else {
+        ctx.log("Stage 4", "Field validation: no source conflicts detected");
+      }
+    } catch (fvErr) {
+      ctx.log("Stage 4", `Field validation engine error (non-fatal): ${String(fvErr)}`);
+    }
+
     const output: Stage4Output = {
       validatedFields,
       issues,
       completenessScore,
       missingFields: missingAfter,
+      fieldValidation,
     };
 
     ctx.log("Stage 4", `Validation complete. Completeness: ${completenessScore}%. Missing: ${missingAfter.length}. Assumptions: ${assumptions.length}`);
@@ -376,6 +420,7 @@ export async function runValidationStage(
         }],
         completenessScore: 0,
         missingFields: CRITICAL_FIELDS.map(f => f.field),
+        fieldValidation: null,
       },
       error: String(err),
       durationMs: Date.now() - start,

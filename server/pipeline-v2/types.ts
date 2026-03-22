@@ -322,6 +322,12 @@ export interface Stage4Output {
   completenessScore: number;
   /** Fields that remain NULL after all extraction attempts */
   missingFields: string[];
+  /**
+   * Source-priority arbitration result for the four focus fields.
+   * Resolves the authoritative value and flags conflicts between
+   * stated values and AI-inferred values.
+   */
+  fieldValidation: import("./fieldValidationEngine").FieldValidationResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
