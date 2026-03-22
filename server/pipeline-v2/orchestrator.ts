@@ -73,6 +73,10 @@ import {
   runCausalReasoningEngine,
   type CausalVerdict,
 } from "./stage-7b-causal-reasoning";
+import {
+  buildEvidenceRegistry,
+  type EvidenceRegistry,
+} from "./evidenceRegistryEngine";
 
 /**
  * Run the full self-healing pipeline.
@@ -116,6 +120,7 @@ export async function runPipelineV2(
   let causalVerdict: CausalVerdict | null = null;
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
+  let evidenceRegistryData: EvidenceRegistry | null = null;
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
@@ -144,6 +149,35 @@ export async function runPipelineV2(
     stage2Data = s2.data;
   } else {
     stages["2_extraction"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No Stage 1 data", degraded: true, assumptionCount: 0, recoveryActionCount: 0 };
+  }
+
+  // ── STAGE 0: Evidence Registry ─────────────────────────────────────
+  // Pure document inventory — classifies each evidence item as PRESENT,
+  // ABSENT, or UNKNOWN. Runs after Stage 2 so raw text is available.
+  // Does NOT interpret or analyse — only inventories.
+  if (stage1Data) {
+    try {
+      evidenceRegistryData = buildEvidenceRegistry(stage1Data, stage2Data ?? null);
+      (ctx as any).evidenceRegistry = evidenceRegistryData;
+      const reg = evidenceRegistryData.evidence_registry;
+      const comp = evidenceRegistryData.completeness_check;
+      ctx.log(
+        "Stage 0 (Evidence Registry)",
+        `Registry built: pages=${evidenceRegistryData.document_summary.total_pages}, ` +
+        `images=${evidenceRegistryData.document_summary.estimated_image_pages}, ` +
+        `claim_form=${reg.claim_form}, driver_stmt=${reg.driver_statement}, ` +
+        `photos=${reg.damage_photos}, quote=${reg.repair_quote}, ` +
+        `assessor=${reg.assessor_report}, police=${reg.police_report_info}, ` +
+        `signature=${reg.digital_signature}. ` +
+        `Completeness: ${comp.recommended_action} ` +
+        `(missing=${comp.missing_mandatory_items.join(",") || "none"}, ` +
+        `unknown=${comp.unknown_items.join(",") || "none"})`
+      );
+    } catch (err) {
+      ctx.log("Stage 0 (Evidence Registry)", `Evidence registry build failed (non-fatal): ${String(err)}`);
+    }
+  } else {
+    ctx.log("Stage 0 (Evidence Registry)", "Skipped — no Stage 1 data available.");
   }
 
   // ── STAGE 3: Structured Data Extraction ──────────────────────────────
@@ -482,7 +516,7 @@ export async function runPipelineV2(
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
-    causalVerdict
+    causalVerdict, evidenceRegistryData
   );
 }
 
@@ -502,7 +536,8 @@ function buildResult(
   realismBundle: RealismBundle | null = null,
   benchmarkBundle: BenchmarkBundle | null = null,
   consensusResult: ConsensusResult | null = null,
-  causalVerdict: CausalVerdict | null = null
+  causalVerdict: CausalVerdict | null = null,
+  evidenceRegistry: EvidenceRegistry | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -526,6 +561,7 @@ function buildResult(
     benchmarkBundle,
     consensusResult,
     causalVerdict,
+    evidenceRegistry,
   };
 }
 
