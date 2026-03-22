@@ -35,6 +35,7 @@ import { runValidationStage } from "./stage-4-validation";
 import { runAssemblyStage } from "./stage-5-assembly";
 import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runPhysicsStage } from "./stage-7-physics";
+import { computeSeverityConsensus, buildSeverityConsensusInput } from "./severityConsensusEngine";
 import { runFraudAnalysisStage } from "./stage-8-fraud";
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
@@ -266,6 +267,31 @@ export async function runPipelineV2(
   const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data!);
   recordStage("7_physics", s7);
   stage7Data = s7.data; // Always has data (self-healing)
+
+  // ── STAGE 7c: Severity Consensus Engine ──────────────────────────────────
+  // Fuses physics severity, damage severity score, and image severity signals
+  // into a single authoritative final_severity verdict.
+  try {
+    const enrichedPhotosForSeverity: string | null = (ctx as any).enrichedPhotosJson ?? null;
+    const severityInput = buildSeverityConsensusInput(
+      stage6Data,
+      stage7Data,
+      enrichedPhotosForSeverity
+    );
+    const severityConsensus = computeSeverityConsensus(severityInput);
+    if (stage7Data) {
+      (stage7Data as any).severityConsensus = severityConsensus;
+    }
+    ctx.log(
+      "Stage 7c (SeverityConsensus)",
+      `Final severity: ${severityConsensus.final_severity} (${severityConsensus.source_alignment}, ` +
+      `confidence: ${severityConsensus.confidence}%). Sources: physics=${severityConsensus.source_signals.physics ?? "N/A"}, ` +
+      `damage=${severityConsensus.source_signals.damage ?? "N/A"}, ` +
+      `image=${severityConsensus.source_signals.image ?? "N/A"}.`
+    );
+  } catch (err) {
+    ctx.log("Stage 7c (SeverityConsensus)", `Severity consensus failed (non-fatal): ${String(err)}`);
+  }
 
   // ── STAGE 7b: Causal Reasoning Engine ──────────────────────────────────
   // Reads description + photos + physics + damage components and produces a

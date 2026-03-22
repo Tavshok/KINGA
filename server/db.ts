@@ -511,6 +511,8 @@ export async function triggerAiAssessment(claimId: number) {
     damageConsistencyScore: physicsAnalysis.damageConsistencyScore,
     latentDamageProbability: physicsAnalysis.latentDamageProbability,
     physicsExecuted: physicsAnalysis.physicsExecuted,
+    severityConsensus: (physicsAnalysis as any).severityConsensus ?? null,
+    damagePatternValidation: (physicsAnalysis as any).damagePatternValidation ?? null,
   }) : null;
 
   // Build fraud indicators JSON

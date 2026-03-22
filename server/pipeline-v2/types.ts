@@ -524,6 +524,8 @@ export interface Stage7Output {
   animalStrikePhysics?: import('./animalStrikePhysicsEngine').AnimalStrikePhysicsOutput | null;
   /** Damage pattern validation result — populated by Stage 7 for all incident types */
   damagePatternValidation?: import('./damagePatternValidationEngine').DamagePatternOutput | null;
+  /** Severity consensus result — fuses physics, damage, and image severity signals */
+  severityConsensus?: import('./severityConsensusEngine').SeverityConsensusOutput | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -120,6 +120,11 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
     return fb?.crossEngineConsistency ?? null;
   }, [aiAssessment?.fraudScoreBreakdownJson]);
+  const severityConsensus = useMemo(() => {
+    // severityConsensus is nested inside physicsAnalysis JSON
+    const p = safeParse(aiAssessment?.physicsAnalysis);
+    return p?.severityConsensus ?? null;
+  }, [aiAssessment?.physicsAnalysis]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
@@ -357,7 +362,72 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         )}
       </Section>
 
-      {/* ── 3. DAMAGE ZONE MAP ────────────────────────────────────────────────── */}
+      {/* ── 2b. SEVERITY CONSENSUS ENGINE ────────────────────────────────── */}
+      {severityConsensus && (() => {
+        const sc = severityConsensus as any;
+        const alignmentColor = sc.source_alignment === "FULL" ? "text-emerald-400" : sc.source_alignment === "PARTIAL" ? "text-amber-400" : "text-red-400";
+        const alignmentBg = sc.source_alignment === "FULL" ? "bg-emerald-500/10 border-emerald-500/30" : sc.source_alignment === "PARTIAL" ? "bg-amber-500/10 border-amber-500/30" : "bg-red-500/10 border-red-500/30";
+        const severityColor = sc.final_severity === "severe" ? "text-red-400" : sc.final_severity === "moderate" ? "text-amber-400" : "text-emerald-400";
+        const severityBg = sc.final_severity === "severe" ? "bg-red-500/10 border-red-500/30" : sc.final_severity === "moderate" ? "bg-amber-500/10 border-amber-500/30" : "bg-emerald-500/10 border-emerald-500/30";
+        return (
+          <Section icon={<Layers className="h-4 w-4" />} title="Severity Consensus" subtitle="Fused verdict from physics, damage, and image severity signals">
+            {/* Top row: final severity + alignment + confidence */}
+            <div className="flex flex-wrap gap-3 mb-4">
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${severityBg}`}>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Final Severity</span>
+                <span className={`text-sm font-bold uppercase ${severityColor}`}>{sc.final_severity}</span>
+              </div>
+              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${alignmentBg}`}>
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Source Alignment</span>
+                <span className={`text-sm font-bold ${alignmentColor}`}>{sc.source_alignment}</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-muted/20">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Confidence</span>
+                <span className="text-sm font-bold text-foreground">{sc.confidence}%</span>
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-muted/20">
+                <span className="text-xs text-muted-foreground uppercase tracking-wider">Sources</span>
+                <span className="text-sm font-bold text-foreground">{sc.sources_available ?? 3}/3</span>
+              </div>
+            </div>
+            {/* Confidence bar */}
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Consensus confidence</span>
+                <span>{sc.confidence}%</span>
+              </div>
+              <div className="w-full h-2 rounded-full bg-muted/30">
+                <div
+                  className={`h-2 rounded-full transition-all ${sc.confidence >= 80 ? "bg-emerald-500" : sc.confidence >= 60 ? "bg-amber-500" : "bg-red-500"}`}
+                  style={{ width: `${sc.confidence}%` }}
+                />
+              </div>
+            </div>
+            {/* Source signals grid */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              {["physics", "damage", "image"].map((src) => {
+                const val = sc.source_signals?.[src];
+                const sigColor = val === "severe" ? "text-red-400" : val === "moderate" ? "text-amber-400" : val === "minor" ? "text-emerald-400" : "text-muted-foreground";
+                return (
+                  <div key={src} className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
+                    <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{src}</div>
+                    <div className={`text-sm font-semibold ${sigColor}`}>{val ?? "N/A"}</div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Reasoning */}
+            {sc.reasoning && (
+              <details className="mt-2">
+                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">Engine reasoning</summary>
+                <p className="mt-2 text-xs text-muted-foreground leading-relaxed pl-2 border-l border-border/40">{sc.reasoning}</p>
+              </details>
+            )}
+          </Section>
+        );
+      })()}
+
+      {/* ── 3. DAMAGE ZONE MAP ────────────────────────────────────────── */}
       <Section icon={<Activity className="h-4 w-4" />} title="Damage Zone Map" subtitle={`${totalComponents} components across ${[frontComponents.length > 0, rearComponents.length > 0, sideComponents.length > 0].filter(Boolean).length} zone(s)`}>
         {totalComponents === 0 ? (
           <p className="text-sm text-muted-foreground">No components extracted from pipeline.</p>
