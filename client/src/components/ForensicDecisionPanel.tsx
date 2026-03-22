@@ -11,7 +11,7 @@
  *   7. Actions Required
  */
 import { useMemo } from "react";
-import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers, GitCompare, Link2, Link2Off } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
@@ -116,6 +116,10 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
     return fb?.scenarioFraudResult ?? safeParse(aiAssessment?.scenarioFraudResult) ?? null;
   }, [aiAssessment?.fraudScoreBreakdownJson, aiAssessment?.scenarioFraudResult]);
+  const crossEngineConsistency = useMemo(() => {
+    const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
+    return fb?.crossEngineConsistency ?? null;
+  }, [aiAssessment?.fraudScoreBreakdownJson]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
@@ -717,6 +721,86 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
             <details className="group">
               <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">Engine reasoning ▸</summary>
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-l-2 border-border/50 pl-3">{scenarioFraud.reasoning}</p>
+            </details>
+          </div>
+        </Section>
+      )}
+
+      {/* ── 5b. CROSS-ENGINE CONSISTENCY VALIDATOR ─────────────────────────── */}
+      {crossEngineConsistency && (
+        <Section
+          icon={<GitCompare className="h-4 w-4" />}
+          title="Cross-Engine Consistency"
+          subtitle={`${crossEngineConsistency.overall_status} — ${crossEngineConsistency.consistency_score}/100 · ${crossEngineConsistency.agreements?.length ?? 0} agreements · ${crossEngineConsistency.conflicts?.length ?? 0} conflicts`}
+        >
+          <div className="space-y-4">
+            {/* Score row */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg p-3 text-center" style={{ background: crossEngineConsistency.consistency_score >= 70 ? "oklch(0.35 0.14 145 / 0.15)" : crossEngineConsistency.consistency_score >= 45 ? "oklch(0.72 0.18 60 / 0.10)" : "oklch(0.55 0.22 25 / 0.12)", border: `1px solid ${crossEngineConsistency.consistency_score >= 70 ? "oklch(0.55 0.18 145 / 0.4)" : crossEngineConsistency.consistency_score >= 45 ? "oklch(0.72 0.18 60 / 0.35)" : "oklch(0.55 0.22 25 / 0.4)"}` }}>
+                <p className={`text-2xl font-black ${crossEngineConsistency.consistency_score >= 70 ? "text-emerald-400" : crossEngineConsistency.consistency_score >= 45 ? "text-amber-400" : "text-red-400"}`}>{crossEngineConsistency.consistency_score}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Consistency</p>
+              </div>
+              <div className="rounded-lg p-3 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.4)", border: "1px solid oklch(0.35 0.01 260 / 0.4)" }}>
+                <p className={`text-sm font-bold ${crossEngineConsistency.overall_status === "CONSISTENT" ? "text-emerald-400" : "text-red-400"}`}>{crossEngineConsistency.overall_status}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Status</p>
+              </div>
+              <div className="rounded-lg p-3 text-center" style={{ background: crossEngineConsistency.critical_conflict_count > 0 ? "oklch(0.55 0.22 25 / 0.12)" : "oklch(0.18 0.01 260 / 0.4)", border: `1px solid ${crossEngineConsistency.critical_conflict_count > 0 ? "oklch(0.55 0.22 25 / 0.4)" : "oklch(0.35 0.01 260 / 0.4)"}` }}>
+                <p className={`text-2xl font-black ${crossEngineConsistency.critical_conflict_count > 0 ? "text-red-400" : "text-muted-foreground"}`}>{crossEngineConsistency.critical_conflict_count}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Critical</p>
+              </div>
+            </div>
+
+            {/* Agreements */}
+            {crossEngineConsistency.agreements?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Engine Agreements ({crossEngineConsistency.agreements.length})</p>
+                <div className="space-y-1.5">
+                  {crossEngineConsistency.agreements.map((ag: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.35 0.14 145 / 0.08)", border: "1px solid oklch(0.55 0.18 145 / 0.25)" }}>
+                      <Link2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-emerald-400">{ag.label ?? ag.check_id}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded font-mono" style={{ background: ag.strength === "STRONG" ? "oklch(0.35 0.14 145 / 0.25)" : "oklch(0.35 0.10 145 / 0.15)", color: "oklch(0.75 0.18 145)" }}>{ag.strength}</span>
+                          {ag.engines?.map((e: string, j: number) => <span key={j} className="text-xs px-1 py-0.5 rounded font-mono" style={{ background: "oklch(0.25 0.01 260 / 0.6)", color: "oklch(0.65 0.01 260)" }}>{e}</span>)}
+                        </div>
+                        {ag.detail && <p className="text-xs text-muted-foreground mt-0.5">{ag.detail}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Conflicts */}
+            {crossEngineConsistency.conflicts?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Engine Conflicts ({crossEngineConsistency.conflicts.length})</p>
+                <div className="space-y-1.5">
+                  {crossEngineConsistency.conflicts.map((cf: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: cf.severity === "CRITICAL" ? "oklch(0.55 0.22 25 / 0.10)" : cf.severity === "SIGNIFICANT" ? "oklch(0.65 0.20 40 / 0.10)" : "oklch(0.72 0.18 60 / 0.08)", border: `1px solid ${cf.severity === "CRITICAL" ? "oklch(0.55 0.22 25 / 0.3)" : cf.severity === "SIGNIFICANT" ? "oklch(0.65 0.20 40 / 0.3)" : "oklch(0.72 0.18 60 / 0.25)"}` }}>
+                      <Link2Off className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${cf.severity === "CRITICAL" ? "text-red-400" : cf.severity === "SIGNIFICANT" ? "text-orange-400" : "text-amber-400"}`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs font-semibold ${cf.severity === "CRITICAL" ? "text-red-400" : cf.severity === "SIGNIFICANT" ? "text-orange-400" : "text-amber-400"}`}>{cf.label ?? cf.check_id}</span>
+                          <span className="text-xs px-1.5 py-0.5 rounded font-mono" style={{ background: cf.severity === "CRITICAL" ? "oklch(0.55 0.22 25 / 0.25)" : cf.severity === "SIGNIFICANT" ? "oklch(0.65 0.20 40 / 0.20)" : "oklch(0.72 0.18 60 / 0.15)", color: cf.severity === "CRITICAL" ? "oklch(0.75 0.22 25)" : cf.severity === "SIGNIFICANT" ? "oklch(0.75 0.20 40)" : "oklch(0.80 0.18 60)" }}>{cf.severity}</span>
+                          {cf.engines?.map((e: string, j: number) => <span key={j} className="text-xs px-1 py-0.5 rounded font-mono" style={{ background: "oklch(0.25 0.01 260 / 0.6)", color: "oklch(0.65 0.01 260)" }}>{e}</span>)}
+                        </div>
+                        {cf.physics_says && <p className="text-xs text-muted-foreground mt-0.5">Physics: <span className="text-foreground/80">{cf.physics_says}</span></p>}
+                        {cf.damage_says && cf.damage_says !== "N/A" && <p className="text-xs text-muted-foreground">Damage: <span className="text-foreground/80">{cf.damage_says}</span></p>}
+                        {cf.fraud_says && cf.fraud_says !== "N/A" && <p className="text-xs text-muted-foreground">Fraud: <span className="text-foreground/80">{cf.fraud_says}</span></p>}
+                        {cf.recommended_action && <p className="text-xs text-amber-400/80 mt-0.5 italic">{cf.recommended_action}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Reasoning */}
+            <details>
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Engine reasoning</summary>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-l-2 border-border/50 pl-3">{crossEngineConsistency.reasoning}</p>
             </details>
           </div>
         </Section>

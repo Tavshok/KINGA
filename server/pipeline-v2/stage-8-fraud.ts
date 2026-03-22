@@ -8,6 +8,7 @@
  */
 
 import { ensureFraudContract } from "./engineFallback";
+import { validateCrossEngineConsistency } from "./crossEngineConsistencyValidator";
 import {
   evaluateScenarioFraud,
   type ScenarioFraudInput,
@@ -426,6 +427,28 @@ export async function runFraudAnalysisStage(
     const fraudRiskScore = Math.min(100, totalIndicatorScore);
     const fraudRiskLevel = scoreToLevel(fraudRiskScore);
 
+    // Stage 43: Cross-Engine Consistency Validation
+    let crossEngineConsistency: Stage8Output["crossEngineConsistency"] = null;
+    try {
+      crossEngineConsistency = validateCrossEngineConsistency({
+        claimRecord,
+        stage6: damageAnalysis,
+        stage7: physicsAnalysis,
+        stage8: {
+          fraudRiskScore,
+          fraudRiskLevel,
+          indicators: allIndicators,
+          damageConsistencyScore: consistency.score,
+          scenarioFraudResult,
+        },
+      });
+      if (crossEngineConsistency) {
+        ctx.log("Stage 8/43", `Cross-engine consistency: ${crossEngineConsistency.overall_status} (${crossEngineConsistency.consistency_score}/100), ${crossEngineConsistency.agreements.length} agreements, ${crossEngineConsistency.conflicts.length} conflicts`);
+      }
+    } catch (crossErr) {
+      ctx.log("Stage 8/43", `Cross-engine consistency validator failed: ${String(crossErr)} — skipping`);
+    }
+
     // Stage 26: apply defensive contract — ensure score, level, and at least 1 indicator
     const output = ensureFraudContract({
       fraudRiskScore,
@@ -438,6 +461,7 @@ export async function runFraudAnalysisStage(
       damageConsistencyScore: consistency.score,
       damageConsistencyNotes: consistency.notes,
       scenarioFraudResult,
+      crossEngineConsistency,
     }, isDegraded ? "degraded_analysis" : "success");
 
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);

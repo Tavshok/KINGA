@@ -290,6 +290,7 @@ export function buildFraudFallback(reason = "insufficient_input"): FraudFallback
     damageConsistencyNotes:
       "Damage consistency could not be assessed. Further review required.",
     scenarioFraudResult: null,
+    crossEngineConsistency: null,
     _fallback: fallbackMeta,
     _fallback_fields: ["fraudRiskScore", "fraudRiskLevel", "indicators"],
   };
@@ -325,6 +326,7 @@ export function ensureFraudContract(
     damageConsistencyScore: partial.damageConsistencyScore ?? fallback.damageConsistencyScore,
     damageConsistencyNotes: partial.damageConsistencyNotes ?? fallback.damageConsistencyNotes,
     scenarioFraudResult: partial.scenarioFraudResult ?? null,
+    crossEngineConsistency: partial.crossEngineConsistency ?? null,
     _fallback_fields: missing,
   };
 }

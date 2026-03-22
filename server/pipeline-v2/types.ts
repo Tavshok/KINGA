@@ -590,6 +590,39 @@ export interface Stage8Output {
       inputs_missing: string[];
     };
   } | null;
+  crossEngineConsistency: {
+    consistency_score: number;
+    overall_status: "CONSISTENT" | "CONFLICTED";
+    agreements: Array<{
+      check_id: string;
+      label: string;
+      engines: string[];
+      strength: "STRONG" | "MODERATE";
+      score: number;
+      detail: string;
+    }>;
+    conflicts: Array<{
+      check_id: string;
+      label: string;
+      engines: string[];
+      severity: "CRITICAL" | "SIGNIFICANT" | "MINOR";
+      physics_says: string;
+      damage_says: string;
+      fraud_says: string;
+      recommended_action: string;
+    }>;
+    critical_conflict_count: number;
+    reasoning: string;
+    validator_metadata: {
+      checks_run: number;
+      agreements_found: number;
+      conflicts_found: number;
+      critical_conflicts: number;
+      score_before_conflict_penalty: number;
+      conflict_penalty_applied: number;
+      inputs_available: Record<string, boolean>;
+    };
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
