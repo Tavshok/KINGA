@@ -433,6 +433,8 @@ export interface ClaimRecord {
   marketRegion: string;
   /** Assumptions made during assembly */
   assumptions: Assumption[];
+  /** Evidence Registry from Stage 0 — available after Stage 2 */
+  evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
 }
 
 export interface Stage5Output {
@@ -775,6 +777,25 @@ export interface Stage10Output {
   missingDocuments: MissingDocument[];
   /** Fields that remain NULL after all recovery attempts */
   missingFields: string[];
+  /** Decision Readiness Engine result — null if not yet evaluated */
+  decisionReadiness: {
+    decision_ready: boolean;
+    confidence: number;
+    blocking_issues: Array<{
+      check_id: string;
+      description: string;
+      resolution: string;
+      severity: "CRITICAL" | "HIGH" | "MEDIUM";
+    }>;
+    checks: Array<{
+      check_id: string;
+      label: string;
+      status: "PASS" | "FAIL" | "WARN";
+      detail: string;
+      is_critical: boolean;
+    }>;
+    summary: string;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

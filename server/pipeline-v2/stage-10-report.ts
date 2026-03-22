@@ -26,6 +26,7 @@ import type {
   MissingDocument,
 } from "./types";
 import type { CausalChainOutput } from "./causalChainBuilder";
+import { evaluateDecisionReadiness } from "./decisionReadinessEngine";
 import {
   buildDamageNarrative,
   buildPhysicsNarrative,
@@ -315,6 +316,45 @@ export async function runReportGenerationStage(
   let isDegraded = false;
 
   try {
+    // ── Decision Readiness Gate ────────────────────────────────────────────────
+    const decisionReadiness = evaluateDecisionReadiness({
+      photos: {
+        damage_photos_status:
+          (claimRecord.evidenceRegistry?.evidence_registry?.damage_photos as "PRESENT" | "ABSENT" | "UNKNOWN") ??
+          (claimRecord.damage.imageUrls && claimRecord.damage.imageUrls.length > 0 ? "PRESENT" : "UNKNOWN"),
+        photos_processed_count: claimRecord.damage.imageUrls?.length ?? null,
+      },
+      incident: {
+        incident_type: claimRecord.accidentDetails.incidentClassification?.incident_type ??
+          claimRecord.accidentDetails.incidentType ?? null,
+        classification_confidence: claimRecord.accidentDetails.incidentClassification?.confidence ?? null,
+        conflict_detected: claimRecord.accidentDetails.incidentClassification?.conflict_detected ?? false,
+      },
+      physics: {
+        physics_ran_successfully: physicsAnalysis !== null && (physicsAnalysis as any).runMode !== "fallback",
+        physics_marked_invalid: physicsAnalysis !== null &&
+          typeof (physicsAnalysis as any).causalPlausibility === "number" &&
+          (physicsAnalysis as any).causalPlausibility < 20,
+        physics_confidence: (physicsAnalysis as any)?.overallConfidence ?? null,
+      },
+      cost: {
+        true_cost_usd: costAnalysis?.costDecision?.true_cost_usd ?? null,
+        cost_basis: (costAnalysis?.costDecision?.cost_basis as "assessor_validated" | "system_optimised" | null) ?? null,
+        cost_confidence: costAnalysis?.costDecision?.confidence ?? null,
+      },
+    });
+
+    if (!decisionReadiness.decision_ready) {
+      ctx.log(
+        "Stage 10",
+        `Decision Readiness Gate: BLOCKED — ${decisionReadiness.blocking_issues.length} blocking issue(s): ` +
+        decisionReadiness.blocking_issues.map((i) => i.check_id).join(", ")
+      );
+      isDegraded = true;
+    } else {
+      ctx.log("Stage 10", `Decision Readiness Gate: PROCEED — confidence ${decisionReadiness.confidence}%`);
+    }
+
     // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
@@ -423,6 +463,7 @@ export async function runReportGenerationStage(
       assumptions: allAssumptions,
       missingDocuments,
       missingFields: claimRecord.dataQuality.missingFields,
+      decisionReadiness,
     };
 
     ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);
@@ -468,6 +509,7 @@ export async function runReportGenerationStage(
       }],
       missingDocuments: [],
       missingFields: claimRecord.dataQuality.missingFields,
+      decisionReadiness: null,
     };
 
     return {
