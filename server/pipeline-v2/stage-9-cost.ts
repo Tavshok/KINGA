@@ -423,8 +423,18 @@ export async function runCostOptimisationStage(
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
 
     // Step 5: Extract and persist cost intelligence learning record
+    // VALIDATED-OUTCOMES-ONLY POLICY: only records with assessor_validated or
+    // high-confidence system_optimised cost basis are stored.
     try {
-      const learningRecord = extractCostLearningRecord({
+      // Derive accident severity for the learning recorder — map pipeline AccidentSeverity
+      // (which includes "none", "cosmetic", "catastrophic") to the recorder's 4-tier type
+      const rawSeverity = physicsAnalysis.accidentSeverity;
+      const mappedSeverity: "minor" | "moderate" | "severe" | "total_loss" =
+        rawSeverity === "catastrophic" || rawSeverity === "severe" ? "severe"
+        : rawSeverity === "moderate" ? "moderate"
+        : "minor"; // none, cosmetic, minor all map to minor
+
+      const { record: learningRecord, rejection } = extractCostLearningRecord({
         claimId: claimRecord.claimId,
         vehicleType: claimRecord.vehicle.bodyType,
         vehicleMake: claimRecord.vehicle.make,
@@ -440,15 +450,26 @@ export async function runCostOptimisationStage(
               return c.partsCents + c.labourCents;
             })(),
           })),
-        finalCostCents: quotedCents ?? null,
+        // TRUE COST from costDecisionEngine — validated outcome only
+        trueCostUsd: costDecision?.true_cost_usd ?? null,
+        costBasis: costDecision?.cost_basis ?? null,
+        decisionConfidence: costDecision?.confidence ?? undefined,
+        accidentSeverity: mappedSeverity,
         selectedQuoteComponents: quoteComponents,
         collisionDirection: claimRecord.accidentDetails.collisionDirection,
         marketRegion: region,
+        // Legacy fallback: used only if costDecision is unavailable
+        finalCostCents: quotedCents ?? null,
       });
-      // Fire-and-forget persistence — never block the pipeline
-      insertCostLearningRecord(learningRecord, claimRecord.tenantId ? String(claimRecord.tenantId) : null)
-        .catch(e => ctx.log("Stage 9", `Cost learning record persistence failed: ${String(e)}`));
-      ctx.log("Stage 9", `Cost learning record extracted: ${learningRecord.case_signature}, drivers: [${learningRecord.high_cost_drivers.join(", ")}]`);
+
+      if (rejection) {
+        ctx.log("Stage 9", `Cost learning record not stored (policy): ${rejection.rejection_reason}`);
+      } else if (learningRecord) {
+        // Fire-and-forget persistence — never block the pipeline
+        insertCostLearningRecord(learningRecord, claimRecord.tenantId ? String(claimRecord.tenantId) : null)
+          .catch(e => ctx.log("Stage 9", `Cost learning record persistence failed: ${String(e)}`));
+        ctx.log("Stage 9", `Cost learning record stored: ${learningRecord.case_signature}, tier=${learningRecord.cost_tier}, drivers: [${learningRecord.high_cost_drivers.join(", ")}]`);
+      }
     } catch (learningErr) {
       ctx.log("Stage 9", `Cost learning extraction failed (non-fatal): ${String(learningErr)}`);
     }

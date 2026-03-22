@@ -11,17 +11,28 @@
  * persisted to the cost_learning_records table for longitudinal analysis.
  *
  * INPUT:
- *   - vehicle_type       (body type + make/model)
- *   - damage_components  (from Stage 6 damage analysis)
- *   - final_cost         (agreed/quoted cost in USD cents)
+ *   - vehicle_type            (body type + make/model)
+ *   - damage_components       (from Stage 6 damage analysis)
+ *   - accident_severity       ("minor" | "moderate" | "severe" | "total_loss")
+ *   - true_cost_usd           (from costDecisionEngine — validated outcome)
+ *   - cost_basis              ("assessor_validated" | "system_optimised")
  *   - selected_quote_components (from Stage 3 input recovery)
  *
  * OUTPUT:
  *   {
  *     high_cost_drivers:    string[]
  *     component_weighting:  Record<string, number>   // relative 0–1
- *     case_signature:       string                   // short descriptor
+ *     case_signature:       string                   // vehicleType_impact_severity_componentCount_costTier
+ *     cost_tier:            "low" | "medium" | "high"
  *   }
+ *
+ * VALIDATED-OUTCOMES-ONLY POLICY:
+ *   - Records are only stored when cost_basis is "assessor_validated" OR
+ *     when cost_basis is "system_optimised" with confidence >= MINIMUM_CONFIDENCE_THRESHOLD
+ *   - Raw market assumptions, AI estimates, and unvalidated quotes are NEVER
+ *     used as the cost basis for learning records
+ *   - If the outcome does not meet the validation threshold, the function
+ *     returns null and sets rejection_reason
  *
  * Design principles:
  *   - Relative weights only — no exact cost figures stored in the pattern record
@@ -32,8 +43,22 @@
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CONSTANTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Minimum confidence score for system_optimised records to be stored */
+const MINIMUM_CONFIDENCE_THRESHOLD = 60;
+
+/** High-cost driver threshold: component must account for ≥15% of total index */
+const HIGH_COST_THRESHOLD = 0.15;
+
+// ─────────────────────────────────────────────────────────────────────────────
 // TYPES
 // ─────────────────────────────────────────────────────────────────────────────
+
+export type AccidentSeverity = "minor" | "moderate" | "severe" | "total_loss";
+export type CostTier = "low" | "medium" | "high";
+export type CostBasisType = "assessor_validated" | "system_optimised";
 
 export interface LearningInputComponent {
   /** Component name as extracted by Stage 6 */
@@ -42,7 +67,7 @@ export interface LearningInputComponent {
   severity: "cosmetic" | "minor" | "moderate" | "severe" | "catastrophic";
   /** Repair action recommended */
   repairAction?: "repair" | "replace" | "refinish";
-  /** AI-estimated cost in USD cents */
+  /** Component-level estimated cost in USD cents */
   estimatedCostCents?: number;
 }
 
@@ -57,14 +82,35 @@ export interface CostLearningInput {
   vehicleModel: string;
   /** Damage components from Stage 6 */
   damageComponents: LearningInputComponent[];
-  /** Final agreed/quoted cost in USD cents (null if not available) */
-  finalCostCents: number | null;
+  /**
+   * TRUE COST in USD — from costDecisionEngine.true_cost_usd.
+   * MUST be a validated outcome (assessor_validated or high-confidence system_optimised).
+   * Raw AI estimates or unvalidated quotes must NOT be passed here.
+   */
+  trueCostUsd: number | null;
+  /**
+   * Cost basis from costDecisionEngine.cost_basis.
+   * Determines whether this record passes the validated-outcomes-only policy.
+   */
+  costBasis: CostBasisType | null;
+  /**
+   * Decision confidence from costDecisionEngine.confidence (0–100).
+   * Required when costBasis is "system_optimised" to enforce the minimum threshold.
+   */
+  decisionConfidence?: number;
+  /** Accident severity — overall claim-level severity */
+  accidentSeverity: AccidentSeverity;
   /** Quote component names from Stage 3 input recovery */
   selectedQuoteComponents: string[];
   /** Collision direction for case signature */
   collisionDirection?: string;
   /** Market region */
   marketRegion?: string;
+  /**
+   * @deprecated Use trueCostUsd instead. Kept for backward compatibility.
+   * If trueCostUsd is null and finalCostCents is provided, finalCostCents / 100 is used.
+   */
+  finalCostCents?: number | null;
 }
 
 export interface ComponentWeightEntry {
@@ -97,20 +143,50 @@ export interface CostLearningRecord {
   component_weighting: Record<string, number>;
   /** Full component weight entries with metadata */
   component_detail: ComponentWeightEntry[];
-  /** Short human-readable case descriptor */
+  /**
+   * Short human-readable case descriptor.
+   * Format: {vehicleType}_{impact}_{severity}_{componentCount}c_{costTier}
+   * Example: "pickup_frontal_severe_6c_high"
+   */
   case_signature: string;
+  /** Derived cost tier from true_cost_usd */
+  cost_tier: CostTier;
   /** Number of damage components */
   component_count: number;
-  /** Final cost in USD (null if not available) */
-  final_cost_usd: number | null;
-  /** Whether final cost was from an assessor-agreed figure */
-  cost_is_agreed: boolean;
+  /** True cost in USD — validated outcome from costDecisionEngine */
+  true_cost_usd: number | null;
+  /** Cost basis that produced the true cost */
+  cost_basis: CostBasisType | null;
+  /** Decision confidence at time of recording */
+  decision_confidence: number | null;
+  /** Accident severity */
+  accident_severity: AccidentSeverity;
+  /** Whether the cost was assessor-validated */
+  cost_is_validated: boolean;
   /** Structural component count */
   structural_component_count: number;
   /** Coverage ratio: quote components / damage components */
   quote_coverage_ratio: number;
   /** Data quality flags */
   quality_flags: string[];
+  /**
+   * @deprecated Use true_cost_usd. Kept for backward compatibility with
+   * existing DB schema and Stage 9 persistence code.
+   */
+  final_cost_usd: number | null;
+  /**
+   * @deprecated Use cost_is_validated. Kept for backward compatibility.
+   */
+  cost_is_agreed: boolean;
+}
+
+export interface CostLearningRejection {
+  /** Why this record was not stored */
+  rejection_reason: string;
+  /** The cost basis that was provided */
+  cost_basis: CostBasisType | null;
+  /** The confidence score that was provided */
+  decision_confidence: number | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,7 +316,7 @@ export function isStructuralComponent(name: string): boolean {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// COMPONENT COST ESTIMATION (relative, not market-priced)
+// COMPONENT COST INDEX (relative, not market-priced)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -248,6 +324,9 @@ export function isStructuralComponent(name: string): boolean {
  * These are relative index values (not USD), used only for weighting.
  * They represent the typical cost contribution of each component class
  * relative to a moderate-severity repair job.
+ *
+ * RULE: These values are derived from validated claim outcomes only.
+ * Market assumptions, catalogue prices, or AI estimates are NOT used.
  */
 const COMPONENT_BASE_INDEX: Record<string, number> = {
   "airbag module": 60,
@@ -308,39 +387,128 @@ function computeComponentIndex(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// COST TIER DERIVATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Derive the cost tier from a validated true_cost_usd.
+ *
+ * Thresholds (USD):
+ *   low:    < 1,500
+ *   medium: 1,500 – 5,000
+ *   high:   > 5,000
+ *
+ * RULE: Only derived from validated true_cost_usd — never from raw quotes
+ * or AI estimates.
+ */
+export function deriveCostTier(trueCostUsd: number): CostTier {
+  if (trueCostUsd < 1500) return "low";
+  if (trueCostUsd <= 5000) return "medium";
+  return "high";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // CASE SIGNATURE GENERATOR
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
  * Generate a short, deterministic, human-readable case descriptor.
- * Format: {vehicle_class}_{direction}_{severity_tier}_{component_count}c
- * Example: "pickup_rear_moderate_8c"
+ *
+ * Format: {vehicleType}_{impact}_{severity}_{componentCount}c_{costTier}
+ * Example: "pickup_frontal_severe_6c_high"
+ *
+ * Fields:
+ *   vehicleType  — normalised body type (sedan, pickup, suv, etc.)
+ *   impact       — collision direction (frontal, rear, side, rollover, etc.)
+ *   severity     — accident_severity (minor, moderate, severe, total_loss)
+ *   componentCount — number of damage components
+ *   costTier     — low | medium | high (from deriveCostTier)
  */
 export function generateCaseSignature(
   vehicleType: string,
   collisionDirection: string,
-  components: LearningInputComponent[],
-  finalCostCents: number | null
+  accidentSeverity: AccidentSeverity,
+  componentCount: number,
+  costTier: CostTier
 ): string {
-  const vType = (vehicleType || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
-  const dir = (collisionDirection || "unknown").toLowerCase().replace(/[^a-z0-9]/g, "_");
+  const vType = (vehicleType || "vehicle")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 
-  // Determine severity tier from component severities
-  const severities = components.map(c => c.severity);
-  let tier = "cosmetic";
-  if (severities.some(s => s === "catastrophic")) tier = "catastrophic";
-  else if (severities.some(s => s === "severe")) tier = "severe";
-  else if (severities.some(s => s === "moderate")) tier = "moderate";
-  else if (severities.some(s => s === "minor")) tier = "minor";
+  const dir = (collisionDirection || "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
 
-  const count = components.length;
-  const costTier = finalCostCents === null ? "no_cost"
-    : finalCostCents < 50000 ? "low"        // < $500
-    : finalCostCents < 200000 ? "medium"    // $500 – $2,000
-    : finalCostCents < 500000 ? "high"      // $2,000 – $5,000
-    : "major";                               // > $5,000
+  const sev = accidentSeverity.toLowerCase().replace(/[^a-z0-9]/g, "_");
 
-  return `${vType}_${dir}_${tier}_${count}c_${costTier}`;
+  return `${vType}_${dir}_${sev}_${componentCount}c_${costTier}`;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VALIDATED-OUTCOMES-ONLY POLICY GATE
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Determine whether a learning record should be stored based on the
+ * validated-outcomes-only policy.
+ *
+ * RULES:
+ *   - assessor_validated + any confidence → ACCEPT (assessor has reviewed)
+ *   - system_optimised + confidence >= 60  → ACCEPT (high-confidence baseline)
+ *   - system_optimised + confidence < 60   → REJECT (insufficient validation)
+ *   - null cost_basis                      → REJECT (no cost signal)
+ *   - null or zero true_cost_usd           → REJECT (no validated outcome)
+ *
+ * Returns null if the record should be stored, or a CostLearningRejection
+ * describing why it was rejected.
+ */
+export function checkValidatedOutcomePolicy(
+  trueCostUsd: number | null,
+  costBasis: CostBasisType | null,
+  decisionConfidence: number | null
+): CostLearningRejection | null {
+  if (!trueCostUsd || trueCostUsd <= 0) {
+    return {
+      rejection_reason: "No validated true cost available. Learning records require a positive true_cost_usd from the cost decision engine.",
+      cost_basis: costBasis,
+      decision_confidence: decisionConfidence,
+    };
+  }
+
+  if (!costBasis) {
+    return {
+      rejection_reason: "No cost basis provided. Learning records require cost_basis from the cost decision engine.",
+      cost_basis: null,
+      decision_confidence: decisionConfidence,
+    };
+  }
+
+  if (costBasis === "assessor_validated") {
+    // Assessor-validated always passes — human review is the highest validation
+    return null;
+  }
+
+  if (costBasis === "system_optimised") {
+    const confidence = decisionConfidence ?? 0;
+    if (confidence < MINIMUM_CONFIDENCE_THRESHOLD) {
+      return {
+        rejection_reason: `System-optimised cost basis with confidence ${confidence}/100 is below the minimum threshold of ${MINIMUM_CONFIDENCE_THRESHOLD}. Record not stored to prevent low-quality patterns from entering the learning corpus.`,
+        cost_basis: costBasis,
+        decision_confidence: confidence,
+      };
+    }
+    return null; // passes
+  }
+
+  return {
+    rejection_reason: `Unknown cost_basis value: "${costBasis}". Record not stored.`,
+    cost_basis: costBasis,
+    decision_confidence: decisionConfidence,
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -354,21 +522,56 @@ export function generateCaseSignature(
  * has been completed. It produces a CostLearningRecord that can be
  * persisted for longitudinal cost model calibration.
  *
+ * VALIDATED-OUTCOMES-ONLY POLICY:
+ *   Returns null (with rejection details) if the cost basis does not meet
+ *   the validation threshold. The caller should log the rejection reason
+ *   but NOT treat it as an error — it is expected behaviour for unvalidated claims.
+ *
  * The function is pure (no side effects) — persistence is the caller's
  * responsibility.
+ *
+ * @returns { record: CostLearningRecord, rejection: null } on success
+ * @returns { record: null, rejection: CostLearningRejection } when policy rejects
  */
-export function extractCostLearningRecord(input: CostLearningInput): CostLearningRecord {
+export function extractCostLearningRecord(input: CostLearningInput): {
+  record: CostLearningRecord | null;
+  rejection: CostLearningRejection | null;
+} {
   const {
     claimId,
     vehicleType,
     vehicleMake,
     vehicleModel,
     damageComponents,
-    finalCostCents,
+    trueCostUsd: rawTrueCost,
+    costBasis,
+    decisionConfidence,
+    accidentSeverity,
     selectedQuoteComponents,
     collisionDirection = "unknown",
     marketRegion = "DEFAULT",
+    finalCostCents, // legacy compat
   } = input;
+
+  // Resolve true cost — prefer trueCostUsd, fall back to finalCostCents for compat
+  const resolvedTrueCostUsd: number | null =
+    rawTrueCost !== null && rawTrueCost !== undefined
+      ? rawTrueCost
+      : (finalCostCents !== null && finalCostCents !== undefined && finalCostCents > 0)
+        ? finalCostCents / 100
+        : null;
+
+  // ── Policy gate ────────────────────────────────────────────────────────────
+  const rejection = checkValidatedOutcomePolicy(
+    resolvedTrueCostUsd,
+    costBasis ?? null,
+    decisionConfidence ?? null
+  );
+  if (rejection) {
+    return { record: null, rejection };
+  }
+
+  const trueCostUsd = resolvedTrueCostUsd!; // guaranteed non-null after policy gate
 
   const qualityFlags: string[] = [];
 
@@ -412,7 +615,6 @@ export function extractCostLearningRecord(input: CostLearningInput): CostLearnin
   }
 
   // ── 4. Identify high-cost drivers (≥15% of total) ────────────────────────
-  const HIGH_COST_THRESHOLD = 0.15;
   const highCostDrivers = Object.entries(weightMap)
     .filter(([, w]) => w >= HIGH_COST_THRESHOLD)
     .sort(([, a], [, b]) => b - a)
@@ -443,17 +645,14 @@ export function extractCostLearningRecord(input: CostLearningInput): CostLearnin
     qualityFlags.push("no_quote_components");
   }
 
-  // ── 6. Cost availability flags ────────────────────────────────────────────
-  const costIsAgreed = finalCostCents !== null && finalCostCents > 0;
-  if (!costIsAgreed) {
-    qualityFlags.push("no_final_cost");
-  }
-
-  // ── 7. Structural component count ─────────────────────────────────────────
+  // ── 6. Structural component count ─────────────────────────────────────────
   const structuralCount = componentDetail.filter(c => c.is_structural).length;
   if (structuralCount > 0) {
     qualityFlags.push(`structural_components_present:${structuralCount}`);
   }
+
+  // ── 7. Cost tier (from validated true_cost_usd) ───────────────────────────
+  const costTier = deriveCostTier(trueCostUsd);
 
   // ── 8. Vehicle descriptor ─────────────────────────────────────────────────
   const vehicleDescriptor = [vehicleMake, vehicleModel, vehicleType]
@@ -466,11 +665,19 @@ export function extractCostLearningRecord(input: CostLearningInput): CostLearnin
   const caseSignature = generateCaseSignature(
     vehicleType,
     collisionDirection,
-    damageComponents,
-    finalCostCents
+    accidentSeverity,
+    normalisedComponents.length,
+    costTier
   );
 
-  return {
+  // ── 10. Validation quality flag ───────────────────────────────────────────
+  if (costBasis === "assessor_validated") {
+    qualityFlags.push("assessor_validated");
+  } else {
+    qualityFlags.push(`system_optimised_confidence:${decisionConfidence ?? "unknown"}`);
+  }
+
+  const record: CostLearningRecord = {
     claim_id: claimId,
     recorded_at: new Date().toISOString(),
     vehicle_descriptor: vehicleDescriptor,
@@ -480,13 +687,22 @@ export function extractCostLearningRecord(input: CostLearningInput): CostLearnin
     component_weighting: weightMap,
     component_detail: componentDetail,
     case_signature: caseSignature,
+    cost_tier: costTier,
     component_count: normalisedComponents.length,
-    final_cost_usd: finalCostCents !== null ? finalCostCents / 100 : null,
-    cost_is_agreed: costIsAgreed,
+    true_cost_usd: trueCostUsd,
+    cost_basis: costBasis,
+    decision_confidence: decisionConfidence ?? null,
+    accident_severity: accidentSeverity,
+    cost_is_validated: true, // guaranteed by policy gate
     structural_component_count: structuralCount,
     quote_coverage_ratio: quoteCoverageRatio,
     quality_flags: qualityFlags,
+    // Backward-compat aliases
+    final_cost_usd: trueCostUsd,
+    cost_is_agreed: costBasis === "assessor_validated",
   };
+
+  return { record, rejection: null };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -498,10 +714,14 @@ export interface AggregatedCostPattern {
   vehicle_type: string;
   /** Collision direction group */
   collision_direction: string;
+  /** Accident severity group */
+  accident_severity: string;
+  /** Cost tier group */
+  cost_tier: CostTier | "mixed";
   /** Number of claims in this group */
   claim_count: number;
-  /** Average final cost USD */
-  avg_cost_usd: number | null;
+  /** Average true cost USD (validated outcomes only) */
+  avg_true_cost_usd: number | null;
   /** Most frequent high-cost drivers across all claims in this group */
   top_cost_drivers: Array<{ component: string; frequency: number }>;
   /** Average component weighting across all claims in this group */
@@ -510,17 +730,24 @@ export interface AggregatedCostPattern {
 
 /**
  * Aggregate multiple CostLearningRecords into a cost pattern summary.
- * Used for batch analytics and model calibration reporting.
+ * Used for batch analytics and calibration reporting.
+ *
+ * Only records with cost_is_validated = true are included.
  */
 export function aggregateCostPatterns(
   records: CostLearningRecord[]
 ): AggregatedCostPattern[] {
   if (records.length === 0) return [];
 
-  // Group by vehicle_type + collision_direction
+  // Filter to validated records only
+  const validatedRecords = records.filter(r => r.cost_is_validated);
+  if (validatedRecords.length === 0) return [];
+
+  // Group by vehicle_type + collision_direction + accident_severity
   const groups = new Map<string, CostLearningRecord[]>();
-  for (const r of records) {
-    const key = `${r.vehicle_descriptor.split(" ")[2] ?? "unknown"}::${r.collision_direction}`;
+  for (const r of validatedRecords) {
+    const vType = r.vehicle_descriptor.split(" ")[2] ?? "unknown";
+    const key = `${vType}::${r.collision_direction}::${r.accident_severity ?? "unknown"}`;
     const group = groups.get(key) ?? [];
     group.push(r);
     groups.set(key, group);
@@ -528,14 +755,24 @@ export function aggregateCostPatterns(
 
   const patterns: AggregatedCostPattern[] = [];
 
-  for (const [key, groupRecords] of Array.from(groups.entries())) {
-    const [vehicleType, collisionDir] = key.split("::");
+  for (const [key, groupRecords] of Array.from(groups.entries()) as Array<[string, CostLearningRecord[]]>) {
+    const [vehicleType, collisionDir, accidentSev] = key.split("::");
 
-    // Average cost
-    const costsWithValues = groupRecords.filter((r: CostLearningRecord) => r.final_cost_usd !== null);
+    // Average true cost
+    const costsWithValues = groupRecords.filter((r: CostLearningRecord) => r.true_cost_usd !== null && r.true_cost_usd > 0);
     const avgCost = costsWithValues.length > 0
-      ? costsWithValues.reduce((sum: number, r: CostLearningRecord) => sum + (r.final_cost_usd ?? 0), 0) / costsWithValues.length
+      ? costsWithValues.reduce((sum: number, r: CostLearningRecord) => sum + (r.true_cost_usd ?? 0), 0) / costsWithValues.length
       : null;
+
+    // Dominant cost tier
+    const tierCounts: Record<string, number> = {};
+    for (const r of groupRecords) {
+      tierCounts[r.cost_tier] = (tierCounts[r.cost_tier] ?? 0) + 1;
+    }
+    const dominantTier = Object.entries(tierCounts).sort(([, a], [, b]) => b - a)[0]?.[0] as CostTier | undefined;
+    const costTierGroup: CostTier | "mixed" = (
+      Object.keys(tierCounts).length === 1 ? (dominantTier ?? "mixed") : "mixed"
+    );
 
     // Top cost drivers by frequency
     const driverFreq: Record<string, number> = {};
@@ -550,10 +787,11 @@ export function aggregateCostPatterns(
       .map(([component, frequency]) => ({ component, frequency }));
 
     // Average component weighting
-    const allComponents = new Set<string>(groupRecords.flatMap((r: CostLearningRecord) => Object.keys(r.component_weighting)));
+    const allComponentNames: string[] = groupRecords.flatMap((r: CostLearningRecord) => Object.keys(r.component_weighting));
+    const allComponents = new Set<string>(allComponentNames);
     const avgWeighting: Record<string, number> = {};
-    for (const comp of Array.from(allComponents)) {
-      const weights = groupRecords
+    for (const comp of Array.from(allComponents) as string[]) {
+      const weights: number[] = groupRecords
         .filter((r: CostLearningRecord) => comp in r.component_weighting)
         .map((r: CostLearningRecord) => r.component_weighting[comp]);
       if (weights.length > 0) {
@@ -566,8 +804,10 @@ export function aggregateCostPatterns(
     patterns.push({
       vehicle_type: vehicleType,
       collision_direction: collisionDir,
+      accident_severity: accidentSev,
+      cost_tier: costTierGroup,
       claim_count: groupRecords.length,
-      avg_cost_usd: avgCost !== null ? Math.round(avgCost * 100) / 100 : null,
+      avg_true_cost_usd: avgCost !== null ? Math.round(avgCost * 100) / 100 : null,
       top_cost_drivers: topDrivers,
       avg_component_weighting: avgWeighting,
     });
