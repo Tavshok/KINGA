@@ -333,6 +333,11 @@ export interface Stage4Output {
    * If proceed = false, downstream models must not issue a final decision.
    */
   consistencyCheck: import("./claimConsistencyChecker").ConsistencyCheckResult | null;
+  /**
+   * Pipeline Gate Controller decision.
+   * If status = "HOLD", the pipeline must not proceed to analytical stages.
+   */
+  gateDecision: import("./pipelineGateController").GateControllerResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -814,4 +819,6 @@ export interface PipelineContext {
   damagePhotoUrls: string[];
   db: any;
   log: (stage: string, msg: string) => void;
+  /** Set by Stage 0 (Evidence Registry Engine) — available to all downstream stages */
+  evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
 }

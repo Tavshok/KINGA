@@ -23,6 +23,8 @@ import { validateFields, extractSpeedFromText } from "./fieldValidationEngine";
 import type { FieldValidationResult } from "./fieldValidationEngine";
 import { checkClaimConsistency } from "./claimConsistencyChecker";
 import type { ConsistencyCheckResult } from "./claimConsistencyChecker";
+import { evaluateGate } from "./pipelineGateController";
+import type { GateControllerResult } from "./pipelineGateController";
 
 const CRITICAL_FIELDS: Array<{ field: keyof ExtractedClaimFields; label: string; severity: "critical" | "warning" }> = [
   { field: "vehicleMake", label: "Vehicle make", severity: "critical" },
@@ -425,6 +427,48 @@ export async function runValidationStage(
       ctx.log("Stage 4", `Consistency checker error (non-fatal): ${String(ccErr)}`);
     }
 
+    // Step 7c: Pipeline Gate Controller — go/no-go decision
+    let gateDecision: GateControllerResult | null = null;
+    try {
+      const fv = fieldValidation;
+      const cc = consistencyCheck;
+      gateDecision = evaluateGate({
+        evidence_registry: {
+          damage_photos: ctx.evidenceRegistry?.evidence_registry?.damage_photos ?? "UNKNOWN",
+          repair_quote: ctx.evidenceRegistry?.evidence_registry?.repair_quote ?? "UNKNOWN",
+          assessor_report: ctx.evidenceRegistry?.evidence_registry?.assessor_report ?? "UNKNOWN",
+          claim_form: ctx.evidenceRegistry?.evidence_registry?.claim_form ?? "UNKNOWN",
+          driver_statement: ctx.evidenceRegistry?.evidence_registry?.driver_statement ?? "UNKNOWN",
+          incident_details: ctx.evidenceRegistry?.evidence_registry?.incident_details ?? "UNKNOWN",
+          vehicle_details: ctx.evidenceRegistry?.evidence_registry?.vehicle_details ?? "UNKNOWN",
+        },
+        validated_fields: {
+          incident_type: fv?.validated_fields.incident_type ?? null,
+          repair_cost: fv?.validated_fields.repair_cost ?? null,
+          speed_kmh: fv?.validated_fields.speed_kmh ?? null,
+          market_value: fv?.validated_fields.market_value ?? null,
+        },
+        conflict_report: cc ?? { critical_conflicts: [], proceed: true },
+        assessment_mode: (fv?.validated_fields.repair_cost?.value ?? 0) > 0 ? "POST_ASSESSMENT" : "PRE_ASSESSMENT",
+      });
+      if (gateDecision.status === "HOLD") {
+        ctx.log("Stage 4", `Gate HOLD: ${gateDecision.reasons.length} reason(s) — ${gateDecision.rules_triggered.filter(r => r.triggered).map(r => r.rule_id).join(", ")}`);
+        for (const action of gateDecision.required_actions) {
+          issues.push({
+            field: "gate_controller",
+            severity: "critical",
+            message: `[GATE HOLD] ${action}`,
+            secondaryExtractionAttempted: false,
+            resolved: false,
+          });
+        }
+      } else {
+        ctx.log("Stage 4", "Gate PROCEED — all four rules passed");
+      }
+    } catch (gateErr) {
+      ctx.log("Stage 4", `Gate controller error (non-fatal): ${String(gateErr)}`);
+    }
+
     const output: Stage4Output = {
       validatedFields,
       issues,
@@ -432,6 +476,7 @@ export async function runValidationStage(
       missingFields: missingAfter,
       fieldValidation,
       consistencyCheck,
+      gateDecision,
     };
 
     ctx.log("Stage 4", `Validation complete. Completeness: ${completenessScore}%. Missing: ${missingAfter.length}. Assumptions: ${assumptions.length}`);
@@ -463,6 +508,7 @@ export async function runValidationStage(
         missingFields: CRITICAL_FIELDS.map(f => f.field),
         fieldValidation: null,
         consistencyCheck: null,
+        gateDecision: null,
       },
       error: String(err),
       durationMs: Date.now() - start,
