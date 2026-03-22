@@ -574,6 +574,16 @@ export interface Stage9Output {
   currency: string;
   repairIntelligence: RepairIntelligenceItem[];
   partsReconciliation: PartsReconciliationItem[];
+  reconciliationSummary: {
+    matched_count: number;
+    missing_count: number;
+    extra_count: number;
+    coverage_ratio: number;
+    structural_gaps: string[];
+    summary: string;
+    missing: Array<{ component: string; is_structural: boolean; reason: string }>;
+    extra: Array<{ component: string; reason: string }>;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

@@ -388,6 +388,7 @@ export function buildCostFallback(reason = "insufficient_input"): CostFallbackOu
     currency: "USD",
     repairIntelligence: [],
     partsReconciliation: [],
+    reconciliationSummary: null,
     _fallback: fallbackMeta,
     _fallback_fields: ["ai_estimate", "parts", "labour", "fair_range", "expectedRepairCostCents"],
   };
@@ -420,6 +421,7 @@ export function ensureCostContract(
     currency: partial.currency ?? fallback.currency,
     repairIntelligence: partial.repairIntelligence ?? [],
     partsReconciliation: partial.partsReconciliation ?? [],
+    reconciliationSummary: partial.reconciliationSummary ?? null,
   };
 
   return {

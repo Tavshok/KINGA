@@ -9,6 +9,7 @@
  */
 
 import { ensureCostContract } from "./engineFallback";
+import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import type {
   PipelineContext,
   StageResult,
@@ -196,22 +197,57 @@ export async function runCostOptimisationStage(
     });
 
     // Build parts reconciliation (quoted parts vs AI estimated)
+    // Step 1: Run semantic damage-vs-quote reconciliation if quote components are available
+    const quoteComponents: string[] = stage3?.inputRecovery?.extracted_quotes
+      ?.flatMap(q => q.components ?? []) ?? [];
+    const damageComponentNames = damageAnalysis.damagedParts.map(p => p.name);
+
+    const reconciliation = quoteComponents.length > 0
+      ? reconcileDamageComponents(damageComponentNames, quoteComponents)
+      : null;
+
     const partsReconciliation = damageAnalysis.damagedParts.map(comp => {
       const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate);
       const aiEstimate = Math.round((cost.partsCents + cost.labourCents) / 100);
+
+      // Find if this component was matched in the reconciliation
+      const matched = reconciliation?.matched.find(m => m.damage_component === comp.name.toLowerCase());
+      const isMissing = reconciliation?.missing.some(m => m.component === comp.name.toLowerCase());
+
       return {
         component: comp.name,
         aiEstimate,
-        quotedAmount: null as number | null, // populated when quote is available
+        quotedAmount: null as number | null, // populated when per-component quote amounts are available
         variance: null as number | null,
         variancePct: null as number | null,
-        flag: null as string | null,
+        flag: isMissing
+          ? `missing_from_quote${matched ? '' : ''}`
+          : matched
+          ? null
+          : null,
+        reconciliation_status: reconciliation
+          ? (matched ? "matched" : isMissing ? "missing_from_quote" : "unmatched")
+          : "no_quote_available",
+        is_structural: comp.name ? /radiator support|bumper bracket|chassis|sill|diff connector|differential connector/i.test(comp.name) : false,
       };
     });
+
+    // Attach the full reconciliation summary to the output
+    const reconciliationSummary = reconciliation ? {
+      matched_count: reconciliation.matched.length,
+      missing_count: reconciliation.missing.length,
+      extra_count: reconciliation.extra.length,
+      coverage_ratio: reconciliation.coverage_ratio,
+      structural_gaps: reconciliation.structural_gaps,
+      summary: reconciliation.summary,
+      missing: reconciliation.missing,
+      extra: reconciliation.extra,
+    } : null;
 
     // Stage 26: apply defensive contract — add top-level ai_estimate, parts, labour, fair_range
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
+      reconciliationSummary,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
       savingsOpportunityCents,
