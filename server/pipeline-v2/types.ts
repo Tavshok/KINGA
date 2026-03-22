@@ -593,6 +593,13 @@ export interface Stage9Output {
     structural_coverage_ratio: number;
     physics_zones_covered: boolean;
   } | null;
+  costNarrative: {
+    narrative: string;
+    recommendation: "APPROVE" | "REVIEW" | "REJECT";
+    recommendation_reason: string;
+    flags_addressed: string[];
+    confidence: "high" | "medium" | "low";
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

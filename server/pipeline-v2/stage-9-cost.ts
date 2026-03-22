@@ -11,6 +11,7 @@
 import { ensureCostContract } from "./engineFallback";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
+import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
 import type {
   PipelineContext,
   StageResult,
@@ -254,11 +255,46 @@ export async function runCostOptimisationStage(
       extra: reconciliation.extra,
     } : null;
 
+    // Step 3: Generate cost intelligence narrative for decision panel
+    const extractedQuotes = stage3?.inputRecovery?.extracted_quotes ?? [];
+    const narrativeInput = {
+      quotes: extractedQuotes.map((q, i) => ({
+        quote_id: `q${i + 1}`,
+        panel_beater: q.panel_beater ?? "Unknown",
+        total_cost: q.total_cost ?? 0,
+        currency: q.currency ?? "USD",
+      })),
+      selected_quote_id: extractedQuotes.length > 0 ? "q1" : "",
+      agreed_cost_usd: quotedCents ? quotedCents / 100 : null,
+      ai_estimate_usd: totalExpectedCents / 100,
+      market_value_usd: (claimRecord as unknown as Record<string, unknown>).marketValueCents
+        ? ((claimRecord as unknown as Record<string, number>).marketValueCents) / 100
+        : null,
+      median_cost: extractedQuotes.length > 1
+        ? [...extractedQuotes].sort((a, b) => (a.total_cost ?? 0) - (b.total_cost ?? 0))[Math.floor(extractedQuotes.length / 2)]?.total_cost ?? null
+        : null,
+      flags: [
+        ...(reconciliation && reconciliation.structural_gaps.length > 0 ? ["structural_gap"] : []),
+        ...(stage3?.inputRecovery?.failure_flags ?? []),
+      ],
+      alignment_status: alignmentResult?.alignment_status ?? null,
+      critical_missing: alignmentResult?.critical_missing.map(c => c.component) ?? [],
+      unrelated_items: alignmentResult?.unrelated_items.map(u => u.component) ?? [],
+      engineering_comment: alignmentResult?.engineering_comment ?? null,
+      coverage_ratio: alignmentResult?.coverage_ratio ?? null,
+      assessor_name: (claimRecord as unknown as Record<string, unknown>).assessorName as string | null ?? null,
+      quote_count: extractedQuotes.length > 0 ? extractedQuotes.length : (quotedCents ? 1 : 0),
+    };
+    const costNarrative = narrativeInput.quotes.length > 0 || narrativeInput.agreed_cost_usd
+      ? generateCostIntelligenceNarrative(narrativeInput)
+      : null;
+
     // Stage 26: apply defensive contract — add top-level ai_estimate, parts, labour, fair_range
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
       alignmentResult,
+      costNarrative,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
       savingsOpportunityCents,
