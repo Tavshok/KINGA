@@ -12,6 +12,7 @@ import { ensureCostContract } from "./engineFallback";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord } from "../db";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
+import { runCostDecision } from "./costDecisionEngine";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
@@ -335,6 +336,64 @@ export async function runCostOptimisationStage(
       flags: narrativeInput.flags,
     });
 
+    // Step 4c: Run Claims Cost Decision Engine
+    const agreedCostUsd = quotedCents ? quotedCents / 100 : null;
+    const costDecision = (() => {
+      try {
+        return runCostDecision({
+          agreed_cost_usd: agreedCostUsd,
+          optimised_cost: quoteOptimisation ? {
+            optimised_cost_usd: quoteOptimisation.optimised_cost_usd,
+            selected_quotes: quoteOptimisation.selected_quotes.map(q => ({
+              panel_beater: q.panel_beater,
+              total_cost: q.total_cost,
+              structurally_complete: q.structurally_complete,
+              structural_gaps: q.structural_gaps,
+              is_outlier: q.is_outlier,
+              coverage_ratio: q.coverage_ratio,
+            })),
+            excluded_quotes: quoteOptimisation.excluded_quotes.map(q => ({
+              panel_beater: q.panel_beater,
+              total_cost: q.total_cost,
+              reason: q.reason,
+              exclusion_category: q.exclusion_category,
+            })),
+            cost_spread_pct: quoteOptimisation.cost_spread_pct,
+            confidence: quoteOptimisation.confidence,
+            total_structural_gaps: quoteOptimisation.total_structural_gaps,
+            median_cost_usd: quoteOptimisation.median_cost_usd,
+          } : null,
+          extracted_quotes: (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => ({
+            panel_beater: q.panel_beater ?? null,
+            total_cost: q.total_cost ?? null,
+            currency: q.currency ?? currency,
+          })),
+          damage_components: damageComponentNames,
+          cost_reliability: costReliability ? {
+            confidence_level: costReliability.confidence_level,
+            confidence_score: costReliability.score_breakdown.final_score,
+            reason: costReliability.reason,
+          } : null,
+          alignment_result: alignmentResult ? {
+            alignment_status: alignmentResult.alignment_status,
+            critical_missing: alignmentResult.critical_missing,
+            unrelated_items: alignmentResult.unrelated_items,
+            engineering_comment: alignmentResult.engineering_comment,
+            coverage_ratio: alignmentResult.coverage_ratio,
+            structural_coverage_ratio: alignmentResult.structural_coverage_ratio,
+          } : null,
+          ai_estimate_usd: totalExpectedCents / 100,
+          currency,
+        });
+      } catch (decisionErr) {
+        ctx.log("Stage 9", `Cost decision engine failed (non-fatal): ${String(decisionErr)}`);
+        return null;
+      }
+    })();
+    if (costDecision) {
+      ctx.log("Stage 9", `Cost decision: basis=${costDecision.cost_basis}, true_cost=USD ${costDecision.true_cost_usd.toFixed(2)}, recommendation=${costDecision.recommendation}, confidence=${costDecision.confidence}, anomalies=${costDecision.anomalies.length}`);
+    }
+
     // Stage 26: apply defensive contract — add top-level ai_estimate, parts, labour, fair_range
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
@@ -343,6 +402,7 @@ export async function runCostOptimisationStage(
       costNarrative,
       costReliability,
       quoteOptimisation: quoteOptimisation ?? null,
+      costDecision: costDecision ?? null,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
       savingsOpportunityCents,

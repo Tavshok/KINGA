@@ -613,6 +613,32 @@ export interface Stage9Output {
       final_score: number;
     };
   } | null;
+  /** Stage 9c: Claims Cost Decision Engine output — true cost basis, deviations, anomalies, recommendation */
+  costDecision: {
+    true_cost_usd: number;
+    cost_basis: "assessor_validated" | "system_optimised";
+    deviation_analysis: {
+      highest_quote_usd: number | null;
+      highest_quote_deviation_pct: number | null;
+      highest_quote_panel_beater: string | null;
+      optimised_vs_true_pct: number | null;
+      ai_estimate_usd: number | null;
+      ai_vs_true_pct: number | null;
+      quote_spread_pct: number | null;
+    };
+    anomalies: Array<{
+      category: "overpricing" | "under_quoting" | "misaligned_components" | "low_reliability" | "spread_warning" | "structural_gap" | "no_cost_basis";
+      severity: "low" | "medium" | "high" | "critical";
+      description: string;
+      affected_quotes?: string[];
+      affected_components?: string[];
+      deviation_pct?: number;
+    }>;
+    recommendation: "APPROVE" | "REVIEW" | "REJECT";
+    confidence: number;
+    reasoning: string;
+    decision_trace: string[];
+  } | null;
   /** Stage 9b: Quote Optimisation Engine output — weighted baseline cost from multiple quotes */
   quoteOptimisation: {
     optimised_cost_usd: number;
