@@ -395,9 +395,9 @@ export async function runPipelineV2(
     const confResult = aggregateConfidence(confInput);
     // Attach to stage8Data so it flows through to db.ts persistence
     (stage8Data as any).confidenceAggregation = confResult;
-    ctx.log?.(`[Stage 7d] Confidence aggregation: overall=${confResult.overall_confidence} (${confResult.confidence_level}), weakest=${confResult.weakest_component}`);
+    ctx.log?.("7d_confidence", `overall=${confResult.overall_confidence} (${confResult.confidence_level}), weakest=${confResult.weakest_component}`);
   } catch (err) {
-    ctx.log?.(`[Stage 7d] Confidence aggregation failed: ${err}`);
+    ctx.log?.("7d_confidence", `failed: ${err}`);
   }
 
   // ── STAGE 9: Cost Optimisation ───────────────────────────────────────
