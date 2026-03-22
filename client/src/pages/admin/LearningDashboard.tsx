@@ -36,6 +36,7 @@ import {
   BarChart3,
   Database,
   Zap,
+  Activity,
 } from "lucide-react";
 
 // ─── Scenario options ──────────────────────────────────────────────────────────
@@ -74,9 +75,15 @@ export default function LearningDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [scenarioFilter, setScenarioFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"overview" | "cost" | "fraud">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "cost" | "fraud" | "calibration">("overview");
 
   const scenarioParam = scenarioFilter === "all" ? undefined : scenarioFilter;
+
+  const { data: calibrationDrift, isLoading: calibrationLoading, refetch: refetchCalibration } =
+    trpc.learning.getCalibrationDrift.useQuery(
+      { scenario_filter: scenarioParam },
+      { enabled: activeTab === "calibration" }
+    );
 
   // ── Queries ──────────────────────────────────────────────────────────────────
   const statsQuery = trpc.learning.getLearningStats.useQuery(undefined, {
@@ -148,8 +155,7 @@ export default function LearningDashboard() {
 
       {/* Tab Bar */}
       <div className="border-b border-border px-6 flex gap-1 pt-2">
-        {(["overview", "cost", "fraud"] as const).map((tab) => (
-          <button
+       {(["overview", "cost", "fraud", "calibration"] as const).map((tab) => (          <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${
@@ -161,6 +167,7 @@ export default function LearningDashboard() {
             {tab === "overview" && <Database className="w-4 h-4 inline mr-1" />}
             {tab === "cost" && <BarChart3 className="w-4 h-4 inline mr-1" />}
             {tab === "fraud" && <ShieldAlert className="w-4 h-4 inline mr-1" />}
+            {tab === "calibration" && <Activity className="w-4 h-4 inline mr-1" />}
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
@@ -559,7 +566,195 @@ export default function LearningDashboard() {
             )}
           </>
         )}
-      </div>
+        {/* ── Calibration Drift Tab ─────────────────────────────────────────── */}
+          {activeTab === "calibration" && (
+            <>
+              {calibrationLoading ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <RefreshCw className="w-8 h-8 mx-auto mb-3 animate-spin opacity-50" />
+                  <p className="text-sm">Analysing calibration drift…</p>
+                </div>
+              ) : calibrationDrift ? (
+                <>
+                  {/* Status Banner */}
+                  <Card className={calibrationDrift.drift_detected
+                    ? calibrationDrift.severity === "HIGH"
+                      ? "border-red-500/50 bg-red-500/5"
+                      : "border-yellow-500/50 bg-yellow-500/5"
+                    : "border-green-500/50 bg-green-500/5"
+                  }>
+                    <CardContent className="pt-4 pb-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          {calibrationDrift.drift_detected ? (
+                            <AlertTriangle className={`w-8 h-8 ${calibrationDrift.severity === "HIGH" ? "text-red-500" : "text-yellow-500"}`} />
+                          ) : (
+                            <CheckCircle2 className="w-8 h-8 text-green-500" />
+                          )}
+                          <div>
+                            <p className="font-semibold text-sm">
+                              {calibrationDrift.drift_detected ? `Calibration Drift Detected — ${calibrationDrift.severity} Severity` : "No Calibration Drift Detected"}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-0.5">{calibrationDrift.recommendation}</p>
+                          </div>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <Badge variant="outline" className={`text-xs ${
+                            calibrationDrift.severity === "HIGH" ? "border-red-500/50 text-red-500" :
+                            calibrationDrift.severity === "MEDIUM" ? "border-yellow-500/50 text-yellow-500" :
+                            "border-green-500/50 text-green-500"
+                          }`}>{calibrationDrift.severity}</Badge>
+                          <p className="text-xs text-muted-foreground mt-1">{calibrationDrift.metadata.records_analysed} records</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Statistics Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {([
+                      { label: "Mean Cost Error", value: `${calibrationDrift.statistics.mean_cost_error_pct.toFixed(1)}%`, sub: "absolute" },
+                      { label: "Median Cost Error", value: `${calibrationDrift.statistics.median_cost_error_pct.toFixed(1)}%`, sub: "absolute" },
+                      { label: "Severity Mismatch", value: `${Math.round(calibrationDrift.statistics.severity_mismatch_rate * 100)}%`, sub: "of records" },
+                      { label: "MAE (USD)", value: `$${calibrationDrift.statistics.mean_absolute_error_usd.toLocaleString()}`, sub: "mean abs error" },
+                    ] as const).map(({ label, value, sub }) => (
+                      <Card key={label}>
+                        <CardContent className="pt-4 pb-4">
+                          <p className="text-xs text-muted-foreground">{label}</p>
+                          <p className="text-2xl font-bold mt-1">{value}</p>
+                          <p className="text-xs text-muted-foreground">{sub}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+
+                  {/* Over/Under Estimate Breakdown */}
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Activity className="w-4 h-4" />
+                        Prediction Direction Breakdown
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-6">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Over-estimates</p>
+                          <p className="text-xl font-bold text-red-500">{calibrationDrift.statistics.over_estimate_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Under-estimates</p>
+                          <p className="text-xl font-bold text-blue-500">{calibrationDrift.statistics.under_estimate_count}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Windows Analysed</p>
+                          <p className="text-xl font-bold">{calibrationDrift.statistics.windows_analysed}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Continuous Drift</p>
+                          <p className="text-xl font-bold">{calibrationDrift.statistics.continuous_drift_detected ? <span className="text-red-500">YES</span> : <span className="text-green-500">NO</span>}</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Drift Areas */}
+                  {calibrationDrift.drift_areas.length > 0 && (
+                    <Card className="border-red-500/30">
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-500" />
+                          Drift Areas Detected
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-3">
+                          {calibrationDrift.drift_areas.map((area: {
+                            dimension: string;
+                            description: string;
+                            measured_value: number;
+                            threshold: number;
+                            direction: string | null;
+                            affected_scenarios: string[];
+                            affected_record_count: number;
+                            is_continuous: boolean;
+                            consecutive_window_count: number;
+                          }, idx: number) => (
+                            <div key={idx} className="p-3 rounded border border-red-500/20 bg-red-500/5">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant="outline" className="text-xs border-red-500/50 text-red-500 uppercase">{area.dimension}</Badge>
+                                    {area.is_continuous && <Badge className="text-xs bg-red-600 text-white">CONTINUOUS</Badge>}
+                                    {area.direction && <Badge variant="outline" className="text-xs">{area.direction.replace("_", " ")}</Badge>}
+                                  </div>
+                                  <p className="text-xs text-muted-foreground mt-1.5">{area.description}</p>
+                                  {area.affected_scenarios.length > 0 && (
+                                    <p className="text-xs text-muted-foreground mt-1">Scenarios: {area.affected_scenarios.join(", ")}</p>
+                                  )}
+                                </div>
+                                <div className="text-right shrink-0">
+                                  <p className="text-lg font-bold text-red-500">{area.dimension === "cost" || area.dimension === "cost_direction" ? `${Math.round(area.measured_value * 100)}%` : area.measured_value}</p>
+                                  <p className="text-xs text-muted-foreground">{area.affected_record_count} records</p>
+                                  {area.consecutive_window_count > 1 && <p className="text-xs text-muted-foreground">{area.consecutive_window_count} windows</p>}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Severity Confusion Matrix */}
+                  {calibrationDrift.statistics.total_records > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Severity Confusion Matrix</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-border">
+                                <th className="text-left py-1.5 pr-4 text-muted-foreground">AI Predicted</th>
+                                <th className="text-center py-1.5 px-2">Actual: Minor</th>
+                                <th className="text-center py-1.5 px-2">Actual: Moderate</th>
+                                <th className="text-center py-1.5 px-2">Actual: Severe</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {([
+                                { label: "Minor", moderate: calibrationDrift.statistics.severity_confusion.minor_predicted_as_moderate, severe: calibrationDrift.statistics.severity_confusion.minor_predicted_as_severe, minor: calibrationDrift.statistics.severity_confusion.correct },
+                                { label: "Moderate", moderate: calibrationDrift.statistics.severity_confusion.correct, severe: calibrationDrift.statistics.severity_confusion.moderate_predicted_as_severe, minor: calibrationDrift.statistics.severity_confusion.moderate_predicted_as_minor },
+                                { label: "Severe", moderate: calibrationDrift.statistics.severity_confusion.severe_predicted_as_moderate, severe: calibrationDrift.statistics.severity_confusion.correct, minor: calibrationDrift.statistics.severity_confusion.severe_predicted_as_minor },
+                              ] as const).map(({ label, minor, moderate, severe }) => (
+                                <tr key={label} className="border-b border-border/50">
+                                  <td className="py-1.5 pr-4 font-medium">{label}</td>
+                                  <td className="text-center py-1.5 px-2">{minor}</td>
+                                  <td className="text-center py-1.5 px-2">{moderate}</td>
+                                  <td className="text-center py-1.5 px-2">{severe}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {calibrationDrift.metadata.records_analysed === 0 && (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <Activity className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                      <p className="text-sm">No validated outcomes with cost data available yet.</p>
+                      <p className="text-xs mt-1">Calibration drift analysis requires claims with both AI cost estimates and assessor-approved final amounts.</p>
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </>
+          )}
+        </div>
     </div>
   );
 }

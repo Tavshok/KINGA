@@ -21,6 +21,10 @@ import {
   buildFraudLearningRecord,
   type FraudLearningRecord,
 } from "../pipeline-v2/fraudPatternLearningEngine";
+import {
+  detectCalibrationDrift,
+  buildDriftRecord,
+} from "../pipeline-v2/calibrationDriftDetector";
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -206,6 +210,143 @@ export const learningRouter = router({
         ...result,
         total_stored_records: learningRecords.length,
       };
+    }),
+
+  /**
+   * Run the Calibration Drift Detector over validated outcomes.
+   *
+   * Compares AI-predicted cost and severity against actual validated values.
+   * Returns drift_detected, drift_areas, severity, and recommendation.
+   */
+  getCalibrationDrift: protectedProcedure
+    .input(
+      z.object({
+        scenario_filter: z.string().optional(),
+        cost_drift_threshold: z.number().min(0).max(1).optional(),
+        severity_mismatch_threshold: z.number().min(0).max(1).optional(),
+        continuous_drift_window_count: z.number().int().min(1).optional(),
+        window_size_days: z.number().int().min(1).optional(),
+      })
+    )
+    .query(async ({ ctx, input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) {
+        return {
+          drift_detected: false,
+          drift_areas: [],
+          severity: "LOW" as const,
+          recommendation: "Database unavailable.",
+          statistics: {
+            total_records: 0,
+            records_with_cost_drift: 0,
+            records_with_severity_mismatch: 0,
+            mean_cost_error_pct: 0,
+            median_cost_error_pct: 0,
+            mean_absolute_error_usd: 0,
+            over_estimate_count: 0,
+            under_estimate_count: 0,
+            severity_mismatch_rate: 0,
+            severity_confusion: {
+              minor_predicted_as_moderate: 0,
+              minor_predicted_as_severe: 0,
+              moderate_predicted_as_minor: 0,
+              moderate_predicted_as_severe: 0,
+              severe_predicted_as_minor: 0,
+              severe_predicted_as_moderate: 0,
+              correct: 0,
+            },
+            by_scenario: {},
+            windows_analysed: 0,
+            continuous_drift_detected: false,
+          },
+          metadata: {
+            records_analysed: 0,
+            scenario_filter: input.scenario_filter ?? null,
+            cost_drift_threshold: input.cost_drift_threshold ?? 0.20,
+            severity_mismatch_threshold: input.severity_mismatch_threshold ?? 0.20,
+            continuous_drift_window_count: input.continuous_drift_window_count ?? 3,
+            window_size_days: input.window_size_days ?? 30,
+            analysis_timestamp_ms: Date.now(),
+          },
+        };
+      }
+
+      // Fetch assessments with cost predictions and validated outcomes
+      const rows = await drizzle
+        .select({
+          claimId: aiAssessments.claimId,
+          estimatedCost: aiAssessments.estimatedCost,
+          validatedOutcomeJson: aiAssessments.validatedOutcomeJson,
+          fraudRiskLevel: claims.fraudRiskLevel,
+          incidentType: claims.incidentType,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          createdAt: aiAssessments.createdAt,
+        })
+        .from(aiAssessments)
+        .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+        .where(
+          and(
+            isNotNull(aiAssessments.validatedOutcomeJson),
+            isNotNull(aiAssessments.estimatedCost)
+          )
+        )
+        .limit(5000);
+
+      const driftRecords = [];
+      for (const row of rows) {
+        // Parse validated outcome for severity and quality tier
+        let validatedOutcome: {
+          quality_tier?: string;
+          store?: boolean;
+          ai_severity?: string;
+          actual_severity?: string;
+        } | null = null;
+        try {
+          const raw = row.validatedOutcomeJson;
+          validatedOutcome = typeof raw === "string" ? JSON.parse(raw) : raw;
+        } catch {
+          continue;
+        }
+
+        if (!validatedOutcome?.store) continue;
+
+        // Use finalApprovedAmount as the actual cost (best available validated cost)
+        const actualCost = row.finalApprovedAmount ? parseFloat(String(row.finalApprovedAmount)) : null;
+        const aiCost = row.estimatedCost ?? null;
+
+        // Map fraudRiskLevel to severity proxy
+        // In production, a dedicated severity field from the validated outcome would be used
+        const aiSeverity = validatedOutcome.ai_severity ?? (
+          row.fraudRiskLevel === "high" ? "severe" :
+          row.fraudRiskLevel === "medium" ? "moderate" : "minor"
+        );
+        const actualSeverity = validatedOutcome.actual_severity ?? (
+          row.fraudRiskLevel === "high" ? "severe" :
+          row.fraudRiskLevel === "medium" ? "moderate" : "minor"
+        );
+
+        const record = buildDriftRecord(
+          row.claimId,
+          row.incidentType ?? "unknown",
+          aiCost,
+          actualCost,
+          aiSeverity,
+          actualSeverity,
+          row.createdAt ? new Date(row.createdAt).getTime() : null,
+          (validatedOutcome.quality_tier as "HIGH" | "MEDIUM" | "LOW" | null) ?? null
+        );
+
+        if (record) driftRecords.push(record);
+      }
+
+      return detectCalibrationDrift({
+        records: driftRecords,
+        scenario_filter: input.scenario_filter ?? null,
+        cost_drift_threshold: input.cost_drift_threshold ?? null,
+        severity_mismatch_threshold: input.severity_mismatch_threshold ?? null,
+        continuous_drift_window_count: input.continuous_drift_window_count ?? null,
+        window_size_days: input.window_size_days ?? null,
+      });
     }),
 
   /**
