@@ -369,11 +369,11 @@ function extractDamageHints(rawText: string): DamageHints {
  * Run the full 5-step input recovery pass against all extracted texts and document metadata.
  * Returns a structured InputRecoveryOutput without modifying original extraction data.
  */
-function runInputRecovery(
+async function runInputRecovery(
   stage1: Stage1Output,
   stage2: Stage2Output,
   perDocumentExtractions: ExtractedClaimFields[]
-): InputRecoveryOutput {
+): Promise<InputRecoveryOutput> {
   const allText = stage2.extractedTexts.map(t => t.rawText).join("\n");
   const flags: InputRecoveryFailureFlag[] = [];
 
@@ -398,10 +398,31 @@ function runInputRecovery(
     accident_description = perDocumentExtractions.find(e => e.accidentDescription)?.accidentDescription ?? null;
   }
 
-  // STEP 2 — Quote recovery
+  // STEP 2 — Quote recovery (regex fallback)
   const hasQuote = perDocumentExtractions.some(e => e.quoteTotalCents && e.quoteTotalCents > 0);
   const recovered_quote = recoverQuoteFromText(allText);
-  if (!hasQuote && !recovered_quote) flags.push("quote_not_mapped");
+
+  // STEP 2b — LLM-based structured quote extraction
+  // Runs when the regex fallback found a quote OR when there is sufficient text to attempt extraction.
+  // The LLM engine handles multi-quote documents, component lists, and labour/parts disaggregation.
+  let extracted_quotes: import('./quoteExtractionEngine').ExtractedQuote[] | undefined;
+  try {
+    const { extractMultipleQuotes } = await import('./quoteExtractionEngine');
+    if (allText.trim().length > 50) {
+      extracted_quotes = await extractMultipleQuotes(allText, 'insurance claim document');
+      // If LLM found a quote but regex did not, remove the quote_not_mapped flag
+      const llmFoundQuote = extracted_quotes.some(q => q.total_cost !== null && q.confidence !== 'low');
+      if (!hasQuote && !recovered_quote && llmFoundQuote) {
+        // LLM recovered the quote — do not push quote_not_mapped
+      } else if (!hasQuote && !recovered_quote && !llmFoundQuote) {
+        flags.push('quote_not_mapped');
+      }
+    } else {
+      if (!hasQuote && !recovered_quote) flags.push('quote_not_mapped');
+    }
+  } catch {
+    if (!hasQuote && !recovered_quote) flags.push('quote_not_mapped');
+  }
 
   // STEP 3 — Image presence detection
   const images_present =
@@ -428,6 +449,7 @@ function runInputRecovery(
   return {
     accident_description,
     recovered_quote,
+    extracted_quotes,
     images_present,
     damage_hints,
     failure_flags: flags,
@@ -529,8 +551,9 @@ export async function runStructuredExtractionStage(
     // Run 5-step input recovery pass
     let inputRecovery;
     try {
-      inputRecovery = runInputRecovery(stage1, stage2, perDocumentExtractions);
-      ctx.log("Stage 3", `Input recovery complete. Quote recovered: ${inputRecovery.recovered_quote ? `USD ${inputRecovery.recovered_quote.total} (${inputRecovery.recovered_quote.confidence})` : 'none'}. Images present: ${inputRecovery.images_present}. Flags: ${inputRecovery.failure_flags.join(", ") || "none"}.`);
+      inputRecovery = await runInputRecovery(stage1, stage2, perDocumentExtractions);
+      const llmQuoteCount = inputRecovery.extracted_quotes?.filter(q => q.total_cost !== null).length ?? 0;
+      ctx.log("Stage 3", `Input recovery complete. Quote recovered: ${inputRecovery.recovered_quote ? `USD ${inputRecovery.recovered_quote.total} (${inputRecovery.recovered_quote.confidence})` : 'none'}. LLM quotes extracted: ${llmQuoteCount}. Images present: ${inputRecovery.images_present}. Flags: ${inputRecovery.failure_flags.join(", ") || "none"}.`);
       if (inputRecovery.failure_flags.length > 0) {
         isDegraded = true;
         recoveryActions.push({

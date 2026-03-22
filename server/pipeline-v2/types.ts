@@ -271,11 +271,24 @@ export type InputRecoveryFailureFlag =
   | "description_not_mapped"
   | "images_not_processed";
 
+export interface ExtractedQuoteRecord {
+  panel_beater: string | null;
+  total_cost: number | null;
+  currency: string;
+  components: string[];
+  labour_defined: boolean;
+  parts_defined: boolean;
+  confidence: "high" | "medium" | "low";
+  extraction_warnings: string[];
+}
+
 export interface InputRecoveryOutput {
   /** STEP 1 — Accident description recovered from raw text */
   accident_description: string | null;
-  /** STEP 2 — Quote figures recovered from raw text */
+  /** STEP 2 — Quote figures recovered from raw text (regex fallback) */
   recovered_quote: RecoveredQuote | null;
+  /** STEP 2b — Structured quotes extracted by LLM quote engine (one per quote block) */
+  extracted_quotes?: ExtractedQuoteRecord[];
   /** STEP 3 — Whether images are present in the document set */
   images_present: boolean;
   /** STEP 4 — Damage keywords extracted from text */

@@ -1,0 +1,21 @@
+{
+  "query": "\nSELECT \n  c.id, c.vehicle_registration, c.vehicle_make, c.vehicle_model, c.status,\n  a.id AS assessment_id,\n  a.pipeline_run_summary,\n  a.enriched_photos_json,\n  a.damaged_components_json\nFROM claims c\nLEFT JOIN ai_assessments a ON a.claim_id = c.id\nORDER BY c.id DESC\nLIMIT 10\n",
+  "command": "mysql --batch --raw --column-names --default-character-set=utf8mb4 --host gateway02.us-east-1.prod.aws.tidbcloud.com --port 4000 --user 3zQEb4HwERZa3vD.6f0bc5e32ffe --database YbS42LwGroxbVepAMjk4bS --execute \nSELECT \n  c.id, c.vehicle_registration, c.vehicle_make, c.vehicle_model, c.status,\n  a.id AS assessment_id,\n  a.pipeline_run_summary,\n  a.enriched_photos_json,\n  a.damaged_components_json\nFROM claims c\nLEFT JOIN ai_assessments a ON a.claim_id = c.id\nORDER BY c.id DESC\nLIMIT 10\n",
+  "rows": [
+    {
+      "id": "2760200",
+      "vehicle_registration": "NULL",
+      "vehicle_make": "NULL",
+      "vehicle_model": "NULL",
+      "status": "assessment_in_progress",
+      "assessment_id": "NULL",
+      "pipeline_run_summary": "NULL",
+      "enriched_photos_json": "NULL",
+      "damaged_components_json": "NULL"
+    }
+  ],
+  "messages": [],
+  "stdout": "id\tvehicle_registration\tvehicle_make\tvehicle_model\tstatus\tassessment_id\tpipeline_run_summary\tenriched_photos_json\tdamaged_components_json\n2760200\tNULL\tNULL\tNULL\tassessment_in_progress\tNULL\tNULL\tNULL\tNULL\n",
+  "stderr": "",
+  "execution_time_ms": 447
+}
