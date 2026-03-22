@@ -600,6 +600,19 @@ export interface Stage9Output {
     flags_addressed: string[];
     confidence: "high" | "medium" | "low";
   } | null;
+  costReliability: {
+    confidence_level: "HIGH" | "MEDIUM" | "LOW";
+    confidence_score: number;
+    reason: string;
+    score_breakdown: {
+      base_score: number;
+      assessor_bonus: number;
+      quote_count_bonus: number;
+      alignment_modifier: number;
+      flag_penalty: number;
+      final_score: number;
+    };
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

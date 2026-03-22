@@ -12,6 +12,7 @@ import { ensureCostContract } from "./engineFallback";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
+import { scoreCostReliability } from "./costReliabilityScorer";
 import type {
   PipelineContext,
   StageResult,
@@ -289,12 +290,21 @@ export async function runCostOptimisationStage(
       ? generateCostIntelligenceNarrative(narrativeInput)
       : null;
 
+    // Step 4: Score cost reliability
+    const costReliability = scoreCostReliability({
+      number_of_quotes: narrativeInput.quote_count,
+      presence_of_assessor_cost: narrativeInput.agreed_cost_usd !== null,
+      alignment_status: alignmentResult?.alignment_status ?? null,
+      flags: narrativeInput.flags,
+    });
+
     // Stage 26: apply defensive contract — add top-level ai_estimate, parts, labour, fair_range
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
       alignmentResult,
       costNarrative,
+      costReliability,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
       savingsOpportunityCents,
