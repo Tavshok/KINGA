@@ -79,6 +79,11 @@ import {
   buildEvidenceRegistry,
   type EvidenceRegistry,
 } from "./evidenceRegistryEngine";
+import {
+  buildValidatedOutcomeInput,
+  recordValidatedOutcome,
+  type ValidatedOutcomeResult,
+} from "./validatedOutcomeRecorder";
 
 /**
  * Run the full self-healing pipeline.
@@ -123,6 +128,7 @@ export async function runPipelineV2(
   let stage10Data: Stage10Output | null = null;
   let claimRecord: ClaimRecord | null = null;
   let evidenceRegistryData: EvidenceRegistry | null = null;
+  let validatedOutcomeResult: ValidatedOutcomeResult | null = null;
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
@@ -553,6 +559,24 @@ export async function runPipelineV2(
   recordStage("10_report", s10);
   stage10Data = s10.data;
 
+  // ── STAGE 11: Validated Outcome Recorder (Learning Gate) ────────────────
+  // Runs after Stage 10 — decides if this outcome should be stored for learning.
+  if (stage9Data?.costDecision && stage10Data) {
+    try {
+      const isAssessorValidated = stage9Data.costDecision.cost_basis === "assessor_validated";
+      const outcomeInput = buildValidatedOutcomeInput({
+        trueCostUsd: stage9Data.costDecision.true_cost_usd,
+        decisionConfidence: stage9Data.costDecision.confidence,
+        recommendation: stage9Data.costDecision.recommendation,
+        assessorPresent: isAssessorValidated,
+      });
+      validatedOutcomeResult = recordValidatedOutcome(outcomeInput);
+      ctx.log("Stage11", `Learning gate: store=${validatedOutcomeResult.store}, tier=${validatedOutcomeResult.quality_tier}`);
+    } catch (err) {
+      ctx.log("Stage11", `Learning gate error: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
   ctx.log("Pipeline", `Pipeline complete. Total: ${Date.now() - pipelineStart}ms, Assumptions: ${allAssumptions.length}, Recoveries: ${allRecoveryActions.length}`);
 
   return buildResult(
@@ -560,7 +584,7 @@ export async function runPipelineV2(
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
-    causalVerdict, evidenceRegistryData
+    causalVerdict, evidenceRegistryData, validatedOutcomeResult
   );
 }
 
@@ -581,7 +605,8 @@ function buildResult(
   benchmarkBundle: BenchmarkBundle | null = null,
   consensusResult: ConsensusResult | null = null,
   causalVerdict: CausalVerdict | null = null,
-  evidenceRegistry: EvidenceRegistry | null = null
+  evidenceRegistry: EvidenceRegistry | null = null,
+  validatedOutcome: ValidatedOutcomeResult | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -606,6 +631,7 @@ function buildResult(
     consensusResult,
     causalVerdict,
     evidenceRegistry,
+    validatedOutcome,
   };
 }
 

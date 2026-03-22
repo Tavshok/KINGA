@@ -11,7 +11,7 @@
  *   7. Actions Required
  */
 import { useMemo } from "react";
-import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers, GitCompare, Link2, Link2Off } from "lucide-react";
+import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers, GitCompare, Link2, Link2Off, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 
@@ -129,6 +129,10 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
     return fb?.confidenceAggregation ?? null;
   }, [aiAssessment?.fraudScoreBreakdownJson]);
+  const validatedOutcome = useMemo(() => {
+    // validatedOutcomeJson is stored directly on aiAssessment
+    return safeParse(aiAssessment?.validatedOutcomeJson) ?? null;
+  }, [aiAssessment?.validatedOutcomeJson]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
@@ -925,6 +929,60 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
               <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Engine reasoning</summary>
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-l-2 border-border/50 pl-3">{crossEngineConsistency.reasoning}</p>
             </details>
+          </div>
+        </Section>
+      )}
+
+      {/* ── 5c. LEARNING GATE (Validated Outcome Recorder) ─────────────────────── */}
+      {validatedOutcome && (
+        <Section icon={<BookOpen className="h-4 w-4" />} title="Learning Gate" subtitle="Validated Outcome Recorder — Phase 3 calibration decision">
+          <div className="flex flex-col gap-3">
+            {/* Store decision */}
+            <div className="flex items-center gap-3">
+              <div className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold ${
+                validatedOutcome.store
+                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
+                  : 'bg-zinc-700/40 text-zinc-400 border border-zinc-600/30'
+              }`}>
+                {validatedOutcome.store ? '✓ STORED FOR LEARNING' : '✗ NOT STORED'}
+              </div>
+              <span className={`rounded-full px-3 py-1 text-xs font-bold ${
+                validatedOutcome.quality_tier === 'HIGH' ? 'bg-emerald-500/20 text-emerald-300' :
+                validatedOutcome.quality_tier === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300' :
+                'bg-zinc-600/30 text-zinc-400'
+              }`}>{validatedOutcome.quality_tier} QUALITY</span>
+            </div>
+            {/* Reason */}
+            <p className="text-xs text-muted-foreground leading-relaxed">{validatedOutcome.reason}</p>
+            {/* Metadata */}
+            {validatedOutcome.metadata && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+                {validatedOutcome.metadata.true_cost_usd != null && (
+                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
+                    <p className="text-xs text-muted-foreground">True Cost</p>
+                    <p className="text-sm font-bold text-foreground">${validatedOutcome.metadata.true_cost_usd.toLocaleString()}</p>
+                  </div>
+                )}
+                {validatedOutcome.metadata.decision_confidence != null && (
+                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
+                    <p className="text-xs text-muted-foreground">Confidence</p>
+                    <p className="text-sm font-bold text-foreground">{validatedOutcome.metadata.decision_confidence}%</p>
+                  </div>
+                )}
+                {validatedOutcome.metadata.recommendation && (
+                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
+                    <p className="text-xs text-muted-foreground">Recommendation</p>
+                    <p className="text-xs font-bold text-foreground truncate">{validatedOutcome.metadata.recommendation}</p>
+                  </div>
+                )}
+                {validatedOutcome.metadata.assessor_present != null && (
+                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
+                    <p className="text-xs text-muted-foreground">Assessor</p>
+                    <p className="text-sm font-bold text-foreground">{validatedOutcome.metadata.assessor_present ? 'Present' : 'Absent'}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </Section>
       )}
