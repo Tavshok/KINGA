@@ -354,6 +354,16 @@ export interface AccidentDetails {
   location: string | null;
   description: string | null;
   incidentType: CanonicalIncidentType;
+  /** Specific sub-type from the Incident Classification Engine (e.g. 'animal_strike') */
+  incidentSubType: string | null;
+  /** Full classification result from the Incident Classification Engine */
+  incidentClassification: {
+    incident_type: string;
+    confidence: number;
+    sources_used: string[];
+    conflict_detected: boolean;
+    reasoning: string;
+  } | null;
   collisionDirection: CollisionDirection;
   impactPoint: string | null;
   estimatedSpeedKmh: number | null;

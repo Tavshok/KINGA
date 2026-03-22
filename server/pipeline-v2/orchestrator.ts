@@ -639,7 +639,8 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
     driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null },
     accidentDetails: {
       date: ctx.claim.accidentDate || null, location: null, description: null,
-      incidentType: "collision", collisionDirection: "unknown",
+      incidentType: "collision", incidentSubType: null, incidentClassification: null,
+      collisionDirection: "unknown",
       impactPoint: null, estimatedSpeedKmh: null,
       maxCrushDepthM: null, totalDamageAreaM2: null,
       structuralDamage: false, airbagDeployment: false,

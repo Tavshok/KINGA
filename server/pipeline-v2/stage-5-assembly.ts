@@ -32,6 +32,7 @@ import {
   inferVehicleBodyType,
   inferPowertrainType,
 } from "../pipeline/types";
+import { classifyIncident } from "./incidentClassificationEngine";
 import { markFallback } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
 
@@ -146,52 +147,59 @@ export async function runAssemblyStage(
       claimantName: v.claimantName || ctx.claim.claimantName || null,
     };
 
-    const rawIncidentType = v.incidentType || ctx.claim.incidentType || null;
-    let incidentType: CanonicalIncidentType;
-    if (rawIncidentType) {
-      incidentType = classifyIncidentType(rawIncidentType);
-      // If classifyIncidentType returned "unknown", try NLP inference from description
-      if (incidentType === "unknown") {
-        const descForType = v.accidentDescription || ctx.claim.incidentDescription || "";
-        const nlpType = classifyIncidentType(descForType);
-        if (nlpType !== "unknown") {
-          incidentType = nlpType;
-          assumptions.push({
-            field: "accidentDetails.incidentType",
-            assumedValue: nlpType,
-            reason: `Incident type "${rawIncidentType}" was unrecognised. Inferred "${nlpType}" from incident description.`,
-            strategy: "contextual_inference",
-            confidence: 60,
-            stage: "Stage 5",
-          });
-        }
-      }
-    } else {
-      // Try NLP inference from description before defaulting
-      const descForType = v.accidentDescription || ctx.claim.incidentDescription || "";
-      const nlpType = descForType ? classifyIncidentType(descForType) : "unknown";
-      if (nlpType !== "unknown") {
-        incidentType = nlpType;
-        assumptions.push({
-          field: "accidentDetails.incidentType",
-          assumedValue: nlpType,
-          reason: `Incident type not found in structured fields. Inferred "${nlpType}" from incident description.`,
-          strategy: "contextual_inference",
-          confidence: 60,
-          stage: "Stage 5",
-        });
-      } else {
-        incidentType = "collision"; // Default assumption
-        isDegraded = true;
-        assumptions.push({
-          field: "accidentDetails.incidentType",
-          assumedValue: "collision",
-          reason: "Incident type not found in any source. Defaulting to 'collision' as most common claim type.",
-          strategy: "industry_average",
-          confidence: 50,
-          stage: "Stage 5",
-        });
-      }
+    // ── Incident Classification Engine (multi-source, conflict-aware) ────────
+    // Replaces the old single-field classifyIncidentType() lookup.
+    // Prevents the Mazda root cause: claim form said "collision", driver said "cow".
+    const driverNarrative = v.accidentDescription || ctx.claim.incidentDescription || null;
+    const claimFormField = v.incidentType || ctx.claim.incidentType || null;
+    const damageDesc = v.damageDescription || null;
+    const damageComponentNames = (v.damagedComponents || []).map((c: { name: string }) => c.name);
+
+    const incidentClassification = classifyIncident({
+      driver_narrative: driverNarrative,
+      claim_form_incident_type: claimFormField,
+      damage_description: damageDesc,
+      damage_components: damageComponentNames,
+    });
+
+    let incidentType: CanonicalIncidentType = incidentClassification.canonical_type;
+    const incidentSubType: string | null =
+      incidentClassification.incident_type !== incidentClassification.canonical_type
+        ? incidentClassification.incident_type
+        : null;
+
+    if (incidentClassification.incident_type === "unknown") {
+      // Final fallback — only if the engine found no evidence at all
+      incidentType = "collision";
+      isDegraded = true;
+      assumptions.push({
+        field: "accidentDetails.incidentType",
+        assumedValue: "collision",
+        reason: "Incident type could not be determined from any evidence source. Defaulting to 'collision' as last resort.",
+        strategy: "industry_average",
+        confidence: 30,
+        stage: "Stage 5",
+      });
+    } else if (incidentClassification.confidence < 60) {
+      assumptions.push({
+        field: "accidentDetails.incidentType",
+        assumedValue: incidentClassification.incident_type,
+        reason: `Incident type classified as "${incidentClassification.incident_type}" with low confidence (${incidentClassification.confidence}%). ${incidentClassification.reasoning}`,
+        strategy: "contextual_inference",
+        confidence: incidentClassification.confidence,
+        stage: "Stage 5",
+      });
+    }
+
+    if (incidentClassification.conflict_detected) {
+      assumptions.push({
+        field: "accidentDetails.incidentType",
+        assumedValue: incidentClassification.incident_type,
+        reason: `Conflict detected between evidence sources. ${incidentClassification.reasoning}`,
+        strategy: "contextual_inference",
+        confidence: incidentClassification.confidence,
+        stage: "Stage 5",
+      });
     }
     // Classify collision direction: first try the structured accidentType field,
     // then fall back to NLP inference from the incident description.
@@ -257,6 +265,14 @@ export async function runAssemblyStage(
       location: v.accidentLocation || ctx.claim.accidentLocation || null,
       description: v.accidentDescription || ctx.claim.incidentDescription || null,
       incidentType,
+      incidentSubType,
+      incidentClassification: {
+        incident_type: incidentClassification.incident_type,
+        confidence: incidentClassification.confidence,
+        sources_used: incidentClassification.sources_used,
+        conflict_detected: incidentClassification.conflict_detected,
+        reasoning: incidentClassification.reasoning,
+      },
       collisionDirection,
       impactPoint: v.impactPoint || null,
       estimatedSpeedKmh: estimatedSpeed,
@@ -340,7 +356,8 @@ export async function runAssemblyStage(
       driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null },
       accidentDetails: {
         date: ctx.claim.accidentDate || null, location: null, description: null,
-        incidentType: "collision", collisionDirection: "unknown",
+        incidentType: "collision", incidentSubType: null, incidentClassification: null,
+        collisionDirection: "unknown",
         impactPoint: null, estimatedSpeedKmh: null,
         maxCrushDepthM: null, totalDamageAreaM2: null,
         structuralDamage: false, airbagDeployment: false,
