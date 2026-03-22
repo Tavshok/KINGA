@@ -37,6 +37,7 @@ import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runPhysicsStage } from "./stage-7-physics";
 import { computeSeverityConsensus, buildSeverityConsensusInput } from "./severityConsensusEngine";
 import { runFraudAnalysisStage } from "./stage-8-fraud";
+import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
@@ -381,6 +382,23 @@ export async function runPipelineV2(
   const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined);
   recordStage("8_fraud", s8);
   stage8Data = s8.data; // Always has data (self-healing)
+
+  // ── STAGE 7d: Confidence Aggregation ────────────────────────────────────
+  // Run after Stage 8 so all engine outputs (physics, damage, fraud,
+  // consistency) are available for the weakest-link calculation.
+  try {
+    const confInput = buildConfidenceAggregationInput(
+      stage6Data as Record<string, any> | null,
+      stage7Data as Record<string, any> | null,
+      stage8Data as Record<string, any> | null
+    );
+    const confResult = aggregateConfidence(confInput);
+    // Attach to stage8Data so it flows through to db.ts persistence
+    (stage8Data as any).confidenceAggregation = confResult;
+    ctx.log?.(`[Stage 7d] Confidence aggregation: overall=${confResult.overall_confidence} (${confResult.confidence_level}), weakest=${confResult.weakest_component}`);
+  } catch (err) {
+    ctx.log?.(`[Stage 7d] Confidence aggregation failed: ${err}`);
+  }
 
   // ── STAGE 9: Cost Optimisation ───────────────────────────────────────
   // Pass stage3Data so cost engine can use inputRecovery.recovered_quote when quoteTotalCents is missing

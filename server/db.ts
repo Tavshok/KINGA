@@ -533,6 +533,7 @@ export async function triggerAiAssessment(claimId: number) {
         // Scenario-aware fraud detection result (null if engine was skipped)
         scenarioFraudResult: fraudAnalysis.scenarioFraudResult ?? null,
         crossEngineConsistency: fraudAnalysis.crossEngineConsistency ?? null,
+        confidenceAggregation: (fraudAnalysis as any).confidenceAggregation ?? null,
       })
     : null;
 

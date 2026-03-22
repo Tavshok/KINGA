@@ -125,6 +125,10 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     const p = safeParse(aiAssessment?.physicsAnalysis);
     return p?.severityConsensus ?? null;
   }, [aiAssessment?.physicsAnalysis]);
+  const confidenceAggregation = useMemo(() => {
+    const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
+    return fb?.confidenceAggregation ?? null;
+  }, [aiAssessment?.fraudScoreBreakdownJson]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
@@ -241,6 +245,55 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
 
   return (
     <div className="space-y-4">
+
+      {/* ── 0. CONFIDENCE AGGREGATION ─────────────────────────────────────── */}
+      {confidenceAggregation && (
+        <Section icon={<Activity className="h-4 w-4" />} title="Pipeline Confidence" subtitle="Weakest-link confidence across all AI engines">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {/* Overall Score */}
+            <div className="col-span-1 flex flex-col items-center justify-center rounded-lg p-5 text-center" style={{ background: confidenceAggregation.confidence_level === 'HIGH' ? 'oklch(0.35 0.14 145 / 0.12)' : confidenceAggregation.confidence_level === 'MEDIUM' ? 'oklch(0.55 0.18 60 / 0.12)' : 'oklch(0.55 0.22 25 / 0.12)', border: `1px solid ${confidenceAggregation.confidence_level === 'HIGH' ? 'oklch(0.55 0.18 145 / 0.35)' : confidenceAggregation.confidence_level === 'MEDIUM' ? 'oklch(0.65 0.18 60 / 0.35)' : 'oklch(0.55 0.22 25 / 0.35)'}` }}>
+              <p className={`text-4xl font-black tabular-nums ${confidenceAggregation.confidence_level === 'HIGH' ? 'text-emerald-400' : confidenceAggregation.confidence_level === 'MEDIUM' ? 'text-amber-400' : 'text-red-400'}`}>{confidenceAggregation.overall_confidence}</p>
+              <p className="text-xs text-muted-foreground mt-1">Overall Confidence</p>
+              <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${
+                confidenceAggregation.confidence_level === 'HIGH' ? 'bg-emerald-500/20 text-emerald-300' :
+                confidenceAggregation.confidence_level === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300' :
+                'bg-red-500/20 text-red-300'
+              }`}>{confidenceAggregation.confidence_level}</span>
+            </div>
+            {/* Component Breakdown */}
+            <div className="col-span-2 flex flex-col gap-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Component Scores (weakest defines reliability)</p>
+              {confidenceAggregation.component_detail?.map((c: any) => (
+                <div key={c.name} className="flex items-center gap-3">
+                  <span className={`w-28 text-xs font-medium capitalize truncate ${c.is_weakest ? 'text-red-400 font-bold' : 'text-muted-foreground'}`}>
+                    {c.is_weakest ? '⚠ ' : ''}{c.name.replace(/_/g, ' ')}
+                  </span>
+                  {c.available ? (
+                    <>
+                      <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: 'oklch(0.3 0.01 260)' }}>
+                        <div className={`h-full rounded-full transition-all ${c.is_weakest ? 'bg-red-400' : c.score >= 75 ? 'bg-emerald-400' : c.score >= 45 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${c.score}%` }} />
+                      </div>
+                      <span className={`w-8 text-right text-xs font-bold tabular-nums ${c.is_weakest ? 'text-red-400' : 'text-foreground'}`}>{c.score}</span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground italic">not available</span>
+                  )}
+                </div>
+              ))}
+              {confidenceAggregation.warnings?.length > 0 && (
+                <div className="mt-2 rounded-md px-3 py-2 text-xs text-amber-300" style={{ background: 'oklch(0.55 0.18 60 / 0.1)', border: '1px solid oklch(0.65 0.18 60 / 0.3)' }}>
+                  {confidenceAggregation.warnings.join(' ')}
+                </div>
+              )}
+            </div>
+          </div>
+          {/* Reasoning */}
+          <details className="mt-3">
+            <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Engine reasoning</summary>
+            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{confidenceAggregation.reasoning}</p>
+          </details>
+        </Section>
+      )}
 
       {/* ── 1. CLAIM TRUTH SUMMARY ─────────────────────────────────────────── */}
       <Section icon={<Shield className="h-4 w-4" />} title="Claim Truth Summary" subtitle="Overall decision recommendation and risk profile">
