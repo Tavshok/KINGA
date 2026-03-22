@@ -14,6 +14,12 @@ import {
   applyPhysicsNumericalContract,
   mergeNumericalContract,
 } from "./physicsNumericalContract";
+import {
+  validateDamagePattern,
+  type DamagePatternOutput,
+  type ScenarioType,
+  type ImpactDirection,
+} from "./damagePatternValidationEngine";
 import type {
   PipelineContext,
   StageResult,
@@ -143,6 +149,83 @@ function estimatePhysicsFromDamage(
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// DAMAGE PATTERN VALIDATION HELPER
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Maps ClaimRecord + Stage6Output fields to DamagePatternInput and runs
+ * the Damage Pattern Validation Engine. Never throws — returns null on error.
+ */
+function runDamagePatternValidation(
+  ctx: PipelineContext,
+  claimRecord: ClaimRecord,
+  damageAnalysis: Stage6Output
+): DamagePatternOutput | null {
+  try {
+    const incidentType = claimRecord.accidentDetails.incidentType;
+    // Map canonical incident type to ScenarioType
+    const scenarioMap: Record<string, ScenarioType> = {
+      collision: "vehicle_collision",
+      animal_strike: "animal_strike",
+      theft: "theft",
+      fire: "fire",
+      flood: "flood",
+      vandalism: "vandalism",
+      unknown: "unknown",
+    };
+    const scenarioType: ScenarioType = scenarioMap[incidentType] ?? "unknown";
+
+    // Map collision direction to ImpactDirection
+    const directionMap: Record<string, ImpactDirection> = {
+      frontal: "frontal",
+      rear: "rear",
+      side_driver: "side_driver",
+      side_passenger: "side_passenger",
+      rollover: "rollover",
+      multi_impact: "multi_impact",
+      unknown: "unknown",
+    };
+    const impactDirection: ImpactDirection =
+      directionMap[claimRecord.accidentDetails.collisionDirection] ?? "unknown";
+
+    // Collect damage components from both claim record and damage analysis
+    // claimRecord.damage.components may contain strings or objects — normalise to string
+    const claimComponents = claimRecord.damage.components.map((c: any) =>
+      typeof c === "string" ? c : (c?.name ?? String(c))
+    );
+    const components = [
+      ...claimComponents,
+      ...damageAnalysis.damagedParts.map(p => p.name),
+    ];
+    const uniqueComponents = [...new Set(components)];
+
+    // Collect image-detected zones from damage analysis
+    const imageZones = damageAnalysis.damageZones.map(z => z.zone);
+
+    const result = validateDamagePattern({
+      scenario_type: scenarioType,
+      damage_components: uniqueComponents,
+      image_detected_zones: imageZones.length > 0 ? imageZones : undefined,
+      impact_direction: impactDirection,
+      vehicle_type: claimRecord.vehicle.bodyType,
+    });
+
+    ctx.log(
+      "Stage 7 (DamagePattern)",
+      `Pattern match: ${result.pattern_match} (confidence: ${result.confidence}/100). ` +
+      `Structural: ${result.structural_damage_detected}. ` +
+      `Image contradiction: ${result.validation_detail.image_contradiction}. ` +
+      `Missing primary: ${result.missing_expected_components.slice(0, 3).join(", ") || "none"}.`
+    );
+
+    return result;
+  } catch (err) {
+    ctx.log("Stage 7 (DamagePattern)", `Damage pattern validation failed (non-fatal): ${String(err)}`);
+    return null;
+  }
+}
+
 export async function runPhysicsStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord,
@@ -223,6 +306,10 @@ export async function runPhysicsStage(
 
       ctx.log("Stage 7", `Animal strike physics complete. Severity: ${animalResult.impact_severity}, Delta-V: ${animalResult.delta_v_kmh.toFixed(1)} km/h, Force: ${animalResult.impact_force_kn.toFixed(1)} kN, Plausibility: ${animalResult.plausibility_score}`);
 
+      // Run damage pattern validation for animal strike
+      const animalPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
+      animalOutput.damagePatternValidation = animalPatternValidation;
+
       return {
         status: "success",
         data: animalOutput,
@@ -242,6 +329,9 @@ export async function runPhysicsStage(
     ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${incidentType}" (non-physical damage event)`);
     // Stage 26: apply defensive contract — skipped output must still be complete
     const skippedOutput = ensurePhysicsContract(buildDefaultPhysicsOutput(false), "engine_skipped");
+    // Still run damage pattern validation for non-physical incidents (theft, fire, flood, vandalism)
+    const skippedPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
+    skippedOutput.damagePatternValidation = skippedPatternValidation;
     return {
       status: "skipped",
       data: skippedOutput,
@@ -312,6 +402,10 @@ export async function runPhysicsStage(
 
     ctx.log("Stage 7", `Physics complete. Force: ${impactForceKn.toFixed(1)}kN, Speed: ${estimatedSpeedKmh.toFixed(0)}km/h, Energy: ${(energyDissipatedJ/1000).toFixed(1)}kJ, Severity: ${output.accidentSeverity}`);
 
+    // Run damage pattern validation for collision
+    const collisionPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
+    output.damagePatternValidation = collisionPatternValidation;
+
     return {
       status: "success",
       data: output,
@@ -352,6 +446,9 @@ export async function runPhysicsStage(
     };
     // Stage 26: apply defensive contract — mark all estimated fields
     const contractedEstimate = ensurePhysicsContract(patchedEstimate, `engine_failure: ${String(err)}`);
+    // Run damage pattern validation even in fallback mode
+    const fallbackPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
+    contractedEstimate.damagePatternValidation = fallbackPatternValidation;
     recoveryActions.push({
       target: "physicsAnalysis",
       strategy: "industry_average",

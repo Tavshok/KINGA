@@ -522,6 +522,8 @@ export interface Stage7Output {
   physicsExecuted: boolean;
   /** Animal strike physics result — populated when incident_type = animal_strike */
   animalStrikePhysics?: import('./animalStrikePhysicsEngine').AnimalStrikePhysicsOutput | null;
+  /** Damage pattern validation result — populated by Stage 7 for all incident types */
+  damagePatternValidation?: import('./damagePatternValidationEngine').DamagePatternOutput | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

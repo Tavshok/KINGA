@@ -235,6 +235,43 @@ export async function runFraudAnalysisStage(
       });
     }
 
+    // 3b. Damage pattern validation — flag WEAK/NONE pattern matches as fraud indicators
+    const damagePatternResult = physicsAnalysis.damagePatternValidation;
+    if (damagePatternResult) {
+      if (damagePatternResult.pattern_match === "NONE") {
+        allIndicators.push({
+          indicator: "damage_pattern_none",
+          category: "consistency",
+          score: 35,
+          description: `Damage pattern validation returned NONE: no expected components for the claimed scenario were found. ` +
+            `Scenario: ${damagePatternResult.reasoning.substring(0, 120)}.`,
+        });
+        consistency.score = Math.max(0, consistency.score - 25);
+        consistency.notes = `${consistency.notes} Damage pattern validation: NONE match — damage components do not match the claimed incident scenario.`;
+      } else if (damagePatternResult.pattern_match === "WEAK") {
+        allIndicators.push({
+          indicator: "damage_pattern_weak",
+          category: "consistency",
+          score: 20,
+          description: `Damage pattern validation returned WEAK: very few expected components for the claimed scenario were found. ` +
+            `Confidence: ${damagePatternResult.confidence}/100.`,
+        });
+        consistency.score = Math.max(0, consistency.score - 15);
+        consistency.notes = `${consistency.notes} Damage pattern validation: WEAK match — limited damage components match the claimed incident scenario.`;
+      }
+      if (damagePatternResult.validation_detail.image_contradiction) {
+        allIndicators.push({
+          indicator: "damage_image_contradiction",
+          category: "consistency",
+          score: 30,
+          description: `Image zones contradict the claimed damage pattern. ` +
+            `${damagePatternResult.validation_detail.image_contradiction_reason || "Images show damage inconsistent with reported incident."}`,
+        });
+        consistency.score = Math.max(0, consistency.score - 20);
+      }
+      ctx.log("Stage 8", `Damage pattern: ${damagePatternResult.pattern_match} (confidence: ${damagePatternResult.confidence}/100, image_contradiction: ${damagePatternResult.validation_detail.image_contradiction})`);
+    }
+
     // 4. Missing data penalty
     if (claimRecord.dataQuality.completenessScore < 30) {
       isDegraded = true;
