@@ -528,6 +528,8 @@ export async function triggerAiAssessment(claimId: number) {
           score: fraudAnalysis.damageConsistencyScore,
           notes: fraudAnalysis.damageConsistencyNotes,
         },
+        // Scenario-aware fraud detection result (null if engine was skipped)
+        scenarioFraudResult: fraudAnalysis.scenarioFraudResult ?? null,
       })
     : null;
 

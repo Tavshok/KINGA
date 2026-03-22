@@ -562,6 +562,34 @@ export interface Stage8Output {
   };
   damageConsistencyScore: number;
   damageConsistencyNotes: string;
+  /** Scenario-aware fraud detection result — null if engine was skipped */
+  scenarioFraudResult: {
+    fraud_score: number;
+    risk_level: "LOW" | "MEDIUM" | "HIGH";
+    flags: Array<{
+      code: string;
+      category: string;
+      severity: "LOW" | "MEDIUM" | "HIGH";
+      score_contribution: number;
+      description: string;
+      scenario_specific: boolean;
+    }>;
+    false_positive_protection: Array<{
+      suppressed_flag: string;
+      reason: string;
+      scenario_context: string;
+    }>;
+    reasoning: string;
+    engine_metadata: {
+      scenario_type: string;
+      scenario_profile_applied: string;
+      trust_signals_applied: string[];
+      score_before_trust_reduction: number;
+      trust_reduction_applied: number;
+      false_positives_suppressed: number;
+      inputs_missing: string[];
+    };
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

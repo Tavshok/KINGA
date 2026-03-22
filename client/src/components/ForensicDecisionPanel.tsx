@@ -111,6 +111,11 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   }, [aiAssessment?.physicsAnalysis]);
   const costIntel = useMemo(() => safeParse(aiAssessment?.costIntelligenceJson), [aiAssessment?.costIntelligenceJson]);
   const fraudBreakdown = useMemo(() => safeParse(aiAssessment?.fraudScoreBreakdownJson), [aiAssessment?.fraudScoreBreakdownJson]);
+  const scenarioFraud = useMemo(() => {
+    // scenarioFraudResult is stored inside fraudScoreBreakdownJson or as a direct field
+    const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
+    return fb?.scenarioFraudResult ?? safeParse(aiAssessment?.scenarioFraudResult) ?? null;
+  }, [aiAssessment?.fraudScoreBreakdownJson, aiAssessment?.scenarioFraudResult]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
@@ -621,6 +626,101 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
           </div>
         </div>
       </Section>
+
+      {/* ── 5b. SCENARIO-AWARE FRAUD DETECTION ──────────────────────────────── */}
+      {scenarioFraud && (
+        <Section
+          icon={<ShieldAlert className="h-4 w-4" />}
+          title="Scenario-Aware Fraud Detection"
+          subtitle={`Profile: ${scenarioFraud.engine_metadata?.scenario_profile_applied ?? scenarioFraud.engine_metadata?.scenario_type ?? "unknown"} — ${scenarioFraud.risk_level} risk`}
+        >
+          <div className="space-y-4">
+            {/* Score + risk level row */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-lg p-3 text-center" style={{ background: scenarioFraud.risk_level === "LOW" ? "oklch(0.35 0.14 145 / 0.15)" : scenarioFraud.risk_level === "MEDIUM" ? "oklch(0.72 0.18 60 / 0.10)" : "oklch(0.55 0.22 25 / 0.12)", border: `1px solid ${scenarioFraud.risk_level === "LOW" ? "oklch(0.55 0.18 145 / 0.4)" : scenarioFraud.risk_level === "MEDIUM" ? "oklch(0.72 0.18 60 / 0.35)" : "oklch(0.55 0.22 25 / 0.4)"}` }}>
+                <p className={`text-2xl font-black ${scenarioFraud.risk_level === "LOW" ? "text-emerald-400" : scenarioFraud.risk_level === "MEDIUM" ? "text-amber-400" : "text-red-400"}`}>{scenarioFraud.fraud_score}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Scenario Score</p>
+              </div>
+              <div className="rounded-lg p-3 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.4)", border: "1px solid oklch(0.35 0.01 260 / 0.4)" }}>
+                <p className={`text-lg font-bold ${scenarioFraud.risk_level === "LOW" ? "text-emerald-400" : scenarioFraud.risk_level === "MEDIUM" ? "text-amber-400" : "text-red-400"}`}>{scenarioFraud.risk_level}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Risk Level</p>
+              </div>
+              <div className="rounded-lg p-3 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.4)", border: "1px solid oklch(0.35 0.01 260 / 0.4)" }}>
+                <p className="text-lg font-bold text-foreground">{scenarioFraud.engine_metadata?.false_positives_suppressed ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">FP Suppressed</p>
+              </div>
+            </div>
+
+            {/* Trust signal reductions */}
+            {(scenarioFraud.engine_metadata?.trust_reduction_applied ?? 0) > 0 && (
+              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.35 0.14 145 / 0.12)", border: "1px solid oklch(0.55 0.18 145 / 0.3)" }}>
+                <ShieldCheck className="h-4 w-4 text-emerald-400 flex-shrink-0" />
+                <p className="text-xs text-emerald-400">
+                  Trust signals applied — score reduced by {scenarioFraud.engine_metadata.trust_reduction_applied} pts
+                  {scenarioFraud.engine_metadata.trust_signals_applied?.length > 0 && (
+                    <span className="text-muted-foreground"> ({scenarioFraud.engine_metadata.trust_signals_applied.join(", ")})</span>
+                  )}
+                </p>
+              </div>
+            )}
+
+            {/* Active flags */}
+            {scenarioFraud.flags?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">Active Fraud Flags ({scenarioFraud.flags.length})</p>
+                <div className="space-y-1.5">
+                  {scenarioFraud.flags.map((flag: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: flag.severity === "HIGH" ? "oklch(0.55 0.22 25 / 0.10)" : flag.severity === "MEDIUM" ? "oklch(0.65 0.20 40 / 0.10)" : "oklch(0.72 0.18 60 / 0.08)", border: `1px solid ${flag.severity === "HIGH" ? "oklch(0.55 0.22 25 / 0.3)" : flag.severity === "MEDIUM" ? "oklch(0.65 0.20 40 / 0.3)" : "oklch(0.72 0.18 60 / 0.25)"}` }}>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`text-xs font-mono font-bold ${flag.severity === "HIGH" ? "text-red-400" : flag.severity === "MEDIUM" ? "text-orange-400" : "text-amber-400"}`}>{flag.code}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${flag.severity === "HIGH" ? "text-red-400" : flag.severity === "MEDIUM" ? "text-orange-400" : "text-amber-400"}`} style={{ border: "1px solid currentColor" }}>{flag.severity}</span>
+                          <span className="text-xs text-muted-foreground ml-auto">+{flag.score_contribution} pts</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{flag.description}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* False positive protections */}
+            {scenarioFraud.false_positive_protection?.length > 0 && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">False Positive Protections Applied ({scenarioFraud.false_positive_protection.length})</p>
+                <div className="space-y-1">
+                  {scenarioFraud.false_positive_protection.map((fpp: any, i: number) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.35 0.14 145 / 0.08)", border: "1px solid oklch(0.55 0.18 145 / 0.25)" }}>
+                      <ShieldX className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-mono text-emerald-400">{fpp.suppressed_flag} <span className="text-muted-foreground font-sans font-normal">suppressed</span></p>
+                        <p className="text-xs text-muted-foreground leading-relaxed">{fpp.reason}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Missing inputs warning */}
+            {scenarioFraud.engine_metadata?.inputs_missing?.length > 0 && (
+              <div className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.72 0.18 60 / 0.08)", border: "1px solid oklch(0.72 0.18 60 / 0.25)" }}>
+                <AlertCircle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-400">
+                  Missing inputs (reduced confidence): <span className="font-mono">{scenarioFraud.engine_metadata.inputs_missing.join(", ")}</span>
+                </p>
+              </div>
+            )}
+
+            {/* Reasoning */}
+            <details className="group">
+              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">Engine reasoning ▸</summary>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-l-2 border-border/50 pl-3">{scenarioFraud.reasoning}</p>
+            </details>
+          </div>
+        </Section>
+      )}
 
       {/* ── 6. SIMPLIFIED NARRATIVE ───────────────────────────────────────────── */}
       <Section icon={<Activity className="h-4 w-4" />} title="Simplified Narrative" subtitle="Evidence-based summary — 5 sentences">
