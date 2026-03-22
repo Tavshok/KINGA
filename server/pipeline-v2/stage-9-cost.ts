@@ -11,6 +11,7 @@
 import { ensureCostContract } from "./engineFallback";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord } from "../db";
+import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
 import { evaluateMechanicalAlignment } from "./mechanicalAlignmentEvaluator";
 import { generateCostIntelligenceNarrative } from "./costIntelligenceNarrative";
@@ -292,7 +293,41 @@ export async function runCostOptimisationStage(
       ? generateCostIntelligenceNarrative(narrativeInput)
       : null;
 
-    // Step 4: Score cost reliability
+    // Step 4a: Run Quote Optimisation Engine
+    // Build InputQuote[] from extracted quotes (if available)
+    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => ({
+      panel_beater: q.panel_beater ?? null,
+      total_cost: q.total_cost ?? null,
+      currency: q.currency ?? "USD",
+      components: q.components ?? [],
+      labour_defined: q.labour_defined ?? false,
+      parts_defined: q.parts_defined ?? false,
+      confidence: (q.confidence as "high" | "medium" | "low") ?? "low",
+    }));
+    // If no extracted quotes but there is a single quoted total, synthesise a single InputQuote
+    if (optimisationInputQuotes.length === 0 && quotedCents && quotedCents > 0) {
+      optimisationInputQuotes.push({
+        panel_beater: "Assessor Quote",
+        total_cost: quotedCents / 100,
+        currency,
+        components: quoteComponents,
+        labour_defined: false,
+        parts_defined: false,
+        confidence: "medium",
+      });
+    }
+    const quoteOptimisation = optimisationInputQuotes.length > 0
+      ? optimiseRepairCost(
+          optimisationInputQuotes,
+          damageComponentNames,
+          claimRecord.vehicle.bodyType || "vehicle"
+        )
+      : null;
+    if (quoteOptimisation) {
+      ctx.log("Stage 9", `Quote optimisation: optimised_cost=USD ${quoteOptimisation.optimised_cost_usd.toFixed(2)}, confidence=${quoteOptimisation.confidence}, spread=${quoteOptimisation.cost_spread_pct}%, selected=${quoteOptimisation.selected_quotes.length}/${quoteOptimisation.quotes_evaluated}`);
+    }
+
+    // Step 4b: Score cost reliability
     const costReliability = scoreCostReliability({
       number_of_quotes: narrativeInput.quote_count,
       presence_of_assessor_cost: narrativeInput.agreed_cost_usd !== null,
@@ -307,6 +342,7 @@ export async function runCostOptimisationStage(
       alignmentResult,
       costNarrative,
       costReliability,
+      quoteOptimisation: quoteOptimisation ?? null,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
       savingsOpportunityCents,

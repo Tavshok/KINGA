@@ -613,6 +613,37 @@ export interface Stage9Output {
       final_score: number;
     };
   } | null;
+  /** Stage 9b: Quote Optimisation Engine output — weighted baseline cost from multiple quotes */
+  quoteOptimisation: {
+    optimised_cost_usd: number;
+    selected_quotes: Array<{
+      quote_index: number;
+      panel_beater: string;
+      total_cost: number;
+      coverage_ratio: number;
+      structurally_complete: boolean;
+      structural_gaps: string[];
+      extra_components: string[];
+      confidence: "high" | "medium" | "low";
+      weight: number;
+      is_outlier: boolean;
+      outlier_reason: string | null;
+      structural_penalty: number;
+    }>;
+    excluded_quotes: Array<{
+      quote_index: number;
+      panel_beater: string;
+      total_cost: number | null;
+      reason: string;
+      exclusion_category: "no_cost" | "outlier_inflated" | "zero_coverage" | "invalid";
+    }>;
+    cost_spread_pct: number;
+    confidence: number;
+    justification: string;
+    median_cost_usd: number | null;
+    quotes_evaluated: number;
+    total_structural_gaps: number;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

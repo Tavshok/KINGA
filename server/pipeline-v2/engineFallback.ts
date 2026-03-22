@@ -392,6 +392,7 @@ export function buildCostFallback(reason = "insufficient_input"): CostFallbackOu
     alignmentResult: null,
     costNarrative: null,
     costReliability: null,
+    quoteOptimisation: null,
     _fallback: fallbackMeta,
     _fallback_fields: ["ai_estimate", "parts", "labour", "fair_range", "expectedRepairCostCents"],
   };
@@ -428,6 +429,7 @@ export function ensureCostContract(
     alignmentResult: partial.alignmentResult ?? null,
     costNarrative: partial.costNarrative ?? null,
     costReliability: partial.costReliability ?? null,
+    quoteOptimisation: partial.quoteOptimisation ?? null,
   };
 
   return {
