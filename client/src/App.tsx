@@ -94,6 +94,7 @@ const AdminTierManagement = lazy(() => import("@/pages/AdminTierManagement"));
 const AdminSeedData = lazy(() => import("./pages/AdminSeedData"));
 const ObservabilityDashboard = lazy(() => import("./pages/admin/ObservabilityDashboard"));
 const PipelineHealthDashboard = lazy(() => import("./pages/admin/PipelineHealthDashboard"));
+const LearningDashboard = lazy(() => import("./pages/admin/LearningDashboard"));
 const TenantManagement = lazy(() => import("./pages/admin/TenantManagement"));
 const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
 const TenantRegistration = lazy(() => import("./pages/admin/TenantRegistration"));
@@ -627,6 +628,11 @@ function Router() {
         <Route path="/admin/pipeline-health">
           <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
             <PipelineHealthDashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/learning">
+          <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
+            <LearningDashboard />
           </ProtectedRoute>
         </Route>
         <Route path="/admin/market-quotes">

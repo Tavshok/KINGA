@@ -74,6 +74,7 @@ import { historicalClaimsRouter } from "./routers/historical-claims";
 import { automationPoliciesRouter } from "./routers/automation-policies";
 import { claimCompletionRouter } from "./routers/claim-completion";
 import { mlRouter } from "./routers/ml";
+import { learningRouter } from "./routers/learning";
 import { truthSynthesisRouter } from "./routers/truth-synthesis";
 import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
@@ -375,6 +376,7 @@ export const appRouter = router({
       }),
   }),
   ml: mlRouter,
+  learning: learningRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)
     testPublic: publicProcedure
