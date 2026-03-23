@@ -378,6 +378,15 @@ export async function runPhysicsStage(
       numericalContract
     );
 
+    // Compute decelerationG from merged values if physicsResult did not return it.
+    // analyzeAccidentPhysics does not return decelerationG, so this is always needed.
+    // Formula: a = v^2 / (2 * crushDepth), capped between 0.1 G and 50 G.
+    const crushDepthForDecel = inferCrushDepth(damageAnalysis, claimRecord);
+    const speedMsForDecel = merged.estimatedSpeedKmh / 3.6;
+    const decelMs2Computed = (speedMsForDecel * speedMsForDecel) / (2 * Math.max(crushDepthForDecel, 0.05));
+    const decelerationGComputed = Math.min(50, Math.max(0.1, decelMs2Computed / 9.81));
+    const finalDecelerationG = decelerationG > 0 ? decelerationG : decelerationGComputed;
+
     const output: Stage7Output = {
       impactForceKn: merged.impactForceKn,
       impactVector: {
@@ -388,8 +397,24 @@ export async function runPhysicsStage(
       energyDistribution: merged.energyDistribution,
       estimatedSpeedKmh: merged.estimatedSpeedKmh,
       deltaVKmh: merged.deltaVKmh,
-      decelerationG,
-      accidentSeverity: mapSeverity(physicsResult.accidentSeverity || "moderate"),
+      decelerationG: finalDecelerationG,
+      accidentSeverity: (() => {
+        // Base severity from physics engine
+        const baseSeverity = mapSeverity(physicsResult.accidentSeverity || "moderate");
+        // Upgrade severity if component count or system types suggest more damage
+        const componentCount = damageAnalysis.damagedParts.length;
+        const hasElectrical = damageAnalysis.damagedParts.some(p =>
+          /electrical|fuse|relay|dashboard|light|sensor|ecu|wiring|belt|airbag/i.test(p.name)
+        );
+        const hasStructural = damageAnalysis.damagedParts.some(p =>
+          /chassis|frame|subframe|sill|pillar|rail/i.test(p.name)
+        );
+        // Upgrade minor → moderate if 6+ components or electrical systems damaged
+        if (baseSeverity === "minor" && (componentCount >= 6 || hasElectrical)) return "moderate";
+        // Upgrade moderate → severe if structural damage present
+        if (baseSeverity === "moderate" && hasStructural) return "severe";
+        return baseSeverity;
+      })(),
       accidentReconstructionSummary: buildReconstructionSummary(
         claimRecord, impactForceKn, estimatedSpeedKmh, deltaVKmh, energyDissipatedJ / 1000
       ),

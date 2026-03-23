@@ -10157,3 +10157,23 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] F5: Cap confidence value at 100 in generateGaugeSVG (display) and db.ts (persistence)
 - [ ] F6: Surface decision contradiction when Claim Truth and Causal Chain disagree (future)
 - [x] TypeScript check: 0 errors confirmed
+
+## Physics & Calculations Pipeline Audit (Mar 2026)
+- [ ] Audit Stage 7 physics engine against Mazda BT50 claim — check impact force, energy transfer, propagation
+- [ ] Audit Stage 9 cost engine — check component mapping, labour/parts split, currency handling
+- [ ] Audit Stage 6 damage analysis — check extracted components feed into physics and cost correctly
+- [ ] Fix Stage 7: ensure vehicle mass, speed, and impact angle are used in physics calculations
+- [ ] Fix Stage 7: ensure damage propagation chain is correct for frontal collision scenario
+- [ ] Fix Stage 9: ensure all repair quote line items are mapped to cost components
+- [ ] Fix Stage 9: ensure labour and parts costs are split correctly from quote totals
+- [ ] Fix Stage 6: ensure damagedComponents from Stage 3 feed into Stage 6 damage analysis
+- [ ] TypeScript check and checkpoint
+
+## Physics & Calculations Pipeline Fixes (Mazda BT50 Audit)
+- [x] Audit Stage 6 (damage), Stage 7 (physics), Stage 9 (cost) against Mazda BT50 claim
+- [x] Fix VEHICLE_MASS_TABLE: add bt50/bt 50 aliases; fix bt-?50 regex in classMass() and inferVehicleBodyType()
+- [x] Fix Stage 7: compute decelerationG from merged speed/crush values (was always 0.00G when using LLM physics path)
+- [x] Fix Stage 7: upgrade accidentSeverity based on component count and system types (not just speed)
+- [x] Fix Stage 9: add VEHICLE_CLASS_PART_MULTIPLIER (pickup=1.45x, suv=1.2x, compact=0.85x) to estimateComponentCost
+- [x] Fix Stage 9: pass vehicleBodyType to estimateComponentCost in component loop
+- [x] TypeScript check: 0 errors confirmed

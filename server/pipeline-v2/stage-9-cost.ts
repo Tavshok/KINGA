@@ -37,15 +37,29 @@ const SEVERITY_COST_MULTIPLIER: Record<string, number> = {
   cosmetic: 0.3, minor: 0.5, moderate: 1.0, severe: 1.8, catastrophic: 3.0,
 };
 
+// Vehicle class multipliers for part costs.
+// Pickup trucks and LCVs have heavier, more expensive panels and structural parts.
+const VEHICLE_CLASS_PART_MULTIPLIER: Record<string, number> = {
+  compact: 0.85,
+  sedan: 1.0,
+  suv: 1.2,
+  pickup: 1.45,  // BT50, Hilux, Ranger — heavier panels, higher OEM parts cost
+  van: 1.3,
+  sports: 1.5,
+  default: 1.0,
+};
+
 function estimateComponentCost(
   componentName: string,
   severity: string,
   repairAction: string,
-  labourRate: number
+  labourRate: number,
+  vehicleBodyType?: string
 ): { partsCents: number; labourCents: number; paintCents: number } {
   const name = (componentName || "").toLowerCase();
   const sev = (severity || "moderate").toLowerCase();
   const action = (repairAction || "repair").toLowerCase();
+  const classMultiplier = VEHICLE_CLASS_PART_MULTIPLIER[(vehicleBodyType || "default").toLowerCase()] ?? 1.0;
 
   let basePartCost = 15000;
   if (/bumper|fender|wing|panel|door skin/.test(name)) basePartCost = 20000;
@@ -60,6 +74,8 @@ function estimateComponentCost(
   if (/mirror/.test(name)) basePartCost = 15000;
   if (/grille|grill/.test(name)) basePartCost = 12000;
   if (/moulding|trim|garnish/.test(name)) basePartCost = 8000;
+  // Apply vehicle class multiplier to base part cost
+  basePartCost = Math.round(basePartCost * classMultiplier);
 
   const multiplier = SEVERITY_COST_MULTIPLIER[sev] || 1.0;
 
@@ -138,8 +154,9 @@ export async function runCostOptimisationStage(
         });
       }
     } else {
+      const vehicleBodyType = claimRecord.vehicle?.bodyType || "sedan";
       for (const comp of damageAnalysis.damagedParts) {
-        const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate);
+        const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType);
         totalPartsCents += cost.partsCents;
         totalLabourCents += cost.labourCents;
         totalPaintCents += cost.paintCents;

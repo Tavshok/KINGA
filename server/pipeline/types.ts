@@ -123,7 +123,7 @@ export const VEHICLE_MASS_TABLE: Record<string, number> = {
   // ── Mazda ──
   "mazda 2": 1050, "mazda 3": 1300, "mazda 6": 1500, "mazda cx-3": 1250,
   "mazda cx-5": 1600, "mazda cx-7": 1700, "mazda cx-9": 2000,
-  "mazda bt-50": 1900, "mazda mx-5": 1100,
+  "mazda bt-50": 1900, "mazda bt50": 1900, "mazda bt 50": 1900, "mazda mx-5": 1100,
   // ── Ford ──
   "ford ka": 1000, "ford fiesta": 1050, "ford focus": 1300, "ford fusion": 1600,
   "ford mustang": 1800, "ford mondeo": 1600, "ford edge": 1900,
@@ -262,7 +262,7 @@ export function resolveVehicleMass(
 
   function classMass(make: string, model: string): number {
     const combined = `${make} ${model}`;
-    if (/hilux|ranger|navara|d-max|d-teq|triton|l200|bt-50|np300|amarok|frontier|tacoma|tundra|f-150|f-250|wingle|steed|np200|hardbody/.test(combined)) return 1900;
+    if (/hilux|ranger|navara|d-max|d-teq|triton|l200|bt-?50|np300|amarok|frontier|tacoma|tundra|f-?150|f-?250|wingle|steed|np200|hardbody/.test(combined)) return 1900;
     if (/land cruiser|prado|fortuner|patrol|pajero|defender|discovery|grand cherokee|wrangler|expedition|suburban|tahoe|4runner|trooper/.test(combined)) return 2300;
     if (/cr-v|rav4|tucson|santa fe|sorento|cx-5|tiguan|x-trail|qashqai|outlander|mu-x|everest|explorer|edge|koleos|duster|haval h6|jolion|mg hs/.test(combined)) return 1700;
     if (/hr-v|vitara|jimny|juke|kona|venue|seltos|stonic|creta|ecosport|captur|2008|t-cross|t-roc|gla|glb|q3|x1|x2|asx|rvr|mg zs|haval h2/.test(combined)) return 1400;
@@ -356,7 +356,7 @@ export function classifyIncidentType(raw: string): CanonicalIncidentType {
  */
 export function inferVehicleBodyType(make: string, model: string): VehicleBodyType {
   const combined = `${make} ${model}`.toLowerCase();
-  if (/hilux|ranger|navara|d-max|d-teq|triton|l200|bt-50|np300|np200|amarok|frontier|tacoma|tundra|f-150|f-250|wingle|steed|hardbody/.test(combined)) return "pickup";
+  if (/hilux|ranger|navara|d-max|d-teq|triton|l200|bt-?50|np300|np200|amarok|frontier|tacoma|tundra|f-?150|f-?250|wingle|steed|hardbody/.test(combined)) return "pickup";
   if (/land cruiser|prado|fortuner|patrol|pajero|defender|discovery|grand cherokee|wrangler|expedition|suburban|tahoe|4runner|trooper|mu-x|everest|explorer|edge|sorento|santa fe|cx-9|cx-7|cx-5|rav4|cr-v|tucson|x-trail|qashqai|outlander|tiguan|touareg|x5|x7|q7|q8|glc|gle|gls|g-class|xc90|xc60|haval h6|jolion|mg hs/.test(combined)) return "suv";
   if (/hiace|quantum|h1|staria|urvan|sprinter|transit|transporter|trafic|berlingo|caddy|vito|crafter|daily|odyssey|sienna|carnival|tourneo/.test(combined)) return "van";
   if (/mx-5|z4|tt|r8|mustang|stinger|amg gt|boxster|cayman|911|corvette/.test(combined)) return "sports";
