@@ -33,6 +33,7 @@ import { DamageConsistencyPanel } from "@/components/DamageConsistencyPanel";
 import DecisionAuthorityPanel from "@/components/DecisionAuthorityPanel";
 import ReportReadinessPanel from "@/components/ReportReadinessPanel";
 import ClaimsExplanationPanel from "@/components/ClaimsExplanationPanel";
+import EscalationRoutingPanel from "@/components/EscalationRoutingPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
@@ -1309,6 +1310,22 @@ export default function InsurerComparisonView() {
             </div>
             <div className="comparison-section-body">
               <ClaimsExplanationPanel claimId={claimId} />
+            </div>
+          </div>
+        )}
+
+        {/* Section: Escalation Routing */}
+        {aiAssessment && (
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.40 0.15 200), oklch(0.30 0.12 200))' }}>&#8594;</span>
+              <div>
+                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Escalation Routing</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Automated routing to the appropriate handling queue</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
+              <EscalationRoutingPanel claimId={claimId} />
             </div>
           </div>
         )}

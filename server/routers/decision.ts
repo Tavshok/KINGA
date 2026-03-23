@@ -36,6 +36,12 @@ import {
   generateClaimExplanation as generateExplanation,
   type ExplanationInput,
 } from "../pipeline-v2/claimsExplanationEngine";
+import {
+  routeClaim as routeClaimEngine,
+  routeClaimBatch as routeClaimBatchEngine,
+  aggregateEscalationStats,
+  type EscalationInput,
+} from "../pipeline-v2/claimsEscalationRouter";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { desc, isNotNull, eq } from "drizzle-orm";
@@ -741,5 +747,135 @@ export const decisionRouter = router({
       };
 
       return generateExplanation(explanationInput);
+    }),
+
+  // ── routeClaim ─────────────────────────────────────────────────────────────
+  routeClaim: protectedProcedure
+    .input(
+      z.object({
+        recommendation: z.enum(["APPROVE", "REVIEW", "REJECT"]),
+        confidence: z.number().min(0).max(100).nullable().optional(),
+        anomalies: z.array(z.union([
+          z.string(),
+          z.object({
+            description: z.string().optional(),
+            is_critical: z.boolean().optional(),
+            type: z.string().optional(),
+          }),
+        ])).nullable().optional(),
+        fraud_risk_level: z.string().nullable().optional(),
+        fraud_flagged: z.boolean().nullable().optional(),
+        critical_fraud_flag_count: z.number().int().min(0).nullable().optional(),
+        is_high_value: z.boolean().nullable().optional(),
+        assessor_validated: z.boolean().nullable().optional(),
+        claim_reference: z.string().nullable().optional(),
+        cost_escalated: z.boolean().nullable().optional(),
+        physics_inconsistency: z.boolean().nullable().optional(),
+        damage_inconsistent: z.boolean().nullable().optional(),
+      })
+    )
+    .query(({ input }) => {
+      return routeClaimEngine(input as EscalationInput);
+    }),
+
+  // ── routeClaimById ─────────────────────────────────────────────────────────
+  routeClaimById: protectedProcedure
+    .input(z.object({ claimId: z.number().int().positive() }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const rows = await drizzle
+        .select({
+          recommendation: aiAssessments.recommendation,
+          confidenceScore: aiAssessments.confidenceScore,
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          fraudRiskScore: aiAssessments.fraudRiskScore,
+          anomalyFlagsJson: aiAssessments.anomalyFlagsJson,
+          estimatedCost: aiAssessments.estimatedCost,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          claimRef: claims.id,
+        })
+        .from(aiAssessments)
+        .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+        .where(eq(aiAssessments.claimId, input.claimId))
+        .orderBy(desc(aiAssessments.createdAt))
+        .limit(1);
+      if (rows.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "No assessment found for this claim" });
+      const row = rows[0];
+      let rec: "APPROVE" | "REVIEW" | "REJECT" = "REVIEW";
+      const recRaw = (row.recommendation ?? "").toUpperCase();
+      if (recRaw === "APPROVE" || recRaw === "REJECT" || recRaw === "REVIEW") rec = recRaw as typeof rec;
+      let anomalies: string[] = [];
+      try {
+        const parsed = typeof row.anomalyFlagsJson === "string"
+          ? JSON.parse(row.anomalyFlagsJson as string)
+          : row.anomalyFlagsJson;
+        if (Array.isArray(parsed)) anomalies = parsed.map((a: unknown) => String(a));
+      } catch { /* ignore */ }
+      const estimatedCost = row.finalApprovedAmount != null
+        ? Number(row.finalApprovedAmount)
+        : row.estimatedCost != null ? Number(row.estimatedCost) : null;
+      const HIGH_VALUE_THRESHOLD = 50000;
+      const escalationInput: EscalationInput = {
+        recommendation: rec,
+        confidence: row.confidenceScore,
+        anomalies,
+        fraud_risk_level: row.fraudRiskLevel ?? null,
+        fraud_flagged: row.fraudRiskScore != null && Number(row.fraudRiskScore) >= 70,
+        is_high_value: estimatedCost != null && estimatedCost >= HIGH_VALUE_THRESHOLD,
+        claim_reference: `CLM-${row.claimRef}`,
+      };
+      return routeClaimEngine(escalationInput);
+    }),
+
+  // ── getEscalationSummary ───────────────────────────────────────────────────
+  getEscalationSummary: protectedProcedure
+    .input(z.object({ limit: z.number().int().min(1).max(500).default(100) }).optional())
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
+      const limit = input?.limit ?? 100;
+      const rows = await drizzle
+        .select({
+          recommendation: aiAssessments.recommendation,
+          confidenceScore: aiAssessments.confidenceScore,
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          fraudRiskScore: aiAssessments.fraudRiskScore,
+          anomalyFlagsJson: aiAssessments.anomalyFlagsJson,
+          estimatedCost: aiAssessments.estimatedCost,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          claimId: aiAssessments.claimId,
+        })
+        .from(aiAssessments)
+        .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
+        .orderBy(desc(aiAssessments.createdAt))
+        .limit(limit);
+      const batchItems = rows.map((row) => {
+        let rec: "APPROVE" | "REVIEW" | "REJECT" = "REVIEW";
+        const recRaw = (row.recommendation ?? "").toUpperCase();
+        if (recRaw === "APPROVE" || recRaw === "REJECT" || recRaw === "REVIEW") rec = recRaw as typeof rec;
+        let anomalies: string[] = [];
+        try {
+          const parsed = typeof row.anomalyFlagsJson === "string"
+            ? JSON.parse(row.anomalyFlagsJson as string)
+            : row.anomalyFlagsJson;
+          if (Array.isArray(parsed)) anomalies = parsed.map((a: unknown) => String(a));
+        } catch { /* ignore */ }
+        const estimatedCost = row.finalApprovedAmount != null
+          ? Number(row.finalApprovedAmount)
+          : row.estimatedCost != null ? Number(row.estimatedCost) : null;
+        const escalationInput: EscalationInput = {
+          recommendation: rec,
+          confidence: row.confidenceScore,
+          anomalies,
+          fraud_risk_level: row.fraudRiskLevel ?? null,
+          fraud_flagged: row.fraudRiskScore != null && Number(row.fraudRiskScore) >= 70,
+          is_high_value: estimatedCost != null && estimatedCost >= 50000,
+          claim_reference: `CLM-${row.claimId}`,
+        };
+        return { claim_id: row.claimId ?? 0, input: escalationInput };
+      });
+      const batchResults = routeClaimBatchEngine(batchItems);
+      return aggregateEscalationStats(batchResults);
     }),
 });
