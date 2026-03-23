@@ -1,0 +1,343 @@
+/**
+ * DecisionAuthorityPanel.tsx
+ *
+ * Displays the Claims Decision Authority result for a given claim.
+ * Shows APPROVE / REVIEW / REJECT recommendation with confidence,
+ * decision basis, key drivers, blocking factors, and the full decision trace.
+ */
+
+import { useState } from "react";
+import { trpc } from "@/lib/trpc";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Loader2,
+  ShieldCheck,
+  RefreshCw,
+} from "lucide-react";
+
+interface DecisionAuthorityPanelProps {
+  claimId: number;
+  aiAssessment: {
+    fraudRiskLevel?: string | null;
+    fraudRiskScore?: number | null;
+    confidenceScore?: number | null;
+    structuralDamageSeverity?: string | null;
+    estimatedCost?: number | null;
+    physicsAnalysis?: string | null;
+    consistencyCheckJson?: string | null;
+    costRealismJson?: string | null;
+  } | null;
+  claim: {
+    incidentType?: string | null;
+    finalApprovedAmount?: number | null;
+    claimAmount?: number | null;
+    isHighValue?: boolean | null;
+  } | null;
+  assessorValidated?: boolean;
+}
+
+function RecommendationBadge({ recommendation }: { recommendation: string }) {
+  if (recommendation === "APPROVE") {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "oklch(0.35 0.12 145 / 0.3)", border: "1.5px solid oklch(0.55 0.18 145)" }}>
+        <CheckCircle2 className="w-5 h-5" style={{ color: "oklch(0.70 0.20 145)" }} />
+        <span className="font-bold text-lg" style={{ color: "oklch(0.75 0.18 145)" }}>APPROVE</span>
+      </div>
+    );
+  }
+  if (recommendation === "REJECT") {
+    return (
+      <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "oklch(0.35 0.18 25 / 0.3)", border: "1.5px solid oklch(0.55 0.22 25)" }}>
+        <XCircle className="w-5 h-5" style={{ color: "oklch(0.65 0.22 25)" }} />
+        <span className="font-bold text-lg" style={{ color: "oklch(0.70 0.20 25)" }}>REJECT</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "oklch(0.38 0.14 70 / 0.3)", border: "1.5px solid oklch(0.58 0.18 70)" }}>
+      <AlertTriangle className="w-5 h-5" style={{ color: "oklch(0.72 0.18 70)" }} />
+      <span className="font-bold text-lg" style={{ color: "oklch(0.78 0.16 70)" }}>REVIEW</span>
+    </div>
+  );
+}
+
+function ConfidenceBar({ confidence }: { confidence: number }) {
+  const color =
+    confidence >= 75 ? "oklch(0.65 0.18 145)" :
+    confidence >= 50 ? "oklch(0.70 0.18 70)" :
+    "oklch(0.60 0.20 25)";
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1 h-2 rounded-full" style={{ background: "var(--border)" }}>
+        <div
+          className="h-2 rounded-full transition-all"
+          style={{ width: `${confidence}%`, background: color }}
+        />
+      </div>
+      <span className="text-sm font-bold tabular-nums" style={{ color, minWidth: "3rem", textAlign: "right" }}>
+        {confidence}%
+      </span>
+    </div>
+  );
+}
+
+export default function DecisionAuthorityPanel({
+  claimId,
+  aiAssessment,
+  claim,
+  assessorValidated = false,
+}: DecisionAuthorityPanelProps) {
+  const [showTrace, setShowTrace] = useState(false);
+  const [runKey, setRunKey] = useState(0);
+
+  // Parse consistency check from JSON
+  const consistencyCheck = (() => {
+    try {
+      return aiAssessment?.consistencyCheckJson
+        ? JSON.parse(aiAssessment.consistencyCheckJson)
+        : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Parse cost realism from JSON
+  const costRealism = (() => {
+    try {
+      return aiAssessment?.costRealismJson
+        ? JSON.parse(aiAssessment.costRealismJson)
+        : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  // Build the input for the decision engine
+  const decisionInput = {
+    scenario_type: claim?.incidentType ?? null,
+    severity: aiAssessment?.structuralDamageSeverity ?? null,
+    overall_confidence: aiAssessment?.confidenceScore ?? null,
+    assessor_validated: assessorValidated,
+    is_high_value: claim?.isHighValue ?? null,
+    fraud_result: aiAssessment
+      ? {
+          fraud_risk_level: aiAssessment.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null,
+          fraud_risk_score: aiAssessment.fraudRiskScore ?? null,
+        }
+      : null,
+    physics_result: aiAssessment?.physicsAnalysis
+      ? {
+          is_plausible: !aiAssessment.physicsAnalysis.toLowerCase().includes("implausible"),
+          has_critical_inconsistency: aiAssessment.physicsAnalysis.toLowerCase().includes("critical"),
+          summary: aiAssessment.physicsAnalysis.slice(0, 200),
+        }
+      : null,
+    damage_validation: consistencyCheck
+      ? {
+          is_consistent: consistencyCheck.overall_status === "CONSISTENT",
+          consistency_score: consistencyCheck.consistency_score ?? null,
+          has_unexplained_damage: consistencyCheck.has_unexplained_damage ?? false,
+          summary: consistencyCheck.summary ?? null,
+        }
+      : null,
+    costDecision: aiAssessment?.estimatedCost != null && claim?.finalApprovedAmount != null
+      ? {
+          recommendation: (() => {
+            const est = Number(aiAssessment.estimatedCost);
+            const approved = Number(claim.finalApprovedAmount);
+            if (approved === 0) return "ESCALATE" as const;
+            const dev = Math.abs(est - approved) / approved;
+            if (dev > 0.4) return "ESCALATE" as const;
+            if (dev > 0.15) return "NEGOTIATE" as const;
+            return "PROCEED_TO_ASSESSMENT" as const;
+          })(),
+          is_within_range: (() => {
+            const est = Number(aiAssessment.estimatedCost);
+            const approved = Number(claim.finalApprovedAmount);
+            if (approved === 0) return null;
+            return Math.abs(est - approved) / approved <= 0.4;
+          })(),
+          has_anomalies: costRealism?.has_anomalies ?? false,
+        }
+      : null,
+    consistency_status: consistencyCheck
+      ? {
+          overall_status: consistencyCheck.overall_status ?? null,
+          critical_conflict_count: consistencyCheck.critical_conflict_count ?? 0,
+          proceed: consistencyCheck.proceed ?? true,
+          summary: consistencyCheck.summary ?? null,
+        }
+      : null,
+  };
+
+  const decisionMutation = trpc.decision.evaluateClaimDecision.useMutation();
+
+  // Run on mount and when runKey changes
+  const [result, setResult] = useState<Awaited<ReturnType<typeof decisionMutation.mutateAsync>> | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const runDecision = async () => {
+    setLoading(true);
+    try {
+      const r = await decisionMutation.mutateAsync(decisionInput);
+      setResult(r);
+    } catch (e) {
+      console.error("Decision authority error:", e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Auto-run once on mount
+  useState(() => {
+    runDecision();
+  });
+
+  if (loading && !result) {
+    return (
+      <div className="flex items-center justify-center gap-3 py-8" style={{ color: "var(--muted-foreground)" }}>
+        <Loader2 className="w-5 h-5 animate-spin" />
+        <span className="text-sm">Running Decision Authority engine…</span>
+      </div>
+    );
+  }
+
+  if (!result) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-8">
+        <ShieldCheck className="w-10 h-10" style={{ color: "var(--muted-foreground)" }} />
+        <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>Decision not yet evaluated.</p>
+        <Button variant="outline" size="sm" onClick={runDecision} disabled={loading}>
+          {loading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+          Run Decision Engine
+        </Button>
+      </div>
+    );
+  }
+
+  const basisLabel: Record<string, string> = {
+    assessor_validated: "Assessor Validated",
+    system_validated: "System Validated",
+    insufficient_data: "Insufficient Data",
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <RecommendationBadge recommendation={result.recommendation} />
+          <Badge variant="outline" className="text-xs">
+            {basisLabel[result.decision_basis] ?? result.decision_basis}
+          </Badge>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => { setRunKey((k) => k + 1); runDecision(); }}
+          disabled={loading}
+          className="text-xs"
+          style={{ color: "var(--muted-foreground)" }}
+        >
+          {loading ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
+          Re-evaluate
+        </Button>
+      </div>
+
+      {/* Confidence bar */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "var(--muted-foreground)" }}>
+          Decision Confidence
+        </p>
+        <ConfidenceBar confidence={result.confidence} />
+      </div>
+
+      {/* Reasoning */}
+      <div className="p-3 rounded-lg" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+        <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Reasoning</p>
+        <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{result.reasoning}</p>
+      </div>
+
+      {/* Key Drivers */}
+      {result.key_drivers.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Key Drivers</p>
+          <div className="flex flex-wrap gap-2">
+            {result.key_drivers.map((driver, i) => (
+              <span
+                key={i}
+                className="text-xs px-2 py-1 rounded-md"
+                style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+              >
+                {driver}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Blocking Factors */}
+      {result.blocking_factors.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "oklch(0.65 0.18 25)" }}>Blocking Factors</p>
+          <ul className="space-y-1">
+            {result.blocking_factors.map((factor, i) => (
+              <li key={i} className="flex items-start gap-2 text-sm">
+                <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "oklch(0.60 0.20 25)" }} />
+                <span style={{ color: "var(--foreground)" }}>{factor}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Warnings */}
+      {result.warnings.length > 0 && (
+        <div className="p-3 rounded-lg" style={{ background: "oklch(0.38 0.14 70 / 0.15)", border: "1px solid oklch(0.55 0.18 70 / 0.4)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "oklch(0.72 0.18 70)" }}>Warnings</p>
+          <ul className="space-y-0.5">
+            {result.warnings.map((w, i) => (
+              <li key={i} className="text-xs" style={{ color: "oklch(0.75 0.14 70)" }}>• {w}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Decision Trace (collapsible) */}
+      <div>
+        <button
+          className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide"
+          style={{ color: "var(--muted-foreground)" }}
+          onClick={() => setShowTrace((v) => !v)}
+        >
+          {showTrace ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          Decision Trace ({result.decision_trace.length} steps)
+        </button>
+        {showTrace && (
+          <div className="mt-2 p-3 rounded-lg font-mono text-xs space-y-0.5" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
+            {result.decision_trace.map((step, i) => (
+              <div key={i}>{step}</div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Metadata footer */}
+      <div className="flex flex-wrap gap-3 pt-1 border-t" style={{ borderColor: "var(--border)" }}>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Engine: {result.metadata.engine} v{result.metadata.version}
+        </span>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Inputs: {Object.values(result.metadata.inputs_available).filter(Boolean).length}/{Object.keys(result.metadata.inputs_available).length} available
+        </span>
+      </div>
+    </div>
+  );
+}

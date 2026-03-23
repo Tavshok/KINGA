@@ -30,6 +30,7 @@ import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiagram";
 import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
 import { DamageConsistencyPanel } from "@/components/DamageConsistencyPanel";
+import DecisionAuthorityPanel from "@/components/DecisionAuthorityPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
@@ -1250,6 +1251,27 @@ export default function InsurerComparisonView() {
             />
            </div>
         </div>
+
+        {/* Section: Claims Decision Authority */}
+        {aiAssessment && (
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.45 0.20 270), oklch(0.35 0.16 270))' }}>&#9878;</span>
+              <div>
+                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Claims Decision Authority</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Final recommendation — sole authoritative decision output</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
+              <DecisionAuthorityPanel
+                claimId={claimId}
+                aiAssessment={aiAssessment as any}
+                claim={claim as any}
+                assessorValidated={!!(claim as any)?.assessorId}
+              />
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Incident Type Override Dialog */}
