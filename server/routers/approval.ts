@@ -16,13 +16,19 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { TRPCError } from "@trpc/server";
-import { getDb } from "../db";
+import { getDb, createNotification } from "../db";
 import { eq, desc, and, asc } from "drizzle-orm";
 import {
   workflowTemplates,
   claimApprovals,
   claims,
+  users,
 } from "../../drizzle/schema";
+import {
+  generateClaimNotification,
+  type EventType,
+} from "../pipeline-v2/claimsNotificationGenerator";
+import { notifyOwner } from "../_core/notification";
 
 // ─── Zod schemas ──────────────────────────────────────────────────────────────
 
@@ -465,6 +471,91 @@ export const approvalRouter = router({
         notes: input.notes ?? "",
         metadataJson: input.metadata ? JSON.stringify(input.metadata) : null,
       });
+
+      // ── Generate and dispatch notification ──────────────────────────────────
+      // Fetch claim vehicle context for richer notifications
+      const claimRows = await drizzle
+        .select({
+          claimNumber: claims.claimNumber,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+          vehicleYear: claims.vehicleYear,
+          claimantId: claims.claimantId,
+        })
+        .from(claims)
+        .where(eq(claims.id, input.claim_id))
+        .limit(1);
+
+      const claimRow = claimRows[0] ?? null;
+
+      // Map decision → event type
+      const eventTypeMap: Record<string, EventType> = {
+        approved: input.stage_order === 1 ? "STAGE_ADVANCE" : "APPROVE",
+        rejected: "REJECT",
+        returned: "RETURN_FOR_INFO",
+        escalated: "ESCALATION",
+        external_received: "STAGE_ADVANCE",
+      };
+      const eventType: EventType = eventTypeMap[input.decision] ?? "STAGE_ADVANCE";
+
+      // Fire notification generation asynchronously — don't block the response
+      void (async () => {
+        try {
+          const notification = await generateClaimNotification({
+            event_type: eventType,
+            claim_id: input.claim_id,
+            claim_reference: claimRow?.claimNumber ?? `CLM-${input.claim_id}`,
+            vehicle_year: claimRow?.vehicleYear ?? null,
+            vehicle_make: claimRow?.vehicleMake ?? null,
+            vehicle_model: claimRow?.vehicleModel ?? null,
+            reason: input.notes ?? null,
+            stage_name: input.stage_name,
+            actor_name: (ctx.user as { name?: string }).name ?? null,
+          });
+
+          // Write to in-app notifications table for the claimant
+          if (claimRow?.claimantId) {
+            await createNotification({
+              userId: claimRow.claimantId,
+              title: notification.title,
+              message: notification.message,
+              type: notification.notification_type,
+              claimId: input.claim_id,
+              entityType: "claim",
+              entityId: input.claim_id,
+              actionUrl: `/claims/${input.claim_id}`,
+              priority: notification.priority,
+            });
+          }
+
+          // Also notify the actor (adjuster/manager who made the decision)
+          const actorId = typeof ctx.user.id === "number" ? ctx.user.id : parseInt(String(ctx.user.id), 10);
+          if (actorId && actorId !== claimRow?.claimantId) {
+            await createNotification({
+              userId: actorId,
+              title: `Decision Recorded — ${notification.title}`,
+              message: `Your decision on ${claimRow?.claimNumber ?? `Claim #${input.claim_id}`} has been saved: ${notification.message}`,
+              type: notification.notification_type,
+              claimId: input.claim_id,
+              entityType: "claim",
+              entityId: input.claim_id,
+              actionUrl: `/insurer-portal/comparison/${input.claim_id}`,
+              priority: "low",
+            });
+          }
+
+          // Send owner alert for HIGH/URGENT priority events
+          if (notification.priority === "high" || notification.priority === "urgent") {
+            await notifyOwner({
+              title: `[KINGA] ${notification.title}`,
+              content: `${notification.message}\n\nClaim: ${claimRow?.claimNumber ?? input.claim_id} | Stage: ${input.stage_name} | Actor: ${(ctx.user as { name?: string }).name ?? "Unknown"}`,
+            });
+          }
+        } catch (notifErr) {
+          // Notification failure must never break the approval flow
+          console.warn("[ApprovalRouter] Notification dispatch failed:", notifErr);
+        }
+      })();
 
       return {
         success: true,

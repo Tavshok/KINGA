@@ -10138,3 +10138,11 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Expose per-claim reason/flags/priority through getEscalationSummary tRPC procedure (claim_details array)
 - [x] Update EscalationQueue admin page to show per-claim reason, flags, and priority badges
 - [x] TypeScript check and checkpoint
+
+## Claims Notification Generator (Mar 2026)
+- [x] Create server/pipeline-v2/claimsNotificationGenerator.ts with improved LLM prompt
+- [x] Wire notification generator into approval.submitApprovalDecision procedure
+- [x] Write generated notifications to notifications DB table (in-app bell)
+- [x] Send owner alert via notifyOwner for HIGH priority events
+- [x] Enhance NotificationList UI with priority backgrounds, urgent icons, and View Claim CTA
+- [x] TypeScript check and checkpoint

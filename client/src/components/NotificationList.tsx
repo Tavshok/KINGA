@@ -11,7 +11,11 @@ import {
   User, 
   Clock,
   X,
-  CheckCheck
+  CheckCheck,
+  ShieldAlert,
+  RotateCcw,
+  ArrowRight,
+  ThumbsUp,
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLocation } from "wouter";
@@ -74,32 +78,48 @@ export function NotificationList({ onClose }: NotificationListProps) {
     deleteNotification.mutate({ notificationId });
   };
 
-  const getNotificationIcon = (type: string) => {
+  const getNotificationIcon = (type: string, priority?: string) => {
+    if (priority === "urgent") return <ShieldAlert className="h-5 w-5 text-red-600" />;
     switch (type) {
       case "fraud_detected":
         return <AlertTriangle className="h-5 w-5 text-red-500" />;
       case "claim_assigned":
       case "assessment_completed":
         return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "quote_submitted":
-        return <FileText className="h-5 w-5 text-primary/80" />;
+      case "approval_required":
+        return <RotateCcw className="h-5 w-5 text-yellow-500" />;
       case "status_changed":
         return <Clock className="h-5 w-5 text-orange-500" />;
+      case "quote_submitted":
+        return <FileText className="h-5 w-5 text-primary/80" />;
       default:
         return <User className="h-5 w-5 text-gray-500 dark:text-muted-foreground" />;
     }
   };
 
-  const getPriorityColor = (priority: string) => {
+  /** Map next_action values to short CTA labels */
+  const getNextActionLabel = (message: string): string | null => {
+    if (message.includes("SUBMIT_DOCUMENTS") || message.toLowerCase().includes("submit")) return "Submit Documents";
+    if (message.includes("CONTACT_ADJUSTER") || message.toLowerCase().includes("contact your adjuster")) return "Contact Adjuster";
+    if (message.includes("CONTACT_FRAUD_TEAM")) return "Contact Fraud Team";
+    return null;
+  };
+
+  const getPriorityColor = (priority: string): "destructive" | "default" | "secondary" | "outline" => {
     switch (priority) {
-      case "urgent":
-        return "destructive";
-      case "high":
-        return "default";
-      case "medium":
-        return "secondary";
-      default:
-        return "outline";
+      case "urgent": return "destructive";
+      case "high": return "default";
+      case "medium": return "secondary";
+      default: return "outline";
+    }
+  };
+
+  const getPriorityBg = (priority: string, isRead: boolean) => {
+    if (isRead) return "";
+    switch (priority) {
+      case "urgent": return "bg-red-50 dark:bg-red-950/20";
+      case "high": return "bg-orange-50 dark:bg-orange-950/20";
+      default: return "bg-primary/5";
     }
   };
 
@@ -150,17 +170,19 @@ export function NotificationList({ onClose }: NotificationListProps) {
               <div
                 key={notification.id}
                 className={`p-4 hover:bg-accent/50 cursor-pointer transition-colors ${
-                  !notification.isRead ? "bg-primary/5/50" : ""
+                  getPriorityBg(notification.priority, !!notification.isRead)
                 }`}
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex gap-3">
-                  <div className="flex-shrink-0 mt-1">
-                    {getNotificationIcon(notification.type)}
+                  <div className="flex-shrink-0 mt-0.5">
+                    {getNotificationIcon(notification.type, notification.priority)}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
-                      <p className="font-medium text-sm leading-tight">
+                      <p className={`font-medium text-sm leading-tight ${
+                        notification.priority === "urgent" ? "text-red-700 dark:text-red-400" : ""
+                      }`}>
                         {notification.title}
                       </p>
                       <Button
@@ -172,24 +194,40 @@ export function NotificationList({ onClose }: NotificationListProps) {
                         <X className="h-3 w-3" />
                       </Button>
                     </div>
-                    <p className="text-sm text-muted-foreground mb-2">
+                    <p className="text-sm text-muted-foreground mb-2 leading-snug">
                       {notification.message}
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-xs text-muted-foreground">
                         {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                       </span>
-                      {notification.priority !== "medium" && (
+                      {(notification.priority === "urgent" || notification.priority === "high") && (
                         <Badge variant={getPriorityColor(notification.priority)} className="text-xs">
-                          {notification.priority}
+                          {notification.priority === "urgent" ? "Urgent" : "High Priority"}
                         </Badge>
                       )}
                       {!notification.isRead && (
-                        <Badge variant="default" className="text-xs">
+                        <Badge variant="default" className="text-xs bg-blue-500">
                           New
                         </Badge>
                       )}
                     </div>
+                    {/* Next-action CTA for actionable notifications */}
+                    {notification.actionUrl && (notification.priority === "urgent" || notification.priority === "high" || notification.type === "approval_required") && (
+                      <div className="mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-xs gap-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleNotificationClick(notification);
+                          }}
+                        >
+                          View Claim <ArrowRight className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
