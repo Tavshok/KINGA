@@ -686,6 +686,7 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotosJson: claimRecord ? JSON.stringify(claimRecord.damage.imageUrls) : '[]',
     pipelineRunSummary: JSON.stringify({
       stages: summary.stages,
+      documentVerification: (summary as any).documentVerification ?? null,
       turnaroundEstimate: turnaroundAnalysis ? {
         estimatedRepairDays: turnaroundAnalysis.estimatedRepairDays,
         bestCaseDays: turnaroundAnalysis.bestCaseDays,

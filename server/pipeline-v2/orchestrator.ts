@@ -89,6 +89,11 @@ import {
   inferCostTier,
   type CaseSignatureOutput,
 } from "./caseSignatureGenerator";
+import {
+  verifyDocumentRead,
+  shouldHaltPipeline,
+  type DocumentReadVerificationResult,
+} from "./documentReadVerificationEngine";
 
 /**
  * Run the full self-healing pipeline.
@@ -135,6 +140,7 @@ export async function runPipelineV2(
   let evidenceRegistryData: EvidenceRegistry | null = null;
   let validatedOutcomeResult: ValidatedOutcomeResult | null = null;
   let caseSignatureResult: CaseSignatureOutput | null = null;
+  let documentVerificationResult: DocumentReadVerificationResult | null = null;
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
@@ -163,6 +169,62 @@ export async function runPipelineV2(
     stage2Data = s2.data;
   } else {
     stages["2_extraction"] = { status: "skipped", durationMs: 0, savedToDb: false, error: "No Stage 1 data", degraded: true, assumptionCount: 0, recoveryActionCount: 0 };
+  }
+
+  // ── STAGE 0a: Document Read Verification ───────────────────────────
+  // Runs BEFORE any analysis. Confirms the document was successfully
+  // read and understood. Halts pipeline if document is unreadable.
+  if (stage2Data && stage2Data.extractedTexts.length > 0) {
+    try {
+      const combinedText = stage2Data.extractedTexts
+        .map((et) => et.rawText ?? "")
+        .join("\n\n");
+      documentVerificationResult = await verifyDocumentRead(combinedText);
+      const v = documentVerificationResult;
+      ctx.log(
+        "Stage 0a (Document Verification)",
+        `status=${v.status}, confidence=${v.confidence}, pages=${v.pages_detected}, ` +
+        `fields=${Object.entries(v.key_fields_detected).filter(([, ok]) => ok).map(([k]) => k).join(",") || "none"}, ` +
+        `missing=${v.missing_critical_fields.join(",") || "none"}, reason="${v.reason}"`
+      );
+      if (shouldHaltPipeline(documentVerificationResult)) {
+        ctx.log(
+          "Stage 0a (Document Verification)",
+          `HALT: Document verification ${v.status} (confidence ${v.confidence}) — pipeline halted. ` +
+          `Missing: ${v.missing_critical_fields.join(", ") || "none"}. Reason: ${v.reason}`
+        );
+        // Mark all remaining stages as skipped and return early
+        const haltMsg = `Document read ${v.status.toLowerCase()} — ${v.reason}`;
+        for (const sk of ["0_evidence_registry", "3_structured_extraction", "4_validation", "5_assembly", "6_damage", "7_physics", "8_fraud", "9_cost", "9b_turnaround", "10_report"]) {
+          stages[sk] = { status: "skipped", durationMs: 0, savedToDb: false, error: haltMsg, degraded: true, assumptionCount: 0, recoveryActionCount: 0 };
+        }
+        return {
+          summary: {
+            claimId: ctx.claimId,
+            pipelineVersion: "v2",
+            totalDurationMs: Date.now() - pipelineStart,
+            stages,
+            totalAssumptions: 0,
+            totalRecoveryActions: 0,
+            overallStatus: "failed",
+            failureReason: haltMsg,
+            documentVerification: documentVerificationResult,
+          } as any,
+          claimRecord: null,
+          report: null,
+          damageAnalysis: null,
+          physicsAnalysis: null,
+          fraudAnalysis: null,
+          costAnalysis: null,
+          turnaroundAnalysis: null,
+          causalVerdict: null,
+        };
+      }
+    } catch (err) {
+      ctx.log("Stage 0a (Document Verification)", `Verification failed (non-fatal): ${String(err)} — continuing pipeline`);
+    }
+  } else {
+    ctx.log("Stage 0a (Document Verification)", "Skipped — no Stage 2 text available.");
   }
 
   // ── STAGE 0: Evidence Registry ─────────────────────────────────────
@@ -615,7 +677,8 @@ export async function runPipelineV2(
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
-    causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult
+    causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult,
+    documentVerificationResult
   );
 }
 
@@ -638,7 +701,8 @@ function buildResult(
   causalVerdict: CausalVerdict | null = null,
   evidenceRegistry: EvidenceRegistry | null = null,
   validatedOutcome: ValidatedOutcomeResult | null = null,
-  caseSignature: CaseSignatureOutput | null = null
+  caseSignature: CaseSignatureOutput | null = null,
+  docVerification: DocumentReadVerificationResult | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -648,6 +712,16 @@ function buildResult(
       allSavedToDb: allSaved,
       totalDurationMs: Date.now() - pipelineStart,
       completedAt: new Date().toISOString(),
+      documentVerification: docVerification ? {
+        status: docVerification.status,
+        confidence: docVerification.confidence,
+        keyFieldsDetected: Object.entries(docVerification.key_fields_detected)
+          .filter(([, ok]) => ok)
+          .map(([k]) => k),
+        missingCriticalFields: docVerification.missing_critical_fields,
+        pdfReadConfirmed: docVerification.method === "llm",
+        reason: docVerification.reason,
+      } : null,
     },
     claimRecord,
     report,

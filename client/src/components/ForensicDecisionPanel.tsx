@@ -138,6 +138,10 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   }, [aiAssessment?.caseSignatureJson]);
   const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
   const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
+  const docVerification = useMemo(() => {
+    const ps = safeParse(aiAssessment?.pipelineRunSummary);
+    return ps?.documentVerification ?? null;
+  }, [aiAssessment?.pipelineRunSummary]);
   const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
   const damagedComponents = useMemo(() => safeParseArray(aiAssessment?.damagedComponentsJson), [aiAssessment?.damagedComponentsJson]);
 
@@ -252,6 +256,54 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
 
   return (
     <div className="space-y-4">
+
+      {/* ── DOCUMENT READ VERIFICATION BANNER ──────────────────────────── */}
+      {docVerification && (() => {
+        const status: string = docVerification.status ?? "UNKNOWN";
+        const keyFields: string[] = docVerification.keyFieldsDetected ?? [];
+        const missingFields: string[] = docVerification.missingCriticalFields ?? [];
+        const pdfRead: boolean = docVerification.pdfReadConfirmed ?? false;
+        const cfg = {
+          SUCCESS: { bg: "oklch(0.35 0.14 145 / 0.12)", border: "oklch(0.55 0.18 145 / 0.4)", icon: <CheckCircle className="h-4 w-4 text-emerald-400" />, label: "text-emerald-400", labelText: "VERIFIED" },
+          PARTIAL: { bg: "oklch(0.72 0.18 60 / 0.10)", border: "oklch(0.72 0.18 60 / 0.35)", icon: <AlertCircle className="h-4 w-4 text-amber-400" />, label: "text-amber-400", labelText: "PARTIAL" },
+          FAILED:  { bg: "oklch(0.55 0.22 25 / 0.12)", border: "oklch(0.55 0.22 25 / 0.4)",  icon: <XCircle className="h-4 w-4 text-red-400" />,     label: "text-red-400",     labelText: "FAILED" },
+          UNKNOWN: { bg: "oklch(0.22 0.015 260 / 0.7)", border: "oklch(0.45 0.06 260 / 0.4)", icon: <AlertTriangle className="h-4 w-4 text-slate-400" />, label: "text-slate-400", labelText: "UNKNOWN" },
+        }[status] ?? { bg: "oklch(0.22 0.015 260 / 0.7)", border: "oklch(0.45 0.06 260 / 0.4)", icon: <AlertTriangle className="h-4 w-4 text-slate-400" />, label: "text-slate-400", labelText: status };
+        return (
+          <div className="rounded-lg px-4 py-3 space-y-2" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+            <div className="flex flex-wrap items-center gap-3">
+              {cfg.icon}
+              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Document Read Verification</span>
+              <span className={`text-xs font-bold ${cfg.label}`}>{cfg.labelText}</span>
+              {pdfRead && (
+                <span className="ml-auto flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                  <CheckCircle className="h-3 w-3" /> PDF fetched via presigned URL
+                </span>
+              )}
+              {!pdfRead && (
+                <span className="ml-auto flex items-center gap-1 text-xs text-amber-400 font-medium">
+                  <AlertCircle className="h-3 w-3" /> OCR text fallback
+                </span>
+              )}
+            </div>
+            {keyFields.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pl-7">
+                {keyFields.map((f: string) => (
+                  <span key={f} className="rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-300">{f}</span>
+                ))}
+              </div>
+            )}
+            {missingFields.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pl-7">
+                <span className="text-xs text-muted-foreground mr-1">Missing:</span>
+                {missingFields.map((f: string) => (
+                  <span key={f} className="rounded-full px-2 py-0.5 text-xs font-medium bg-red-500/15 text-red-300">{f}</span>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── CASE SIGNATURE BANNER ─────────────────────────────────────────── */}
       {caseSignature && (

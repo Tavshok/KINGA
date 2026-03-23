@@ -10192,3 +10192,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Confirmed: Stage 9 Quote-First Principle already correct — will work once Stage 3 reads the PDF
 - [x] Confirmed: Speed extraction prompt already prioritises stated form field — will work once Stage 3 reads the PDF
 - [x] TypeScript check: 0 errors confirmed
+
+## Document Read Verification Engine (2026-03-23)
+- [ ] Create server/pipeline-v2/documentReadVerificationEngine.ts with LLM verification prompt
+- [ ] Wire verification as Stage 0 gate in orchestrator — halt pipeline on PARTIAL/FAILED
+- [ ] Surface verification status badge in claim detail UI and PDF report
+- [ ] TypeScript check and checkpoint
