@@ -31,6 +31,7 @@ import { VehicleImpactVectorDiagram } from "@/components/VehicleImpactVectorDiag
 import { IncidentTypeOverrideDialog } from "@/components/IncidentTypeOverrideDialog";
 import { DamageConsistencyPanel } from "@/components/DamageConsistencyPanel";
 import DecisionAuthorityPanel from "@/components/DecisionAuthorityPanel";
+import ReportReadinessPanel from "@/components/ReportReadinessPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
@@ -1268,6 +1269,28 @@ export default function InsurerComparisonView() {
                 aiAssessment={aiAssessment as any}
                 claim={claim as any}
                 assessorValidated={!!(claim as any)?.assessorId}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Section: Report Readiness Gate */}
+        {aiAssessment && (
+          <div className="comparison-section mb-5">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.45 0.18 145), oklch(0.35 0.14 145))' }}>&#10003;</span>
+              <div>
+                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Report Readiness Gate</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Export eligibility check — validates decision, contradictions, and confidence</p>
+              </div>
+            </div>
+            <div className="comparison-section-body">
+              <ReportReadinessPanel
+                claimId={claimId}
+                aiAssessment={aiAssessment as any}
+                claim={claim as any}
+                assessorValidated={!!(claim as any)?.assessorId}
+                onExport={() => window.print()}
               />
             </div>
           </div>

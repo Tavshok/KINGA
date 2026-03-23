@@ -21,6 +21,11 @@ import {
   type DecisionTraceInput,
 } from "../pipeline-v2/decisionTraceGenerator";
 import {
+  checkReportReadiness,
+  checkReportReadinessBatch,
+  aggregateReadinessStats,
+} from "../pipeline-v2/reportReadinessGate";
+import {
   detectContradictions,
   detectContradictionsBatch,
   aggregateContradictionStats,
@@ -511,5 +516,119 @@ export const decisionRouter = router({
       );
 
       return generateDecisionTrace(traceInput);
+    }),
+
+  /**
+   * Check whether a claim is ready to be exported as a report.
+   * Validates decision_ready, contradiction_check, and overall_confidence.
+   */
+  checkReportReadiness: protectedProcedure
+    .input(
+      z.object({
+        decision_ready: z.object({
+          is_ready: z.boolean(),
+          recommendation: z.enum(["APPROVE", "REVIEW", "REJECT"]).nullable().optional(),
+          decision_basis: z.enum(["assessor_validated", "system_validated", "insufficient_data"]).nullable().optional(),
+          assessor_validated: z.boolean().nullable().optional(),
+          has_blocking_factors: z.boolean().nullable().optional(),
+        }),
+        contradiction_check: z.object({
+          valid: z.boolean(),
+          action: z.enum(["ALLOW", "BLOCK"]).nullable().optional(),
+          critical_count: z.number().nullable().optional(),
+          major_count: z.number().nullable().optional(),
+          minor_count: z.number().nullable().optional(),
+        }),
+        overall_confidence: z.number().nullable().optional(),
+        assessor_override: z.boolean().nullable().optional(),
+        draft_mode: z.boolean().nullable().optional(),
+        documents_attached: z.boolean().nullable().optional(),
+        intake_validated: z.boolean().nullable().optional(),
+      })
+    )
+    .mutation(({ input }) => {
+      return checkReportReadiness(input as Parameters<typeof checkReportReadiness>[0]);
+    }),
+
+  /**
+   * Fetch recent claims from the DB, evaluate readiness for each,
+   * and return aggregate stats + sample results.
+   */
+  getReadinessSummary: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(200).default(100) }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return null;
+
+      const rows = await drizzle
+        .select({
+          assessmentId: aiAssessments.id,
+          claimId: aiAssessments.claimId,
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          confidenceScore: aiAssessments.confidenceScore,
+          estimatedCost: aiAssessments.estimatedCost,
+          consistencyCheckJson: aiAssessments.consistencyCheckJson,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          workflowState: claims.workflowState,
+        })
+        .from(aiAssessments)
+        .leftJoin(claims, eq(claims.id, aiAssessments.claimId))
+        .orderBy(desc(aiAssessments.id))
+        .limit(input.limit);
+
+      const batchInputs = rows.map((row) => {
+        const consistencyCheck = (() => {
+          try { return row.consistencyCheckJson ? JSON.parse(row.consistencyCheckJson) : null; }
+          catch { return null; }
+        })();
+
+        const confidence = row.confidenceScore ? Number(row.confidenceScore) : null;
+        const fraudLevel = row.fraudRiskLevel ?? null;
+        const nonReadyStates = ["created", "intake_queue", "ai_assessment_pending"];
+        const isDecisionReady = row.workflowState != null && !nonReadyStates.includes(row.workflowState);
+
+        // Infer contradiction validity from fraud + consistency signals
+        const hasContradiction =
+          (fraudLevel === "high" || fraudLevel === "elevated") &&
+          consistencyCheck?.overall_status === "CONSISTENT";
+
+        return {
+          claim_id: row.claimId ?? row.assessmentId,
+          input: {
+            decision_ready: {
+              is_ready: isDecisionReady,
+              recommendation: null,
+              decision_basis: ("system_validated" as const),
+              has_blocking_factors: false,
+            },
+            contradiction_check: {
+              valid: !hasContradiction,
+              action: hasContradiction ? ("BLOCK" as const) : ("ALLOW" as const),
+              critical_count: hasContradiction ? 1 : 0,
+              major_count: 0,
+              minor_count: 0,
+            },
+            overall_confidence: confidence,
+          },
+        };
+      });
+
+      const results = checkReportReadinessBatch(batchInputs);
+      const stats = aggregateReadinessStats(results);
+
+      const sampleResults = results.slice(0, 20).map((r) => ({
+        claim_id: r.claim_id,
+        status: r.result.status,
+        export_allowed: r.result.export_allowed,
+        reason: r.result.reason,
+        gates_passed: r.result.metadata.gates_passed,
+        gates_failed: r.result.metadata.gates_failed,
+      }));
+
+      return {
+        stats,
+        sample_results: sampleResults,
+        total_evaluated: results.length,
+      };
     }),
 });
