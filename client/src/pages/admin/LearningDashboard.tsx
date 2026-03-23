@@ -39,6 +39,8 @@ import {
   Activity,
   Globe,
   MapPin,
+  Search,
+  AlertCircle,
 } from "lucide-react";
 
 // ─── Scenario options ──────────────────────────────────────────────────────────
@@ -77,7 +79,7 @@ export default function LearningDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [scenarioFilter, setScenarioFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"overview" | "cost" | "fraud" | "calibration" | "jurisdiction">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "cost" | "fraud" | "calibration" | "jurisdiction" | "domain">("overview");
   const [jurisdictionInputs, setJurisdictionInputs] = useState({ country: "", region: "", claim_location: "" });
 
   const scenarioParam = scenarioFilter === "all" ? undefined : scenarioFilter;
@@ -102,6 +104,21 @@ export default function LearningDashboard() {
     trpc.learning.getJurisdictionSummary.useQuery(
       { limit: 1000 },
       { enabled: activeTab === "jurisdiction" }
+    );
+
+  const [domainSignature, setDomainSignature] = useState("");
+  const [domainCheckSig, setDomainCheckSig] = useState<string | null>(null);
+
+  const { data: domainCheck, isLoading: domainCheckLoading, refetch: refetchDomainCheck } =
+    trpc.learning.checkOutOfDomain.useQuery(
+      { case_signature: domainCheckSig },
+      { enabled: activeTab === "domain" && domainCheckSig !== null }
+    );
+
+  const { data: domainSummary, isLoading: domainSummaryLoading } =
+    trpc.learning.getOutOfDomainSummary.useQuery(
+      { limit: 500 },
+      { enabled: activeTab === "domain" }
     );
 
   // ── Queries ──────────────────────────────────────────────────────────────────
@@ -174,7 +191,7 @@ export default function LearningDashboard() {
 
       {/* Tab Bar */}
       <div className="border-b border-border px-6 flex gap-1 pt-2">
-       {(["overview", "cost", "fraud", "calibration", "jurisdiction"] as const).map((tab) => (          <button
+       {(["overview", "cost", "fraud", "calibration", "jurisdiction", "domain"] as const).map((tab) => (          <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${
@@ -188,6 +205,7 @@ export default function LearningDashboard() {
             {tab === "fraud" && <ShieldAlert className="w-4 h-4 inline mr-1" />}
             {tab === "calibration" && <Activity className="w-4 h-4 inline mr-1" />}
             {tab === "jurisdiction" && <Globe className="w-4 h-4 inline mr-1" />}
+            {tab === "domain" && <Search className="w-4 h-4 inline mr-1" />}
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
@@ -969,6 +987,169 @@ export default function LearningDashboard() {
                 )}
               </>
             ) : null}
+          </>
+        )}
+        {/* ── Out-of-Domain Tab ─────────────────────────────────────────────── */}
+        {activeTab === "domain" && (
+          <>
+            {/* Summary KPI cards */}
+            {domainSummaryLoading ? (
+              <div className="flex items-center gap-2 text-muted-foreground py-8">
+                <RefreshCw className="w-4 h-4 animate-spin" />
+                <span>Loading domain coverage summary…</span>
+              </div>
+            ) : domainSummary ? (
+              <>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-xs text-muted-foreground mb-1">Total Analysed</div>
+                      <div className="text-2xl font-bold">{domainSummary.summary.total.toLocaleString()}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-xs text-muted-foreground mb-1">In-Domain Rate</div>
+                      <div className="text-2xl font-bold text-green-600">{pct(domainSummary.summary.in_domain_rate)}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-xs text-muted-foreground mb-1">Out-of-Domain</div>
+                      <div className="text-2xl font-bold text-red-500">{domainSummary.summary.out_of_domain_count.toLocaleString()}</div>
+                    </CardContent>
+                  </Card>
+                  <Card>
+                    <CardContent className="pt-4">
+                      <div className="text-xs text-muted-foreground mb-1">Known Signatures</div>
+                      <div className="text-2xl font-bold">{domainSummary.known_signatures_count.toLocaleString()}</div>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Match tier breakdown */}
+                <Card className="mb-6">
+                  <CardHeader><CardTitle className="text-sm">Match Tier Breakdown</CardTitle></CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-4 gap-4 text-center">
+                      {(["exact", "grouping", "partial", "none"] as const).map((tier) => (
+                        <div key={tier}>
+                          <div className="text-lg font-bold">{domainSummary.summary.by_match_tier[tier]}</div>
+                          <div className="text-xs text-muted-foreground capitalize">{tier}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Sample results table */}
+                {domainSummary.sample_results.length > 0 && (
+                  <Card className="mb-6">
+                    <CardHeader><CardTitle className="text-sm">Recent Claims Sample (first 20)</CardTitle></CardHeader>
+                    <CardContent className="p-0">
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border bg-muted/30">
+                              <th className="text-left py-2 px-3">Claim ID</th>
+                              <th className="text-left py-2 px-3">Signature</th>
+                              <th className="text-center py-2 px-3">In-Domain</th>
+                              <th className="text-center py-2 px-3">Match Tier</th>
+                              <th className="text-center py-2 px-3">Similarity</th>
+                              <th className="text-center py-2 px-3">Confidence Cap</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {domainSummary.sample_results.map((r, i) => (
+                              <tr key={i} className="border-b border-border/50 hover:bg-muted/20">
+                                <td className="py-1.5 px-3">{r.claim_id}</td>
+                                <td className="py-1.5 px-3 font-mono text-xs">{r.case_signature}</td>
+                                <td className="py-1.5 px-3 text-center">
+                                  {r.in_domain
+                                    ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 inline" />
+                                    : <AlertCircle className="w-3.5 h-3.5 text-red-500 inline" />}
+                                </td>
+                                <td className="py-1.5 px-3 text-center capitalize">{r.match_tier}</td>
+                                <td className="py-1.5 px-3 text-center">{pct(r.similarity_score)}</td>
+                                <td className="py-1.5 px-3 text-center">
+                                  <Badge className={r.confidence_cap === 100 ? "bg-green-600 text-white" : "bg-amber-600 text-white"}>
+                                    {r.confidence_cap}
+                                  </Badge>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : null}
+
+            {/* Manual signature checker */}
+            <Card>
+              <CardHeader><CardTitle className="text-sm">Manual Signature Checker</CardTitle></CardHeader>
+              <CardContent>
+                <div className="flex gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={domainSignature}
+                    onChange={(e) => setDomainSignature(e.target.value)}
+                    placeholder="e.g. pickup_animal_frontal_severe_8c_high"
+                    className="flex-1 border border-border rounded px-3 py-1.5 text-sm bg-background"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={() => { setDomainCheckSig(domainSignature.trim() || null); }}
+                    disabled={!domainSignature.trim()}
+                  >
+                    <Search className="w-3.5 h-3.5 mr-1" /> Check
+                  </Button>
+                </div>
+
+                {domainCheckLoading && (
+                  <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                    <RefreshCw className="w-4 h-4 animate-spin" /> Checking…
+                  </div>
+                )}
+
+                {domainCheck && !domainCheckLoading && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      {domainCheck.in_domain
+                        ? <Badge className="bg-green-600 text-white">IN-DOMAIN</Badge>
+                        : <Badge className="bg-red-600 text-white">OUT-OF-DOMAIN</Badge>}
+                      <Badge className={domainCheck.confidence_cap === 100 ? "bg-green-600 text-white" : "bg-amber-600 text-white"}>
+                        Confidence Cap: {domainCheck.confidence_cap}
+                      </Badge>
+                      <Badge variant="outline" className="capitalize">{domainCheck.match_tier}</Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{domainCheck.reasoning}</p>
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div><span className="text-muted-foreground">Matches Found:</span> <strong>{domainCheck.match_count}</strong></div>
+                      <div><span className="text-muted-foreground">Best Match:</span> <strong className="font-mono">{domainCheck.best_match_signature ?? "—"}</strong></div>
+                      <div><span className="text-muted-foreground">Similarity:</span> <strong>{pct(domainCheck.similarity_score)}</strong></div>
+                    </div>
+                    {domainCheck.token_overlap && (
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {(Object.entries(domainCheck.token_overlap) as [string, boolean][]).map(([dim, match]) => (
+                          <span key={dim} className={`text-xs px-2 py-0.5 rounded-full border ${
+                            match ? "border-green-500 text-green-600" : "border-red-400 text-red-500"
+                          }`}>{dim}</span>
+                        ))}
+                      </div>
+                    )}
+                    {domainCheck.warnings.length > 0 && (
+                      <div className="text-xs text-amber-600 flex items-start gap-1">
+                        <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+                        {domainCheck.warnings.join(" ")}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </>
         )}
         </div>

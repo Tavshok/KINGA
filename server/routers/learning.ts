@@ -9,7 +9,7 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { aiAssessments, claims } from "../../drizzle/schema";
+import { aiAssessments, claims, costLearningRecords } from "../../drizzle/schema";
 import { eq, isNotNull, and } from "drizzle-orm";
 import {
   analyseCostPatterns,
@@ -30,6 +30,12 @@ import {
   determineJurisdictionBatch,
   aggregateJurisdictionSummary,
 } from "../pipeline-v2/jurisdictionCalibrationEngine";
+import {
+  detectOutOfDomain,
+  detectOutOfDomainBatch,
+  aggregateOutOfDomainSummary,
+  type SignatureRecord,
+} from "../pipeline-v2/outOfDomainDetector";
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -489,6 +495,129 @@ export const learningRouter = router({
           resolution_method: r.result.resolution_method,
           has_country_profile: r.result.has_country_profile,
           warnings_count: r.result.warnings.length,
+        })),
+      };
+    }),
+
+  /**
+   * Check if a single claim's case_signature is in-domain.
+   * Loads the known signatures database from costLearningRecords.
+   */
+  checkOutOfDomain: protectedProcedure
+    .input(
+      z.object({
+        case_signature: z.string().nullish(),
+        min_match_threshold: z.number().min(1).max(100).default(1),
+      })
+    )
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return {
+        in_domain: false,
+        confidence_cap: 60,
+        reasoning: "Database unavailable.",
+        match_count: 0,
+        best_match_signature: null,
+        similarity_score: 0,
+        match_tier: "none" as const,
+        token_overlap: null,
+        domain_coverage_vehicle: 0,
+        domain_coverage_scenario: 0,
+        warnings: ["Database unavailable"],
+      };
+
+      const rows = await drizzle
+        .select({ caseSignature: costLearningRecords.caseSignature })
+        .from(costLearningRecords)
+        .limit(5000);
+
+      // Build signature database with frequency counts
+      const sigMap = new Map<string, number>();
+      for (const row of rows) {
+        sigMap.set(row.caseSignature, (sigMap.get(row.caseSignature) ?? 0) + 1);
+      }
+      const knownDb: SignatureRecord[] = Array.from(sigMap.entries()).map(([sig, count]) => ({
+        case_signature: sig,
+        count,
+      }));
+
+      return detectOutOfDomain({
+        case_signature: input.case_signature ?? null,
+        known_signatures_database: knownDb,
+        min_match_threshold: input.min_match_threshold,
+      });
+    }),
+
+  /**
+   * Run out-of-domain detection across all recent claims and return a summary.
+   */
+  getOutOfDomainSummary: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(5000).default(500),
+      })
+    )
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return {
+        summary: {
+          total: 0,
+          in_domain_count: 0,
+          out_of_domain_count: 0,
+          in_domain_rate: 0,
+          average_similarity_score: 0,
+          by_match_tier: { exact: 0, grouping: 0, partial: 0, none: 0 },
+          top_unmatched_signatures: [],
+          claims_with_warnings: 0,
+        },
+        sample_results: [],
+        known_signatures_count: 0,
+      };
+
+      // Load all known signatures
+      const allSigRows = await drizzle
+        .select({ caseSignature: costLearningRecords.caseSignature })
+        .from(costLearningRecords)
+        .limit(5000);
+
+      const sigMap = new Map<string, number>();
+      for (const row of allSigRows) {
+        sigMap.set(row.caseSignature, (sigMap.get(row.caseSignature) ?? 0) + 1);
+      }
+      const knownDb: SignatureRecord[] = Array.from(sigMap.entries()).map(([sig, count]) => ({
+        case_signature: sig,
+        count,
+      }));
+
+      // Load recent claims with case signatures
+      const recentRows = await drizzle
+        .select({
+          id: costLearningRecords.id,
+          claimId: costLearningRecords.claimId,
+          caseSignature: costLearningRecords.caseSignature,
+        })
+        .from(costLearningRecords)
+        .orderBy(costLearningRecords.recordedAt)
+        .limit(input.limit);
+
+      const batchInputs = recentRows.map((row) => ({
+        claim_id: row.claimId,
+        case_signature: row.caseSignature,
+      }));
+
+      const results = detectOutOfDomainBatch(batchInputs, knownDb);
+      const summary = aggregateOutOfDomainSummary(results);
+
+      return {
+        summary,
+        known_signatures_count: knownDb.length,
+        sample_results: results.slice(0, 20).map((r) => ({
+          claim_id: r.claim_id,
+          case_signature: r.result.best_match_signature ?? "unknown",
+          in_domain: r.result.in_domain,
+          confidence_cap: r.result.confidence_cap,
+          match_tier: r.result.match_tier,
+          similarity_score: r.result.similarity_score,
         })),
       };
     }),
