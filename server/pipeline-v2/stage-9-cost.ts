@@ -37,29 +37,16 @@ const SEVERITY_COST_MULTIPLIER: Record<string, number> = {
   cosmetic: 0.3, minor: 0.5, moderate: 1.0, severe: 1.8, catastrophic: 3.0,
 };
 
-// Vehicle class multipliers for part costs.
-// Pickup trucks and LCVs have heavier, more expensive panels and structural parts.
-const VEHICLE_CLASS_PART_MULTIPLIER: Record<string, number> = {
-  compact: 0.85,
-  sedan: 1.0,
-  suv: 1.2,
-  pickup: 1.45,  // BT50, Hilux, Ranger — heavier panels, higher OEM parts cost
-  van: 1.3,
-  sports: 1.5,
-  default: 1.0,
-};
-
 function estimateComponentCost(
   componentName: string,
   severity: string,
   repairAction: string,
   labourRate: number,
-  vehicleBodyType?: string
+  _vehicleBodyType?: string  // reserved for future use — do NOT apply multipliers; use quoted costs
 ): { partsCents: number; labourCents: number; paintCents: number } {
   const name = (componentName || "").toLowerCase();
   const sev = (severity || "moderate").toLowerCase();
   const action = (repairAction || "repair").toLowerCase();
-  const classMultiplier = VEHICLE_CLASS_PART_MULTIPLIER[(vehicleBodyType || "default").toLowerCase()] ?? 1.0;
 
   let basePartCost = 15000;
   if (/bumper|fender|wing|panel|door skin/.test(name)) basePartCost = 20000;
@@ -74,8 +61,9 @@ function estimateComponentCost(
   if (/mirror/.test(name)) basePartCost = 15000;
   if (/grille|grill/.test(name)) basePartCost = 12000;
   if (/moulding|trim|garnish/.test(name)) basePartCost = 8000;
-  // Apply vehicle class multiplier to base part cost
-  basePartCost = Math.round(basePartCost * classMultiplier);
+  // NOTE: No vehicle class multiplier applied. The submitted repair quote is the
+  // authoritative cost source. These internal estimates are only used when no
+  // quote is available and should never override a submitted quotation.
 
   const multiplier = SEVERITY_COST_MULTIPLIER[sev] || 1.0;
 
@@ -223,13 +211,34 @@ export async function runCostOptimisationStage(
         recoveredValue: quotedCents,
       });
     }
+
+    // ── QUOTE-FIRST PRINCIPLE ────────────────────────────────────────────────
+    // When a submitted repair quote is present, it is the authoritative cost
+    // source. The internal AI estimate (totalExpectedCents) becomes a reference
+    // benchmark for deviation analysis only — it must NOT override the quote.
+    // Internal estimates are only used when no quote has been submitted.
+    const aiEstimatedCents = totalExpectedCents; // preserve for deviation analysis
+    if (quotedCents && quotedCents > 0) {
+      totalExpectedCents = quotedCents;
+      ctx.log("Stage 9", `QUOTE-FIRST: Using submitted quote (${quotedCents} cents) as primary cost. AI estimate (${aiEstimatedCents} cents) used for deviation analysis only.`);
+      assumptions.push({
+        field: "totalExpectedCents",
+        assumedValue: `Submitted quote: ${(quotedCents / 100).toFixed(2)} USD`,
+        reason: "Submitted repair quote is present and used as the authoritative cost source. AI internal estimate is retained as a benchmark only.",
+        strategy: "cross_document_search",
+        confidence: 95,
+        stage: "Stage 9",
+      });
+    }
+
     let quoteDeviationPct: number | null = null;
     let savingsOpportunityCents = 0;
 
-    if (quotedCents && quotedCents > 0 && totalExpectedCents > 0) {
-      quoteDeviationPct = ((quotedCents - totalExpectedCents) / totalExpectedCents) * 100;
-      if (quotedCents > totalExpectedCents) {
-        savingsOpportunityCents = quotedCents - totalExpectedCents;
+    // Deviation is now: how much does the quote differ from the AI benchmark?
+    if (quotedCents && quotedCents > 0 && aiEstimatedCents > 0) {
+      quoteDeviationPct = ((quotedCents - aiEstimatedCents) / aiEstimatedCents) * 100;
+      if (quotedCents > aiEstimatedCents) {
+        savingsOpportunityCents = quotedCents - aiEstimatedCents;
       }
     }
 

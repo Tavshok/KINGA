@@ -54,7 +54,7 @@ const EXTRACTION_SCHEMA = {
         incidentType: { type: ["string", "null"], description: "Type of incident: collision, theft, vandalism, flood, fire" },
         accidentType: { type: ["string", "null"], description: "Collision direction: frontal, rear, side_driver, side_passenger, rollover, multi_impact" },
         impactPoint: { type: ["string", "null"], description: "Primary point of impact on the vehicle" },
-        estimatedSpeedKmh: { type: ["number", "null"], description: "Estimated speed at impact in km/h" },
+        estimatedSpeedKmh: { type: ["number", "null"], description: "Speed at impact in km/h. PRIORITY ORDER: (1) Use the explicitly stated speed from the claim form field 'What was your speed?' or similar. (2) Use any speed stated in the accident narrative. (3) Only estimate if no speed is stated anywhere. For this claim form, look for a field labelled 'speed' near the accident circumstances section." },
         policeReportNumber: { type: ["string", "null"], description: "Police report/case number" },
         policeStation: { type: ["string", "null"], description: "Police station name" },
         assessorName: { type: ["string", "null"], description: "Name of the assessor" },

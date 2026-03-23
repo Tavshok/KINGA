@@ -10177,3 +10177,9 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Fix Stage 9: add VEHICLE_CLASS_PART_MULTIPLIER (pickup=1.45x, suv=1.2x, compact=0.85x) to estimateComponentCost
 - [x] Fix Stage 9: pass vehicleBodyType to estimateComponentCost in component loop
 - [x] TypeScript check: 0 errors confirmed
+
+## Cost Multiplier Removal & Quote-First Fix (Mar 2026)
+- [ ] Remove VEHICLE_CLASS_PART_MULTIPLIER (1.45x) from Stage 9 estimateComponentCost
+- [ ] Fix speed extraction: read stated speed from claim form narrative/field (not estimate)
+- [ ] Ensure Stage 9 uses submitted repair quote line items as primary cost source
+- [ ] TypeScript check and checkpoint
