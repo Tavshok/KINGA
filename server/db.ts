@@ -409,13 +409,27 @@ export async function triggerAiAssessment(claimId: number) {
   let damagePhotos: string[] = [];
 
   if (claim.sourceDocumentId) {
-    // PDF-sourced claim: look up the source document URL
+    // PDF-sourced claim: look up the source document and generate a presigned URL
+    // CRITICAL: We must use storageGet(s3Key) to get a presigned download URL that the
+    // LLM can fetch publicly. The raw s3Url requires Forge API authentication and the
+    // LLM cannot authenticate with it — causing it to silently fall back to OCR text only.
     try {
       const [sourceDoc] = await db.select().from(ingestionDocuments)
         .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
-      if (sourceDoc && sourceDoc.s3Url) {
+      if (sourceDoc && sourceDoc.s3Key) {
+        try {
+          const { storageGet } = await import('./storage');
+          const { url: presignedUrl } = await storageGet(sourceDoc.s3Key);
+          pdfUrl = presignedUrl;
+          console.log(`[AI Assessment] Claim ${claimId}: Generated presigned PDF URL for LLM: ${sourceDoc.originalFilename}`);
+        } catch (presignErr: any) {
+          // Fallback to raw s3Url if presigning fails
+          pdfUrl = sourceDoc.s3Url;
+          console.warn(`[AI Assessment] Claim ${claimId}: Presigning failed, using raw s3Url (LLM may not read PDF): ${presignErr.message}`);
+        }
+      } else if (sourceDoc && sourceDoc.s3Url) {
         pdfUrl = sourceDoc.s3Url;
-        console.log(`[AI Assessment] Claim ${claimId}: PDF-sourced claim. Will send PDF directly to LLM: ${sourceDoc.originalFilename}`);
+        console.warn(`[AI Assessment] Claim ${claimId}: No s3Key found, using raw s3Url (LLM may not read PDF).`);
       } else {
         console.warn(`[AI Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
       }

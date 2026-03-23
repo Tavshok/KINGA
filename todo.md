@@ -10183,3 +10183,12 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Fix speed extraction: read stated speed from claim form narrative/field (not estimate)
 - [ ] Ensure Stage 9 uses submitted repair quote line items as primary cost source
 - [ ] TypeScript check and checkpoint
+
+## Hallucination Root Cause Fix (2026-03-23)
+- [x] Diagnosed: LLM received authenticated Forge API s3Url — model could not fetch PDF, silently fell back to truncated OCR text only
+- [x] Fixed: Use storageGet(s3Key) to generate a presigned public download URL before passing to pipeline
+- [x] Fixed: Added fallback chain — presigned URL → raw s3Url → log warning
+- [x] Confirmed: incident classification engine already handles animal_strike from narrative (no change needed)
+- [x] Confirmed: Stage 9 Quote-First Principle already correct — will work once Stage 3 reads the PDF
+- [x] Confirmed: Speed extraction prompt already prioritises stated form field — will work once Stage 3 reads the PDF
+- [x] TypeScript check: 0 errors confirmed
