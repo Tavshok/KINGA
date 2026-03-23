@@ -136,23 +136,37 @@ Return data in strict JSON format.`,
         content: [
           {
             type: "text" as const,
-            text: `INPUT DOCUMENT TEXT (first 4000 chars):
-${rawText.substring(0, 4000)}
+            text: `TASK: Extract ALL fields from the schema from the attached PDF document.
 
-TASK: Extract ALL fields from the schema above.
+IMPORTANT: Read the ENTIRE document — do not stop at any particular page. Key fields such as the police report number, repair quotation totals, and component lists often appear on later pages.
+
+CRITICAL POLICE REPORT EXTRACTION RULES:
+- policeReportNumber: Look for any of these patterns throughout the ENTIRE document:
+  * "Police Report No.", "Report Number", "Case No.", "RB No.", "Ref:", "CR No."
+  * Alphanumeric codes like "RB 123/2024", "CR/2024/001", "CID/123"
+  * Numbers adjacent to "police", "station", "report" anywhere in the document
+- policeStation: Extract the name of the police station if mentioned anywhere.
 
 CRITICAL COST EXTRACTION RULES:
 - quoteTotalCents: use the LOWEST or AGREED/ADJUSTED cost figure (in cents). If an assessor negotiated a lower amount, use that. If only one figure exists, use it.
-- labourCostCents / partsCostCents: extract from any itemised breakdown.
+- labourCostCents / partsCostCents: extract from any itemised breakdown, repair schedule, or quotation table.
 - Convert all monetary values to cents (multiply USD/ZWL figure by 100).
+- Look for repair quotes, parts schedules, and labour breakdowns on ALL pages.
+
+CRITICAL COMPONENT EXTRACTION RULES:
+- damagedComponents: Extract EVERY line item from any repair quotation, damage schedule, or parts list.
+- Include panel beater line items, assessor recommendations, and any itemised repair list.
+- Do NOT stop extracting components after the first few — capture all of them.
 
 CRITICAL IMAGE DETECTION RULES:
 - If the document contains embedded photographs, damage images, or references to attached photos, note this in damageDescription.
-- Extract damagedComponents from any itemised repair list, even if no photos are present.
 
 CRITICAL DESCRIPTION RULES:
 - accidentDescription: extract the FULL narrative of how the accident occurred, verbatim if possible.
 - damageDescription: extract the complete list of damaged parts and repair actions.
+
+Additional OCR text for reference (may be partial):
+${rawText.substring(0, 8000)}
 
 Return JSON only.`,
           },

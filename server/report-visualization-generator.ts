@@ -332,8 +332,11 @@ export function generateChartJSConfig(
  * Generate SVG gauge visualization
  */
 export function generateGaugeSVG(gaugeData: ConfidenceGaugeData): string {
-  const { value, label, thresholds, colors } = gaugeData;
-  
+  const { label, thresholds, colors } = gaugeData;
+  // PERMANENT FIX: Always clamp value to 0-100 range before rendering.
+  // Prevents display bugs like "8200%" when upstream confidence values overflow.
+  const value = Math.max(0, Math.min(100, gaugeData.value));
+
   // Determine color based on value
   let color = colors.low;
   if (value >= thresholds.high) {

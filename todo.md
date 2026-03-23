@@ -10146,3 +10146,14 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Send owner alert via notifyOwner for HIGH priority events
 - [x] Enhance NotificationList UI with priority backgrounds, urgent icons, and View Claim CTA
 - [x] TypeScript check and checkpoint
+
+## Permanent Pipeline Extraction Fixes (Mar 2026)
+- [x] Audit Stage 0, Stage 3, Stage 9 extraction code for exact failure points
+- [x] F1: Re-extract PDF images in triggerAiAssessment when damagePhotos is empty but pdfUrl exists
+- [x] F2: Remove 4000-char truncation in Stage 3 prompt — instruct LLM to read entire PDF via file_url
+- [x] F3: Add explicit police report number extraction rules to Stage 3 prompt (RB, CR, CID, Case No., Ref:)
+- [x] F4: Gate missing_police_report fraud indicator when extraction failed (ocr_failure flag present)
+- [x] F4b: Gate damage_pattern_none fraud indicator when images were not processed
+- [x] F5: Cap confidence value at 100 in generateGaugeSVG (display) and db.ts (persistence)
+- [ ] F6: Surface decision contradiction when Claim Truth and Causal Chain disagree (future)
+- [x] TypeScript check: 0 errors confirmed

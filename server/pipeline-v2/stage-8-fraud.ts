@@ -140,12 +140,27 @@ function analyseDocumentation(
   const indicators: FraudIndicator[] = [];
 
   if (!claimRecord.policeReport.reportNumber) {
-    indicators.push({
-      indicator: "missing_police_report",
-      category: "documentation",
-      score: 10,
-      description: "No police report number provided.",
-    });
+    // PERMANENT FIX: Only fire this indicator if extraction itself did not fail.
+    // If OCR failed or the document was not fully processed, the police report number
+    // may simply not have been read — this is a system gap, not a fraud signal.
+    const extractionFailed = inputRecovery?.failure_flags?.some(
+      f => f === 'ocr_failure' || f === 'quote_not_mapped'
+    ) ?? false;
+    if (!extractionFailed) {
+      indicators.push({
+        indicator: "missing_police_report",
+        category: "documentation",
+        score: 10,
+        description: "No police report number found in the claim document.",
+      });
+    } else {
+      indicators.push({
+        indicator: "police_report_extraction_uncertain",
+        category: "documentation",
+        score: 3,
+        description: "Police report number could not be confirmed — document extraction was incomplete. Manual verification required.",
+      });
+    }
   }
 
   if (claimRecord.damage.imageUrls.length === 0) {
@@ -375,17 +390,36 @@ export async function runFraudAnalysisStage(
 
     // 3c. Damage pattern validation — flag WEAK/NONE pattern matches as fraud indicators
     const damagePatternResult = physicsAnalysis.damagePatternValidation;
+    // PERMANENT FIX: Check whether image processing actually ran before treating
+    // a NONE pattern match as a fraud signal. If photos were not ingested (e.g.
+    // images_not_processed flag is set, or imageUrls is empty), the NONE result
+    // simply means there were no photos to validate against — not actual fraud.
+    const imagesWereProcessed = (
+      claimRecord.damage.imageUrls.length > 0 ||
+      !(stage3?.inputRecovery?.failure_flags?.includes('images_not_processed') ?? false)
+    );
     if (damagePatternResult) {
       if (damagePatternResult.pattern_match === "NONE") {
-        allIndicators.push({
-          indicator: "damage_pattern_none",
-          category: "consistency",
-          score: 35,
-          description: `Damage pattern validation returned NONE: no expected components for the claimed scenario were found. ` +
-            `Scenario: ${damagePatternResult.reasoning.substring(0, 120)}.`,
-        });
-        consistency.score = Math.max(0, consistency.score - 25);
-        consistency.notes = `${consistency.notes} Damage pattern validation: NONE match — damage components do not match the claimed incident scenario.`;
+        if (imagesWereProcessed) {
+          allIndicators.push({
+            indicator: "damage_pattern_none",
+            category: "consistency",
+            score: 35,
+            description: `Damage pattern validation returned NONE: no expected components for the claimed scenario were found. ` +
+              `Scenario: ${damagePatternResult.reasoning.substring(0, 120)}.`,
+          });
+          consistency.score = Math.max(0, consistency.score - 25);
+          consistency.notes = `${consistency.notes} Damage pattern validation: NONE match — damage components do not match the claimed incident scenario.`;
+        } else {
+          // Images were not processed — NONE result is a system gap, not a fraud signal
+          allIndicators.push({
+            indicator: "damage_pattern_unverified",
+            category: "consistency",
+            score: 8,
+            description: `Damage pattern could not be validated: photographs were not processed through the analysis pipeline. Manual photo review required.`,
+          });
+          consistency.notes = `${consistency.notes} Damage pattern validation skipped — photos not yet processed.`;
+        }
       } else if (damagePatternResult.pattern_match === "WEAK") {
         allIndicators.push({
           indicator: "damage_pattern_weak",

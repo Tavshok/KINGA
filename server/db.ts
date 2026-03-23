@@ -429,6 +429,39 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   }
 
+  // ── PERMANENT FIX: PDF image re-extraction ──────────────────────────
+  // When a PDF is present but damagePhotos is empty (e.g. re-run, re-assessment,
+  // or claims that bypassed the upload processor), extract images from the PDF
+  // directly before running the pipeline. This ensures photos are always available
+  // for damage analysis and fraud detection regardless of how the assessment was triggered.
+  if (pdfUrl && damagePhotos.length === 0) {
+    try {
+      console.log(`[AI Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
+      const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
+      const fetch = (await import('node-fetch')).default;
+      const pdfResponse = await fetch(pdfUrl, { timeout: 30000 } as any);
+      if (pdfResponse.ok) {
+        const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
+        const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, `claim-${claimId}.pdf`);
+        // Filter to images that are likely real photos (not tiny logos/icons)
+        const photoImages = extractedImages.filter(img => img.width >= 200 && img.height >= 200);
+        damagePhotos = photoImages.map(img => img.url);
+        console.log(`[AI Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found)`);
+        // Persist extracted photos to claim record so future re-runs skip this step
+        if (damagePhotos.length > 0) {
+          await db.update(claims).set({
+            damagePhotos: JSON.stringify(damagePhotos),
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId)).catch(() => {});
+        }
+      } else {
+        console.warn(`[AI Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse.status}`);
+      }
+    } catch (imgErr: any) {
+      console.warn(`[AI Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
+    }
+  }
+
   // If we have neither a PDF nor photos, create a placeholder and return
   if (!pdfUrl && damagePhotos.length === 0) {
     console.log(`[AI Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);
@@ -615,7 +648,10 @@ export async function triggerAiAssessment(claimId: number) {
     detectedDamageTypes: damageAnalysis
       ? JSON.stringify([...new Set(damageAnalysis.damagedParts.map(p => p.damageType))])
       : '[]',
-    confidenceScore: claimRecord ? claimRecord.dataQuality.completenessScore : 50,
+    // PERMANENT FIX: Always clamp confidenceScore to 0-100 before storing.
+    // Prevents downstream display bugs (e.g. gauge showing "8200%") if completenessScore
+    // is miscalculated or an upstream engine returns an out-of-range value.
+    confidenceScore: claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : 50,
     fraudIndicators: fraudIndicatorsJson,
     fraudRiskLevel: dbFraudLevel,
     fraudScoreBreakdownJson,
