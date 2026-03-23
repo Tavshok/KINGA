@@ -25,6 +25,11 @@ import {
   detectCalibrationDrift,
   buildDriftRecord,
 } from "../pipeline-v2/calibrationDriftDetector";
+import {
+  determineJurisdiction,
+  determineJurisdictionBatch,
+  aggregateJurisdictionSummary,
+} from "../pipeline-v2/jurisdictionCalibrationEngine";
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -420,4 +425,71 @@ export const learningRouter = router({
           : "Dataset is sufficient for reliable cost pattern analysis.",
     };
   }),
+
+  /**
+   * Determine calibration jurisdiction for a single claim.
+   * Accepts claim_location, country, and region.
+   * Returns jurisdiction, confidence, notes, and resolution metadata.
+   */
+  getJurisdictionCalibration: protectedProcedure
+    .input(
+      z.object({
+        claim_location: z.string().nullish(),
+        country: z.string().nullish(),
+        region: z.string().nullish(),
+      })
+    )
+    .query(async ({ input }) => {
+      return determineJurisdiction({
+        claim_location: input.claim_location ?? null,
+        country: input.country ?? null,
+        region: input.region ?? null,
+      });
+    }),
+
+  /**
+   * Batch jurisdiction calibration across all recent claims.
+   * Returns per-claim jurisdiction results plus an aggregate summary.
+   */
+  getJurisdictionSummary: protectedProcedure
+    .input(
+      z.object({
+        limit: z.number().min(1).max(5000).default(1000),
+      })
+    )
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return { summary: { total: 0, by_method: { country_iso: 0, country_name: 0, region: 0, location_inference: 0, global_fallback: 0 }, by_jurisdiction: {}, average_confidence: 0, global_fallback_count: 0, claims_with_warnings: 0 }, sample_results: [] };
+      const rows = await drizzle
+        .select({
+          id: claims.id,
+          incidentLocation: claims.incidentLocation,
+          currencyCode: claims.currencyCode,
+        })
+        .from(claims)
+        .limit(input.limit);
+
+      const batchInputs = rows.map((row) => ({
+        claim_id: row.id,
+        claim_location: row.incidentLocation ?? null,
+        // Infer country from currency code as a proxy when no explicit country field exists
+        country: row.currencyCode === "USD" ? null : null, // reserved for future schema field
+        region: null,
+      }));
+
+      const results = determineJurisdictionBatch(batchInputs);
+      const summary = aggregateJurisdictionSummary(results);
+
+      return {
+        summary,
+        sample_results: results.slice(0, 20).map((r) => ({
+          claim_id: r.claim_id,
+          jurisdiction: r.result.jurisdiction,
+          confidence: r.result.confidence,
+          resolution_method: r.result.resolution_method,
+          has_country_profile: r.result.has_country_profile,
+          warnings_count: r.result.warnings.length,
+        })),
+      };
+    }),
 });

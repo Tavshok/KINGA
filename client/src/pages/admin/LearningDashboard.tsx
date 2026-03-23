@@ -37,6 +37,8 @@ import {
   Database,
   Zap,
   Activity,
+  Globe,
+  MapPin,
 } from "lucide-react";
 
 // ─── Scenario options ──────────────────────────────────────────────────────────
@@ -75,7 +77,8 @@ export default function LearningDashboard() {
   const [, navigate] = useLocation();
   const { user } = useAuth();
   const [scenarioFilter, setScenarioFilter] = useState<string>("all");
-  const [activeTab, setActiveTab] = useState<"overview" | "cost" | "fraud" | "calibration">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "cost" | "fraud" | "calibration" | "jurisdiction">("overview");
+  const [jurisdictionInputs, setJurisdictionInputs] = useState({ country: "", region: "", claim_location: "" });
 
   const scenarioParam = scenarioFilter === "all" ? undefined : scenarioFilter;
 
@@ -83,6 +86,22 @@ export default function LearningDashboard() {
     trpc.learning.getCalibrationDrift.useQuery(
       { scenario_filter: scenarioParam },
       { enabled: activeTab === "calibration" }
+    );
+
+  const { data: jurisdictionResult, isLoading: jurisdictionLoading, refetch: refetchJurisdiction } =
+    trpc.learning.getJurisdictionCalibration.useQuery(
+      {
+        country: jurisdictionInputs.country || null,
+        region: jurisdictionInputs.region || null,
+        claim_location: jurisdictionInputs.claim_location || null,
+      },
+      { enabled: activeTab === "jurisdiction" }
+    );
+
+  const { data: jurisdictionSummary, isLoading: jurisdictionSummaryLoading } =
+    trpc.learning.getJurisdictionSummary.useQuery(
+      { limit: 1000 },
+      { enabled: activeTab === "jurisdiction" }
     );
 
   // ── Queries ──────────────────────────────────────────────────────────────────
@@ -155,7 +174,7 @@ export default function LearningDashboard() {
 
       {/* Tab Bar */}
       <div className="border-b border-border px-6 flex gap-1 pt-2">
-       {(["overview", "cost", "fraud", "calibration"] as const).map((tab) => (          <button
+       {(["overview", "cost", "fraud", "calibration", "jurisdiction"] as const).map((tab) => (          <button
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`px-4 py-2 text-sm font-medium rounded-t-md transition-colors ${
@@ -168,6 +187,7 @@ export default function LearningDashboard() {
             {tab === "cost" && <BarChart3 className="w-4 h-4 inline mr-1" />}
             {tab === "fraud" && <ShieldAlert className="w-4 h-4 inline mr-1" />}
             {tab === "calibration" && <Activity className="w-4 h-4 inline mr-1" />}
+            {tab === "jurisdiction" && <Globe className="w-4 h-4 inline mr-1" />}
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
           </button>
         ))}
@@ -754,6 +774,203 @@ export default function LearningDashboard() {
               ) : null}
             </>
           )}
+        {/* ── Jurisdiction Calibration Tab ──────────────────────────────────── */}
+        {activeTab === "jurisdiction" && (
+          <>
+            {/* Input Panel */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Jurisdiction Lookup
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Country (name or ISO code)</label>
+                    <input
+                      type="text"
+                      value={jurisdictionInputs.country}
+                      onChange={(e) => setJurisdictionInputs((p) => ({ ...p, country: e.target.value }))}
+                      placeholder="e.g. ZW, Zimbabwe, ZWE"
+                      className="w-full text-sm border border-border rounded px-3 py-1.5 bg-background text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Region / Province</label>
+                    <input
+                      type="text"
+                      value={jurisdictionInputs.region}
+                      onChange={(e) => setJurisdictionInputs((p) => ({ ...p, region: e.target.value }))}
+                      placeholder="e.g. Harare, Gauteng"
+                      className="w-full text-sm border border-border rounded px-3 py-1.5 bg-background text-foreground"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">Claim Location (free text)</label>
+                    <input
+                      type="text"
+                      value={jurisdictionInputs.claim_location}
+                      onChange={(e) => setJurisdictionInputs((p) => ({ ...p, claim_location: e.target.value }))}
+                      placeholder="e.g. Harare CBD, Bulawayo Road"
+                      className="w-full text-sm border border-border rounded px-3 py-1.5 bg-background text-foreground"
+                    />
+                  </div>
+                </div>
+                <button
+                  onClick={() => refetchJurisdiction()}
+                  className="mt-3 px-4 py-1.5 text-sm rounded bg-primary text-primary-foreground hover:bg-primary/90"
+                >
+                  <RefreshCw className="w-3 h-3 inline mr-1" />
+                  Resolve Jurisdiction
+                </button>
+              </CardContent>
+            </Card>
+
+            {/* Result */}
+            {jurisdictionLoading ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-50" />
+                <p className="text-sm">Resolving jurisdiction…</p>
+              </div>
+            ) : jurisdictionResult ? (
+              <Card className={jurisdictionResult.jurisdiction === "GLOBAL"
+                ? "border-yellow-500/40 bg-yellow-500/5"
+                : "border-green-500/40 bg-green-500/5"
+              }>
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <Globe className={`w-6 h-6 ${jurisdictionResult.jurisdiction === "GLOBAL" ? "text-yellow-500" : "text-green-500"}`} />
+                        <p className="text-xl font-bold">{jurisdictionResult.jurisdiction}</p>
+                        <Badge variant="outline" className="text-xs">{jurisdictionResult.resolution_method.replace(/_/g, " ")}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{jurisdictionResult.notes}</p>
+                      {jurisdictionResult.warnings.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {jurisdictionResult.warnings.map((w, i) => (
+                            <p key={i} className="text-xs text-yellow-600 flex items-start gap-1">
+                              <AlertTriangle className="w-3 h-3 mt-0.5 shrink-0" />
+                              {w}
+                            </p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-3xl font-bold">{jurisdictionResult.confidence}</p>
+                      <p className="text-xs text-muted-foreground">confidence</p>
+                      <Badge variant="outline" className="mt-1 text-xs">{jurisdictionResult.recommended_profile}</Badge>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mt-4">
+                    <div className="p-2 rounded border border-border/50">
+                      <p className="text-xs text-muted-foreground">Country Profile</p>
+                      <p className="text-sm font-medium">{jurisdictionResult.has_country_profile ? "✓ Available" : "✗ Not found"}</p>
+                    </div>
+                    <div className="p-2 rounded border border-border/50">
+                      <p className="text-xs text-muted-foreground">Region Profile</p>
+                      <p className="text-sm font-medium">{jurisdictionResult.has_region_profile ? "✓ Available" : "—"}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/* Fleet Summary */}
+            {jurisdictionSummaryLoading ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <RefreshCw className="w-5 h-5 mx-auto mb-2 animate-spin opacity-40" />
+                <p className="text-xs">Loading fleet jurisdiction summary…</p>
+              </div>
+            ) : jurisdictionSummary ? (
+              <>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Globe className="w-4 h-4" />
+                      Fleet Jurisdiction Summary — {jurisdictionSummary.summary.total} claims
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                      <div>
+                        <p className="text-xs text-muted-foreground">Avg Confidence</p>
+                        <p className="text-2xl font-bold">{jurisdictionSummary.summary.average_confidence}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Global Fallback</p>
+                        <p className="text-2xl font-bold text-yellow-500">{jurisdictionSummary.summary.global_fallback_count}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">With Warnings</p>
+                        <p className="text-2xl font-bold text-orange-500">{jurisdictionSummary.summary.claims_with_warnings}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-muted-foreground">Unique Jurisdictions</p>
+                        <p className="text-2xl font-bold">{Object.keys(jurisdictionSummary.summary.by_jurisdiction).length}</p>
+                      </div>
+                    </div>
+                    <p className="text-xs font-medium text-muted-foreground mb-2">Resolution Methods</p>
+                    <div className="space-y-1.5">
+                      {Object.entries(jurisdictionSummary.summary.by_method)
+                        .filter(([, count]) => count > 0)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([method, count]) => (
+                          <div key={method} className="flex items-center gap-2">
+                            <span className="text-xs text-muted-foreground w-36 shrink-0">{method.replace(/_/g, " ")}</span>
+                            <div className="flex-1 bg-muted rounded-full h-1.5">
+                              <div
+                                className="bg-primary rounded-full h-1.5"
+                                style={{ width: `${jurisdictionSummary.summary.total > 0 ? Math.round((count / jurisdictionSummary.summary.total) * 100) : 0}%` }}
+                              />
+                            </div>
+                            <span className="text-xs font-medium w-8 text-right">{count}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {jurisdictionSummary.sample_results.length > 0 && (
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Sample Claim Jurisdictions (first 20)</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="border-b border-border">
+                              <th className="text-left py-1.5 pr-3">Claim ID</th>
+                              <th className="text-left py-1.5 pr-3">Jurisdiction</th>
+                              <th className="text-left py-1.5 pr-3">Method</th>
+                              <th className="text-center py-1.5 pr-3">Confidence</th>
+                              <th className="text-center py-1.5">Profile</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {jurisdictionSummary.sample_results.map((r) => (
+                              <tr key={r.claim_id} className="border-b border-border/40">
+                                <td className="py-1.5 pr-3 font-mono">{r.claim_id}</td>
+                                <td className="py-1.5 pr-3 font-medium">{r.jurisdiction}</td>
+                                <td className="py-1.5 pr-3 text-muted-foreground">{r.resolution_method.replace(/_/g, " ")}</td>
+                                <td className="py-1.5 pr-3 text-center">{r.confidence}</td>
+                                <td className="py-1.5 text-center">{r.has_country_profile ? <CheckCircle2 className="w-3.5 h-3.5 text-green-500 inline" /> : <span className="text-muted-foreground">—</span>}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            ) : null}
+          </>
+        )}
         </div>
     </div>
   );
