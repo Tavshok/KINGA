@@ -786,14 +786,14 @@ export const decisionRouter = router({
       if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database unavailable" });
       const rows = await drizzle
         .select({
-          recommendation: aiAssessments.recommendation,
           confidenceScore: aiAssessments.confidenceScore,
           fraudRiskLevel: aiAssessments.fraudRiskLevel,
-          fraudRiskScore: aiAssessments.fraudRiskScore,
-          anomalyFlagsJson: aiAssessments.anomalyFlagsJson,
+          fraudScoreBreakdownJson: aiAssessments.fraudScoreBreakdownJson,
           estimatedCost: aiAssessments.estimatedCost,
           finalApprovedAmount: claims.finalApprovedAmount,
           claimRef: claims.id,
+          fraudRiskLevelClaim: claims.fraudRiskLevel,
+          claimFraudRiskScore: claims.fraudRiskScore,
         })
         .from(aiAssessments)
         .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
@@ -802,16 +802,13 @@ export const decisionRouter = router({
         .limit(1);
       if (rows.length === 0) throw new TRPCError({ code: "NOT_FOUND", message: "No assessment found for this claim" });
       const row = rows[0];
-      let rec: "APPROVE" | "REVIEW" | "REJECT" = "REVIEW";
-      const recRaw = (row.recommendation ?? "").toUpperCase();
-      if (recRaw === "APPROVE" || recRaw === "REJECT" || recRaw === "REVIEW") rec = recRaw as typeof rec;
-      let anomalies: string[] = [];
-      try {
-        const parsed = typeof row.anomalyFlagsJson === "string"
-          ? JSON.parse(row.anomalyFlagsJson as string)
-          : row.anomalyFlagsJson;
-        if (Array.isArray(parsed)) anomalies = parsed.map((a: unknown) => String(a));
-      } catch { /* ignore */ }
+      // Derive recommendation from fraud risk level
+      const fraudLevel = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "").toLowerCase();
+      const rec: "APPROVE" | "REVIEW" | "REJECT" =
+        fraudLevel === "high" || fraudLevel === "elevated" ? "REJECT"
+        : fraudLevel === "medium" ? "REVIEW"
+        : row.confidenceScore != null && row.confidenceScore >= 60 ? "APPROVE"
+        : "REVIEW";
       const estimatedCost = row.finalApprovedAmount != null
         ? Number(row.finalApprovedAmount)
         : row.estimatedCost != null ? Number(row.estimatedCost) : null;
@@ -819,9 +816,9 @@ export const decisionRouter = router({
       const escalationInput: EscalationInput = {
         recommendation: rec,
         confidence: row.confidenceScore,
-        anomalies,
-        fraud_risk_level: row.fraudRiskLevel ?? null,
-        fraud_flagged: row.fraudRiskScore != null && Number(row.fraudRiskScore) >= 70,
+        anomalies: [],
+        fraud_risk_level: row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? null,
+        fraud_flagged: row.claimFraudRiskScore != null && Number(row.claimFraudRiskScore) >= 70,
         is_high_value: estimatedCost != null && estimatedCost >= HIGH_VALUE_THRESHOLD,
         claim_reference: `CLM-${row.claimRef}`,
       };
@@ -837,39 +834,34 @@ export const decisionRouter = router({
       const limit = input?.limit ?? 100;
       const rows = await drizzle
         .select({
-          recommendation: aiAssessments.recommendation,
           confidenceScore: aiAssessments.confidenceScore,
           fraudRiskLevel: aiAssessments.fraudRiskLevel,
-          fraudRiskScore: aiAssessments.fraudRiskScore,
-          anomalyFlagsJson: aiAssessments.anomalyFlagsJson,
           estimatedCost: aiAssessments.estimatedCost,
           finalApprovedAmount: claims.finalApprovedAmount,
           claimId: aiAssessments.claimId,
+          fraudRiskLevelClaim: claims.fraudRiskLevel,
+          claimFraudRiskScore: claims.fraudRiskScore,
         })
         .from(aiAssessments)
         .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(limit);
       const batchItems = rows.map((row) => {
-        let rec: "APPROVE" | "REVIEW" | "REJECT" = "REVIEW";
-        const recRaw = (row.recommendation ?? "").toUpperCase();
-        if (recRaw === "APPROVE" || recRaw === "REJECT" || recRaw === "REVIEW") rec = recRaw as typeof rec;
-        let anomalies: string[] = [];
-        try {
-          const parsed = typeof row.anomalyFlagsJson === "string"
-            ? JSON.parse(row.anomalyFlagsJson as string)
-            : row.anomalyFlagsJson;
-          if (Array.isArray(parsed)) anomalies = parsed.map((a: unknown) => String(a));
-        } catch { /* ignore */ }
+        const fraudLvl = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "").toLowerCase();
+        const rec: "APPROVE" | "REVIEW" | "REJECT" =
+          fraudLvl === "high" || fraudLvl === "elevated" ? "REJECT"
+          : fraudLvl === "medium" ? "REVIEW"
+          : row.confidenceScore != null && row.confidenceScore >= 60 ? "APPROVE"
+          : "REVIEW";
         const estimatedCost = row.finalApprovedAmount != null
           ? Number(row.finalApprovedAmount)
           : row.estimatedCost != null ? Number(row.estimatedCost) : null;
         const escalationInput: EscalationInput = {
           recommendation: rec,
           confidence: row.confidenceScore,
-          anomalies,
-          fraud_risk_level: row.fraudRiskLevel ?? null,
-          fraud_flagged: row.fraudRiskScore != null && Number(row.fraudRiskScore) >= 70,
+          anomalies: [],
+          fraud_risk_level: row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? null,
+          fraud_flagged: row.claimFraudRiskScore != null && Number(row.claimFraudRiskScore) >= 70,
           is_high_value: estimatedCost != null && estimatedCost >= 50000,
           claim_reference: `CLM-${row.claimId}`,
         };
