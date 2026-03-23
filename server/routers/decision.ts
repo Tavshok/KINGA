@@ -20,6 +20,12 @@ import {
   buildDecisionTraceInputFromDb,
   type DecisionTraceInput,
 } from "../pipeline-v2/decisionTraceGenerator";
+import {
+  detectContradictions,
+  detectContradictionsBatch,
+  aggregateContradictionStats,
+  type ContradictionInput,
+} from "../pipeline-v2/contradictionDetectionEngine";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { desc, isNotNull, eq } from "drizzle-orm";
@@ -211,6 +217,140 @@ export const decisionRouter = router({
         sample_decisions: sampleDecisions,
         total_evaluated: results.length,
       };
+    }),
+
+  /**
+   * Check a single decision for logical contradictions.
+   * Returns contradictions list, valid flag, and ALLOW/BLOCK action.
+   */
+  checkContradictions: protectedProcedure
+    .input(
+      z.object({
+        recommendation: z.enum(["APPROVE", "REVIEW", "REJECT"]),
+        overall_confidence: z.number().nullable().optional(),
+        assessor_validated: z.boolean().nullable().optional(),
+        is_high_value: z.boolean().nullable().optional(),
+        severity: z.string().nullable().optional(),
+        fraud_result: z.object({
+          fraud_risk_level: z.string().nullable().optional(),
+          fraud_risk_score: z.number().nullable().optional(),
+          critical_flag_count: z.number().nullable().optional(),
+          scenario_fraud_flagged: z.boolean().nullable().optional(),
+        }).nullable().optional(),
+        physics_result: z.object({
+          is_plausible: z.boolean().nullable().optional(),
+          confidence: z.number().nullable().optional(),
+          has_critical_inconsistency: z.boolean().nullable().optional(),
+        }).nullable().optional(),
+        damage_validation: z.object({
+          is_consistent: z.boolean().nullable().optional(),
+          consistency_score: z.number().nullable().optional(),
+          has_unexplained_damage: z.boolean().nullable().optional(),
+        }).nullable().optional(),
+        cost_decision: z.object({
+          recommendation: z.enum(["NEGOTIATE", "PROCEED_TO_ASSESSMENT", "ESCALATE"]).nullable().optional(),
+          is_within_range: z.boolean().nullable().optional(),
+          has_anomalies: z.boolean().nullable().optional(),
+        }).nullable().optional(),
+        consistency_status: z.object({
+          overall_status: z.enum(["CONSISTENT", "CONFLICTED"]).nullable().optional(),
+          critical_conflict_count: z.number().nullable().optional(),
+          proceed: z.boolean().nullable().optional(),
+        }).nullable().optional(),
+      })
+    )
+    .mutation(({ input }) => {
+      return detectContradictions(input as ContradictionInput);
+    }),
+
+  /**
+   * Fetch recent claims from the DB, run contradiction detection on each,
+   * and return aggregate stats + sample blocked decisions.
+   */
+  getContradictionStats: protectedProcedure
+    .input(z.object({ limit: z.number().min(1).max(200).default(100) }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return null;
+
+      const rows = await drizzle
+        .select({
+          assessmentId: aiAssessments.id,
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          confidenceScore: aiAssessments.confidenceScore,
+          estimatedCost: aiAssessments.estimatedCost,
+          structuralDamageSeverity: aiAssessments.structuralDamageSeverity,
+          physicsAnalysis: aiAssessments.physicsAnalysis,
+          damagedComponentsJson: aiAssessments.damagedComponentsJson,
+          consistencyCheckJson: aiAssessments.consistencyCheckJson,
+          fraudScoreBreakdownJson: aiAssessments.fraudScoreBreakdownJson,
+          costRealismJson: aiAssessments.costRealismJson,
+          claimId: claims.id,
+          incidentType: claims.incidentType,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          estimatedClaimValue: claims.estimatedClaimValue,
+        })
+        .from(aiAssessments)
+        .leftJoin(claims, eq(aiAssessments.claimId, claims.id))
+        .where(isNotNull(aiAssessments.fraudRiskLevel))
+        .orderBy(desc(aiAssessments.createdAt))
+        .limit(input.limit);
+
+      const batchInputs = rows.map((row) => {
+        const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null;
+        const decisionInput: ClaimsDecisionInput = {
+          scenario_type: row.incidentType ?? null,
+          severity: row.structuralDamageSeverity ?? null,
+          overall_confidence: row.confidenceScore ?? null,
+          fraud_result: { fraud_risk_level: fraudLevel ?? null },
+          costDecision: row.estimatedCost != null && row.finalApprovedAmount != null
+            ? {
+                recommendation: (() => {
+                  const est = Number(row.estimatedCost);
+                  const approved = Number(row.finalApprovedAmount);
+                  if (approved === 0) return "ESCALATE" as const;
+                  const dev = Math.abs(est - approved) / approved;
+                  if (dev > 0.4) return "ESCALATE" as const;
+                  if (dev > 0.15) return "NEGOTIATE" as const;
+                  return "PROCEED_TO_ASSESSMENT" as const;
+                })(),
+                is_within_range: (() => {
+                  const est = Number(row.estimatedCost);
+                  const approved = Number(row.finalApprovedAmount);
+                  if (approved === 0) return null;
+                  return Math.abs(est - approved) / approved <= 0.4;
+                })(),
+              }
+            : null,
+        };
+        const decisionResult = evaluateClaimDecision(decisionInput);
+
+        const contradictionInput: ContradictionInput = {
+          recommendation: decisionResult.recommendation,
+          overall_confidence: row.confidenceScore ?? null,
+          severity: row.structuralDamageSeverity ?? null,
+          fraud_result: { fraud_risk_level: fraudLevel ?? null },
+          cost_decision: decisionInput.costDecision ?? null,
+        };
+        return { claim_id: row.claimId ?? row.assessmentId, input: contradictionInput };
+      });
+
+      const results = detectContradictionsBatch(batchInputs);
+      const stats = aggregateContradictionStats(results);
+
+      const sampleBlocked = results
+        .filter((r) => r.result.action === "BLOCK")
+        .slice(0, 10)
+        .map((r) => ({
+          claim_id: r.claim_id,
+          contradictions: r.result.contradictions.map((c) => ({
+            rule_id: c.rule_id,
+            severity: c.severity,
+            description: c.description,
+          })),
+        }));
+
+      return { stats, sample_blocked: sampleBlocked, total_evaluated: results.length };
     }),
 
   /**

@@ -21,6 +21,8 @@ import {
   RefreshCw,
   GitBranch,
   ArrowRight,
+  ShieldAlert,
+  ShieldX,
 } from "lucide-react";
 
 interface DecisionAuthorityPanelProps {
@@ -179,6 +181,209 @@ function FullDecisionTrace({ claimId }: { claimId: number }) {
               </p>
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Contradiction Gate Component ──────────────────────────────────────────
+
+interface ContradictionGateProps {
+  recommendation: "APPROVE" | "REVIEW" | "REJECT";
+  overallConfidence?: number | null;
+  assessorValidated?: boolean;
+  isHighValue?: boolean | null;
+  severity?: string | null;
+  fraudRiskLevel?: string | null;
+  physicsPlausible?: boolean | null;
+  hasCriticalPhysics?: boolean | null;
+  damageConsistent?: boolean | null;
+  hasUnexplainedDamage?: boolean | null;
+  costRecommendation?: "NEGOTIATE" | "PROCEED_TO_ASSESSMENT" | "ESCALATE" | null;
+  consistencyStatus?: "CONSISTENT" | "CONFLICTED" | null;
+  criticalConflictCount?: number | null;
+  consistencyProceed?: boolean | null;
+}
+
+function ContradictionGate(props: ContradictionGateProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  const contradictionMutation = trpc.decision.checkContradictions.useMutation();
+  const [gateResult, setGateResult] = useState<Awaited<ReturnType<typeof contradictionMutation.mutateAsync>> | null>(null);
+  const [gateLoading, setGateLoading] = useState(false);
+
+  const runGate = async () => {
+    setGateLoading(true);
+    try {
+      const r = await contradictionMutation.mutateAsync({
+        recommendation: props.recommendation,
+        overall_confidence: props.overallConfidence ?? null,
+        assessor_validated: props.assessorValidated ?? false,
+        is_high_value: props.isHighValue ?? null,
+        severity: props.severity ?? null,
+        fraud_result: props.fraudRiskLevel ? { fraud_risk_level: props.fraudRiskLevel } : undefined,
+        physics_result: props.physicsPlausible != null || props.hasCriticalPhysics != null
+          ? { is_plausible: props.physicsPlausible ?? null, has_critical_inconsistency: props.hasCriticalPhysics ?? null }
+          : undefined,
+        damage_validation: props.damageConsistent != null || props.hasUnexplainedDamage != null
+          ? { is_consistent: props.damageConsistent ?? null, has_unexplained_damage: props.hasUnexplainedDamage ?? null }
+          : undefined,
+        cost_decision: props.costRecommendation
+          ? { recommendation: props.costRecommendation }
+          : undefined,
+        consistency_status: props.consistencyStatus
+          ? {
+              overall_status: props.consistencyStatus,
+              critical_conflict_count: props.criticalConflictCount ?? 0,
+              proceed: props.consistencyProceed ?? true,
+            }
+          : undefined,
+      });
+      setGateResult(r);
+    } catch (e) {
+      console.error("Contradiction gate error:", e);
+    } finally {
+      setGateLoading(false);
+    }
+  };
+
+  // Auto-run on mount
+  useState(() => { runGate(); });
+
+  if (gateLoading && !gateResult) {
+    return (
+      <div className="flex items-center gap-2 py-2" style={{ color: "var(--muted-foreground)" }}>
+        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+        <span className="text-xs">Checking for contradictions…</span>
+      </div>
+    );
+  }
+
+  if (!gateResult) {
+    return (
+      <button
+        className="flex items-center gap-1.5 text-xs"
+        style={{ color: "var(--muted-foreground)" }}
+        onClick={runGate}
+      >
+        <ShieldAlert className="w-3.5 h-3.5" />
+        Run Contradiction Check
+      </button>
+    );
+  }
+
+  const isBlocked = gateResult.action === "BLOCK";
+  const criticalCount = gateResult.metadata.critical_count;
+  const majorCount = gateResult.metadata.major_count;
+  const minorCount = gateResult.metadata.minor_count;
+
+  return (
+    <div
+      className="rounded-lg p-3 space-y-2"
+      style={{
+        background: isBlocked
+          ? "oklch(0.35 0.18 25 / 0.15)"
+          : "oklch(0.35 0.12 145 / 0.10)",
+        border: `1.5px solid ${
+          isBlocked ? "oklch(0.55 0.22 25 / 0.5)" : "oklch(0.55 0.18 145 / 0.4)"
+        }`,
+      }}
+    >
+      {/* Gate header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          {isBlocked
+            ? <ShieldX className="w-4 h-4" style={{ color: "oklch(0.65 0.22 25)" }} />
+            : <ShieldCheck className="w-4 h-4" style={{ color: "oklch(0.65 0.18 145)" }} />}
+          <span
+            className="text-xs font-bold uppercase tracking-wide"
+            style={{ color: isBlocked ? "oklch(0.70 0.20 25)" : "oklch(0.70 0.18 145)" }}
+          >
+            {isBlocked ? `Contradiction Gate — BLOCKED` : "Contradiction Gate — PASSED"}
+          </span>
+          {isBlocked && (
+            <div className="flex items-center gap-1">
+              {criticalCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: "oklch(0.35 0.20 25 / 0.4)", color: "oklch(0.75 0.20 25)" }}>
+                  {criticalCount} CRITICAL
+                </span>
+              )}
+              {majorCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: "oklch(0.38 0.14 70 / 0.4)", color: "oklch(0.78 0.16 70)" }}>
+                  {majorCount} MAJOR
+                </span>
+              )}
+              {minorCount > 0 && (
+                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: "oklch(0.38 0.12 250 / 0.3)", color: "oklch(0.72 0.14 250)" }}>
+                  {minorCount} MINOR
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            className="text-xs"
+            style={{ color: "var(--muted-foreground)" }}
+            onClick={runGate}
+            disabled={gateLoading}
+          >
+            {gateLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <RefreshCw className="w-3 h-3" />}
+          </button>
+          {isBlocked && gateResult.contradictions.length > 0 && (
+            <button
+              className="flex items-center gap-1 text-xs"
+              style={{ color: "var(--muted-foreground)" }}
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              Details
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Summary */}
+      <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+        {gateResult.summary}
+      </p>
+
+      {/* Contradiction details (expandable) */}
+      {expanded && gateResult.contradictions.length > 0 && (
+        <div className="space-y-2 pt-1">
+          {gateResult.contradictions.map((c, i) => (
+            <div
+              key={i}
+              className="rounded p-2.5 space-y-1"
+              style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className="text-xs font-bold px-1.5 py-0.5 rounded"
+                  style={{
+                    background:
+                      c.severity === "CRITICAL" ? "oklch(0.35 0.20 25 / 0.4)" :
+                      c.severity === "MAJOR" ? "oklch(0.38 0.14 70 / 0.4)" :
+                      "oklch(0.38 0.12 250 / 0.3)",
+                    color:
+                      c.severity === "CRITICAL" ? "oklch(0.75 0.20 25)" :
+                      c.severity === "MAJOR" ? "oklch(0.78 0.16 70)" :
+                      "oklch(0.72 0.14 250)",
+                  }}
+                >
+                  {c.severity}
+                </span>
+                <span className="text-xs font-mono" style={{ color: "var(--muted-foreground)" }}>{c.rule_id}</span>
+              </div>
+              <p className="text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>{c.description}</p>
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                <span className="font-medium">{c.conflicting_values.field_a}</span>={c.conflicting_values.value_a}
+                {" vs "}
+                <span className="font-medium">{c.conflicting_values.field_b}</span>={c.conflicting_values.value_b}
+              </p>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -405,6 +610,46 @@ export default function DecisionAuthorityPanel({
             ))}
           </ul>
         </div>
+      )}
+
+      {/* Contradiction Gate */}
+      {result && (
+        <ContradictionGate
+          recommendation={result.recommendation}
+          overallConfidence={aiAssessment?.confidenceScore ?? null}
+          assessorValidated={assessorValidated}
+          isHighValue={claim?.isHighValue ?? null}
+          severity={aiAssessment?.structuralDamageSeverity ?? null}
+          fraudRiskLevel={aiAssessment?.fraudRiskLevel ?? null}
+          physicsPlausible={
+            aiAssessment?.physicsAnalysis
+              ? !aiAssessment.physicsAnalysis.toLowerCase().includes("implausible")
+              : null
+          }
+          hasCriticalPhysics={
+            aiAssessment?.physicsAnalysis
+              ? aiAssessment.physicsAnalysis.toLowerCase().includes("critical")
+              : null
+          }
+          damageConsistent={consistencyCheck ? consistencyCheck.overall_status === "CONSISTENT" : null}
+          hasUnexplainedDamage={consistencyCheck?.has_unexplained_damage ?? null}
+          costRecommendation={
+            aiAssessment?.estimatedCost != null && claim?.finalApprovedAmount != null
+              ? (() => {
+                  const est = Number(aiAssessment.estimatedCost);
+                  const approved = Number(claim.finalApprovedAmount);
+                  if (approved === 0) return "ESCALATE" as const;
+                  const dev = Math.abs(est - approved) / approved;
+                  if (dev > 0.4) return "ESCALATE" as const;
+                  if (dev > 0.15) return "NEGOTIATE" as const;
+                  return "PROCEED_TO_ASSESSMENT" as const;
+                })()
+              : null
+          }
+          consistencyStatus={consistencyCheck?.overall_status ?? null}
+          criticalConflictCount={consistencyCheck?.critical_conflict_count ?? null}
+          consistencyProceed={consistencyCheck?.proceed ?? null}
+        />
       )}
 
       {/* Decision Trace (collapsible) */}
