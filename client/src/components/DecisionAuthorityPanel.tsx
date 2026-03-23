@@ -9,7 +9,6 @@
 import { useState } from "react";
 import { trpc } from "@/lib/trpc";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
   CheckCircle2,
@@ -20,6 +19,8 @@ import {
   Loader2,
   ShieldCheck,
   RefreshCw,
+  GitBranch,
+  ArrowRight,
 } from "lucide-react";
 
 interface DecisionAuthorityPanelProps {
@@ -84,6 +85,102 @@ function ConfidenceBar({ confidence }: { confidence: number }) {
       <span className="text-sm font-bold tabular-nums" style={{ color, minWidth: "3rem", textAlign: "right" }}>
         {confidence}%
       </span>
+    </div>
+  );
+}
+
+// ─── Full Decision Trace Component ──────────────────────────────────────────
+
+function FullDecisionTrace({ claimId }: { claimId: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const { data: trace, isLoading } = trpc.decision.getDecisionTrace.useQuery(
+    { claimId },
+    { enabled: expanded }
+  );
+
+  return (
+    <div>
+      <button
+        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide"
+        style={{ color: "var(--muted-foreground)" }}
+        onClick={() => setExpanded((v) => !v)}
+      >
+        {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        <GitBranch className="w-3.5 h-3.5" />
+        Full Decision Trace
+      </button>
+
+      {expanded && (
+        <div className="mt-3 space-y-2">
+          {isLoading && (
+            <div className="flex items-center gap-2 py-3" style={{ color: "var(--muted-foreground)" }}>
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-xs">Generating trace…</span>
+            </div>
+          )}
+
+          {trace && (
+            <>
+              {/* Executive Summary */}
+              <div className="p-3 rounded-lg" style={{ background: "var(--accent)", border: "1px solid var(--border)" }}>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Executive Summary</p>
+                <p className="text-sm leading-relaxed" style={{ color: "var(--foreground)" }}>{trace.executive_summary}</p>
+              </div>
+
+              {/* Trace entries */}
+              <div className="space-y-2">
+                {trace.decision_trace.map((entry, i) => (
+                  <div
+                    key={i}
+                    className="rounded-lg p-3"
+                    style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+                  >
+                    <div className="flex items-center gap-2 mb-2">
+                      <span
+                        className="text-xs font-bold px-2 py-0.5 rounded"
+                        style={{ background: "var(--accent)", color: "var(--accent-foreground)" }}
+                      >
+                        {i + 1}
+                      </span>
+                      <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+                        {entry.stage}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 gap-1.5">
+                      <div className="flex items-start gap-1.5">
+                        <span className="text-xs font-medium w-20 flex-shrink-0" style={{ color: "var(--muted-foreground)" }}>Input</span>
+                        <span className="text-xs" style={{ color: "var(--foreground)" }}>{entry.input_summary}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <span className="text-xs font-medium w-20 flex-shrink-0" style={{ color: "var(--muted-foreground)" }}>Output</span>
+                        <span className="text-xs" style={{ color: "var(--foreground)" }}>{entry.output_summary}</span>
+                      </div>
+                      <div className="flex items-start gap-1.5">
+                        <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "oklch(0.60 0.18 250)" }} />
+                        <span className="text-xs italic" style={{ color: "oklch(0.65 0.14 250)" }}>{entry.impact_on_decision}</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Missing stages warning */}
+              {trace.missing_stages.length > 0 && (
+                <div className="p-2 rounded" style={{ background: "oklch(0.38 0.14 70 / 0.15)", border: "1px solid oklch(0.55 0.18 70 / 0.3)" }}>
+                  <p className="text-xs" style={{ color: "oklch(0.72 0.18 70)" }}>
+                    ⚠ {trace.missing_stages.length} stage(s) unavailable: {trace.missing_stages.join(", ")}
+                  </p>
+                </div>
+              )}
+
+              {/* Trace metadata */}
+              <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                {trace.metadata.stages_included} stages traced · {trace.metadata.engine} {trace.metadata.version}
+              </p>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -311,23 +408,7 @@ export default function DecisionAuthorityPanel({
       )}
 
       {/* Decision Trace (collapsible) */}
-      <div>
-        <button
-          className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide"
-          style={{ color: "var(--muted-foreground)" }}
-          onClick={() => setShowTrace((v) => !v)}
-        >
-          {showTrace ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-          Decision Trace ({result.decision_trace.length} steps)
-        </button>
-        {showTrace && (
-          <div className="mt-2 p-3 rounded-lg font-mono text-xs space-y-0.5" style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
-            {result.decision_trace.map((step, i) => (
-              <div key={i}>{step}</div>
-            ))}
-          </div>
-        )}
-      </div>
+      <FullDecisionTrace claimId={claimId} />
 
       {/* Metadata footer */}
       <div className="flex flex-wrap gap-3 pt-1 border-t" style={{ borderColor: "var(--border)" }}>

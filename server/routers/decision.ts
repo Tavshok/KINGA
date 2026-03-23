@@ -15,6 +15,11 @@ import {
   aggregateDecisionSummary,
   type ClaimsDecisionInput,
 } from "../pipeline-v2/claimsDecisionAuthority";
+import {
+  generateDecisionTrace,
+  buildDecisionTraceInputFromDb,
+  type DecisionTraceInput,
+} from "../pipeline-v2/decisionTraceGenerator";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { desc, isNotNull, eq } from "drizzle-orm";
@@ -206,5 +211,165 @@ export const decisionRouter = router({
         sample_decisions: sampleDecisions,
         total_evaluated: results.length,
       };
+    }),
+
+  /**
+   * Generate a structured audit trail from pre-computed stage data.
+   * Accepts all stage outputs + final decision and returns a decision_trace array.
+   */
+  generateDecisionTrace: protectedProcedure
+    .input(
+      z.object({
+        final_recommendation: z.enum(["APPROVE", "REVIEW", "REJECT"]),
+        final_confidence: z.number().min(0).max(100),
+        decision_basis: z.enum(["assessor_validated", "system_validated", "insufficient_data"]).nullable().optional(),
+        key_drivers: z.array(z.string()).nullable().optional(),
+        blocking_factors: z.array(z.string()).nullable().optional(),
+        extraction: z.object({
+          total_documents: z.number().nullable().optional(),
+          total_pages: z.number().nullable().optional(),
+          ocr_applied: z.boolean().nullable().optional(),
+          ocr_confidence: z.number().nullable().optional(),
+          primary_document_type: z.string().nullable().optional(),
+        }).nullable().optional(),
+        data_extraction: z.object({
+          vehicle_make: z.string().nullable().optional(),
+          vehicle_model: z.string().nullable().optional(),
+          vehicle_year: z.number().nullable().optional(),
+          incident_type: z.string().nullable().optional(),
+          claim_amount_cents: z.number().nullable().optional(),
+          damaged_components_count: z.number().nullable().optional(),
+          fields_extracted: z.number().nullable().optional(),
+          fields_missing: z.number().nullable().optional(),
+        }).nullable().optional(),
+        damage: z.object({
+          damaged_components: z.array(z.string()).nullable().optional(),
+          severity: z.string().nullable().optional(),
+          is_consistent: z.boolean().nullable().optional(),
+          consistency_score: z.number().nullable().optional(),
+          has_unexplained_damage: z.boolean().nullable().optional(),
+          structural_damage: z.boolean().nullable().optional(),
+          summary: z.string().nullable().optional(),
+        }).nullable().optional(),
+        physics: z.object({
+          is_plausible: z.boolean().nullable().optional(),
+          confidence: z.number().nullable().optional(),
+          has_critical_inconsistency: z.boolean().nullable().optional(),
+          impact_direction: z.string().nullable().optional(),
+          energy_level: z.string().nullable().optional(),
+          summary: z.string().nullable().optional(),
+        }).nullable().optional(),
+        fraud: z.object({
+          fraud_risk_level: z.enum(["minimal", "low", "medium", "high", "elevated"]).nullable().optional(),
+          fraud_risk_score: z.number().nullable().optional(),
+          critical_flag_count: z.number().nullable().optional(),
+          top_indicators: z.array(z.string()).nullable().optional(),
+          scenario_fraud_flagged: z.boolean().nullable().optional(),
+          reasoning: z.string().nullable().optional(),
+        }).nullable().optional(),
+        cost: z.object({
+          expected_cost_cents: z.number().nullable().optional(),
+          claim_amount_cents: z.number().nullable().optional(),
+          quote_deviation_pct: z.number().nullable().optional(),
+          recommendation: z.enum(["NEGOTIATE", "PROCEED_TO_ASSESSMENT", "ESCALATE"]).nullable().optional(),
+          is_within_range: z.boolean().nullable().optional(),
+          has_anomalies: z.boolean().nullable().optional(),
+          savings_opportunity_cents: z.number().nullable().optional(),
+          reasoning: z.string().nullable().optional(),
+        }).nullable().optional(),
+        consistency: z.object({
+          overall_status: z.enum(["CONSISTENT", "CONFLICTED"]).nullable().optional(),
+          consistency_score: z.number().nullable().optional(),
+          critical_conflict_count: z.number().nullable().optional(),
+          proceed: z.boolean().nullable().optional(),
+          summary: z.string().nullable().optional(),
+        }).nullable().optional(),
+      })
+    )
+    .mutation(({ input }) => {
+      return generateDecisionTrace(input as DecisionTraceInput);
+    }),
+
+  /**
+   * Fetch a claim's AI assessment from the DB and generate a full decision trace.
+   */
+  getDecisionTrace: protectedProcedure
+    .input(z.object({ claimId: z.number() }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) return null;
+
+      const rows = await drizzle
+        .select({
+          assessmentId: aiAssessments.id,
+          // aiAssessments columns
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          confidenceScore: aiAssessments.confidenceScore,
+          estimatedCost: aiAssessments.estimatedCost,
+          structuralDamageSeverity: aiAssessments.structuralDamageSeverity,
+          physicsAnalysis: aiAssessments.physicsAnalysis,
+          damagedComponentsJson: aiAssessments.damagedComponentsJson,
+          consistencyCheckJson: aiAssessments.consistencyCheckJson,
+          fraudScoreBreakdownJson: aiAssessments.fraudScoreBreakdownJson,
+          costRealismJson: aiAssessments.costRealismJson,
+          // claims columns
+          claimId: claims.id,
+          vehicleMake: claims.vehicleMake,
+          vehicleModel: claims.vehicleModel,
+          vehicleYear: claims.vehicleYear,
+          incidentType: claims.incidentType,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          estimatedClaimValue: claims.estimatedClaimValue,
+        })
+        .from(aiAssessments)
+        .leftJoin(claims, eq(aiAssessments.claimId, claims.id))
+        .where(eq(aiAssessments.claimId, input.claimId))
+        .orderBy(desc(aiAssessments.createdAt))
+        .limit(1);
+
+      if (rows.length === 0) return null;
+
+      const row = rows[0];
+      const fraudLevel = row.fraudRiskLevel as "minimal" | "low" | "medium" | "high" | "elevated" | null;
+      const decisionInput: ClaimsDecisionInput = {
+        scenario_type: row.incidentType ?? null,
+        severity: row.structuralDamageSeverity ?? null,
+        overall_confidence: row.confidenceScore ?? null,
+        fraud_result: { fraud_risk_level: fraudLevel ?? null },
+        costDecision: row.estimatedCost != null && row.finalApprovedAmount != null
+          ? {
+              recommendation: (() => {
+                const est = Number(row.estimatedCost);
+                const approved = Number(row.finalApprovedAmount);
+                if (approved === 0) return "ESCALATE" as const;
+                const dev = Math.abs(est - approved) / approved;
+                if (dev > 0.4) return "ESCALATE" as const;
+                if (dev > 0.15) return "NEGOTIATE" as const;
+                return "PROCEED_TO_ASSESSMENT" as const;
+              })(),
+              is_within_range: (() => {
+                const est = Number(row.estimatedCost);
+                const approved = Number(row.finalApprovedAmount);
+                if (approved === 0) return null;
+                return Math.abs(est - approved) / approved <= 0.4;
+              })(),
+            }
+          : null,
+      };
+      const decisionResult = evaluateClaimDecision(decisionInput);
+
+      const traceInput = buildDecisionTraceInputFromDb(
+        row as unknown as Record<string, unknown>,
+        row as unknown as Record<string, unknown>,
+        {
+          recommendation: decisionResult.recommendation,
+          confidence: decisionResult.confidence,
+          decision_basis: decisionResult.decision_basis,
+          key_drivers: decisionResult.key_drivers,
+          blocking_factors: decisionResult.blocking_factors,
+        }
+      );
+
+      return generateDecisionTrace(traceInput);
     }),
 });
