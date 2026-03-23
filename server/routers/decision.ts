@@ -42,6 +42,10 @@ import {
   aggregateEscalationStats,
   type EscalationInput,
 } from "../pipeline-v2/claimsEscalationRouter";
+import {
+  generateEscalationReason,
+  type EscalationReasoningInput,
+} from "../pipeline-v2/escalationReasoningEngine";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { desc, isNotNull, eq } from "drizzle-orm";
@@ -846,6 +850,7 @@ export const decisionRouter = router({
         .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
         .orderBy(desc(aiAssessments.createdAt))
         .limit(limit);
+
       const batchItems = rows.map((row) => {
         const fraudLvl = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "").toLowerCase();
         const rec: "APPROVE" | "REVIEW" | "REJECT" =
@@ -867,7 +872,56 @@ export const decisionRouter = router({
         };
         return { claim_id: row.claimId ?? 0, input: escalationInput };
       });
+
       const batchResults = routeClaimBatchEngine(batchItems);
-      return aggregateEscalationStats(batchResults);
+      const summary = aggregateEscalationStats(batchResults);
+
+      // ── Generate per-claim operational reasons via the Reasoning Engine ──
+      // We run reasoning for the first 50 claims only (UI pagination limit)
+      // to keep response time acceptable. Falls back gracefully per claim.
+      const reasoningItems = batchResults.slice(0, 50).map((r) => {
+        const row = rows.find((ro) => (ro.claimId ?? 0) === r.claim_id);
+        const fraudScore = row?.claimFraudRiskScore != null
+          ? Number(row.claimFraudRiskScore)
+          : null;
+        const reasoningInput: EscalationReasoningInput = {
+          route: r.result.route_to,
+          decision_recommendation: r.result.metadata.recommendation,
+          confidence: r.result.metadata.confidence,
+          anomalies: [],
+          fraud_score: fraudScore,
+          evidence_completeness: null,
+          structural_gaps_count: 0,
+          out_of_domain: false,
+          claim_reference: r.result.metadata.claim_reference,
+        };
+        return { claim_id: r.claim_id, input: reasoningInput };
+      });
+
+      // Run reasoning in parallel (capped at 5 concurrent by the engine)
+      const reasoningResults = await Promise.all(
+        reasoningItems.map(async (item) => ({
+          claim_id: item.claim_id,
+          reasoning: await generateEscalationReason(item.input),
+        }))
+      );
+
+      // Build per-claim detail list for the UI
+      const claimDetails = batchResults.slice(0, 50).map((r) => {
+        const rr = reasoningResults.find((x) => x.claim_id === r.claim_id);
+        return {
+          claim_id: r.claim_id,
+          route: r.result.route_to,
+          priority: rr?.reasoning.priority ?? r.result.priority,
+          reason: rr?.reasoning.reason ?? r.result.reason,
+          flags: rr?.reasoning.flags ?? [],
+          confidence: r.result.metadata.confidence,
+          fraud_detected: r.result.metadata.fraud_detected,
+          routed_at: r.result.metadata.routed_at,
+          reasoning_source: rr?.reasoning.source ?? "fallback",
+        };
+      });
+
+      return { ...summary, claim_details: claimDetails };
     }),
 });

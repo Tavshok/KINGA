@@ -1,14 +1,16 @@
 /**
  * Escalation Queue Admin Page
  *
- * Three-queue view for managing claims that have been routed by the
- * Claims Escalation Router engine:
- *   1. AUTO_APPROVE — low-risk claims that can be fast-tracked
- *   2. ADJUSTER_REVIEW — standard claims requiring manual review
- *   3. FRAUD_TEAM — high-risk or fraud-flagged claims
+ * Three-queue view for managing claims routed by the Claims Escalation Router.
+ * Each claim now shows an LLM-generated operational reason (≤12 words) and
+ * structured flags produced by the Claims Escalation Reasoning Engine.
  *
- * Also shows the multi-layer approval workflow queue:
- * claims currently pending at each approval stage.
+ * Queues:
+ *   1. AUTO_APPROVE   — low-risk claims cleared for fast-track settlement
+ *   2. ADJUSTER_REVIEW — standard claims requiring manual adjuster sign-off
+ *   3. FRAUD_TEAM      — high-risk / fraud-flagged claims for specialist review
+ *
+ * Also shows the multi-layer approval workflow queue.
  */
 
 import { useState } from "react";
@@ -31,29 +33,18 @@ import {
   Clock,
   Loader2,
   ExternalLink,
-  BarChart3,
   Users,
-  TrendingUp,
   RefreshCw,
+  Zap,
 } from "lucide-react";
 import { useLocation } from "wouter";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-const ROLE_LABELS: Record<string, string> = {
-  claims_processor: "Claims Processor",
-  internal_assessor: "Internal Assessor",
-  external_assessor: "External Assessor",
-  risk_manager: "Risk Manager",
-  claims_manager: "Claims Manager",
-  executive: "Executive / GM",
-  underwriter: "Underwriter",
-};
+// ─── Config ───────────────────────────────────────────────────────────────────
 
 const QUEUE_CONFIG = {
   AUTO_APPROVE: {
     label: "Auto-Approve",
-    description: "Low-risk claims that meet all criteria for fast-track approval",
+    description: "Low-risk claims that meet all criteria for fast-track settlement",
     color: "bg-green-100 text-green-700 border-green-300",
     headerColor: "bg-green-50 border-green-200",
     icon: CheckCircle2,
@@ -75,136 +66,192 @@ const QUEUE_CONFIG = {
     icon: ShieldAlert,
     iconColor: "text-red-600",
   },
+} as const;
+
+const PRIORITY_CONFIG: Record<string, { label: string; color: string }> = {
+  HIGH: { label: "High", color: "bg-red-100 text-red-700 border-red-300" },
+  MEDIUM: { label: "Medium", color: "bg-yellow-100 text-yellow-700 border-yellow-300" },
+  LOW: { label: "Low", color: "bg-gray-100 text-gray-600 border-gray-300" },
 };
 
-// ─── Escalation Summary Card ──────────────────────────────────────────────────
+const FLAG_COLORS: Record<string, string> = {
+  "Fraud Risk": "bg-red-100 text-red-700 border-red-300",
+  "Structural Gaps": "bg-orange-100 text-orange-700 border-orange-300",
+  "Low Evidence": "bg-yellow-100 text-yellow-700 border-yellow-300",
+  "Out of Domain": "bg-purple-100 text-purple-700 border-purple-300",
+  "Anomalies Detected": "bg-blue-100 text-blue-700 border-blue-300",
+};
 
-function EscalationSummaryCards() {
-  const { data: summary, isLoading } = trpc.decision.getEscalationSummary.useQuery(
-    undefined,
-    { refetchOnWindowFocus: false }
-  );
+// ─── Claim Detail Row ─────────────────────────────────────────────────────────
 
-  if (isLoading) {
-    return (
-      <div className="grid grid-cols-3 gap-4">
-        {[0, 1, 2].map((i) => (
-          <Card key={i}>
-            <CardContent className="py-6 flex items-center justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-    );
-  }
+type ClaimDetail = {
+  claim_id: number | string;
+  route: string;
+  priority: string;
+  reason: string;
+  flags: string[];
+  confidence: number | null;
+  fraud_detected: boolean;
+  routed_at: string;
+  reasoning_source: string;
+};
 
-  if (!summary) return null;
-
-  const routeCounts: Record<string, number> = {
-    AUTO_APPROVE: summary.auto_approve_count,
-    ADJUSTER_REVIEW: summary.adjuster_review_count,
-    FRAUD_TEAM: summary.fraud_team_count,
-  };
+function ClaimDetailRow({
+  item,
+  queue,
+}: {
+  item: ClaimDetail;
+  queue: "AUTO_APPROVE" | "ADJUSTER_REVIEW" | "FRAUD_TEAM";
+}) {
+  const [, navigate] = useLocation();
+  const cfg = QUEUE_CONFIG[queue];
+  const priorityCfg = PRIORITY_CONFIG[item.priority] ?? PRIORITY_CONFIG.MEDIUM;
 
   return (
-    <div className="grid grid-cols-3 gap-4">
-      {(["AUTO_APPROVE", "ADJUSTER_REVIEW", "FRAUD_TEAM"] as const).map((queue) => {
-        const cfg = QUEUE_CONFIG[queue];
-        const Icon = cfg.icon;
-        const count = routeCounts[queue] ?? 0;
-        return (
-          <Card key={queue} className={`border ${cfg.headerColor}`}>
-            <CardContent className="pt-4 pb-3">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full ${cfg.headerColor} flex items-center justify-center`}>
-                  <Icon className={`h-5 w-5 ${cfg.iconColor}`} />
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{count}</p>
-                  <p className="text-xs text-muted-foreground">{cfg.label}</p>
-                </div>
+    <Card className="hover:shadow-sm transition-shadow">
+      <CardContent className="py-3 px-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1.5 flex-1 min-w-0">
+            {/* Header row */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-semibold">Claim #{item.claim_id}</span>
+              <Badge className={`${priorityCfg.color} border text-xs`}>
+                {priorityCfg.label} Priority
+              </Badge>
+              {item.confidence != null && (
+                <Badge className={`${cfg.color} border text-xs`}>
+                  {Math.round(item.confidence)}% confidence
+                </Badge>
+              )}
+              {item.reasoning_source === "llm" && (
+                <span title="Reason generated by AI Reasoning Engine">
+                  <Zap className="h-3 w-3 text-yellow-500 inline" />
+                </span>
+              )}
+            </div>
+
+            {/* Operational reason */}
+            <p className="text-sm text-foreground font-medium leading-snug">
+              {item.reason}
+            </p>
+
+            {/* Flags */}
+            {item.flags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {item.flags.map((flag) => (
+                  <Badge
+                    key={flag}
+                    className={`${FLAG_COLORS[flag] ?? "bg-muted text-muted-foreground"} border text-xs`}
+                  >
+                    {flag}
+                  </Badge>
+                ))}
               </div>
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
+            )}
+
+            {/* Timestamp */}
+            <p className="text-xs text-muted-foreground">
+              Routed: {new Date(item.routed_at).toLocaleString()}
+            </p>
+          </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            onClick={() => navigate(`/insurer-portal/comparison/${item.claim_id}`)}
+          >
+            <ExternalLink className="h-3 w-3 mr-1" /> View
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
 // ─── Escalation Queue Tab ─────────────────────────────────────────────────────
 
-function EscalationQueueTab({ queue }: { queue: "AUTO_APPROVE" | "ADJUSTER_REVIEW" | "FRAUD_TEAM" }) {
-  const [, navigate] = useLocation();
+function EscalationQueueTab({
+  queue,
+}: {
+  queue: "AUTO_APPROVE" | "ADJUSTER_REVIEW" | "FRAUD_TEAM";
+}) {
   const cfg = QUEUE_CONFIG[queue];
   const Icon = cfg.icon;
 
-  const { data: summary, isLoading, refetch } = trpc.decision.getEscalationSummary.useQuery(
+  const { data: summary, isLoading, refetch, isFetching } = trpc.decision.getEscalationSummary.useQuery(
     undefined,
     { refetchOnWindowFocus: false }
   );
 
-  // EscalationSummary doesn't have per-claim details — show aggregate counts
-  const claimsInQueue: Array<{ claimId: number; route: string; confidence: number; primaryReason: string; routedAt: string }> = [];
+  const claimsInQueue: ClaimDetail[] = (summary as any)?.claim_details?.filter(
+    (c: ClaimDetail) => c.route === queue
+  ) ?? [];
+
+  const routeCount = {
+    AUTO_APPROVE: (summary as any)?.auto_approve_count ?? 0,
+    ADJUSTER_REVIEW: (summary as any)?.adjuster_review_count ?? 0,
+    FRAUD_TEAM: (summary as any)?.fraud_team_count ?? 0,
+  }[queue];
 
   return (
     <div className="space-y-4">
+      {/* Queue header card */}
       <Card className={`border ${cfg.headerColor}`}>
         <CardContent className="pt-4 pb-3">
-          <div className="flex items-center gap-3">
-            <Icon className={`h-5 w-5 ${cfg.iconColor}`} />
-            <div>
-              <p className="font-medium">{cfg.label}</p>
-              <p className="text-xs text-muted-foreground">{cfg.description}</p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Icon className={`h-5 w-5 ${cfg.iconColor}`} />
+              <div>
+                <p className="font-medium">{cfg.label}</p>
+                <p className="text-xs text-muted-foreground">{cfg.description}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold">{routeCount}</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={isFetching}
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+              </Button>
             </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* Loading state */}
       {isLoading && (
         <div className="flex items-center justify-center py-8">
           <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+          <span className="ml-2 text-sm text-muted-foreground">Loading claims with reasoning…</span>
         </div>
       )}
 
+      {/* Empty state */}
       {!isLoading && claimsInQueue.length === 0 && (
         <Card className="border-dashed">
           <CardContent className="py-10 text-center">
-            <Icon className={`h-8 w-8 mx-auto mb-2 ${cfg.iconColor} opacity-50`} />
+            <Icon className={`h-8 w-8 mx-auto mb-2 ${cfg.iconColor} opacity-40`} />
             <p className="text-sm text-muted-foreground">No claims in this queue</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              Claims will appear here once they are routed by the escalation engine
+            </p>
           </CardContent>
         </Card>
       )}
 
+      {/* Claim list with per-claim reasoning */}
       {claimsInQueue.length > 0 && (
         <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            Showing {claimsInQueue.length} of {routeCount} claim{routeCount !== 1 ? "s" : ""} —
+            reasons generated by the Escalation Reasoning Engine
+          </p>
           {claimsInQueue.map((item) => (
-            <Card key={item.claimId} className="hover:shadow-sm transition-shadow">
-              <CardContent className="py-3 px-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium">Claim #{item.claimId}</span>
-                      <Badge className={`${cfg.color} border text-xs`}>
-                        {Math.round(item.confidence)}% confidence
-                      </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{item.primaryReason}</p>
-                    <p className="text-xs text-muted-foreground">
-                      Routed: {new Date(item.routedAt).toLocaleString()}
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => navigate(`/insurer-portal/comparison/${item.claimId}`)}
-                  >
-                    <ExternalLink className="h-3 w-3 mr-1" /> View
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <ClaimDetailRow key={String(item.claim_id)} item={item} queue={queue} />
           ))}
         </div>
       )}
@@ -253,7 +300,7 @@ function ApprovalQueueTab() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm">Claims Pending Approval</CardTitle>
           <CardDescription className="text-xs">
-            Claims that have had at least one stage approved and are waiting for the next stage
+            Claims awaiting the next stage in the multi-layer approval workflow
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -306,16 +353,14 @@ function ApprovalQueueTab() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {Object.entries(summary.role_breakdown as Record<string, number>)
-                .sort(([, a], [, b]) => b - a)
-                .map(([role, count]) => (
-                  <div key={role} className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">
-                      {ROLE_LABELS[role] ?? role}
-                    </span>
-                    <Badge variant="secondary">{count}</Badge>
-                  </div>
-                ))}
+              {Object.entries(summary.role_breakdown as Record<string, number>).map(([role, count]) => (
+                <div key={role} className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground capitalize">
+                    {role.replace(/_/g, " ")}
+                  </span>
+                  <Badge variant="secondary">{count}</Badge>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -324,60 +369,105 @@ function ApprovalQueueTab() {
   );
 }
 
-// ─── Main Page ─────────────────────────────────────────────────────────────────
+// ─── Summary KPI Row ──────────────────────────────────────────────────────────
 
-export default function EscalationQueue() {
-  const { data: summary, refetch, isLoading: summaryLoading } = trpc.decision.getEscalationSummary.useQuery(
+function SummaryKPIRow() {
+  const { data: summary, isLoading } = trpc.decision.getEscalationSummary.useQuery(
     undefined,
     { refetchOnWindowFocus: false }
   );
 
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-3 gap-4">
+        {[0, 1, 2].map((i) => (
+          <Card key={i}>
+            <CardContent className="py-6 flex items-center justify-center">
+              <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (!summary) return null;
+
+  const items = [
+    { queue: "AUTO_APPROVE" as const, count: summary.auto_approve_count, rate: summary.auto_approve_rate_pct },
+    { queue: "ADJUSTER_REVIEW" as const, count: summary.adjuster_review_count, rate: summary.adjuster_review_rate_pct },
+    { queue: "FRAUD_TEAM" as const, count: summary.fraud_team_count, rate: summary.fraud_team_rate_pct },
+  ];
+
+  return (
+    <div className="grid grid-cols-3 gap-4">
+      {items.map(({ queue, count, rate }) => {
+        const cfg = QUEUE_CONFIG[queue];
+        const Icon = cfg.icon;
+        return (
+          <Card key={queue} className={`border ${cfg.headerColor}`}>
+            <CardContent className="pt-4 pb-3">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-full ${cfg.headerColor} flex items-center justify-center`}>
+                  <Icon className={`h-5 w-5 ${cfg.iconColor}`} />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">{count}</p>
+                  <p className="text-xs text-muted-foreground">{cfg.label} · {rate}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
+export default function EscalationQueue() {
+  const [activeTab, setActiveTab] = useState<string>("auto_approve");
+
   return (
     <DashboardLayout>
-      <div className="p-6 space-y-6 max-w-5xl mx-auto">
+      <div className="space-y-6 p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">Escalation Queue</h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Claims routed by the AI Escalation Router and pending multi-layer approval
-            </p>
-          </div>
-          <Button variant="outline" size="sm" onClick={() => refetch()}>
-            <RefreshCw className="h-4 w-4 mr-2" /> Refresh
-          </Button>
+        <div>
+          <h1 className="text-xl font-semibold">Escalation Queue</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Claims routed by the AI Escalation Engine — each with an operational reason and risk flags
+          </p>
         </div>
 
-        {/* Summary KPI cards */}
-        <EscalationSummaryCards />
+        {/* KPI summary */}
+        <SummaryKPIRow />
 
-        {/* Tabs */}
-        <Tabs defaultValue="adjuster">
-          <TabsList className="grid grid-cols-4 w-full">
-            <TabsTrigger value="auto" className="text-xs">
-              <CheckCircle2 className="h-3 w-3 mr-1" /> Auto-Approve
+        {/* Queue tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="auto_approve">Auto-Approve</TabsTrigger>
+            <TabsTrigger value="adjuster_review">Adjuster Review</TabsTrigger>
+            <TabsTrigger value="fraud_team">
+              <AlertTriangle className="h-3.5 w-3.5 mr-1" />
+              Fraud Team
             </TabsTrigger>
-            <TabsTrigger value="adjuster" className="text-xs">
-              <Users className="h-3 w-3 mr-1" /> Adjuster Review
-            </TabsTrigger>
-            <TabsTrigger value="fraud" className="text-xs">
-              <ShieldAlert className="h-3 w-3 mr-1" /> Fraud Team
-            </TabsTrigger>
-            <TabsTrigger value="approval" className="text-xs">
-              <BarChart3 className="h-3 w-3 mr-1" /> Approval Queue
-            </TabsTrigger>
+            <TabsTrigger value="approval_queue">Approval Queue</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="auto" className="mt-4">
+          <TabsContent value="auto_approve" className="mt-4">
             <EscalationQueueTab queue="AUTO_APPROVE" />
           </TabsContent>
-          <TabsContent value="adjuster" className="mt-4">
+
+          <TabsContent value="adjuster_review" className="mt-4">
             <EscalationQueueTab queue="ADJUSTER_REVIEW" />
           </TabsContent>
-          <TabsContent value="fraud" className="mt-4">
+
+          <TabsContent value="fraud_team" className="mt-4">
             <EscalationQueueTab queue="FRAUD_TEAM" />
           </TabsContent>
-          <TabsContent value="approval" className="mt-4">
+
+          <TabsContent value="approval_queue" className="mt-4">
             <ApprovalQueueTab />
           </TabsContent>
         </Tabs>

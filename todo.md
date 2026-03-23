@@ -10131,3 +10131,10 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
   - [x] Assumption record added when multiplier != 1.0
 - [x] Add Workflow Templates and Escalation Queue quick-action buttons to AdminDashboard
 - [x] Fix all TypeScript errors (0 errors confirmed)
+
+## Claims Escalation Reasoning Engine (Mar 2026)
+- [x] Create server/pipeline-v2/escalationReasoningEngine.ts with LLM-backed reason generator
+- [x] Integrate reasoning engine into claimsEscalationRouter routeClaimEngine()
+- [x] Expose per-claim reason/flags/priority through getEscalationSummary tRPC procedure (claim_details array)
+- [x] Update EscalationQueue admin page to show per-claim reason, flags, and priority badges
+- [x] TypeScript check and checkpoint
