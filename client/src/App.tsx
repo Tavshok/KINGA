@@ -95,6 +95,8 @@ const AdminSeedData = lazy(() => import("./pages/AdminSeedData"));
 const ObservabilityDashboard = lazy(() => import("./pages/admin/ObservabilityDashboard"));
 const PipelineHealthDashboard = lazy(() => import("./pages/admin/PipelineHealthDashboard"));
 const LearningDashboard = lazy(() => import("./pages/admin/LearningDashboard"));
+const WorkflowTemplates = lazy(() => import("./pages/admin/WorkflowTemplates"));
+const EscalationQueue = lazy(() => import("./pages/admin/EscalationQueue"));
 const TenantManagement = lazy(() => import("./pages/admin/TenantManagement"));
 const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
 const TenantRegistration = lazy(() => import("./pages/admin/TenantRegistration"));
@@ -633,6 +635,16 @@ function Router() {
         <Route path="/admin/learning">
           <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
             <LearningDashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/workflows">
+          <ProtectedRoute allowedRoles={["admin", "insurer"]} allowedInsurerRoles={["claims_manager", "executive", "insurer_admin"]}>
+            <WorkflowTemplates />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/escalation">
+          <ProtectedRoute allowedRoles={["admin", "insurer"]}>
+            <EscalationQueue />
           </ProtectedRoute>
         </Route>
         <Route path="/admin/market-quotes">

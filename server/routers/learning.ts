@@ -9,8 +9,8 @@
 import { z } from "zod";
 import { protectedProcedure, router } from "../_core/trpc";
 import { getDb } from "../db";
-import { aiAssessments, claims, costLearningRecords } from "../../drizzle/schema";
-import { eq, isNotNull, and } from "drizzle-orm";
+import { aiAssessments, claims, costLearningRecords, calibrationOverrides } from "../../drizzle/schema";
+import { eq, isNotNull, and, desc } from "drizzle-orm";
 import {
   analyseCostPatterns,
   buildLearningRecord,
@@ -36,6 +36,10 @@ import {
   aggregateOutOfDomainSummary,
   type SignatureRecord,
 } from "../pipeline-v2/outOfDomainDetector";
+import {
+  evaluateCalibrationFeedback,
+  type CalibrationFeedbackInput,
+} from "../pipeline-v2/calibrationFeedbackController";
 
 // ─── Router ───────────────────────────────────────────────────────────────────
 
@@ -620,5 +624,197 @@ export const learningRouter = router({
           similarity_score: r.result.similarity_score,
         })),
       };
+    }),
+
+  /**
+   * evaluateCalibrationFeedback — run the Calibration Feedback Controller for a given jurisdiction.
+   */
+  evaluateCalibrationFeedback: protectedProcedure
+    .input(
+      z.object({
+        jurisdiction: z.string().default("global"),
+      })
+    )
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new Error("Database unavailable");
+
+      const rows = await drizzle
+        .select({
+          id: claims.id,
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          fraudScoreBreakdownJson: aiAssessments.fraudScoreBreakdownJson,
+          confidenceScore: aiAssessments.confidenceScore,
+          estimatedCost: aiAssessments.estimatedCost,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          workflowState: claims.workflowState,
+        })
+        .from(claims)
+        .innerJoin(aiAssessments, eq(aiAssessments.claimId, claims.id))
+        .where(
+          and(
+            isNotNull(claims.finalApprovedAmount),
+            isNotNull(aiAssessments.estimatedCost)
+          )
+        )
+        .limit(500);
+
+      const sample_size = rows.length;
+      const confidence =
+        sample_size > 0
+          ? Math.round(
+              rows.reduce((s, r) => s + (r.confidenceScore ?? 50), 0) / sample_size
+            )
+          : 0;
+
+      const costErrors = rows
+        .filter((r) => r.estimatedCost != null && r.finalApprovedAmount != null)
+        .map((r) => {
+          const est = Number(r.estimatedCost);
+          const actual = Number(r.finalApprovedAmount);
+          return actual > 0 ? (est - actual) / actual : 0;
+        });
+
+      const meanCostError =
+        costErrors.length > 0
+          ? costErrors.reduce((a, b) => a + b, 0) / costErrors.length
+          : 0;
+      const meanCostErrorPct = Math.abs(meanCostError) * 100;
+
+      const driftReport = {
+        drift_detected: meanCostErrorPct > 10,
+        drift_areas:
+          meanCostErrorPct > 20
+            ? [
+                {
+                  dimension: "cost" as const,
+                  direction: (meanCostError > 0 ? "OVER" : "UNDER") as "OVER" | "UNDER",
+                  magnitude_pct: Math.round(meanCostErrorPct * 10) / 10,
+                  is_continuous: false,
+                  sample_count: costErrors.length,
+                },
+              ]
+            : [],
+        severity: (meanCostErrorPct > 30 ? "HIGH" : meanCostErrorPct > 20 ? "MEDIUM" : "LOW") as "LOW" | "MEDIUM" | "HIGH",
+        recommendation:
+          meanCostErrorPct > 20
+            ? `AI cost estimates are ${meanCostError > 0 ? "over" : "under"}-estimating by ${meanCostErrorPct.toFixed(1)}%`
+            : "Cost estimates within acceptable range.",
+      };
+
+      const fraudBreakdownCounts: Record<string, { fp: number; total: number; reductions: number[] }> = {};
+      for (const row of rows) {
+        if (!row.fraudScoreBreakdownJson) continue;
+        try {
+          const breakdown = JSON.parse(row.fraudScoreBreakdownJson as string);
+          const isCleared = row.fraudRiskLevel === "low" || row.workflowState === "payment_authorized" || row.workflowState === "closed";
+          if (Array.isArray(breakdown.flags)) {
+            for (const flag of breakdown.flags as Array<{ key: string; score: number }>) {
+              if (!fraudBreakdownCounts[flag.key]) {
+                fraudBreakdownCounts[flag.key] = { fp: 0, total: 0, reductions: [] };
+              }
+              fraudBreakdownCounts[flag.key].total++;
+              if (isCleared) {
+                fraudBreakdownCounts[flag.key].fp++;
+                fraudBreakdownCounts[flag.key].reductions.push(Math.min(flag.score * 100, 50));
+              }
+            }
+          }
+        } catch { /* skip malformed JSON */ }
+      }
+
+      const falsePosPatterns = Object.entries(fraudBreakdownCounts)
+        .filter(([, v]) => v.total >= 10)
+        .map(([key, v]) => ({
+          flag_key: key,
+          false_positive_rate: v.total > 0 ? v.fp / v.total : 0,
+          sample_count: v.total,
+          suggested_score_reduction:
+            v.reductions.length > 0
+              ? Math.round(v.reductions.reduce((a, b) => a + b, 0) / v.reductions.length)
+              : 20,
+        }));
+
+      const feedbackInput: CalibrationFeedbackInput = {
+        drift_report: driftReport,
+        fraud_pattern_report: {
+          emerging_patterns: [],
+          high_risk_indicators: [],
+          false_positive_patterns: falsePosPatterns,
+        },
+        cost_pattern_report: {
+          total_claims_analysed: sample_size,
+          mean_cost_error_pct: Math.round(meanCostErrorPct * 10) / 10,
+          median_cost_error_pct: Math.round(meanCostErrorPct * 10) / 10,
+          cost_drivers: [],
+        },
+        jurisdiction: input.jurisdiction,
+        sample_size,
+        confidence,
+      };
+
+      return evaluateCalibrationFeedback(feedbackInput);
+    }),
+
+  /**
+   * applyCalibrationUpdate — write an approved calibration update to calibration_overrides.
+   * Requires admin or claims_manager role.
+   */
+  applyCalibrationUpdate: protectedProcedure
+    .input(
+      z.object({
+        jurisdiction: z.string(),
+        cost_multiplier: z.number().min(0.5).max(1.5),
+        fraud_adjustments: z.record(z.string(), z.number()),
+        notes: z.string().optional(),
+        risk_level: z.enum(["LOW", "MEDIUM", "HIGH"]),
+      })
+    )
+    .mutation(async ({ input, ctx }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new Error("Database unavailable");
+
+      const userRole = (ctx.user as { role?: string }).role ?? "user";
+      if (userRole !== "admin" && userRole !== "claims_manager") {
+        throw new Error("Insufficient permissions: requires admin or claims_manager role");
+      }
+
+      await drizzle.insert(calibrationOverrides).values({
+        tenantId: String((ctx.user as { tenantId?: string }).tenantId ?? "default"),
+        jurisdiction: input.jurisdiction,
+        costMultiplier: Math.round(input.cost_multiplier * 1000), // store as int×1000
+        fraudAdjustmentsJson: JSON.stringify(input.fraud_adjustments),
+        reasoning: input.notes ?? "",
+        riskLevel: input.risk_level,
+        approvedBy: typeof ctx.user.id === "number" ? ctx.user.id : parseInt(String(ctx.user.id), 10),
+        status: "approved" as const,
+        sampleSize: 0,
+        confidence: 0,
+      });
+
+      return { success: true, jurisdiction: input.jurisdiction };
+    }),
+
+  /**
+   * getCalibrationHistory — fetch recent calibration overrides.
+   */
+  getCalibrationHistory: protectedProcedure
+    .input(z.object({ jurisdiction: z.string().optional() }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new Error("Database unavailable");
+
+      const rows = await drizzle
+        .select()
+        .from(calibrationOverrides)
+        .orderBy(desc(calibrationOverrides.createdAt))
+        .limit(50);
+
+      return rows.filter(
+        (r) =>
+          !input.jurisdiction ||
+          r.jurisdiction === input.jurisdiction ||
+          r.jurisdiction === "global"
+      );
     }),
 });

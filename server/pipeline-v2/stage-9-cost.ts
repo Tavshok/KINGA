@@ -10,7 +10,7 @@
 
 import { ensureCostContract } from "./engineFallback";
 import { extractCostLearningRecord } from "./costLearningRecorder";
-import { insertCostLearningRecord } from "../db";
+import { insertCostLearningRecord, getActiveCalibrationMultiplier } from "../db";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
@@ -154,7 +154,41 @@ export async function runCostOptimisationStage(
       hiddenDamageCents = Math.round(totalPartsCents * latentTotal * 0.3);
     }
 
-    const totalExpectedCents = totalPartsCents + totalLabourCents + totalPaintCents + hiddenDamageCents;
+    let totalExpectedCents = totalPartsCents + totalLabourCents + totalPaintCents + hiddenDamageCents;
+
+    // ── Calibration Override: apply approved jurisdiction multiplier ──────────
+    // Look up the most recent approved calibration override for this tenant+region.
+    // The multiplier corrects systematic AI over/under-estimation (e.g. 0.85 = AI
+    // overestimates by ~18%, so we reduce the estimate by 15%).
+    try {
+      const tenantId = (ctx as any).tenantId ? String((ctx as any).tenantId) : null;
+      const calibMultiplier = await getActiveCalibrationMultiplier(
+        tenantId,
+        region, // marketRegion (e.g. 'ZW', 'ZA', 'global')
+        claimRecord.accidentDetails?.incidentType ?? null
+      );
+      if (calibMultiplier !== 1.0) {
+        const before = totalExpectedCents;
+        totalExpectedCents = Math.round(totalExpectedCents * calibMultiplier);
+        ctx.log(
+          "Stage 9",
+          `Calibration override applied: multiplier=${calibMultiplier.toFixed(3)}, ` +
+          `cost adjusted from ${before} to ${totalExpectedCents} cents ` +
+          `(jurisdiction=${region}, tenant=${tenantId ?? 'none'})`
+        );
+        assumptions.push({
+          field: "totalExpectedCents",
+          assumedValue: `×${calibMultiplier.toFixed(3)} calibration multiplier`,
+          reason: `Approved jurisdiction calibration override for region '${region}' ` +
+                  `adjusted AI cost estimate by ${((calibMultiplier - 1) * 100).toFixed(1)}%.`,
+          strategy: "industry_average",
+          confidence: 85,
+          stage: "Stage 9",
+        });
+      }
+    } catch (calibErr) {
+      ctx.log("Stage 9", `Calibration override lookup failed (non-fatal): ${String(calibErr)}`);
+    }
 
     // FIX (2026-03-21): If the claim record has no quote (quoteTotalCents is null/0)
     // but the input recovery pass found a quote in the raw document text, use the

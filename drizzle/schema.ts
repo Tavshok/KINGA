@@ -105,6 +105,13 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Stage 11 output: validated outcome recorder (learning gate) — JSON ValidatedOutcomeResult
   validatedOutcomeJson: text("validated_outcome_json"),
   caseSignatureJson: text("case_signature_json"),
+  // Phase 4 decision layer outputs (cached for instant panel loads)
+  decisionAuthorityJson: text("decision_authority_json"),
+  contradictionGateJson: text("contradiction_gate_json"),
+  reportReadinessJson: text("report_readiness_json"),
+  explanationJson: text("explanation_json"),
+  escalationRouteJson: text("escalation_route_json"),
+  decisionTraceJson: text("decision_trace_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
@@ -4439,3 +4446,96 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
 ]);
 export type CostLearningRecordRow = typeof costLearningRecords.$inferSelect;
 export type InsertCostLearningRecord = typeof costLearningRecords.$inferInsert;
+
+// ─── Phase 5: Calibration Overrides ─────────────────────────────────────────
+// Stores insurer/jurisdiction-specific calibration adjustments proposed by the
+// Calibration Feedback Controller and approved by a claims_manager.
+export const calibrationOverrides = mysqlTable("calibration_overrides", {
+  id: int().autoincrement().notNull().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  jurisdiction: varchar("jurisdiction", { length: 50 }).notNull(), // ISO-2 or 'global'
+  scenarioType: varchar("scenario_type", { length: 100 }), // null = applies to all scenarios
+  // The proposed cost multiplier (e.g. 0.8 = AI overestimates by 25%)
+  costMultiplier: int("cost_multiplier"), // stored as integer × 1000 (e.g. 800 = 0.800)
+  // JSON: Record<string, number> — fraud flag key → weight adjustment (-1.0 to +1.0)
+  fraudAdjustmentsJson: text("fraud_adjustments_json").default("{}"),
+  // Risk level assessed by the Feedback Controller: LOW | MEDIUM | HIGH
+  riskLevel: mysqlEnum("risk_level", ["LOW", "MEDIUM", "HIGH"]).notNull().default("MEDIUM"),
+  // Reasoning from the Feedback Controller
+  reasoning: text("reasoning"),
+  // Sample size and confidence that justified this update
+  sampleSize: int("sample_size").notNull().default(0),
+  confidence: int("confidence").notNull().default(0),
+  // Workflow status
+  status: mysqlEnum("status", ["pending_review", "approved", "rejected"]).notNull().default("pending_review"),
+  approvedBy: int("approved_by"), // user_id of approver
+  approvedAt: timestamp("approved_at", { mode: "string" }),
+  rejectionReason: text("rejection_reason"),
+  // Source reports that triggered this update (JSON summary)
+  sourceReportsJson: text("source_reports_json"),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("idx_cal_tenant_jurisdiction").on(table.tenantId, table.jurisdiction),
+  index("idx_cal_status").on(table.status),
+  index("idx_cal_scenario").on(table.scenarioType),
+]);
+export type CalibrationOverrideRow = typeof calibrationOverrides.$inferSelect;
+export type InsertCalibrationOverride = typeof calibrationOverrides.$inferInsert;
+
+// ─── Phase 5: Workflow Templates ─────────────────────────────────────────────
+// Insurer-configurable approval chain templates. Each insurer may have multiple
+// templates (e.g. "Standard Claim", "High-Value Claim", "External Assessor Claim").
+export const workflowTemplates = mysqlTable("workflow_templates", {
+  id: int().autoincrement().notNull().primaryKey(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  // JSON: WorkflowStage[] — ordered array of approval stages
+  // WorkflowStage: { stage_order: number, stage_name: string, role_key: string,
+  //   required: boolean, can_reject: boolean, can_request_info: boolean, notes_required: boolean }
+  stagesJson: text("stages_json").notNull().default("[]"),
+  // Filter: which claims this template applies to
+  // JSON: { min_claim_value?: number, scenario_types?: string[], escalation_routes?: string[] }
+  appliesToJson: text("applies_to_json").default("{}"),
+  isDefault: tinyint("is_default").default(0).notNull(), // 1 = default template for this tenant
+  isActive: tinyint("is_active").default(1).notNull(),
+  createdBy: int("created_by"),
+  createdAt: timestamp("created_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  index("idx_wt_tenant_id").on(table.tenantId),
+  index("idx_wt_is_default").on(table.tenantId, table.isDefault),
+]);
+export type WorkflowTemplateRow = typeof workflowTemplates.$inferSelect;
+export type InsertWorkflowTemplate = typeof workflowTemplates.$inferInsert;
+
+// ─── Phase 5: Claim Approvals ─────────────────────────────────────────────────
+// Per-claim, per-stage audit trail of every approval decision made in the
+// multi-layer workflow. Immutable once written — no updates, only inserts.
+export const claimApprovals = mysqlTable("claim_approvals", {
+  id: int().autoincrement().notNull().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  tenantId: varchar("tenant_id", { length: 255 }).notNull(),
+  workflowTemplateId: int("workflow_template_id"),
+  stageOrder: int("stage_order").notNull(),
+  stageName: varchar("stage_name", { length: 255 }).notNull(),
+  roleKey: varchar("role_key", { length: 100 }).notNull(),
+  // Role keys: claims_processor | internal_assessor | external_assessor |
+  //            risk_manager | claims_manager | executive | underwriter
+  actorUserId: int("actor_user_id"),
+  actorName: varchar("actor_name", { length: 255 }),
+  decision: mysqlEnum("decision", ["approved", "rejected", "returned", "escalated", "external_received"]).notNull(),
+  notes: text("notes"),
+  // JSON: any additional metadata (e.g. external assessor report reference)
+  metadataJson: text("metadata_json"),
+  actedAt: timestamp("acted_at", { mode: "string" }).default("CURRENT_TIMESTAMP").notNull(),
+}, (table) => [
+  index("idx_ca_claim_id").on(table.claimId),
+  index("idx_ca_tenant_id").on(table.tenantId),
+  index("idx_ca_stage_order").on(table.claimId, table.stageOrder),
+  index("idx_ca_role_key").on(table.roleKey),
+  index("idx_ca_acted_at").on(table.actedAt),
+]);
+export type ClaimApprovalRow = typeof claimApprovals.$inferSelect;
+export type InsertClaimApproval = typeof claimApprovals.$inferInsert;

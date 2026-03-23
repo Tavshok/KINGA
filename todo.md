@@ -10057,3 +10057,77 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Extend NLP vocabulary with African wildlife (30+ species) in pipeline/types.ts, assessment-processor.ts, stage-5-assembly.ts, intakeDescriptionNormaliser.ts
 - [x] Extend NLP vocabulary with regional road hazards (corrugated road, gravel road, sand drift, wash-away, donga, speed hump, etc.)
 - [x] Add local terminology preservation to intake normaliser (bakkie, robot, kombi, spaza, etc.)
+
+## Phase 5: Calibration Feedback Loop + Multi-Layer Approval Workflow
+
+### Phase A: Calibration Feedback Loop
+- [ ] DB schema: calibration_overrides table (jurisdiction-scoped, status pending_review/approved/rejected)
+- [ ] DB migration: push calibration_overrides schema
+- [ ] calibrationFeedbackController.ts engine (safety-gated, 6 rules from prompt)
+- [ ] Test suite for calibrationFeedbackController (60+ tests)
+- [ ] tRPC: applyCalibrationUpdate, getCalibrationOverrides, getPendingUpdates procedures
+- [ ] Learning Dashboard: "Calibration" tab with Feedback Controller UI and Apply Recommendations action
+- [ ] Scenario fraud engine reads active calibration_overrides at inference time
+- [ ] Cost estimation stage reads cost_multiplier from calibration_overrides
+
+### Phase B: Persist Pipeline Outputs to DB
+- [ ] DB schema: add decisionAuthorityJson, contradictionGateJson, reportReadinessJson, explanationJson, escalationRouteJson, decisionTraceJson columns to aiAssessments
+- [ ] DB migration: push aiAssessments column additions
+- [ ] Write pipeline outputs to DB after each assessment run
+- [ ] All claim detail panels load from cached DB columns
+
+### Phase C: Multi-Layer Approval Workflow
+- [ ] DB schema: workflow_templates table (insurer-configurable stage chains)
+- [ ] DB schema: claim_approvals table (per-claim per-stage audit trail)
+- [ ] DB migration: push workflow schema
+- [ ] tRPC: getWorkflowTemplate, createWorkflowTemplate, updateWorkflowTemplate procedures
+- [ ] tRPC: submitApprovalDecision, getApprovalHistory, getCurrentApprovalStage procedures
+- [ ] Claim approval action toolbar on claim detail page (role-gated)
+- [ ] Approval history panel on claim detail page
+- [ ] External assessor re-entry handling (output re-enters at internal_assessor stage)
+- [ ] Workflow Template admin UI (/admin/workflow-templates)
+- [ ] Report Readiness Gate checks all required approval stages complete
+- [ ] Role-based access: toolbar only visible to correct role
+
+### Phase D: Escalation Queue Admin Page
+- [ ] /admin/escalation page with AUTO_APPROVE / ADJUSTER_REVIEW / FRAUD_TEAM queues
+- [ ] Priority sorting (HIGH first) with confidence display
+- [ ] One-click navigation to claim detail
+- [ ] Owner notification for FRAUD_TEAM + HIGH escalations
+
+## Multi-Layer Approval Workflow & Calibration Integration (Mar 2026)
+- [x] Build multi-layer approval workflow tRPC router (server/routers/approval.ts)
+  - [x] claimApprovals DB table with stageOrder, stageName, roleKey, decision, actorName, notes
+  - [x] workflowTemplates DB table for configurable approval chains
+  - [x] submitApprovalDecision procedure (approve / return_for_info / reject / external_received)
+  - [x] getApprovalHistory procedure (full audit trail per claim)
+  - [x] getApprovalQueue procedure (claims pending at a given role)
+  - [x] getWorkflowTemplates / createWorkflowTemplate / updateWorkflowTemplate procedures
+- [x] Build Workflow Templates admin page (/admin/workflows)
+  - [x] List all templates with stage count and active/inactive status
+  - [x] Create / edit template dialog with dynamic stage builder
+  - [x] Activate / deactivate templates
+- [x] Build ClaimApprovalToolbar component
+  - [x] Shows current approval stage and role
+  - [x] Approve / Return for Info / Reject actions with notes dialog
+  - [x] Role-based visibility (only shows to the correct role)
+- [x] Build ApprovalHistoryPanel component
+  - [x] Full timeline audit trail with decision badges and timestamps
+  - [x] Actor name, notes, and stage metadata per entry
+- [x] Integrate approval components into InsurerComparisonView (Section 12)
+- [x] Build Escalation Queue admin page (/admin/escalation)
+  - [x] Three-column layout: AUTO_APPROVE, ADJUSTER_REVIEW, FRAUD_TEAM queues
+  - [x] Aggregate stats (total, priority breakdown, route rates)
+  - [x] Drill-down to individual claim detail
+- [x] Integrate Calibration Feedback UI into LearningDashboard
+  - [x] Jurisdiction selector and Evaluate Recommendations button
+  - [x] Risk level badge (LOW / MEDIUM / HIGH) with colour coding
+  - [x] Proposed cost multiplier and fraud adjustments display
+  - [x] Apply Calibration Update button (admin/claims_manager only)
+  - [x] Calibration history table
+- [x] Wire calibration overrides into Stage-9 cost inference pipeline
+  - [x] getActiveCalibrationMultiplier DB helper (jurisdiction + scenario fallback)
+  - [x] Multiplier applied to totalExpectedCents in stage-9-cost.ts
+  - [x] Assumption record added when multiplier != 1.0
+- [x] Add Workflow Templates and Escalation Queue quick-action buttons to AdminDashboard
+- [x] Fix all TypeScript errors (0 errors confirmed)

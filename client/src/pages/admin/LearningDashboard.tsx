@@ -136,6 +136,43 @@ export default function LearningDashboard() {
     { refetchOnWindowFocus: false }
   );
 
+  // ── Calibration Feedback state ──────────────────────────────────────────────
+  const [calibFeedbackJurisdiction, setCalibFeedbackJurisdiction] = useState("global");
+  const [calibFeedbackResult, setCalibFeedbackResult] = useState<{
+    apply_update: boolean;
+    risk_level: "LOW" | "MEDIUM" | "HIGH";
+    reasoning: string;
+    blocked_reason?: string;
+    updates: { cost_multiplier: number; fraud_adjustments: Record<string, number>; notes: string };
+    proposed_changes_count: number;
+    sample_size: number;
+    confidence: number;
+    jurisdiction: string;
+  } | null>(null);
+
+  const evaluateCalibration = trpc.learning.evaluateCalibrationFeedback.useQuery(
+    { jurisdiction: calibFeedbackJurisdiction },
+    { enabled: false }
+  );
+  const triggerEvaluation = () => {
+    evaluateCalibration.refetch().then((result) => {
+      if (result.data) setCalibFeedbackResult(result.data as typeof calibFeedbackResult);
+    }).catch((err: any) => alert(`Evaluation failed: ${err.message}`));
+  };
+
+  const applyCalibration = trpc.learning.applyCalibrationUpdate.useMutation({
+    onSuccess: () => {
+      alert("Calibration update applied successfully!");
+      setCalibFeedbackResult(null);
+    },
+    onError: (err) => alert(`Apply failed: ${err.message}`),
+  });
+
+  const { data: calibrationHistory } = trpc.learning.getCalibrationHistory.useQuery(
+    { jurisdiction: undefined },
+    { enabled: activeTab === "calibration" }
+  );
+
   const utils = trpc.useUtils();
   const handleRefresh = () => {
     utils.learning.getLearningStats.invalidate();
@@ -792,7 +829,169 @@ export default function LearningDashboard() {
               ) : null}
             </>
           )}
-        {/* ── Jurisdiction Calibration Tab ──────────────────────────────────── */}
+         {/* ── Calibration Feedback Panel (inside calibration tab) ──────────────────── */}
+        {activeTab === "calibration" && calibrationDrift && (
+          <div className="space-y-4 mt-4">
+            {/* Apply Recommendations Section */}
+            <Card className="border-purple-200 bg-purple-50">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm flex items-center gap-2">
+                  <Brain className="w-4 h-4 text-purple-600" />
+                  Apply Calibration Recommendations
+                </CardTitle>
+                <p className="text-xs text-muted-foreground">
+                  Run the Calibration Feedback Controller to evaluate whether the detected drift
+                  justifies a safe, gradual correction. Requires <strong>claims_manager</strong> approval before writing.
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex-1">
+                    <label className="text-xs font-medium">Jurisdiction scope</label>
+                    <input
+                      type="text"
+                      value={calibFeedbackJurisdiction}
+                      onChange={(e) => setCalibFeedbackJurisdiction(e.target.value)}
+                      placeholder="e.g. ZW, global, Southern Africa"
+                      className="mt-1 w-full text-sm border rounded px-2 py-1 bg-background"
+                    />
+                  </div>
+                  <Button
+                    size="sm"
+                    className="mt-5"
+                    onClick={() => triggerEvaluation()}
+                    disabled={evaluateCalibration.isFetching}
+                  >
+                    {evaluateCalibration.isFetching ? (
+                      <><Activity className="w-3 h-3 mr-1 animate-spin" /> Evaluating…</>
+                    ) : (
+                      <><Zap className="w-3 h-3 mr-1" /> Evaluate Recommendations</>
+                    )}
+                  </Button>
+                </div>
+
+                {/* Evaluation result */}
+                {calibFeedbackResult && (
+                  <div className={`rounded-lg border p-3 space-y-2 ${
+                    !calibFeedbackResult.apply_update
+                      ? "bg-gray-50 border-gray-200"
+                      : calibFeedbackResult.risk_level === "HIGH"
+                      ? "bg-red-50 border-red-200"
+                      : calibFeedbackResult.risk_level === "MEDIUM"
+                      ? "bg-yellow-50 border-yellow-200"
+                      : "bg-green-50 border-green-200"
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {calibFeedbackResult.apply_update ? (
+                          <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        ) : (
+                          <AlertTriangle className="w-4 h-4 text-gray-500" />
+                        )}
+                        <span className="text-sm font-medium">
+                          {calibFeedbackResult.apply_update
+                            ? `${calibFeedbackResult.proposed_changes_count} update(s) proposed`
+                            : "No update recommended"}
+                        </span>
+                      </div>
+                      <Badge className={`text-xs ${
+                        calibFeedbackResult.risk_level === "HIGH" ? "bg-red-100 text-red-700" :
+                        calibFeedbackResult.risk_level === "MEDIUM" ? "bg-yellow-100 text-yellow-700" :
+                        "bg-green-100 text-green-700"
+                      }`}>
+                        {calibFeedbackResult.risk_level} RISK
+                      </Badge>
+                    </div>
+
+                    <p className="text-xs text-muted-foreground">{calibFeedbackResult.reasoning}</p>
+
+                    {calibFeedbackResult.blocked_reason && (
+                      <p className="text-xs text-red-600 font-medium">⚠️ {calibFeedbackResult.blocked_reason}</p>
+                    )}
+
+                    {calibFeedbackResult.apply_update && (
+                      <div className="space-y-1 text-xs">
+                        <p><strong>Cost multiplier:</strong> {calibFeedbackResult.updates.cost_multiplier.toFixed(3)}</p>
+                        {Object.keys(calibFeedbackResult.updates.fraud_adjustments).length > 0 && (
+                          <p><strong>Fraud adjustments:</strong> {Object.keys(calibFeedbackResult.updates.fraud_adjustments).length} flag(s)</p>
+                        )}
+                        <p className="text-muted-foreground">{calibFeedbackResult.updates.notes}</p>
+                      </div>
+                    )}
+
+                    {calibFeedbackResult.apply_update && (
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground mb-2">
+                          Requires <strong>claims_manager</strong> or <strong>admin</strong> role to apply.
+                        </p>
+                        <Button
+                          size="sm"
+                          className="bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => {
+                            applyCalibration.mutate({
+                              jurisdiction: calibFeedbackResult.jurisdiction,
+                              cost_multiplier: calibFeedbackResult.updates.cost_multiplier,
+                              fraud_adjustments: calibFeedbackResult.updates.fraud_adjustments,
+                              notes: calibFeedbackResult.updates.notes,
+                              risk_level: calibFeedbackResult.risk_level,
+                            });
+                          }}
+                          disabled={applyCalibration.isPending}
+                        >
+                          {applyCalibration.isPending ? (
+                            <><Activity className="w-3 h-3 mr-1 animate-spin" /> Applying…</>
+                          ) : (
+                            <><CheckCircle2 className="w-3 h-3 mr-1" /> Apply Update
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Calibration Override History */}
+            {calibrationHistory && calibrationHistory.length > 0 && (
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    <Database className="w-4 h-4" />
+                    Applied Calibration Overrides
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {calibrationHistory.slice(0, 10).map((override) => (
+                      <div key={override.id} className="flex items-center justify-between text-xs border rounded px-3 py-2">
+                        <div>
+                          <span className="font-medium">{override.jurisdiction}</span>
+                          <span className="text-muted-foreground ml-2">
+                            ×{((override.costMultiplier ?? 1000) / 1000).toFixed(3)} cost
+                          </span>
+                          {override.reasoning && (
+                            <p className="text-muted-foreground mt-0.5 truncate max-w-xs">{override.reasoning}</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge className={`text-xs ${
+                            override.riskLevel === "HIGH" ? "bg-red-100 text-red-700" :
+                            override.riskLevel === "MEDIUM" ? "bg-yellow-100 text-yellow-700" :
+                            "bg-green-100 text-green-700"
+                          }`}>{override.riskLevel}</Badge>
+                          <span className="text-muted-foreground">{override.createdAt?.slice(0, 10)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ── Jurisdiction Calibration Tab ────────────────────────────────── */}
         {activeTab === "jurisdiction" && (
           <>
             {/* Input Panel */}

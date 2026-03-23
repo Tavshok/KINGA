@@ -76,6 +76,7 @@ import { claimCompletionRouter } from "./routers/claim-completion";
 import { mlRouter } from "./routers/ml";
 import { learningRouter } from "./routers/learning";
 import { decisionRouter } from "./routers/decision";
+import { approvalRouter } from "./routers/approval";
 import { truthSynthesisRouter } from "./routers/truth-synthesis";
 import { marketQuotesRouter } from "./routers/market-quotes";
 import { agencyRouter } from "./routers/agency";
@@ -379,6 +380,7 @@ export const appRouter = router({
   ml: mlRouter,
   learning: learningRouter,
   decision: decisionRouter,
+  approval: approvalRouter,
   insurers: router({
     // TEST: Public endpoint (no auth required)
     testPublic: publicProcedure

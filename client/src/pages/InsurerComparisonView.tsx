@@ -34,6 +34,8 @@ import DecisionAuthorityPanel from "@/components/DecisionAuthorityPanel";
 import ReportReadinessPanel from "@/components/ReportReadinessPanel";
 import ClaimsExplanationPanel from "@/components/ClaimsExplanationPanel";
 import EscalationRoutingPanel from "@/components/EscalationRoutingPanel";
+import ClaimApprovalToolbar from "@/components/ClaimApprovalToolbar";
+import ApprovalHistoryPanel from "@/components/ApprovalHistoryPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
@@ -1326,6 +1328,23 @@ export default function InsurerComparisonView() {
             </div>
             <div className="comparison-section-body">
               <EscalationRoutingPanel claimId={claimId} />
+            </div>
+          </div>
+        )}
+
+        {/* ── Section 12: Approval Workflow ── */}
+        {aiAssessment && (
+          <div className="comparison-section">
+            <div className="comparison-section-header">
+              <span className="bi-section-num" style={{ background: 'linear-gradient(135deg, oklch(0.35 0.15 150), oklch(0.25 0.12 150))' }}>12</span>
+              <div>
+                <p className="font-bold" style={{ color: 'var(--foreground)' }}>Multi-Layer Approval Workflow</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Configurable approval chain — claim must pass all required stages before export</p>
+              </div>
+            </div>
+            <div className="comparison-section-body space-y-4">
+              <ClaimApprovalToolbar claimId={claimId} />
+              <ApprovalHistoryPanel claimId={claimId} />
             </div>
           </div>
         )}

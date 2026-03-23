@@ -17,7 +17,7 @@ import { Separator } from "@/components/ui/separator";
 import {
   Users, TrendingUp, AlertTriangle, CheckCircle, XCircle, Settings,
   Brain, Database, BarChart3, Target, Loader2, FileText, ArrowUpDown,
-  Activity, Zap, Shield
+  Activity, Zap, Shield, GitBranch
 } from "lucide-react";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
@@ -422,6 +422,20 @@ export default function AdminDashboard() {
               >
                 <Brain className="mr-2 h-4 w-4" />
                 ML Review Queue
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/admin/workflows")}
+              >
+                <GitBranch className="mr-2 h-4 w-4" />
+                Workflow Templates
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setLocation("/admin/escalation")}
+              >
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Escalation Queue
               </Button>
             </div>
             {/* Training Overview */}

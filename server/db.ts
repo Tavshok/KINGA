@@ -1959,3 +1959,68 @@ export async function insertCostLearningRecord(
     return null;
   }
 }
+
+/**
+ * getActiveCalibrationMultiplier
+ *
+ * Returns the most recent approved calibration cost multiplier for the given
+ * tenant + jurisdiction combination. Falls back to 'global' if no
+ * jurisdiction-specific override exists.
+ *
+ * The multiplier is stored as an integer × 1000 in the DB (e.g. 800 = 0.800).
+ * Returns a float (e.g. 0.800) ready to multiply against cost estimates.
+ * Returns 1.0 if no approved override exists.
+ */
+export async function getActiveCalibrationMultiplier(
+  tenantId: string | null,
+  jurisdiction: string,
+  scenarioType?: string | null
+): Promise<number> {
+  try {
+    const { calibrationOverrides } = await import("../drizzle/schema");
+    const { eq, and, or, isNull, desc } = await import("drizzle-orm");
+
+    // Try jurisdiction-specific first, then fall back to 'global'
+    const jurisdictions = jurisdiction !== "global"
+      ? [jurisdiction, "global"]
+      : ["global"];
+
+    for (const jur of jurisdictions) {
+      const conditions = [
+        eq(calibrationOverrides.status, "approved"),
+        eq(calibrationOverrides.jurisdiction, jur),
+      ];
+      if (tenantId) {
+        conditions.push(eq(calibrationOverrides.tenantId, tenantId));
+      }
+
+      const rows = await db
+        .select({
+          costMultiplier: calibrationOverrides.costMultiplier,
+          scenarioType: calibrationOverrides.scenarioType,
+        })
+        .from(calibrationOverrides)
+        .where(and(...conditions))
+        .orderBy(desc(calibrationOverrides.approvedAt))
+        .limit(10);
+
+      if (rows.length === 0) continue;
+
+      // Prefer scenario-specific match, then null (applies to all)
+      const scenarioMatch = scenarioType
+        ? rows.find((r) => r.scenarioType === scenarioType)
+        : null;
+      const globalMatch = rows.find((r) => r.scenarioType === null || r.scenarioType === undefined);
+
+      const best = scenarioMatch ?? globalMatch ?? rows[0];
+      if (best?.costMultiplier != null) {
+        return best.costMultiplier / 1000; // convert int×1000 back to float
+      }
+    }
+
+    return 1.0; // No override found — use identity multiplier
+  } catch (err) {
+    console.warn("[CalibrationOverride] Failed to fetch multiplier:", err);
+    return 1.0;
+  }
+}
