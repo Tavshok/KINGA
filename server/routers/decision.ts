@@ -8,6 +8,7 @@
  */
 
 import { router, protectedProcedure } from "../_core/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import {
   evaluateClaimDecision,
@@ -31,6 +32,10 @@ import {
   aggregateContradictionStats,
   type ContradictionInput,
 } from "../pipeline-v2/contradictionDetectionEngine";
+import {
+  generateClaimExplanation as generateExplanation,
+  type ExplanationInput,
+} from "../pipeline-v2/claimsExplanationEngine";
 import { getDb } from "../db";
 import { aiAssessments, claims } from "../../drizzle/schema";
 import { desc, isNotNull, eq } from "drizzle-orm";
@@ -630,5 +635,111 @@ export const decisionRouter = router({
         sample_results: sampleResults,
         total_evaluated: results.length,
       };
+    }),
+
+  // ─── generateClaimExplanation ──────────────────────────────────────────────
+  generateClaimExplanation: protectedProcedure
+    .input(
+      z.object({
+        recommendation: z.enum(["APPROVE", "REVIEW", "REJECT"]),
+        key_drivers: z.array(z.string()),
+        reasoning: z.string(),
+        confidence: z.number().min(0).max(100).nullable().optional(),
+        decision_basis: z
+          .enum(["assessor_validated", "system_validated", "insufficient_data"])
+          .nullable()
+          .optional(),
+        claim_reference: z.string().nullable().optional(),
+        incident_type: z.string().nullable().optional(),
+        severity: z.string().nullable().optional(),
+        estimated_cost: z.number().nullable().optional(),
+        currency: z.string().nullable().optional(),
+        fraud_risk_level: z.string().nullable().optional(),
+        physics_plausible: z.boolean().nullable().optional(),
+        damage_consistent: z.boolean().nullable().optional(),
+        consistency_status: z.string().nullable().optional(),
+        blocking_factors: z.array(z.string()).nullable().optional(),
+        warnings: z.array(z.string()).nullable().optional(),
+      })
+    )
+    .query(({ input }) => {
+      return generateExplanation(input as ExplanationInput);
+    }),
+
+  // ─── getClaimExplanation ───────────────────────────────────────────────────
+  getClaimExplanation: protectedProcedure
+    .input(z.object({ claimId: z.number() }))
+    .query(async ({ input }) => {
+      const drizzle = await getDb();
+      if (!drizzle) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "DB unavailable" });
+
+      const rows = await drizzle
+        .select({
+          id: aiAssessments.id,
+          confidenceScore: aiAssessments.confidenceScore,
+          fraudRiskLevel: aiAssessments.fraudRiskLevel,
+          estimatedCost: aiAssessments.estimatedCost,
+          structuralDamageSeverity: aiAssessments.structuralDamageSeverity,
+          consistencyCheckJson: aiAssessments.consistencyCheckJson,
+          fraudIndicators: aiAssessments.fraudIndicators,
+          incidentType: claims.incidentType,
+          finalApprovedAmount: claims.finalApprovedAmount,
+          fraudRiskLevelClaim: claims.fraudRiskLevel,
+          workflowState: claims.workflowState,
+        })
+        .from(aiAssessments)
+        .innerJoin(claims, eq(claims.id, aiAssessments.claimId))
+        .where(eq(aiAssessments.claimId, input.claimId))
+        .orderBy(desc(aiAssessments.createdAt))
+        .limit(1);
+
+      if (rows.length === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "No assessment found for this claim" });
+      }
+
+      const row = rows[0];
+
+      // Derive recommendation from fraud risk level and workflow state
+      const fraudLevel = (row.fraudRiskLevel ?? row.fraudRiskLevelClaim ?? "low").toLowerCase();
+      const rec: "APPROVE" | "REVIEW" | "REJECT" =
+        fraudLevel === "high" || fraudLevel === "critical" ? "REJECT"
+        : fraudLevel === "elevated" || fraudLevel === "medium" ? "REVIEW"
+        : (row.workflowState === "closed" || row.workflowState === "payment_authorized" ? "APPROVE" : "REVIEW");
+
+      // Parse fraud indicators as key drivers
+      let keyDrivers: string[] = [];
+      try {
+        const fi = typeof row.fraudIndicators === "string"
+          ? JSON.parse(row.fraudIndicators as string)
+          : row.fraudIndicators;
+        if (Array.isArray(fi)) keyDrivers = fi.map(String);
+      } catch { /* ignore */ }
+
+      // Parse consistency check
+      let consistencyStatus: string | null = null;
+      try {
+        const cc = typeof row.consistencyCheckJson === "string"
+          ? JSON.parse(row.consistencyCheckJson as string)
+          : row.consistencyCheckJson;
+        if (cc && typeof cc === "object") {
+          consistencyStatus = (cc as Record<string, unknown>).status as string
+            ?? (cc as Record<string, unknown>).overall_status as string
+            ?? null;
+        }
+      } catch { /* ignore */ }
+
+      const explanationInput: ExplanationInput = {
+        recommendation: rec,
+        key_drivers: keyDrivers,
+        reasoning: "",
+        confidence: row.confidenceScore,
+        incident_type: row.incidentType,
+        severity: row.structuralDamageSeverity,
+        estimated_cost: row.finalApprovedAmount != null ? Number(row.finalApprovedAmount) : (row.estimatedCost != null ? Number(row.estimatedCost) : null),
+        fraud_risk_level: row.fraudRiskLevel ?? row.fraudRiskLevelClaim,
+        consistency_status: consistencyStatus,
+      };
+
+      return generateExplanation(explanationInput);
     }),
 });
