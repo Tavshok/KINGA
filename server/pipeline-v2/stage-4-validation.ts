@@ -98,7 +98,7 @@ function emptyExtraction(): ExtractedClaimFields {
     incidentType: null, accidentType: null, impactPoint: null,
     estimatedSpeedKmh: null, policeReportNumber: null, policeStation: null,
     assessorName: null, panelBeater: null, repairerCompany: null,
-    quoteTotalCents: null, labourCostCents: null, partsCostCents: null,
+    quoteTotalCents: null, agreedCostCents: null, labourCostCents: null, partsCostCents: null,
     damageDescription: null, damagedComponents: [],
     structuralDamage: null, airbagDeployment: null,
     maxCrushDepthM: null, totalDamageAreaM2: null,
@@ -303,6 +303,83 @@ export async function runValidationStage(
         });
       }
       ctx.log("Stage 4", `DB recovery filled ${filled.length} field(s): ${filled.join(", ")}`);
+    }
+
+    // Step 3b: Input Recovery backfill — apply stage-3 recovered fields into validatedFields.
+    // This is the fix for the Mazda BT50 audit failure:
+    // stage-3 ran the 5-step input recovery (accident description, quote, speed) but
+    // stage-4 never applied those recovered values back into validatedFields, so
+    // downstream engines (stage-7 physics, stage-9 cost) received null for these fields.
+    const ir = stage3.inputRecovery;
+    if (ir) {
+      // Backfill accident description from input recovery
+      if (!validatedFields.accidentDescription && ir.accident_description) {
+        validatedFields.accidentDescription = ir.accident_description;
+        recoveryActions.push({
+          target: "accidentDescription",
+          strategy: "cross_document_search",
+          success: true,
+          description: `Accident description recovered from stage-3 input recovery (regex/LLM fallback).`,
+          recoveredValue: ir.accident_description,
+        });
+        ctx.log("Stage 4", `Input recovery backfill: accidentDescription recovered (${ir.accident_description.length} chars)`);
+      }
+
+      // Backfill quote total from input recovery — prefer agreed/adjusted cost
+      if (!validatedFields.quoteTotalCents) {
+        // Priority 1: LLM-extracted quotes (highest confidence)
+        const llmQuote = ir.extracted_quotes?.find(q => q.total_cost !== null && q.confidence !== 'low');
+        if (llmQuote?.total_cost) {
+          validatedFields.quoteTotalCents = Math.round(llmQuote.total_cost * 100);
+          recoveryActions.push({
+            target: "quoteTotalCents",
+            strategy: "cross_document_search",
+            success: true,
+            description: `Quote total recovered from stage-3 LLM quote extraction: ${llmQuote.currency} ${llmQuote.total_cost} (confidence: ${llmQuote.confidence}).`,
+            recoveredValue: validatedFields.quoteTotalCents,
+          });
+          ctx.log("Stage 4", `Input recovery backfill: quoteTotalCents = ${validatedFields.quoteTotalCents} (LLM, ${llmQuote.confidence})`);
+        } else if (ir.recovered_quote?.total) {
+          // Priority 2: regex-recovered quote
+          validatedFields.quoteTotalCents = Math.round(ir.recovered_quote.total * 100);
+          if (!validatedFields.labourCostCents && ir.recovered_quote.labour) {
+            validatedFields.labourCostCents = Math.round(ir.recovered_quote.labour * 100);
+          }
+          if (!validatedFields.partsCostCents && ir.recovered_quote.parts) {
+            validatedFields.partsCostCents = Math.round(ir.recovered_quote.parts * 100);
+          }
+          recoveryActions.push({
+            target: "quoteTotalCents",
+            strategy: "cross_document_search",
+            success: true,
+            description: `Quote total recovered from stage-3 regex recovery: ${ir.recovered_quote.total} (source: ${ir.recovered_quote.source}, confidence: ${ir.recovered_quote.confidence}).`,
+            recoveredValue: validatedFields.quoteTotalCents,
+          });
+          ctx.log("Stage 4", `Input recovery backfill: quoteTotalCents = ${validatedFields.quoteTotalCents} (regex, ${ir.recovered_quote.confidence})`);
+        }
+      }
+
+      // Backfill speed from input recovery — parse from accident description if still missing
+      if (!validatedFields.estimatedSpeedKmh && ir.accident_description) {
+        // Look for speed patterns: "90 KM/HRS", "90km/h", "90 kph", "travelling at 90"
+        const speedMatch = ir.accident_description.match(
+          /(?:speed|travelling|traveling|doing|at)\s*(?:of\s*)?([0-9]+(?:\.[0-9]+)?)\s*(?:km\/h|kmh|kph|km\/hrs?|km\/hour|mph)?/i
+        ) || ir.accident_description.match(/([0-9]+(?:\.[0-9]+)?)\s*(?:km\/h|kmh|kph|km\/hrs?|km\/hour)/i);
+        if (speedMatch) {
+          const speedVal = parseFloat(speedMatch[1]);
+          if (!isNaN(speedVal) && speedVal > 0 && speedVal < 300) {
+            validatedFields.estimatedSpeedKmh = speedVal;
+            recoveryActions.push({
+              target: "estimatedSpeedKmh",
+              strategy: "contextual_inference",
+              success: true,
+              description: `Speed recovered from accident description narrative: ${speedVal} km/h.`,
+              recoveredValue: speedVal,
+            });
+            ctx.log("Stage 4", `Input recovery backfill: estimatedSpeedKmh = ${speedVal} (from narrative)`);
+          }
+        }
+      }
     }
 
     // Step 4: Vehicle data recovery — infer missing vehicle/accident data

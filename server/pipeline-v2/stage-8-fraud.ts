@@ -140,25 +140,46 @@ function analyseDocumentation(
   const indicators: FraudIndicator[] = [];
 
   if (!claimRecord.policeReport.reportNumber) {
-    // PERMANENT FIX: Only fire this indicator if extraction itself did not fail.
-    // If OCR failed or the document was not fully processed, the police report number
-    // may simply not have been read — this is a system gap, not a fraud signal.
+    // Check 1: Was extraction itself incomplete? If so, treat as system gap, not fraud.
     const extractionFailed = inputRecovery?.failure_flags?.some(
       f => f === 'ocr_failure' || f === 'quote_not_mapped'
     ) ?? false;
-    if (!extractionFailed) {
+
+    // Check 2: Does the accident narrative confirm police were notified at scene?
+    // This handles the common case where police were reported verbally but no case
+    // number was recorded in the claim document (e.g. Mazda BT50 CI-024NATPHARM).
+    const narrative = (claimRecord.accidentDetails.description || "").toLowerCase();
+    const verbalPoliceReport = (
+      /reported\s+(?:the\s+)?(?:issue|incident|accident|matter)\s+to\s+(?:the\s+)?police/i.test(narrative) ||
+      /immediately\s+reported\s+(?:to\s+)?(?:the\s+)?police/i.test(narrative) ||
+      /reported\s+to\s+(?:the\s+)?police/i.test(narrative) ||
+      /notified\s+(?:the\s+)?police/i.test(narrative) ||
+      /police\s+(?:were\s+)?(?:called|notified|informed|alerted)/i.test(narrative) ||
+      /went\s+to\s+(?:the\s+)?police/i.test(narrative)
+    );
+
+    if (verbalPoliceReport) {
+      // Driver narrative confirms police were notified — downgrade to low-score informational flag.
+      // No case number was recorded but verbal reporting is confirmed.
       indicators.push({
-        indicator: "missing_police_report",
+        indicator: "police_report_verbal_only",
         category: "documentation",
-        score: 10,
-        description: "No police report number found in the claim document.",
+        score: 3,
+        description: "Driver narrative confirms police were notified at scene, but no case number was recorded in the claim document. Manual verification of police report number recommended.",
       });
-    } else {
+    } else if (extractionFailed) {
       indicators.push({
         indicator: "police_report_extraction_uncertain",
         category: "documentation",
         score: 3,
         description: "Police report number could not be confirmed — document extraction was incomplete. Manual verification required.",
+      });
+    } else {
+      indicators.push({
+        indicator: "missing_police_report",
+        category: "documentation",
+        score: 10,
+        description: "No police report number found in the claim document and driver narrative does not confirm police notification.",
       });
     }
   }

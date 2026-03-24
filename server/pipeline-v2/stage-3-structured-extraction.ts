@@ -54,13 +54,14 @@ const EXTRACTION_SCHEMA = {
         incidentType: { type: ["string", "null"], description: "Type of incident: collision, theft, vandalism, flood, fire" },
         accidentType: { type: ["string", "null"], description: "Collision direction: frontal, rear, side_driver, side_passenger, rollover, multi_impact" },
         impactPoint: { type: ["string", "null"], description: "Primary point of impact on the vehicle" },
-        estimatedSpeedKmh: { type: ["number", "null"], description: "Speed at impact in km/h. PRIORITY ORDER: (1) Use the explicitly stated speed from the claim form field 'What was your speed?' or similar. (2) Use any speed stated in the accident narrative. (3) Only estimate if no speed is stated anywhere. For this claim form, look for a field labelled 'speed' near the accident circumstances section." },
+        estimatedSpeedKmh: { type: ["number", "null"], description: "Speed at impact in km/h. PRIORITY ORDER: (1) Use the explicitly stated speed from the claim form field 'What was your speed?' or similar — look for a field labelled 'speed' near the accident circumstances section. (2) Use any speed stated in the accident narrative. (3) Only estimate if no speed is stated anywhere. IMPORTANT: Extract the numeric value ONLY — strip any unit suffix such as KM/HRS, KM/H, KPH, MPH, km/h, kph. Example: '90KM/HRS' → 90, '90 km/h' → 90, '120kph' → 120." },
         policeReportNumber: { type: ["string", "null"], description: "Police report/case number" },
         policeStation: { type: ["string", "null"], description: "Police station name" },
         assessorName: { type: ["string", "null"], description: "Name of the assessor" },
         panelBeater: { type: ["string", "null"], description: "Name of panel beater/repairer" },
         repairerCompany: { type: ["string", "null"], description: "Repair company name" },
-        quoteTotalCents: { type: ["integer", "null"], description: "Total repair quote in cents" },
+        quoteTotalCents: { type: ["integer", "null"], description: "Total repair quote in cents. Use the FINAL 'Total (Incl)' value after any discount. The repair quotation is typically on the LAST pages of the document — ensure you read ALL pages. Convert to cents (multiply by 100)." },
+        agreedCostCents: { type: ["integer", "null"], description: "The agreed/settled/negotiated repair cost in cents. Look for handwritten annotations like 'Agreed USD X.XX', 'Cost Agreed Less', 'Agreed amount', 'Authorised amount', or assessor-negotiated totals. Convert to cents (multiply by 100). This is often LESS than the original quote total." },
         labourCostCents: { type: ["integer", "null"], description: "Total labour cost in cents" },
         partsCostCents: { type: ["integer", "null"], description: "Total parts cost in cents" },
         damageDescription: { type: ["string", "null"], description: "Overall damage description" },
@@ -94,7 +95,7 @@ const EXTRACTION_SCHEMA = {
         "incidentType", "accidentType", "impactPoint", "estimatedSpeedKmh",
         "policeReportNumber", "policeStation",
         "assessorName", "panelBeater", "repairerCompany",
-        "quoteTotalCents", "labourCostCents", "partsCostCents",
+        "quoteTotalCents", "agreedCostCents", "labourCostCents", "partsCostCents",
         "damageDescription", "damagedComponents",
         "structuralDamage", "airbagDeployment", "maxCrushDepthM", "totalDamageAreaM2",
         "thirdPartyVehicle", "thirdPartyRegistration",
@@ -147,8 +148,15 @@ CRITICAL POLICE REPORT EXTRACTION RULES:
   * Numbers adjacent to "police", "station", "report" anywhere in the document
 - policeStation: Extract the name of the police station if mentioned anywhere.
 
+CRITICAL SPEED EXTRACTION RULES:
+- estimatedSpeedKmh: Extract the numeric value ONLY. Strip any unit suffix (KM/HRS, KM/H, KPH, MPH, km/h, kph).
+  Example: '90KM/HRS' → 90, '90 km/h' → 90, '120kph' → 120.
+  Look for a field labelled 'Speed', 'What was your speed?', 'Speed at time of accident', or similar near the accident circumstances section.
+  Also check the accident narrative for phrases like 'travelling at 90 KM/HRS', 'doing 60 km/h', 'speed of 80'.
+
 CRITICAL COST EXTRACTION RULES:
-- quoteTotalCents: use the LOWEST or AGREED/ADJUSTED cost figure (in cents). If an assessor negotiated a lower amount, use that. If only one figure exists, use it.
+- quoteTotalCents: The repair quotation is typically on the LAST pages of the document — read ALL pages. Use the FINAL 'Total (Incl)' or 'Grand Total' figure (in cents).
+- agreedCostCents: Look for handwritten or typed annotations like 'Agreed USD X.XX', 'Cost Agreed Less', 'Agreed amount', 'Authorised amount', 'Settled at', or assessor-negotiated totals. This is often LESS than the original quote total. Convert to cents.
 - labourCostCents / partsCostCents: extract from any itemised breakdown, repair schedule, or quotation table.
 - Convert all monetary values to cents (multiply USD/ZWL figure by 100).
 - Look for repair quotes, parts schedules, and labour breakdowns on ALL pages.
@@ -253,7 +261,8 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     assessorName: raw.assessorName || null,
     panelBeater: raw.panelBeater || null,
     repairerCompany: raw.repairerCompany || null,
-    quoteTotalCents: raw.quoteTotalCents || null,
+    quoteTotalCents: raw.quoteTotalCents || raw.agreedCostCents || null,
+    agreedCostCents: raw.agreedCostCents || null,
     labourCostCents: raw.labourCostCents || null,
     partsCostCents: raw.partsCostCents || null,
     damageDescription: raw.damageDescription || null,

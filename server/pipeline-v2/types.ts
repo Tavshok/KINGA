@@ -224,6 +224,8 @@ export interface ExtractedClaimFields {
   repairerCompany: string | null;
   // Financial
   quoteTotalCents: number | null;
+  /** Agreed/settled/negotiated repair cost — may differ from original quote total */
+  agreedCostCents: number | null;
   labourCostCents: number | null;
   partsCostCents: number | null;
   // Damage
@@ -406,6 +408,8 @@ export interface RepairQuoteRecord {
   repairerCompany: string | null;
   assessorName: string | null;
   quoteTotalCents: number | null;
+  /** Agreed/settled/negotiated repair cost — may differ from original quote total */
+  agreedCostCents: number | null;
   labourCostCents: number | null;
   partsCostCents: number | null;
   lineItems: RepairLineItem[];

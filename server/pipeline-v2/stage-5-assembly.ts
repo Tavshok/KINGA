@@ -300,7 +300,10 @@ export async function runAssemblyStage(
       repairerName: v.panelBeater || null,
       repairerCompany: v.repairerCompany || null,
       assessorName: v.assessorName || null,
+      // Prefer agreed/negotiated cost over original quote total.
+      // The agreed cost is the assessor-negotiated amount (e.g. USD 462.33 vs USD 591.33).
       quoteTotalCents: v.quoteTotalCents || null,
+      agreedCostCents: v.agreedCostCents || null,
       labourCostCents: v.labourCostCents || null,
       partsCostCents: v.partsCostCents || null,
       lineItems: [],
@@ -397,7 +400,7 @@ export async function runAssemblyStage(
       damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
       repairQuote: {
         repairerName: null, repairerCompany: null, assessorName: null,
-        quoteTotalCents: null, labourCostCents: null, partsCostCents: null, lineItems: [],
+        quoteTotalCents: null, agreedCostCents: null, labourCostCents: null, partsCostCents: null, lineItems: [],
       },
       dataQuality: { completenessScore: 0, missingFields: ["all"], validationIssues: [] },
       marketRegion: "ZW",
@@ -473,8 +476,9 @@ async function inferIncidentFromDescriptionLLM(description: string): Promise<{
         {
           role: "system",
           content: `You are an insurance claim incident classifier. Given an accident description, determine:
-1. incidentType: one of "collision" | "theft" | "vandalism" | "flood" | "fire" | "unknown"
-   - "collision" covers ANY physical impact: vehicle vs vehicle, vehicle vs animal (cow, goat, kudu, nyala, eland, bushbuck, wildebeest, gnu, springbok, gemsbok, oryx, steenbok, duiker, warthog, baboon, zebra, buffalo, elephant, giraffe, rhino, hippo, ostrich, guinea fowl, hadeda, mongoose, porcupine, vervet monkey, dassie, rock rabbit, hyrax, bushpig, waterbuck, reedbuck, caracal, jackal, hyena, cheetah, leopard, lion, deer, horse, donkey, sheep, cattle, pedestrian, cyclist, etc.), vehicle vs object (tree, pole, wall, barrier, ditch, pothole, corrugated road, gravel road, sand drift, wash-away, donga, speed hump), single-vehicle rollover, etc.
+1. incidentType: one of "collision" | "animal_strike" | "theft" | "vandalism" | "flood" | "fire" | "unknown"
+   - "animal_strike" covers ANY impact with an animal: cow, cattle, bull, goat, sheep, horse, donkey, pig, dog, kudu, nyala, eland, bushbuck, wildebeest, gnu, springbok, gemsbok, oryx, steenbok, duiker, warthog, baboon, zebra, buffalo, elephant, giraffe, rhino, hippo, ostrich, guinea fowl, hadeda, mongoose, porcupine, vervet monkey, dassie, rock rabbit, hyrax, bushpig, waterbuck, reedbuck, caracal, jackal, hyena, cheetah, leopard, lion, deer, etc. USE THIS when the description mentions hitting, striking, or colliding with any animal.
+   - "collision" covers vehicle vs vehicle, vehicle vs object (tree, pole, wall, barrier, ditch, pothole, corrugated road, gravel road, sand drift, wash-away, donga, speed hump), pedestrian, cyclist, single-vehicle rollover. Do NOT use for animal impacts.
    - "theft" covers stolen vehicle, hijacking, attempted theft
    - "vandalism" covers deliberate damage, break-in, malicious damage
    - "flood" covers water damage, hail, storm
@@ -523,7 +527,7 @@ Return ONLY valid JSON matching the schema. No markdown, no explanation outside 
     const content = typeof rawContent === "string" ? rawContent : (rawContent != null ? JSON.stringify(rawContent) : "{}");
     const parsed = JSON.parse(content);
     // Validate and normalise the LLM output
-    const validIncidentTypes: CanonicalIncidentType[] = ["collision", "theft", "vandalism", "flood", "fire", "unknown"];
+    const validIncidentTypes: CanonicalIncidentType[] = ["collision", "animal_strike", "theft", "vandalism", "flood", "fire", "unknown"];
     const validDirections: CollisionDirection[] = ["frontal", "rear", "side_driver", "side_passenger", "rollover", "multi_impact", "unknown"];
     return {
       incidentType: validIncidentTypes.includes(parsed.incidentType) ? parsed.incidentType : "collision",

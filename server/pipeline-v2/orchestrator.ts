@@ -778,6 +778,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       repairerCompany: null,
       assessorName: null,
       quoteTotalCents: null,
+      agreedCostCents: null,
       labourCostCents: null,
       partsCostCents: null,
       uploadedImageUrls: [],
@@ -829,7 +830,7 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
     damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
     repairQuote: {
       repairerName: null, repairerCompany: null, assessorName: null,
-      quoteTotalCents: null, labourCostCents: null, partsCostCents: null, lineItems: [],
+      quoteTotalCents: null, agreedCostCents: null, labourCostCents: null, partsCostCents: null, lineItems: [],
     },
     dataQuality: { completenessScore: 5, missingFields: ["all"], validationIssues: [] },
     marketRegion: "ZW",
