@@ -59,11 +59,11 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const STATUS_CONFIG = {
-  pending: { label: "Pending", color: "bg-gray-100 text-gray-700", icon: Clock },
-  in_progress: { label: "In Progress", color: "bg-blue-100 text-blue-700", icon: Clock },
-  approved: { label: "Approved", color: "bg-green-100 text-green-700", icon: CheckCircle2 },
-  rejected: { label: "Rejected", color: "bg-red-100 text-red-700", icon: XCircle },
-  returned: { label: "Returned", color: "bg-yellow-100 text-yellow-700", icon: RotateCcw },
+  pending:     { label: "Pending",     color: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600",           icon: Clock },
+  in_progress: { label: "In Progress", color: "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 border border-blue-300 dark:border-blue-700",     icon: Clock },
+  approved:    { label: "Approved",    color: "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200 border border-green-300 dark:border-green-700", icon: CheckCircle2 },
+  rejected:    { label: "Rejected",    color: "bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 border border-red-300 dark:border-red-700",           icon: XCircle },
+  returned:    { label: "Returned",    color: "bg-yellow-100 dark:bg-yellow-900/40 text-yellow-800 dark:text-yellow-200 border border-yellow-300 dark:border-yellow-700", icon: RotateCcw },
 };
 
 // ─── Action Dialog ─────────────────────────────────────────────────────────────
@@ -158,11 +158,11 @@ function StageProgressBar({
             <div
               className={`flex items-center gap-1 px-2 py-1 rounded text-xs font-medium transition-all ${
                 isComplete
-                  ? "bg-green-100 text-green-700"
+                  ? "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
                   : isCurrent
-                  ? "bg-blue-100 text-blue-700 ring-2 ring-blue-300"
-                  : "bg-gray-100 text-gray-500"
-              } ${!stage.required ? "opacity-70 border border-dashed border-current" : ""}`}
+                  ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 ring-2 ring-blue-300 dark:ring-blue-700"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+              } ${!stage.required ? "opacity-80 border border-dashed border-current" : ""}`}
             >
               {isComplete ? (
                 <CheckCircle2 className="h-3 w-3" />
@@ -296,24 +296,24 @@ export default function ClaimApprovalToolbar({ claimId }: { claimId: number }) {
 
         {/* Current stage info */}
         {currentStage && status.overall_status !== "approved" && status.overall_status !== "rejected" && (
-          <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-blue-800">
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3 space-y-2">
+            <div className="flex items-center gap-2 text-sm font-medium text-blue-800 dark:text-blue-200">
               <Clock className="h-4 w-4" />
               Awaiting: {currentStage.stage_name}
             </div>
-            <div className="flex items-center gap-2 text-xs text-blue-700">
+            <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
               <User className="h-3 w-3" />
               Role required: <strong>{ROLE_LABELS[currentStage.role_key] ?? currentStage.role_key}</strong>
             </div>
             {currentStage.description && (
-              <p className="text-xs text-blue-600">{currentStage.description}</p>
+              <p className="text-xs text-blue-600 dark:text-blue-300">{currentStage.description}</p>
             )}
           </div>
         )}
 
         {/* Approved banner */}
         {status.overall_status === "approved" && (
-          <div className="rounded-lg bg-green-50 border border-green-200 p-3 flex items-center gap-2 text-green-800 text-sm font-medium">
+          <div className="rounded-lg bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 p-3 flex items-center gap-2 text-green-800 dark:text-green-200 text-sm font-medium">
             <CheckCircle2 className="h-4 w-4" />
             All required approval stages complete. Claim is ready for export.
           </div>
@@ -321,7 +321,7 @@ export default function ClaimApprovalToolbar({ claimId }: { claimId: number }) {
 
         {/* Rejected banner */}
         {status.overall_status === "rejected" && (
-          <div className="rounded-lg bg-red-50 border border-red-200 p-3 flex items-center gap-2 text-red-800 text-sm font-medium">
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 p-3 flex items-center gap-2 text-red-800 dark:text-red-200 text-sm font-medium">
             <XCircle className="h-4 w-4" />
             Claim has been rejected at an approval stage.
           </div>
@@ -332,7 +332,7 @@ export default function ClaimApprovalToolbar({ claimId }: { claimId: number }) {
           <div className="flex items-center gap-2 pt-1">
             <ActionDialog
               trigger={
-                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white">
+                <Button size="sm" className="bg-green-600 hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600 text-white font-semibold">
                   <CheckCircle2 className="h-4 w-4 mr-1" /> Approve
                 </Button>
               }
@@ -348,7 +348,7 @@ export default function ClaimApprovalToolbar({ claimId }: { claimId: number }) {
             {currentStage.can_request_info && (
               <ActionDialog
                 trigger={
-                  <Button size="sm" variant="outline" className="border-yellow-400 text-yellow-700 hover:bg-yellow-50">
+                  <Button size="sm" variant="outline" className="border-yellow-400 dark:border-yellow-600 text-yellow-700 dark:text-yellow-300 hover:bg-yellow-50 dark:hover:bg-yellow-900/30">
                     <RotateCcw className="h-4 w-4 mr-1" /> Return
                   </Button>
                 }

@@ -84,21 +84,21 @@ export function ClaimCard({
     if (!status) return null;
     
     const statusConfig: Record<string, { variant: "default" | "secondary" | "destructive" | "outline"; color: string }> = {
-      pending: { variant: "outline", color: "text-slate-700 dark:text-foreground/80" },
-      in_review: { variant: "secondary", color: "text-amber-700 dark:text-amber-300" },
-      ai_flagged: { variant: "destructive", color: "text-red-700 dark:text-red-300" },
-      completed: { variant: "default", color: "text-green-700 dark:text-green-300" },
-      created: { variant: "outline", color: "text-slate-700 dark:text-foreground/80" },
-      assigned: { variant: "secondary", color: "text-blue-700 dark:text-blue-300" },
-      disputed: { variant: "destructive", color: "text-orange-700 dark:text-orange-300" },
+      pending:             { variant: "outline",      color: "text-slate-700 dark:text-slate-200" },
+      in_review:           { variant: "secondary",    color: "text-amber-700 dark:text-amber-300" },
+      ai_flagged:          { variant: "destructive",  color: "text-red-700 dark:text-red-300" },
+      completed:           { variant: "default",      color: "text-green-700 dark:text-green-300" },
+      created:             { variant: "outline",      color: "text-slate-700 dark:text-slate-200" },
+      assigned:            { variant: "secondary",    color: "text-blue-700 dark:text-blue-300" },
+      disputed:            { variant: "destructive",  color: "text-orange-700 dark:text-orange-300" },
       // Document-ingestion statuses
-      intake_pending: { variant: "outline", color: "text-amber-700 dark:text-amber-300" },
-      quotes_pending: { variant: "secondary", color: "text-blue-700 dark:text-blue-300" },
-      assessment_complete: { variant: "default", color: "text-teal-700 dark:text-teal-300" },
-      closed: { variant: "default", color: "text-green-700 dark:text-green-300" },
+      intake_pending:      { variant: "outline",      color: "text-amber-700 dark:text-amber-300" },
+      quotes_pending:      { variant: "secondary",    color: "text-blue-700 dark:text-blue-300" },
+      assessment_complete: { variant: "default",      color: "text-teal-700 dark:text-teal-300" },
+      closed:              { variant: "default",      color: "text-green-700 dark:text-green-300" },
     };
 
-    const config = statusConfig[status] || { variant: "outline" as const, color: "text-slate-700 dark:text-foreground/80" };
+    const config = statusConfig[status] || { variant: "outline" as const, color: "text-slate-700 dark:text-slate-200" };
     
     return (
       <Badge variant={config.variant} className={config.color}>

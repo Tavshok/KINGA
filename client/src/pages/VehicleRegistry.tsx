@@ -89,9 +89,9 @@ function claimStatusBadge(status: string) {
     assessment_complete: { label: "Assessed", className: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200" },
     completed: { label: "Completed", className: "bg-green-600 text-white" },
     rejected: { label: "Rejected", className: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200" },
-    intake_pending: { label: "Pending", className: "bg-gray-100 dark:bg-muted text-gray-800 dark:text-foreground" },
+    intake_pending: { label: "Pending", className: "bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200" },
   };
-  const entry = map[status] ?? { label: status, className: "bg-gray-100 dark:bg-muted text-gray-700 dark:text-foreground/80" };
+  const entry = map[status] ?? { label: status, className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200" };
   return <Badge className={`text-xs ${entry.className}`}>{entry.label}</Badge>;
 }
 

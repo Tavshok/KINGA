@@ -159,7 +159,7 @@ export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
           </div>
           <div>
             <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Risk Radar</h3>
-            <p className="text-xs" style={{ color: 'oklch(0.48 0.015 250)' }}>Proactive risk monitoring · Real-time severity</p>
+            <p className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>Proactive risk monitoring · Real-time severity</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -207,7 +207,7 @@ export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
               </div>
               <h4 className="text-sm font-semibold mb-1" style={{ color: 'var(--foreground)' }}>{alert.title}</h4>
               <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--muted-foreground)' }}>{alert.description}</p>
-              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: 'oklch(0.48 0.015 250)' }}>
+              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: 'oklch(0.65 0.015 250)' }}>
                 <span>Current: <span className="font-bold" style={{ color: 'var(--foreground)' }}>{alert.metric}</span></span>
                 <span>Threshold: {alert.threshold}</span>
               </div>

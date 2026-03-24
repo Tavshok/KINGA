@@ -174,13 +174,13 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
           )}
         </div>
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.48 0.015 250)' }}>{title}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.65 0.015 250)' }}>{title}</p>
           <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
           {subtitle && (
             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
           )}
           {trend && (
-            <p className="text-xs" style={{ color: 'oklch(0.42 0.015 250)' }}>{trend.label}</p>
+            <p className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>{trend.label}</p>
           )}
         </div>
       </div>

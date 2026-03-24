@@ -65,9 +65,9 @@ function statusBadge(status: string) {
     quoted:   { label: "Quoted",   className: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700" },
     accepted: { label: "Accepted", className: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700" },
     rejected: { label: "Rejected", className: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700" },
-    expired:  { label: "Expired",  className: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-gray-300 dark:border-border" },
+    expired:  { label: "Expired",  className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600" },
   };
-  const v = variants[status] ?? { label: status, className: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground" };
+  const v = variants[status] ?? { label: status, className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300" };
   return <Badge variant="outline" className={`text-xs ${v.className}`}>{v.label}</Badge>;
 }
 

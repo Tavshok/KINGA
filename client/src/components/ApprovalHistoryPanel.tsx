@@ -43,32 +43,32 @@ const DECISION_CONFIG: Record<
 > = {
   approved: {
     label: "Approved",
-    color: "text-green-700",
-    bgColor: "bg-green-100 border-green-300",
+    color: "text-green-700 dark:text-green-200",
+    bgColor: "bg-green-100 dark:bg-green-900/40 border-green-300 dark:border-green-700",
     icon: CheckCircle2,
   },
   rejected: {
     label: "Rejected",
-    color: "text-red-700",
-    bgColor: "bg-red-100 border-red-300",
+    color: "text-red-700 dark:text-red-200",
+    bgColor: "bg-red-100 dark:bg-red-900/40 border-red-300 dark:border-red-700",
     icon: XCircle,
   },
   returned: {
     label: "Returned",
-    color: "text-yellow-700",
-    bgColor: "bg-yellow-100 border-yellow-300",
+    color: "text-yellow-700 dark:text-yellow-200",
+    bgColor: "bg-yellow-100 dark:bg-yellow-900/40 border-yellow-300 dark:border-yellow-700",
     icon: RotateCcw,
   },
   escalated: {
     label: "Escalated",
-    color: "text-orange-700",
-    bgColor: "bg-orange-100 border-orange-300",
+    color: "text-orange-700 dark:text-orange-200",
+    bgColor: "bg-orange-100 dark:bg-orange-900/40 border-orange-300 dark:border-orange-700",
     icon: ArrowUpCircle,
   },
   external_received: {
     label: "External Received",
-    color: "text-purple-700",
-    bgColor: "bg-purple-100 border-purple-300",
+    color: "text-purple-700 dark:text-purple-200",
+    bgColor: "bg-purple-100 dark:bg-purple-900/40 border-purple-300 dark:border-purple-700",
     icon: CheckCircle2,
   },
 };
@@ -108,8 +108,8 @@ function TimelineEntry({
 }) {
   const cfg = DECISION_CONFIG[entry.decision] ?? {
     label: entry.decision,
-    color: "text-gray-700",
-    bgColor: "bg-gray-100 border-gray-300",
+    color: "text-gray-700 dark:text-gray-200",
+    bgColor: "bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600",
     icon: Clock,
   };
   const Icon = cfg.icon;

@@ -51,7 +51,7 @@ export function GovernanceSummaryCard({
     switch (trend) {
       case "down": return { background: 'oklch(0.65 0.18 145 / 0.12)', color: 'oklch(0.65 0.18 145)' };
       case "up":   return { background: 'oklch(0.62 0.22 25 / 0.12)',  color: 'oklch(0.62 0.22 25)'  };
-      case "stable": return { background: 'oklch(0.45 0.015 250 / 0.12)', color: 'var(--muted-foreground)' };
+      case "stable": return { background: 'oklch(0.28 0.015 250 / 0.5)', color: 'oklch(0.72 0.015 250)' };
     }
   };
 
@@ -90,7 +90,7 @@ export function GovernanceSummaryCard({
       </div>
 
       <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.48 0.015 250)' }}>{title}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.65 0.015 250)' }}>{title}</p>
         <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
         {subtitle && (
           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>

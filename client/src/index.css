@@ -80,7 +80,7 @@
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.25 0.015 250);
   --muted: oklch(0.96 0.01 185);
-  --muted-foreground: oklch(0.50 0.02 185);
+  --muted-foreground: oklch(0.45 0.02 185);
   
   /* Semantic colors */
   --destructive: oklch(0.60 0.25 25); /* Red for errors */
@@ -91,6 +91,24 @@
   --success-foreground: oklch(0.99 0 0);
   --info: oklch(0.60 0.18 230); /* Blue for info */
   --info-foreground: oklch(0.99 0 0);
+
+  /* KINGA Status Colors — WCAG AA compliant (4.5:1 minimum) */
+  /* APPROVE */
+  --status-approve-bg: #DCFCE7;
+  --status-approve-text: #166534;
+  --status-approve-border: #86EFAC;
+  /* REVIEW */
+  --status-review-bg: #FEF3C7;
+  --status-review-text: #92400E;
+  --status-review-border: #FCD34D;
+  /* REJECT */
+  --status-reject-bg: #FEE2E2;
+  --status-reject-text: #991B1B;
+  --status-reject-border: #FCA5A5;
+  /* FRAUD / HIGH RISK */
+  --status-fraud-bg: #EDE9FE;
+  --status-fraud-text: #5B21B6;
+  --status-fraud-border: #C4B5FD;
   
   /* Borders and inputs with teal tint */
   --border: oklch(0.90 0.01 185);
@@ -124,7 +142,7 @@
   
   /* Muted / subtle */
   --muted: oklch(0.20 0.018 250);
-  --muted-foreground: oklch(0.52 0.015 250);
+  --muted-foreground: oklch(0.62 0.015 250);
   
   /* Semantic */
   --destructive: oklch(0.62 0.22 25);
@@ -135,6 +153,24 @@
   --success-foreground: oklch(0.99 0 0);
   --info: oklch(0.60 0.18 230);
   --info-foreground: oklch(0.99 0 0);
+
+  /* KINGA Status Colors — WCAG AA compliant dark mode */
+  /* APPROVE */
+  --status-approve-bg: #052E16;
+  --status-approve-text: #86EFAC;
+  --status-approve-border: #166534;
+  /* REVIEW */
+  --status-review-bg: #451A03;
+  --status-review-text: #FCD34D;
+  --status-review-border: #92400E;
+  /* REJECT */
+  --status-reject-bg: #450A0A;
+  --status-reject-text: #FCA5A5;
+  --status-reject-border: #991B1B;
+  /* FRAUD / HIGH RISK */
+  --status-fraud-bg: #2E1065;
+  --status-fraud-text: #C4B5FD;
+  --status-fraud-border: #5B21B6;
   
   /* Borders and inputs */
   --border: oklch(0.26 0.022 250);
@@ -282,6 +318,28 @@
       repeating-linear-gradient(45deg, transparent, transparent 35px, oklch(0.68 0.10 185 / 0.02) 35px, oklch(0.68 0.10 185 / 0.02) 70px);
   }
   
+  /* ── KINGA Status Badge Utilities (WCAG AA) ────────────────── */
+  .status-approve {
+    background-color: var(--status-approve-bg);
+    color: var(--status-approve-text);
+    border: 1px solid var(--status-approve-border);
+  }
+  .status-review {
+    background-color: var(--status-review-bg);
+    color: var(--status-review-text);
+    border: 1px solid var(--status-review-border);
+  }
+  .status-reject {
+    background-color: var(--status-reject-bg);
+    color: var(--status-reject-text);
+    border: 1px solid var(--status-reject-border);
+  }
+  .status-fraud {
+    background-color: var(--status-fraud-bg);
+    color: var(--status-fraud-text);
+    border: 1px solid var(--status-fraud-border);
+  }
+
   /* Status color utilities */
   .bg-warning {
     background-color: var(--warning);
@@ -397,7 +455,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: oklch(0.55 0.015 250);
+    color: oklch(0.65 0.015 250);
     margin-bottom: 0.5rem;
   }
 
@@ -500,7 +558,7 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: oklch(0.55 0.015 250);
+    color: oklch(0.65 0.015 250);
     border-bottom: 1px solid oklch(0.25 0.02 250);
     white-space: nowrap;
   }
@@ -514,7 +572,17 @@
   }
 
   .bi-table tbody tr:hover {
-    background: oklch(0.68 0.10 185 / 0.04);
+    background: oklch(0.68 0.10 185 / 0.06);
+  }
+
+  /* Light mode table row hover */
+  :root:not(.dark) .bi-table tbody tr:hover {
+    background: #F1F5F9;
+  }
+
+  /* Dark mode table row hover */
+  .dark .bi-table tbody tr:hover {
+    background: #1E293B;
   }
 
   .bi-table tbody tr:last-child {
@@ -556,7 +624,7 @@
 
   .bi-stat-label {
     font-size: 0.8125rem;
-    color: oklch(0.60 0.015 250);
+    color: oklch(0.68 0.015 250);
   }
 
   .bi-stat-value {
@@ -578,7 +646,7 @@
   .bi-chart-title {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: oklch(0.75 0.015 250);
+    color: oklch(0.80 0.015 250);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin-bottom: 1rem;
@@ -631,11 +699,11 @@
 
   .bi-chip.neutral {
     background: oklch(0.28 0.02 250 / 0.5);
-    color: oklch(0.65 0.015 250);
-    border: 1px solid oklch(0.35 0.02 250);
+    color: oklch(0.72 0.015 250);
+    border: 1px solid oklch(0.40 0.02 250);
   }
 
-  .bi-chip.neutral .bi-chip-dot { background: oklch(0.55 0.015 250); }
+  .bi-chip.neutral .bi-chip-dot { background: oklch(0.72 0.015 250); }
 
   .bi-chip.primary {
     background: oklch(0.68 0.10 185 / 0.15);
@@ -658,7 +726,7 @@
     font-weight: 600;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: oklch(0.52 0.015 250);
+    color: oklch(0.65 0.015 250);
     margin-bottom: 0.375rem;
   }
 
@@ -742,8 +810,8 @@
     font-size: 0.6875rem;
     font-weight: 700;
     background: oklch(0.68 0.10 185 / 0.2);
-    color: oklch(0.78 0.10 185);
-    border: 1px solid oklch(0.68 0.10 185 / 0.3);
+    color: oklch(0.85 0.10 185);
+    border: 1px solid oklch(0.68 0.10 185 / 0.35);
     flex-shrink: 0;
   }
 
@@ -773,7 +841,7 @@
   }
 
   :root:not(.dark) .kpi-card-label {
-    color: oklch(0.45 0.02 250);
+    color: oklch(0.35 0.02 250);
   }
 
   /* Light mode: comparison sections use white cards */
@@ -794,7 +862,7 @@
   }
 
   :root:not(.dark) .bi-table thead th {
-    color: oklch(0.40 0.02 250);
+    color: oklch(0.30 0.02 250);
     border-bottom: 1px solid oklch(0.88 0.015 185);
   }
 
@@ -820,7 +888,7 @@
   }
 
   :root:not(.dark) .bi-stat-label {
-    color: oklch(0.45 0.02 250);
+    color: oklch(0.35 0.02 250);
   }
 
   :root:not(.dark) .bi-stat-value {
@@ -834,7 +902,7 @@
   }
 
   :root:not(.dark) .bi-chart-title {
-    color: oklch(0.40 0.02 250);
+    color: oklch(0.30 0.02 250);
   }
 
   /* Light mode: BI field */
@@ -844,7 +912,7 @@
   }
 
   :root:not(.dark) .bi-field-label {
-    color: oklch(0.45 0.02 250);
+    color: oklch(0.30 0.02 250);
   }
 
   :root:not(.dark) .bi-field-value {

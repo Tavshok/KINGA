@@ -66,9 +66,9 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
   };
 
   const getFraudRiskColor = (score: number) => {
-    if (score >= 70) return "text-red-600";
-    if (score >= 40) return "text-yellow-600";
-    return "text-green-600";
+    if (score >= 70) return "text-red-600 dark:text-red-400";
+    if (score >= 40) return "text-yellow-600 dark:text-yellow-400";
+    return "text-green-600 dark:text-green-400";
   };
 
   return (
@@ -108,22 +108,22 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
 
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground">Claim Type</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Claim Type</p>
                         <p className="font-medium">{claim.claimType}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground">Amount</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Amount</p>
                         <p className="font-medium">R {claim.amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground">Fraud Risk</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">Fraud Risk</p>
                         <p className={`font-bold ${getFraudRiskColor(claim.fraudScore)}`}>
                           {claim.fraudScore}%
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground">AI Confidence</p>
-                        <p className="font-medium text-blue-600">{claim.aiConfidence}%</p>
+                        <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Confidence</p>
+                        <p className="font-medium text-blue-600 dark:text-blue-400">{claim.aiConfidence}%</p>
                       </div>
                     </div>
 

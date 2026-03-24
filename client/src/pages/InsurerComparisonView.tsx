@@ -424,7 +424,7 @@ export default function InsurerComparisonView() {
                   className="gap-1.5 px-2 h-7" style={{ color: 'var(--muted-foreground)' }}>
                   <ArrowLeft className="h-3.5 w-3.5" /> Claims
                 </Button>
-                <span style={{ color: 'oklch(0.40 0.02 250)' }}>/</span>
+                <span style={{ color: 'oklch(0.62 0.015 250)' }}>/</span>
                 <span className="text-xs font-mono" style={{ color: 'var(--muted-foreground)' }}>{claim.claimNumber}</span>
               </div>
               <h1 className="text-2xl font-bold mb-1" style={{ color: 'oklch(0.95 0.005 65)' }}>
@@ -1103,10 +1103,10 @@ export default function InsurerComparisonView() {
               <div className="space-y-4">
                 {/* Fraud level banner */}
                 {(aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical' || aiAssessment.fraudRiskLevel === 'elevated') && (
-                  <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-red-500" style={{ background: 'oklch(0.55 0.22 25 / 0.12)' }}>
-                    <AlertTriangle className="h-5 w-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-red-500 dark:border-red-700" style={{ background: 'oklch(0.55 0.22 25 / 0.15)' }}>
+                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-bold text-red-400 mb-1">HIGH FRAUD RISK DETECTED</p>
+                      <p className="font-bold text-red-700 dark:text-red-300 mb-1">HIGH FRAUD RISK DETECTED</p>
                       <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>This claim has triggered multiple fraud indicators. Manual review is strongly recommended before approval.</p>
                     </div>
                   </div>

@@ -231,7 +231,7 @@ export default function InsurerClaimsTriage() {
                     {claims.length} pending
                   </span>
                 </div>
-                <p className="text-xs" style={{ color: 'oklch(0.48 0.015 250)' }}>Review and process submitted claims · Assign assessors · Trigger AI analysis</p>
+                <p className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>Review and process submitted claims · Assign assessors · Trigger AI analysis</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -300,7 +300,7 @@ export default function InsurerClaimsTriage() {
               }}
             />
           </div>
-          <div className="text-xs" style={{ color: 'oklch(0.48 0.015 250)' }}>
+          <div className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>
             Showing <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{claims.length}</span> claim{claims.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -459,7 +459,7 @@ export default function InsurerClaimsTriage() {
                 className="flex items-center justify-between px-6 py-3"
                 style={{ borderTop: '1px solid oklch(0.20 0.018 250)' }}
               >
-                <div className="text-xs" style={{ color: 'oklch(0.48 0.015 250)' }}>
+                <div className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>
                   Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, claims.length)} of {claims.length} claims
                 </div>
                 <div className="flex gap-1.5">
