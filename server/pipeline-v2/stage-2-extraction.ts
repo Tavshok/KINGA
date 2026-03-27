@@ -23,12 +23,14 @@ import type {
   RecoveryAction,
 } from "./types";
 import { invokeLLM } from "../_core/llm";
+import { preprocessDocument } from "./documentPreprocessor";
 
 function llmCall(params: any): Promise<any> {
   return invokeLLM(params);
 }
 
 const LOW_CONFIDENCE_THRESHOLD = 60;
+const HANDWRITING_CONFIDENCE_THRESHOLD = 75;
 
 async function extractTextFromPdf(
   pdfUrl: string,
@@ -120,6 +122,133 @@ Return a JSON object with:
       rows: t.rows || [],
       context: t.context || "",
     })),
+    ocrConfidence: parsed.ocrConfidence || 50,
+  };
+}
+
+/**
+ * Targeted handwriting OCR pass — invoked when the preprocessor detects
+ * pages that likely contain handwritten annotations (e.g. agreed cost,
+ * officer signatures, witness statements).
+ */
+async function handwritingOcrPass(
+  pdfUrl: string,
+  handwrittenPageHints: string,
+  ctx: PipelineContext
+): Promise<{ rawText: string; ocrConfidence: number }> {
+  ctx.log("Stage 2", "Running targeted handwriting OCR pass");
+  const response = await llmCall({
+    messages: [
+      {
+        role: "system",
+        content: `You are a specialist handwriting OCR system for insurance documents.
+Focus ONLY on handwritten text, stamps, annotations, and signatures.
+Common handwritten content in insurance claims:
+- Agreed/authorised cost amounts (e.g. 'Agreed USD 462.33')
+- Officer names and badge numbers
+- Witness signatures and names
+- Date stamps and case reference numbers
+- Assessor annotations and corrections
+Return JSON: { "rawText": "all handwritten text found", "ocrConfidence": 80 }`,
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text" as const,
+            text: `Extract ALL handwritten text, stamps, and annotations from this document.\nKnown handwritten sections hint: ${handwrittenPageHints.substring(0, 500)}`,
+          },
+          {
+            type: "file_url" as const,
+            file_url: { url: pdfUrl, mime_type: "application/pdf" as const },
+          },
+        ],
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "handwriting_ocr",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            rawText: { type: "string" },
+            ocrConfidence: { type: "integer" },
+          },
+          required: ["rawText", "ocrConfidence"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+  const content = response.choices?.[0]?.message?.content || "{}";
+  const parsed = JSON.parse(content);
+  return {
+    rawText: parsed.rawText || "",
+    ocrConfidence: parsed.ocrConfidence || 50,
+  };
+}
+
+/**
+ * Targeted table OCR pass — invoked when the preprocessor detects
+ * table-like regions (repair quotations, parts lists, labour schedules).
+ * Uses a table-focused prompt to improve line-item extraction accuracy.
+ */
+async function tableOcrPass(
+  pdfUrl: string,
+  tableHint: string,
+  ctx: PipelineContext
+): Promise<{ rawText: string; ocrConfidence: number }> {
+  ctx.log("Stage 2", "Running targeted table OCR pass for repair quotation");
+  const response = await llmCall({
+    messages: [
+      {
+        role: "system",
+        content: `You are a specialist OCR system for tabular data in vehicle repair quotations.
+Extract ALL table content with precise alignment:
+- Each row on its own line
+- Preserve column order: item | description | qty | unit price | total
+- Include ALL rows — do not truncate long tables
+- Capture subtotals, VAT lines, and grand totals
+- Capture any handwritten totals or agreed amounts
+Return JSON: { "rawText": "full table text", "ocrConfidence": 85 }`,
+      },
+      {
+        role: "user",
+        content: [
+          {
+            type: "text" as const,
+            text: `Extract all table content from this repair quotation document.\nTable hint: ${tableHint.substring(0, 300)}`,
+          },
+          {
+            type: "file_url" as const,
+            file_url: { url: pdfUrl, mime_type: "application/pdf" as const },
+          },
+        ],
+      },
+    ],
+    response_format: {
+      type: "json_schema",
+      json_schema: {
+        name: "table_ocr",
+        strict: true,
+        schema: {
+          type: "object",
+          properties: {
+            rawText: { type: "string" },
+            ocrConfidence: { type: "integer" },
+          },
+          required: ["rawText", "ocrConfidence"],
+          additionalProperties: false,
+        },
+      },
+    },
+  });
+  const content = response.choices?.[0]?.message?.content || "{}";
+  const parsed = JSON.parse(content);
+  return {
+    rawText: parsed.rawText || "",
     ocrConfidence: parsed.ocrConfidence || 50,
   };
 }
@@ -307,6 +436,68 @@ export async function runExtractionStage(
                 confidence: result.ocrConfidence,
                 stage: "Stage 2",
               });
+            }
+          }
+
+          // ── ENHANCEMENT: Document Pre-Processor ──────────────────────────
+          // Run the preprocessor on the extracted text to detect section types,
+          // handwritten regions, and table-like structures.
+          const preprocessed = preprocessDocument(result.rawText);
+          ctx.log("Stage 2", `Preprocessor: ${preprocessed.totalChunks} chunks, multiDoc=${preprocessed.hasMultipleDocuments}, quoteChunks=${preprocessed.repairQuoteChunks.length}, handwrittenChunks=${preprocessed.chunks.filter(c => c.likelyHandwritten).length}`);
+
+          // ── ENHANCEMENT: Targeted handwriting OCR pass ────────────────────
+          // If any chunk is flagged as likely handwritten, run a dedicated
+          // handwriting-focused OCR pass and append the result to the raw text.
+          const handwrittenChunks = preprocessed.chunks.filter(c => c.likelyHandwritten);
+          if (handwrittenChunks.length > 0 && doc.sourceUrl) {
+            try {
+              const hwHint = handwrittenChunks.map(c => c.text.substring(0, 200)).join(" | ");
+              const hwResult = await handwritingOcrPass(doc.sourceUrl, hwHint, ctx);
+              if (hwResult.rawText.trim().length > 20) {
+                result = {
+                  ...result,
+                  rawText: result.rawText + "\n\n[HANDWRITING_OCR]\n" + hwResult.rawText,
+                  ocrConfidence: Math.max(result.ocrConfidence, hwResult.ocrConfidence),
+                };
+                recoveryActions.push({
+                  target: `document_${doc.documentIndex}_handwriting`,
+                  strategy: "secondary_ocr",
+                  success: true,
+                  description: `Handwriting OCR pass added ${hwResult.rawText.length} chars from ${handwrittenChunks.length} handwritten section(s).`,
+                  recoveredValue: hwResult.rawText.substring(0, 200),
+                });
+                ctx.log("Stage 2", `Handwriting OCR: added ${hwResult.rawText.length} chars`);
+              }
+            } catch (hwErr) {
+              ctx.log("Stage 2", `Handwriting OCR pass failed: ${String(hwErr)} — continuing`);
+            }
+          }
+
+          // ── ENHANCEMENT: Targeted table OCR pass ─────────────────────────
+          // If repair quote chunks were detected and the primary confidence is
+          // below the handwriting threshold, run a table-focused re-extraction
+          // on the quote section specifically.
+          if (preprocessed.repairQuoteChunks.length > 0 && result.ocrConfidence < HANDWRITING_CONFIDENCE_THRESHOLD && doc.sourceUrl) {
+            try {
+              const tableHint = preprocessed.repairQuoteText.substring(0, 400);
+              const tableResult = await tableOcrPass(doc.sourceUrl, tableHint, ctx);
+              if (tableResult.rawText.trim().length > 20) {
+                result = {
+                  ...result,
+                  rawText: result.rawText + "\n\n[TABLE_OCR]\n" + tableResult.rawText,
+                  ocrConfidence: Math.max(result.ocrConfidence, tableResult.ocrConfidence),
+                };
+                recoveryActions.push({
+                  target: `document_${doc.documentIndex}_table`,
+                  strategy: "secondary_ocr",
+                  success: true,
+                  description: `Table OCR pass added ${tableResult.rawText.length} chars from repair quote section.`,
+                  recoveredValue: tableResult.rawText.substring(0, 200),
+                });
+                ctx.log("Stage 2", `Table OCR: added ${tableResult.rawText.length} chars`);
+              }
+            } catch (tableErr) {
+              ctx.log("Stage 2", `Table OCR pass failed: ${String(tableErr)} — continuing`);
             }
           }
 

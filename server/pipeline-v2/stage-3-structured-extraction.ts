@@ -24,6 +24,8 @@ import type {
   DamageHints,
 } from "./types";
 import { invokeLLM } from "../_core/llm";
+import { preprocessDocument } from "./documentPreprocessor";
+import { scoreExtraction } from "./extractionQualityScorer";
 
 function llmCall(params: any): Promise<any> {
   return invokeLLM(params);
@@ -516,12 +518,34 @@ export async function runStructuredExtractionStage(
         const extractedText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex);
         const rawText = extractedText?.rawText || "";
 
+        // ── ENHANCEMENT: Section-targeted extraction ──────────────────────────
+        // Run the preprocessor to split the document into labelled sections.
+        // Prepend the repair quote section to the raw text context so the LLM
+        // sees it prominently and does not stop reading at the claim form.
+        const preprocessed = preprocessDocument(rawText);
+        ctx.log("Stage 3", `Preprocessor: ${preprocessed.totalChunks} chunks, quoteText=${preprocessed.repairQuoteText.length}chars, claimFormText=${preprocessed.claimFormText.length}chars, multiDoc=${preprocessed.hasMultipleDocuments}`);
+
+        const enrichedRawText = preprocessed.repairQuoteText.length > 100
+          ? `[REPAIR QUOTE SECTION — read this first for cost data]\n${preprocessed.repairQuoteText}\n\n[CLAIM FORM SECTION — read this for incident and vehicle data]\n${preprocessed.claimFormText}\n\n[FULL DOCUMENT]\n${rawText.substring(0, 5000)}`
+          : rawText.substring(0, 8000);
+
         ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName}`);
-        const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, rawText, ctx);
+        const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, enrichedRawText, ctx);
         fields.sourceDocumentIndex = pdfDoc.documentIndex;
         perDocumentExtractions.push(fields);
 
-        ctx.log("Stage 3", `PDF extraction complete. Vehicle: ${fields.vehicleMake || 'unknown'} ${fields.vehicleModel || 'unknown'}, Components: ${fields.damagedComponents.length}`);
+        // Score extraction quality
+        const qualityScore = scoreExtraction(fields);
+        ctx.log("Stage 3", `PDF extraction complete. Vehicle: ${fields.vehicleMake || 'unknown'} ${fields.vehicleModel || 'unknown'}, Components: ${fields.damagedComponents.length}, QuoteTotal: ${fields.quoteTotalCents}. Quality: ${qualityScore.score}/100 (${qualityScore.tier}). Missing: ${qualityScore.missingFields.join(", ") || "none"}.`);
+        if (qualityScore.tier === "LOW") {
+          isDegraded = true;
+          recoveryActions.push({
+            target: `pdf_extraction_quality_${pdfDoc.documentIndex}`,
+            strategy: "partial_data",
+            success: false,
+            description: `Extraction quality LOW (${qualityScore.score}/100). Missing critical fields: ${qualityScore.missingFields.join(", ")}. Notes: ${qualityScore.notes.join("; ")}.`,
+          });
+        }
       } catch (docErr) {
         // Self-healing: individual PDF extraction failed — continue
         isDegraded = true;
