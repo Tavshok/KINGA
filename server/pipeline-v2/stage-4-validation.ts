@@ -11,6 +11,7 @@
 import type {
   PipelineContext,
   StageResult,
+  Stage2Output,
   Stage3Output,
   Stage4Output,
   ExtractedClaimFields,
@@ -250,7 +251,8 @@ function inferVehicleData(
 
 export async function runValidationStage(
   ctx: PipelineContext,
-  stage3: Stage3Output
+  stage3: Stage3Output,
+  stage2?: Stage2Output
 ): Promise<StageResult<Stage4Output>> {
   const start = Date.now();
   ctx.log("Stage 4", "Data validation starting");
@@ -359,24 +361,47 @@ export async function runValidationStage(
         }
       }
 
-      // Backfill speed from input recovery — parse from accident description if still missing
-      if (!validatedFields.estimatedSpeedKmh && ir.accident_description) {
-        // Look for speed patterns: "90 KM/HRS", "90km/h", "90 kph", "travelling at 90"
-        const speedMatch = ir.accident_description.match(
-          /(?:speed|travelling|traveling|doing|at)\s*(?:of\s*)?([0-9]+(?:\.[0-9]+)?)\s*(?:km\/h|kmh|kph|km\/hrs?|km\/hour|mph)?/i
-        ) || ir.accident_description.match(/([0-9]+(?:\.[0-9]+)?)\s*(?:km\/h|kmh|kph|km\/hrs?|km\/hour)/i);
+      // Backfill speed — search ALL available text sources if still missing
+      if (!validatedFields.estimatedSpeedKmh) {
+        // Collect all text sources: accident description + all raw OCR text
+        const stage2Texts = stage2?.extractedTexts?.map((t: { rawText: string }) => t.rawText) ?? [];
+        const allRawText = [
+          ir?.accident_description || "",
+          ...stage2Texts,
+        ].filter(Boolean).join("\n");
+
+        // Pattern 1: Form field label followed by speed value (most reliable)
+        // e.g. "Speed: 90KM/HRS", "Speed at time of accident: 90", "What was your speed?: 90"
+        const formFieldSpeed = allRawText.match(
+          /(?:speed|speed\s+at\s+time|speed\s+of\s+vehicle|what\s+was\s+your\s+speed|approximate\s+speed)\s*[:\-]?\s*([0-9]+(?:\.[0-9]+)?)\s*(?:km\/h|kmh|kph|km\/hrs?|km\/hour|mph)?/i
+        );
+
+        // Pattern 2: Speed mentioned in narrative with keyword context
+        // e.g. "travelling at 90 KM/HRS", "doing 60 km/h", "speed of 80"
+        const narrativeSpeed = allRawText.match(
+          /(?:travelling|traveling|driving|doing|going|at\s+a\s+speed\s+of|speed\s+of)\s+(?:approximately\s+)?([0-9]+(?:\.[0-9]+)?)\s*(?:km\/h|kmh|kph|km\/hrs?|km\/hour|mph)?/i
+        );
+
+        // Pattern 3: Bare speed value with unit (no keyword needed)
+        // e.g. "90KM/HRS", "90 km/h", "90kph"
+        const bareSpeed = allRawText.match(
+          /\b([0-9]{2,3})\s*(?:km\/hrs?|km\/h|kmh|kph|km\/hour)\b/i
+        );
+
+        const speedMatch = formFieldSpeed || narrativeSpeed || bareSpeed;
         if (speedMatch) {
           const speedVal = parseFloat(speedMatch[1]);
           if (!isNaN(speedVal) && speedVal > 0 && speedVal < 300) {
             validatedFields.estimatedSpeedKmh = speedVal;
+            const source = formFieldSpeed ? "form field" : narrativeSpeed ? "narrative" : "bare unit value";
             recoveryActions.push({
               target: "estimatedSpeedKmh",
               strategy: "contextual_inference",
               success: true,
-              description: `Speed recovered from accident description narrative: ${speedVal} km/h.`,
+              description: `Speed recovered from ${source} in raw OCR text: ${speedVal} km/h.`,
               recoveredValue: speedVal,
             });
-            ctx.log("Stage 4", `Input recovery backfill: estimatedSpeedKmh = ${speedVal} (from narrative)`);
+            ctx.log("Stage 4", `Input recovery backfill: estimatedSpeedKmh = ${speedVal} (from ${source})`);
           }
         }
       }

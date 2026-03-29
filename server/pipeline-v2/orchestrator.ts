@@ -267,7 +267,7 @@ export async function runPipelineV2(
 
   // ── STAGE 4: Data Validation ─────────────────────────────────────────
   if (stage3Data) {
-    const s4 = await runValidationStage(ctx, stage3Data);
+    const s4 = await runValidationStage(ctx, stage3Data, stage2Data ?? undefined);
     recordStage("4_validation", s4);
     stage4Data = s4.data;
   } else {

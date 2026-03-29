@@ -40,25 +40,36 @@ async function extractTextFromPdf(
     messages: [
       {
         role: "system",
-        content: `You are a document OCR and text extraction system. Extract ALL text from the provided PDF document.
+         content: `You are a specialist insurance document OCR and text extraction system.
+Your ONLY job is to extract ALL text from the provided PDF — every character, every field, every table row.
 
-RULES:
-- Extract every piece of text visible in the document
-- Preserve the structure of tables as JSON arrays
-- If the document contains handwritten text, extract it as best you can
-- Mark confidence level for OCR quality
-- Do NOT interpret or analyse the content — just extract the raw text
+CRITICAL RULES:
+1. FORM FIELDS: Insurance claim forms have labelled fields. Extract them as "Label: Value" pairs on separate lines.
+   Example: "Speed at time of accident: 90KM/HRS" → output exactly "Speed at time of accident: 90KM/HRS"
+   Example: "What was your speed?: 90" → output exactly "What was your speed?: 90"
+   NEVER omit field labels or their values — they are the most important data.
 
-Return a JSON object with:
+2. TABLES: Extract every row of every table verbatim. For repair quotations:
+   - Include every line item: description, quantity, unit price, total
+   - Include subtotals, VAT lines, and grand totals
+   - Preserve the column structure: "Item | Description | Qty | Unit Price | Total"
+   - The LAST row of a repair quote table is usually the grand total — ALWAYS include it
+   - Example: "Total (Incl) | | | | 591.33" → output exactly as shown
+
+3. HANDWRITING: Extract all handwritten text, stamps, and annotations.
+   - Agreed/authorised cost amounts: "Agreed USD 462.33", "Cost Agreed"
+   - Signatures, dates, officer names
+
+4. PAGE COMPLETENESS: Read EVERY page. Do not stop early.
+   - Repair quotations are typically on the LAST pages
+   - Police report numbers are often on a separate page
+
+5. VERBATIM: Do NOT paraphrase, summarise, or interpret. Extract the exact text.
+
+Return JSON:
 {
-  "rawText": "Full extracted text from the document, preserving paragraph structure",
-  "tables": [
-    {
-      "headers": ["Column1", "Column2"],
-      "rows": [["value1", "value2"]],
-      "context": "Brief description of what this table contains"
-    }
-  ],
+  "rawText": "Full verbatim text with form fields as Label: Value pairs and table rows preserved",
+  "tables": [{"headers": [...], "rows": [[...]], "context": "..."}],
   "ocrConfidence": 85
 }`,
       },
@@ -67,7 +78,15 @@ Return a JSON object with:
         content: [
           {
             type: "text" as const,
-            text: "Extract all text and tables from this document. Return as JSON.",
+            text: `Extract ALL text from every page of this document. Return as JSON.
+
+PAY SPECIAL ATTENTION TO:
+1. Form fields with labels — output as "Label: Value" on each line (e.g. "Speed: 90KM/HRS")
+2. Repair quotation tables — include every line item and the grand total row
+3. Handwritten annotations — especially agreed/authorised cost amounts
+4. The LAST pages — they usually contain the repair quote and police report
+
+Do NOT stop reading after the first page. Read ALL pages completely.`,
           },
           {
             type: "file_url" as const,
