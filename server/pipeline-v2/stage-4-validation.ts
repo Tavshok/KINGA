@@ -411,12 +411,19 @@ export async function runValidationStage(
     inferVehicleData(validatedFields, assumptions, recoveryActions);
 
     // Step 5: Final validation pass — record remaining issues
+    // IMPORTANT: Only set isDegraded for CRITICAL severity fields.
+    // Warning-severity fields (policeReportNumber, accidentDate, incidentType)
+    // may legitimately be absent in many claims and must NOT degrade the
+    // extraction status — doing so causes downstream engines to treat a
+    // high-quality extraction as low-quality and skip cost/physics analysis.
     const missingAfter: string[] = [];
     for (const { field, label, severity } of CRITICAL_FIELDS) {
       const val = validatedFields[field];
       if (val === null || val === undefined || val === "") {
         missingAfter.push(field);
-        isDegraded = true;
+        if (severity === "critical") {
+          isDegraded = true;
+        }
         issues.push({
           field,
           severity,

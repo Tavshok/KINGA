@@ -39,7 +39,7 @@ const EXTRACTION_SCHEMA = {
     schema: {
       type: "object",
       properties: {
-        claimId: { type: ["string", "null"], description: "Claim reference number" },
+        claimId: { type: ["string", "null"], description: "Claim reference number. Look for patterns like 'CI-024...', 'CLM-...', 'REF:', 'Claim No.', 'Claim Number', 'Reference'. This is the insurer's internal claim identifier." },
         claimantName: { type: ["string", "null"], description: "Name of the claimant/insured" },
         driverName: { type: ["string", "null"], description: "Name of the driver at time of accident" },
         vehicleRegistration: { type: ["string", "null"], description: "Vehicle registration/license plate" },
@@ -50,10 +50,10 @@ const EXTRACTION_SCHEMA = {
         vehicleColour: { type: ["string", "null"], description: "Vehicle colour" },
         vehicleEngineNumber: { type: ["string", "null"], description: "Engine number" },
         vehicleMileage: { type: ["integer", "null"], description: "Vehicle mileage in km" },
-        accidentDate: { type: ["string", "null"], description: "Date of accident (YYYY-MM-DD format)" },
+        accidentDate: { type: ["string", "null"], description: "Date of accident in YYYY-MM-DD format. IMPORTANT: For dates in DD/MM/YYYY format (common in Zimbabwe, South Africa, UK), convert correctly — e.g. '02/09/2024' means 2 September 2024 = '2024-09-02'. Do NOT interpret as month/day." },
         accidentLocation: { type: ["string", "null"], description: "Location where accident occurred" },
         accidentDescription: { type: ["string", "null"], description: "Description of the accident" },
-        incidentType: { type: ["string", "null"], description: "Type of incident: collision, theft, vandalism, flood, fire" },
+        incidentType: { type: ["string", "null"], description: "Type of incident. MUST be one of: animal_strike, collision, theft, vandalism, flood, fire, hail, rollover, mechanical_failure. CRITICAL: Use 'animal_strike' when the vehicle hit or was hit by ANY animal (cow, dog, buck, goat, livestock, wildlife, game). Do NOT classify animal impacts as 'collision'. 'collision' is reserved for vehicle-to-vehicle or vehicle-to-object impacts only." },
         accidentType: { type: ["string", "null"], description: "Collision direction: frontal, rear, side_driver, side_passenger, rollover, multi_impact" },
         impactPoint: { type: ["string", "null"], description: "Primary point of impact on the vehicle" },
         estimatedSpeedKmh: { type: ["number", "null"], description: "Speed at impact in km/h. SEARCH THE ENTIRE DOCUMENT for any of these patterns: (1) A form field labelled 'Speed', 'Speed at time of accident', 'What was your speed?', 'Speed of vehicle', 'Approximate speed' — the value may appear immediately after the label with no keyword prefix, e.g. 'Speed: 90KM/HRS' or just '90KM/HRS' after the label. (2) Any speed mentioned in the accident narrative or circumstances section, e.g. 'travelling at 90 KM/HRS', 'doing 60 km/h', 'speed of 80'. (3) Any speed in a police report or assessor notes. IMPORTANT: Extract the NUMERIC VALUE ONLY — strip ALL unit suffixes (KM/HRS, KM/H, KPH, MPH, km/h, kph, kmh). Examples: '90KM/HRS' → 90, '90 km/h' → 90, '120kph' → 120, '60' → 60. Return null ONLY if no speed value appears anywhere in the document." },
@@ -242,7 +242,8 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
   return {
     claimId: raw.claimId || null,
     claimantName: raw.claimantName || null,
-    driverName: raw.driverName || null,
+    // Strip OCR artefacts from driver name (trailing slash, comma, period from signature line)
+    driverName: raw.driverName ? String(raw.driverName).replace(/[\/,\.\s]+$/, "").trim() || null : null,
     vehicleRegistration: raw.vehicleRegistration || null,
     vehicleMake: raw.vehicleMake || null,
     vehicleModel: raw.vehicleModel || null,
@@ -601,13 +602,25 @@ export async function runStructuredExtractionStage(
       inputRecovery = await runInputRecovery(stage1, stage2, perDocumentExtractions);
       const llmQuoteCount = inputRecovery.extracted_quotes?.filter(q => q.total_cost !== null).length ?? 0;
       ctx.log("Stage 3", `Input recovery complete. Quote recovered: ${inputRecovery.recovered_quote ? `USD ${inputRecovery.recovered_quote.total} (${inputRecovery.recovered_quote.confidence})` : 'none'}. LLM quotes extracted: ${llmQuoteCount}. Images present: ${inputRecovery.images_present}. Flags: ${inputRecovery.failure_flags.join(", ") || "none"}.`);
-      if (inputRecovery.failure_flags.length > 0) {
+      // Only degrade on flags that indicate actual data loss — not benign flags like images_not_processed
+      const criticalRecoveryFlags = (inputRecovery.failure_flags as string[]).filter(
+        (f: string) => f !== "images_not_processed" && f !== "no_photos"
+      );
+      if (criticalRecoveryFlags.length > 0) {
         isDegraded = true;
         recoveryActions.push({
           target: "input_recovery",
           strategy: "partial_data",
           success: true,
-          description: `Input recovery flagged: ${inputRecovery.failure_flags.join(", ")}. Downstream stages should use recovered values where available.`,
+          description: `Input recovery flagged (critical): ${criticalRecoveryFlags.join(", ")}. Downstream stages should use recovered values where available.`,
+        });
+      } else if (inputRecovery.failure_flags.length > 0) {
+        // Log benign flags without degrading the extraction status
+        recoveryActions.push({
+          target: "input_recovery",
+          strategy: "partial_data",
+          success: true,
+          description: `Input recovery benign flags (non-critical, no degradation): ${(inputRecovery.failure_flags as string[]).join(", ")}.`,
         });
       }
     } catch (recErr) {

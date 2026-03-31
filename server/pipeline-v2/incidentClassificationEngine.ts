@@ -433,10 +433,11 @@ function resolveType(
 function toCanonicalType(type: ClassifiedIncidentType): CanonicalIncidentType {
   switch (type) {
     case "animal_strike":
-      // Animal strikes are physical damage events — map to "collision" for
-      // physics engine compatibility. The specific sub-type is preserved in
-      // the classification result for all other engines.
-      return "collision";
+      // Return animal_strike directly — Stage 7 has a dedicated animal strike
+      // physics engine (animalStrikePhysicsEngine.ts) that MUST be routed to.
+      // Previously mapped to 'collision' which caused the wrong physics engine
+      // to run and produced incorrect force/energy calculations.
+      return "animal_strike";
     case "vehicle_collision":
       return "collision";
     case "theft":
