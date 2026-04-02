@@ -585,6 +585,29 @@ export async function triggerAiAssessment(claimId: number) {
     : null;
 
   // Build cost intelligence JSON
+  // Source priority for documented quote values:
+  //   1. Stage 9 output (costAnalysis.documentedOriginalQuoteUsd) — most reliable,
+  //      includes recovered quotes from input recovery pass
+  //   2. claimRecord.repairQuote — direct extraction fallback
+  const repairQuote = claimRecord?.repairQuote ?? null;
+  const documentedOriginalQuoteUsd =
+    costAnalysis?.documentedOriginalQuoteUsd
+    ?? (repairQuote?.quoteTotalCents ? repairQuote.quoteTotalCents / 100 : null);
+  const documentedAgreedCostUsd =
+    costAnalysis?.documentedAgreedCostUsd
+    ?? (repairQuote?.agreedCostCents ? repairQuote.agreedCostCents / 100 : null);
+  const panelBeaterName =
+    costAnalysis?.panelBeaterName
+    ?? repairQuote?.repairerName
+    ?? repairQuote?.repairerCompany
+    ?? null;
+  const documentedLabourCostUsd =
+    costAnalysis?.documentedLabourCostUsd
+    ?? (repairQuote?.labourCostCents ? repairQuote.labourCostCents / 100 : null);
+  const documentedPartsCostUsd =
+    costAnalysis?.documentedPartsCostUsd
+    ?? (repairQuote?.partsCostCents ? repairQuote.partsCostCents / 100 : null);
+
   const costIntelligenceJson = costAnalysis ? JSON.stringify({
     expectedRepairCostCents: costAnalysis.expectedRepairCostCents,
     quoteDeviationPct: costAnalysis.quoteDeviationPct,
@@ -594,7 +617,28 @@ export async function triggerAiAssessment(claimId: number) {
     labourRateUsdPerHour: costAnalysis.labourRateUsdPerHour,
     marketRegion: costAnalysis.marketRegion,
     currency: costAnalysis.currency,
-  }) : null;
+    // Panel beater quote values — sourced from Stage 9 output (preferred) or claimRecord
+    documentedOriginalQuoteUsd,
+    documentedAgreedCostUsd,
+    panelBeaterName,
+    lineItems: repairQuote?.lineItems ?? [],
+    documentedLabourCostUsd,
+    documentedPartsCostUsd,
+    quotesReceived: 0, // will be overridden by router if needed
+  }) : (
+    // Even if costAnalysis is null, still persist the documented quote values
+    // so the UI can display the panel beater quote from the extracted document.
+    (documentedOriginalQuoteUsd || documentedAgreedCostUsd) ? JSON.stringify({
+      expectedRepairCostCents: null,
+      documentedOriginalQuoteUsd,
+      documentedAgreedCostUsd,
+      panelBeaterName,
+      lineItems: repairQuote?.lineItems ?? [],
+      documentedLabourCostUsd,
+      documentedPartsCostUsd,
+      quotesReceived: 0,
+    }) : null
+  );
   // Build repair intelligence and parts reconciliation JSON
   const repairIntelligenceJson = costAnalysis?.repairIntelligence
     ? JSON.stringify(costAnalysis.repairIntelligence)

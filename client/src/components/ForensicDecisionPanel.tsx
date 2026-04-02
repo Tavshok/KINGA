@@ -741,8 +741,8 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         <div className="space-y-3">
           {/* Comparison bars */}
           {[
-            { label: "Original Quote", value: originalQuote, color: "#f87171", note: `${quotesReceived > 0 ? `Lowest of ${quotesReceived} quotes` : "Submitted quote"}` },
-            { label: "AI Model Estimate", value: aiCost, color: "#fb923c", note: "Flat per-component model" },
+            { label: costIntel?.panelBeaterName ? `Panel Beater Quote (${costIntel.panelBeaterName})` : "Panel Beater Quote", value: originalQuote, color: "#f87171", note: quotesReceived > 0 ? `Lowest of ${quotesReceived} quotes` : "Extracted from claim document" },
+            { label: "AI Model Estimate", value: aiCost, color: "#fb923c", note: "Physics-based component model" },
             { label: "Agreed Cost", value: agreedCost > 0 ? agreedCost : null, color: "#4ade80", note: "Assessor-negotiated — operative figure" },
           ].filter(item => (item.value ?? 0) > 0).map(({ label, value, color, note }) => (
             <div key={label}>

@@ -795,9 +795,15 @@ export interface Stage9Output {
     quotes_evaluated: number;
     total_structural_gaps: number;
   } | null;
+  /** Documented quote values from the extracted claim document — used by db.ts to populate costIntelligenceJson */
+  documentedOriginalQuoteUsd: number | null;
+  documentedAgreedCostUsd: number | null;
+  panelBeaterName: string | null;
+  documentedLabourCostUsd: number | null;
+  documentedPartsCostUsd: number | null;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // STAGE 9b — TURNAROUND TIME ANALYSIS
 // ─────────────────────────────────────────────────────────────────────────────
 

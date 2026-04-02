@@ -398,6 +398,11 @@ export function buildCostFallback(reason = "insufficient_input"): CostFallbackOu
     costReliability: null,
     quoteOptimisation: null,
     costDecision: null,
+    documentedOriginalQuoteUsd: null,
+    documentedAgreedCostUsd: null,
+    panelBeaterName: null,
+    documentedLabourCostUsd: null,
+    documentedPartsCostUsd: null,
     _fallback: fallbackMeta,
     _fallback_fields: ["ai_estimate", "parts", "labour", "fair_range", "expectedRepairCostCents"],
   };
@@ -436,6 +441,12 @@ export function ensureCostContract(
     costReliability: partial.costReliability ?? null,
     quoteOptimisation: partial.quoteOptimisation ?? null,
     costDecision: partial.costDecision ?? null,
+    // Documented quote values from the extracted claim document
+    documentedOriginalQuoteUsd: partial.documentedOriginalQuoteUsd ?? null,
+    documentedAgreedCostUsd: partial.documentedAgreedCostUsd ?? null,
+    panelBeaterName: partial.panelBeaterName ?? null,
+    documentedLabourCostUsd: partial.documentedLabourCostUsd ?? null,
+    documentedPartsCostUsd: partial.documentedPartsCostUsd ?? null,
   };
 
   return {

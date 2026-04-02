@@ -456,6 +456,12 @@ export async function runCostOptimisationStage(
     }
 
     // Stage 26: apply defensive contract — add top-level ai_estimate, parts, labour, fair_range
+    // Include documented quote values from the extracted claim document so db.ts
+    // can persist them into costIntelligenceJson for the UI to display correctly.
+    const documentedOriginalQuoteUsd = quotedCents ? quotedCents / 100 : null;
+    const documentedAgreedCostUsd = claimRecord.repairQuote.agreedCostCents
+      ? claimRecord.repairQuote.agreedCostCents / 100
+      : null;
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
@@ -479,6 +485,13 @@ export async function runCostOptimisationStage(
       currency,
       repairIntelligence,
       partsReconciliation,
+      // Documented quote values from the extracted claim document — passed through
+      // to db.ts costIntelligenceJson so the UI can display the correct amounts.
+      documentedOriginalQuoteUsd,
+      documentedAgreedCostUsd,
+      panelBeaterName: claimRecord.repairQuote.repairerName ?? claimRecord.repairQuote.repairerCompany ?? null,
+      documentedLabourCostUsd: claimRecord.repairQuote.labourCostCents ? claimRecord.repairQuote.labourCostCents / 100 : null,
+      documentedPartsCostUsd: claimRecord.repairQuote.partsCostCents ? claimRecord.repairQuote.partsCostCents / 100 : null,
     }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
