@@ -130,11 +130,11 @@ interface EnforcementResult {
 // ─── Risk level config ────────────────────────────────────────────────────────
 
 const RISK_STYLE: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
-  minimal:  { bg: "oklch(0.25 0.05 155)", border: "oklch(0.45 0.18 155)", text: "#10b981", badge: "bg-emerald-600", dot: "#10b981" },
-  low:      { bg: "oklch(0.25 0.05 155)", border: "oklch(0.45 0.18 155)", text: "#22c55e", badge: "bg-green-600",   dot: "#22c55e" },
+  minimal:  { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "#10b981", badge: "bg-emerald-600", dot: "#10b981" },
+  low:      { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "#22c55e", badge: "bg-green-600",   dot: "#22c55e" },
   moderate: { bg: "var(--status-review-bg)",  border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
-  high:     { bg: "oklch(0.22 0.08 35)",  border: "oklch(0.55 0.18 35)",  text: "#f97316", badge: "bg-orange-600", dot: "#f97316" },
-  critical: { bg: "oklch(0.20 0.10 25)",  border: "var(--status-reject-border)",  text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
+  high:     { bg: "var(--fp-warning-bg)",  border: "var(--fp-warning-border)",  text: "#f97316", badge: "bg-orange-600", dot: "#f97316" },
+  critical: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",  text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
 };
 
 const SEVERITY_STYLE: Record<string, { color: string; label: string }> = {
@@ -148,9 +148,9 @@ const SEVERITY_STYLE: Record<string, { color: string; label: string }> = {
 };
 
 const ALERT_STYLE: Record<string, { bg: string; border: string; icon: string; label: string }> = {
-  critical: { bg: "oklch(0.55 0.22 25 / 0.12)", border: "oklch(0.55 0.22 25 / 0.50)", icon: "#f87171", label: "CRITICAL" },
-  warning:  { bg: "oklch(0.72 0.18 60 / 0.10)", border: "oklch(0.72 0.18 60 / 0.40)", icon: "#fbbf24", label: "WARNING"  },
-  info:     { bg: "oklch(0.55 0.18 250 / 0.08)", border: "oklch(0.55 0.18 250 / 0.30)", icon: "#60a5fa", label: "INFO"   },
+  critical: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", icon: "#f87171", label: "CRITICAL" },
+  warning:  { bg: "var(--fp-warning-bg)", border: "var(--fp-warning-border)", icon: "#fbbf24", label: "WARNING"  },
+  info:     { bg: "var(--fp-info-bg)", border: "var(--fp-info-border)", icon: "#60a5fa", label: "INFO"   },
 };
 
 // ─── Cost verdict helper ──────────────────────────────────────────────────────
@@ -206,9 +206,9 @@ function FinalDecisionBanner({ finalDecision, confidenceScore }: {
 }) {
   const { decision, label, color, primaryReason } = finalDecision;
   const cfg = {
-    green: { bg: "oklch(0.20 0.06 155 / 0.9)", border: "oklch(0.45 0.18 155)", text: "#10b981", Icon: CheckCircle },
-    amber: { bg: "oklch(0.22 0.08 60 / 0.9)",  border: "var(--status-review-border)",  text: "#f59e0b", Icon: AlertTriangle },
-    red:   { bg: "oklch(0.20 0.10 25 / 0.9)",  border: "var(--status-reject-border)",  text: "#f87171", Icon: AlertTriangle },
+    green: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "#10b981", Icon: CheckCircle },
+    amber: { bg: "var(--fp-warning-bg)",  border: "var(--status-review-border)",  text: "#f59e0b", Icon: AlertTriangle },
+    red:   { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",  text: "#f87171", Icon: AlertTriangle },
   }[color];
   const decisionLabel = decision === "FINALISE_CLAIM" ? "FINALISE CLAIM" : decision === "REVIEW_REQUIRED" ? "REVIEW REQUIRED" : "ESCALATE INVESTIGATION";
 
@@ -280,10 +280,10 @@ function RuleTracePanel({ ruleTrace }: { ruleTrace: NonNullable<EnforcementResul
       {open && (
         <div className="px-4 pb-4 space-y-1.5">
           {ruleTrace.map((r, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs rounded px-2 py-1.5" style={{ background: r.triggered ? "oklch(0.72 0.18 60 / 0.08)" : "var(--muted)", border: r.triggered ? "1px solid oklch(0.72 0.18 60 / 0.35)" : "1px solid transparent" }}>
+            <div key={i} className="flex items-center gap-2 text-xs rounded px-2 py-1.5" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", border: r.triggered ? "1px solid var(--fp-warning-border)" : "1px solid transparent" }}>
               <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: r.triggered ? "#f59e0b" : "var(--muted-foreground)", color: r.triggered ? "#000" : "var(--background)" }}>{r.triggered ? "!" : "✓"}</span>
               <span className="flex-1" style={{ color: "var(--foreground)" }}>{r.rule}</span>
-              <span className="font-mono px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "oklch(0.72 0.18 60 / 0.15)" : "var(--muted)", color: r.triggered ? "#f59e0b" : "var(--muted-foreground)" }}>{String(r.value)}</span>
+              <span className="font-mono px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", color: r.triggered ? "#f59e0b" : "var(--muted-foreground)" }}>{String(r.value)}</span>
               <span style={{ color: "var(--muted-foreground)" }}>vs</span>
               <span className="font-mono" style={{ color: "var(--muted-foreground)" }}>{r.threshold}</span>
             </div>
@@ -336,7 +336,7 @@ function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; e
       {/* Three verdict pills */}
       <div className="grid grid-cols-3 gap-3">
         {/* Cost verdict */}
-        <div className="rounded-lg p-3" style={{ background: "oklch(0.15 0.02 0 / 0.5)", border: "1px solid var(--border)" }}>
+        <div className="rounded-lg p-3" style={{ background: "var(--fp-subtle-bg)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <CostIcon className="h-3.5 w-3.5 shrink-0" style={{ color: costVerdict.color }} />
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: costVerdict.color }}>
@@ -347,7 +347,7 @@ function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; e
         </div>
 
         {/* Damage severity */}
-        <div className="rounded-lg p-3" style={{ background: "oklch(0.15 0.02 0 / 0.5)", border: "1px solid var(--border)" }}>
+        <div className="rounded-lg p-3" style={{ background: "var(--fp-subtle-bg)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <Car className="h-3.5 w-3.5 shrink-0" style={{ color: severity.color }} />
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: severity.color }}>
@@ -358,7 +358,7 @@ function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; e
         </div>
 
         {/* Fraud level */}
-        <div className="rounded-lg p-3" style={{ background: "oklch(0.15 0.02 0 / 0.5)", border: "1px solid var(--border)" }}>
+        <div className="rounded-lg p-3" style={{ background: "var(--fp-subtle-bg)", border: "1px solid var(--border)" }}>
           <div className="flex items-center gap-1.5 mb-1">
             <Shield className="h-3.5 w-3.5 shrink-0" style={{ color: style.text }} />
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: style.text }}>
@@ -440,7 +440,7 @@ function WhatHappened({ assessment, enforcement, claim }: { assessment: any; enf
       <div className="flex items-center gap-2 mb-3">
         <FileText className="h-4 w-4" style={{ color: "var(--primary)" }} />
         <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>What Happened</p>
-        <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "oklch(0.55 0.18 250 / 0.15)", color: "oklch(0.70 0.18 250)" }}>
+        <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--fp-info-bg)", color: "var(--fp-info-text)" }}>
           AI Reconstructed
         </span>
       </div>
@@ -492,16 +492,16 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
         <div className="relative w-40 h-40">
           <svg viewBox="0 0 100 100" className="w-full h-full">
             {/* Vehicle body — top-down view */}
-            <rect x="25" y="10" width="50" height="80" rx="12" fill="oklch(0.25 0.03 250)" stroke="oklch(0.45 0.08 250)" strokeWidth="2" />
+            <rect x="25" y="10" width="50" height="80" rx="12" fill="var(--fp-vehicle-body)" stroke="var(--fp-vehicle-stroke)" strokeWidth="2" />
             {/* Windshield */}
-            <rect x="30" y="16" width="40" height="18" rx="4" fill="oklch(0.35 0.05 250)" opacity="0.6" />
+            <rect x="30" y="16" width="40" height="18" rx="4" fill="var(--fp-vehicle-glass)" opacity="0.6" />
             {/* Rear window */}
-            <rect x="30" y="66" width="40" height="14" rx="4" fill="oklch(0.35 0.05 250)" opacity="0.6" />
+            <rect x="30" y="66" width="40" height="14" rx="4" fill="var(--fp-vehicle-glass)" opacity="0.6" />
             {/* Wheels */}
-            <rect x="14" y="18" width="12" height="18" rx="3" fill="oklch(0.20 0.02 0)" stroke="oklch(0.40 0.05 0)" strokeWidth="1.5" />
-            <rect x="74" y="18" width="12" height="18" rx="3" fill="oklch(0.20 0.02 0)" stroke="oklch(0.40 0.05 0)" strokeWidth="1.5" />
-            <rect x="14" y="64" width="12" height="18" rx="3" fill="oklch(0.20 0.02 0)" stroke="oklch(0.40 0.05 0)" strokeWidth="1.5" />
-            <rect x="74" y="64" width="12" height="18" rx="3" fill="oklch(0.20 0.02 0)" stroke="oklch(0.40 0.05 0)" strokeWidth="1.5" />
+            <rect x="14" y="18" width="12" height="18" rx="3" fill="var(--fp-vehicle-wheel)" stroke="var(--fp-vehicle-stroke)" strokeWidth="1.5" />
+            <rect x="74" y="18" width="12" height="18" rx="3" fill="var(--fp-vehicle-wheel)" stroke="var(--fp-vehicle-stroke)" strokeWidth="1.5" />
+            <rect x="14" y="64" width="12" height="18" rx="3" fill="var(--fp-vehicle-wheel)" stroke="var(--fp-vehicle-stroke)" strokeWidth="1.5" />
+            <rect x="74" y="64" width="12" height="18" rx="3" fill="var(--fp-vehicle-wheel)" stroke="var(--fp-vehicle-stroke)" strokeWidth="1.5" />
             {/* Impact indicator */}
             <circle
               cx={impactZone.x}
@@ -536,8 +536,8 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
       <div
         className="p-2.5 rounded-lg mb-3 text-xs leading-relaxed"
         style={{
-          background: enforcement.directionFlag.mismatch ? "oklch(0.72 0.18 60 / 0.08)" : "oklch(0.55 0.18 155 / 0.08)",
-          border: `1px solid ${enforcement.directionFlag.mismatch ? "oklch(0.72 0.18 60 / 0.35)" : "oklch(0.55 0.18 155 / 0.30)"}`,
+          background: enforcement.directionFlag.mismatch ? "var(--fp-warning-bg)" : "var(--fp-success-bg)",
+          border: `1px solid ${enforcement.directionFlag.mismatch ? "var(--fp-warning-border)" : "var(--fp-match-border)"}`,
           color: "var(--foreground)",
         }}
       >
@@ -558,7 +558,7 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
               <span
                 key={i}
                 className="text-xs px-2 py-0.5 rounded-full font-medium"
-                style={{ background: "oklch(0.30 0.04 250)", color: "var(--foreground)", border: "1px solid var(--border)" }}
+                style={{ background: "var(--fp-badge-bg)", color: "var(--foreground)", border: "1px solid var(--border)" }}
               >
                 {c.name}
               </span>
@@ -574,7 +574,7 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
 
       {/* Structural implication */}
       {assessment.structuralDamageSeverity && assessment.structuralDamageSeverity !== "none" && (
-        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg" style={{ background: "oklch(0.55 0.22 25 / 0.10)", border: "1px solid oklch(0.55 0.22 25 / 0.35)" }}>
+        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}>
           <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-400" />
           <p className="text-xs" style={{ color: "var(--foreground)" }}>
             <span className="font-bold text-red-400">Structural damage detected.</span> Frame or unibody inspection required before repair authorisation.
@@ -779,10 +779,10 @@ function FraudRiskDecision({ assessment, enforcement }: { assessment: any; enfor
                 className="flex items-start gap-2.5 p-2 rounded-lg"
                 style={{
                   background: c.triggered
-                    ? "oklch(0.55 0.22 25 / 0.08)"
-                    : "oklch(0.45 0.04 155 / 0.06)",
+                    ? "var(--fp-critical-bg)"
+                    : "var(--fp-success-bg)",
                   border: c.triggered
-                    ? "1px solid oklch(0.55 0.22 25 / 0.30)"
+                    ? "1px solid var(--fp-critical-border)"
                     : "1px solid var(--border)",
                 }}
               >
@@ -1387,7 +1387,7 @@ export default function ClaimDecisionReport() {
                 <pre
                   className="text-xs overflow-auto rounded p-3"
                   style={{
-                    background: "oklch(0.15 0.02 250)",
+                    background: "var(--fp-subtle-bg)",
                     color: "#a5f3fc",
                     maxHeight: "400px",
                     fontFamily: "'Fira Code', 'Cascadia Code', monospace",
@@ -1444,7 +1444,7 @@ export default function ClaimDecisionReport() {
                   <div
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
                     style={{
-                      background: replayResult.changed ? "oklch(0.35 0.12 30)" : "var(--status-approve-bg)",
+                      background: replayResult.changed ? "var(--fp-locked-bg)" : "var(--status-approve-bg)",
                       color: replayResult.changed ? "#fca5a5" : "#86efac",
                     }}
                   >
@@ -1470,7 +1470,7 @@ export default function ClaimDecisionReport() {
                       {replayResult.original_verdict.replace(/_/g, " ")}
                     </p>
                   </div>
-                  <div className="rounded-lg p-3" style={{ background: "var(--card)", border: `1px solid ${replayResult.changed && replayResult.original_verdict !== replayResult.new_verdict ? "oklch(0.65 0.2 30)" : "var(--border)"}` }}>
+                  <div className="rounded-lg p-3" style={{ background: "var(--card)", border: `1px solid ${replayResult.changed && replayResult.original_verdict !== replayResult.new_verdict ? "var(--fp-locked-border)" : "var(--border)"}` }}>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Replayed Verdict</p>
                     <p className="text-sm font-bold" style={{ color: replayResult.original_verdict !== replayResult.new_verdict ? "#fca5a5" : "var(--foreground)" }}>
                       {replayResult.new_verdict.replace(/_/g, " ")}
@@ -1506,7 +1506,7 @@ export default function ClaimDecisionReport() {
                 )}
 
                 {/* Impact analysis */}
-                <div className="rounded-lg p-3" style={{ background: "oklch(0.15 0.02 250)", border: "1px solid var(--border)" }}>
+                <div className="rounded-lg p-3" style={{ background: "var(--fp-subtle-bg)", border: "1px solid var(--border)" }}>
                   <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Impact Analysis</p>
                   <pre
                     className="text-xs whitespace-pre-wrap"
@@ -1521,7 +1521,7 @@ export default function ClaimDecisionReport() {
         )}
 
         {/* 8. Lifecycle Status Bar */}
-        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLocked ? "oklch(0.65 0.2 30)" : isFinal ? "var(--status-approve-text)" : "var(--border)"}` }}>
+        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLocked ? "var(--fp-locked-border)" : isFinal ? "var(--status-approve-text)" : "var(--border)"}` }}>
           {/* State progress track */}
           <div className="flex items-stretch" style={{ background: "var(--muted)", minHeight: "44px" }}>
             {(["DRAFT", "REVIEWED", "FINALISED", "LOCKED"] as const).map((state, i) => {
@@ -1537,7 +1537,7 @@ export default function ClaimDecisionReport() {
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold px-2"
                   style={{
                     background: isActive
-                      ? state === "LOCKED" ? "oklch(0.35 0.12 30)" : state === "FINALISED" ? "var(--status-approve-bg)" : "oklch(0.25 0.06 250)"
+                      ? state === "LOCKED" ? "var(--fp-locked-bg)" : state === "FINALISED" ? "var(--status-approve-bg)" : "var(--fp-badge-bg)"
                       : "transparent",
                     color: isActive
                       ? state === "LOCKED" ? "#fca5a5" : state === "FINALISED" ? "#86efac" : "#93c5fd"
@@ -1613,7 +1613,7 @@ export default function ClaimDecisionReport() {
                     size="sm"
                     variant="outline"
                     disabled={finaliseDecisionMutation.isPending}
-                    style={{ borderColor: "oklch(0.65 0.2 30)", color: "#fca5a5" }}
+                    style={{ borderColor: "var(--fp-locked-border)", color: "#fca5a5" }}
                     onClick={() => openReasonDialog('FINALISED', 'ESCALATE_INVESTIGATION')}
                   >
                     <AlertTriangle className="h-3.5 w-3.5 mr-1" />
@@ -1628,7 +1628,7 @@ export default function ClaimDecisionReport() {
                   size="sm"
                   variant="outline"
                   disabled={lockDecisionMutation.isPending}
-                  style={{ borderColor: "oklch(0.65 0.2 30)", color: "#fca5a5" }}
+                  style={{ borderColor: "var(--fp-locked-border)", color: "#fca5a5" }}
                   onClick={() => openReasonDialog('LOCKED')}
                 >
                   <Lock className="h-3.5 w-3.5 mr-1" />
@@ -1671,12 +1671,12 @@ export default function ClaimDecisionReport() {
 
         {/* Export Validation Gate Panel — shown when export is blocked */}
         {showExportValidation && exportValidationErrors && (
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid oklch(0.55 0.22 30)", background: "oklch(0.18 0.06 30 / 0.5)" }}>
-            <div className="flex items-center justify-between px-5 py-3" style={{ background: "oklch(0.22 0.08 30 / 0.7)" }}>
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--fp-critical-border)", background: "var(--fp-critical-bg)" }}>
+            <div className="flex items-center justify-between px-5 py-3" style={{ background: "var(--fp-critical-bg)" }}>
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4" style={{ color: "#fca5a5" }} />
                 <span className="text-sm font-semibold" style={{ color: "#fca5a5" }}>Export Blocked — Validation Failed</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "oklch(0.30 0.10 30)", color: "#fca5a5" }}>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--fp-critical-bg)", color: "#fca5a5" }}>
                   {exportValidationErrors.filter(c => !c.passed).length} check{exportValidationErrors.filter(c => !c.passed).length !== 1 ? 's' : ''} failed
                 </span>
               </div>
@@ -1684,7 +1684,7 @@ export default function ClaimDecisionReport() {
             </div>
             <div className="p-4 space-y-2">
               {exportValidationErrors.map((check, i) => (
-                <div key={i} className="flex items-start gap-3 rounded-lg px-3 py-2.5" style={{ background: check.passed ? "oklch(0.20 0.06 150 / 0.4)" : "oklch(0.20 0.08 30 / 0.4)", border: `1px solid ${check.passed ? "oklch(0.40 0.12 150)" : "oklch(0.45 0.18 30)"}` }}>
+                <div key={i} className="flex items-start gap-3 rounded-lg px-3 py-2.5" style={{ background: check.passed ? "var(--fp-success-bg)" : "var(--fp-critical-bg)", border: `1px solid ${check.passed ? "var(--fp-success-border)" : "var(--fp-critical-border)"}` }}>
                   {check.passed
                     ? <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#86efac" }} />
                     : <XCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#fca5a5" }} />
@@ -1709,7 +1709,7 @@ export default function ClaimDecisionReport() {
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4" style={{ color: "#93c5fd" }} />
                 <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Governance Audit Log</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "oklch(0.25 0.06 250)", color: "#93c5fd" }}>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--fp-badge-bg)", color: "#93c5fd" }}>
                   {auditLog.length} {auditLog.length === 1 ? 'entry' : 'entries'}
                 </span>
               </div>
@@ -1726,7 +1726,7 @@ export default function ClaimDecisionReport() {
                       className="rounded-lg p-3"
                       style={{
                         background: "var(--background)",
-                        border: `1px solid ${entry.overrideFlag ? "oklch(0.65 0.2 30)" : "var(--border)"}`,
+                        border: `1px solid ${entry.overrideFlag ? "var(--fp-locked-border)" : "var(--border)"}`,
                       }}
                     >
                       <div className="flex items-start justify-between gap-3">
@@ -1734,10 +1734,10 @@ export default function ClaimDecisionReport() {
                           <span
                             className="text-xs font-bold px-2 py-0.5 rounded-full"
                             style={{
-                              background: entry.action === 'LOCKED' ? "oklch(0.25 0.08 30)"
-                                : entry.action === 'FINALISED' ? "oklch(0.2 0.06 145)"
-                                : entry.action === 'REVIEWED' ? "oklch(0.2 0.05 250)"
-                                : "oklch(0.2 0.04 280)",
+                              background: entry.action === 'LOCKED' ? "var(--fp-locked-bg)"
+                                : entry.action === 'FINALISED' ? "var(--fp-finalised-bg)"
+                                : entry.action === 'REVIEWED' ? "var(--fp-info-bg)"
+                                : "var(--fp-subtle-bg)",
                               color: entry.action === 'LOCKED' ? "#fca5a5"
                                 : entry.action === 'FINALISED' ? "#86efac"
                                 : entry.action === 'REVIEWED' ? "#93c5fd"
@@ -1747,12 +1747,12 @@ export default function ClaimDecisionReport() {
                             {entry.action}
                           </span>
                           {entry.overrideFlag && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "oklch(0.25 0.1 50)", color: "#fbbf24" }}>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--fp-warning-bg)", color: "#fbbf24" }}>
                               ⚠️ OVERRIDE
                             </span>
                           )}
                           {!entry.actionAllowed && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "oklch(0.2 0.08 30)", color: "#fca5a5" }}>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--fp-critical-bg)", color: "#fca5a5" }}>
                               BLOCKED
                             </span>
                           )}
@@ -1803,9 +1803,9 @@ export default function ClaimDecisionReport() {
               <div
                 className="h-8 w-8 rounded-full flex items-center justify-center"
                 style={{
-                  background: reasonDialog.action === 'LOCKED' ? "oklch(0.25 0.08 30)"
-                    : reasonDialog.action === 'FINALISED' ? "oklch(0.2 0.06 145)"
-                    : "oklch(0.2 0.05 250)",
+                  background: reasonDialog.action === 'LOCKED' ? "var(--fp-locked-bg)"
+                    : reasonDialog.action === 'FINALISED' ? "var(--fp-finalised-bg)"
+                    : "var(--fp-info-bg)",
                 }}
               >
                 {reasonDialog.action === 'LOCKED' ? <Lock className="h-4 w-4" style={{ color: "#fca5a5" }} />
@@ -1830,7 +1830,7 @@ export default function ClaimDecisionReport() {
               onChange={(e) => setReasonDialog(d => ({ ...d, reason: e.target.value, error: '' }))}
               style={{
                 background: "var(--background)",
-                border: `1px solid ${reasonDialog.error ? "oklch(0.65 0.2 30)" : "var(--border)"}`,
+                border: `1px solid ${reasonDialog.error ? "var(--fp-locked-border)" : "var(--border)"}`,
                 color: "var(--foreground)",
                 outline: "none",
               }}
@@ -1856,8 +1856,8 @@ export default function ClaimDecisionReport() {
                 disabled={reasonDialog.reason.trim().length < 10}
                 onClick={submitReasonDialog}
                 style={{
-                  background: reasonDialog.action === 'LOCKED' ? "oklch(0.45 0.15 30)"
-                    : reasonDialog.action === 'FINALISED' ? "oklch(0.4 0.12 145)"
+                  background: reasonDialog.action === 'LOCKED' ? "var(--fp-locked-border)"
+                    : reasonDialog.action === 'FINALISED' ? "var(--fp-finalised-border)"
                     : undefined,
                 }}
               >

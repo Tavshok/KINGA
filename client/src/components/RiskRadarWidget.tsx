@@ -21,25 +21,25 @@ interface RiskRadarWidgetProps {
 
 const SEVERITY_STYLES = {
   green: {
-    border: 'oklch(0.65 0.18 145 / 0.35)',
-    bg: 'oklch(0.65 0.18 145 / 0.06)',
-    icon: 'oklch(0.65 0.18 145)',
-    badge: { bg: 'oklch(0.65 0.18 145 / 0.15)', color: 'oklch(0.65 0.18 145)', label: 'Low Risk' },
-    bar: 'oklch(0.65 0.18 145)',
+    border: 'var(--fp-success-border)',
+    bg: 'var(--fp-success-bg)',
+    icon: 'var(--success)',
+    badge: { bg: 'var(--fp-success-bg)', color: 'var(--success)', label: 'Low Risk' },
+    bar: 'var(--success)',
   },
   amber: {
-    border: 'oklch(0.75 0.18 70 / 0.35)',
-    bg: 'oklch(0.75 0.18 70 / 0.06)',
-    icon: 'oklch(0.75 0.18 70)',
-    badge: { bg: 'oklch(0.75 0.18 70 / 0.15)', color: 'oklch(0.75 0.18 70)', label: 'Elevated' },
-    bar: 'oklch(0.75 0.18 70)',
+    border: 'var(--fp-warning-border)',
+    bg: 'var(--fp-warning-bg)',
+    icon: 'var(--warning)',
+    badge: { bg: 'var(--fp-warning-bg)', color: 'var(--warning)', label: 'Elevated' },
+    bar: 'var(--warning)',
   },
   red: {
-    border: 'oklch(0.62 0.22 25 / 0.35)',
-    bg: 'oklch(0.62 0.22 25 / 0.06)',
-    icon: 'oklch(0.62 0.22 25)',
-    badge: { bg: 'oklch(0.62 0.22 25 / 0.15)', color: 'oklch(0.62 0.22 25)', label: 'Critical' },
-    bar: 'oklch(0.62 0.22 25)',
+    border: 'var(--fp-critical-border)',
+    bg: 'var(--fp-critical-bg)',
+    icon: 'var(--chart-4)',
+    badge: { bg: 'var(--fp-critical-bg)', color: 'var(--chart-4)', label: 'Critical' },
+    bar: 'var(--chart-4)',
   },
 };
 
@@ -141,14 +141,14 @@ export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
     <div
       className="rounded-xl overflow-hidden"
       style={{
-        background: 'linear-gradient(135deg, oklch(0.14 0.018 250) 0%, oklch(0.12 0.015 250) 100%)',
-        border: '1px solid oklch(0.22 0.02 250)',
+        background: 'var(--background)',
+        border: '1px solid var(--border)',
       }}
     >
       {/* Header */}
       <div
         className="px-6 py-4 flex items-center justify-between"
-        style={{ borderBottom: '1px solid oklch(0.20 0.018 250)' }}
+        style={{ borderBottom: '1px solid var(--border)' }}
       >
         <div className="flex items-center gap-3">
           <div
@@ -159,14 +159,14 @@ export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
           </div>
           <div>
             <h3 className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Risk Radar</h3>
-            <p className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>Proactive risk monitoring · Real-time severity</p>
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Proactive risk monitoring · Real-time severity</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
-            <span className="font-bold" style={{ color: 'oklch(0.62 0.22 25)' }}>{redCount}</span> Critical ·{' '}
-            <span className="font-bold" style={{ color: 'oklch(0.75 0.18 70)' }}>{amberCount}</span> Elevated ·{' '}
-            <span className="font-bold" style={{ color: 'oklch(0.65 0.18 145)' }}>{greenCount}</span> Normal
+            <span className="font-bold" style={{ color: 'var(--chart-4)' }}>{redCount}</span> Critical ·{' '}
+            <span className="font-bold" style={{ color: 'var(--warning)' }}>{amberCount}</span> Elevated ·{' '}
+            <span className="font-bold" style={{ color: 'var(--success)' }}>{greenCount}</span> Normal
           </div>
           <span
             className="px-2.5 py-1 rounded text-xs font-semibold"
@@ -187,7 +187,7 @@ export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
               key={alert.id}
               className="p-5"
               style={{
-                borderRight: i < 3 ? '1px solid oklch(0.20 0.018 250)' : 'none',
+                borderRight: i < 3 ? '1px solid var(--border)' : 'none',
                 background: s.bg,
               }}
             >
@@ -207,13 +207,13 @@ export function RiskRadarWidget({ kpis }: RiskRadarWidgetProps) {
               </div>
               <h4 className="text-sm font-semibold mb-1" style={{ color: 'var(--foreground)' }}>{alert.title}</h4>
               <p className="text-xs leading-relaxed mb-3" style={{ color: 'var(--muted-foreground)' }}>{alert.description}</p>
-              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: 'oklch(0.65 0.015 250)' }}>
+              <div className="flex items-center justify-between text-xs mb-1.5" style={{ color: 'var(--muted-foreground)' }}>
                 <span>Current: <span className="font-bold" style={{ color: 'var(--foreground)' }}>{alert.metric}</span></span>
                 <span>Threshold: {alert.threshold}</span>
               </div>
               <div
                 className="h-1.5 rounded-full overflow-hidden"
-                style={{ background: 'oklch(0.22 0.02 250)' }}
+                style={{ background: 'var(--border)' }}
               >
                 <div
                   className="h-full rounded-full"

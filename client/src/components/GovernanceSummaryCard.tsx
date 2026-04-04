@@ -18,13 +18,13 @@ interface GovernanceSummaryCardProps {
 }
 
 const GOV_COLORS: Record<string, { icon: string; accent: string; glow: string }> = {
-  blue:   { icon: 'oklch(0.60 0.20 250)', accent: 'oklch(0.60 0.20 250 / 0.15)', glow: 'oklch(0.60 0.20 250 / 0.06)' },
-  green:  { icon: 'oklch(0.65 0.18 145)', accent: 'oklch(0.65 0.18 145 / 0.15)', glow: 'oklch(0.65 0.18 145 / 0.06)' },
-  purple: { icon: 'oklch(0.65 0.20 295)', accent: 'oklch(0.65 0.20 295 / 0.15)', glow: 'oklch(0.65 0.20 295 / 0.06)' },
-  red:    { icon: 'oklch(0.62 0.22 25)',  accent: 'oklch(0.62 0.22 25 / 0.15)',  glow: 'oklch(0.62 0.22 25 / 0.06)'  },
-  amber:  { icon: 'oklch(0.75 0.18 70)',  accent: 'oklch(0.75 0.18 70 / 0.15)',  glow: 'oklch(0.75 0.18 70 / 0.06)'  },
-  slate:  { icon: 'oklch(0.62 0.015 250)', accent: 'oklch(0.62 0.015 250 / 0.15)', glow: 'oklch(0.62 0.015 250 / 0.06)' },
-  orange: { icon: 'oklch(0.70 0.20 50)',  accent: 'oklch(0.70 0.20 50 / 0.15)',  glow: 'oklch(0.70 0.20 50 / 0.06)'  },
+  blue:   { icon: 'var(--info)', accent: 'var(--fp-info-bg)', glow: 'var(--fp-info-bg)' },
+  green:  { icon: 'var(--success)', accent: 'var(--fp-success-bg)', glow: 'var(--fp-success-bg)' },
+  purple: { icon: 'var(--chart-5)', accent: 'var(--fp-info-bg)', glow: 'var(--fp-info-bg)' },
+  red:    { icon: 'var(--chart-4)',  accent: 'var(--fp-critical-bg)',  glow: 'var(--fp-critical-bg)'  },
+  amber:  { icon: 'var(--warning)',  accent: 'var(--fp-warning-bg)',  glow: 'var(--fp-warning-bg)'  },
+  slate:  { icon: 'var(--muted-foreground)', accent: 'var(--muted)', glow: 'var(--muted)' },
+  orange: { icon: 'var(--warning)',  accent: 'var(--fp-warning-bg)',  glow: 'var(--fp-warning-bg)'  },
 };
 
 export function GovernanceSummaryCard({
@@ -49,9 +49,9 @@ export function GovernanceSummaryCard({
 
   const getTrendStyle = () => {
     switch (trend) {
-      case "down": return { background: 'oklch(0.65 0.18 145 / 0.12)', color: 'oklch(0.65 0.18 145)' };
-      case "up":   return { background: 'oklch(0.62 0.22 25 / 0.12)',  color: 'oklch(0.62 0.22 25)'  };
-      case "stable": return { background: 'oklch(0.28 0.015 250 / 0.5)', color: 'oklch(0.72 0.015 250)' };
+      case "down": return { background: 'var(--fp-success-bg)', color: 'var(--success)' };
+      case "up":   return { background: 'var(--fp-critical-bg)',  color: 'var(--chart-4)'  };
+      case "stable": return { background: 'var(--muted)', color: 'var(--muted-foreground)' };
     }
   };
 
@@ -68,8 +68,8 @@ export function GovernanceSummaryCard({
     <div
       className="relative overflow-hidden rounded-xl p-5"
       style={{
-        background: 'linear-gradient(135deg, oklch(0.14 0.018 250) 0%, oklch(0.12 0.015 250) 100%)',
-        border: '1px solid oklch(0.22 0.02 250)',
+        background: 'var(--background)',
+        border: '1px solid var(--border)',
         boxShadow: `0 0 16px ${c.glow}`,
       }}
     >
@@ -90,15 +90,15 @@ export function GovernanceSummaryCard({
       </div>
 
       <div className="space-y-1">
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.65 0.015 250)' }}>{title}</p>
-        <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
+        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>{title}</p>
+        <p className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>{value}</p>
         {subtitle && (
           <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
         )}
       </div>
 
       {onViewDetails && (
-        <div className="mt-4 pt-3" style={{ borderTop: '1px solid oklch(0.22 0.02 250)' }}>
+        <div className="mt-4 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
           <button
             className="w-full flex items-center justify-center gap-1.5 text-xs font-medium py-1.5 rounded"
             style={{ color: 'var(--muted-foreground)', background: 'var(--card)' }}

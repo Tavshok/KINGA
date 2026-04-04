@@ -278,7 +278,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                       <>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">AI Benchmark</span>
-                          <span className="font-semibold" style={{ color: 'oklch(0.62 0.18 155)' }}>{formatAmount(ci.aiBenchmarkTotalCents)}</span>
+                          <span className="font-semibold" style={{ color: 'var(--chart-3)' }}>{formatAmount(ci.aiBenchmarkTotalCents)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">Fair Range</span>

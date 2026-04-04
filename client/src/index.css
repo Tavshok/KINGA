@@ -114,7 +114,99 @@
   --border: oklch(0.86 0.012 185);
   --input: oklch(0.92 0.010 185);
   --ring: oklch(0.42 0.12 185);             /* Deep teal focus ring — visible ✓ */
-  
+
+  /* BI Design System — light mode variables */
+  --bi-bg: oklch(1 0 0);
+  --bi-bg-alt: oklch(0.97 0.008 185);
+  --bi-bg-elevated: oklch(0.96 0.01 185);
+  --bi-text: oklch(0.20 0.02 250);
+  --bi-text-muted: oklch(0.35 0.02 250);
+  --bi-border: oklch(0.88 0.015 185);
+  --bi-border-subtle: oklch(0.92 0.01 185);
+  --bi-accent: oklch(0.42 0.12 185);
+  --bi-accent-muted: oklch(0.68 0.10 185 / 0.08);
+  --bi-hover: #F1F5F9;
+  --bi-kpi-value: oklch(0.20 0.02 250);
+  --bi-kpi-label: oklch(0.35 0.02 250);
+  --bi-chip-success-bg: oklch(0.55 0.14 165 / 0.12);
+  --bi-chip-success-text: oklch(0.35 0.14 165);
+  --bi-chip-success-border: oklch(0.55 0.14 165 / 0.25);
+  --bi-chip-warning-bg: oklch(0.65 0.18 60 / 0.12);
+  --bi-chip-warning-text: oklch(0.40 0.16 60);
+  --bi-chip-warning-border: oklch(0.65 0.18 60 / 0.25);
+  --bi-chip-danger-bg: oklch(0.45 0.18 25 / 0.12);
+  --bi-chip-danger-text: oklch(0.45 0.22 25);
+  --bi-chip-danger-border: oklch(0.45 0.18 25 / 0.25);
+  --bi-chip-neutral-bg: oklch(0.92 0.01 250);
+  --bi-chip-neutral-text: oklch(0.35 0.02 250);
+  --bi-chip-neutral-border: oklch(0.82 0.015 250);
+  --bi-chip-primary-bg: oklch(0.68 0.10 185 / 0.12);
+  --bi-chip-primary-text: oklch(0.35 0.10 185);
+  --bi-chip-primary-border: oklch(0.68 0.10 185 / 0.25);
+  --bi-gradient-start: oklch(0.22 0.04 250);
+  --bi-gradient-mid: oklch(0.28 0.05 220);
+  --bi-gradient-end: oklch(0.25 0.06 185);
+  --bi-gradient-accent: oklch(0.68 0.10 185 / 0.3);
+  --bi-glow-start: oklch(0.68 0.10 185 / 0.06);
+  --bi-glow-end: oklch(0.40 0.08 250 / 0.08);
+  --bi-grid-line: oklch(0.68 0.10 185 / 0.04);
+  --bi-progress-bg: oklch(0.90 0.015 185);
+  --bi-progress-fill-start: oklch(0.68 0.10 185);
+  --bi-progress-fill-end: oklch(0.55 0.14 165);
+  --bi-delta-positive-bg: oklch(0.55 0.14 165 / 0.12);
+  --bi-delta-positive-text: oklch(0.35 0.14 165);
+  --bi-delta-negative-bg: oklch(0.45 0.18 25 / 0.12);
+  --bi-delta-negative-text: oklch(0.45 0.22 25);
+  --bi-delta-neutral-bg: oklch(0.55 0.015 250 / 0.12);
+  --bi-delta-neutral-text: oklch(0.40 0.02 250);
+  --bi-section-num-bg: oklch(0.68 0.10 185 / 0.15);
+  --bi-section-num-text: oklch(0.35 0.10 185);
+  --bi-section-num-border: oklch(0.68 0.10 185 / 0.3);
+  --bi-alert-danger-bg: oklch(0.96 0.02 25);
+  --bi-alert-danger-border: oklch(0.45 0.18 25 / 0.3);
+  --bi-alert-danger-accent: oklch(0.50 0.22 25);
+  --bi-alert-warning-bg: oklch(0.96 0.02 60);
+  --bi-alert-warning-border: oklch(0.55 0.18 60 / 0.3);
+  --bi-alert-warning-accent: oklch(0.50 0.18 60);
+  --bi-alert-success-bg: oklch(0.96 0.02 165);
+  --bi-alert-success-border: oklch(0.55 0.14 165 / 0.3);
+  --bi-alert-success-accent: oklch(0.45 0.15 165);
+  --bi-alert-info-bg: oklch(0.96 0.02 220);
+  --bi-alert-info-border: oklch(0.45 0.12 220 / 0.3);
+  --bi-alert-info-accent: oklch(0.45 0.15 220);
+  --bi-divider: oklch(0.85 0.015 185);
+
+  /* Forensic Panel tokens — light mode */
+  --fp-subtle-bg: oklch(0.96 0.005 250);         /* subtle panel backgrounds */
+  --fp-subtle-border: oklch(0.88 0.015 250);     /* subtle panel borders */
+  --fp-critical-bg: oklch(0.96 0.02 25);         /* critical alert bg */
+  --fp-critical-border: oklch(0.80 0.10 25);     /* critical alert border */
+  --fp-critical-text: oklch(0.45 0.22 25);       /* critical alert text */
+  --fp-warning-bg: oklch(0.96 0.02 60);          /* warning alert bg */
+  --fp-warning-border: oklch(0.80 0.10 60);      /* warning alert border */
+  --fp-warning-text: oklch(0.45 0.18 60);        /* warning alert text */
+  --fp-info-bg: oklch(0.96 0.02 250);            /* info bg */
+  --fp-info-border: oklch(0.80 0.08 250);        /* info border */
+  --fp-info-text: oklch(0.40 0.12 250);          /* info text */
+  --fp-success-bg: oklch(0.96 0.02 155);         /* success bg */
+  --fp-success-border: oklch(0.70 0.10 155);     /* success border */
+  --fp-success-text: oklch(0.35 0.14 155);       /* success text */
+  --fp-mismatch-bg: oklch(0.96 0.02 60);         /* mismatch bg */
+  --fp-mismatch-border: oklch(0.80 0.10 60);     /* mismatch border */
+  --fp-match-bg: oklch(0.96 0.02 155);           /* match bg */
+  --fp-match-border: oklch(0.70 0.10 155);       /* match border */
+  --fp-locked-bg: oklch(0.96 0.02 30);           /* locked state bg */
+  --fp-locked-border: oklch(0.65 0.15 30);       /* locked state border */
+  --fp-locked-text: oklch(0.50 0.20 30);         /* locked state text */
+  --fp-finalised-bg: oklch(0.96 0.02 155);       /* finalised state bg */
+  --fp-finalised-border: oklch(0.70 0.12 155);   /* finalised border */
+  --fp-vehicle-body: oklch(0.92 0.01 250);       /* vehicle diagram body */
+  --fp-vehicle-stroke: oklch(0.70 0.02 250);     /* vehicle diagram stroke */
+  --fp-vehicle-wheel: oklch(0.50 0.02 250);      /* vehicle diagram wheels */
+  --fp-vehicle-glass: oklch(0.85 0.01 250);      /* vehicle diagram glass */
+  --fp-badge-bg: oklch(0.94 0.01 250);           /* generic badge bg */
+  --fp-badge-text: oklch(0.35 0.02 250);         /* generic badge text */
+
   --sidebar: oklch(0.97 0.006 185);
   --sidebar-foreground: oklch(0.16 0.020 250);
   --sidebar-accent: oklch(0.92 0.010 185);
@@ -192,6 +284,98 @@
   --sidebar-accent-foreground: oklch(0.93 0.006 250);
   --sidebar-border: oklch(0.24 0.022 250);
   --sidebar-ring: oklch(0.72 0.16 165);
+
+  /* BI Design System — dark mode variables */
+  --bi-bg: oklch(0.155 0.012 250);
+  --bi-bg-alt: oklch(0.18 0.015 250);
+  --bi-bg-elevated: oklch(0.19 0.015 250);
+  --bi-text: oklch(0.88 0.008 250);
+  --bi-text-muted: oklch(0.65 0.015 250);
+  --bi-border: oklch(0.28 0.02 250);
+  --bi-border-subtle: oklch(0.22 0.015 250);
+  --bi-accent: oklch(0.68 0.10 185);
+  --bi-accent-muted: oklch(0.68 0.10 185 / 0.12);
+  --bi-hover: #1E293B;
+  --bi-kpi-value: oklch(0.92 0.005 65);
+  --bi-kpi-label: oklch(0.65 0.015 250);
+  --bi-chip-success-bg: oklch(0.55 0.14 165 / 0.15);
+  --bi-chip-success-text: oklch(0.72 0.14 165);
+  --bi-chip-success-border: oklch(0.55 0.14 165 / 0.3);
+  --bi-chip-warning-bg: oklch(0.65 0.18 60 / 0.15);
+  --bi-chip-warning-text: oklch(0.80 0.15 60);
+  --bi-chip-warning-border: oklch(0.65 0.18 60 / 0.3);
+  --bi-chip-danger-bg: oklch(0.45 0.18 25 / 0.15);
+  --bi-chip-danger-text: oklch(0.72 0.18 25);
+  --bi-chip-danger-border: oklch(0.45 0.18 25 / 0.3);
+  --bi-chip-neutral-bg: oklch(0.28 0.02 250 / 0.5);
+  --bi-chip-neutral-text: oklch(0.72 0.015 250);
+  --bi-chip-neutral-border: oklch(0.40 0.02 250);
+  --bi-chip-primary-bg: oklch(0.68 0.10 185 / 0.15);
+  --bi-chip-primary-text: oklch(0.78 0.10 185);
+  --bi-chip-primary-border: oklch(0.68 0.10 185 / 0.3);
+  --bi-gradient-start: oklch(0.14 0.025 250);
+  --bi-gradient-mid: oklch(0.18 0.03 220);
+  --bi-gradient-end: oklch(0.16 0.04 185);
+  --bi-gradient-accent: oklch(0.68 0.10 185 / 0.25);
+  --bi-glow-start: oklch(0.68 0.10 185 / 0.08);
+  --bi-glow-end: oklch(0.40 0.08 250 / 0.10);
+  --bi-grid-line: oklch(0.68 0.10 185 / 0.04);
+  --bi-progress-bg: oklch(0.25 0.02 250);
+  --bi-progress-fill-start: oklch(0.68 0.10 185);
+  --bi-progress-fill-end: oklch(0.55 0.14 165);
+  --bi-delta-positive-bg: oklch(0.55 0.14 165 / 0.15);
+  --bi-delta-positive-text: oklch(0.72 0.14 165);
+  --bi-delta-negative-bg: oklch(0.45 0.18 25 / 0.15);
+  --bi-delta-negative-text: oklch(0.72 0.18 25);
+  --bi-delta-neutral-bg: oklch(0.55 0.015 250 / 0.15);
+  --bi-delta-neutral-text: oklch(0.65 0.015 250);
+  --bi-section-num-bg: oklch(0.68 0.10 185 / 0.2);
+  --bi-section-num-text: oklch(0.85 0.10 185);
+  --bi-section-num-border: oklch(0.68 0.10 185 / 0.35);
+  --bi-alert-danger-bg: oklch(0.18 0.04 25 / 0.5);
+  --bi-alert-danger-border: oklch(0.45 0.18 25 / 0.4);
+  --bi-alert-danger-accent: oklch(0.60 0.22 25);
+  --bi-alert-warning-bg: oklch(0.18 0.04 60 / 0.4);
+  --bi-alert-warning-border: oklch(0.55 0.18 60 / 0.3);
+  --bi-alert-warning-accent: oklch(0.70 0.18 60);
+  --bi-alert-success-bg: oklch(0.18 0.04 165 / 0.4);
+  --bi-alert-success-border: oklch(0.55 0.14 165 / 0.3);
+  --bi-alert-success-accent: oklch(0.62 0.15 165);
+  --bi-alert-info-bg: oklch(0.18 0.04 220 / 0.4);
+  --bi-alert-info-border: oklch(0.45 0.12 220 / 0.3);
+  --bi-alert-info-accent: oklch(0.60 0.15 220);
+  --bi-divider: oklch(0.30 0.02 250);
+
+  /* Forensic Panel tokens — dark mode */
+  --fp-subtle-bg: oklch(0.18 0.015 250);         /* subtle panel backgrounds */
+  --fp-subtle-border: oklch(0.28 0.02 250);      /* subtle panel borders */
+  --fp-critical-bg: oklch(0.18 0.06 25 / 0.5);   /* critical alert bg */
+  --fp-critical-border: oklch(0.50 0.18 25);     /* critical alert border */
+  --fp-critical-text: oklch(0.72 0.18 25);       /* critical alert text */
+  --fp-warning-bg: oklch(0.18 0.05 60 / 0.4);    /* warning alert bg */
+  --fp-warning-border: oklch(0.55 0.15 60);      /* warning alert border */
+  --fp-warning-text: oklch(0.80 0.15 60);        /* warning alert text */
+  --fp-info-bg: oklch(0.18 0.04 250 / 0.4);      /* info bg */
+  --fp-info-border: oklch(0.45 0.10 250);        /* info border */
+  --fp-info-text: oklch(0.70 0.15 250);          /* info text */
+  --fp-success-bg: oklch(0.18 0.04 155 / 0.4);   /* success bg */
+  --fp-success-border: oklch(0.45 0.12 155);     /* success border */
+  --fp-success-text: oklch(0.72 0.14 155);       /* success text */
+  --fp-mismatch-bg: oklch(0.18 0.05 60 / 0.3);   /* mismatch bg */
+  --fp-mismatch-border: oklch(0.55 0.15 60);     /* mismatch border */
+  --fp-match-bg: oklch(0.18 0.04 155 / 0.3);     /* match bg */
+  --fp-match-border: oklch(0.45 0.12 155);       /* match border */
+  --fp-locked-bg: oklch(0.22 0.06 30);           /* locked state bg */
+  --fp-locked-border: oklch(0.55 0.15 30);       /* locked state border */
+  --fp-locked-text: oklch(0.78 0.15 30);         /* locked state text */
+  --fp-finalised-bg: oklch(0.18 0.05 155);       /* finalised state bg */
+  --fp-finalised-border: oklch(0.45 0.12 155);   /* finalised border */
+  --fp-vehicle-body: oklch(0.25 0.03 250);       /* vehicle diagram body */
+  --fp-vehicle-stroke: oklch(0.45 0.05 250);     /* vehicle diagram stroke */
+  --fp-vehicle-wheel: oklch(0.20 0.02 250);      /* vehicle diagram wheels */
+  --fp-vehicle-glass: oklch(0.35 0.04 250);      /* vehicle diagram glass */
+  --fp-badge-bg: oklch(0.25 0.03 250);           /* generic badge bg */
+  --fp-badge-text: oklch(0.75 0.015 250);        /* generic badge text */
 }
 
 @layer base {
@@ -386,10 +570,10 @@
   /* ── BI Hero Header ─────────────────────────────────────────── */
   .bi-hero {
     background: linear-gradient(135deg,
-      oklch(0.14 0.025 250) 0%,
-      oklch(0.18 0.03 220) 50%,
-      oklch(0.16 0.04 185) 100%);
-    border-bottom: 1px solid oklch(0.68 0.10 185 / 0.25);
+      var(--bi-gradient-start) 0%,
+      var(--bi-gradient-mid) 50%,
+      var(--bi-gradient-end) 100%);
+    border-bottom: 1px solid var(--bi-gradient-accent);
     position: relative;
     overflow: hidden;
   }
@@ -399,8 +583,8 @@
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(ellipse at 20% 50%, oklch(0.68 0.10 185 / 0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, oklch(0.40 0.08 250 / 0.10) 0%, transparent 50%);
+      radial-gradient(ellipse at 20% 50%, var(--bi-glow-start) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 20%, var(--bi-glow-end) 0%, transparent 50%);
     pointer-events: none;
   }
 
@@ -408,16 +592,16 @@
     position: absolute;
     inset: 0;
     background-image:
-      linear-gradient(oklch(0.68 0.10 185 / 0.04) 1px, transparent 1px),
-      linear-gradient(90deg, oklch(0.68 0.10 185 / 0.04) 1px, transparent 1px);
+      linear-gradient(var(--bi-grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--bi-grid-line) 1px, transparent 1px);
     background-size: 40px 40px;
     pointer-events: none;
   }
 
   /* ── KPI Metric Cards ───────────────────────────────────────── */
   .kpi-card {
-    background: oklch(0.17 0.015 250);
-    border: 1px solid oklch(0.28 0.02 250);
+    background: var(--bi-bg-alt);
+    border: 1px solid var(--bi-border);
     border-radius: 0.75rem;
     padding: 1.25rem;
     position: relative;
@@ -432,19 +616,19 @@
     left: 0;
     right: 0;
     height: 2px;
-    background: linear-gradient(90deg, oklch(0.68 0.10 185), oklch(0.40 0.08 250));
+    background: linear-gradient(90deg, var(--bi-progress-fill-start), var(--bi-progress-fill-end));
   }
 
   .kpi-card:hover {
-    border-color: oklch(0.68 0.10 185 / 0.4);
-    box-shadow: 0 0 20px oklch(0.68 0.10 185 / 0.08);
+    border-color: var(--bi-accent);
+    box-shadow: 0 0 20px var(--bi-accent-muted);
   }
 
   .kpi-card-value {
     font-size: 1.875rem;
     font-weight: 700;
     line-height: 1;
-    color: oklch(0.92 0.005 65);
+    color: var(--bi-kpi-value);
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
@@ -454,7 +638,7 @@
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: oklch(0.65 0.015 250);
+    color: var(--bi-kpi-label);
     margin-bottom: 0.5rem;
   }
 
@@ -470,24 +654,24 @@
   }
 
   .kpi-card-delta.positive {
-    background: oklch(0.55 0.14 165 / 0.15);
-    color: oklch(0.72 0.14 165);
+    background: var(--bi-delta-positive-bg);
+    color: var(--bi-delta-positive-text);
   }
 
   .kpi-card-delta.negative {
-    background: oklch(0.45 0.18 25 / 0.15);
-    color: oklch(0.72 0.18 25);
+    background: var(--bi-delta-negative-bg);
+    color: var(--bi-delta-negative-text);
   }
 
   .kpi-card-delta.neutral {
-    background: oklch(0.55 0.015 250 / 0.15);
-    color: oklch(0.65 0.015 250);
+    background: var(--bi-delta-neutral-bg);
+    color: var(--bi-delta-neutral-text);
   }
 
   /* ── BI Section Panels ──────────────────────────────────────── */
   .comparison-section {
-    background: oklch(0.155 0.012 250);
-    border: 1px solid oklch(0.25 0.02 250);
+    background: var(--bi-bg);
+    border: 1px solid var(--bi-border);
     border-radius: 0.875rem;
     overflow: hidden;
     margin-bottom: 1.25rem;
@@ -495,7 +679,7 @@
   }
 
   .comparison-section:hover {
-    box-shadow: 0 4px 24px oklch(0.68 0.10 185 / 0.06);
+    box-shadow: 0 4px 24px var(--bi-accent-muted);
   }
 
   .comparison-section-header {
@@ -503,8 +687,8 @@
     align-items: flex-start;
     gap: 0.875rem;
     padding: 1rem 1.25rem;
-    background: oklch(0.19 0.015 250);
-    border-bottom: 1px solid oklch(0.25 0.02 250);
+    background: var(--bi-bg-elevated);
+    border-bottom: 1px solid var(--bi-border);
   }
 
   .comparison-section-body {
@@ -519,9 +703,9 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    background: oklch(0.68 0.10 185 / 0.12);
-    border: 1px solid oklch(0.68 0.10 185 / 0.25);
-    color: oklch(0.68 0.10 185);
+    background: var(--bi-accent-muted);
+    border: 1px solid var(--bi-chip-primary-border);
+    color: var(--bi-accent);
   }
 
   .section-badge {
@@ -533,7 +717,7 @@
     border-radius: 0.375rem;
     font-size: 0.6875rem;
     font-weight: 700;
-    background: oklch(0.68 0.10 185);
+    background: var(--bi-accent);
     color: white;
     flex-shrink: 0;
   }
@@ -547,7 +731,7 @@
   }
 
   .bi-table thead tr {
-    background: oklch(0.19 0.015 250);
+    background: var(--bi-bg-elevated);
   }
 
   .bi-table thead th {
@@ -557,8 +741,8 @@
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
-    color: oklch(0.65 0.015 250);
-    border-bottom: 1px solid oklch(0.25 0.02 250);
+    color: var(--bi-text-muted);
+    border-bottom: 1px solid var(--bi-border);
     white-space: nowrap;
   }
 
@@ -566,22 +750,12 @@
   .bi-table thead th:last-child { border-radius: 0 0.5rem 0 0; }
 
   .bi-table tbody tr {
-    border-bottom: 1px solid oklch(0.22 0.015 250);
+    border-bottom: 1px solid var(--bi-border-subtle);
     transition: background 0.15s ease;
   }
 
   .bi-table tbody tr:hover {
-    background: oklch(0.68 0.10 185 / 0.06);
-  }
-
-  /* Light mode table row hover */
-  :root:not(.dark) .bi-table tbody tr:hover {
-    background: #F1F5F9;
-  }
-
-  /* Dark mode table row hover */
-  .dark .bi-table tbody tr:hover {
-    background: #1E293B;
+    background: var(--bi-hover);
   }
 
   .bi-table tbody tr:last-child {
@@ -590,7 +764,7 @@
 
   .bi-table tbody td {
     padding: 0.75rem 0.875rem;
-    color: oklch(0.82 0.008 250);
+    color: var(--bi-text);
     vertical-align: middle;
   }
 
@@ -601,11 +775,11 @@
   }
 
   .bi-table .highlight-row {
-    background: oklch(0.68 0.10 185 / 0.06);
+    background: var(--bi-accent-muted);
   }
 
   .bi-table .highlight-row td {
-    color: oklch(0.88 0.008 185);
+    color: var(--bi-text);
   }
 
   /* ── BI Stat Row ────────────────────────────────────────────── */
@@ -614,7 +788,7 @@
     align-items: center;
     justify-content: space-between;
     padding: 0.625rem 0;
-    border-bottom: 1px solid oklch(0.22 0.015 250);
+    border-bottom: 1px solid var(--bi-border-subtle);
   }
 
   .bi-stat-row:last-child {
@@ -623,20 +797,20 @@
 
   .bi-stat-label {
     font-size: 0.8125rem;
-    color: oklch(0.68 0.015 250);
+    color: var(--bi-text-muted);
   }
 
   .bi-stat-value {
     font-size: 0.875rem;
     font-weight: 600;
-    color: oklch(0.88 0.008 250);
+    color: var(--bi-text);
     font-variant-numeric: tabular-nums;
   }
 
   /* ── BI Chart Container ─────────────────────────────────────── */
   .bi-chart-container {
-    background: oklch(0.155 0.012 250);
-    border: 1px solid oklch(0.25 0.02 250);
+    background: var(--bi-bg);
+    border: 1px solid var(--bi-border);
     border-radius: 0.75rem;
     padding: 1.25rem;
     overflow: hidden;
@@ -645,7 +819,7 @@
   .bi-chart-title {
     font-size: 0.8125rem;
     font-weight: 600;
-    color: oklch(0.80 0.015 250);
+    color: var(--bi-text);
     letter-spacing: 0.04em;
     text-transform: uppercase;
     margin-bottom: 1rem;
@@ -673,50 +847,50 @@
   }
 
   .bi-chip.success {
-    background: oklch(0.55 0.14 165 / 0.15);
-    color: oklch(0.72 0.14 165);
-    border: 1px solid oklch(0.55 0.14 165 / 0.3);
+    background: var(--bi-chip-success-bg);
+    color: var(--bi-chip-success-text);
+    border: 1px solid var(--bi-chip-success-border);
   }
 
-  .bi-chip.success .bi-chip-dot { background: oklch(0.72 0.14 165); }
+  .bi-chip.success .bi-chip-dot { background: var(--bi-chip-success-text); }
 
   .bi-chip.warning {
-    background: oklch(0.65 0.18 60 / 0.15);
-    color: oklch(0.80 0.15 60);
-    border: 1px solid oklch(0.65 0.18 60 / 0.3);
+    background: var(--bi-chip-warning-bg);
+    color: var(--bi-chip-warning-text);
+    border: 1px solid var(--bi-chip-warning-border);
   }
 
-  .bi-chip.warning .bi-chip-dot { background: oklch(0.80 0.15 60); }
+  .bi-chip.warning .bi-chip-dot { background: var(--bi-chip-warning-text); }
 
   .bi-chip.danger {
-    background: oklch(0.45 0.18 25 / 0.15);
-    color: oklch(0.72 0.18 25);
-    border: 1px solid oklch(0.45 0.18 25 / 0.3);
+    background: var(--bi-chip-danger-bg);
+    color: var(--bi-chip-danger-text);
+    border: 1px solid var(--bi-chip-danger-border);
   }
 
-  .bi-chip.danger .bi-chip-dot { background: oklch(0.72 0.18 25); }
+  .bi-chip.danger .bi-chip-dot { background: var(--bi-chip-danger-text); }
 
   .bi-chip.neutral {
-    background: oklch(0.28 0.02 250 / 0.5);
-    color: oklch(0.72 0.015 250);
-    border: 1px solid oklch(0.40 0.02 250);
+    background: var(--bi-chip-neutral-bg);
+    color: var(--bi-chip-neutral-text);
+    border: 1px solid var(--bi-chip-neutral-border);
   }
 
-  .bi-chip.neutral .bi-chip-dot { background: oklch(0.72 0.015 250); }
+  .bi-chip.neutral .bi-chip-dot { background: var(--bi-chip-neutral-text); }
 
   .bi-chip.primary {
-    background: oklch(0.68 0.10 185 / 0.15);
-    color: oklch(0.78 0.10 185);
-    border: 1px solid oklch(0.68 0.10 185 / 0.3);
+    background: var(--bi-chip-primary-bg);
+    color: var(--bi-chip-primary-text);
+    border: 1px solid var(--bi-chip-primary-border);
   }
 
-  .bi-chip.primary .bi-chip-dot { background: oklch(0.78 0.10 185); }
+  .bi-chip.primary .bi-chip-dot { background: var(--bi-chip-primary-text); }
 
   /* ── BI Data Field ──────────────────────────────────────────── */
   .bi-field {
     padding: 0.875rem;
-    background: oklch(0.18 0.015 250);
-    border: 1px solid oklch(0.26 0.02 250);
+    background: var(--bi-bg-alt);
+    border: 1px solid var(--bi-border);
     border-radius: 0.625rem;
   }
 
@@ -725,52 +899,52 @@
     font-weight: 600;
     letter-spacing: 0.07em;
     text-transform: uppercase;
-    color: oklch(0.65 0.015 250);
+    color: var(--bi-text-muted);
     margin-bottom: 0.375rem;
   }
 
   .bi-field-value {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: oklch(0.88 0.008 250);
+    color: var(--bi-text);
   }
 
   /* ── BI Divider ─────────────────────────────────────────────── */
   .bi-divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, oklch(0.30 0.02 250), transparent);
+    background: linear-gradient(90deg, transparent, var(--bi-divider), transparent);
     margin: 1rem 0;
   }
 
   /* ── BI Alert Boxes ─────────────────────────────────────────── */
   .bi-alert-danger {
-    background: oklch(0.18 0.04 25 / 0.5);
-    border: 1px solid oklch(0.45 0.18 25 / 0.4);
-    border-left: 3px solid oklch(0.60 0.22 25);
+    background: var(--bi-alert-danger-bg);
+    border: 1px solid var(--bi-alert-danger-border);
+    border-left: 3px solid var(--bi-alert-danger-accent);
     border-radius: 0.625rem;
     padding: 1rem;
   }
 
   .bi-alert-warning {
-    background: oklch(0.18 0.04 60 / 0.4);
-    border: 1px solid oklch(0.55 0.18 60 / 0.3);
-    border-left: 3px solid oklch(0.70 0.18 60);
+    background: var(--bi-alert-warning-bg);
+    border: 1px solid var(--bi-alert-warning-border);
+    border-left: 3px solid var(--bi-alert-warning-accent);
     border-radius: 0.625rem;
     padding: 1rem;
   }
 
   .bi-alert-success {
-    background: oklch(0.18 0.04 165 / 0.4);
-    border: 1px solid oklch(0.55 0.14 165 / 0.3);
-    border-left: 3px solid oklch(0.62 0.15 165);
+    background: var(--bi-alert-success-bg);
+    border: 1px solid var(--bi-alert-success-border);
+    border-left: 3px solid var(--bi-alert-success-accent);
     border-radius: 0.625rem;
     padding: 1rem;
   }
 
   .bi-alert-info {
-    background: oklch(0.18 0.04 220 / 0.4);
-    border: 1px solid oklch(0.45 0.12 220 / 0.3);
-    border-left: 3px solid oklch(0.60 0.15 220);
+    background: var(--bi-alert-info-bg);
+    border: 1px solid var(--bi-alert-info-border);
+    border-left: 3px solid var(--bi-alert-info-accent);
     border-radius: 0.625rem;
     padding: 1rem;
   }
@@ -778,7 +952,7 @@
   /* ── BI Progress Bar ────────────────────────────────────────── */
   .bi-progress {
     height: 6px;
-    background: oklch(0.25 0.02 250);
+    background: var(--bi-progress-bg);
     border-radius: 9999px;
     overflow: hidden;
   }
@@ -786,7 +960,7 @@
   .bi-progress-fill {
     height: 100%;
     border-radius: 9999px;
-    background: linear-gradient(90deg, oklch(0.68 0.10 185), oklch(0.55 0.14 165));
+    background: linear-gradient(90deg, var(--bi-progress-fill-start), var(--bi-progress-fill-end));
     transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
@@ -794,7 +968,7 @@
   .bi-table-wrapper {
     overflow-x: auto;
     border-radius: 0.625rem;
-    border: 1px solid oklch(0.25 0.02 250);
+    border: 1px solid var(--bi-border);
   }
 
   /* ── BI Section Number Badge ────────────────────────────────── */
@@ -808,141 +982,12 @@
     border-radius: 0.375rem;
     font-size: 0.6875rem;
     font-weight: 700;
-    background: oklch(0.68 0.10 185 / 0.2);
-    color: oklch(0.85 0.10 185);
-    border: 1px solid oklch(0.68 0.10 185 / 0.35);
+    background: var(--bi-section-num-bg);
+    color: var(--bi-section-num-text);
+    border: 1px solid var(--bi-section-num-border);
     flex-shrink: 0;
   }
 
-  /* ═══════════════════════════════════════════════════════════════
-   * LIGHT MODE OVERRIDES FOR BI DESIGN SYSTEM
-   * Applied when .dark class is NOT present on <html>
-   * ═══════════════════════════════════════════════════════════════ */
-
-  /* Light mode: BI hero header uses subtle teal-tinted gradient */
-  :root:not(.dark) .bi-hero {
-    background: linear-gradient(135deg,
-      oklch(0.22 0.04 250) 0%,
-      oklch(0.28 0.05 220) 50%,
-      oklch(0.25 0.06 185) 100%);
-    border-bottom: 1px solid oklch(0.68 0.10 185 / 0.3);
-  }
-
-  /* Light mode: KPI cards use white/light backgrounds */
-  :root:not(.dark) .kpi-card {
-    background: oklch(1 0 0);
-    border: 1px solid oklch(0.88 0.015 185);
-    box-shadow: 0 1px 4px oklch(0.68 0.10 185 / 0.08);
-  }
-
-  :root:not(.dark) .kpi-card-value {
-    color: oklch(0.20 0.02 250);
-  }
-
-  :root:not(.dark) .kpi-card-label {
-    color: oklch(0.35 0.02 250);
-  }
-
-  /* Light mode: comparison sections use white cards */
-  :root:not(.dark) .comparison-section {
-    background: oklch(1 0 0);
-    border: 1px solid oklch(0.88 0.015 185);
-    box-shadow: 0 1px 3px oklch(0.68 0.10 185 / 0.06);
-  }
-
-  :root:not(.dark) .comparison-section-header {
-    background: oklch(0.97 0.008 185);
-    border-bottom: 1px solid oklch(0.88 0.015 185);
-  }
-
-  /* Light mode: BI table uses light backgrounds */
-  :root:not(.dark) .bi-table thead tr {
-    background: oklch(0.96 0.01 185);
-  }
-
-  :root:not(.dark) .bi-table thead th {
-    color: oklch(0.30 0.02 250);
-    border-bottom: 1px solid oklch(0.88 0.015 185);
-  }
-
-  :root:not(.dark) .bi-table tbody tr {
-    border-bottom: 1px solid oklch(0.92 0.01 185);
-  }
-
-  :root:not(.dark) .bi-table tbody td {
-    color: oklch(0.25 0.015 250);
-  }
-
-  :root:not(.dark) .bi-table .highlight-row {
-    background: oklch(0.68 0.10 185 / 0.06);
-  }
-
-  :root:not(.dark) .bi-table .highlight-row td {
-    color: oklch(0.25 0.04 185);
-  }
-
-  /* Light mode: BI stat rows */
-  :root:not(.dark) .bi-stat-row {
-    border-bottom: 1px solid oklch(0.92 0.01 185);
-  }
-
-  :root:not(.dark) .bi-stat-label {
-    color: oklch(0.35 0.02 250);
-  }
-
-  :root:not(.dark) .bi-stat-value {
-    color: oklch(0.20 0.02 250);
-  }
-
-  /* Light mode: BI chart container */
-  :root:not(.dark) .bi-chart-container {
-    background: oklch(0.98 0.005 185);
-    border: 1px solid oklch(0.88 0.015 185);
-  }
-
-  :root:not(.dark) .bi-chart-title {
-    color: oklch(0.30 0.02 250);
-  }
-
-  /* Light mode: BI field */
-  :root:not(.dark) .bi-field {
-    background: oklch(0.97 0.008 185);
-    border: 1px solid oklch(0.88 0.015 185);
-  }
-
-  :root:not(.dark) .bi-field-label {
-    color: oklch(0.30 0.02 250);
-  }
-
-  :root:not(.dark) .bi-field-value {
-    color: oklch(0.20 0.02 250);
-  }
-
-  /* Light mode: BI divider */
-  :root:not(.dark) .bi-divider {
-    background: linear-gradient(90deg, transparent, oklch(0.85 0.015 185), transparent);
-  }
-
-  /* Light mode: BI progress */
-  :root:not(.dark) .bi-progress {
-    background: oklch(0.90 0.015 185);
-  }
-
-  /* Light mode: BI table wrapper */
-  :root:not(.dark) .bi-table-wrapper {
-    border: 1px solid oklch(0.88 0.015 185);
-  }
-
-  /* Light mode: BI chip neutral */
-  :root:not(.dark) .bi-chip.neutral {
-    background: oklch(0.92 0.01 250);
-    color: oklch(0.35 0.02 250);
-    border: 1px solid oklch(0.82 0.015 250);
-  }
-
-  :root:not(.dark) .bi-chip.neutral .bi-chip-dot {
-    background: oklch(0.50 0.02 250);
-  }
 }
 /* ============================================================
    PRINT / PDF EXPORT STYLES

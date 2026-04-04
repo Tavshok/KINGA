@@ -21,9 +21,9 @@ export function IntelligenceSection({
         <div className="flex items-center gap-3">
           <div
             className="p-2 rounded-lg"
-            style={{ background: 'oklch(0.55 0.18 145 / 0.15)', border: '1px solid oklch(0.55 0.18 145 / 0.3)' }}
+            style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)' }}
           >
-            <Icon className="h-5 w-5" style={{ color: 'oklch(0.65 0.18 145)' }} />
+            <Icon className="h-5 w-5" style={{ color: 'var(--success)' }} />
           </div>
           <h2
             className="text-lg font-semibold tracking-tight"
@@ -34,7 +34,7 @@ export function IntelligenceSection({
         </div>
         <div
           className="h-px flex-1 mx-4"
-          style={{ background: 'linear-gradient(to right, oklch(0.28 0.02 250), transparent)' }}
+          style={{ background: 'linear-gradient(to right, var(--border), transparent)' }}
         />
       </div>
 
@@ -43,12 +43,12 @@ export function IntelligenceSection({
         <div
           className="px-4 py-3 rounded-lg text-sm"
           style={{
-            background: 'oklch(0.55 0.18 145 / 0.08)',
-            border: '1px solid oklch(0.55 0.18 145 / 0.25)',
-            color: 'oklch(0.75 0.12 145)',
+            background: 'var(--fp-success-bg)',
+            border: '1px solid var(--fp-success-border)',
+            color: 'var(--success)',
           }}
         >
-          <span className="font-semibold" style={{ color: 'oklch(0.65 0.18 145)' }}>
+          <span className="font-semibold" style={{ color: 'var(--success)' }}>
             ↗ Insight:{' '}
           </span>
           {insight}

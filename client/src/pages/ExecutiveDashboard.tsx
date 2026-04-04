@@ -126,12 +126,12 @@ interface KPICardProps {
 }
 
 const BI_COLORS: Record<string, { icon: string; accent: string; glow: string }> = {
-  blue:   { icon: 'oklch(0.60 0.20 250)', accent: 'oklch(0.60 0.20 250 / 0.15)', glow: 'oklch(0.60 0.20 250 / 0.08)' },
-  green:  { icon: 'oklch(0.65 0.18 145)', accent: 'oklch(0.65 0.18 145 / 0.15)', glow: 'oklch(0.65 0.18 145 / 0.08)' },
-  purple: { icon: 'oklch(0.65 0.20 295)', accent: 'oklch(0.65 0.20 295 / 0.15)', glow: 'oklch(0.65 0.20 295 / 0.08)' },
-  red:    { icon: 'oklch(0.62 0.22 25)',  accent: 'oklch(0.62 0.22 25 / 0.15)',  glow: 'oklch(0.62 0.22 25 / 0.08)'  },
-  amber:  { icon: 'oklch(0.75 0.18 70)',  accent: 'oklch(0.75 0.18 70 / 0.15)',  glow: 'oklch(0.75 0.18 70 / 0.08)'  },
-  slate:  { icon: 'oklch(0.62 0.015 250)', accent: 'oklch(0.62 0.015 250 / 0.15)', glow: 'oklch(0.62 0.015 250 / 0.08)' },
+  blue:   { icon: 'var(--info)', accent: 'var(--fp-info-bg)', glow: 'var(--fp-info-bg)' },
+  green:  { icon: 'var(--success)', accent: 'var(--fp-success-bg)', glow: 'var(--fp-success-bg)' },
+  purple: { icon: 'var(--chart-5)', accent: 'var(--fp-info-bg)', glow: 'var(--fp-info-bg)' },
+  red:    { icon: 'var(--chart-4)',  accent: 'var(--fp-critical-bg)',  glow: 'var(--fp-critical-bg)'  },
+  amber:  { icon: 'var(--warning)',  accent: 'var(--fp-warning-bg)',  glow: 'var(--fp-warning-bg)'  },
+  slate:  { icon: 'var(--muted-foreground)', accent: 'var(--muted)', glow: 'var(--muted)' },
 };
 
 function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPICardProps) {
@@ -142,8 +142,8 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
     <div
       className="relative overflow-hidden rounded-xl p-5"
       style={{
-        background: `linear-gradient(135deg, oklch(0.14 0.018 250) 0%, oklch(0.12 0.015 250) 100%)`,
-        border: '1px solid oklch(0.22 0.02 250)',
+        background: 'var(--background)',
+        border: '1px solid var(--border)',
         boxShadow: `0 0 20px ${c.glow}`,
       }}
     >
@@ -164,8 +164,8 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
             <div
               className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded"
               style={{
-                background: isPositiveTrend ? 'oklch(0.65 0.18 145 / 0.12)' : 'oklch(0.62 0.22 25 / 0.12)',
-                color: isPositiveTrend ? 'oklch(0.65 0.18 145)' : 'oklch(0.62 0.22 25)',
+                background: isPositiveTrend ? 'var(--fp-success-bg)' : 'var(--fp-critical-bg)',
+                color: isPositiveTrend ? 'var(--success)' : 'var(--chart-4)',
               }}
             >
               {isPositiveTrend ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
@@ -174,13 +174,13 @@ function LargeKPICard({ title, value, subtitle, icon: Icon, trend, color }: KPIC
           )}
         </div>
         <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'oklch(0.65 0.015 250)' }}>{title}</p>
-          <p className="text-3xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>{value}</p>
+          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)' }}>{title}</p>
+          <p className="text-3xl font-bold" style={{ color: 'var(--foreground)' }}>{value}</p>
           {subtitle && (
             <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{subtitle}</p>
           )}
           {trend && (
-            <p className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>{trend.label}</p>
+            <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{trend.label}</p>
           )}
         </div>
       </div>
@@ -350,9 +350,9 @@ export default function ExecutiveDashboard() {
 
   if (kpisLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: 'oklch(0.10 0.015 250)' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
         <div className="text-center space-y-4">
-          <Activity className="h-12 w-12 animate-spin mx-auto" style={{ color: 'oklch(0.65 0.18 145)' }} />
+          <Activity className="h-12 w-12 animate-spin mx-auto" style={{ color: 'var(--success)' }} />
           <p style={{ color: 'var(--muted-foreground)' }}>Loading Executive Command Center...</p>
         </div>
       </div>
@@ -360,19 +360,19 @@ export default function ExecutiveDashboard() {
   }
 
   return (
-    <div className="min-h-screen" style={{ background: 'oklch(0.10 0.015 250)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       {/* BI Hero Header */}
-      <div style={{ background: 'linear-gradient(135deg, oklch(0.13 0.02 250) 0%, oklch(0.11 0.018 250) 100%)', borderBottom: '1px solid oklch(0.22 0.02 250)' }}>
+      <div style={{ background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-[1600px] mx-auto px-8 py-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.45 0.15 145))' }}>
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--success)' }}>
                 <BarChart3 className="h-6 w-6 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-3">
-                  <h1 className="text-2xl font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>Executive Command Center</h1>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'oklch(0.55 0.18 145)', color: 'white' }}>LIVE</span>
+                  <h1 className="text-2xl font-bold" style={{ color: 'var(--foreground)' }}>Executive Command Center</h1>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--success)', color: 'white' }}>LIVE</span>
                 </div>
                 <p className="text-sm mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Real-time insights · Decision intelligence · AI-powered analytics</p>
               </div>

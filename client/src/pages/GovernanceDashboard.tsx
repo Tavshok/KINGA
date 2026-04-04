@@ -749,10 +749,10 @@ export default function GovernanceDashboard() {
           {/* SHADOW OVERRIDE MONITOR TAB — observation only, no blocking */}
           <TabsContent value="shadow" className="space-y-6 mt-6">
             {/* Header banner */}
-            <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "oklch(0.20 0.06 260 / 0.6)", border: "1px solid oklch(0.45 0.18 260)" }}>
-              <Radio className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "oklch(0.75 0.18 260)" }} />
+            <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "var(--fp-info-bg)", border: "1px solid var(--fp-info-border)" }}>
+              <Radio className="h-5 w-5 mt-0.5 shrink-0" style={{ color: "var(--info)" }} />
               <div>
-                <p className="font-bold text-sm" style={{ color: "oklch(0.85 0.12 260)" }}>Shadow Mode — Observation Only</p>
+                <p className="font-bold text-sm" style={{ color: "var(--foreground)" }}>Shadow Mode — Observation Only</p>
                 <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
                   This panel tracks override frequency per user for baseline building. It does not block actions, trigger escalations, or notify users.
                   Recommended action is always <strong>none</strong>.
@@ -804,7 +804,7 @@ export default function GovernanceDashboard() {
                       </thead>
                       <tbody>
                         {shadowObservations.map((obs, i) => (
-                          <tr key={i} className="border-b last:border-0" style={{ background: obs.pattern.unusual_detected ? "oklch(0.22 0.08 30 / 0.3)" : "transparent" }}>
+                          <tr key={i} className="border-b last:border-0" style={{ background: obs.pattern.unusual_detected ? "var(--fp-critical-bg)" : "transparent" }}>
                             <td className="py-2.5 pr-4">
                               <div className="font-medium" style={{ color: "var(--foreground)" }}>{obs.user_name ?? obs.user_id}</div>
                               <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{obs.user_id}</div>
@@ -942,8 +942,8 @@ export default function GovernanceDashboard() {
                     </div>
 
                     {/* Trend */}
-                    <div className="rounded-lg p-3" style={{ background: "oklch(0.20 0.06 260 / 0.4)", border: "1px solid oklch(0.40 0.12 260)" }}>
-                      <p className="text-xs font-semibold mb-1" style={{ color: "oklch(0.80 0.15 260)" }}>Trend</p>
+                    <div className="rounded-lg p-3" style={{ background: "var(--fp-info-bg)", border: "1px solid var(--fp-info-border)" }}>
+                      <p className="text-xs font-semibold mb-1" style={{ color: "var(--foreground)" }}>Trend</p>
                       <p className="text-sm" style={{ color: "var(--foreground)" }}>{shadowReport.trend}</p>
                     </div>
 
@@ -962,7 +962,7 @@ export default function GovernanceDashboard() {
                             <XAxis dataKey="day" tick={{ fontSize: 9 }} tickFormatter={(v: string) => v.slice(5)} />
                             <YAxis tick={{ fontSize: 9 }} allowDecimals={false} />
                             <Tooltip formatter={(v: number) => [v, "Overrides"]} labelFormatter={(l: string) => `Date: ${l}`} />
-                            <Bar dataKey="overrides" fill="oklch(0.65 0.18 260)" radius={[2, 2, 0, 0]} />
+                            <Bar dataKey="overrides" fill="var(--chart-5)" radius={[2, 2, 0, 0]} />
                           </BarChart>
                         </ResponsiveContainer>
                       </div>
@@ -1004,7 +1004,7 @@ export default function GovernanceDashboard() {
                             </thead>
                             <tbody>
                               {shadowReport.key_metrics.per_user_breakdown.map((u, i) => (
-                                <tr key={i} className="border-b last:border-0" style={{ background: u.unusual_pattern ? "oklch(0.22 0.08 30 / 0.3)" : "transparent" }}>
+                                <tr key={i} className="border-b last:border-0" style={{ background: u.unusual_pattern ? "var(--fp-critical-bg)" : "transparent" }}>
                                   <td className="py-2 pr-4">
                                     <div className="font-medium" style={{ color: "var(--foreground)" }}>{u.user_name ?? u.user_id}</div>
                                     <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>{u.user_id}</div>

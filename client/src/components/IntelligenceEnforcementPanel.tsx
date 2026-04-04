@@ -78,24 +78,24 @@ interface EnforcementResult {
 
 const ALERT_CONFIG = {
   critical: {
-    bg: "oklch(0.55 0.22 25 / 0.12)",
-    border: "oklch(0.55 0.22 25 / 0.45)",
+    bg: "var(--fp-critical-bg)",
+    border: "var(--fp-critical-border)",
     iconColor: "#f87171",
     labelColor: "#f87171",
     Icon: AlertTriangle,
     label: "CRITICAL",
   },
   warning: {
-    bg: "oklch(0.72 0.18 60 / 0.10)",
-    border: "oklch(0.72 0.18 60 / 0.40)",
+    bg: "var(--fp-warning-bg)",
+    border: "var(--fp-warning-border)",
     iconColor: "#fbbf24",
     labelColor: "#fbbf24",
     Icon: AlertTriangle,
     label: "WARNING",
   },
   info: {
-    bg: "oklch(0.55 0.18 250 / 0.08)",
-    border: "oklch(0.55 0.18 250 / 0.30)",
+    bg: "var(--fp-info-bg)",
+    border: "var(--fp-info-border)",
     iconColor: "#60a5fa",
     labelColor: "#60a5fa",
     Icon: Info,
@@ -225,7 +225,7 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
         {e.physicsInsight && (
           <div
             className="p-3 rounded-lg mb-3 text-sm leading-relaxed"
-            style={{ background: "oklch(0.55 0.18 250 / 0.08)", border: "1px solid oklch(0.55 0.18 250 / 0.25)", color: "var(--foreground)" }}
+            style={{ background: "var(--fp-info-bg)", border: "1px solid var(--fp-info-border)", color: "var(--foreground)" }}
           >
             <span className="font-semibold text-xs uppercase tracking-wide" style={{ color: "var(--primary)" }}>
               Assessor Insight:{" "}
@@ -278,11 +278,11 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
           className="p-3 rounded-lg"
           style={{
             background: e.consistencyFlag.flagged
-              ? (e.consistencyFlag.anomalyLevel === "high" ? "oklch(0.55 0.22 25 / 0.10)" : "oklch(0.72 0.18 60 / 0.08)")
-              : "oklch(0.55 0.18 155 / 0.08)",
+              ? (e.consistencyFlag.anomalyLevel === "high" ? "var(--fp-critical-bg)" : "var(--fp-warning-bg)")
+              : "var(--fp-success-bg)",
             border: `1px solid ${e.consistencyFlag.flagged
-              ? (e.consistencyFlag.anomalyLevel === "high" ? "oklch(0.55 0.22 25 / 0.40)" : "oklch(0.72 0.18 60 / 0.35)")
-              : "oklch(0.55 0.18 155 / 0.30)"}`,
+              ? (e.consistencyFlag.anomalyLevel === "high" ? "var(--fp-critical-border)" : "var(--fp-warning-border)")
+              : "var(--fp-match-border)"}`,
           }}
         >
           <div className="flex items-center gap-2 mb-1">
@@ -320,8 +320,8 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
         <div
           className="p-3 rounded-lg"
           style={{
-            background: e.directionFlag.mismatch ? "oklch(0.72 0.18 60 / 0.08)" : "oklch(0.55 0.18 155 / 0.08)",
-            border: `1px solid ${e.directionFlag.mismatch ? "oklch(0.72 0.18 60 / 0.35)" : "oklch(0.55 0.18 155 / 0.30)"}`,
+            background: e.directionFlag.mismatch ? "var(--fp-warning-bg)" : "var(--fp-success-bg)",
+            border: `1px solid ${e.directionFlag.mismatch ? "var(--fp-warning-border)" : "var(--fp-match-border)"}`,
           }}
         >
           <div className="flex items-center gap-2 mb-1">

@@ -201,9 +201,9 @@ export default function ReportReadinessPanel({
         className="flex items-center justify-between gap-3 p-3 rounded-lg"
         style={{
           background: isReady
-            ? "oklch(0.35 0.12 145 / 0.2)"
+            ? "var(--fp-success-bg)"
             : "var(--status-reject-bg)",
-          border: `1.5px solid ${isReady ? "var(--status-approve-border)" : "oklch(0.55 0.22 25 / 0.4)"}`,
+          border: `1.5px solid ${isReady ? "var(--status-approve-border)" : "var(--fp-critical-border)"}`,
         }}
       >
         <div className="flex items-center gap-2">
@@ -213,7 +213,7 @@ export default function ReportReadinessPanel({
           <div>
             <p
               className="font-bold text-sm"
-              style={{ color: isReady ? "oklch(0.72 0.18 145)" : "var(--status-reject-text)" }}
+              style={{ color: isReady ? "var(--success)" : "var(--status-reject-text)" }}
             >
               {isReady ? "READY FOR EXPORT" : "EXPORT ON HOLD"}
             </p>
@@ -241,7 +241,7 @@ export default function ReportReadinessPanel({
               className="text-xs font-semibold"
               style={{
                 background: "var(--status-approve-text)",
-                color: "oklch(0.98 0.01 145)",
+                color: "var(--success-foreground)",
               }}
             >
               <Download className="w-3.5 h-3.5 mr-1.5" />
@@ -267,7 +267,7 @@ export default function ReportReadinessPanel({
       {result.hold_reasons.length > 0 && (
         <div
           className="p-3 rounded-lg space-y-1.5"
-          style={{ background: "oklch(0.35 0.18 25 / 0.10)", border: "1px solid oklch(0.55 0.22 25 / 0.3)" }}
+          style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
             Blocking Issues
@@ -285,14 +285,14 @@ export default function ReportReadinessPanel({
       {result.warnings.length > 0 && (
         <div
           className="p-3 rounded-lg space-y-1.5"
-          style={{ background: "oklch(0.38 0.14 70 / 0.12)", border: "1px solid oklch(0.55 0.18 70 / 0.3)" }}
+          style={{ background: "var(--fp-warning-bg)", border: "1px solid var(--fp-warning-border)" }}
         >
           <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Advisory Notes
           </p>
           {result.warnings.map((w, i) => (
             <div key={i} className="flex items-start gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "oklch(0.68 0.18 70)" }} />
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "var(--warning)" }} />
               <p className="text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>{w}</p>
             </div>
           ))}

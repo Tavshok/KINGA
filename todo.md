@@ -10229,3 +10229,25 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] Issue 8: Accident description — FIXED: sanitiseAccidentDescription() in Stage 3 strips inspection/stripping/repair process sentences; LLM prompt updated to exclude post-accident actions
 
 NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate the new fields. The code fixes are deployed but the existing DB records were created before these fixes.
+
+## Fundamental Redesign (4 Apr 2026 - Round 2)
+- [ ] Complete color system redesign for both light and dark mode — guaranteed WCAG AA contrast
+- [ ] Eliminate all grey-on-white, black-on-grey, green-on-faded-green combinations
+- [ ] Redesign ForensicDecisionPanel data presentation — professional flow, visual hierarchy
+- [ ] Build visual force vector diagram (not just text labels)
+- [ ] Build visual damage component presentation
+- [ ] Fix photo extraction pipeline — photos not extracting on re-run
+- [ ] Make data presentation appealing and report-quality
+- [ ] Ensure all report components have visual representation where applicable
+
+
+## CSS Token System & Dark/Light Mode Cleanup
+- [x] Add 30+ forensic panel CSS variables (--fp-*) for both light and dark modes
+- [x] Add status badge CSS tokens for consistent theming
+- [x] Replace 312 inline oklch() values with CSS variable references across 11 component files
+- [x] Zero inline oklch() remaining in any component file
+- [x] Rewrite ImpactVectorDiagram with larger SVG visualization, severity ring, force arrows, zone highlights
+- [x] Add statusBadgeCls helper function to ForensicDecisionPanel for DRY badge styling
+- [x] Refactor decisionConfig, fraudBadgeCls, confidenceBadgeCls to use statusBadgeCls helper
+- [x] Verify TypeScript compiles with zero errors after all changes
+- [x] Verify dev server runs cleanly

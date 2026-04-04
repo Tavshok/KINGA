@@ -215,30 +215,30 @@ export default function InsurerClaimsTriage() {
   };
 
   return (
-    <div className="min-h-screen" style={{ background: 'oklch(0.10 0.015 250)' }}>
+    <div className="min-h-screen" style={{ background: 'var(--background)' }}>
       {/* BI Hero Header */}
-      <header style={{ background: 'linear-gradient(135deg, oklch(0.13 0.02 250) 0%, oklch(0.11 0.018 250) 100%)', borderBottom: '1px solid oklch(0.22 0.02 250)' }}>
+      <header style={{ background: 'var(--background)', borderBottom: '1px solid var(--border)' }}>
         <div className="max-w-[1600px] mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, oklch(0.55 0.18 145), oklch(0.45 0.15 145))' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--success)' }}>
                 <ClipboardList className="h-5 w-5 text-white" />
               </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <h1 className="text-lg font-bold" style={{ color: 'oklch(0.92 0.008 250)' }}>Claims Triage Queue</h1>
-                  <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'oklch(0.55 0.18 145 / 0.2)', color: 'oklch(0.65 0.18 145)', border: '1px solid oklch(0.55 0.18 145 / 0.3)' }}>
+                  <h1 className="text-lg font-bold" style={{ color: 'var(--foreground)' }}>Claims Triage Queue</h1>
+                  <span className="px-2 py-0.5 rounded text-xs font-semibold" style={{ background: 'var(--fp-success-bg)', color: 'var(--success)', border: '1px solid var(--fp-success-border)' }}>
                     {claims.length} pending
                   </span>
                 </div>
-                <p className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>Review and process submitted claims · Assign assessors · Trigger AI analysis</p>
+                <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>Review and process submitted claims · Assign assessors · Trigger AI analysis</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => refetchClaims()}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
               >
                 <RefreshCw className="h-3 w-3" />
                 Refresh
@@ -246,7 +246,7 @@ export default function InsurerClaimsTriage() {
               <button
                 onClick={() => setLocation("/insurer/dashboard")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
               >
                 <LayoutDashboard className="h-3 w-3" />
                 Dashboard
@@ -254,12 +254,12 @@ export default function InsurerClaimsTriage() {
               <button
                 onClick={() => setLocation("/admin/pipeline-health")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
               >
                 <Activity className="h-3 w-3" />
                 Pipeline Health
               </button>
-              <div className="w-px h-6 mx-1" style={{ background: 'oklch(0.25 0.02 250)' }} />
+              <div className="w-px h-6 mx-1" style={{ background: 'var(--border)' }} />
               <div className="text-right">
                 <p className="text-xs font-medium" style={{ color: 'var(--foreground)' }}>{user?.name}</p>
                 <p className="text-xs capitalize" style={{ color: 'var(--muted-foreground)' }}>{user?.role}</p>
@@ -268,7 +268,7 @@ export default function InsurerClaimsTriage() {
               <button
                 onClick={() => logout()}
                 className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                style={{ background: 'oklch(0.62 0.22 25 / 0.12)', border: '1px solid oklch(0.62 0.22 25 / 0.3)', color: 'oklch(0.62 0.22 25)' }}
+                style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)', color: 'var(--chart-4)' }}
               >
                 Sign Out
               </button>
@@ -282,7 +282,7 @@ export default function InsurerClaimsTriage() {
         {/* Search + Filter Bar */}
         <div
           className="rounded-xl p-4 mb-4 flex items-center gap-4"
-          style={{ background: 'oklch(0.13 0.018 250)', border: '1px solid oklch(0.22 0.02 250)' }}
+          style={{ background: 'var(--background)', border: '1px solid var(--border)' }}
         >
           <div className="relative flex-1 max-w-md">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--muted-foreground)' }} />
@@ -293,14 +293,14 @@ export default function InsurerClaimsTriage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2 rounded-lg text-sm"
               style={{
-                background: 'oklch(0.16 0.018 250)',
+                background: 'var(--card)',
                 border: '1px solid var(--border)',
                 color: 'var(--foreground)',
                 outline: 'none',
               }}
             />
           </div>
-          <div className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>
+          <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
             Showing <span className="font-semibold" style={{ color: 'var(--foreground)' }}>{claims.length}</span> claim{claims.length !== 1 ? 's' : ''}
           </div>
         </div>
@@ -308,7 +308,7 @@ export default function InsurerClaimsTriage() {
         {/* Table Card */}
         <div
           className="rounded-xl overflow-hidden"
-          style={{ background: 'oklch(0.13 0.018 250)', border: '1px solid oklch(0.22 0.02 250)' }}
+          style={{ background: 'var(--background)', border: '1px solid var(--border)' }}
         >
           <div style={{ padding: '0' }}>
             {claims.length === 0 ? (
@@ -322,7 +322,7 @@ export default function InsurerClaimsTriage() {
             ) : (
               <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: 'oklch(0.16 0.018 250)', borderBottom: '1px solid oklch(0.24 0.02 250)' }}>
+                  <tr style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
                     {['Claim #', 'Claimant', 'Vehicle', 'Date', 'Status', 'Policy', 'Risk', 'Actions'].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>{h}</th>
                     ))}
@@ -330,8 +330,8 @@ export default function InsurerClaimsTriage() {
                 </thead>
                 <tbody>
                   {paginatedClaims.map((claim, idx) => (
-                    <tr key={claim.id} style={{ background: idx % 2 === 0 ? 'oklch(0.13 0.018 250)' : 'oklch(0.145 0.018 250)', borderBottom: '1px solid oklch(0.19 0.018 250)' }}>
-                      <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: 'oklch(0.65 0.18 145)' }}>
+                    <tr key={claim.id} style={{ background: idx % 2 === 0 ? 'var(--background)' : 'var(--card)', borderBottom: '1px solid var(--border)' }}>
+                      <td className="px-4 py-3 font-mono text-xs font-semibold" style={{ color: 'var(--success)' }}>
                         {claim.claimNumber}
                       </td>
                       <td className="px-4 py-3 text-xs" style={{ color: 'var(--foreground)' }}>Claimant #{claim.claimantId}</td>
@@ -347,7 +347,7 @@ export default function InsurerClaimsTriage() {
                           <div className="flex gap-1">
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.55 0.18 145 / 0.12)', border: '1px solid oklch(0.55 0.18 145 / 0.3)', color: 'oklch(0.65 0.18 145)' }}
+                              style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)', color: 'var(--success)' }}
                               onClick={() => handleVerifyPolicy(claim.id, true)}
                               disabled={verifyPolicy.isPending}
                             >
@@ -356,7 +356,7 @@ export default function InsurerClaimsTriage() {
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.62 0.22 25 / 0.12)', border: '1px solid oklch(0.62 0.22 25 / 0.3)', color: 'oklch(0.62 0.22 25)' }}
+                              style={{ background: 'var(--fp-critical-bg)', border: '1px solid var(--fp-critical-border)', color: 'var(--chart-4)' }}
                               onClick={() => handleVerifyPolicy(claim.id, false)}
                               disabled={verifyPolicy.isPending}
                             >
@@ -365,11 +365,11 @@ export default function InsurerClaimsTriage() {
                             </button>
                           </div>
                         ) : claim.policyVerified ? (
-                          <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.65 0.18 145)' }}>
+                          <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--success)' }}>
                             <CheckCircle className="h-3 w-3" /> Verified
                           </span>
                         ) : (
-                          <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'oklch(0.62 0.22 25)' }}>
+                          <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--chart-4)' }}>
                             <XCircle className="h-3 w-3" /> Rejected
                           </span>
                         )}
@@ -403,7 +403,7 @@ export default function InsurerClaimsTriage() {
                           <div className="flex gap-1 flex-wrap">
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.55 0.22 280 / 0.12)', border: '1px solid oklch(0.55 0.22 280 / 0.3)', color: 'oklch(0.65 0.22 280)' }}
+                              style={{ background: 'var(--fp-info-bg)', border: '1px solid var(--fp-info-border)', color: 'var(--chart-5)' }}
                               onClick={() => handleTriggerAi(claim.id)}
                               disabled={triggerAiAssessment.isPending}
                             >
@@ -412,7 +412,7 @@ export default function InsurerClaimsTriage() {
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+                              style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
                               onClick={() => setLocation(`/insurer/claims/${claim.id}`)}
                             >
                               <Eye className="h-3 w-3" />
@@ -420,7 +420,7 @@ export default function InsurerClaimsTriage() {
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.55 0.18 145 / 0.15)', border: '1px solid oklch(0.55 0.18 145 / 0.4)', color: 'oklch(0.65 0.18 145)' }}
+                              style={{ background: 'var(--fp-success-bg)', border: '1px solid var(--fp-success-border)', color: 'var(--success)' }}
                               onClick={() => setLocation(`/insurer/claims/${claim.id}/comparison`)}
                             >
                               <BarChart3 className="h-3 w-3" />
@@ -428,7 +428,7 @@ export default function InsurerClaimsTriage() {
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.55 0.18 200 / 0.12)', border: '1px solid oklch(0.55 0.18 200 / 0.3)', color: 'oklch(0.65 0.18 200)' }}
+                              style={{ background: 'var(--fp-info-bg)', border: '1px solid var(--fp-info-border)', color: 'var(--chart-1)' }}
                               onClick={() => setLocation(`/insurer/claims/${claim.id}/quote-comparison`)}
                             >
                               <DollarSign className="h-3 w-3" />
@@ -436,7 +436,7 @@ export default function InsurerClaimsTriage() {
                             </button>
                             <button
                               className="flex items-center gap-1 px-2 py-1 rounded text-xs font-medium"
-                              style={{ background: 'oklch(0.55 0.18 60 / 0.12)', border: '1px solid oklch(0.55 0.18 60 / 0.3)', color: 'oklch(0.72 0.18 60)', opacity: downloadingId === claim.id ? 0.6 : 1 }}
+                              style={{ background: 'var(--fp-warning-bg)', border: '1px solid var(--fp-warning-border)', color: 'var(--chart-3)', opacity: downloadingId === claim.id ? 0.6 : 1 }}
                               onClick={() => handleDownloadSummary(claim)}
                               disabled={downloadingId === claim.id}
                               title="Download claim summary PDF"
@@ -457,15 +457,15 @@ export default function InsurerClaimsTriage() {
             {claims.length > itemsPerPage && (
               <div
                 className="flex items-center justify-between px-6 py-3"
-                style={{ borderTop: '1px solid oklch(0.20 0.018 250)' }}
+                style={{ borderTop: '1px solid var(--border)' }}
               >
-                <div className="text-xs" style={{ color: 'oklch(0.65 0.015 250)' }}>
+                <div className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
                   Showing {((currentPage - 1) * itemsPerPage) + 1}–{Math.min(currentPage * itemsPerPage, claims.length)} of {claims.length} claims
                 </div>
                 <div className="flex gap-1.5">
                   <button
                     className="px-3 py-1.5 rounded text-xs font-medium disabled:opacity-40"
-                    style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+                    style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                     disabled={currentPage === 1}
                   >
@@ -476,9 +476,9 @@ export default function InsurerClaimsTriage() {
                       key={page}
                       className="w-8 h-8 rounded text-xs font-medium"
                       style={{
-                        background: page === currentPage ? 'oklch(0.55 0.18 145)' : 'oklch(0.18 0.018 250)',
-                        border: `1px solid ${page === currentPage ? 'oklch(0.55 0.18 145)' : 'oklch(0.28 0.02 250)'}`,
-                        color: page === currentPage ? 'white' : 'oklch(0.65 0.015 250)',
+                        background: page === currentPage ? 'var(--success)' : 'var(--muted)',
+                        border: `1px solid ${page === currentPage ? 'var(--success)' : 'var(--border)'}`,
+                        color: page === currentPage ? 'white' : 'var(--muted-foreground)',
                       }}
                       onClick={() => setCurrentPage(page)}
                     >
@@ -487,7 +487,7 @@ export default function InsurerClaimsTriage() {
                   ))}
                   <button
                     className="px-3 py-1.5 rounded text-xs font-medium disabled:opacity-40"
-                    style={{ background: 'oklch(0.18 0.018 250)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+                    style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                     disabled={currentPage === totalPages}
                   >
