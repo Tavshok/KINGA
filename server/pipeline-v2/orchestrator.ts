@@ -672,13 +672,18 @@ export async function runPipelineV2(
 
   ctx.log("Pipeline", `Pipeline complete. Total: ${Date.now() - pipelineStart}ms, Assumptions: ${allAssumptions.length}, Recoveries: ${allRecoveryActions.length}`);
 
+  // Collect raw OCR text from Stage 2 for audit persistence
+  const stage2RawOcrText = stage2Data?.extractedTexts
+    ? stage2Data.extractedTexts.map(et => et.rawText ?? "").filter(Boolean).join("\n\n---\n\n")
+    : null;
+
   return buildResult(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
     causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult,
-    documentVerificationResult
+    documentVerificationResult, stage2RawOcrText
   );
 }
 
@@ -702,7 +707,8 @@ function buildResult(
   evidenceRegistry: EvidenceRegistry | null = null,
   validatedOutcome: ValidatedOutcomeResult | null = null,
   caseSignature: CaseSignatureOutput | null = null,
-  docVerification: DocumentReadVerificationResult | null = null
+  docVerification: DocumentReadVerificationResult | null = null,
+  stage2RawOcrText: string | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -739,6 +745,7 @@ function buildResult(
     evidenceRegistry,
     validatedOutcome,
     caseSignature,
+    stage2RawOcrText,
   };
 }
 

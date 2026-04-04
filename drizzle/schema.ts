@@ -112,6 +112,8 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   explanationJson: text("explanation_json"),
   escalationRouteJson: text("escalation_route_json"),
   decisionTraceJson: text("decision_trace_json"),
+  // Stage 2 output: raw OCR text extracted from the claim PDF (stored for audit and re-extraction)
+  stage2RawOcrText: text("stage2_raw_ocr_text"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

@@ -10,10 +10,13 @@
  *   6. Simplified Narrative
  *   7. Actions Required
  */
-import { useMemo } from "react";
-import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers, GitCompare, Link2, Link2Off, BookOpen } from "lucide-react";
+import { useMemo, useState } from "react";
+import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers, GitCompare, Link2, Link2Off, BookOpen, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
+import { trpc } from "@/lib/trpc";
+import { toast } from "sonner";
 
 interface ForensicDecisionPanelProps {
   aiAssessment: any;
@@ -102,6 +105,23 @@ function IntegrityFlag({ flag, severity, description, action }: { flag: string; 
 
 export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicDecisionPanelProps) {
   const { fmt } = useTenantCurrency();
+  const utils = trpc.useUtils();
+  const [showPipelineTrace, setShowPipelineTrace] = useState(false);
+
+  const claimId: number | undefined = claim?.id;
+
+  const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
+    onSuccess: () => {
+      if (claimId) {
+        utils.aiAssessments.byClaim.invalidate({ claimId });
+        utils.claims.getById.invalidate({ id: claimId });
+      }
+      toast.success('Pipeline re-run triggered', {
+        description: 'All 11 stages will re-execute with the latest fixes. Results appear in 30–60 seconds.',
+      });
+    },
+    onError: (err) => toast.error(`Re-run failed: ${err.message}`),
+  });
 
   const physics = useMemo(() => safeParse(aiAssessment?.physicsAnalysis), [aiAssessment?.physicsAnalysis]);
   const damagePattern = useMemo(() => {
@@ -1090,6 +1110,99 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
           </div>
         </Section>
       )}
+
+      {/* ── 8. RE-RUN PIPELINE ───────────────────────────────────────────────── */}
+      <Section icon={<RefreshCw className="h-4 w-4" />} title="Pipeline Controls" subtitle="Re-run the full 11-stage pipeline with the latest extraction fixes">
+        <div className="space-y-4">
+          {/* Re-run button */}
+          <div className="flex items-start gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-sm text-foreground font-medium mb-1">Re-run Full Pipeline</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Triggers all 11 stages: document OCR → structured extraction → validation → physics → fraud detection → cost intelligence.
+                Use this when the claim document has been updated or when earlier pipeline runs produced stale/incomplete data.
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-shrink-0 gap-2 border-blue-500/40 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+              disabled={reRunMutation.isPending || !claimId}
+              onClick={() => claimId && reRunMutation.mutate({ claimId, reason: 'Manual re-run from Forensic Decision Panel' })}
+            >
+              {reRunMutation.isPending ? (
+                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Re-running...</>
+              ) : (
+                <><RefreshCw className="h-3.5 w-3.5" /> Re-run Pipeline</>
+              )}
+            </Button>
+          </div>
+
+          {/* Pipeline Trace Viewer */}
+          {pipelineSummary?.stages && (
+            <div>
+              <button
+                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
+                onClick={() => setShowPipelineTrace(v => !v)}
+              >
+                {showPipelineTrace ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                <span className="font-medium">Pipeline Stage Trace</span>
+                <span className="ml-auto text-xs text-muted-foreground/60">{Object.keys(pipelineSummary.stages).length} stages</span>
+              </button>
+              {showPipelineTrace && (
+                <div className="mt-3 space-y-1.5">
+                  {Object.entries(pipelineSummary.stages as Record<string, any>).map(([stageKey, stageData]: [string, any]) => {
+                    const stageName = stageKey.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
+                    const status: string = stageData?.status ?? 'unknown';
+                    const durationMs: number = stageData?.durationMs ?? 0;
+                    const degraded: boolean = stageData?.degraded ?? false;
+                    const recoveryCount: number = stageData?.recoveryActionCount ?? 0;
+                    const statusColor = status === 'success' ? 'text-emerald-400' : status === 'degraded' ? 'text-amber-400' : status === 'failed' ? 'text-red-400' : 'text-muted-foreground';
+                    const statusBg = status === 'success' ? 'oklch(0.35 0.14 145 / 0.10)' : status === 'degraded' ? 'oklch(0.72 0.18 60 / 0.10)' : status === 'failed' ? 'oklch(0.55 0.22 25 / 0.10)' : 'oklch(0.22 0.02 260 / 0.5)';
+                    const statusBorder = status === 'success' ? 'oklch(0.55 0.18 145 / 0.25)' : status === 'degraded' ? 'oklch(0.72 0.18 60 / 0.25)' : status === 'failed' ? 'oklch(0.55 0.22 25 / 0.25)' : 'oklch(0.35 0.01 260 / 0.3)';
+                    return (
+                      <div key={stageKey} className="rounded-lg px-3 py-2 flex items-center gap-3" style={{ background: statusBg, border: `1px solid ${statusBorder}` }}>
+                        <span className="text-xs font-mono text-muted-foreground w-20 flex-shrink-0">{stageKey.split('_')[0]}</span>
+                        <span className="text-xs text-foreground flex-1 truncate">{stageName}</span>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {recoveryCount > 0 && (
+                            <span className="text-xs px-1.5 py-0.5 rounded border border-amber-400/30 text-amber-400 font-mono">
+                              +{recoveryCount} recovered
+                            </span>
+                          )}
+                          {degraded && (
+                            <span className="text-xs px-1.5 py-0.5 rounded border border-amber-400/30 text-amber-400">degraded</span>
+                          )}
+                          {durationMs > 0 && (
+                            <span className="text-xs text-muted-foreground font-mono">{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}</span>
+                          )}
+                          <span className={`text-xs font-bold ${statusColor}`}>{status.toUpperCase()}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {/* Recovery actions log */}
+                  {(() => {
+                    const stage4 = pipelineSummary.stages?.['4_validation'];
+                    const recoveryLog: string[] = stage4?.recoveryLog ?? [];
+                    if (recoveryLog.length === 0) return null;
+                    return (
+                      <div className="mt-2 rounded-lg p-3 border border-amber-400/20" style={{ background: 'oklch(0.72 0.18 60 / 0.06)' }}>
+                        <p className="text-xs font-semibold text-amber-400 mb-2">Stage 4 Recovery Actions ({recoveryLog.length})</p>
+                        <div className="space-y-0.5">
+                          {recoveryLog.map((entry: string, i: number) => (
+                            <p key={i} className="text-xs font-mono text-muted-foreground">→ {entry}</p>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </Section>
     </div>
   );
 }
