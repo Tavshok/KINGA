@@ -26,6 +26,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+import { ValidationGate } from "@/components/ValidationGate";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -282,9 +283,12 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   // ─────────────────────────────────────────────────────────────────────────────
   // RENDER
   // ─────────────────────────────────────────────────────────────────────────────
-  return (
+   return (
     <div className="space-y-4">
-
+      {/* ══════════════════════════════════════════════════════════════════════
+          OUTPUT VALIDATION GATE — runs before any data is displayed
+          ══════════════════════════════════════════════════════════════════════ */}
+      {claimId > 0 && <ValidationGate claimId={claimId} />}
       {/* ══════════════════════════════════════════════════════════════════════
           DECISION HEADER — always visible, above fold
           ══════════════════════════════════════════════════════════════════════ */}

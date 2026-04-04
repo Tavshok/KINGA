@@ -3333,6 +3333,106 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         return getReplayLogs(input.claimId);
       }),
 
+    // ─── Output Validation Engine (10-Rule Spec) ────────────────────────────
+    // Runs all 10 output validation rules on a stored assessment before UI render.
+    // Returns: { status, corrections, suppressed_fields, flags, final_output, notes }
+    validate: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const { runOutputValidation } = await import('./output-validation-engine');
+        const { getAiAssessmentByClaimId, getQuotesByClaimId } = await import('./db');
+        const tenantId = ctx.user.role === 'admin' ? undefined : (ctx.user.tenantId || 'default');
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+        if (!assessment) return null;
+        // Parse cost intelligence JSON
+        let costIntel: any = null;
+        try {
+          costIntel = assessment.costIntelligenceJson
+            ? (typeof assessment.costIntelligenceJson === 'string'
+                ? JSON.parse(assessment.costIntelligenceJson)
+                : assessment.costIntelligenceJson)
+            : null;
+        } catch { /* ignore */ }
+        // Parse physics analysis JSON
+        let physicsRaw: any = null;
+        try {
+          physicsRaw = assessment.physicsAnalysis
+            ? (typeof assessment.physicsAnalysis === 'string'
+                ? JSON.parse(assessment.physicsAnalysis)
+                : assessment.physicsAnalysis)
+            : null;
+        } catch { /* ignore */ }
+        // Parse damaged components
+        let damagedComponents: string[] = [];
+        try {
+          const comps = assessment.damagedComponentsJson
+            ? (typeof assessment.damagedComponentsJson === 'string'
+                ? JSON.parse(assessment.damagedComponentsJson)
+                : assessment.damagedComponentsJson)
+            : [];
+          damagedComponents = Array.isArray(comps)
+            ? comps.map((c: any) => (typeof c === 'string' ? c : c?.name || c?.component || '')).filter(Boolean)
+            : [];
+        } catch { /* ignore */ }
+        // Parse image URLs
+        let imageUrls: string[] = [];
+        try {
+          const imgs = assessment.imageUrls
+            ? (typeof assessment.imageUrls === 'string'
+                ? JSON.parse(assessment.imageUrls)
+                : assessment.imageUrls)
+            : [];
+          imageUrls = Array.isArray(imgs) ? imgs.filter(Boolean) : [];
+        } catch { /* ignore */ }
+        // Determine if physics model actually ran (has non-zero speed or force)
+        const physicsExecuted = !!(physicsRaw &&
+          (physicsRaw.estimatedSpeedKmh > 0 || physicsRaw.impactForceKn > 0 || physicsRaw.deltaVKmh > 0));
+        const impactSpeedKmh = physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value ?? null;
+        const impactForceKn = physicsRaw?.impactForceKn ?? null;
+        const severityClassification = physicsRaw?.accidentSeverity ?? assessment.structuralDamageSeverity ?? null;
+        const hasVectors = !!(physicsRaw?.impactVector?.direction && physicsRaw?.impactVector?.direction !== 'unknown');
+        // Image processing ran if damagedComponents were extracted
+        const imageProcessingRan = damagedComponents.length > 0;
+        // AI estimate in USD (stored as dollars)
+        const aiEstimateUsd = assessment.estimatedCost ? Number(assessment.estimatedCost) : null;
+        // Cost intel fields
+        const documentedOriginalQuoteUsd = costIntel?.documentedOriginalQuoteUsd ?? null;
+        const documentedAgreedCostUsd = costIntel?.documentedAgreedCostUsd ?? null;
+        const panelBeaterFromCostIntel = costIntel?.panelBeaterName ?? null;
+        return runOutputValidation({
+          claimId: input.claimId,
+          claimNumber: assessment.claimNumber ?? null,
+          rawVerdict: assessment.recommendation ?? null,
+          confidenceScore: assessment.confidenceScore ?? 0,
+          fraudScore: assessment.fraudScore ?? 0,
+          fraudLevel: assessment.fraudRiskLevel ?? null,
+          aiEstimateUsd,
+          documentedOriginalQuoteUsd,
+          documentedAgreedCostUsd,
+          costBasis: assessment.costBasis ?? null,
+          panelBeaterFromCostIntel,
+          panelBeaterFromAssessor: assessment.panelBeaterName ?? null,
+          repairerName: assessment.repairerName ?? null,
+          accidentDescription: assessment.accidentDescription ?? null,
+          imageUrls,
+          imageProcessingRan,
+          damagedComponents,
+          physicsExecuted,
+          impactSpeedKmh: impactSpeedKmh ? Number(impactSpeedKmh) : null,
+          impactForceKn: impactForceKn ? Number(impactForceKn) : null,
+          severityClassification,
+          hasVectors,
+          accidentType: assessment.accidentType ?? null,
+          structuralDamage: !!(assessment.structuralDamage),
+          vehicleMake: assessment.vehicleMake ?? null,
+          vehicleModel: assessment.vehicleModel ?? null,
+          vehicleYear: assessment.vehicleYear ? Number(assessment.vehicleYear) : null,
+          vehicleRegistration: assessment.vehicleRegistration ?? null,
+          accidentDate: assessment.accidentDate ?? null,
+          accidentLocation: assessment.accidentLocation ?? null,
+        });
+      }),
     // Retrieve all snapshots for a claim (audit history)
     getSnapshots: protectedProcedure
       .input(z.object({ claimId: z.string() }))
