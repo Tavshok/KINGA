@@ -10217,3 +10217,15 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [x] P5: Fix duplicate className attributes in ReportReadinessPanel
 - [x] P5: Fix text-gray-400/500 bare classes across all pages (replaced with dark mode variants)
 - [x] P5: Fix gradient KPI cards with white text on light backgrounds
+
+## User-Reported Issues Verification (4 Apr 2026)
+- [x] Issue 1: 'reconchika' wrong spelling — FIXED: sanitiseDamageType() in Stage 3 replaces unknown terms with 'General Repair'; OutputValidationEngine Rule 1 catches remaining hallucinated terms at display time
+- [x] Issue 2: AI cost estimate hallucinating — FIXED: estimatedCost now uses documented agreed cost > original quote > AI estimate (priority chain in db.ts line 685-689)
+- [x] Issue 3: $4.62 estimated repair cost — FIXED: same priority chain ensures documented quote is used; old data requires pipeline re-run to populate
+- [x] Issue 4: Panel beater name (Skinners) — VERIFIED: panelBeaterName: 'SKINNERS' exists in cost_intelligence_json and is displayed in ForensicDecisionPanel Cost Analysis tab
+- [x] Issue 5: UI readability — FIXED: CSS tokens corrected (muted-foreground 0.36/0.70), bare gray classes replaced, gradient KPI cards fixed
+- [x] Issue 6: Image extraction — FIXED: DamageImagesPanel integrated into Damage tab; photos require pipeline re-run or manual upload (current claim has no uploaded photos)
+- [x] Issue 7: Impact force vectors — FIXED: ImpactVectorDiagram SVG component renders in Technical Details tab with force arrow, vehicle silhouette, damage zones
+- [x] Issue 8: Accident description — FIXED: sanitiseAccidentDescription() in Stage 3 strips inspection/stripping/repair process sentences; LLM prompt updated to exclude post-accident actions
+
+NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate the new fields. The code fixes are deployed but the existing DB records were created before these fixes.

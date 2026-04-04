@@ -678,7 +678,15 @@ export async function triggerAiAssessment(claimId: number) {
     : 'Assessment data unavailable.';
 
   // Estimated cost in whole currency units
-  const estimatedCost = costAnalysis ? Math.round(costAnalysis.expectedRepairCostCents / 100) : 0;
+  // PRIORITY: Use documented quote (agreed cost > original quote > AI estimate)
+  // The AI estimate is unreliable when no market data exists — prefer the actual quote.
+  // NOTE: documentedAgreedCostUsd and documentedOriginalQuoteUsd are already declared above (line ~593).
+  const aiEstimateCents = costAnalysis?.expectedRepairCostCents ?? 0;
+  const estimatedCost = documentedAgreedCostUsd && documentedAgreedCostUsd > 0
+    ? Math.round(documentedAgreedCostUsd)
+    : documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0
+      ? Math.round(documentedOriginalQuoteUsd)
+      : Math.round(aiEstimateCents / 100);
   const estimatedPartsCost = costAnalysis ? Math.round(costAnalysis.breakdown.partsCostCents / 100) : 0;
   const estimatedLaborCost = costAnalysis ? Math.round(costAnalysis.breakdown.labourCostCents / 100) : 0;
 

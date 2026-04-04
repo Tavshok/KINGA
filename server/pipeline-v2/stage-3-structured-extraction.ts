@@ -172,8 +172,12 @@ CRITICAL IMAGE DETECTION RULES:
 - If the document contains embedded photographs, damage images, or references to attached photos, note this in damageDescription.
 
 CRITICAL DESCRIPTION RULES:
-- accidentDescription: extract the FULL narrative of how the accident occurred, verbatim if possible.
+- accidentDescription: extract ONLY the narrative of how the accident occurred — the event BEFORE and INCLUDING the impact.
+  INCLUDE: what happened, how the collision/incident occurred, road conditions, speed, weather, animal on road, etc.
+  EXCLUDE: inspection actions, stripping notes, repair process, omitted damages found later, final inspection findings, seatbelt checks, reprogramming, extras quotations.
+  Example of what to EXCLUDE: "The vehicle was stripped in order to identify omitted damages", "After final inspection we noted that...", "The repairer omitted seatbelts".
 - damageDescription: extract the complete list of damaged parts and repair actions.
+- For damagedComponents damageType: use ONLY standard automotive damage terms (dent, scratch, crack, shatter, bend, tear, puncture, corrosion, deformation, misalignment, breakage). NEVER invent terms.
 
 Additional OCR text for reference (may be partial):
 ${rawText.substring(0, 8000)}
@@ -238,6 +242,60 @@ RULES:
   return mapToExtractedFields(parsed, -1);
 }
 
+// ============================================================================
+// POST-EXTRACTION SANITISATION
+// ============================================================================
+
+/** Strip inspection/stripping/repair-process sentences from accident description */
+function sanitiseAccidentDescription(desc: string | null): string | null {
+  if (!desc) return null;
+  // Patterns that indicate inspection/repair process, NOT the accident itself
+  const INSPECTION_PATTERNS = [
+    /the vehicle was stripped[^.]*\./gi,
+    /we inspected it[^.]*\./gi,
+    /after final inspection[^.]*\./gi,
+    /we noted that[^.]*\./gi,
+    /the repairer omitted[^.]*\./gi,
+    /omitted initially[^.]*\./gi,
+    /hence all costs[^.]*\./gi,
+    /hence the repairer[^.]*\./gi,
+    /extras quotation[^.]*\./gi,
+    /additional pictures[^.]*\./gi,
+    /after the vehicles? repairs? were completed[^.]*\./gi,
+    /submitted extras[^.]*\./gi,
+    /in order to identify omitted damages[^.]*\./gi,
+    /by verifying all stated damages[^.]*\./gi,
+    /reprogramming are included[^.]*\./gi,
+    /seatbelt[s]? (?:and|were|was)[^.]*\./gi,
+    /for seatbelt[^.]*\./gi,
+  ];
+  let cleaned = desc;
+  for (const pat of INSPECTION_PATTERNS) {
+    cleaned = cleaned.replace(pat, "");
+  }
+  // Clean up whitespace
+  cleaned = cleaned.replace(/\s{2,}/g, " ").trim();
+  // If we stripped everything, return the original (better than nothing)
+  return cleaned.length > 10 ? cleaned : desc;
+}
+
+/** Replace hallucinated/non-domain damage type terms with standard automotive terms */
+function sanitiseDamageType(damageType: string): string {
+  const INVALID_TERMS: Record<string, string> = {
+    reconchika: "repair component",
+    reconchica: "repair component",
+    recondika: "repair component",
+    recondition: "replacement",
+  };
+  const lower = damageType.toLowerCase().trim();
+  if (INVALID_TERMS[lower]) return INVALID_TERMS[lower];
+  // Check partial match
+  for (const [term, replacement] of Object.entries(INVALID_TERMS)) {
+    if (lower.includes(term)) return replacement;
+  }
+  return damageType;
+}
+
 function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedClaimFields {
   return {
     claimId: raw.claimId || null,
@@ -254,7 +312,7 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     vehicleMileage: raw.vehicleMileage || null,
     accidentDate: raw.accidentDate || null,
     accidentLocation: raw.accidentLocation || null,
-    accidentDescription: raw.accidentDescription || null,
+    accidentDescription: sanitiseAccidentDescription(raw.accidentDescription || null),
     incidentType: raw.incidentType || null,
     accidentType: raw.accidentType || null,
     impactPoint: raw.impactPoint || null,
@@ -272,7 +330,7 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     damagedComponents: (raw.damagedComponents || []).map((c: any) => ({
       name: c.name || "",
       location: c.location || "",
-      damageType: c.damageType || "",
+      damageType: sanitiseDamageType(c.damageType || ""),
       severity: c.severity || "moderate",
       repairAction: c.repairAction || "repair",
     })),
