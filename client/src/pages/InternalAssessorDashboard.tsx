@@ -129,7 +129,7 @@ export default function InternalAssessorDashboard() {
           </CardHeader>
           <CardContent>
             {queueLoading ? (
-              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading assessment queue...</p>
+              <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-8">Loading assessment queue...</p>
             ) : assessmentQueue && assessmentQueue.length > 0 ? (
               <div className="space-y-3">
                 {assessmentQueue.map((claim: any) => (
@@ -189,9 +189,9 @@ export default function InternalAssessorDashboard() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <ClipboardList className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 dark:text-muted-foreground">No claims pending internal assessment</p>
-                <p className="text-sm text-slate-400 dark:text-muted-foreground/70">New claims will appear here when external assessments are complete</p>
+                <ClipboardList className="h-12 w-12 text-slate-600 dark:text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground">No claims pending internal assessment</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">New claims will appear here when external assessments are complete</p>
               </div>
             )}
           </CardContent>

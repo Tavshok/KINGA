@@ -116,7 +116,7 @@ export default function Unauthorized() {
           </div>
           
           <div className="pt-4 border-t">
-            <p className="text-xs text-gray-500 dark:text-muted-foreground text-center">
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-center">
               This access attempt has been logged for security purposes.
             </p>
           </div>

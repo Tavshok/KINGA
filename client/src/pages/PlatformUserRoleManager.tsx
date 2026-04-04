@@ -101,11 +101,11 @@ const ROLE_COLOURS: Record<string, string> = {
   platform_super_admin: "bg-red-900 text-red-200",
   admin: "bg-red-800 text-red-100",
   broker: "bg-cyan-900 text-cyan-200",
-  user: "bg-gray-700 text-gray-300",
+  user: "bg-gray-700 text-gray-600 dark:text-gray-300",
 };
 
 function RoleBadge({ role }: { role: string }) {
-  const cls = ROLE_COLOURS[role] ?? "bg-gray-700 text-gray-300";
+  const cls = ROLE_COLOURS[role] ?? "bg-gray-700 text-gray-600 dark:text-gray-300";
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
       {role.replace(/_/g, " ")}
@@ -138,29 +138,29 @@ function AuditHistoryDialog({
             <History className="h-5 w-5 text-blue-400" />
             Role History — {userName}
           </DialogTitle>
-          <DialogDescription className="text-gray-400 dark:text-muted-foreground/70">
+          <DialogDescription className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
             Last 20 role-assignment events for this user.
           </DialogDescription>
         </DialogHeader>
         {isLoading ? (
-          <p className="text-gray-400 dark:text-muted-foreground/70 py-4 text-center">Loading…</p>
+          <p className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 py-4 text-center">Loading…</p>
         ) : !data || data.length === 0 ? (
-          <p className="text-gray-400 dark:text-muted-foreground/70 py-4 text-center">No history found.</p>
+          <p className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 py-4 text-center">No history found.</p>
         ) : (
           <div className="overflow-x-auto max-h-96 overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-700">
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Timestamp</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Previous Role</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">New Role</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Changed By</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Timestamp</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Previous Role</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">New Role</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Changed By</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.map((row) => (
                   <TableRow key={row.id} className="border-gray-800">
-                    <TableCell className="text-gray-300 text-xs">
+                    <TableCell className="text-gray-600 dark:text-gray-300 text-xs">
                       {new Date(row.timestamp).toLocaleString()}
                     </TableCell>
                     <TableCell>
@@ -169,7 +169,7 @@ function AuditHistoryDialog({
                     <TableCell>
                       <RoleBadge role={row.newRole} />
                     </TableCell>
-                    <TableCell className="text-gray-400 dark:text-muted-foreground/70 text-xs">
+                    <TableCell className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">
                       uid:{row.changedByUserId}
                     </TableCell>
                   </TableRow>
@@ -179,7 +179,7 @@ function AuditHistoryDialog({
           </div>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-300">
+          <Button variant="outline" onClick={onClose} className="border-gray-600 text-gray-600 dark:text-gray-300">
             Close
           </Button>
         </DialogFooter>
@@ -304,7 +304,7 @@ export default function PlatformUserRoleManager() {
           <h1 className="text-2xl font-bold text-white">User Role Manager</h1>
           <Badge className="bg-red-900 text-red-200 text-xs">platform_super_admin only</Badge>
         </div>
-        <p className="text-gray-400 dark:text-muted-foreground/70 text-sm">
+        <p className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-sm">
           Assign roles to users without running SQL. Every change is logged to the audit trail.
         </p>
       </div>
@@ -312,7 +312,7 @@ export default function PlatformUserRoleManager() {
       {/* Quick-assign presets */}
       <Card className="mb-6 bg-gray-900 border-gray-700">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm text-gray-300 flex items-center gap-2">
+          <CardTitle className="text-sm text-gray-600 dark:text-gray-300 flex items-center gap-2">
             <Zap className="h-4 w-4 text-yellow-400" />
             Quick Assign — select a user in the table first, then click a preset
           </CardTitle>
@@ -332,7 +332,7 @@ export default function PlatformUserRoleManager() {
             </Button>
           ))}
           {!assignState?.user && (
-            <span className="text-gray-500 dark:text-muted-foreground text-xs self-center ml-2">
+            <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-xs self-center ml-2">
               Select a user row first to enable quick-assign
             </span>
           )}
@@ -342,7 +342,7 @@ export default function PlatformUserRoleManager() {
       {/* Filters */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
           <Input
             placeholder="Search by name or email…"
             value={search}
@@ -375,24 +375,24 @@ export default function PlatformUserRoleManager() {
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-700 hover:bg-transparent">
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Name</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Email</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Current Role</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Insurer Role</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70">Tenant / Org</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-right">Actions</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Name</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Email</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Current Role</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Insurer Role</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Tenant / Org</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {isLoading || isFetching ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 dark:text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-700 dark:text-gray-400 dark:text-muted-foreground py-8">
                       Loading users…
                     </TableCell>
                   </TableRow>
                 ) : !data?.users.length ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center text-gray-500 dark:text-muted-foreground py-8">
+                    <TableCell colSpan={6} className="text-center text-gray-700 dark:text-gray-400 dark:text-muted-foreground py-8">
                       No users found.
                     </TableCell>
                   </TableRow>
@@ -410,22 +410,22 @@ export default function PlatformUserRoleManager() {
                         onClick={() => openAssignDialog(u)}
                       >
                         <TableCell className="text-gray-200 font-medium">
-                          {u.name ?? <span className="text-gray-500 dark:text-muted-foreground italic">—</span>}
+                          {u.name ?? <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground italic">—</span>}
                         </TableCell>
-                        <TableCell className="text-gray-300 text-sm">{u.email ?? "—"}</TableCell>
+                        <TableCell className="text-gray-600 dark:text-gray-300 text-sm">{u.email ?? "—"}</TableCell>
                         <TableCell>
                           <RoleBadge role={u.role} />
                         </TableCell>
                         <TableCell>
                           {u.insurerRole ? (
-                            <span className="text-xs text-gray-400 dark:text-muted-foreground/70">
+                            <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
                               {u.insurerRole.replace(/_/g, " ")}
                             </span>
                           ) : (
                             <span className="text-gray-600 dark:text-muted-foreground">—</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-gray-500 dark:text-muted-foreground text-xs">
+                        <TableCell className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-xs">
                           {u.tenantId ?? u.organizationId ?? "—"}
                         </TableCell>
                         <TableCell className="text-right">
@@ -433,7 +433,7 @@ export default function PlatformUserRoleManager() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 px-2 text-gray-400 dark:text-muted-foreground/70 hover:text-white hover:bg-gray-700"
+                              className="h-7 px-2 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:text-white hover:bg-gray-700"
                               title="View audit history"
                               onClick={(e) => {
                                 e.stopPropagation();
@@ -480,14 +480,14 @@ export default function PlatformUserRoleManager() {
           {/* Pagination */}
           {data && data.totalPages > 1 && (
             <div className="flex items-center justify-between px-4 py-3 border-t border-gray-700">
-              <span className="text-xs text-gray-500 dark:text-muted-foreground">
+              <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
                 {data.total} users · page {data.page} of {data.totalPages}
               </span>
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-gray-600 text-gray-300"
+                  className="border-gray-600 text-gray-600 dark:text-gray-300"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => p - 1)}
                 >
@@ -496,7 +496,7 @@ export default function PlatformUserRoleManager() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-gray-600 text-gray-300"
+                  className="border-gray-600 text-gray-600 dark:text-gray-300"
                   disabled={page >= data.totalPages}
                   onClick={() => setPage((p) => p + 1)}
                 >
@@ -516,7 +516,7 @@ export default function PlatformUserRoleManager() {
               <UserCog className="h-5 w-5 text-blue-400" />
               Assign Role
             </DialogTitle>
-            <DialogDescription className="text-gray-400 dark:text-muted-foreground/70">
+            <DialogDescription className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
               {assignState?.preset
                 ? `Quick-assign preset: "${assignState.preset}"`
                 : "Manually configure the role for this user."}
@@ -528,12 +528,12 @@ export default function PlatformUserRoleManager() {
               {/* User summary */}
               <div className="bg-gray-800 rounded-lg p-3 text-sm">
                 <p className="font-medium text-white">{assignState.user.name ?? "—"}</p>
-                <p className="text-gray-400 dark:text-muted-foreground/70">{assignState.user.email ?? "—"}</p>
+                <p className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">{assignState.user.email ?? "—"}</p>
                 <div className="mt-1 flex items-center gap-2">
-                  <span className="text-gray-500 dark:text-muted-foreground text-xs">Current:</span>
+                  <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-xs">Current:</span>
                   <RoleBadge role={assignState.user.role} />
                   {assignState.user.insurerRole && (
-                    <span className="text-xs text-gray-400 dark:text-muted-foreground/70">
+                    <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
                       / {assignState.user.insurerRole.replace(/_/g, " ")}
                     </span>
                   )}
@@ -542,7 +542,7 @@ export default function PlatformUserRoleManager() {
 
               {/* New role selector */}
               <div className="space-y-1">
-                <Label className="text-gray-300">New Role</Label>
+                <Label className="text-gray-600 dark:text-gray-300">New Role</Label>
                 <Select
                   value={assignState.newRole}
                   onValueChange={(v) =>
@@ -569,7 +569,7 @@ export default function PlatformUserRoleManager() {
               {/* Insurer sub-role (only when insurer selected) */}
               {assignState.newRole === "insurer" && (
                 <div className="space-y-1">
-                  <Label className="text-gray-300">Insurer Role</Label>
+                  <Label className="text-gray-600 dark:text-gray-300">Insurer Role</Label>
                   <Select
                     value={assignState.newInsurerRole ?? ""}
                     onValueChange={(v) =>
@@ -594,9 +594,9 @@ export default function PlatformUserRoleManager() {
 
               {/* Justification */}
               <div className="space-y-1">
-                <Label className="text-gray-300">
+                <Label className="text-gray-600 dark:text-gray-300">
                   Justification{" "}
-                  <span className="text-gray-500 dark:text-muted-foreground font-normal">(optional)</span>
+                  <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground font-normal">(optional)</span>
                 </Label>
                 <Textarea
                   placeholder="Reason for this role change…"
@@ -622,7 +622,7 @@ export default function PlatformUserRoleManager() {
             <Button
               variant="outline"
               onClick={() => setAssignState(null)}
-              className="border-gray-600 text-gray-300"
+              className="border-gray-600 text-gray-600 dark:text-gray-300"
             >
               Cancel
             </Button>

@@ -108,7 +108,7 @@ export function ExecutiveOverrideFlag({
                 <Badge variant="outline" className="text-xs">
                   {overrideInfo.originalDecision}
                 </Badge>
-                <span className="text-slate-400 dark:text-muted-foreground/70">→</span>
+                <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">→</span>
                 <Badge variant="default" className="text-xs bg-purple-600">
                   {overrideInfo.newDecision}
                 </Badge>
@@ -130,7 +130,7 @@ export function ExecutiveOverrideFlag({
           </div>
 
           <div className="pt-3 border-t border-slate-200 dark:border-border">
-            <p className="text-xs text-slate-500 dark:text-muted-foreground italic">
+            <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground italic">
               This override information is read-only and maintained for audit compliance.
             </p>
           </div>

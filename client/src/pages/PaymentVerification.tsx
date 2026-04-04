@@ -288,7 +288,7 @@ export default function PaymentVerification() {
                 />
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500 dark:text-muted-foreground">
+              <div className="text-center py-12 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
                 No payment proof available
               </div>
             )}

@@ -77,7 +77,7 @@ const categoryConfig = {
     bgColor: 'bg-gray-50 dark:bg-muted/50',
     borderColor: 'border-gray-200 dark:border-border',
     textColor: 'text-gray-600 dark:text-muted-foreground',
-    iconColor: 'text-gray-400 dark:text-muted-foreground/70',
+    iconColor: 'text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70',
     badgeClass: 'bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground',
   },
 };
@@ -114,7 +114,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
           </div>
           <div>
             <h2 className="text-xl font-semibold">Quote vs Photo Cross-Validation</h2>
-            <p className="text-sm text-gray-500 dark:text-muted-foreground">AI comparison of quoted repair items against visible damage in photos</p>
+            <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">AI comparison of quoted repair items against visible damage in photos</p>
           </div>
           <Badge className={`ml-auto text-sm px-3 py-1 ${
             summary.overallRiskLevel === 'low' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200' :
@@ -168,12 +168,12 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
                   <div>
                     <span className="font-medium text-gray-900 dark:text-foreground">{item.partName}</span>
                     {item.zone && <Badge variant="outline" className="ml-2 text-xs">{item.zone}</Badge>}
-                    <p className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">{item.explanation}</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-0.5">{item.explanation}</p>
                   </div>
                 </div>
                 <div className="text-right flex-shrink-0 ml-4">
                   {item.quotedCost && <p className="text-sm font-semibold text-red-600">{fmt(item.quotedCost * 100)}</p>}
-                  {item.quotedAction && <p className="text-xs text-gray-500 dark:text-muted-foreground capitalize">{item.quotedAction}</p>}
+                  {item.quotedAction && <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground capitalize">{item.quotedAction}</p>}
                 </div>
               </div>
             ))}
@@ -187,7 +187,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
           <div className="flex items-center gap-2 mb-4">
             <CheckCircle2 className="w-5 h-5 text-green-600" />
             <h3 className="font-semibold text-gray-900 dark:text-foreground">Confirmed Damage ({confirmed.length})</h3>
-            <span className="text-sm text-gray-500 dark:text-muted-foreground">— Quoted parts with visible damage in photos</span>
+            <span className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">— Quoted parts with visible damage in photos</span>
           </div>
           <div className="grid md:grid-cols-2 gap-2">
             {confirmed.map((item, i) => (
@@ -196,7 +196,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
                   <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                   <div>
                     <span className="text-sm font-medium text-gray-900 dark:text-foreground">{item.partName}</span>
-                    {item.zone && <span className="text-xs text-gray-400 dark:text-muted-foreground/70 ml-1">({item.zone})</span>}
+                    {item.zone && <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 ml-1">({item.zone})</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -215,16 +215,16 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
           <div className="flex items-center gap-2 mb-4">
             <Wrench className="w-5 h-5 text-gray-600 dark:text-muted-foreground" />
             <h3 className="font-semibold text-gray-900 dark:text-foreground">Hidden/Internal Damage ({legitimateHidden.length})</h3>
-            <span className="text-sm text-gray-500 dark:text-muted-foreground">— Internal parts not expected to be visible in photos</span>
+            <span className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">— Internal parts not expected to be visible in photos</span>
           </div>
           <div className="grid md:grid-cols-2 gap-2">
             {legitimateHidden.map((item, i) => (
               <div key={i} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-muted/50 rounded-lg border border-gray-100">
                 <div className="flex items-center gap-2">
-                  <EyeOff className="w-3.5 h-3.5 text-gray-400 dark:text-muted-foreground/70 flex-shrink-0" />
+                  <EyeOff className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex-shrink-0" />
                   <div>
                     <span className="text-sm font-medium text-gray-900 dark:text-foreground">{item.partName}</span>
-                    {item.zone && <span className="text-xs text-gray-400 dark:text-muted-foreground/70 ml-1">({item.zone})</span>}
+                    {item.zone && <span className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 ml-1">({item.zone})</span>}
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -243,7 +243,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
           <div className="flex items-center gap-2 mb-4">
             <Eye className="w-5 h-5 text-primary" />
             <h3 className="font-semibold text-gray-900 dark:text-foreground">Visible Damage Not Quoted ({visibleNotQuoted.length})</h3>
-            <span className="text-sm text-gray-500 dark:text-muted-foreground">— Damage seen in photos but not included in repair quote</span>
+            <span className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">— Damage seen in photos but not included in repair quote</span>
           </div>
           <p className="text-sm text-primary/90 mb-3">
             These items show visible damage in the photos but were not included in the repair quote. This may indicate underquoting or pre-existing damage.
@@ -256,7 +256,7 @@ export function CrossValidationPanel({ data }: { data: CrossValidationData }) {
                   <div>
                     <span className="text-sm font-medium text-gray-900 dark:text-foreground">{item.partName}</span>
                     {item.zone && <Badge variant="outline" className="ml-2 text-xs">{item.zone}</Badge>}
-                    <p className="text-xs text-gray-500 dark:text-muted-foreground mt-0.5">{item.explanation}</p>
+                    <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-0.5">{item.explanation}</p>
                   </div>
                 </div>
                 <Badge className="bg-primary/10 text-primary/90 text-xs">{Math.round(item.confidence * 100)}%</Badge>

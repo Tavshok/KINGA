@@ -294,7 +294,7 @@ function AdminRoleManagerView() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-muted-foreground/70" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
       </div>
     );
   }
@@ -315,7 +315,7 @@ function AdminRoleManagerView() {
         </div>
         <div>
           <h2 className="text-lg font-semibold text-slate-800 dark:text-foreground">User Role Manager</h2>
-          <p className="text-sm text-slate-500 dark:text-muted-foreground">
+          <p className="text-sm text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
             Assign roles to users. Changes take effect immediately.
           </p>
         </div>
@@ -346,7 +346,7 @@ function AdminRoleManagerView() {
                     <TableCell>
                       <Badge variant={roleBadgeVariant(u.role)}>{u.role}</Badge>
                     </TableCell>
-                    <TableCell className="text-xs text-slate-500 dark:text-muted-foreground">
+                    <TableCell className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                       {u.insurerRole ?? "—"}
                     </TableCell>
                     <TableCell>
@@ -497,7 +497,7 @@ export default function RoleSetup() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-slate-400 dark:text-muted-foreground/70" />
+        <Loader2 className="h-8 w-8 animate-spin text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
       </div>
     );
   }
@@ -526,7 +526,7 @@ export default function RoleSetup() {
               </Button>
               <div>
                 <h1 className="text-2xl font-bold text-slate-800 dark:text-foreground">Role Setup</h1>
-                <p className="text-sm text-slate-500 dark:text-muted-foreground">
+                <p className="text-sm text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                   Manage user role assignments across the platform.
                 </p>
               </div>

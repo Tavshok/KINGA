@@ -659,20 +659,20 @@ export default function ClaimsProcessorDashboard() {
           <CardTitle className="flex items-center gap-2">
             <Icon className="h-5 w-5" />
             {title}
-            <span className="ml-auto text-sm font-normal text-slate-500 dark:text-muted-foreground bg-white/80 dark:bg-card/80 rounded-full px-3 py-1">
+            <span className="ml-auto text-sm font-normal text-slate-700 dark:text-slate-400 dark:text-muted-foreground bg-white/80 dark:bg-card/80 rounded-full px-3 py-1">
               {claims.length}
             </span>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-4">
           {allClaimsLoading ? (
-            <div className="flex items-center justify-center py-8 gap-2 text-slate-500 dark:text-muted-foreground">
+            <div className="flex items-center justify-center py-8 gap-2 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
               <Loader2 className="h-5 w-5 animate-spin" />
               <span>Loading claims...</span>
             </div>
           ) : claims.length === 0 ? (
             <div className="text-center py-12 bg-slate-50 dark:bg-muted/50 rounded-lg border-2 border-dashed border-slate-200 dark:border-border">
-              <Icon className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+              <Icon className="h-12 w-12 text-slate-600 dark:text-slate-300 mx-auto mb-3" />
               <p className="text-slate-600 dark:text-muted-foreground font-medium">{emptyMessage}</p>
               <Button 
                 variant="outline" 
@@ -736,7 +736,7 @@ export default function ClaimsProcessorDashboard() {
       <div className="max-w-7xl mx-auto space-y-6 p-6">
         {/* Search Bar */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
           <Input
             placeholder="Search by claim number, policyholder, vehicle registration, or policy number..."
             value={searchQuery}
@@ -829,7 +829,7 @@ export default function ClaimsProcessorDashboard() {
           </DialogHeader>
           <div className="space-y-4 pt-4">
             <div className="border-2 border-dashed border-slate-300 dark:border-border rounded-lg p-8 text-center">
-              <Upload className="h-12 w-12 text-slate-400 dark:text-muted-foreground/70 mx-auto mb-3" />
+              <Upload className="h-12 w-12 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70 mx-auto mb-3" />
               <Label
                 htmlFor="evidence-upload"
                 className="cursor-pointer text-primary hover:text-primary/90 font-medium"
@@ -849,7 +849,7 @@ export default function ClaimsProcessorDashboard() {
                 }}
                 disabled={uploadingFile}
               />
-              <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">
+              <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">
                 PDF or image files, max 16MB
               </p>
             </div>
@@ -884,7 +884,7 @@ export default function ClaimsProcessorDashboard() {
           <div className="space-y-4 pt-2">
             {/* Assessor Search */}
             <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
               <Input
                 placeholder="Search assessors by name or email..."
                 value={assessorSearchQuery}
@@ -896,13 +896,13 @@ export default function ClaimsProcessorDashboard() {
             {/* Assessor List */}
             <div className="max-h-[300px] overflow-y-auto border rounded-lg divide-y">
               {assessorsLoading ? (
-                <div className="flex items-center justify-center py-8 gap-2 text-slate-500 dark:text-muted-foreground">
+                <div className="flex items-center justify-center py-8 gap-2 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   <span>Loading assessors...</span>
                 </div>
               ) : filteredAssessors.length === 0 ? (
-                <div className="text-center py-8 text-slate-500 dark:text-muted-foreground">
-                  <UserPlus className="h-8 w-8 text-slate-300 mx-auto mb-2" />
+                <div className="text-center py-8 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
+                  <UserPlus className="h-8 w-8 text-slate-600 dark:text-slate-300 mx-auto mb-2" />
                   <p className="text-sm">
                     {assessorSearchQuery ? "No assessors match your search" : "No assessors available"}
                   </p>
@@ -927,7 +927,7 @@ export default function ClaimsProcessorDashboard() {
                         <p className="font-medium text-sm text-slate-900 dark:text-foreground truncate">
                           {assessor.userName || assessor.name || "Unnamed Assessor"}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground truncate">
+                        <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground truncate">
                           {assessor.userEmail || assessor.email || "No email"}
                         </p>
                         <div className="flex flex-wrap gap-1 mt-1">

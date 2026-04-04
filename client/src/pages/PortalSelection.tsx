@@ -70,7 +70,7 @@ export default function PortalSelection() {
             <p className="text-xl text-gray-600 dark:text-muted-foreground">
               Physics-Based Insurance Claims Revolution
             </p>
-            <p className="text-lg text-gray-500 dark:text-muted-foreground mt-2">
+            <p className="text-lg text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-2">
               Select your portal to continue
             </p>
           </div>
@@ -105,7 +105,7 @@ export default function PortalSelection() {
           </div>
 
           {/* Footer */}
-          <div className="text-center mt-12 text-gray-500 dark:text-muted-foreground text-sm">
+          <div className="text-center mt-12 text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">
             <p>Eliminating Fraud & Accelerating Claims Processing</p>
             <p className="mt-2">© 2026 KINGA - AutoVerify AI. All rights reserved.</p>
           </div>

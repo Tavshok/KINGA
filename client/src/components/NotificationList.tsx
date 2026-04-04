@@ -93,7 +93,7 @@ export function NotificationList({ onClose }: NotificationListProps) {
       case "quote_submitted":
         return <FileText className="h-5 w-5 text-primary/80" />;
       default:
-        return <User className="h-5 w-5 text-gray-500 dark:text-muted-foreground" />;
+        return <User className="h-5 w-5 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />;
     }
   };
 

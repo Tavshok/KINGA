@@ -886,7 +886,7 @@ export default function LearningDashboard() {
                         {calibFeedbackResult.apply_update ? (
                           <CheckCircle2 className="w-4 h-4 text-green-600" />
                         ) : (
-                          <AlertTriangle className="w-4 h-4 text-gray-500" />
+                          <AlertTriangle className="w-4 h-4 text-gray-700 dark:text-gray-400" />
                         )}
                         <span className="text-sm font-medium">
                           {calibFeedbackResult.apply_update

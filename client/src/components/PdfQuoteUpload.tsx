@@ -146,7 +146,7 @@ export function PdfQuoteUpload({ claimId, onExtracted }: PdfQuoteUploadProps) {
             ) : error ? (
               <XCircle className="h-12 w-12 text-red-600" />
             ) : (
-              <FileText className="h-12 w-12 text-gray-400 dark:text-muted-foreground/70" />
+              <FileText className="h-12 w-12 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
             )}
             
             <div className="mt-2">

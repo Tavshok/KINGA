@@ -309,7 +309,7 @@ export function VehicleImpactVectorDiagram({
           <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg">
             <p className="text-xs text-gray-600 dark:text-muted-foreground mb-1">Impact Force</p>
             <p className="text-xl font-bold text-purple-600">{displayForce.toFixed(1)} kN</p>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
               ≈ {(displayForce * 0.102).toFixed(1)} tons
             </p>
           </div>

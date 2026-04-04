@@ -47,7 +47,7 @@ export function HistoricalBenchmarkCard({
       <Card className="border-gray-200 dark:border-border bg-gray-50/30 dark:bg-muted/30">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
-            <Database className="h-4 w-4 text-gray-500 dark:text-muted-foreground" />
+            <Database className="h-4 w-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
             Historical Intelligence
           </CardTitle>
         </CardHeader>
@@ -72,7 +72,7 @@ export function HistoricalBenchmarkCard({
     : null;
 
   const getVarianceColor = (variance: number | null) => {
-    if (variance === null) return "text-gray-500 dark:text-muted-foreground";
+    if (variance === null) return "text-gray-700 dark:text-gray-400 dark:text-muted-foreground";
     if (Math.abs(variance) < 10) return "text-emerald-600";
     if (Math.abs(variance) < 25) return "text-amber-600";
     return "text-red-600";
@@ -87,7 +87,7 @@ export function HistoricalBenchmarkCard({
   };
 
   const VarianceIcon = ({ variance }: { variance: number | null }) => {
-    if (variance === null) return <Minus className="h-4 w-4 text-gray-400 dark:text-muted-foreground/70" />;
+    if (variance === null) return <Minus className="h-4 w-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />;
     if (variance > 5) return <TrendingUp className="h-4 w-4 text-red-500" />;
     if (variance < -5) return <TrendingDown className="h-4 w-4 text-emerald-500" />;
     return <Minus className="h-4 w-4 text-emerald-500" />;

@@ -109,7 +109,7 @@ export default function RiskManagerDashboard() {
           </CardHeader>
           <CardContent>
             {queueLoading ? (
-              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading approval queue...</p>
+              <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-8">Loading approval queue...</p>
             ) : approvalQueue && approvalQueue.length > 0 ? (
               <div className="space-y-3">
                 {approvalQueue.map((claim: any) => (
@@ -178,9 +178,9 @@ export default function RiskManagerDashboard() {
               </div>
             ) : (
               <div className="text-center py-12">
-                <Shield className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 dark:text-muted-foreground">No claims pending technical approval</p>
-                <p className="text-sm text-slate-400 dark:text-muted-foreground/70">Approved claims will move to payment authorization</p>
+                <Shield className="h-12 w-12 text-slate-600 dark:text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground">No claims pending technical approval</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Approved claims will move to payment authorization</p>
               </div>
             )}
           </CardContent>
@@ -197,7 +197,7 @@ export default function RiskManagerDashboard() {
           </CardHeader>
           <CardContent>
             {highValueLoading ? (
-              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading high-value claims...</p>
+              <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-8">Loading high-value claims...</p>
             ) : highValueClaims && highValueClaims.length > 0 ? (
               <div className="space-y-2">
                 {highValueClaims.slice(0, 20).map((item: any) => {
@@ -243,8 +243,8 @@ export default function RiskManagerDashboard() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <DollarSign className="h-10 w-10 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 dark:text-muted-foreground text-sm">No high-value claims at this time</p>
+                <DollarSign className="h-10 w-10 text-slate-600 dark:text-slate-300 mx-auto mb-2" />
+                <p className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground text-sm">No high-value claims at this time</p>
               </div>
             )}
           </CardContent>

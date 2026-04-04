@@ -149,13 +149,13 @@ function Section({
         <div className={`w-7 h-7 rounded flex items-center justify-center ${step.bg}`}>
           <Icon className={`w-4 h-4 ${step.color}`} />
         </div>
-        <span className="text-xs font-mono text-gray-500 dark:text-muted-foreground">STEP {step.num}</span>
+        <span className="text-xs font-mono text-gray-700 dark:text-gray-400 dark:text-muted-foreground">STEP {step.num}</span>
         <span className="text-sm font-medium text-gray-200 flex-1">{step.title}</span>
         {badge}
         {open ? (
-          <ChevronDown className="w-4 h-4 text-gray-500 dark:text-muted-foreground" />
+          <ChevronDown className="w-4 h-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
         ) : (
-          <ChevronRight className="w-4 h-4 text-gray-500 dark:text-muted-foreground" />
+          <ChevronRight className="w-4 h-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
         )}
       </button>
       {open && <div className="px-4 py-4 bg-gray-950/50 border-t border-gray-800">{children}</div>}
@@ -172,20 +172,20 @@ function StatusBadge({ status }: { status: string }) {
     successful: { cls: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30", label: "Successful" },
     ok: { cls: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30", label: "OK" },
     failed: { cls: "bg-red-600/20 text-red-400 border-red-600/30", label: "Failed" },
-    skipped: { cls: "bg-gray-600/20 text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Skipped" },
+    skipped: { cls: "bg-gray-600/20 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Skipped" },
     partial: { cls: "bg-amber-600/20 text-amber-400 border-amber-600/30", label: "Partial" },
-    not_required: { cls: "bg-gray-600/20 text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Not Required" },
-    not_started: { cls: "bg-gray-600/20 text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Not Started" },
+    not_required: { cls: "bg-gray-600/20 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Not Required" },
+    not_started: { cls: "bg-gray-600/20 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Not Started" },
     present: { cls: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30", label: "Present" },
     missing: { cls: "bg-red-600/20 text-red-400 border-red-600/30", label: "Missing" },
     default: { cls: "bg-amber-600/20 text-amber-400 border-amber-600/30", label: "Default" },
     missing_inputs: { cls: "bg-red-600/20 text-red-400 border-red-600/30", label: "Missing Inputs" },
-    empty: { cls: "bg-gray-600/20 text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Empty" },
+    empty: { cls: "bg-gray-600/20 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: "Empty" },
     healthy: { cls: "bg-emerald-600/20 text-emerald-400 border-emerald-600/30", label: "Healthy" },
     degraded: { cls: "bg-amber-600/20 text-amber-400 border-amber-600/30", label: "Degraded" },
     critical: { cls: "bg-red-600/20 text-red-400 border-red-600/30", label: "Critical" },
   };
-  const cfg = map[status] || { cls: "bg-gray-600/20 text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: status };
+  const cfg = map[status] || { cls: "bg-gray-600/20 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 border-gray-600/30", label: status };
   return (
     <span className={`inline-flex items-center px-2 py-0.5 text-xs font-medium rounded border ${cfg.cls}`}>
       {cfg.label}
@@ -222,16 +222,16 @@ export default function PipelineDebug() {
           </div>
           <div>
             <h1 className="text-xl font-semibold text-white">Pipeline Debug Mode</h1>
-            <p className="text-sm text-gray-400 dark:text-muted-foreground/70">
+            <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
               Full 10-stage pipeline diagnostic · Read-only · No DB modifications
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 mb-6 text-xs text-gray-500 dark:text-muted-foreground">
-          <Link href="/platform/overview" className="hover:text-gray-300">Platform</Link>
+        <div className="flex items-center gap-2 mb-6 text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
+          <Link href="/platform/overview" className="hover:text-gray-600 dark:text-gray-300">Platform</Link>
           <span>/</span>
-          <span className="text-gray-400 dark:text-muted-foreground/70">Pipeline Debug</span>
+          <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Pipeline Debug</span>
         </div>
 
         {/* Search bar */}
@@ -242,14 +242,14 @@ export default function PipelineDebug() {
             value={inputId}
             onChange={(e) => setInputId(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 dark:text-muted-foreground max-w-xs"
+            className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-700 dark:text-gray-400 dark:text-muted-foreground max-w-xs"
           />
           <Button onClick={handleSearch} className="bg-violet-600 hover:bg-violet-700">
             <Search className="w-4 h-4 mr-2" />
             Run Debug
           </Button>
           {data && (
-            <Button variant="outline" onClick={() => refetch()} className="border-gray-700 text-gray-300">
+            <Button variant="outline" onClick={() => refetch()} className="border-gray-700 text-gray-600 dark:text-gray-300">
               <RefreshCw className="w-4 h-4 mr-2" />
               Re-run
             </Button>
@@ -259,7 +259,7 @@ export default function PipelineDebug() {
         {/* Loading */}
         {isLoading && (
           <div className="text-center py-16">
-            <div className="inline-flex items-center gap-3 text-gray-400 dark:text-muted-foreground/70">
+            <div className="inline-flex items-center gap-3 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
               <RefreshCw className="w-5 h-5 animate-spin" />
               <span>Running 10-stage pipeline in debug mode… This may take 30-60 seconds.</span>
             </div>
@@ -279,7 +279,7 @@ export default function PipelineDebug() {
 
         {/* Empty state */}
         {!data && !isLoading && !error && (
-          <div className="text-center py-16 text-gray-500 dark:text-muted-foreground">
+          <div className="text-center py-16 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
             <Wrench className="w-8 h-8 mx-auto mb-3 opacity-50" />
             Enter a Claim ID above and click Run Debug to execute the full pipeline diagnostic.
           </div>
@@ -299,15 +299,15 @@ function DebugReport({ data }: { data: any }) {
       {/* Summary bar */}
       <div className="flex items-center gap-4 px-4 py-3 rounded-lg bg-gray-900 border border-gray-800 text-sm">
         <div className="flex items-center gap-2">
-          <Clock className="w-4 h-4 text-gray-500 dark:text-muted-foreground" />
-          <span className="text-gray-400 dark:text-muted-foreground/70">Claim #{data.claimId}</span>
+          <Clock className="w-4 h-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
+          <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Claim #{data.claimId}</span>
         </div>
         <div className="text-gray-600 dark:text-muted-foreground">|</div>
-        <div className="text-gray-400 dark:text-muted-foreground/70">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
           Duration: <span className="text-white font-mono">{(data.totalDurationMs / 1000).toFixed(1)}s</span>
         </div>
         <div className="text-gray-600 dark:text-muted-foreground">|</div>
-        <div className="text-gray-400 dark:text-muted-foreground/70">
+        <div className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
           Completeness: <span className="text-white font-mono">{data.completenessScore}%</span>
         </div>
         <div className="text-gray-600 dark:text-muted-foreground">|</div>
@@ -321,7 +321,7 @@ function DebugReport({ data }: { data: any }) {
       <Section
         step={stepConfig[0]}
         defaultOpen={true}
-        badge={<Badge variant="outline" className="text-xs border-gray-700 text-gray-400 dark:text-muted-foreground/70">{data.documentRegistry?.length ?? 0} docs</Badge>}
+        badge={<Badge variant="outline" className="text-xs border-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">{data.documentRegistry?.length ?? 0} docs</Badge>}
       >
         <DocumentRegistryTable docs={data.documentRegistry || []} />
       </Section>
@@ -329,7 +329,7 @@ function DebugReport({ data }: { data: any }) {
       {/* Step 2 — Raw Text Output */}
       <Section
         step={stepConfig[1]}
-        badge={<Badge variant="outline" className="text-xs border-gray-700 text-gray-400 dark:text-muted-foreground/70">{data.rawTextOutputs?.length ?? 0} texts</Badge>}
+        badge={<Badge variant="outline" className="text-xs border-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">{data.rawTextOutputs?.length ?? 0} texts</Badge>}
       >
         <RawTextView texts={data.rawTextOutputs || []} />
       </Section>
@@ -337,7 +337,7 @@ function DebugReport({ data }: { data: any }) {
       {/* Step 3 — Structured Data Extraction */}
       <Section
         step={stepConfig[2]}
-        badge={<Badge variant="outline" className="text-xs border-gray-700 text-gray-400 dark:text-muted-foreground/70">{data.structuredExtractions?.length ?? 0} fields</Badge>}
+        badge={<Badge variant="outline" className="text-xs border-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">{data.structuredExtractions?.length ?? 0} fields</Badge>}
       >
         <ExtractedFieldsTable fields={data.structuredExtractions || []} />
       </Section>
@@ -372,7 +372,7 @@ function DebugReport({ data }: { data: any }) {
       <Section
         step={stepConfig[4]}
         badge={
-          <Badge variant="outline" className="text-xs border-gray-700 text-gray-400 dark:text-muted-foreground/70">
+          <Badge variant="outline" className="text-xs border-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
             {data.engineInputChecks?.length ?? 0} engines
           </Badge>
         }
@@ -448,7 +448,7 @@ function StageTimingBar({ stages, totalMs }: { stages: Record<string, any>; tota
 
   return (
     <div className="px-4 py-3 rounded-lg bg-gray-900 border border-gray-800">
-      <div className="text-xs text-gray-500 dark:text-muted-foreground mb-2 font-mono">STAGE TIMING</div>
+      <div className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-2 font-mono">STAGE TIMING</div>
       <div className="flex h-6 rounded overflow-hidden gap-px">
         {stageNames.map((name, i) => {
           const stage = stages[name];
@@ -479,7 +479,7 @@ function StageTimingBar({ stages, totalMs }: { stages: Record<string, any>; tota
 // ─── Step 1: Document Registry ───────────────────────────────────────────────
 
 function DocumentRegistryTable({ docs }: { docs: DocumentEntry[] }) {
-  if (docs.length === 0) return <p className="text-gray-500 dark:text-muted-foreground text-sm">No documents found.</p>;
+  if (docs.length === 0) return <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">No documents found.</p>;
   return (
     <div className="space-y-3">
       {docs.map((doc, i) => (
@@ -488,25 +488,25 @@ function DocumentRegistryTable({ docs }: { docs: DocumentEntry[] }) {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-medium text-white">{doc.documentId}</span>
-              <span className="text-xs text-gray-500 dark:text-muted-foreground">·</span>
-              <span className="text-sm text-gray-300">{doc.fileName}</span>
+              <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">·</span>
+              <span className="text-sm text-gray-600 dark:text-gray-300">{doc.fileName}</span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
               <div>
-                <span className="text-gray-500 dark:text-muted-foreground">Type:</span>{" "}
-                <span className="text-gray-300">{doc.detectedDocumentType}</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Type:</span>{" "}
+                <span className="text-gray-600 dark:text-gray-300">{doc.detectedDocumentType}</span>
               </div>
               <div>
-                <span className="text-gray-500 dark:text-muted-foreground">OCR:</span>{" "}
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">OCR:</span>{" "}
                 <StatusBadge status={doc.ocrStatus} />
               </div>
               <div>
-                <span className="text-gray-500 dark:text-muted-foreground">Text:</span>{" "}
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Text:</span>{" "}
                 <StatusBadge status={doc.textExtractionStatus} />
               </div>
               <div>
-                <span className="text-gray-500 dark:text-muted-foreground">Images:</span>{" "}
-                <span className="text-gray-300">{doc.imageCount}</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Images:</span>{" "}
+                <span className="text-gray-600 dark:text-gray-300">{doc.imageCount}</span>
               </div>
             </div>
           </div>
@@ -521,16 +521,16 @@ function DocumentRegistryTable({ docs }: { docs: DocumentEntry[] }) {
 function RawTextView({ texts }: { texts: RawTextEntry[] }) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
-  if (texts.length === 0) return <p className="text-gray-500 dark:text-muted-foreground text-sm">No text extracted.</p>;
+  if (texts.length === 0) return <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">No text extracted.</p>;
   return (
     <div className="space-y-3">
       {texts.map((t, i) => (
         <div key={i} className="rounded bg-gray-900/50 border border-gray-800 overflow-hidden">
           <div className="flex items-center gap-3 px-3 py-2 border-b border-gray-800">
             <span className="text-sm font-medium text-gray-200">{t.documentId}: {t.fileName}</span>
-            <span className="text-xs text-gray-500 dark:text-muted-foreground">{t.textLength.toLocaleString()} chars</span>
-            <span className="text-xs text-gray-500 dark:text-muted-foreground">{t.tableCount} tables</span>
-            <span className="text-xs text-gray-500 dark:text-muted-foreground">OCR conf: {(t.ocrConfidence * 100).toFixed(0)}%</span>
+            <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{t.textLength.toLocaleString()} chars</span>
+            <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{t.tableCount} tables</span>
+            <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">OCR conf: {(t.ocrConfidence * 100).toFixed(0)}%</span>
             <button
               onClick={() => setExpanded(p => ({ ...p, [i]: !p[i] }))}
               className="ml-auto text-xs text-violet-400 hover:text-violet-300"
@@ -539,7 +539,7 @@ function RawTextView({ texts }: { texts: RawTextEntry[] }) {
             </button>
           </div>
           {expanded[i] && (
-            <pre className="p-3 text-xs text-gray-400 dark:text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+            <pre className="p-3 text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
               {t.rawText || "(empty)"}
             </pre>
           )}
@@ -552,7 +552,7 @@ function RawTextView({ texts }: { texts: RawTextEntry[] }) {
 // ─── Step 3: Structured Data Extraction ──────────────────────────────────────
 
 function ExtractedFieldsTable({ fields }: { fields: ExtractedField[] }) {
-  if (fields.length === 0) return <p className="text-gray-500 dark:text-muted-foreground text-sm">No fields extracted.</p>;
+  if (fields.length === 0) return <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">No fields extracted.</p>;
 
   const nullCount = fields.filter(f => f.confidence === "null").length;
   const lowCount = fields.filter(f => f.confidence === "low").length;
@@ -560,14 +560,14 @@ function ExtractedFieldsTable({ fields }: { fields: ExtractedField[] }) {
   return (
     <div>
       <div className="flex gap-3 mb-3 text-xs">
-        <span className="text-gray-500 dark:text-muted-foreground">{fields.length} fields total</span>
+        <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{fields.length} fields total</span>
         {nullCount > 0 && <span className="text-red-400">{nullCount} NULL</span>}
         {lowCount > 0 && <span className="text-amber-400">{lowCount} low confidence</span>}
       </div>
       <div className="rounded border border-gray-800 overflow-hidden">
         <table className="w-full text-xs">
           <thead>
-            <tr className="bg-gray-900/80 text-gray-500 dark:text-muted-foreground border-b border-gray-800">
+            <tr className="bg-gray-900/80 text-gray-700 dark:text-gray-400 dark:text-muted-foreground border-b border-gray-800">
               <th className="text-left px-3 py-2 font-medium">Field</th>
               <th className="text-left px-3 py-2 font-medium">Value</th>
               <th className="text-left px-3 py-2 font-medium">Confidence</th>
@@ -577,7 +577,7 @@ function ExtractedFieldsTable({ fields }: { fields: ExtractedField[] }) {
           <tbody>
             {fields.map((f, i) => (
               <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-900/30">
-                <td className="px-3 py-1.5 font-mono text-gray-300">{f.fieldName}</td>
+                <td className="px-3 py-1.5 font-mono text-gray-600 dark:text-gray-300">{f.fieldName}</td>
                 <td className="px-3 py-1.5 text-gray-200 max-w-xs truncate">
                   {f.extractedValue === null || f.extractedValue === undefined ? (
                     <span className="text-red-400 font-mono">NULL</span>
@@ -588,7 +588,7 @@ function ExtractedFieldsTable({ fields }: { fields: ExtractedField[] }) {
                 <td className="px-3 py-1.5">
                   <StatusBadge status={f.confidence === "null" ? "missing" : f.confidence} />
                 </td>
-                <td className="px-3 py-1.5 text-gray-500 dark:text-muted-foreground">{f.sourceDocument}</td>
+                <td className="px-3 py-1.5 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{f.sourceDocument}</td>
               </tr>
             ))}
           </tbody>
@@ -617,7 +617,7 @@ function ClaimDataObjectView({
     <div className="space-y-4">
       {/* Completeness bar */}
       <div className="flex items-center gap-3">
-        <span className="text-xs text-gray-500 dark:text-muted-foreground">Completeness:</span>
+        <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Completeness:</span>
         <div className="flex-1 h-2 bg-gray-800 rounded-full overflow-hidden max-w-xs">
           <div
             className={`h-full rounded-full ${
@@ -652,7 +652,7 @@ function ClaimDataObjectView({
               <AlertTriangle className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
               <div>
                 <span className="text-amber-300 font-mono">{issue.field}</span>
-                <span className="text-gray-400 dark:text-muted-foreground/70 ml-2">{issue.message}</span>
+                <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 ml-2">{issue.message}</span>
               </div>
             </div>
           ))}
@@ -669,7 +669,7 @@ function ClaimDataObjectView({
             {showJson ? "Hide" : "Show"} Full Claim Object JSON
           </button>
           {showJson && (
-            <pre className="p-3 rounded bg-gray-900 border border-gray-800 text-xs text-gray-400 dark:text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
+            <pre className="p-3 rounded bg-gray-900 border border-gray-800 text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-96 overflow-y-auto">
               {JSON.stringify(claimData, null, 2)}
             </pre>
           )}
@@ -686,7 +686,7 @@ function ClaimDataObjectView({
 // ─── Step 5: Engine Input Check ──────────────────────────────────────────────
 
 function EngineInputChecks({ checks }: { checks: EngineInput[] }) {
-  if (checks.length === 0) return <p className="text-gray-500 dark:text-muted-foreground text-sm">No engine input data.</p>;
+  if (checks.length === 0) return <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">No engine input data.</p>;
   return (
     <div className="space-y-4">
       {checks.map((check, i) => (
@@ -704,7 +704,7 @@ function EngineInputChecks({ checks }: { checks: EngineInput[] }) {
           <div className="p-3">
             <table className="w-full text-xs">
               <thead>
-                <tr className="text-gray-500 dark:text-muted-foreground">
+                <tr className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
                   <th className="text-left pb-1 font-medium">Input Field</th>
                   <th className="text-left pb-1 font-medium">Value</th>
                   <th className="text-left pb-1 font-medium">Status</th>
@@ -713,8 +713,8 @@ function EngineInputChecks({ checks }: { checks: EngineInput[] }) {
               <tbody>
                 {check.inputs.map((inp, j) => (
                   <tr key={j} className="border-t border-gray-800/30">
-                    <td className="py-1 font-mono text-gray-300">{inp.fieldName}</td>
-                    <td className="py-1 text-gray-400 dark:text-muted-foreground/70 max-w-xs truncate">
+                    <td className="py-1 font-mono text-gray-600 dark:text-gray-300">{inp.fieldName}</td>
+                    <td className="py-1 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 max-w-xs truncate">
                       {inp.value === null || inp.value === undefined ? (
                         <span className="text-red-400 font-mono">NULL</span>
                       ) : (
@@ -738,7 +738,7 @@ function EngineInputChecks({ checks }: { checks: EngineInput[] }) {
 function EngineResultsView({ results }: { results: EngineResult[] }) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
 
-  if (results.length === 0) return <p className="text-gray-500 dark:text-muted-foreground text-sm">No engine results.</p>;
+  if (results.length === 0) return <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">No engine results.</p>;
   return (
     <div className="space-y-3">
       {results.map((r, i) => (
@@ -747,7 +747,7 @@ function EngineResultsView({ results }: { results: EngineResult[] }) {
             <BarChart3 className="w-4 h-4 text-emerald-400" />
             <span className="text-sm font-medium text-gray-200">{r.engineName}</span>
             <StatusBadge status={r.executionStatus} />
-            <span className="text-xs text-gray-500 dark:text-muted-foreground font-mono ml-auto">{(r.durationMs / 1000).toFixed(1)}s</span>
+            <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground font-mono ml-auto">{(r.durationMs / 1000).toFixed(1)}s</span>
             {r.reason && <span className="text-xs text-red-400">· {r.reason}</span>}
             <button
               onClick={() => setExpanded(p => ({ ...p, [i]: !p[i] }))}
@@ -757,7 +757,7 @@ function EngineResultsView({ results }: { results: EngineResult[] }) {
             </button>
           </div>
           {expanded[i] && Object.keys(r.outputData).length > 0 && (
-            <pre className="px-3 py-2 border-t border-gray-800 text-xs text-gray-400 dark:text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
+            <pre className="px-3 py-2 border-t border-gray-800 text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-mono whitespace-pre-wrap max-h-64 overflow-y-auto">
               {JSON.stringify(r.outputData, null, 2)}
             </pre>
           )}
@@ -770,12 +770,12 @@ function EngineResultsView({ results }: { results: EngineResult[] }) {
 // ─── Step 7: Report Section Status ───────────────────────────────────────────
 
 function ReportSectionStatusView({ sections }: { sections: ReportSectionStatus[] }) {
-  if (sections.length === 0) return <p className="text-gray-500 dark:text-muted-foreground text-sm">No report sections.</p>;
+  if (sections.length === 0) return <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">No report sections.</p>;
   return (
     <div className="rounded border border-gray-800 overflow-hidden">
       <table className="w-full text-xs">
         <thead>
-          <tr className="bg-gray-900/80 text-gray-500 dark:text-muted-foreground border-b border-gray-800">
+          <tr className="bg-gray-900/80 text-gray-700 dark:text-gray-400 dark:text-muted-foreground border-b border-gray-800">
             <th className="text-left px-3 py-2 font-medium">Section</th>
             <th className="text-left px-3 py-2 font-medium">Status</th>
             <th className="text-left px-3 py-2 font-medium">Data Source</th>
@@ -787,8 +787,8 @@ function ReportSectionStatusView({ sections }: { sections: ReportSectionStatus[]
             <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-900/30">
               <td className="px-3 py-2 text-gray-200 font-medium">{s.sectionName}</td>
               <td className="px-3 py-2"><StatusBadge status={s.status} /></td>
-              <td className="px-3 py-2 text-gray-500 dark:text-muted-foreground text-[11px]">{s.dataSource}</td>
-              <td className="px-3 py-2 text-gray-400 dark:text-muted-foreground/70 font-mono">
+              <td className="px-3 py-2 text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-[11px]">{s.dataSource}</td>
+              <td className="px-3 py-2 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-mono">
                 {s.populatedFieldCount}/{s.fieldCount}
               </td>
             </tr>
@@ -819,7 +819,7 @@ function ErrorDiagnosticsView({ errors }: { errors: ErrorDiagnostic[] }) {
             <span className="text-xs font-medium text-red-300">{err.stage}</span>
             <span className="text-[10px] font-mono text-gray-600 dark:text-muted-foreground">· {err.component} · {err.errorType}</span>
           </div>
-          <p className="text-xs text-gray-300 mb-1">{err.description}</p>
+          <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">{err.description}</p>
           <div className="flex items-start gap-1">
             <Wrench className="w-3 h-3 text-amber-400 mt-0.5 flex-shrink-0" />
             <p className="text-xs text-amber-300">{err.recommendation}</p>
@@ -862,7 +862,7 @@ function SystemHealthView({ health }: { health: SystemHealth }) {
       {/* Missing fields */}
       {health.missingFieldsList.length > 0 && (
         <div>
-          <div className="text-xs text-gray-500 dark:text-muted-foreground mb-1 font-medium">Missing Fields</div>
+          <div className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1 font-medium">Missing Fields</div>
           <div className="flex flex-wrap gap-1">
             {health.missingFieldsList.map((f, i) => (
               <span key={i} className="text-xs font-mono px-1.5 py-0.5 rounded bg-red-900/20 text-red-300 border border-red-800/30">
@@ -876,12 +876,12 @@ function SystemHealthView({ health }: { health: SystemHealth }) {
       {/* Recommended fixes */}
       {health.recommendedFixes.length > 0 && (
         <div>
-          <div className="text-xs text-gray-500 dark:text-muted-foreground mb-1 font-medium">Recommended Fixes</div>
+          <div className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1 font-medium">Recommended Fixes</div>
           <div className="space-y-1">
             {health.recommendedFixes.map((fix, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">
                 <Shield className="w-3 h-3 text-teal-400 mt-0.5 flex-shrink-0" />
-                <span className="text-gray-300">{fix}</span>
+                <span className="text-gray-600 dark:text-gray-300">{fix}</span>
               </div>
             ))}
           </div>
@@ -904,7 +904,7 @@ function MetricCard({ label, value, status }: { label: string; value: string; st
   };
   return (
     <div className={`rounded-lg border p-3 ${colors[status]}`}>
-      <div className="text-[10px] text-gray-500 dark:text-muted-foreground uppercase tracking-wider mb-1">{label}</div>
+      <div className="text-[10px] text-gray-700 dark:text-gray-400 dark:text-muted-foreground uppercase tracking-wider mb-1">{label}</div>
       <div className={`text-lg font-mono font-bold ${textColors[status]}`}>{value}</div>
     </div>
   );

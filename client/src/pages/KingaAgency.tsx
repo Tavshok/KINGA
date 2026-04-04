@@ -399,7 +399,7 @@ function NewQuoteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (
           {[1, 2, 3].map((s) => (
             <div key={s} className="flex items-center gap-2 flex-1">
               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                s <= step ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-500 dark:text-muted-foreground"
+                s <= step ? "bg-emerald-600 text-white" : "bg-gray-200 text-gray-700 dark:text-gray-400 dark:text-muted-foreground"
               }`}>
                 {s}
               </div>

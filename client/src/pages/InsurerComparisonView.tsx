@@ -1830,7 +1830,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
                     ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700'
                     : sev === 'moderate' ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700'
                     : sev === 'minor' ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
-                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600';
+                    : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600';
                   return (
                     <div key={idx} className="flex items-start gap-2 p-2.5 bg-card rounded border border-border">
                       <div className="min-w-0 flex-1">

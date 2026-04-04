@@ -91,7 +91,7 @@ const CONFIG: Record<AiState, {
     label: "Waiting for AI",
     containerClass: "bg-gray-100 dark:bg-muted text-gray-600 dark:text-muted-foreground border-gray-200 dark:border-border",
     Icon: Clock,
-    iconClass: "text-gray-400 dark:text-muted-foreground/70",
+    iconClass: "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70",
   },
   analysing: {
     label: "Analysing…",

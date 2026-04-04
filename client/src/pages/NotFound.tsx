@@ -52,7 +52,7 @@ export default function NotFound() {
           <form onSubmit={handleSearch} className="mb-8">
             <div className="flex gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400 dark:text-muted-foreground/70" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                 <Input
                   type="text"
                   placeholder="Search for claims, assessments, or reports..."
@@ -105,7 +105,7 @@ export default function NotFound() {
 
           {/* Help Text */}
           <div className="mt-8 pt-6 border-t border-gray-200 dark:border-border">
-            <p className="text-sm text-gray-500 dark:text-muted-foreground text-center">
+            <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-center">
               Need help? Contact your system administrator or visit our support
               documentation.
             </p>

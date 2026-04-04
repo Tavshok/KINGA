@@ -432,7 +432,7 @@ export default function ClaimsManagerDashboard() {
           </CardHeader>
           <CardContent className="pt-4">
             {(queueLoading || assessedLoading) ? (
-              <p className="text-center text-slate-500 dark:text-muted-foreground py-8">Loading claims for review...</p>
+              <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-8">Loading claims for review...</p>
             ) : paginatedClaims.length > 0 ? (
               <>
                 <div className="space-y-3">
@@ -478,7 +478,7 @@ export default function ClaimsManagerDashboard() {
 
                         {/* Per-claim currency selector — claims manager sets currency per policy insured */}
                         <div className="mt-2 flex items-center gap-2">
-                          <span className="text-xs text-slate-400 dark:text-muted-foreground/70">Policy currency:</span>
+                          <span className="text-xs text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Policy currency:</span>
                           <ClaimCurrencySelector
                             claimId={claim.id}
                             currentCurrency={claim.currencyCode ?? "USD"}
@@ -562,9 +562,9 @@ export default function ClaimsManagerDashboard() {
               </>
             ) : (
               <div className="text-center py-12">
-                <FileCheck className="h-12 w-12 text-slate-300 mx-auto mb-3" />
-                <p className="text-slate-500 dark:text-muted-foreground font-medium">No claims pending review</p>
-                <p className="text-sm text-slate-400 dark:text-muted-foreground/70 mt-1">
+                <FileCheck className="h-12 w-12 text-slate-600 dark:text-slate-300 mx-auto mb-3" />
+                <p className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground font-medium">No claims pending review</p>
+                <p className="text-sm text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70 mt-1">
                   Claims will appear here after Risk Manager approval or when assessments are complete
                 </p>
               </div>
@@ -583,7 +583,7 @@ export default function ClaimsManagerDashboard() {
           </CardHeader>
           <CardContent className="pt-4">
             {completedLoading ? (
-              <p className="text-center text-slate-500 dark:text-muted-foreground py-4">Loading...</p>
+              <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-4">Loading...</p>
             ) : completedClaims && completedClaims.length > 0 ? (
               <div className="space-y-2">
                 {completedClaims.slice(0, 10).map((claim: any) => (
@@ -591,7 +591,7 @@ export default function ClaimsManagerDashboard() {
                     <div className="flex items-center gap-3">
                       <CheckCircle className="h-4 w-4 text-green-600" />
                       <span className="font-medium text-sm">{claim.claimNumber}</span>
-                      <span className="text-xs text-slate-500 dark:text-muted-foreground">
+                      <span className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                         {[claim.vehicleMake, claim.vehicleModel].filter(Boolean).join(" ")}
                       </span>
                       {claim.approvedAmount && (
@@ -610,8 +610,8 @@ export default function ClaimsManagerDashboard() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <Clock className="h-8 w-8 text-slate-300 mx-auto mb-2" />
-                <p className="text-slate-500 dark:text-muted-foreground text-sm">No closed claims yet</p>
+                <Clock className="h-8 w-8 text-slate-600 dark:text-slate-300 mx-auto mb-2" />
+                <p className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground text-sm">No closed claims yet</p>
               </div>
             )}
           </CardContent>
@@ -647,13 +647,13 @@ export default function ClaimsManagerDashboard() {
                   </h3>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-white dark:bg-card rounded p-2">
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground">AI Estimate</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">AI Estimate</p>
                       <p className="text-lg font-bold text-teal-700 dark:text-teal-300">
                         {comparisonData.aiCost ? fmt(comparisonData.aiCost * 100) : "N/A"}
                       </p>
                     </div>
                     <div className="bg-white dark:bg-card rounded p-2">
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground">Assessor</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Assessor</p>
                       <p className="text-lg font-bold text-green-700 dark:text-green-300">
                         {comparisonData.assessorCost ? fmt(comparisonData.assessorCost * 100) : "N/A"}
                       </p>
@@ -664,7 +664,7 @@ export default function ClaimsManagerDashboard() {
                       )}
                     </div>
                     <div className="bg-white dark:bg-card rounded p-2">
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground">Avg Quote ({comparisonData.quoteCount})</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Avg Quote ({comparisonData.quoteCount})</p>
                       <p className="text-lg font-bold text-purple-700 dark:text-purple-300">
                         {comparisonData.avgQuoteCost ? fmt(comparisonData.avgQuoteCost * 100) : "N/A"}
                       </p>

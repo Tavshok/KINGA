@@ -260,7 +260,7 @@ export default function GovernanceDashboard() {
                   <Badge className={`text-lg px-6 py-2 ${getRiskScoreColor(riskScore.score)}`}>
                     {getRiskScoreLabel(riskScore.score)}
                   </Badge>
-                  <p className="text-sm text-slate-500 dark:text-muted-foreground mt-4">
+                  <p className="text-sm text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-4">
                     Last updated: {new Date(riskScore.lastUpdated).toLocaleString()}
                   </p>
                 </div>
@@ -479,7 +479,7 @@ export default function GovernanceDashboard() {
                           <p className="text-sm text-slate-600 dark:text-muted-foreground">
                             <span className="font-medium">Most common reason:</span> {actor.mostCommonReason}
                           </p>
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground">
+                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                             Avg justification length: {actor.avgJustificationLength} characters
                           </p>
                         </div>
@@ -667,7 +667,7 @@ export default function GovernanceDashboard() {
                             <p className="text-sm text-slate-600 dark:text-muted-foreground">
                               <span className="font-medium">Claim:</span> {attempt.claimId}
                             </p>
-                            <p className="text-xs text-slate-500 dark:text-muted-foreground">
+                            <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                               Blocked at: {new Date(attempt.blockedAt).toLocaleString()}
                             </p>
                           </div>
@@ -675,7 +675,7 @@ export default function GovernanceDashboard() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-slate-500 dark:text-muted-foreground">
+                    <div className="text-center py-8 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                       No monopolization attempts detected
                     </div>
                   )}
@@ -720,7 +720,7 @@ export default function GovernanceDashboard() {
                       </div>
                     ))
                   ) : (
-                    <div className="text-center py-8 text-slate-500 dark:text-muted-foreground">
+                    <div className="text-center py-8 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                       No high-risk involvement clusters detected
                     </div>
                   )}
@@ -739,7 +739,7 @@ export default function GovernanceDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
+                <div className="text-center py-12 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                   Role change oversight section will be implemented in the next phase
                 </div>
               </CardContent>

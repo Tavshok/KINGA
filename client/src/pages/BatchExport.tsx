@@ -256,7 +256,7 @@ export default function BatchExport() {
           <CardContent>
             {allClaims.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
-                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-400 dark:text-muted-foreground/70" />
+                <FileText className="h-12 w-12 mx-auto mb-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                 <p>No claims available for export</p>
                 <p className="text-sm mt-2">Claims with AI assessments will appear here</p>
               </div>
@@ -295,7 +295,7 @@ export default function BatchExport() {
                           {claim.vehicleMake} {claim.vehicleModel} ({claim.vehicleYear}) • {claim.vehicleRegistration}
                         </p>
                         {claim.incidentDate && (
-                          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+                          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
                             Incident: {new Date(claim.incidentDate).toLocaleDateString()}
                           </p>
                         )}
@@ -305,7 +305,7 @@ export default function BatchExport() {
                           <p className="text-sm font-medium text-gray-700 dark:text-foreground/80">
                             ${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}
                           </p>
-                          <p className="text-xs text-gray-500 dark:text-muted-foreground">Estimated Cost</p>
+                          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Estimated Cost</p>
                         </div>
                       )}
                     </div>

@@ -305,8 +305,8 @@ function MismatchAnnotationControls({
           disabled={isLoading}
           className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors ${
             existingAction === "dismiss"
-              ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600"
-              : "text-slate-500 dark:text-slate-400 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+              ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-600 dark:text-slate-300 border border-slate-300 dark:border-slate-600"
+              : "text-slate-700 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400 border border-slate-300 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-800/50"
           }`}
         >
           {isLoading && pendingAction === "dismiss" ? (
@@ -359,7 +359,7 @@ function AdaptiveWeightsStrip({ stats }: { stats: MismatchTypeStats[] }) {
           const iconColor =
             dir === "increase" ? "text-emerald-500" :
             dir === "decrease" ? "text-amber-500" :
-            "text-slate-400";
+            "text-slate-600 dark:text-slate-400";
           const pct = (s.confirmation_rate * 100).toFixed(0);
 
           return (
@@ -375,7 +375,7 @@ function AdaptiveWeightsStrip({ stats }: { stats: MismatchTypeStats[] }) {
                 className={`font-medium tabular-nums ${
                   Number(pct) >= 75 ? "text-emerald-600 dark:text-emerald-400" :
                   Number(pct) <= 25 ? "text-amber-600 dark:text-amber-400" :
-                  "text-slate-500 dark:text-slate-400"
+                  "text-slate-700 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400"
                 }`}
               >
                 {pct}%
@@ -706,7 +706,7 @@ export function DamageConsistencyPanel({ claimId, assessmentId, consistencyCheck
                                 className={`text-xs px-1.5 py-0.5 rounded ml-auto ${
                                   existingAction === "confirm"
                                     ? "text-emerald-600 dark:text-emerald-400"
-                                    : "text-slate-500 dark:text-slate-400"
+                                    : "text-slate-700 dark:text-slate-400 dark:text-slate-600 dark:text-slate-400"
                                 }`}
                               >
                                 {existingAction === "confirm" ? "✓ Confirmed" : "✗ Dismissed"}

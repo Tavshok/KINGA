@@ -168,7 +168,7 @@ export default function ClaimsManagerComparisonView() {
     return (
       <div className="min-h-screen bg-slate-50 dark:bg-muted/50 flex items-center justify-center">
         <Card>
-          <CardContent className="py-12 text-center text-slate-500 dark:text-muted-foreground">
+          <CardContent className="py-12 text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
             <p>Claim not found</p>
           </CardContent>
         </Card>
@@ -670,7 +670,7 @@ export default function ClaimsManagerComparisonView() {
                   )}
                 </>
               ) : (
-                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
+                <div className="text-center py-12 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                   <p>No assessor evaluation available</p>
                 </div>
               )}
@@ -807,8 +807,8 @@ export default function ClaimsManagerComparisonView() {
                   )}
                 </>
               ) : (
-                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
-                  <Wrench className="h-12 w-12 mx-auto mb-4 text-slate-300" />
+                <div className="text-center py-12 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
+                  <Wrench className="h-12 w-12 mx-auto mb-4 text-slate-600 dark:text-slate-300" />
                   <p>No panel beater quotes available</p>
                 </div>
               )}

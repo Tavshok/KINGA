@@ -150,7 +150,7 @@ export default function InsuranceDashboard() {
             <div className="text-3xl font-bold text-primary">
               ${((activePolicies.reduce((sum: number, p: any) => sum + (p.premiumAmount || 0), 0)) * 12).toFixed(0)}
             </div>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Annual value</p>
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">Annual value</p>
           </CardContent>
         </Card>
       </div>

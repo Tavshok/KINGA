@@ -24,7 +24,7 @@ export default function UserDiagnostic() {
           
           <CardContent className="pt-6 space-y-6">
             {isLoading && (
-              <p className="text-center text-slate-500 dark:text-muted-foreground">Loading user data...</p>
+              <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Loading user data...</p>
             )}
             
             {error && (
@@ -68,11 +68,11 @@ export default function UserDiagnostic() {
                       </tr>
                       <tr>
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Name</td>
-                        <td className="p-3">{user.name || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
+                        <td className="p-3">{user.name || <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Email</td>
-                        <td className="p-3">{user.email || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
+                        <td className="p-3">{user.email || <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr className="bg-yellow-50 dark:bg-yellow-950/30">
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Role</td>
@@ -96,19 +96,19 @@ export default function UserDiagnostic() {
                       </tr>
                       <tr>
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Tenant ID</td>
-                        <td className="p-3">{user.tenantId || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
+                        <td className="p-3">{user.tenantId || <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Login Method</td>
-                        <td className="p-3">{user.loginMethod || <span className="text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
+                        <td className="p-3">{user.loginMethod || <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Not set</span>}</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Last Signed In</td>
-                        <td className="p-3">{user.lastSignedIn ? new Date(user.lastSignedIn).toLocaleString() : <span className="text-slate-400 dark:text-muted-foreground/70">Never</span>}</td>
+                        <td className="p-3">{user.lastSignedIn ? new Date(user.lastSignedIn).toLocaleString() : <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Never</span>}</td>
                       </tr>
                       <tr>
                         <td className="p-3 font-medium text-slate-600 dark:text-muted-foreground">Created At</td>
-                        <td className="p-3">{user.createdAt ? new Date(user.createdAt).toLocaleString() : <span className="text-slate-400 dark:text-muted-foreground/70">Unknown</span>}</td>
+                        <td className="p-3">{user.createdAt ? new Date(user.createdAt).toLocaleString() : <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">Unknown</span>}</td>
                       </tr>
                     </tbody>
                   </table>

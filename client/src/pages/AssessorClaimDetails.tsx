@@ -241,7 +241,7 @@ export default function AssessorClaimDetails() {
                         <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                           ${(((aiAssessment.estimatedCost || 0) * 1.1) / 100).toLocaleString()}
                         </p>
-                        <p className="text-xs text-slate-500 dark:text-muted-foreground">±10% variance</p>
+                        <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">±10% variance</p>
                       </div>
                     </div>
                   </div>

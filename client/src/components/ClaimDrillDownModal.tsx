@@ -150,31 +150,31 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                         <div className="w-3 h-3 rounded-full bg-green-500"></div>
                         <div className="flex-1">
                           <p className="font-medium">Claim Submitted</p>
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground">2024-02-15 09:00</p>
+                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 09:00</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
+                        <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         <div className="flex-1">
                           <p className="font-medium">AI Assessment</p>
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground">2024-02-15 09:15</p>
+                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 09:15</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
+                        <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
                         <div className="flex-1">
                           <p className="font-medium">Technical Review</p>
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground">2024-02-15 14:30</p>
+                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">2024-02-15 14:30</p>
                         </div>
-                        <ArrowRight className="h-4 w-4 text-slate-400 dark:text-muted-foreground/70" />
+                        <ArrowRight className="h-4 w-4 text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70" />
                       </div>
                       <div className="flex items-center gap-3">
                         <div className="w-3 h-3 rounded-full bg-slate-300"></div>
                         <div className="flex-1">
-                          <p className="font-medium text-slate-500 dark:text-muted-foreground">Financial Decision (Pending)</p>
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground">Awaiting approval</p>
+                          <p className="font-medium text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Financial Decision (Pending)</p>
+                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Awaiting approval</p>
                         </div>
                       </div>
                     </div>
@@ -195,7 +195,7 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                         <div className="flex-1">
                           <div className="flex items-center justify-between mb-2">
                             <h3 className="font-semibold">{override.claimId}</h3>
-                            <span className="text-xs text-slate-500 dark:text-muted-foreground">{override.timestamp}</span>
+                            <span className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">{override.timestamp}</span>
                           </div>
                           <p className="text-sm font-medium text-amber-700 dark:text-amber-300 mb-2">
                             {override.action}
@@ -203,12 +203,12 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                           <p className="text-sm text-slate-600 dark:text-muted-foreground mb-3">
                             <span className="font-medium">Reason:</span> {override.reason}
                           </p>
-                          <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-muted-foreground">
+                          <div className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                             <Badge variant="outline">{override.previousState}</Badge>
                             <ArrowRight className="h-3 w-3" />
                             <Badge variant="outline">{override.newState}</Badge>
                           </div>
-                          <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">
+                          <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">
                             By: {override.user}
                           </p>
                         </div>
@@ -217,7 +217,7 @@ export function ClaimDrillDownModal({ open, onOpenChange, filter, title }: Claim
                   </Card>
                 ))
               ) : (
-                <div className="text-center py-12 text-slate-500 dark:text-muted-foreground">
+                <div className="text-center py-12 text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                   <Shield className="h-12 w-12 mx-auto mb-3 opacity-30" />
                   <p>No executive overrides recorded</p>
                 </div>

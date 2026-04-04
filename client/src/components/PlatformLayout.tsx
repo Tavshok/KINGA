@@ -89,7 +89,7 @@ export default function PlatformLayout({
           </div>
           <div>
             <div className="text-xs font-semibold text-white leading-none">KINGA</div>
-            <div className="text-[10px] text-gray-500 dark:text-muted-foreground leading-none mt-0.5">Super Admin</div>
+            <div className="text-[10px] text-gray-700 dark:text-gray-400 dark:text-muted-foreground leading-none mt-0.5">Super Admin</div>
           </div>
         </div>
 
@@ -106,18 +106,18 @@ export default function PlatformLayout({
                     "flex items-center gap-2.5 px-3 py-2 rounded-md text-sm transition-colors group",
                     active
                       ? "bg-purple-900/60 text-purple-200"
-                      : "text-gray-400 dark:text-muted-foreground/70 hover:bg-gray-800 hover:text-gray-100"
+                      : "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:bg-gray-800 hover:text-gray-100"
                   )}
                 >
                   <item.icon
                     className={cn(
                       "w-4 h-4 flex-shrink-0",
-                      active ? "text-purple-300" : "text-gray-500 dark:text-muted-foreground group-hover:text-gray-300"
+                      active ? "text-purple-300" : "text-gray-700 dark:text-gray-400 dark:text-muted-foreground group-hover:text-gray-600 dark:text-gray-300"
                     )}
                   />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium leading-none">{item.label}</div>
-                    <div className="text-[10px] text-gray-600 dark:text-muted-foreground group-hover:text-gray-500 dark:text-muted-foreground mt-0.5 truncate">
+                    <div className="text-[10px] text-gray-600 dark:text-muted-foreground group-hover:text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-0.5 truncate">
                       {item.description}
                     </div>
                   </div>
@@ -131,7 +131,7 @@ export default function PlatformLayout({
         {/* Footer */}
         <div className="px-4 py-3 border-t border-gray-800">
           <Link href="/">
-            <a className="text-xs text-gray-500 dark:text-muted-foreground hover:text-gray-300 transition-colors">
+            <a className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground hover:text-gray-600 dark:text-gray-300 transition-colors">
               ← Back to app
             </a>
           </Link>

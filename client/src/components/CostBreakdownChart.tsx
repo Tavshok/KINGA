@@ -187,7 +187,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
                   <span className="text-sm font-medium text-gray-700 dark:text-foreground/80">{category.label}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-500 dark:text-muted-foreground">{percentage.toFixed(1)}%</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{percentage.toFixed(1)}%</span>
                   <span className="text-sm font-semibold text-gray-900 dark:text-foreground">
                     {currency}{category.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
@@ -223,7 +223,7 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
                   const catColor = categoryColors[item.category || 'other'] || '#6b7280';
                   return (
                     <tr key={index} className="hover:bg-gray-50 dark:bg-muted/50">
-                      <td className="p-3 text-gray-500 dark:text-muted-foreground">{index + 1}</td>
+                      <td className="p-3 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{index + 1}</td>
                       <td className="p-3 font-medium text-gray-900 dark:text-foreground">{item.description}</td>
                       <td className="p-3">
                         <Badge variant="outline" className="text-xs" style={{ borderColor: catColor, color: catColor }}>

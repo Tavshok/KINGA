@@ -157,8 +157,8 @@ function IndicatorCard({ indicator }: { indicator: IndicatorResult }) {
     pct >= 80 ? "bg-red-500" :
     pct >= 60 ? "bg-orange-500" :
     pct >= 40 ? "bg-amber-500" :
-    pct >= 20 ? "bg-yellow-400" :
-    "bg-emerald-400";
+    pct >= 20 ? "bg-yellow-600" :
+    "bg-emerald-600";
 
   const signals = indicator.signals ?? [];
 

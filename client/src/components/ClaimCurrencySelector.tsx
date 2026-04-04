@@ -139,7 +139,7 @@ export function ClaimCurrencySelector({
   return (
     <div className="flex items-end gap-2">
       <div className="flex flex-col gap-1 flex-1">
-        <label className="text-xs font-medium text-slate-500 dark:text-muted-foreground flex items-center gap-1">
+        <label className="text-xs font-medium text-slate-700 dark:text-slate-400 dark:text-muted-foreground flex items-center gap-1">
           <DollarSign className="h-3 w-3" />
           Policy Currency
         </label>
@@ -157,7 +157,7 @@ export function ClaimCurrencySelector({
                 <div className="flex items-center gap-2">
                   <span>{c.flag}</span>
                   <span className="font-medium">{c.symbol}</span>
-                  <span className="text-slate-500 dark:text-muted-foreground text-xs">{c.label}</span>
+                  <span className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground text-xs">{c.label}</span>
                   <Badge variant="outline" className="text-[10px] px-1 py-0 ml-1">
                     {c.code}
                   </Badge>

@@ -34,7 +34,7 @@ export default function AssessorLeaderboard() {
 
   const getRankIcon = (rank: number) => {
     if (rank === 1) return <Crown className="h-5 w-5 text-yellow-500" />;
-    if (rank === 2) return <Medal className="h-5 w-5 text-gray-400 dark:text-muted-foreground/70" />;
+    if (rank === 2) return <Medal className="h-5 w-5 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />;
     if (rank === 3) return <Award className="h-5 w-5 text-orange-600" />;
     return <span className="text-muted-foreground font-semibold">#{rank}</span>;
   };
@@ -79,7 +79,7 @@ export default function AssessorLeaderboard() {
           <Card className="border-gray-300 dark:border-border">
             <CardHeader className="text-center pb-3">
               <div className="flex justify-center mb-2">
-                <Medal className="h-12 w-12 text-gray-400 dark:text-muted-foreground/70" />
+                <Medal className="h-12 w-12 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
               </div>
               <CardTitle className="text-lg">{leaderboard[1].name || "Assessor"}</CardTitle>
               <CardDescription>{getTierBadge(leaderboard[1].tier || "free")}</CardDescription>

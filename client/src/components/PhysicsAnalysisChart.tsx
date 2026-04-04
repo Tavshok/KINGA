@@ -62,7 +62,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
             }}
           ></div>
         </div>
-        <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+        <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
           Based on collision dynamics and damage pattern analysis
         </p>
       </div>
@@ -76,7 +76,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
               <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Impact Speed</span>
             </div>
             <p className="text-2xl font-bold text-primary">{data.impactSpeed}</p>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground">km/h</p>
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">km/h</p>
           </div>
         )}
 
@@ -87,7 +87,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
               <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Impact Force</span>
             </div>
             <p className="text-2xl font-bold text-purple-600">{data.impactForce}</p>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground">kN</p>
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">kN</p>
           </div>
         )}
 
@@ -98,7 +98,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
               <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Energy Dissipated</span>
             </div>
             <p className="text-2xl font-bold text-orange-600">{data.energyDissipated}</p>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground">kJ</p>
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">kJ</p>
           </div>
         )}
 
@@ -109,7 +109,7 @@ export function PhysicsAnalysisChart({ data }: PhysicsAnalysisChartProps) {
               <span className="text-xs font-medium text-gray-600 dark:text-muted-foreground">Deceleration</span>
             </div>
             <p className="text-2xl font-bold text-red-600">{data.deceleration}</p>
-            <p className="text-xs text-gray-500 dark:text-muted-foreground">g-force</p>
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">g-force</p>
           </div>
         )}
       </div>

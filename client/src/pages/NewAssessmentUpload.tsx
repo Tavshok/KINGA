@@ -74,7 +74,7 @@ export default function NewAssessmentUpload() {
               type="file"
               accept="application/pdf"
               onChange={handleFileChange}
-              className="block w-full text-sm text-gray-500 dark:text-muted-foreground
+              className="block w-full text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground
                 file:mr-4 file:py-2 file:px-4
                 file:rounded-md file:border-0
                 file:text-sm file:font-semibold
@@ -113,37 +113,37 @@ export default function NewAssessmentUpload() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Vehicle Make</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Vehicle Make</p>
                   <p className="font-semibold text-lg">
                     {result.vehicleMake || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Vehicle Model</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Vehicle Model</p>
                   <p className="font-semibold text-lg">
                     {result.vehicleModel || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Year</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Year</p>
                   <p className="font-semibold text-lg">
                     {result.vehicleYear || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Registration</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Registration</p>
                   <p className="font-semibold text-lg">
                     {result.vehicleRegistration || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Claimant</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Claimant</p>
                   <p className="font-semibold text-lg">
                     {result.claimantName || "N/A"}
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 dark:text-muted-foreground">Estimated Cost</p>
+                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Estimated Cost</p>
                   <p className="font-semibold text-lg">
                     ${result.estimatedCost?.toFixed(2) || "0.00"}
                   </p>
@@ -151,7 +151,7 @@ export default function NewAssessmentUpload() {
               </div>
 
               <div className="mt-6">
-                <p className="text-sm text-gray-500 dark:text-muted-foreground mb-2">Full Response (JSON)</p>
+                <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-2">Full Response (JSON)</p>
                 <pre className="bg-gray-100 dark:bg-muted p-4 rounded-lg overflow-auto max-h-96 text-xs">
                   {JSON.stringify(result, null, 2)}
                 </pre>

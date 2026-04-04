@@ -179,7 +179,7 @@ export default function InsurerClaimsTriage() {
         label: "Assessment Pending" 
       },
       assessment_in_progress: { 
-        className: "bg-gradient-to-r from-indigo-400 to-indigo-500 text-white border-none", 
+        className: "bg-gradient-to-r from-indigo-700 to-indigo-800 text-white border-none", 
         label: "Assessment In Progress" 
       },
       quotes_pending: { 
@@ -187,11 +187,11 @@ export default function InsurerClaimsTriage() {
         label: "Quotes Pending" 
       },
       comparison: { 
-        className: "bg-gradient-to-r from-cyan-400 to-cyan-500 text-white border-none", 
+        className: "bg-gradient-to-r from-cyan-700 to-cyan-800 text-white border-none", 
         label: "In Comparison" 
       },
       repair_assigned: { 
-        className: "bg-gradient-to-r from-teal-400 to-teal-500 text-white border-none", 
+        className: "bg-gradient-to-r from-teal-700 to-teal-800 text-white border-none", 
         label: "Repair Assigned" 
       },
       repair_in_progress: { 
@@ -199,11 +199,11 @@ export default function InsurerClaimsTriage() {
         label: "Repair In Progress" 
       },
       completed: { 
-        className: "bg-gradient-to-r from-emerald-400 to-green-500 text-white border-none", 
+        className: "bg-gradient-to-r from-emerald-700 to-green-800 text-white border-none", 
         label: "Completed" 
       },
       rejected: { 
-        className: "bg-gradient-to-r from-rose-400 to-red-500 text-white border-none", 
+        className: "bg-gradient-to-r from-rose-700 to-red-800 text-white border-none", 
         label: "Rejected" 
       },
     };

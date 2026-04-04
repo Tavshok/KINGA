@@ -58,7 +58,7 @@ export default function AIAssessmentPanel({
       <Card className="border-l-4 border-l-slate-300">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-slate-500 dark:text-muted-foreground" />
+            <Activity className="h-5 w-5 text-slate-700 dark:text-slate-400 dark:text-muted-foreground" />
             AI Assessment
           </CardTitle>
           <CardDescription>No AI assessment available for this claim</CardDescription>
@@ -69,7 +69,7 @@ export default function AIAssessmentPanel({
               <Activity className="mr-2 h-4 w-4" />
               Trigger AI Assessment
             </Button>
-            <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">
+            <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">
               Generate AI-powered damage analysis, cost estimation, and fraud detection
             </p>
           </CardContent>
@@ -117,7 +117,7 @@ export default function AIAssessmentPanel({
               <p className="text-lg font-bold text-slate-900 dark:text-foreground">
                 {fmt(Math.round((aiAssessment.estimatedCost || 0) * 0.9) * 100)} - {fmt(Math.round((aiAssessment.estimatedCost || 0) * 1.1) * 100)}
               </p>
-              <p className="text-xs text-slate-500 dark:text-muted-foreground">±10% variance</p>
+              <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">±10% variance</p>
             </div>
           </div>
         </div>
@@ -186,31 +186,31 @@ export default function AIAssessmentPanel({
                   </h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
                     <div>
-                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Impact Force</span>
+                      <span className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground block text-xs">Impact Force</span>
                       <span className="font-semibold">{typeof phys.impactForce === 'object' ? (phys.impactForce?.magnitude ?? 0).toFixed(1) : (Number(phys.impactForce) || 0).toFixed(1)} kN</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Est. Speed</span>
+                      <span className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground block text-xs">Est. Speed</span>
                       <span className="font-semibold">{typeof phys.estimatedSpeed === 'object' ? (phys.estimatedSpeed?.value ?? 0).toFixed(0) : (Number(phys.estimatedSpeed) || 0).toFixed(0)} km/h</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Impact Angle</span>
+                      <span className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground block text-xs">Impact Angle</span>
                       <span className="font-semibold">{(phys.impactAngle ?? 0).toFixed(0)}&deg;</span>
                     </div>
                     <div>
-                      <span className="text-slate-500 dark:text-muted-foreground block text-xs">Deviation Score</span>
+                      <span className="text-slate-700 dark:text-slate-400 dark:text-muted-foreground block text-xs">Deviation Score</span>
                       <span className="font-semibold">{phys.physicsDeviationScore ?? 'N/A'}</span>
                     </div>
                   </div>
                   {propagation.length > 0 && (
                     <div>
-                      <span className="text-xs font-medium text-slate-500 dark:text-muted-foreground">Damage Propagation Path</span>
+                      <span className="text-xs font-medium text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Damage Propagation Path</span>
                       <div className="mt-1 space-y-1">
                         {propagation.slice(0, 5).map((dp: any, i: number) => (
                           <div key={i} className="flex items-center gap-2 text-xs text-slate-600 dark:text-muted-foreground">
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-500 flex-shrink-0" />
                             <span className="font-medium">{dp.component}</span>
-                            <span className="text-slate-400 dark:text-muted-foreground/70">&mdash;</span>
+                            <span className="text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">&mdash;</span>
                             <span>{(dp.force ?? 0).toFixed(1)} kN at {(dp.distance ?? 0).toFixed(2)}m</span>
                           </div>
                         ))}

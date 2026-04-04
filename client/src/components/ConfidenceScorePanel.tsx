@@ -179,14 +179,14 @@ function InputRow({ input }: { input: InputBreakdown }) {
               <span className="text-xs font-medium text-gray-700 dark:text-foreground/80 truncate">{input.name}</span>
               <div className="flex items-center gap-1 ml-2 flex-shrink-0">
                 {!input.available && (
-                  <Badge variant="outline" className="text-xs px-1 py-0 bg-gray-100 dark:bg-muted text-gray-500 dark:text-muted-foreground border-gray-200 dark:border-border">
+                  <Badge variant="outline" className="text-xs px-1 py-0 bg-gray-100 dark:bg-muted text-gray-700 dark:text-gray-400 dark:text-muted-foreground border-gray-200 dark:border-border">
                     N/A
                   </Badge>
                 )}
                 <span className="text-xs font-semibold text-gray-600 dark:text-muted-foreground">
                   {input.weightedScore.toFixed(1)}/{input.maxWeighted.toFixed(1)}
                 </span>
-                {open ? <ChevronDown className="h-3 w-3 text-gray-400 dark:text-muted-foreground/70" /> : <ChevronRight className="h-3 w-3 text-gray-400 dark:text-muted-foreground/70" />}
+                {open ? <ChevronDown className="h-3 w-3 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" /> : <ChevronRight className="h-3 w-3 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />}
               </div>
             </div>
             <div className="w-full bg-gray-100 dark:bg-muted rounded-full h-1.5">
@@ -205,11 +205,11 @@ function InputRow({ input }: { input: InputBreakdown }) {
             <div className="space-y-1">
               {(input.signals ?? []).map((sig, i) => (
                 <div key={i} className="flex items-start gap-2 text-xs text-gray-600 dark:text-muted-foreground">
-                  <span className={`mt-0.5 flex-shrink-0 ${sig.impact === "positive" ? "text-emerald-500" : sig.impact === "negative" ? "text-red-500" : "text-gray-400 dark:text-muted-foreground/70"}`}>
+                  <span className={`mt-0.5 flex-shrink-0 ${sig.impact === "positive" ? "text-emerald-500" : sig.impact === "negative" ? "text-red-500" : "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70"}`}>
                     {sig.impact === "positive" ? "+" : sig.impact === "negative" ? "−" : "·"}
                   </span>
                   <span className="font-medium">{sig.label}:</span>
-                  <span className="text-gray-500 dark:text-muted-foreground">{sig.value}</span>
+                  <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{sig.value}</span>
                 </div>
               ))}
             </div>
@@ -217,7 +217,7 @@ function InputRow({ input }: { input: InputBreakdown }) {
           {/* Improvements for this input */}
           {input.improvements.length > 0 && (
             <div className="border-t border-gray-100 pt-2 space-y-1">
-              <p className="text-xs font-semibold text-gray-500 dark:text-muted-foreground uppercase tracking-wide">How to improve</p>
+              <p className="text-xs font-semibold text-gray-700 dark:text-gray-400 dark:text-muted-foreground uppercase tracking-wide">How to improve</p>
               {input.improvements.map((imp, i) => (
                 <div key={i} className={`flex items-start gap-2 text-xs rounded px-2 py-1 border ${getPriorityColour(imp.priority)}`}>
                   <TrendingUp className="h-3 w-3 mt-0.5 flex-shrink-0" />
@@ -316,7 +316,7 @@ export function ConfidenceScorePanel({
           )}
           {/* Quick improvement count */}
           {breakdown && breakdown.allImprovements.length > 0 && (
-            <p className="text-xs text-gray-500 dark:text-muted-foreground">
+            <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
               <span className="font-medium text-gray-700 dark:text-foreground/80">{breakdown.allImprovements.length} improvement{breakdown.allImprovements.length !== 1 ? "s" : ""}</span> available —
               potential gain up to <span className="font-medium text-teal-700 dark:text-teal-300">
                 +{Math.min(100 - confidenceScore, breakdown.allImprovements.reduce((s, i) => s + i.potentialGain, 0))}%
@@ -380,7 +380,7 @@ export function ConfidenceScorePanel({
 
       {/* Fallback when no breakdown JSON */}
       {!breakdown && (
-        <div className="text-xs text-gray-500 dark:text-muted-foreground bg-gray-50 dark:bg-muted/50 rounded-lg p-3 border border-gray-200 dark:border-border">
+        <div className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground bg-gray-50 dark:bg-muted/50 rounded-lg p-3 border border-gray-200 dark:border-border">
           <p className="font-medium text-gray-600 dark:text-muted-foreground mb-1">Detailed breakdown not available</p>
           <p>Re-run the AI assessment to generate a full 8-input confidence breakdown with improvement suggestions.</p>
         </div>

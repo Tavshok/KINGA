@@ -93,7 +93,7 @@ function ConfidenceGauge({ score }: { score: number }) {
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="text-center">
             <div className={`text-3xl font-bold ${color.text}`}>{score}</div>
-            <div className="text-xs text-slate-500 dark:text-muted-foreground">Risk Score</div>
+            <div className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">Risk Score</div>
           </div>
         </div>
       </div>
@@ -658,7 +658,7 @@ export default function ExecutiveDashboard() {
                           </LineChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
+                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                           No override data available
                         </div>
                       )}
@@ -691,7 +691,7 @@ export default function ExecutiveDashboard() {
                           </BarChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
+                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                           No segregation violation data available
                         </div>
                       )}
@@ -728,7 +728,7 @@ export default function ExecutiveDashboard() {
                           </LineChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
+                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                           No role change data available
                         </div>
                       )}
@@ -757,7 +757,7 @@ export default function ExecutiveDashboard() {
                           </PieChart>
                         </ResponsiveContainer>
                       ) : (
-                        <div className="h-full flex items-center justify-center text-slate-500 dark:text-muted-foreground">
+                        <div className="h-full flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                           No involvement conflict data available
                         </div>
                       )}
@@ -885,7 +885,7 @@ export default function ExecutiveDashboard() {
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="h-80 flex items-center justify-center text-slate-500 dark:text-muted-foreground">
+              <div className="h-80 flex items-center justify-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground">
                 No bottleneck data available
               </div>
             )}
@@ -1003,7 +1003,7 @@ export default function ExecutiveDashboard() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No savings data available</p>
+                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No savings data available</p>
                 )}
               </CardContent>
             </Card>
@@ -1087,7 +1087,7 @@ export default function ExecutiveDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No critical alerts</p>
+                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No critical alerts</p>
                 )}
               </CardContent>
             </Card>
@@ -1130,7 +1130,7 @@ export default function ExecutiveDashboard() {
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
-                            <div className="text-2xl font-bold text-slate-400 dark:text-muted-foreground/70">#{index + 1}</div>
+                            <div className="text-2xl font-bold text-slate-600 dark:text-slate-400 dark:text-muted-foreground/70">#{index + 1}</div>
                             <div>
                               <p className="font-semibold text-slate-900 dark:text-foreground">{assessor.name}</p>
                               <p className="text-sm text-slate-600 dark:text-muted-foreground">
@@ -1152,7 +1152,7 @@ export default function ExecutiveDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No assessor data available</p>
+                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No assessor data available</p>
                 )}
               </CardContent>
             </Card>
@@ -1208,7 +1208,7 @@ export default function ExecutiveDashboard() {
                     ))}
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No panel beater data available</p>
+                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No panel beater data available</p>
                 )}
               </CardContent>
             </Card>
@@ -1249,32 +1249,32 @@ export default function ExecutiveDashboard() {
                       <p className="text-4xl font-bold text-blue-600">
                         ${(financials.totalPayouts || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">Approved claims paid</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">Approved claims paid</p>
                     </div>
                     <div className="text-center p-6 bg-amber-50 dark:bg-amber-950/30 rounded-xl">
                       <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Total Reserves</p>
                       <p className="text-4xl font-bold text-amber-600">
                         ${(financials.totalReserves || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">Pending claims estimated</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">Pending claims estimated</p>
                     </div>
                     <div className="text-center p-6 bg-green-50 dark:bg-green-950/30 rounded-xl">
                       <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Fraud Prevented</p>
                       <p className="text-4xl font-bold text-green-600">
                         ${(financials.fraudPrevented || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">High-risk claims rejected</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">High-risk claims rejected</p>
                     </div>
                     <div className="text-center p-6 bg-purple-50 dark:bg-purple-950/30 rounded-xl">
                       <p className="text-sm text-slate-600 dark:text-muted-foreground mb-2">Net Exposure</p>
                       <p className="text-4xl font-bold text-purple-600">
                         ${(financials.netExposure || 0).toLocaleString()}
                       </p>
-                      <p className="text-xs text-slate-500 dark:text-muted-foreground mt-2">Total financial exposure</p>
+                      <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground mt-2">Total financial exposure</p>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-center text-slate-500 dark:text-muted-foreground py-12">No financial data available</p>
+                  <p className="text-center text-slate-700 dark:text-slate-400 dark:text-muted-foreground py-12">No financial data available</p>
                 )}
               </CardContent>
             </Card>

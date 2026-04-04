@@ -46,7 +46,7 @@ function riskBadge(score: number) {
   if (score >= 70) return <Badge className="bg-red-600 text-white">Very High Risk</Badge>;
   if (score >= 46) return <Badge className="bg-orange-500 text-white">High Risk</Badge>;
   if (score >= 26) return <Badge className="bg-amber-500 text-white">Moderate Risk</Badge>;
-  if (score >= 11) return <Badge className="bg-yellow-400 text-black">Low Risk</Badge>;
+  if (score >= 11) return <Badge className="bg-yellow-700 text-white">Low Risk</Badge>;
   return <Badge className="bg-green-600 text-white">Minimal Risk</Badge>;
 }
 
@@ -62,7 +62,7 @@ function riskBarColor(score: number): string {
   if (score >= 70) return "bg-red-500";
   if (score >= 46) return "bg-orange-500";
   if (score >= 26) return "bg-amber-500";
-  if (score >= 11) return "bg-yellow-400";
+  if (score >= 11) return "bg-yellow-600";
   return "bg-green-500";
 }
 
@@ -129,7 +129,7 @@ function VehicleProfile({ id }: { id: number }) {
 
   if (!vehicle) {
     return (
-      <div className="text-center py-16 text-gray-500 dark:text-muted-foreground">
+      <div className="text-center py-16 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
         <Car className="mx-auto h-12 w-12 mb-3 opacity-30" />
         <p>Vehicle not found.</p>
         <Button variant="outline" className="mt-4" onClick={() => setLocation("/insurer/vehicle-registry")}>
@@ -162,17 +162,17 @@ function VehicleProfile({ id }: { id: number }) {
           variant="ghost"
           size="sm"
           onClick={() => setLocation("/insurer/vehicle-registry")}
-          className="text-gray-400 dark:text-muted-foreground/70 hover:text-white"
+          className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:text-white"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Registry
         </Button>
         <ChevronRight className="h-4 w-4 text-gray-600 dark:text-muted-foreground" />
-        <span className="text-gray-300 font-medium">
+        <span className="text-gray-600 dark:text-gray-300 font-medium">
           {vehicle.make} {vehicle.model} {vehicle.year ?? ""}
         </span>
-        <span className="text-gray-500 dark:text-muted-foreground">·</span>
-        <span className="text-gray-400 dark:text-muted-foreground/70 font-mono text-sm">
+        <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">·</span>
+        <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-mono text-sm">
           {vehicle.registrationNumber ?? vehicle.vin ?? `ID-${vehicle.id}`}
         </span>
         <div className="ml-auto">{riskBadge(vehicle.vehicleRiskScore)}</div>
@@ -184,49 +184,49 @@ function VehicleProfile({ id }: { id: number }) {
           {/* Identity Card */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <Car className="h-4 w-4" />
                 Vehicle Identity
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Make / Model</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Make / Model</span>
                 <span className="font-medium">
                   {vehicle.make ?? "—"} {vehicle.model ?? ""}
                 </span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Year</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Year</span>
                 <span>{vehicle.year ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Registration</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Registration</span>
                 <span className="font-mono">{vehicle.registrationNumber ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">VIN</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">VIN</span>
                 <span className="font-mono text-xs">{vehicle.vin ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Colour</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Colour</span>
                 <span>{vehicle.color ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Engine No.</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Engine No.</span>
                 <span className="font-mono text-xs">{vehicle.engineNumber ?? "—"}</span>
               </div>
               <Separator className="bg-gray-800" />
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Owner</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Owner</span>
                 <span>{vehicle.currentOwnerName ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">First Registered</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">First Registered</span>
                 <span>{vehicle.firstRegistrationDate ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Licence Expiry</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Licence Expiry</span>
                 <span>{vehicle.licenceExpiryDate ?? "—"}</span>
               </div>
             </CardContent>
@@ -235,34 +235,34 @@ function VehicleProfile({ id }: { id: number }) {
           {/* Technical Attributes */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <Zap className="h-4 w-4" />
                 Technical Attributes
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Vehicle Type</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Vehicle Type</span>
                 <span className="capitalize">{vehicle.vehicleType ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Fuel Type</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Fuel Type</span>
                 <span className="capitalize">{vehicle.fuelType ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Powertrain</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Powertrain</span>
                 <span>{vehicle.powertrainType ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Engine Capacity</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Engine Capacity</span>
                 <span>{vehicle.engineCapacity ?? "—"}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Inferred Mass</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Inferred Mass</span>
                 <span>
                   {vehicle.vehicleMassKg ? `${vehicle.vehicleMassKg} kg` : "—"}
                   {vehicle.vehicleMassSource && vehicle.vehicleMassSource !== "not_available" && (
-                    <span className="text-gray-500 dark:text-muted-foreground text-xs ml-1">
+                    <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-xs ml-1">
                       ({vehicle.vehicleMassSource.replace("_", " ")})
                     </span>
                   )}
@@ -274,10 +274,10 @@ function VehicleProfile({ id }: { id: number }) {
           {/* Risk Flags */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <ShieldAlert className="h-4 w-4" />
                 Risk Flags
-                <span className="ml-auto text-xs text-gray-500 dark:text-muted-foreground">Click to toggle</span>
+                <span className="ml-auto text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Click to toggle</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -307,29 +307,29 @@ function VehicleProfile({ id }: { id: number }) {
                     setFlagMutation.mutate({ id, flag: flag.key, value: !flag.value })
                   }
                 >
-                  <span className="text-sm text-gray-300">{flag.label}</span>
+                  <span className="text-sm text-gray-600 dark:text-gray-300">{flag.label}</span>
                   {flag.value ? (
                     <Badge className="bg-red-600 text-white text-xs">Active</Badge>
                   ) : (
-                    <Badge className="bg-gray-700 text-gray-400 dark:text-muted-foreground/70 text-xs">Clear</Badge>
+                    <Badge className="bg-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Clear</Badge>
                   )}
                 </div>
               ))}
               <Separator className="bg-gray-800" />
               <div className="flex items-center justify-between px-2 py-1">
-                <span className="text-sm text-gray-300">Repeat Claimer (≥3)</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Repeat Claimer (≥3)</span>
                 {vehicle.isRepeatClaimer === 1 ? (
                   <Badge className="bg-orange-600 text-white text-xs">Yes</Badge>
                 ) : (
-                  <Badge className="bg-gray-700 text-gray-400 dark:text-muted-foreground/70 text-xs">No</Badge>
+                  <Badge className="bg-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">No</Badge>
                 )}
               </div>
               <div className="flex items-center justify-between px-2 py-1">
-                <span className="text-sm text-gray-300">Suspicious Damage Pattern</span>
+                <span className="text-sm text-gray-600 dark:text-gray-300">Suspicious Damage Pattern</span>
                 {vehicle.hasSuspiciousDamagePattern === 1 ? (
                   <Badge className="bg-red-600 text-white text-xs">Detected</Badge>
                 ) : (
-                  <Badge className="bg-gray-700 text-gray-400 dark:text-muted-foreground/70 text-xs">None</Badge>
+                  <Badge className="bg-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">None</Badge>
                 )}
               </div>
             </CardContent>
@@ -341,7 +341,7 @@ function VehicleProfile({ id }: { id: number }) {
           {/* Risk Score */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <Shield className="h-4 w-4" />
                 Vehicle Risk Score
               </CardTitle>
@@ -351,7 +351,7 @@ function VehicleProfile({ id }: { id: number }) {
                 <span className={`text-5xl font-bold ${riskColor(vehicle.vehicleRiskScore)}`}>
                   {vehicle.vehicleRiskScore}
                 </span>
-                <span className="text-gray-500 dark:text-muted-foreground text-lg mb-1">/100</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-lg mb-1">/100</span>
                 <div className="ml-auto">{riskBadge(vehicle.vehicleRiskScore)}</div>
               </div>
               <div className="w-full bg-gray-800 rounded-full h-3">
@@ -360,23 +360,23 @@ function VehicleProfile({ id }: { id: number }) {
                   style={{ width: `${vehicle.vehicleRiskScore}%` }}
                 />
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-400 dark:text-muted-foreground/70">
+              <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
                 <div className="bg-gray-800 rounded p-2">
-                  <div className="text-gray-500 dark:text-muted-foreground">Total Claims</div>
+                  <div className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Total Claims</div>
                   <div className="text-white font-bold text-lg">{vehicle.totalClaimsCount}</div>
                 </div>
                 <div className="bg-gray-800 rounded p-2">
-                  <div className="text-gray-500 dark:text-muted-foreground">Total Repair Cost</div>
+                  <div className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Total Repair Cost</div>
                   <div className="text-white font-bold text-sm">
                     {formatCurrency(vehicle.totalRepairCostCents)}
                   </div>
                 </div>
                 <div className="bg-gray-800 rounded p-2">
-                  <div className="text-gray-500 dark:text-muted-foreground">First Seen</div>
+                  <div className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">First Seen</div>
                   <div className="text-white text-sm">{formatDate(vehicle.firstSeenAt)}</div>
                 </div>
                 <div className="bg-gray-800 rounded p-2">
-                  <div className="text-gray-500 dark:text-muted-foreground">Last Claim</div>
+                  <div className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Last Claim</div>
                   <div className="text-white text-sm">{formatDate(vehicle.lastClaimDate)}</div>
                 </div>
               </div>
@@ -386,14 +386,14 @@ function VehicleProfile({ id }: { id: number }) {
           {/* Damage Zone Distribution */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <TrendingUp className="h-4 w-4" />
                 Damage Zone Distribution
               </CardTitle>
             </CardHeader>
             <CardContent>
               {Object.keys(damageZoneCounts).length === 0 ? (
-                <p className="text-gray-500 dark:text-muted-foreground text-sm text-center py-4">
+                <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm text-center py-4">
                   No damage zone data yet
                 </p>
               ) : (
@@ -407,13 +407,13 @@ function VehicleProfile({ id }: { id: number }) {
                       return (
                         <div key={zone}>
                           <div className="flex justify-between text-xs mb-1">
-                            <span className="capitalize text-gray-300 flex items-center gap-1">
+                            <span className="capitalize text-gray-600 dark:text-gray-300 flex items-center gap-1">
                               {isSuspicious && (
                                 <AlertTriangle className="h-3 w-3 text-red-400" />
                               )}
                               {zone}
                             </span>
-                            <span className={isSuspicious ? "text-red-400 font-bold" : "text-gray-400 dark:text-muted-foreground/70"}>
+                            <span className={isSuspicious ? "text-red-400 font-bold" : "text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70"}>
                               {count}×
                             </span>
                           </div>
@@ -444,26 +444,26 @@ function VehicleProfile({ id }: { id: number }) {
           {/* Registry Lifecycle */}
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Registry Lifecycle
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">First Seen</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">First Seen</span>
                 <span>{formatDate(vehicle.firstSeenAt)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Last Updated</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Last Updated</span>
                 <span>{formatDate(vehicle.lastSeenAt)}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Linked Claims</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Linked Claims</span>
                 <span className="font-mono">{claimIds.length}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-gray-500 dark:text-muted-foreground">Mass Source</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Mass Source</span>
                 <span className="capitalize text-xs">
                   {vehicle.vehicleMassSource?.replace(/_/g, " ") ?? "—"}
                 </span>
@@ -476,17 +476,17 @@ function VehicleProfile({ id }: { id: number }) {
         <div>
           <Card className="bg-gray-900 border-gray-800">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
+              <CardTitle className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Claim History
-                <Badge className="ml-auto bg-gray-700 text-gray-300 text-xs">
+                <Badge className="ml-auto bg-gray-700 text-gray-600 dark:text-gray-300 text-xs">
                   {claimHistory?.length ?? 0} claims
                 </Badge>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {!claimHistory || claimHistory.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 dark:text-muted-foreground text-sm">
+                <div className="text-center py-8 text-gray-700 dark:text-gray-400 dark:text-muted-foreground text-sm">
                   No claims linked yet
                 </div>
               ) : (
@@ -506,7 +506,7 @@ function VehicleProfile({ id }: { id: number }) {
                           </span>
                           {claimStatusBadge(claim.status)}
                         </div>
-                        <div className="text-xs text-gray-500 dark:text-muted-foreground">
+                        <div className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
                           {formatDate(claim.incidentDate)}
                         </div>
                         {claim.fraudRiskScore != null && claim.fraudRiskScore > 25 && (
@@ -577,7 +577,7 @@ function RegistryList() {
             <Car className="h-6 w-6 text-blue-400" />
             Vehicle Intelligence Registry
           </h1>
-          <p className="text-gray-400 dark:text-muted-foreground/70 text-sm mt-1">
+          <p className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-sm mt-1">
             Persistent vehicle records linked to claims — VIN-matched, risk-scored
           </p>
         </div>
@@ -585,7 +585,7 @@ function RegistryList() {
           variant="outline"
           size="sm"
           onClick={() => setLocation("/insurer-portal")}
-          className="text-gray-400 dark:text-muted-foreground/70 border-gray-700 hover:bg-gray-800"
+          className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 border-gray-700 hover:bg-gray-800"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Dashboard
@@ -638,7 +638,7 @@ function RegistryList() {
               <CardContent className="p-3">
                 <div className="flex items-center gap-2 mb-1">
                   <stat.icon className={`h-3.5 w-3.5 ${stat.color}`} />
-                  <span className="text-xs text-gray-500 dark:text-muted-foreground">{stat.label}</span>
+                  <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{stat.label}</span>
                 </div>
                 <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
               </CardContent>
@@ -650,7 +650,7 @@ function RegistryList() {
       {/* Search + Filter */}
       <div className="flex flex-wrap gap-3 mb-4">
         <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500 dark:text-muted-foreground" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
           <Input
             placeholder="Filter by make, model, registration, owner..."
             value={search}
@@ -677,7 +677,7 @@ function RegistryList() {
           className={
             showHighRiskOnly
               ? "bg-red-600 hover:bg-red-700 text-white"
-              : "border-gray-700 text-gray-400 dark:text-muted-foreground/70 hover:bg-gray-800"
+              : "border-gray-700 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:bg-gray-800"
           }
         >
           <ShieldAlert className="h-4 w-4 mr-1" />
@@ -717,7 +717,7 @@ function RegistryList() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
             </div>
           ) : filtered.length === 0 ? (
-            <div className="text-center py-16 text-gray-500 dark:text-muted-foreground">
+            <div className="text-center py-16 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
               <Car className="mx-auto h-12 w-12 mb-3 opacity-30" />
               <p>No vehicles found.</p>
               <p className="text-xs mt-1">
@@ -728,14 +728,14 @@ function RegistryList() {
             <Table>
               <TableHeader>
                 <TableRow className="border-gray-800 hover:bg-transparent">
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Vehicle</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Registration / VIN</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Type</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Claims</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Total Repair</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Last Claim</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Flags</TableHead>
-                  <TableHead className="text-gray-400 dark:text-muted-foreground/70 text-xs">Risk Score</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Vehicle</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Registration / VIN</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Type</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Claims</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Total Repair</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Last Claim</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Flags</TableHead>
+                  <TableHead className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Risk Score</TableHead>
                   <TableHead />
                 </TableRow>
               </TableHeader>
@@ -749,28 +749,28 @@ function RegistryList() {
                     <TableCell className="font-medium text-gray-200">
                       {v.make ?? "—"} {v.model ?? ""} {v.year ?? ""}
                     </TableCell>
-                    <TableCell className="font-mono text-xs text-gray-400 dark:text-muted-foreground/70">
+                    <TableCell className="font-mono text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
                       <div>{v.registrationNumber ?? "—"}</div>
                       {v.vin && (
                         <div className="text-gray-600 dark:text-muted-foreground text-xs">{v.vin}</div>
                       )}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-400 dark:text-muted-foreground/70 capitalize">
+                    <TableCell className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 capitalize">
                       {v.vehicleType ?? "—"}
                     </TableCell>
                     <TableCell>
                       <span
                         className={`font-bold ${
-                          v.totalClaimsCount >= 3 ? "text-orange-400" : "text-gray-300"
+                          v.totalClaimsCount >= 3 ? "text-orange-400" : "text-gray-600 dark:text-gray-300"
                         }`}
                       >
                         {v.totalClaimsCount}
                       </span>
                     </TableCell>
-                    <TableCell className="text-xs text-gray-300">
+                    <TableCell className="text-xs text-gray-600 dark:text-gray-300">
                       {formatCurrency(v.totalRepairCostCents)}
                     </TableCell>
-                    <TableCell className="text-xs text-gray-400 dark:text-muted-foreground/70">
+                    <TableCell className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
                       {formatDate(v.lastClaimDate)}
                     </TableCell>
                     <TableCell>
@@ -788,7 +788,7 @@ function RegistryList() {
                           <Badge className="bg-red-900 text-red-300 text-xs px-1">Stolen</Badge>
                         )}
                         {v.isWrittenOff === 1 && (
-                          <Badge className="bg-gray-700 text-gray-300 text-xs px-1">Written Off</Badge>
+                          <Badge className="bg-gray-700 text-gray-600 dark:text-gray-300 text-xs px-1">Written Off</Badge>
                         )}
                         {v.isRepeatClaimer !== 1 &&
                           v.hasSuspiciousDamagePattern !== 1 &&

@@ -104,7 +104,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       ? "bg-emerald-600 text-white"
                       : index + 1 === step
                       ? "bg-primary text-white"
-                      : "bg-gray-200 text-gray-500 dark:text-muted-foreground"
+                      : "bg-gray-200 text-gray-700 dark:text-gray-400 dark:text-muted-foreground"
                   }`}
                 >
                   {index + 1 < step ? <CheckCircle2 className="w-5 h-5" /> : index + 1}
@@ -244,7 +244,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={assessorLicenseNumber}
                       onChange={(e) => setAssessorLicenseNumber(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
                       Your professional license or certification number
                     </p>
                   </div>
@@ -259,7 +259,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={insurerRegistrationNumber}
                       onChange={(e) => setInsurerRegistrationNumber(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
                       Your insurance company registration number
                     </p>
                   </div>
@@ -274,7 +274,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={panelBeaterCertification}
                       onChange={(e) => setPanelBeaterCertification(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
                       Your trade license or certification number
                     </p>
                   </div>
@@ -290,7 +290,7 @@ export function OnboardingWizard({ userRole, onComplete }: OnboardingWizardProps
                       value={fleetSize}
                       onChange={(e) => setFleetSize(e.target.value)}
                     />
-                    <p className="text-sm text-gray-500 dark:text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
                       Total number of vehicles in your fleet
                     </p>
                   </div>

@@ -58,9 +58,9 @@ function statusBadge(status: string) {
     quoted:   { label: "Quoted",   className: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700" },
     accepted: { label: "Accepted", className: "bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200 border-green-300 dark:border-green-700" },
     rejected: { label: "Rejected", className: "bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700" },
-    expired:  { label: "Expired",  className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600" },
+    expired:  { label: "Expired",  className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-600 dark:text-gray-300 border-gray-300 dark:border-gray-600" },
   };
-  const v = variants[status] ?? { label: status, className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300" };
+  const v = variants[status] ?? { label: status, className: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-600 dark:text-gray-300" };
   return <Badge variant="outline" className={`text-xs ${v.className}`}>{v.label}</Badge>;
 }
 
@@ -157,7 +157,7 @@ export default function InsurerFleetRFQs() {
         ) : rfqs.length === 0 ? (
           <Card className="border-dashed">
             <CardContent className="py-16 text-center">
-              <Car className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+              <Car className="h-12 w-12 text-gray-600 dark:text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold text-gray-700 dark:text-foreground/80 mb-2">No Fleet RFQs Received</h3>
               <p className="text-sm text-muted-foreground max-w-sm mx-auto">
                 Fleet insurance requests submitted through KINGA Agency will appear here for your response.
@@ -206,7 +206,7 @@ export default function InsurerFleetRFQs() {
                       <TableCell className="text-sm">
                         {rfq.vehicleCount != null ? (
                           <span className="flex items-center gap-1">
-                            <Car className="h-3.5 w-3.5 text-gray-400 dark:text-muted-foreground/70" />
+                            <Car className="h-3.5 w-3.5 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                             {rfq.vehicleCount}
                           </span>
                         ) : "—"}
@@ -222,7 +222,7 @@ export default function InsurerFleetRFQs() {
                       <TableCell className="text-right font-mono text-sm">
                         {rfq.quoteAmount
                           ? `${getCurrencySymbolForCode(rfq.quoteCurrency ?? currencySymbol)}${parseFloat(rfq.quoteAmount).toLocaleString("en-US", { minimumFractionDigits: 2 })}`
-                          : <span className="text-gray-400 dark:text-muted-foreground/70 text-xs">Not submitted</span>}
+                          : <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 text-xs">Not submitted</span>}
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(rfq.createdAt).toLocaleDateString("en-ZA", { day: "numeric", month: "short", year: "numeric" })}

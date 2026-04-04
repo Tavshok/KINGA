@@ -433,7 +433,7 @@ export function OnboardingWalkthrough({
               variant="ghost"
               size="icon"
               onClick={onSkip}
-              className="text-gray-400 dark:text-muted-foreground/70 hover:text-gray-600 dark:text-muted-foreground"
+              className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 hover:text-gray-600 dark:text-muted-foreground"
             >
               <X className="w-5 h-5" />
             </Button>

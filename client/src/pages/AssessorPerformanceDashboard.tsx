@@ -162,7 +162,7 @@ export default function AssessorPerformanceDashboard() {
           {isFree && showBlurred && (
             <div className="absolute inset-0 bg-white/80 dark:bg-card/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
               <div className="text-center">
-                <Lock className="h-8 w-8 mx-auto mb-2 text-gray-400 dark:text-muted-foreground/70" />
+                <Lock className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                 <p className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Premium Feature</p>
                 <Button size="sm" variant="outline" className="mt-2" onClick={() => setShowBlurred(false)}>
                   <Eye className="h-3 w-3 mr-1" />
@@ -193,7 +193,7 @@ export default function AssessorPerformanceDashboard() {
           {isFree && showBlurred && (
             <div className="absolute inset-0 bg-white/80 dark:bg-card/80 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
               <div className="text-center">
-                <Lock className="h-8 w-8 mx-auto mb-2 text-gray-400 dark:text-muted-foreground/70" />
+                <Lock className="h-8 w-8 mx-auto mb-2 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                 <p className="text-sm font-medium text-gray-600 dark:text-muted-foreground">Premium Feature</p>
               </div>
             </div>
@@ -301,7 +301,7 @@ export default function AssessorPerformanceDashboard() {
         <CardContent>
           {!isPremium ? (
             <div className="text-center py-12 space-y-4">
-              <Lock className="h-16 w-16 mx-auto text-gray-300" />
+              <Lock className="h-16 w-16 mx-auto text-gray-600 dark:text-gray-300" />
               <div>
                 <h3 className="font-semibold text-lg mb-2">Premium Feature</h3>
                 <p className="text-muted-foreground mb-4">
@@ -367,7 +367,7 @@ export default function AssessorPerformanceDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <h3 className="font-semibold mb-3 flex items-center gap-2">
-                  <EyeOff className="h-4 w-4 text-gray-400 dark:text-muted-foreground/70" />
+                  <EyeOff className="h-4 w-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                   Free Tier (Current)
                 </h3>
                 <ul className="space-y-2 text-sm">
@@ -380,11 +380,11 @@ export default function AssessorPerformanceDashboard() {
                     <span>Total assessments count</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Lock className="h-4 w-4 text-gray-400 dark:text-muted-foreground/70 mt-0.5" />
+                    <Lock className="h-4 w-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-0.5" />
                     <span className="text-muted-foreground">Limited variance insights</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <Lock className="h-4 w-4 text-gray-400 dark:text-muted-foreground/70 mt-0.5" />
+                    <Lock className="h-4 w-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-0.5" />
                     <span className="text-muted-foreground">No priority assignments</span>
                   </li>
                 </ul>

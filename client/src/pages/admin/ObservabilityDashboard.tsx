@@ -59,7 +59,7 @@ export default function ObservabilityDashboard() {
     return (
       <div className="container mx-auto py-8">
         <div className="flex items-center justify-center h-64">
-          <RefreshCw className="h-8 w-8 animate-spin text-gray-400 dark:text-muted-foreground/70" />
+          <RefreshCw className="h-8 w-8 animate-spin text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
           <span className="ml-3 text-gray-600 dark:text-muted-foreground">Loading observability metrics...</span>
         </div>
       </div>
@@ -145,7 +145,7 @@ export default function ObservabilityDashboard() {
                   <CardDescription>{def.description}</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="text-gray-400 dark:text-muted-foreground/70">No data available</div>
+                  <div className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">No data available</div>
                 </CardContent>
               </Card>
             );

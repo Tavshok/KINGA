@@ -35,11 +35,11 @@ const roleColour: Record<string, string> = {
   fleet_admin: "bg-cyan-900 text-cyan-200",
   fleet_manager: "bg-teal-900 text-teal-200",
   admin: "bg-red-900 text-red-200",
-  user: "bg-gray-700 text-gray-300",
+  user: "bg-gray-700 text-gray-600 dark:text-gray-300",
 };
 
 function RoleBadge({ role }: { role: string }) {
-  const cls = roleColour[role] ?? "bg-gray-700 text-gray-300";
+  const cls = roleColour[role] ?? "bg-gray-700 text-gray-600 dark:text-gray-300";
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${cls}`}>
       {role}
@@ -162,7 +162,7 @@ export default function PlatformImpersonate() {
           </div>
           <div>
             <h1 className="text-xl font-semibold text-white">Role Impersonation</h1>
-            <p className="text-sm text-gray-400 dark:text-muted-foreground/70">
+            <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
               Platform super-admin · All sessions are audited
             </p>
           </div>
@@ -181,18 +181,18 @@ export default function PlatformImpersonate() {
         {/* Filters */}
         <div className="flex gap-3 mb-4 flex-wrap">
           <div className="relative flex-1 min-w-[200px] max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 dark:text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />
             <Input
               placeholder="Search by name, email, or tenant…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-9 bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 dark:text-muted-foreground"
+              className="pl-9 bg-gray-900 border-gray-700 text-white placeholder:text-gray-700 dark:text-gray-400 dark:text-muted-foreground"
             />
           </div>
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-gray-900 border border-gray-700 text-gray-300 rounded-md px-3 py-2 text-sm"
+            className="bg-gray-900 border border-gray-700 text-gray-600 dark:text-gray-300 rounded-md px-3 py-2 text-sm"
           >
             <option value="">All roles</option>
             {roles.map((r) => (
@@ -210,9 +210,9 @@ export default function PlatformImpersonate() {
           </CardHeader>
           <CardContent className="p-0">
             {isLoading ? (
-              <div className="text-center py-8 text-gray-500 dark:text-muted-foreground">Loading users…</div>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Loading users…</div>
             ) : !userList?.length ? (
-              <div className="text-center py-8 text-gray-500 dark:text-muted-foreground">No users found.</div>
+              <div className="text-center py-8 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">No users found.</div>
             ) : (
               <div className="divide-y divide-gray-800">
                 {userList.map((u) => (
@@ -222,17 +222,17 @@ export default function PlatformImpersonate() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-gray-700 flex items-center justify-center flex-shrink-0">
-                        <User className="w-4 h-4 text-gray-400 dark:text-muted-foreground/70" />
+                        <User className="w-4 h-4 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />
                       </div>
                       <div>
                         <div className="text-sm font-medium text-white">
-                          {u.name ?? <span className="text-gray-500 dark:text-muted-foreground italic">No name</span>}
-                          <span className="ml-2 text-xs text-gray-500 dark:text-muted-foreground">#{u.id}</span>
+                          {u.name ?? <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground italic">No name</span>}
+                          <span className="ml-2 text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">#{u.id}</span>
                         </div>
-                        <div className="text-xs text-gray-400 dark:text-muted-foreground/70">
+                        <div className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
                           {u.email ?? "—"}
                           {u.tenantId && (
-                            <span className="ml-2 font-mono text-gray-500 dark:text-muted-foreground">{u.tenantId}</span>
+                            <span className="ml-2 font-mono text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{u.tenantId}</span>
                           )}
                         </div>
                       </div>
@@ -240,7 +240,7 @@ export default function PlatformImpersonate() {
                     <div className="flex items-center gap-3">
                       <RoleBadge role={u.role} />
                       {u.insurerRole && (
-                        <span className="text-xs text-gray-500 dark:text-muted-foreground">{u.insurerRole}</span>
+                        <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">{u.insurerRole}</span>
                       )}
                       <Button
                         size="sm"
@@ -268,7 +268,7 @@ export default function PlatformImpersonate() {
               <AlertTriangle className="w-5 h-5 text-amber-400" />
               Confirm Impersonation
             </DialogTitle>
-            <DialogDescription className="text-gray-400 dark:text-muted-foreground/70">
+            <DialogDescription className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
               You are about to start an impersonation session as{" "}
               <strong className="text-white">
                 {selected?.name ?? selected?.email ?? `User #${selected?.id}`}
@@ -279,14 +279,14 @@ export default function PlatformImpersonate() {
 
           <div className="space-y-3">
             <div>
-              <label className="text-sm text-gray-300 mb-1 block">
+              <label className="text-sm text-gray-600 dark:text-gray-300 mb-1 block">
                 Reason for impersonation <span className="text-red-400">*</span>
               </label>
               <Textarea
                 placeholder="e.g. Investigating claim submission bug reported by user…"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-500 dark:text-muted-foreground resize-none"
+                className="bg-gray-800 border-gray-600 text-white placeholder:text-gray-700 dark:text-gray-400 dark:text-muted-foreground resize-none"
                 rows={3}
               />
             </div>
@@ -296,7 +296,7 @@ export default function PlatformImpersonate() {
             <Button
               variant="outline"
               onClick={() => setConfirmOpen(false)}
-              className="border-gray-600 text-gray-300"
+              className="border-gray-600 text-gray-600 dark:text-gray-300"
             >
               Cancel
             </Button>

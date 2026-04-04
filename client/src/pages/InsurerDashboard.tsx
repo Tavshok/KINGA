@@ -88,7 +88,7 @@ export default function InsurerDashboard() {
           </Card>
 
           {/* Pending Triage Card */}
-          <Card className="bg-gradient-to-br from-amber-300 to-orange-400 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <Card className="bg-gradient-to-br from-amber-600 to-orange-700 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-amber-50">Pending Triage</CardTitle>
               <AlertTriangle className="h-6 w-6 text-amber-100" />
@@ -100,7 +100,7 @@ export default function InsurerDashboard() {
           </Card>
 
           {/* High Fraud Risk Card */}
-          <Card className="bg-gradient-to-br from-rose-400 to-red-500 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <Card className="bg-gradient-to-br from-rose-700 to-red-800 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-red-50">High Fraud Risk</CardTitle>
               <AlertTriangle className="h-6 w-6 text-red-100" />
@@ -112,7 +112,7 @@ export default function InsurerDashboard() {
           </Card>
 
           {/* Avg Processing Time Card */}
-          <Card className="bg-gradient-to-br from-emerald-400 to-green-500 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
+          <Card className="bg-gradient-to-br from-emerald-700 to-green-800 text-white border-none shadow-md hover:shadow-lg transition-all hover:scale-105">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium text-green-50">Avg. Processing Time</CardTitle>
               <TrendingUp className="h-6 w-6 text-green-100" />

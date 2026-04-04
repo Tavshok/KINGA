@@ -73,7 +73,7 @@ export default function PlatformClaimDebug() {
           </div>
           <div>
             <h1 className="text-xl font-semibold text-white">Claim Integrity Debugger</h1>
-            <p className="text-sm text-gray-400 dark:text-muted-foreground/70">Platform super-admin · Verify internal claim consistency</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">Platform super-admin · Verify internal claim consistency</p>
           </div>
         </div>
 
@@ -85,14 +85,14 @@ export default function PlatformClaimDebug() {
             value={inputId}
             onChange={(e) => setInputId(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-500 dark:text-muted-foreground max-w-xs"
+            className="bg-gray-900 border-gray-700 text-white placeholder:text-gray-700 dark:text-gray-400 dark:text-muted-foreground max-w-xs"
           />
           <Button onClick={handleSearch} className="bg-violet-600 hover:bg-violet-700">
             <Search className="w-4 h-4 mr-2" />
             Verify
           </Button>
           {data && (
-            <Button variant="outline" onClick={() => refetch()} className="border-gray-700 text-gray-300">
+            <Button variant="outline" onClick={() => refetch()} className="border-gray-700 text-gray-600 dark:text-gray-300">
               <RefreshCw className="w-4 h-4 mr-2" />
               Re-run
             </Button>
@@ -101,7 +101,7 @@ export default function PlatformClaimDebug() {
 
         {/* Loading */}
         {isLoading && (
-          <div className="text-center py-12 text-gray-400 dark:text-muted-foreground/70">
+          <div className="text-center py-12 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">
             Running integrity checks…
           </div>
         )}
@@ -124,7 +124,7 @@ export default function PlatformClaimDebug() {
                   <CardTitle className="text-white text-base">
                     Claim #{data.claimId}
                     {data.claimRef && (
-                      <span className="ml-2 text-gray-400 dark:text-muted-foreground/70 font-normal text-sm">
+                      <span className="ml-2 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-normal text-sm">
                         · {data.claimRef}
                       </span>
                     )}
@@ -145,21 +145,21 @@ export default function PlatformClaimDebug() {
               <CardContent>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                   <div>
-                    <span className="text-gray-400 dark:text-muted-foreground/70 block">Status</span>
+                    <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 block">Status</span>
                     <span className="text-white font-medium">{data.status ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400 dark:text-muted-foreground/70 block">Tenant ID</span>
+                    <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 block">Tenant ID</span>
                     <span className="text-white font-mono text-xs">{data.tenantId ?? "—"}</span>
                   </div>
                   <div>
-                    <span className="text-gray-400 dark:text-muted-foreground/70 block">Checked At</span>
+                    <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 block">Checked At</span>
                     <span className="text-white text-xs">
                       {new Date(data.checkedAt).toLocaleString()}
                     </span>
                   </div>
                   <div>
-                    <span className="text-gray-400 dark:text-muted-foreground/70 block">Issues</span>
+                    <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 block">Issues</span>
                     <span className="text-white">
                       {errorCount > 0 && (
                         <span className="text-red-400 mr-2">{errorCount} error{errorCount !== 1 ? "s" : ""}</span>
@@ -205,7 +205,7 @@ export default function PlatformClaimDebug() {
                             {issue.code}
                           </code>
                           {issue.field && (
-                            <code className="text-xs font-mono text-gray-500 dark:text-muted-foreground">
+                            <code className="text-xs font-mono text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
                               · {issue.field}
                             </code>
                           )}
@@ -222,7 +222,7 @@ export default function PlatformClaimDebug() {
 
         {/* Empty state */}
         {!data && !isLoading && !error && (
-          <div className="text-center py-16 text-gray-500 dark:text-muted-foreground">
+          <div className="text-center py-16 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
             Enter a Claim ID above and click Verify to run integrity checks.
           </div>
         )}

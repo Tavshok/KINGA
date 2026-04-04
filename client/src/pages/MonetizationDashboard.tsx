@@ -129,7 +129,7 @@ export default function MonetizationDashboard() {
                   onChange={(e) => setCustomStartDate(e.target.value)}
                   className="px-3 py-2 border rounded-md text-sm"
                 />
-                <span className="text-gray-500 dark:text-muted-foreground">to</span>
+                <span className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground">to</span>
                 <input
                   type="date"
                   value={customEndDate}
@@ -220,7 +220,7 @@ export default function MonetizationDashboard() {
               <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
             </div>
           ) : metrics.length === 0 ? (
-            <div className="text-center py-12 text-gray-500 dark:text-muted-foreground">
+            <div className="text-center py-12 text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
               No data available for the selected period
             </div>
           ) : (
@@ -279,7 +279,7 @@ export default function MonetizationDashboard() {
                             </span>
                           </div>
                         ) : (
-                          <span className="text-gray-400 dark:text-muted-foreground/70">N/A</span>
+                          <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">N/A</span>
                         )}
                       </TableCell>
                     </TableRow>

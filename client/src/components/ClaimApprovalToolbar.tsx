@@ -161,7 +161,7 @@ function StageProgressBar({
                   ? "bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-200"
                   : isCurrent
                   ? "bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-200 ring-2 ring-blue-300 dark:ring-blue-700"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-600 dark:text-gray-300"
               } ${!stage.required ? "opacity-80 border border-dashed border-current" : ""}`}
             >
               {isComplete ? (

@@ -59,7 +59,7 @@ export default function DocumentList({ claimId }: DocumentListProps) {
     if (mimeType.includes('spreadsheet') || mimeType.includes('excel')) {
       return <FileSpreadsheet className="h-8 w-8 text-green-500" />;
     }
-    return <FileText className="h-8 w-8 text-gray-500 dark:text-muted-foreground" />;
+    return <FileText className="h-8 w-8 text-gray-700 dark:text-gray-400 dark:text-muted-foreground" />;
   };
 
   const getCategoryLabel = (category: string) => {

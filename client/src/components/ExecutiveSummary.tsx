@@ -179,7 +179,7 @@ export function ExecutiveSummary({
           <p className={`text-lg font-bold ${physicsStatus === 'pass' ? 'text-green-600' : physicsStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
             {physicsData.physicsScore}/100
           </p>
-          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
             {isCollision
               ? (physicsData.damageConsistency === 'consistent'
                   ? 'Damage consistent with reported accident'
@@ -207,7 +207,7 @@ export function ExecutiveSummary({
           <p className={`text-lg font-bold ${fraudStatus === 'pass' ? 'text-green-600' : fraudStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
             {fraudData.riskScore}/100 ({fraudData.overallRisk})
           </p>
-          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
             {(fraudData.flaggedIssues ?? []).length > 0
               ? `${(fraudData.flaggedIssues ?? []).length} risk factor(s) identified`
               : 'No significant risk factors'}
@@ -217,7 +217,7 @@ export function ExecutiveSummary({
         {/* Cross-Validation */}
         <div className="p-4 bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-border">
           <div className="flex items-center gap-2 mb-2">
-            {cvStatus ? <StatusIcon status={cvStatus} /> : <Eye className="w-5 h-5 text-gray-400 dark:text-muted-foreground/70" />}
+            {cvStatus ? <StatusIcon status={cvStatus} /> : <Eye className="w-5 h-5 text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70" />}
             <span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Quote vs Photos</span>
           </div>
           {crossValidation ? (
@@ -225,7 +225,7 @@ export function ExecutiveSummary({
               <p className={`text-lg font-bold ${cvStatus === 'pass' ? 'text-green-600' : cvStatus === 'warning' ? 'text-amber-600' : 'text-red-600'}`}>
                 {crossValidation.summary.confirmedCount} confirmed
               </p>
-              <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+              <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
                 {crossValidation.summary.suspiciousCount > 0
                   ? `${crossValidation.summary.suspiciousCount} suspicious item(s)`
                   : 'All quoted parts verified'}
@@ -235,8 +235,8 @@ export function ExecutiveSummary({
             </>
           ) : (
             <>
-              <p className="text-lg font-bold text-gray-400 dark:text-muted-foreground/70">N/A</p>
-              <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">Insufficient data for cross-validation</p>
+              <p className="text-lg font-bold text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">N/A</p>
+              <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">Insufficient data for cross-validation</p>
             </>
           )}
         </div>
@@ -250,7 +250,7 @@ export function ExecutiveSummary({
           <p className="text-lg font-bold text-green-600">
             {symbol}{totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </p>
-          <p className="text-xs text-gray-500 dark:text-muted-foreground mt-1">
+          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">
             {componentCount} component(s) · {damagePhotoCount} photo(s)
             {savings && savings > 0 && (
               <span className="text-green-600 font-medium"> · {symbol}{savings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} saved</span>

@@ -169,7 +169,7 @@ function ConfidenceBar({ score }: { score: number | null | undefined }) {
   const pct = Math.min(100, Math.max(0, score ?? 0));
   const color =
     pct >= 75 ? "bg-emerald-500" :
-    pct >= 50 ? "bg-amber-400" :
+    pct >= 50 ? "bg-amber-600" :
     "bg-red-400";
   return (
     <div className="flex items-center gap-2">

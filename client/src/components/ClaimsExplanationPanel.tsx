@@ -113,7 +113,7 @@ export default function ClaimsExplanationPanel({
     return (
       <div className="border border-gray-200 rounded-lg p-5 bg-white">
         <div className="flex items-center gap-2 mb-4">
-          <FileText className="w-5 h-5 text-gray-400" />
+          <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           <h3 className="text-base font-semibold text-gray-700">Claims Assessment Report</h3>
         </div>
         <div className="space-y-2 animate-pulse">
@@ -129,10 +129,10 @@ export default function ClaimsExplanationPanel({
     return (
       <div className="border border-gray-200 rounded-lg p-5 bg-white">
         <div className="flex items-center gap-2 mb-2">
-          <FileText className="w-5 h-5 text-gray-400" />
+          <FileText className="w-5 h-5 text-gray-600 dark:text-gray-400" />
           <h3 className="text-base font-semibold text-gray-700">Claims Assessment Report</h3>
         </div>
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-gray-700 dark:text-gray-400">
           Assessment report is not yet available for this claim.
         </p>
       </div>
@@ -149,7 +149,7 @@ export default function ClaimsExplanationPanel({
       {/* Header */}
       <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <FileText className="w-5 h-5 text-gray-500" />
+          <FileText className="w-5 h-5 text-gray-700 dark:text-gray-400" />
           <h3 className="text-base font-semibold text-gray-800">Claims Assessment Report</h3>
         </div>
         <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${config.badge}`}>
@@ -170,7 +170,7 @@ export default function ClaimsExplanationPanel({
       </div>
 
       {/* Metadata Row */}
-      <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-xs text-gray-500">
+      <div className="px-5 py-3 bg-gray-50 border-b border-gray-100 flex flex-wrap gap-4 text-xs text-gray-700 dark:text-gray-400">
         <span>
           <span className="font-medium text-gray-600">Assessment Confidence:</span>{" "}
           <span className={`font-semibold ${bandColor}`}>{bandLabel}</span>

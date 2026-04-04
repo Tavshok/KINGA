@@ -66,7 +66,7 @@ export default function ClaimDocuments() {
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-600 dark:text-muted-foreground">
               {user?.name}
-              <span className="block text-xs text-gray-500 dark:text-muted-foreground capitalize">{user?.role}</span>
+              <span className="block text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground capitalize">{user?.role}</span>
             </span>
             <Button variant="outline" onClick={logout}>
               Sign Out

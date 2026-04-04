@@ -56,7 +56,7 @@ function decisionConfig(fraudScore: number, confidenceScore: number) {
     bg: "var(--status-reject-bg)",
     text: "var(--status-reject-text)",
     border: "var(--status-reject-border)",
-    badgeCls: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800",
+    badgeCls: "bg-red-100 text-red-900 border-red-300 dark:bg-red-950 dark:text-red-200 dark:border-red-800",
   };
   if (fraudScore > 35 || confidenceScore < 60) return {
     verdict: "REVIEW",
@@ -65,7 +65,7 @@ function decisionConfig(fraudScore: number, confidenceScore: number) {
     bg: "var(--status-review-bg)",
     text: "var(--status-review-text)",
     border: "var(--status-review-border)",
-    badgeCls: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
+    badgeCls: "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800",
   };
   return {
     verdict: "APPROVE",
@@ -74,15 +74,15 @@ function decisionConfig(fraudScore: number, confidenceScore: number) {
     bg: "var(--status-approve-bg)",
     text: "var(--status-approve-text)",
     border: "var(--status-approve-border)",
-    badgeCls: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800",
+    badgeCls: "bg-green-100 text-green-900 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800",
   };
 }
 
 function fraudBadgeCls(score: number) {
-  if (score <= 15) return "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
-  if (score <= 35) return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
-  if (score <= 60) return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
-  return "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800";
+  if (score <= 15) return "bg-green-100 text-green-900 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800";
+  if (score <= 35) return "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800";
+  if (score <= 60) return "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-800";
+  return "bg-purple-100 text-purple-900 border-purple-300 dark:bg-purple-950 dark:text-purple-200 dark:border-purple-800";
 }
 
 function fraudLabel(score: number) {
@@ -93,9 +93,9 @@ function fraudLabel(score: number) {
 }
 
 function confidenceBadgeCls(score: number) {
-  if (score >= 80) return "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
-  if (score >= 60) return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
-  return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
+  if (score >= 80) return "bg-green-100 text-green-900 border-green-300 dark:bg-green-950 dark:text-green-200 dark:border-green-800";
+  if (score >= 60) return "bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-200 dark:border-amber-800";
+  return "bg-orange-100 text-orange-900 border-orange-300 dark:bg-orange-950 dark:text-orange-200 dark:border-orange-800";
 }
 
 function severityBand(kmh: number) {
