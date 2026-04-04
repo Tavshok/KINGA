@@ -43,7 +43,7 @@ describe("classifyIncident — animal strike (Mazda root cause)", () => {
       damage_description: "Bonnet folded back, bull bar bent, radiator damaged.",
     }));
     expect(result.incident_type).toBe("animal_strike");
-    expect(result.canonical_type).toBe("collision"); // physics engine compatibility
+    expect(result.canonical_type).toBe("animal_strike"); // Stage 7: dedicated animal strike physics engine
   });
 
   it("overrides claim form 'collision' with animal_strike from driver narrative", () => {
@@ -503,12 +503,12 @@ describe("classifyIncident — edge cases", () => {
     expect(driverDetail!.signals.length).toBeGreaterThan(0);
   });
 
-  it("canonical_type is 'collision' for animal_strike (physics engine compatibility)", () => {
+  it("canonical_type is 'animal_strike' for animal_strike (Stage 7 dedicated physics engine)", () => {
     const result = classifyIncident(make({
       driver_narrative: "I hit a cow.",
     }));
     expect(result.incident_type).toBe("animal_strike");
-    expect(result.canonical_type).toBe("collision");
+    expect(result.canonical_type).toBe("animal_strike");
   });
 
   it("canonical_type is 'unknown' for unknown", () => {
@@ -540,7 +540,7 @@ describe("classifyIncident — real-world scenarios", () => {
       damage_components: ["bonnet", "bull bar", "intercooler", "fan cowling", "fuse box", "front bumper"],
     }));
     expect(result.incident_type).toBe("animal_strike");
-    expect(result.canonical_type).toBe("collision");
+    expect(result.canonical_type).toBe("animal_strike"); // Stage 7: dedicated animal strike physics engine
     expect(result.conflict_detected).toBe(false);
     expect(result.confidence).toBeGreaterThanOrEqual(60);
   });

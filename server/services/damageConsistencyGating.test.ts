@@ -121,9 +121,9 @@ describe("checkPreConditions", () => {
 // ─── runDamageConsistencyCheck with gating ────────────────────────────────────
 
 describe("runDamageConsistencyCheck gating", () => {
-  it("returns pending_inputs when conditions are not met (auto trigger)", () => {
+  it("returns pending_inputs when conditions are not met (auto trigger)", async () => {
     // Pre-condition guard only fires for auto-triggered calls
-    const result = runDamageConsistencyCheck({
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: null,
       damageDescription: null,
       enrichedPhotosJson: null,
@@ -133,47 +133,47 @@ describe("runDamageConsistencyCheck gating", () => {
     expect(result.status).toBe("pending_inputs");
   });
 
-  it("returns complete result when all conditions are met", () => {
-    const result = runDamageConsistencyCheck(FULL_INPUT);
+  it("returns complete result when all conditions are met", async () => {
+    const result = await runDamageConsistencyCheck(FULL_INPUT);
     expect(result.status).toBe("complete");
   });
 
-  it("marks result source as auto when triggerSource is auto", () => {
-    const result = runDamageConsistencyCheck({ ...FULL_INPUT, triggerSource: "auto" });
+  it("marks result source as auto when triggerSource is auto", async () => {
+    const result = await runDamageConsistencyCheck({ ...FULL_INPUT, triggerSource: "auto" });
     expect(result.status).toBe("complete");
     if (result.status === "complete") {
       expect(result.source).toBe("auto");
     }
   });
 
-  it("marks result source as manual when triggerSource is manual", () => {
-    const result = runDamageConsistencyCheck({ ...FULL_INPUT, triggerSource: "manual" });
+  it("marks result source as manual when triggerSource is manual", async () => {
+    const result = await runDamageConsistencyCheck({ ...FULL_INPUT, triggerSource: "manual" });
     expect(result.status).toBe("complete");
     if (result.status === "complete") {
       expect(result.source).toBe("manual");
     }
   });
 
-  it("defaults source to manual when triggerSource is omitted", () => {
+  it("defaults source to manual when triggerSource is omitted", async () => {
     const { triggerSource: _, ...inputWithoutSource } = FULL_INPUT;
-    const result = runDamageConsistencyCheck(inputWithoutSource);
+    const result = await runDamageConsistencyCheck(inputWithoutSource);
     expect(result.status).toBe("complete");
     if (result.status === "complete") {
       expect(result.source).toBe("manual");
     }
   });
 
-  it("returns consistency_score between 0 and 100 for complete result", () => {
-    const result = runDamageConsistencyCheck(FULL_INPUT);
+  it("returns consistency_score between 0 and 100 for complete result", async () => {
+    const result = await runDamageConsistencyCheck(FULL_INPUT);
     if (result.status === "complete") {
       expect(result.consistency_score).toBeGreaterThanOrEqual(0);
       expect(result.consistency_score).toBeLessThanOrEqual(100);
     }
   });
 
-  it("does not run check when only 2 of 3 conditions are met (auto trigger)", () => {
+  it("does not run check when only 2 of 3 conditions are met (auto trigger)", async () => {
     // Missing physics — guard only fires for auto-triggered calls
-    const result = runDamageConsistencyCheck({
+    const result = await runDamageConsistencyCheck({
       ...FULL_INPUT,
       physicsAnalysisJson: null,
       triggerSource: "auto",

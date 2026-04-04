@@ -157,58 +157,61 @@ export function computeConsistencyFraudPenalty(
     };
   }
 
-  // ── Rules 3 & 4: Dampening and cap per mismatch ───────────────────────────
-  let runningBase = baseScoreBeforePenalty;
-  let totalPenalty = 0;
+  // ── Rules 3 & 4: Dampening and cap — computed ONCE for all high mismatches ──
+  //
+  // The mismatch count gates whether the penalty applies (≥1 required) but does
+  // NOT multiply the penalty. The base weight is applied once per consistency
+  // check, not once per mismatch. This prevents score inflation when multiple
+  // mismatches are detected in a single check.
+  const rawWeight = BASE_WEIGHT[confidence];
+  let weight = rawWeight;
+  const dampeningReasons: string[] = [];
+  let dampeningApplied = false;
 
-  for (const m of highMismatches) {
-    const rawWeight = BASE_WEIGHT[confidence];
-    let weight = rawWeight;
-    const dampeningReasons: string[] = [];
-    let dampeningApplied = false;
+  // Rule 3a: base score > 70 → −30%
+  if (baseScoreBeforePenalty > HIGH_BASE_SCORE_THRESHOLD) {
+    weight = weight * HIGH_BASE_SCORE_DAMPENING;
+    dampeningReasons.push(`−30% (base score ${baseScoreBeforePenalty.toFixed(1)} > ${HIGH_BASE_SCORE_THRESHOLD})`);
+    dampeningApplied = true;
+  }
 
-    // Rule 3a: base score > 70 → −30%
-    if (runningBase > HIGH_BASE_SCORE_THRESHOLD) {
-      weight = weight * HIGH_BASE_SCORE_DAMPENING;
-      dampeningReasons.push(`−30% (base score ${runningBase.toFixed(1)} > ${HIGH_BASE_SCORE_THRESHOLD})`);
-      dampeningApplied = true;
-    }
+  // Rule 3b: ≥2 other high-weight factors → −20%
+  if (highWeightTriggeredCount >= 2) {
+    weight = weight * MULTI_FACTOR_DAMPENING;
+    dampeningReasons.push(`−20% (${highWeightTriggeredCount} high-weight factors already triggered)`);
+    dampeningApplied = true;
+  }
 
-    // Rule 3b: ≥2 other high-weight factors → −20%
-    if (highWeightTriggeredCount >= 2) {
-      weight = weight * MULTI_FACTOR_DAMPENING;
-      dampeningReasons.push(`−20% (${highWeightTriggeredCount} high-weight factors already triggered)`);
-      dampeningApplied = true;
-    }
+  // Rule 4: cap at 15% of projected total
+  const projectedTotal = Math.min(100, baseScoreBeforePenalty + weight);
+  const maxAllowed = projectedTotal * MAX_CONTRIBUTION_FRACTION;
+  let capped = false;
+  if (weight > maxAllowed) {
+    weight = maxAllowed;
+    capped = true;
+  }
 
-    // Rule 4: cap at 15% of projected total
-    const projectedTotal = Math.min(100, runningBase + weight);
-    const maxAllowed = projectedTotal * MAX_CONTRIBUTION_FRACTION;
-    let capped = false;
-    if (weight > maxAllowed) {
-      weight = maxAllowed;
-      capped = true;
-    }
+  // Round to 1 decimal place
+  const appliedWeight = Math.round(weight * 10) / 10;
 
-    // Round to 1 decimal place
-    const appliedWeight = Math.round(weight * 10) / 10;
-
+  // Record one audit entry per high-severity mismatch (for traceability),
+  // but only the first entry carries the actual applied_weight; the rest are
+  // recorded as skipped to reflect that the penalty is applied once.
+  for (let i = 0; i < highMismatches.length; i++) {
+    const m = highMismatches[i];
     audit_log.push({
       mismatch_type: m.mismatch_type,
       raw_weight: rawWeight,
-      applied_weight: appliedWeight,
+      applied_weight: i === 0 ? appliedWeight : 0,
       dampening_applied: dampeningApplied,
       dampening_reasons: dampeningReasons,
-      capped,
-      skipped: false,
+      capped: i === 0 ? capped : false,
+      skipped: i > 0,
+      skip_reason: i > 0 ? "Penalty applied once per consistency check (subsequent mismatches recorded for audit only)" : undefined,
     });
-
-    runningBase += appliedWeight;
-    totalPenalty += appliedWeight;
   }
 
-  // Round total to 1 decimal place
-  totalPenalty = Math.round(totalPenalty * 10) / 10;
+  const totalPenalty = appliedWeight;
 
   const dampenedCount = audit_log.filter((e) => e.dampening_applied).length;
   const cappedCount = audit_log.filter((e) => e.capped).length;
@@ -217,7 +220,7 @@ export function computeConsistencyFraudPenalty(
     `${highMismatches.length} high-severity mismatch(es) detected (confidence: ${confidence}).`,
     `Total penalty applied: +${totalPenalty} points.`,
   ];
-  if (dampenedCount > 0) summaryParts.push(`Dampening applied to ${dampenedCount} mismatch(es).`);
+  if (dampenedCount > 0) summaryParts.push(`dampening applied to ${dampenedCount} mismatch(es).`);
   if (cappedCount > 0) summaryParts.push(`15% cap applied to ${cappedCount} mismatch(es).`);
 
   return {

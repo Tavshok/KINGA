@@ -442,6 +442,14 @@ export function checkPreConditions(input: ConsistencyCheckInput): PendingInputsR
 }
 
 export async function runDamageConsistencyCheck(input: ConsistencyCheckInput): Promise<ConsistencyCheckOutput> {
+  // Run pre-condition guard synchronously FIRST, only for auto-triggered calls.
+  // This must happen before any async work so callers can detect pending_inputs
+  // synchronously if needed (the returned Promise resolves immediately).
+  if (input.triggerSource === "auto") {
+    const pendingResult = checkPreConditions(input);
+    if (pendingResult) return pendingResult;
+  }
+
   const doc = parseDocumentSource(input.damagedComponentsJson, input.damageDescription);
   const photo = parsePhotoSource(input.enrichedPhotosJson);
   const physics = parsePhysicsSource(input.physicsAnalysisJson);
@@ -495,14 +503,6 @@ export async function runDamageConsistencyCheck(input: ConsistencyCheckInput): P
     highSeverityMismatchCount: highSeverityCount,
     hasSevereMismatch,
   });
-
-  // Run pre-condition guard only for auto-triggered calls.
-  // Manual calls (and direct service calls without a triggerSource) always compute
-  // and return a complete result regardless of source availability.
-  if (input.triggerSource === "auto") {
-    const pendingResult = checkPreConditions(input);
-    if (pendingResult) return pendingResult;
-  }
 
   return {
     status: "complete",

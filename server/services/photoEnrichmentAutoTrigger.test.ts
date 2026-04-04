@@ -56,8 +56,8 @@ const PHYSICS_ANALYSIS_FRONT_JSON = JSON.stringify({
 // ─── Pre-condition gating ─────────────────────────────────────────────────────
 
 describe("Auto-trigger pre-condition gating", () => {
-  it("returns pending_inputs when enrichedPhotosJson is null", () => {
-    const result = runDamageConsistencyCheck({
+  it("returns pending_inputs when enrichedPhotosJson is null", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON,
       damageDescription: "Front bumper and hood damage",
       enrichedPhotosJson: null,
@@ -68,8 +68,8 @@ describe("Auto-trigger pre-condition gating", () => {
     expect((result as any).missing_conditions.length).toBeGreaterThan(0);
   });
 
-  it("returns pending_inputs when enrichedPhotosJson is empty array", () => {
-    const result = runDamageConsistencyCheck({
+  it("returns pending_inputs when enrichedPhotosJson is empty array", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON,
       damageDescription: "Front bumper damage",
       enrichedPhotosJson: JSON.stringify([]),
@@ -79,8 +79,8 @@ describe("Auto-trigger pre-condition gating", () => {
     expect(result.status).toBe("pending_inputs");
   });
 
-  it("returns pending_inputs when damagedComponentsJson has no components", () => {
-    const result = runDamageConsistencyCheck({
+  it("returns pending_inputs when damagedComponentsJson has no components", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: JSON.stringify([]),
       damageDescription: null,
       enrichedPhotosJson: ENRICHED_PHOTOS_JSON,
@@ -90,8 +90,8 @@ describe("Auto-trigger pre-condition gating", () => {
     expect(result.status).toBe("pending_inputs");
   });
 
-  it("returns pending_inputs when physicsAnalysisJson has no primary zone", () => {
-    const result = runDamageConsistencyCheck({
+  it("returns pending_inputs when physicsAnalysisJson has no primary zone", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON,
       damageDescription: "Front bumper damage",
       enrichedPhotosJson: ENRICHED_PHOTOS_JSON,
@@ -105,8 +105,8 @@ describe("Auto-trigger pre-condition gating", () => {
 // ─── Successful auto-trigger ──────────────────────────────────────────────────
 
 describe("Auto-trigger successful execution", () => {
-  it("returns complete status when all three sources are present", () => {
-    const result = runDamageConsistencyCheck({
+  it("returns complete status when all three sources are present", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON,
       damageDescription: "Front bumper and hood damage",
       enrichedPhotosJson: ENRICHED_PHOTOS_JSON,
@@ -116,8 +116,8 @@ describe("Auto-trigger successful execution", () => {
     expect(result.status).toBe("complete");
   });
 
-  it("marks source as 'auto' on the result", () => {
-    const result = runDamageConsistencyCheck({
+  it("marks source as 'auto' on the result", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON,
       damageDescription: "Front bumper damage",
       enrichedPhotosJson: ENRICHED_PHOTOS_JSON,
@@ -127,8 +127,8 @@ describe("Auto-trigger successful execution", () => {
     expect((result as any).source).toBe("auto");
   });
 
-  it("produces a consistency_score between 0 and 100", () => {
-    const result = runDamageConsistencyCheck({
+  it("produces a consistency_score between 0 and 100", async () => {
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON,
       damageDescription: "Front bumper damage",
       enrichedPhotosJson: ENRICHED_PHOTOS_JSON,
@@ -141,9 +141,9 @@ describe("Auto-trigger successful execution", () => {
     }
   });
 
-  it("detects zone mismatch when document says front but photos show rear", () => {
+  it("detects zone mismatch when document says front but photos show rear", async () => {
     // Document says front, photos show rear, physics says rear
-    const result = runDamageConsistencyCheck({
+    const result = await runDamageConsistencyCheck({
       damagedComponentsJson: DOCUMENT_COMPONENTS_JSON, // front bumper, hood
       damageDescription: "Front bumper and hood damage",
       enrichedPhotosJson: ENRICHED_PHOTOS_JSON, // rear zone

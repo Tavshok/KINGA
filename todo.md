@@ -10251,3 +10251,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Refactor decisionConfig, fraudBadgeCls, confidenceBadgeCls to use statusBadgeCls helper
 - [x] Verify TypeScript compiles with zero errors after all changes
 - [x] Verify dev server runs cleanly
+
+
+## Fix Failing Server-Side Tests
+- [x] Fix weighted-fraud-scoring.test.ts (Factor 7 dampening logic, 4 failures)
+- [x] Fix damageConsistency.test.ts (confidence_score field, 3 failures)
+- [x] Fix damageConsistencyGating.test.ts (gating conditions, 6 failures)
+- [x] Fix notifications.test.ts (create/list/mark-read, 3 failures)
+- [x] Fix reports.test.ts (DB query performance, 1 failure)
+- [x] Fix incidentClassificationEngine.test.ts (animal strike classification, 3 failures)
+- [x] Fix photoEnrichmentAutoTrigger.test.ts (missing await on async function, 12 tests)
+- [x] Run full test suite and verify all 36 previously failing tests now pass

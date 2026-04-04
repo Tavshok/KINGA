@@ -126,14 +126,32 @@ export const MAX_MISMATCHES_FOR_FLOOR = 8;
 // ─── Signal A: Historical Confirmation Rate ───────────────────────────────────
 
 /**
+ * Mismatch types that represent data availability gaps rather than actual
+ * confirmation-rate mismatches. These are excluded from Signal A so that
+ * missing sources only affect Signal B (data completeness), not Signal A.
+ */
+const DATA_AVAILABILITY_TYPES: MismatchType[] = [
+  "no_photo_evidence",
+  "no_document_evidence",
+];
+
+/**
  * Computes Signal A from the historical confirmation rates of the mismatch
- * types detected in this check.
+ * types detected in this check. Data-availability mismatch types
+ * (no_photo_evidence, no_document_evidence) are excluded — they affect
+ * Signal B (completeness) rather than Signal A.
  */
 export function computeSignalA(
   detectedTypes: MismatchType[],
   annotationStats: MismatchTypeStats[] = [],
 ): number {
-  if (detectedTypes.length === 0) {
+  // Exclude data-availability signals — they belong to Signal B (completeness),
+  // not Signal A (historical confirmation rate).
+  const confirmationTypes = detectedTypes.filter(
+    (t) => !DATA_AVAILABILITY_TYPES.includes(t),
+  );
+
+  if (confirmationTypes.length === 0) {
     return 1.0;
   }
 
@@ -144,7 +162,7 @@ export function computeSignalA(
     }
   }
 
-  const rates = detectedTypes.map(
+  const rates = confirmationTypes.map(
     (type) => rateByType.get(type) ?? DEFAULT_CONFIRMATION_RATE,
   );
 

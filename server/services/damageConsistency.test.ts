@@ -325,11 +325,12 @@ describe("Stage 24 — confidence_score field on ConsistencyCheckResult", () => 
       enrichedPhotosJson: null,
       physicsAnalysisJson: null,
     });
-    // Missing photo/physics sources trigger missing-source mismatches (Signal A = 0.5 neutral),
-    // Signal B = 1/3 ≈ 0.33, Signal C ≈ 0.875 → composite ≈ 0.54 → MEDIUM
+    // Missing photo/physics sources: Signal A = 1.0 (no_photo_evidence excluded from Signal A),
+    // Signal B = 1/3 ≈ 0.33, Signal C ≈ 0.875 → composite ≈ 0.74 → MEDIUM
+    // (no_photo_evidence is a data-availability signal, not a confirmation-rate mismatch)
     expect(result.confidence).toBe("MEDIUM");
     expect(result.confidence_score).toBeGreaterThanOrEqual(0.45);
-    expect(result.confidence_score).toBeLessThan(0.70);
+    expect(result.confidence_score).toBeLessThan(0.80); // MEDIUM band: [0.45, 0.80)
   });
 
   it("two sources available produces at least MEDIUM confidence when no mismatches", async () => {
