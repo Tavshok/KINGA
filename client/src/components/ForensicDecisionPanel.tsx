@@ -1,22 +1,35 @@
 /**
- * ForensicDecisionPanel
- * Decision-ready UI model for claim assessment.
- * Converts all structured pipeline outputs into 7 visual sections:
- *   1. Claim Truth Summary
- *   2. Visual Physics Model
- *   3. Damage Zone Map
- *   4. Cost Intelligence
- *   5. Evidence Integrity
- *   6. Simplified Narrative
- *   7. Actions Required
+ * ForensicDecisionPanel — v2 Redesign
+ *
+ * Decision-first, tab-based claims intelligence UI.
+ * Layout:
+ *   ┌─────────────────────────────────────────────────────┐
+ *   │  DECISION HEADER  (always visible, above fold)      │
+ *   │  Decision · Cost · Confidence · Fraud · Doc Status  │
+ *   └─────────────────────────────────────────────────────┘
+ *   ┌─────────────────────────────────────────────────────┐
+ *   │  TABS: Overview │ Cost Analysis │ Damage │          │
+ *   │        Fraud & Risk │ Technical Details             │
+ *   └─────────────────────────────────────────────────────┘
  */
 import { useMemo, useState } from "react";
-import { AlertTriangle, CheckCircle, XCircle, AlertCircle, Zap, Shield, DollarSign, Camera, Activity, ArrowRight, ChevronRight, ShieldCheck, ShieldAlert, ShieldX, Layers, GitCompare, Link2, Link2Off, BookOpen, RefreshCw, ChevronDown, ChevronUp } from "lucide-react";
+import {
+  CheckCircle, XCircle, AlertTriangle, AlertCircle,
+  Shield, DollarSign, Activity, Camera, ShieldAlert,
+  ShieldCheck, ShieldX, Layers, GitCompare, Link2, Link2Off,
+  BookOpen, RefreshCw, ChevronDown, ChevronUp, Zap,
+  ArrowRight, FileText, BarChart2
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types & helpers
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface ForensicDecisionPanelProps {
   aiAssessment: any;
@@ -30,225 +43,232 @@ function safeParse(raw: any): any {
 }
 
 function safeParseArray(raw: any): any[] {
-  const parsed = safeParse(raw);
-  return Array.isArray(parsed) ? parsed : [];
+  const p = safeParse(raw);
+  return Array.isArray(p) ? p : [];
 }
 
-// ── Severity color helpers ────────────────────────────────────────────────────
-function fraudColor(score: number) {
-  if (score <= 15) return { bg: "oklch(0.35 0.14 145 / 0.15)", border: "oklch(0.55 0.18 145 / 0.4)", text: "text-emerald-400", label: "MINIMAL" };
-  if (score <= 35) return { bg: "oklch(0.72 0.18 60 / 0.10)", border: "oklch(0.72 0.18 60 / 0.35)", text: "text-amber-400", label: "LOW" };
-  if (score <= 60) return { bg: "oklch(0.65 0.20 40 / 0.12)", border: "oklch(0.65 0.20 40 / 0.4)", text: "text-orange-400", label: "MEDIUM" };
-  return { bg: "oklch(0.55 0.22 25 / 0.12)", border: "oklch(0.55 0.22 25 / 0.4)", text: "text-red-400", label: "HIGH" };
+// ── Decision verdict ──────────────────────────────────────────────────────────
+function decisionConfig(fraudScore: number, confidenceScore: number) {
+  if (fraudScore > 60) return {
+    verdict: "REJECT",
+    label: "Reject",
+    icon: <XCircle className="h-5 w-5" />,
+    bg: "var(--status-reject-bg)",
+    text: "var(--status-reject-text)",
+    border: "var(--status-reject-border)",
+    badgeCls: "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800",
+  };
+  if (fraudScore > 35 || confidenceScore < 60) return {
+    verdict: "REVIEW",
+    label: "Review Required",
+    icon: <AlertTriangle className="h-5 w-5" />,
+    bg: "var(--status-review-bg)",
+    text: "var(--status-review-text)",
+    border: "var(--status-review-border)",
+    badgeCls: "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800",
+  };
+  return {
+    verdict: "APPROVE",
+    label: "Approve",
+    icon: <CheckCircle className="h-5 w-5" />,
+    bg: "var(--status-approve-bg)",
+    text: "var(--status-approve-text)",
+    border: "var(--status-approve-border)",
+    badgeCls: "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800",
+  };
 }
 
-function confidenceColor(score: number) {
-  if (score >= 80) return "text-emerald-400";
-  if (score >= 60) return "text-amber-400";
-  return "text-orange-400";
+function fraudBadgeCls(score: number) {
+  if (score <= 15) return "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
+  if (score <= 35) return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
+  if (score <= 60) return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
+  return "bg-purple-100 text-purple-800 border-purple-200 dark:bg-purple-950 dark:text-purple-300 dark:border-purple-800";
+}
+
+function fraudLabel(score: number) {
+  if (score <= 15) return "Minimal";
+  if (score <= 35) return "Low";
+  if (score <= 60) return "Medium";
+  return "High";
+}
+
+function confidenceBadgeCls(score: number) {
+  if (score >= 80) return "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800";
+  if (score >= 60) return "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800";
+  return "bg-orange-100 text-orange-800 border-orange-200 dark:bg-orange-950 dark:text-orange-300 dark:border-orange-800";
 }
 
 function severityBand(kmh: number) {
-  if (kmh < 15) return { label: "Cosmetic", color: "#86efac" };
-  if (kmh < 30) return { label: "Minor", color: "#fde68a" };
-  if (kmh < 55) return { label: "Moderate", color: "#fb923c" };
-  if (kmh < 80) return { label: "Severe", color: "#f87171" };
+  if (kmh < 15) return { label: "Cosmetic", color: "#16a34a" };
+  if (kmh < 30) return { label: "Minor", color: "#d97706" };
+  if (kmh < 55) return { label: "Moderate", color: "#ea580c" };
+  if (kmh < 80) return { label: "Severe", color: "#dc2626" };
   return { label: "Catastrophic", color: "#7f1d1d" };
 }
 
-// ── Section wrapper ───────────────────────────────────────────────────────────
-function Section({ icon, title, subtitle, children }: { icon: React.ReactNode; title: string; subtitle?: string; children: React.ReactNode }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-components
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Section card — clean border, no heavy background */
+function Card({ title, icon, children, className = "" }: {
+  title?: string; icon?: React.ReactNode; children: React.ReactNode; className?: string;
+}) {
   return (
-    <div className="rounded-xl border border-border/50 overflow-hidden" style={{ background: "oklch(0.18 0.01 260 / 0.6)" }}>
-      <div className="flex items-center gap-3 px-4 py-3 border-b border-border/40" style={{ background: "oklch(0.22 0.02 260 / 0.8)" }}>
-        <span className="text-primary">{icon}</span>
-        <div>
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    <div className={`rounded-xl border border-border bg-card text-card-foreground ${className}`}>
+      {title && (
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+          {icon && <span className="text-primary shrink-0">{icon}</span>}
+          <span className="text-sm font-semibold text-foreground">{title}</span>
         </div>
-      </div>
+      )}
       <div className="p-4">{children}</div>
     </div>
   );
 }
 
-// ── Metric tile ───────────────────────────────────────────────────────────────
-function Metric({ label, value, sub, color }: { label: string; value: string | number; sub?: string; color?: string }) {
+/** Stat tile — label / value / sub */
+function Stat({ label, value, sub, valueCls = "text-foreground" }: {
+  label: string; value: React.ReactNode; sub?: string; valueCls?: string;
+}) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className={`text-lg font-bold ${color ?? "text-foreground"}`}>{value}</span>
+      <span className="text-xs text-muted-foreground uppercase tracking-wide">{label}</span>
+      <span className={`text-2xl font-black tabular-nums leading-none ${valueCls}`}>{value}</span>
       {sub && <span className="text-xs text-muted-foreground">{sub}</span>}
     </div>
   );
 }
 
-// ── Integrity flag pill ───────────────────────────────────────────────────────
-function IntegrityFlag({ flag, severity, description, action }: { flag: string; severity: "HIGH" | "MEDIUM" | "LOW"; description: string; action?: string }) {
-  const colors = {
-    HIGH: { bg: "oklch(0.55 0.22 25 / 0.12)", border: "oklch(0.55 0.22 25 / 0.4)", text: "text-red-400", dot: "bg-red-400" },
-    MEDIUM: { bg: "oklch(0.72 0.18 60 / 0.10)", border: "oklch(0.72 0.18 60 / 0.35)", text: "text-amber-400", dot: "bg-amber-400" },
-    LOW: { bg: "oklch(0.35 0.14 145 / 0.10)", border: "oklch(0.55 0.18 145 / 0.3)", text: "text-emerald-400", dot: "bg-emerald-400" },
-  }[severity];
+/** Progress bar */
+function Bar({ value, max = 100, colorCls = "bg-primary" }: {
+  value: number; max?: number; colorCls?: string;
+}) {
+  const pct = Math.min(100, Math.max(0, (value / max) * 100));
   return (
-    <div className="rounded-lg p-3 space-y-1" style={{ background: colors.bg, border: `1px solid ${colors.border}` }}>
-      <div className="flex items-center gap-2">
-        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${colors.dot}`} />
-        <span className={`text-xs font-mono font-semibold ${colors.text}`}>{flag}</span>
-        <span className={`ml-auto text-xs font-bold ${colors.text}`}>{severity}</span>
-      </div>
-      <p className="text-xs text-muted-foreground pl-4">{description}</p>
-      {action && <p className="text-xs text-primary pl-4 font-medium">→ {action}</p>}
+    <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+      <div className={`h-full rounded-full transition-all ${colorCls}`} style={{ width: `${pct}%` }} />
     </div>
   );
 }
+
+/** Integrity flag row */
+function FlagRow({ flag, severity, description, action }: {
+  flag: string; severity: "HIGH" | "MEDIUM" | "LOW"; description: string; action?: string;
+}) {
+  const cfg = {
+    HIGH:   { rowCls: "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40",   dotCls: "bg-red-500",   textCls: "text-red-700 dark:text-red-300",   badge: "HIGH" },
+    MEDIUM: { rowCls: "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40", dotCls: "bg-amber-500", textCls: "text-amber-700 dark:text-amber-300", badge: "MED" },
+    LOW:    { rowCls: "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/40", dotCls: "bg-green-500", textCls: "text-green-700 dark:text-green-300",  badge: "LOW" },
+  }[severity];
+  return (
+    <div className={`rounded-lg border px-3 py-2.5 ${cfg.rowCls}`}>
+      <div className="flex items-center gap-2 mb-1">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotCls}`} />
+        <code className={`text-xs font-mono font-semibold ${cfg.textCls}`}>{flag}</code>
+        <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded ${cfg.textCls} bg-white/40 dark:bg-black/20`}>{cfg.badge}</span>
+      </div>
+      <p className="text-xs text-muted-foreground pl-4 leading-relaxed">{description}</p>
+      {action && <p className={`text-xs pl-4 mt-0.5 font-medium ${cfg.textCls}`}>→ {action}</p>}
+    </div>
+  );
+}
+
+/** Table row with hover */
+function TR({ cells, highlight = false }: { cells: React.ReactNode[]; highlight?: boolean }) {
+  return (
+    <tr className={`border-b border-border transition-colors hover:bg-muted/50 ${highlight ? "bg-primary/5" : ""}`}>
+      {cells.map((c, i) => (
+        <td key={i} className="px-3 py-2 text-sm text-foreground">{c}</td>
+      ))}
+    </tr>
+  );
+}
+
+function TH({ children }: { children: React.ReactNode }) {
+  return <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">{children}</th>;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main component
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicDecisionPanelProps) {
   const { fmt } = useTenantCurrency();
   const utils = trpc.useUtils();
   const [showPipelineTrace, setShowPipelineTrace] = useState(false);
 
-  const claimId: number | undefined = claim?.id;
+  const claimId = Number(aiAssessment?.claimId ?? claim?.id ?? 0);
 
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
-      if (claimId) {
-        utils.aiAssessments.byClaim.invalidate({ claimId });
-        utils.claims.getById.invalidate({ id: claimId });
-      }
-      toast.success('Pipeline re-run triggered', {
-        description: 'All 11 stages will re-execute with the latest fixes. Results appear in 30–60 seconds.',
-      });
+      toast.success("Pipeline re-run queued — results will update shortly.");
+      utils.claims.getById.invalidate({ id: claimId });
     },
-    onError: (err) => toast.error(`Re-run failed: ${err.message}`),
+    onError: (e) => toast.error(`Re-run failed: ${e.message}`),
   });
 
-  const physics = useMemo(() => safeParse(aiAssessment?.physicsAnalysis), [aiAssessment?.physicsAnalysis]);
-  const damagePattern = useMemo(() => {
-    // damagePatternValidation is nested inside physicsAnalysis
-    const p = safeParse(aiAssessment?.physicsAnalysis);
-    return p?.damagePatternValidation ?? null;
-  }, [aiAssessment?.physicsAnalysis]);
-  const costIntel = useMemo(() => safeParse(aiAssessment?.costIntelligenceJson), [aiAssessment?.costIntelligenceJson]);
-  const fraudBreakdown = useMemo(() => safeParse(aiAssessment?.fraudScoreBreakdownJson), [aiAssessment?.fraudScoreBreakdownJson]);
-  const scenarioFraud = useMemo(() => {
-    // scenarioFraudResult is stored inside fraudScoreBreakdownJson or as a direct field
-    const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
-    return fb?.scenarioFraudResult ?? safeParse(aiAssessment?.scenarioFraudResult) ?? null;
-  }, [aiAssessment?.fraudScoreBreakdownJson, aiAssessment?.scenarioFraudResult]);
-  const crossEngineConsistency = useMemo(() => {
-    const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
-    return fb?.crossEngineConsistency ?? null;
-  }, [aiAssessment?.fraudScoreBreakdownJson]);
-  const severityConsensus = useMemo(() => {
-    // severityConsensus is nested inside physicsAnalysis JSON
-    const p = safeParse(aiAssessment?.physicsAnalysis);
-    return p?.severityConsensus ?? null;
-  }, [aiAssessment?.physicsAnalysis]);
-  const confidenceAggregation = useMemo(() => {
-    const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson);
-    return fb?.confidenceAggregation ?? null;
-  }, [aiAssessment?.fraudScoreBreakdownJson]);
-  const validatedOutcome = useMemo(() => {
-    // validatedOutcomeJson is stored directly on aiAssessment
-    return safeParse(aiAssessment?.validatedOutcomeJson) ?? null;
-  }, [aiAssessment?.validatedOutcomeJson]);
-  const caseSignature = useMemo(() => {
-    return safeParse(aiAssessment?.caseSignatureJson) ?? null;
-  }, [aiAssessment?.caseSignatureJson]);
-  const partsRecon = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
-  const pipelineSummary = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
-  const docVerification = useMemo(() => {
-    const ps = safeParse(aiAssessment?.pipelineRunSummary);
-    return ps?.documentVerification ?? null;
-  }, [aiAssessment?.pipelineRunSummary]);
-  const enrichedPhotos = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
+  // ── Parsed JSON fields ──────────────────────────────────────────────────────
+  const physics          = useMemo(() => safeParse(aiAssessment?.physicsAnalysis), [aiAssessment?.physicsAnalysis]);
+  const damagePattern    = useMemo(() => { const p = safeParse(aiAssessment?.physicsAnalysis); return p?.damagePatternValidation ?? null; }, [aiAssessment?.physicsAnalysis]);
+  const costIntel        = useMemo(() => safeParse(aiAssessment?.costIntelligenceJson), [aiAssessment?.costIntelligenceJson]);
+  const fraudBreakdown   = useMemo(() => safeParse(aiAssessment?.fraudScoreBreakdownJson), [aiAssessment?.fraudScoreBreakdownJson]);
+  const scenarioFraud    = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.scenario_fraud_detection ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
+  const crossEngine      = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.cross_engine_consistency ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
+  const severityConsensus = useMemo(() => { const p = safeParse(aiAssessment?.physicsAnalysis); return p?.severityConsensus ?? null; }, [aiAssessment?.physicsAnalysis]);
+  const confAgg          = useMemo(() => { const fb = safeParse(aiAssessment?.fraudScoreBreakdownJson); return fb?.confidence_aggregation ?? null; }, [aiAssessment?.fraudScoreBreakdownJson]);
+  const validatedOutcome = useMemo(() => safeParse(aiAssessment?.validatedOutcomeJson), [aiAssessment?.validatedOutcomeJson]);
+  const caseSignature    = useMemo(() => safeParse(aiAssessment?.caseSignatureJson), [aiAssessment?.caseSignatureJson]);
+  const partsRecon       = useMemo(() => safeParseArray(aiAssessment?.partsReconciliationJson), [aiAssessment?.partsReconciliationJson]);
+  const pipelineSummary  = useMemo(() => safeParse(aiAssessment?.pipelineRunSummary), [aiAssessment?.pipelineRunSummary]);
+  const docVerification  = useMemo(() => { const ps = safeParse(aiAssessment?.pipelineRunSummary); return ps?.documentVerification ?? null; }, [aiAssessment?.pipelineRunSummary]);
+  const enrichedPhotos   = useMemo(() => safeParse(aiAssessment?.enrichedPhotosJson), [aiAssessment?.enrichedPhotosJson]);
   const damagedComponents = useMemo(() => safeParseArray(aiAssessment?.damagedComponentsJson), [aiAssessment?.damagedComponentsJson]);
-
-  if (!aiAssessment) {
-    return (
-      <div className="rounded-xl border border-border/50 p-8 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.6)" }}>
-        <Activity className="h-8 w-8 text-muted-foreground mx-auto mb-3" />
-        <p className="text-sm text-muted-foreground">No assessment data available. Run the AI pipeline to generate the decision model.</p>
-      </div>
-    );
-  }
+  const repairIntel      = useMemo(() => safeParseArray(aiAssessment?.repairIntelligenceJson), [aiAssessment?.repairIntelligenceJson]);
+  const causalChain      = useMemo(() => safeParse(aiAssessment?.causalChainJson), [aiAssessment?.causalChainJson]);
+  const fraudIndicators  = useMemo(() => safeParseArray(aiAssessment?.fraudIndicators), [aiAssessment?.fraudIndicators]);
 
   // ── Derived values ──────────────────────────────────────────────────────────
-  const fraudScore = Number(aiAssessment.fraudScore ?? fraudBreakdown?.totalScore ?? 0);
-  const fraudIndicators: any[] = fraudBreakdown?.indicators ?? fraudBreakdown?.breakdown ?? [];
-  const fraudColors = fraudColor(fraudScore);
-
-  const confidenceScore = Number(aiAssessment.confidenceScore ?? 72);
+  const fraudScore       = Number(aiAssessment?.fraudScore ?? fraudBreakdown?.totalScore ?? 0);
+  const confidenceScore  = Math.max(0, Math.min(100, Number(aiAssessment?.confidenceScore ?? 72)));
   const estimatedSpeedKmh = Number(physics?.estimatedSpeedKmh ?? 0);
-  const deltaVKmh = Number(physics?.deltaVKmh ?? 0);
-  const impactForceKn = Number(physics?.impactForceKn ?? physics?.impactVector?.magnitude ?? 0) / (physics?.impactVector?.magnitude > 1000 ? 1000 : 1);
-  const energyKj = Number(physics?.energyDistribution?.energyDissipatedKj ?? physics?.energyKj ?? 0);
-  const kineticEnergyJ = Number(physics?.energyDistribution?.kineticEnergyJ ?? 0);
-  const severity = physics?.accidentSeverity ?? "unknown";
-  const impactDirection = (physics?.impactVector?.direction ?? physics?.impactDirection ?? "unknown").toUpperCase();
-  const latent = physics?.latentDamageProbability ?? {};
-  const severityInfo = severityBand(estimatedSpeedKmh);
+  const deltaVKmh        = Number(physics?.deltaVKmh ?? 0);
+  const impactForceKn    = Number(physics?.impactForceKn ?? physics?.impactVector?.magnitude ?? 0) / (physics?.impactVector?.magnitude > 1000 ? 1000 : 1);
+  const energyKj         = Number(physics?.energyDistribution?.energyDissipatedKj ?? physics?.energyKj ?? 0);
+  const kineticEnergyJ   = Number(physics?.energyDistribution?.kineticEnergyJ ?? 0);
+  const impactDirection  = (physics?.impactVector?.direction ?? physics?.impactDirection ?? "unknown").toUpperCase();
+  const severity         = aiAssessment?.structuralDamageSeverity ?? "unknown";
+  const severityInfo     = severityBand(estimatedSpeedKmh);
 
-  // Stale severity check — if physics says minor but speed > 15, flag it
-  const severityStale = severity === "minor" && estimatedSpeedKmh >= 15;
+  const totalComponents  = damagedComponents.length;
+  const frontComponents  = damagedComponents.filter((c: any) => { const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase(); return n.includes("front") || n.includes("bonnet") || n.includes("bumper") || n.includes("grille") || n.includes("headlight") || n.includes("radiator") || n.includes("hood"); });
+  const rearComponents   = damagedComponents.filter((c: any) => { const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase(); return n.includes("rear") || n.includes("boot") || n.includes("trunk") || n.includes("tail"); });
+  const sideComponents   = damagedComponents.filter((c: any) => { const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase(); return n.includes("door") || n.includes("side") || n.includes("wing") || n.includes("fender") || n.includes("mirror") || n.includes("sill"); });
 
-  // Zone distribution
-  const frontComponents = damagedComponents.filter((c: any) => {
-    const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase();
-    return n.includes("front") || n.includes("grille") || n.includes("radiator") || n.includes("tow") || n.includes("diff");
-  });
-  const rearComponents = damagedComponents.filter((c: any) => {
-    const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase();
-    return n.includes("rear") || n.includes("tail") || n.includes("tailgate") || n.includes("loading");
-  });
-  const sideComponents = damagedComponents.filter((c: any) => {
-    const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase();
-    return n.includes("door") || n.includes("side") || n.includes("quarter") || n.includes("pillar") || n.includes("sill");
-  });
-  const totalComponents = damagedComponents.length;
+  const aiCost           = Number(aiAssessment?.estimatedCost ?? 0);
+  const agreedCost       = Number(costIntel?.documentedAgreedCostUsd ?? costIntel?.agreedCostUsd ?? 0);
+  const originalQuote    = Number(costIntel?.documentedOriginalQuoteUsd ?? costIntel?.originalQuoteUsd ?? 0);
+  const marketValue      = Number(costIntel?.marketValueUsd ?? 0);
+  const repairToValue    = marketValue > 0 ? ((agreedCost || aiCost) / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
+  const maxCost          = Math.max(aiCost, agreedCost, originalQuote, 1);
+  const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
+  const costBasis        = agreedCost > 0 ? agreedCost : aiCost;
+  const quotesMapped     = partsRecon.filter((r: any) => r.quotedAmount != null).length;
+  const photosJson       = safeParseArray(aiAssessment?.damagePhotosJson);
 
-  // Cost data
-  const aiCost = Number(aiAssessment.estimatedCost ?? 0);
-  const agreedCost = Number(costIntel?.documentedAgreedCostUsd ?? costIntel?.agreedCostUsd ?? 0);
-  const originalQuote = Number(costIntel?.documentedOriginalQuoteUsd ?? costIntel?.originalQuoteUsd ?? 0);
-  const marketValue = Number(costIntel?.marketValueUsd ?? 0);
-  const repairToValue = marketValue > 0 ? ((agreedCost || aiCost) / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
-  const maxCost = Math.max(aiCost, agreedCost, originalQuote, 1);
-  const costBasis = agreedCost > 0 ? agreedCost : aiCost;
-  const quotesReceived = Number(costIntel?.quotesReceived ?? 0);
-
-  // Integrity flags
+  // ── Integrity flags ─────────────────────────────────────────────────────────
   const integrityFlags: Array<{ flag: string; severity: "HIGH" | "MEDIUM" | "LOW"; description: string; action: string }> = [];
-  const physicsMs = pipelineSummary?.stages?.["7_physics"]?.durationMs ?? 0;
-  if (physicsMs < 10 || severity === "minor" && estimatedSpeedKmh >= 15) {
-    integrityFlags.push({
-      flag: "physics_estimated",
-      severity: "HIGH",
-      description: `Physics ran in ${physicsMs}ms (deterministic fallback). Severity field shows "${severity}" but corrected speed is ${estimatedSpeedKmh.toFixed(1)} km/h.`,
-      action: "Re-run Stage 7 with accident description as input. Patch accidentSeverity to 'moderate'."
-    });
+  if (!aiAssessment?.physicsAnalysis || !physics?.physicsExecuted) {
+    integrityFlags.push({ flag: "physics_not_executed", severity: "MEDIUM", description: "Stage 7 physics engine did not run. Speed, force, and energy fields are absent.", action: "Re-run pipeline to generate physics analysis." });
   }
-  const quotesMapped = partsRecon.filter((r: any) => r.quotedAmount != null).length;
-  if (agreedCost === 0 || quotesMapped === 0) {
-    integrityFlags.push({
-      flag: "quote_mapping_failure",
-      severity: "HIGH",
-      description: `Agreed cost ${agreedCost > 0 ? fmt(agreedCost) : "not mapped"} at assessment level. ${quotesMapped}/${totalComponents} components have quoted amounts in reconciliation.`,
-      action: "Re-run Stage 9 with recovered agreed cost disaggregated across components."
-    });
+  if (!aiAssessment?.costIntelligenceJson) {
+    integrityFlags.push({ flag: "cost_intelligence_missing", severity: "HIGH", description: "Stage 9 cost intelligence output is absent. Cost comparison cannot be performed.", action: "Re-run pipeline or upload claim document with quote." });
   }
-  const photosJson = safeParseArray(aiAssessment?.damagePhotosJson);
-  if (!enrichedPhotos && photosJson.length === 0) {
-    integrityFlags.push({
-      flag: "image_processing_failure",
-      severity: "MEDIUM",
-      description: "damage_photos_json = []. enriched_photos_json = NULL. Stage 11 photo enrichment has not been executed.",
-      action: "Extract photos from source PDF pages 3–4. Trigger Stage 11 photo enrichment."
-    });
+  if (photosJson.length === 0 && !enrichedPhotos) {
+    integrityFlags.push({ flag: "image_processing_failure", severity: "MEDIUM", description: "No damage photos extracted. Stage 11 photo enrichment has not run.", action: "Extract photos from source PDF pages 3–4 and re-run." });
   }
 
-  // Simplified narrative
+  // ── Narrative sentences ─────────────────────────────────────────────────────
   const narrative = [
     `The ${claim?.vehicleMake ?? "vehicle"} (${claim?.vehicleRegistration ?? "—"}) was involved in a ${impactDirection.toLowerCase()} collision${estimatedSpeedKmh > 0 ? ` at an estimated ${estimatedSpeedKmh.toFixed(1)} km/h` : ""}, dissipating ${energyKj > 0 ? `${energyKj.toFixed(1)} kJ` : "an unknown amount of energy"} across ${totalComponents} identified components.`,
     totalComponents > 0 ? `Damage spans ${[frontComponents.length > 0 && `${frontComponents.length} front`, rearComponents.length > 0 && `${rearComponents.length} rear`, sideComponents.length > 0 && `${sideComponents.length} side`].filter(Boolean).join(", ")} components — consistent with the reported collision mechanism.` : null,
@@ -257,952 +277,874 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     integrityFlags.length > 0 ? `${integrityFlags.length} system integrity flag${integrityFlags.length > 1 ? "s" : ""} open: ${integrityFlags.map(f => f.flag).join(", ")}.` : "All integrity checks passed.",
   ].filter(Boolean) as string[];
 
-  // Actions
-  const actions: Array<{ priority: number; label: string; type: string; flag?: string; effort: string }> = [
-    ...integrityFlags.map((f, i) => ({
-      priority: i + 1,
-      label: f.action.split(".")[0],
-      type: "PIPELINE_RERUN",
-      flag: f.flag,
-      effort: "automated"
-    })),
-    ...(photosJson.length === 0 && !enrichedPhotos ? [{
-      priority: integrityFlags.length + 1,
-      label: "Review source document pages 3–4 for damage photographs",
-      type: "MANUAL_REVIEW",
-      effort: "manual"
-    }] : [])
-  ];
+  const decision = decisionConfig(fraudScore, confidenceScore);
 
+  // ─────────────────────────────────────────────────────────────────────────────
+  // RENDER
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-4">
 
-      {/* ── DOCUMENT READ VERIFICATION BANNER ──────────────────────────── */}
-      {docVerification && (() => {
-        const status: string = docVerification.status ?? "UNKNOWN";
-        const keyFields: string[] = docVerification.keyFieldsDetected ?? [];
-        const missingFields: string[] = docVerification.missingCriticalFields ?? [];
-        const pdfRead: boolean = docVerification.pdfReadConfirmed ?? false;
-        const cfg = {
-          SUCCESS: { bg: "oklch(0.35 0.14 145 / 0.12)", border: "oklch(0.55 0.18 145 / 0.4)", icon: <CheckCircle className="h-4 w-4 text-emerald-400" />, label: "text-emerald-400", labelText: "VERIFIED" },
-          PARTIAL: { bg: "oklch(0.72 0.18 60 / 0.10)", border: "oklch(0.72 0.18 60 / 0.35)", icon: <AlertCircle className="h-4 w-4 text-amber-400" />, label: "text-amber-400", labelText: "PARTIAL" },
-          FAILED:  { bg: "oklch(0.55 0.22 25 / 0.12)", border: "oklch(0.55 0.22 25 / 0.4)",  icon: <XCircle className="h-4 w-4 text-red-400" />,     label: "text-red-400",     labelText: "FAILED" },
-          UNKNOWN: { bg: "oklch(0.22 0.015 260 / 0.7)", border: "oklch(0.45 0.06 260 / 0.4)", icon: <AlertTriangle className="h-4 w-4 text-slate-400" />, label: "text-slate-400", labelText: "UNKNOWN" },
-        }[status] ?? { bg: "oklch(0.22 0.015 260 / 0.7)", border: "oklch(0.45 0.06 260 / 0.4)", icon: <AlertTriangle className="h-4 w-4 text-slate-400" />, label: "text-slate-400", labelText: status };
-        return (
-          <div className="rounded-lg px-4 py-3 space-y-2" style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}>
-            <div className="flex flex-wrap items-center gap-3">
-              {cfg.icon}
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Document Read Verification</span>
-              <span className={`text-xs font-bold ${cfg.label}`}>{cfg.labelText}</span>
-              {pdfRead && (
-                <span className="ml-auto flex items-center gap-1 text-xs text-emerald-400 font-medium">
-                  <CheckCircle className="h-3 w-3" /> PDF fetched via presigned URL
-                </span>
-              )}
-              {!pdfRead && (
-                <span className="ml-auto flex items-center gap-1 text-xs text-amber-400 font-medium">
-                  <AlertCircle className="h-3 w-3" /> OCR text fallback
-                </span>
-              )}
-            </div>
-            {keyFields.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pl-7">
-                {keyFields.map((f: string) => (
-                  <span key={f} className="rounded-full px-2 py-0.5 text-xs font-medium bg-emerald-500/15 text-emerald-300">{f}</span>
-                ))}
-              </div>
-            )}
-            {missingFields.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 pl-7">
-                <span className="text-xs text-muted-foreground mr-1">Missing:</span>
-                {missingFields.map((f: string) => (
-                  <span key={f} className="rounded-full px-2 py-0.5 text-xs font-medium bg-red-500/15 text-red-300">{f}</span>
-                ))}
-              </div>
-            )}
+      {/* ══════════════════════════════════════════════════════════════════════
+          DECISION HEADER — always visible, above fold
+          ══════════════════════════════════════════════════════════════════════ */}
+      <div
+        className="rounded-xl border px-5 py-4"
+        style={{ background: decision.bg, borderColor: decision.border }}
+      >
+        {/* Row 1: verdict + cost + confidence + fraud */}
+        <div className="flex flex-wrap items-center gap-4">
+          {/* Verdict badge */}
+          <div className="flex items-center gap-2" style={{ color: decision.text }}>
+            {decision.icon}
+            <span className="text-xl font-black tracking-tight">{decision.label}</span>
           </div>
-        );
-      })()}
 
-      {/* ── CASE SIGNATURE BANNER ─────────────────────────────────────────── */}
-      {caseSignature && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg px-4 py-3" style={{ background: "oklch(0.22 0.015 260 / 0.7)", border: "1px solid oklch(0.45 0.06 260 / 0.4)" }}>
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Case Signature</span>
-            <code className="rounded px-2 py-0.5 text-sm font-mono font-bold text-sky-300" style={{ background: "oklch(0.28 0.04 220 / 0.5)" }}>{caseSignature.case_signature}</code>
-          </div>
-          <div className="flex items-center gap-2 ml-auto">
-            <span className="text-xs text-muted-foreground">Grouping Key</span>
-            <code className="rounded px-2 py-0.5 text-xs font-mono text-slate-300" style={{ background: "oklch(0.28 0.02 260 / 0.4)" }}>{caseSignature.grouping_key}</code>
-          </div>
-          {caseSignature.metadata?.similar_cases_expected != null && (
-            <span className="text-xs text-muted-foreground ml-2">{caseSignature.metadata.similar_cases_expected} similar cases expected</span>
+          <div className="h-6 w-px bg-border/60 hidden sm:block" />
+
+          {/* Cost */}
+          {costBasis > 0 && (
+            <div className="flex flex-col">
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">Agreed Cost</span>
+              <span className="text-lg font-bold text-foreground tabular-nums">{fmt(costBasis)}</span>
+            </div>
           )}
-        </div>
-      )}
 
-      {/* ── 0. CONFIDENCE AGGREGATION ─────────────────────────────────────── */}
-      {confidenceAggregation && (
-        <Section icon={<Activity className="h-4 w-4" />} title="Pipeline Confidence" subtitle="Weakest-link confidence across all AI engines">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {/* Overall Score */}
-            <div className="col-span-1 flex flex-col items-center justify-center rounded-lg p-5 text-center" style={{ background: confidenceAggregation.confidence_level === 'HIGH' ? 'oklch(0.35 0.14 145 / 0.12)' : confidenceAggregation.confidence_level === 'MEDIUM' ? 'oklch(0.55 0.18 60 / 0.12)' : 'oklch(0.55 0.22 25 / 0.12)', border: `1px solid ${confidenceAggregation.confidence_level === 'HIGH' ? 'oklch(0.55 0.18 145 / 0.35)' : confidenceAggregation.confidence_level === 'MEDIUM' ? 'oklch(0.65 0.18 60 / 0.35)' : 'oklch(0.55 0.22 25 / 0.35)'}` }}>
-              <p className={`text-4xl font-black tabular-nums ${confidenceAggregation.confidence_level === 'HIGH' ? 'text-emerald-400' : confidenceAggregation.confidence_level === 'MEDIUM' ? 'text-amber-400' : 'text-red-400'}`}>{confidenceAggregation.overall_confidence}</p>
-              <p className="text-xs text-muted-foreground mt-1">Overall Confidence</p>
-              <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-bold ${
-                confidenceAggregation.confidence_level === 'HIGH' ? 'bg-emerald-500/20 text-emerald-300' :
-                confidenceAggregation.confidence_level === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300' :
-                'bg-red-500/20 text-red-300'
-              }`}>{confidenceAggregation.confidence_level}</span>
-            </div>
-            {/* Component Breakdown */}
-            <div className="col-span-2 flex flex-col gap-2">
-              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Component Scores (weakest defines reliability)</p>
-              {confidenceAggregation.component_detail?.map((c: any) => (
-                <div key={c.name} className="flex items-center gap-3">
-                  <span className={`w-28 text-xs font-medium capitalize truncate ${c.is_weakest ? 'text-red-400 font-bold' : 'text-muted-foreground'}`}>
-                    {c.is_weakest ? '⚠ ' : ''}{c.name.replace(/_/g, ' ')}
-                  </span>
-                  {c.available ? (
-                    <>
-                      <div className="flex-1 rounded-full overflow-hidden" style={{ height: 6, background: 'oklch(0.3 0.01 260)' }}>
-                        <div className={`h-full rounded-full transition-all ${c.is_weakest ? 'bg-red-400' : c.score >= 75 ? 'bg-emerald-400' : c.score >= 45 ? 'bg-amber-400' : 'bg-red-400'}`} style={{ width: `${c.score}%` }} />
-                      </div>
-                      <span className={`w-8 text-right text-xs font-bold tabular-nums ${c.is_weakest ? 'text-red-400' : 'text-foreground'}`}>{c.score}</span>
-                    </>
-                  ) : (
-                    <span className="text-xs text-muted-foreground italic">not available</span>
-                  )}
-                </div>
-              ))}
-              {confidenceAggregation.warnings?.length > 0 && (
-                <div className="mt-2 rounded-md px-3 py-2 text-xs text-amber-300" style={{ background: 'oklch(0.55 0.18 60 / 0.1)', border: '1px solid oklch(0.65 0.18 60 / 0.3)' }}>
-                  {confidenceAggregation.warnings.join(' ')}
-                </div>
-              )}
-            </div>
-          </div>
-          {/* Reasoning */}
-          <details className="mt-3">
-            <summary className="cursor-pointer text-xs text-muted-foreground hover:text-foreground">Engine reasoning</summary>
-            <p className="mt-2 text-xs text-muted-foreground leading-relaxed">{confidenceAggregation.reasoning}</p>
-          </details>
-        </Section>
-      )}
-
-      {/* ── 1. CLAIM TRUTH SUMMARY ─────────────────────────────────────────── */}
-      <Section icon={<Shield className="h-4 w-4" />} title="Claim Truth Summary" subtitle="Overall decision recommendation and risk profile">
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Status */}
-          <div className="col-span-1 flex flex-col gap-2">
-            <div className="rounded-lg p-4 text-center" style={{ background: fraudScore <= 15 ? "oklch(0.35 0.14 145 / 0.15)" : "oklch(0.55 0.22 25 / 0.12)", border: `1px solid ${fraudScore <= 15 ? "oklch(0.55 0.18 145 / 0.4)" : "oklch(0.55 0.22 25 / 0.4)"}` }}>
-              {fraudScore <= 35 ? <CheckCircle className="h-8 w-8 text-emerald-400 mx-auto mb-2" /> : <AlertTriangle className="h-8 w-8 text-amber-400 mx-auto mb-2" />}
-              <p className={`text-xl font-black ${fraudScore <= 35 ? "text-emerald-400" : "text-amber-400"}`}>{fraudScore <= 35 ? "APPROVE" : "REVIEW"}</p>
-              <p className="text-xs text-muted-foreground mt-1">Recommendation</p>
-            </div>
-          </div>
           {/* Confidence */}
-          <div className="col-span-1 flex flex-col gap-3">
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">Confidence Score</p>
-              <div className="flex items-end gap-2">
-                <span className={`text-3xl font-black ${confidenceColor(confidenceScore)}`}>{confidenceScore}</span>
-                <span className="text-sm text-muted-foreground mb-1">/100</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-border/40 mt-1">
-                <div className="h-2 rounded-full transition-all" style={{ width: `${confidenceScore}%`, background: confidenceScore >= 80 ? "#4ade80" : confidenceScore >= 60 ? "#fbbf24" : "#f97316" }} />
-              </div>
-              {confidenceScore < 80 && <p className="text-xs text-muted-foreground mt-1">Provisional — photo enrichment pending</p>}
-            </div>
-          </div>
-          {/* Fraud */}
-          <div className="col-span-1">
-            <p className="text-xs text-muted-foreground mb-1">Fraud Risk</p>
-            <div className="rounded-lg p-3" style={{ background: fraudColors.bg, border: `1px solid ${fraudColors.border}` }}>
-              <div className="flex items-center justify-between mb-2">
-                <span className={`text-2xl font-black ${fraudColors.text}`}>{fraudScore}</span>
-                <span className={`text-xs font-bold px-2 py-0.5 rounded ${fraudColors.text}`} style={{ border: `1px solid currentColor` }}>{fraudColors.label}</span>
-              </div>
-              {fraudIndicators.length > 0 && (
-                <div className="space-y-1">
-                  {fraudIndicators.slice(0, 2).map((ind: any, i: number) => (
-                    <p key={i} className="text-xs text-muted-foreground">
-                      <span className={`font-mono ${fraudColors.text}`}>{ind.indicator ?? ind.label ?? "—"}</span>
-                      {ind.type === "system_gap" && <span className="text-muted-foreground/60"> (system gap)</span>}
-                    </p>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </Section>
-
-      {/* ── 2. VISUAL PHYSICS MODEL ───────────────────────────────────────────── */}
-      <Section icon={<Zap className="h-4 w-4" />} title="Physics Model" subtitle="Impact reconstruction — speed, energy, force, severity">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
-          <Metric label="Est. Speed" value={`${estimatedSpeedKmh.toFixed(1)} km/h`} color={estimatedSpeedKmh > 0 ? "text-foreground" : "text-muted-foreground"} />
-          <Metric label="Delta-V" value={`${deltaVKmh.toFixed(1)} km/h`} />
-          <Metric label="Impact Force" value={`${impactForceKn.toFixed(1)} kN`} />
-          <Metric label="Energy Dissipated" value={`${energyKj.toFixed(1)} kJ`} />
-        </div>
-        {/* Severity scale */}
-        <div className="mb-3">
-          <p className="text-xs text-muted-foreground mb-2">Severity Classification</p>
-          <div className="flex gap-1 items-center">
-            {[
-              { band: "Cosmetic", range: "0–15", color: "#86efac" },
-              { band: "Minor", range: "15–30", color: "#fde68a" },
-              { band: "Moderate", range: "30–55", color: "#fb923c" },
-              { band: "Severe", range: "55–80", color: "#f87171" },
-              { band: "Catastrophic", range: "80+", color: "#7f1d1d" },
-            ].map(b => {
-              const isActive = b.band.toLowerCase() === (severityStale ? "moderate" : severity?.toLowerCase());
-              return (
-                <div key={b.band} className={`flex-1 rounded px-1 py-1.5 text-center transition-all ${isActive ? "ring-2 ring-white/30" : "opacity-40"}`} style={{ background: b.color + (isActive ? "cc" : "40") }}>
-                  <p className="text-xs font-bold" style={{ color: isActive ? "#fff" : b.color }}>{b.band}</p>
-                  <p className="text-xs opacity-70" style={{ color: isActive ? "#fff" : b.color }}>{b.range}</p>
-                </div>
-              );
-            })}
-          </div>
-          {severityStale && (
-            <div className="mt-2 flex items-center gap-2 text-xs text-amber-400">
-              <AlertCircle className="h-3 w-3 flex-shrink-0" />
-              <span>Stored value is "<strong>{severity}</strong>" — stale from pre-fix pipeline run. Corrected classification: <strong>Moderate</strong>.</span>
-            </div>
-          )}
-        </div>
-        {/* Energy distribution bar */}
-        {kineticEnergyJ > 0 && (
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Energy Distribution</p>
-            <div className="flex h-4 rounded overflow-hidden gap-px">
-              <div className="flex items-center justify-center text-xs text-white font-medium" style={{ width: `${(energyKj * 1000 / kineticEnergyJ) * 100}%`, background: "#f97316" }}>
-                {((energyKj * 1000 / kineticEnergyJ) * 100).toFixed(0)}%
-              </div>
-              <div className="flex-1" style={{ background: "#374151" }} />
-            </div>
-            <div className="flex gap-4 mt-1">
-              <span className="text-xs text-muted-foreground"><span className="inline-block w-2 h-2 rounded-sm mr-1" style={{ background: "#f97316" }} />Dissipated into structure</span>
-              <span className="text-xs text-muted-foreground"><span className="inline-block w-2 h-2 rounded-sm mr-1 bg-muted" />Retained by mass</span>
-            </div>
-          </div>
-        )}
-        {/* Impact direction */}
-        <div className="mt-3 flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">Impact Direction:</p>
-          <span className="text-xs font-mono font-semibold text-primary">{impactDirection}</span>
-          {impactDirection === "REAR" && <span className="text-xs text-muted-foreground">— chain collision; reaction load on front structure</span>}
-        </div>
-        {/* Latent damage */}
-        {Object.keys(latent).length > 0 && (
-          <div className="mt-3">
-            <p className="text-xs text-muted-foreground mb-1">Latent Damage Probability</p>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(latent).map(([system, prob]) => (
-                <span key={system} className="text-xs px-2 py-0.5 rounded border border-border/40 text-muted-foreground">
-                  {system}: <span className={Number(prob) === 0 ? "text-emerald-400" : "text-amber-400"}>{Number(prob) === 0 ? "0%" : `${(Number(prob) * 100).toFixed(0)}%`}</span>
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </Section>
-
-      {/* ── 2b. SEVERITY CONSENSUS ENGINE ────────────────────────────────── */}
-      {severityConsensus && (() => {
-        const sc = severityConsensus as any;
-        const alignmentColor = sc.source_alignment === "FULL" ? "text-emerald-400" : sc.source_alignment === "PARTIAL" ? "text-amber-400" : "text-red-400";
-        const alignmentBg = sc.source_alignment === "FULL" ? "bg-emerald-500/10 border-emerald-500/30" : sc.source_alignment === "PARTIAL" ? "bg-amber-500/10 border-amber-500/30" : "bg-red-500/10 border-red-500/30";
-        const severityColor = sc.final_severity === "severe" ? "text-red-400" : sc.final_severity === "moderate" ? "text-amber-400" : "text-emerald-400";
-        const severityBg = sc.final_severity === "severe" ? "bg-red-500/10 border-red-500/30" : sc.final_severity === "moderate" ? "bg-amber-500/10 border-amber-500/30" : "bg-emerald-500/10 border-emerald-500/30";
-        return (
-          <Section icon={<Layers className="h-4 w-4" />} title="Severity Consensus" subtitle="Fused verdict from physics, damage, and image severity signals">
-            {/* Top row: final severity + alignment + confidence */}
-            <div className="flex flex-wrap gap-3 mb-4">
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${severityBg}`}>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Final Severity</span>
-                <span className={`text-sm font-bold uppercase ${severityColor}`}>{sc.final_severity}</span>
-              </div>
-              <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${alignmentBg}`}>
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Source Alignment</span>
-                <span className={`text-sm font-bold ${alignmentColor}`}>{sc.source_alignment}</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-muted/20">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Confidence</span>
-                <span className="text-sm font-bold text-foreground">{sc.confidence}%</span>
-              </div>
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border/40 bg-muted/20">
-                <span className="text-xs text-muted-foreground uppercase tracking-wider">Sources</span>
-                <span className="text-sm font-bold text-foreground">{sc.sources_available ?? 3}/3</span>
-              </div>
-            </div>
-            {/* Confidence bar */}
-            <div className="mb-4">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Consensus confidence</span>
-                <span>{sc.confidence}%</span>
-              </div>
-              <div className="w-full h-2 rounded-full bg-muted/30">
-                <div
-                  className={`h-2 rounded-full transition-all ${sc.confidence >= 80 ? "bg-emerald-500" : sc.confidence >= 60 ? "bg-amber-500" : "bg-red-500"}`}
-                  style={{ width: `${sc.confidence}%` }}
-                />
-              </div>
-            </div>
-            {/* Source signals grid */}
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              {["physics", "damage", "image"].map((src) => {
-                const val = sc.source_signals?.[src];
-                const sigColor = val === "severe" ? "text-red-400" : val === "moderate" ? "text-amber-400" : val === "minor" ? "text-emerald-400" : "text-muted-foreground";
-                return (
-                  <div key={src} className="rounded-lg border border-border/40 bg-muted/10 p-3 text-center">
-                    <div className="text-xs text-muted-foreground uppercase tracking-wider mb-1">{src}</div>
-                    <div className={`text-sm font-semibold ${sigColor}`}>{val ?? "N/A"}</div>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Reasoning */}
-            {sc.reasoning && (
-              <details className="mt-2">
-                <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">Engine reasoning</summary>
-                <p className="mt-2 text-xs text-muted-foreground leading-relaxed pl-2 border-l border-border/40">{sc.reasoning}</p>
-              </details>
-            )}
-          </Section>
-        );
-      })()}
-
-      {/* ── 3. DAMAGE ZONE MAP ────────────────────────────────────────── */}
-      <Section icon={<Activity className="h-4 w-4" />} title="Damage Zone Map" subtitle={`${totalComponents} components across ${[frontComponents.length > 0, rearComponents.length > 0, sideComponents.length > 0].filter(Boolean).length} zone(s)`}>
-        {totalComponents === 0 ? (
-          <p className="text-sm text-muted-foreground">No components extracted from pipeline.</p>
-        ) : (
-          <div className="space-y-3">
-            {/* Zone bars */}
-            {[
-              { zone: "FRONT", components: frontComponents, color: "#3b82f6" },
-              { zone: "REAR", components: rearComponents, color: "#f97316" },
-              { zone: "SIDE", components: sideComponents, color: "#a855f7" },
-            ].map(({ zone, components, color }) => (
-              <div key={zone}>
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-xs font-semibold text-foreground">{zone}</span>
-                  <span className="text-xs text-muted-foreground">{components.length} component{components.length !== 1 ? "s" : ""}</span>
-                </div>
-                <div className="w-full h-3 rounded-full bg-border/30">
-                  <div className="h-3 rounded-full" style={{ width: totalComponents > 0 ? `${(components.length / totalComponents) * 100}%` : "0%", background: color }} />
-                </div>
-                {components.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {components.slice(0, 6).map((c: any, i: number) => (
-                      <span key={i} className="text-xs px-1.5 py-0.5 rounded" style={{ background: color + "22", color, border: `1px solid ${color}44` }}>
-                        {typeof c === "string" ? c : (c?.component ?? c?.name ?? "—")}
-                      </span>
-                    ))}
-                    {components.length > 6 && <span className="text-xs text-muted-foreground">+{components.length - 6} more</span>}
-                  </div>
-                )}
-              </div>
-            ))}
-            {/* Highest cost component */}
-            {partsRecon.length > 0 && (() => {
-              const top = [...partsRecon].sort((a, b) => (b.aiEstimate ?? 0) - (a.aiEstimate ?? 0))[0];
-              return top ? (
-                <div className="mt-2 rounded-lg p-3 border border-border/40" style={{ background: "oklch(0.22 0.02 260 / 0.5)" }}>
-                  <p className="text-xs text-muted-foreground">Highest Cost Component</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-sm font-semibold text-foreground">{top.component}</span>
-                    <span className="text-sm font-bold text-primary">{fmt(top.aiEstimate ?? 0)}</span>
-                  </div>
-                </div>
-              ) : null;
-            })()}
-          </div>
-        )}
-      </Section>
-
-      {/* ── 3b. DAMAGE PATTERN VALIDATION ─────────────────────────────────────────────────── */}
-      {damagePattern ? (
-        <Section
-          icon={<Layers className="h-4 w-4" />}
-          title="Damage Pattern Validation"
-          subtitle={`Scenario: ${(physics?.animalStrikePhysics ? 'animal_strike' : (safeParse(aiAssessment?.claimRecord)?.accidentDetails?.incidentType ?? 'unknown')).replace(/_/g, ' ')} — ${damagePattern.pattern_match} match`}
-        >
-          {/* Match strength header */}
-          <div className="flex items-center gap-3 mb-4">
-            {damagePattern.pattern_match === 'STRONG' && <ShieldCheck className="h-8 w-8 text-emerald-400 flex-shrink-0" />}
-            {damagePattern.pattern_match === 'MODERATE' && <ShieldCheck className="h-8 w-8 text-amber-400 flex-shrink-0" />}
-            {damagePattern.pattern_match === 'WEAK' && <ShieldAlert className="h-8 w-8 text-orange-400 flex-shrink-0" />}
-            {damagePattern.pattern_match === 'NONE' && <ShieldX className="h-8 w-8 text-red-400 flex-shrink-0" />}
-            <div>
-              <div className="flex items-center gap-2">
-                <span className={`text-2xl font-black ${
-                  damagePattern.pattern_match === 'STRONG' ? 'text-emerald-400' :
-                  damagePattern.pattern_match === 'MODERATE' ? 'text-amber-400' :
-                  damagePattern.pattern_match === 'WEAK' ? 'text-orange-400' : 'text-red-400'
-                }`}>{damagePattern.pattern_match}</span>
-                <span className="text-xs text-muted-foreground">pattern match</span>
-              </div>
-              <div className="flex items-center gap-2 mt-1">
-                <div className="w-32 h-2 rounded-full bg-border/30">
-                  <div
-                    className="h-2 rounded-full"
-                    style={{
-                      width: `${damagePattern.confidence}%`,
-                      background: damagePattern.confidence >= 70 ? '#4ade80' : damagePattern.confidence >= 40 ? '#fbbf24' : '#f97316'
-                    }}
-                  />
-                </div>
-                <span className="text-xs text-muted-foreground">{damagePattern.confidence}/100 confidence</span>
-              </div>
-            </div>
-            {/* Structural damage badge */}
-            {damagePattern.structural_damage_detected && (
-              <span className="ml-auto text-xs px-2 py-1 rounded border border-red-400/40 text-red-400 font-semibold flex-shrink-0">
-                STRUCTURAL
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Confidence</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg font-bold text-foreground tabular-nums">{confidenceScore}</span>
+              <span className="text-xs text-muted-foreground">/100</span>
+              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${confidenceBadgeCls(confidenceScore)}`}>
+                {confidenceScore >= 80 ? "HIGH" : confidenceScore >= 60 ? "MED" : "LOW"}
               </span>
-            )}
-          </div>
-
-          {/* Coverage metrics */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="rounded-lg p-3 border border-border/40" style={{ background: 'oklch(0.22 0.02 260 / 0.5)' }}>
-              <p className="text-xs text-muted-foreground mb-1">Primary Coverage</p>
-              <div className="flex items-end gap-1">
-                <span className="text-xl font-bold text-foreground">{damagePattern.validation_detail.primary_coverage_pct}%</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-border/30 mt-1">
-                <div className="h-1.5 rounded-full" style={{ width: `${damagePattern.validation_detail.primary_coverage_pct}%`, background: '#3b82f6' }} />
-              </div>
-              {damagePattern.validation_detail.matched_primary.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1 truncate">{damagePattern.validation_detail.matched_primary.slice(0, 3).join(', ')}</p>
-              )}
-            </div>
-            <div className="rounded-lg p-3 border border-border/40" style={{ background: 'oklch(0.22 0.02 260 / 0.5)' }}>
-              <p className="text-xs text-muted-foreground mb-1">Secondary Coverage</p>
-              <div className="flex items-end gap-1">
-                <span className="text-xl font-bold text-foreground">{damagePattern.validation_detail.secondary_coverage_pct}%</span>
-              </div>
-              <div className="w-full h-1.5 rounded-full bg-border/30 mt-1">
-                <div className="h-1.5 rounded-full" style={{ width: `${damagePattern.validation_detail.secondary_coverage_pct}%`, background: '#a855f7' }} />
-              </div>
-              {damagePattern.validation_detail.matched_secondary.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1 truncate">{damagePattern.validation_detail.matched_secondary.slice(0, 3).join(', ')}</p>
-              )}
             </div>
           </div>
 
-          {/* Image contradiction alert */}
-          {damagePattern.validation_detail.image_contradiction && (
-            <div className="rounded-lg p-3 mb-3 border border-red-500/40" style={{ background: 'oklch(0.55 0.22 25 / 0.10)' }}>
-              <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />
-                <span className="text-xs font-bold text-red-400">IMAGE CONTRADICTION DETECTED</span>
-              </div>
-              <p className="text-xs text-muted-foreground pl-6">
-                {damagePattern.validation_detail.image_contradiction_reason ?? 'Image-detected zones do not match the reported damage pattern.'}
-              </p>
+          {/* Fraud */}
+          <div className="flex flex-col">
+            <span className="text-xs text-muted-foreground uppercase tracking-wide">Fraud Risk</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-lg font-bold text-foreground tabular-nums">{fraudScore}</span>
+              <span className="text-xs text-muted-foreground">/100</span>
+              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${fraudBadgeCls(fraudScore)}`}>
+                {fraudLabel(fraudScore)}
+              </span>
+            </div>
+          </div>
+
+          {/* Doc verification pill */}
+          {docVerification && (
+            <div className="ml-auto">
+              <span className={`text-xs font-semibold px-2 py-1 rounded border ${
+                docVerification.status === "SUCCESS" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                docVerification.status === "PARTIAL" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
+                "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
+              }`}>
+                Doc: {docVerification.status}
+              </span>
             </div>
           )}
+        </div>
 
-          {/* Missing expected components */}
-          {damagePattern.missing_expected_components.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-muted-foreground mb-1">Missing Expected Components</p>
-              <div className="flex flex-wrap gap-1">
-                {damagePattern.missing_expected_components.map((c: string, i: number) => (
-                  <span key={i} className="text-xs px-2 py-0.5 rounded border border-amber-400/30 text-amber-400">{c}</span>
-                ))}
-              </div>
+        {/* Row 2: confidence bar + repair-to-value */}
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+              <span>Pipeline Confidence</span>
+              <span>{confidenceScore}%</span>
             </div>
-          )}
-
-          {/* Unexpected components */}
-          {damagePattern.unexpected_components.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-muted-foreground mb-1">Unexpected Components</p>
-              <div className="flex flex-wrap gap-1">
-                {damagePattern.unexpected_components.slice(0, 6).map((c: string, i: number) => (
-                  <span key={i} className="text-xs px-2 py-0.5 rounded border border-blue-400/30 text-blue-400">{c}</span>
-                ))}
-                {damagePattern.unexpected_components.length > 6 && (
-                  <span className="text-xs text-muted-foreground">+{damagePattern.unexpected_components.length - 6} more</span>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Structural components found */}
-          {damagePattern.validation_detail.structural_components_found.length > 0 && (
-            <div className="rounded-lg p-3 border border-red-400/30" style={{ background: 'oklch(0.55 0.22 25 / 0.08)' }}>
-              <p className="text-xs font-semibold text-red-400 mb-1">Structural Components Identified</p>
-              <div className="flex flex-wrap gap-1">
-                {damagePattern.validation_detail.structural_components_found.map((c: string, i: number) => (
-                  <span key={i} className="text-xs px-2 py-0.5 rounded border border-red-400/30 text-red-400">{c}</span>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">Structural damage increases repair severity and cost estimates.</p>
-            </div>
-          )}
-
-          {/* Reasoning */}
-          <details className="mt-3">
-            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Engine reasoning →</summary>
-            <p className="text-xs text-muted-foreground mt-2 leading-relaxed">{damagePattern.reasoning}</p>
-          </details>
-        </Section>
-      ) : null}
-
-      {/* ── 4. COST INTELLIGENCE ────────────────────────────────────────────────────────── */}  <Section icon={<DollarSign className="h-4 w-4" />} title="Cost Intelligence" subtitle="AI estimate vs. agreed cost vs. market value">
-        <div className="space-y-3">
-          {/* Comparison bars */}
-          {[
-            { label: costIntel?.panelBeaterName ? `Panel Beater Quote (${costIntel.panelBeaterName})` : "Panel Beater Quote", value: originalQuote, color: "#f87171", note: quotesReceived > 0 ? `Lowest of ${quotesReceived} quotes` : "Extracted from claim document" },
-            { label: "AI Model Estimate", value: aiCost, color: "#fb923c", note: "Physics-based component model" },
-            { label: "Agreed Cost", value: agreedCost > 0 ? agreedCost : null, color: "#4ade80", note: "Assessor-negotiated — operative figure" },
-          ].filter(item => (item.value ?? 0) > 0).map(({ label, value, color, note }) => (
-            <div key={label}>
-              <div className="flex items-center justify-between mb-1">
-                <div>
-                  <span className="text-xs font-semibold text-foreground">{label}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{note}</span>
-                </div>
-                <span className="text-sm font-bold" style={{ color }}>{fmt(value ?? 0)}</span>
-              </div>
-              <div className="w-full h-2.5 rounded-full bg-border/30">
-                <div className="h-2.5 rounded-full" style={{ width: `${((value ?? 0) / maxCost) * 100}%`, background: color }} />
-              </div>
-            </div>
-          ))}
-          {/* Repair-to-value gauge */}
+            <Bar
+              value={confidenceScore}
+              colorCls={confidenceScore >= 80 ? "bg-green-500" : confidenceScore >= 60 ? "bg-amber-500" : "bg-orange-500"}
+            />
+          </div>
           {marketValue > 0 && (
-            <div className="mt-2 rounded-lg p-3 border border-border/40" style={{ background: "oklch(0.22 0.02 260 / 0.5)" }}>
-              <div className="flex items-center justify-between mb-1">
-                <p className="text-xs text-muted-foreground">Repair-to-Value Ratio</p>
-                <span className={`text-xs font-bold ${repairToValue < 70 ? "text-emerald-400" : "text-red-400"}`}>{repairToValue.toFixed(1)}% of {fmt(marketValue)}</span>
+            <div>
+              <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                <span>Repair-to-Value</span>
+                <span className={repairToValue < 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}>
+                  {repairToValue.toFixed(1)}% {repairToValue < 70 ? "— repair" : "— near total loss"}
+                </span>
               </div>
-              <div className="w-full h-3 rounded-full bg-border/30 relative">
-                <div className="h-3 rounded-full" style={{ width: `${Math.min(repairToValue, 100)}%`, background: repairToValue < 70 ? "#4ade80" : "#f87171" }} />
+              <div className="relative">
+                <Bar
+                  value={repairToValue}
+                  colorCls={repairToValue < 70 ? "bg-green-500" : "bg-red-500"}
+                />
                 {/* 70% threshold marker */}
-                <div className="absolute top-0 h-3 w-0.5 bg-amber-400" style={{ left: "70%" }} />
+                <div className="absolute top-0 h-1.5 w-0.5 bg-amber-400 rounded" style={{ left: "70%" }} />
               </div>
-              <div className="flex justify-between mt-1">
-                <span className="text-xs text-muted-foreground">0%</span>
-                <span className="text-xs text-amber-400">70% total-loss threshold</span>
-                <span className="text-xs text-muted-foreground">100%</span>
-              </div>
-              <p className={`text-xs font-semibold mt-1 ${repairToValue < 70 ? "text-emerald-400" : "text-red-400"}`}>
-                {repairToValue < 70 ? "✓ Clear repair case" : "⚠ Approaching total-loss threshold"}
-              </p>
             </div>
           )}
-          {/* Parts reconciliation status */}
-          <div className="flex items-center gap-2 text-xs">
-            {quotesMapped > 0 ? (
-              <CheckCircle className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0" />
-            ) : (
-              <XCircle className="h-3.5 w-3.5 text-red-400 flex-shrink-0" />
-            )}
-            <span className="text-muted-foreground">
-              Parts reconciliation: <span className={quotesMapped > 0 ? "text-emerald-400" : "text-red-400"}>{quotesMapped}/{totalComponents} components mapped</span>
+        </div>
+
+        {/* Row 3: open flags summary */}
+        {integrityFlags.length > 0 && (
+          <div className="mt-3 flex items-center gap-2">
+            <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+            <span className="text-xs text-muted-foreground">
+              <span className="font-semibold text-amber-600 dark:text-amber-400">{integrityFlags.length} open flag{integrityFlags.length > 1 ? "s" : ""}</span>
+              {" "}— {integrityFlags.map(f => f.flag).join(", ")}
             </span>
           </div>
-        </div>
-      </Section>
-
-      {/* ── 5. EVIDENCE INTEGRITY ─────────────────────────────────────────────── */}
-      <Section icon={<Camera className="h-4 w-4" />} title="Evidence Integrity" subtitle="System input usage and pipeline completeness">
-        {integrityFlags.length === 0 ? (
-          <div className="flex items-center gap-2 text-emerald-400">
-            <CheckCircle className="h-4 w-4" />
-            <span className="text-sm">All integrity checks passed</span>
-          </div>
-        ) : (
-          <div className="space-y-2">
-            {integrityFlags.map((f, i) => (
-              <IntegrityFlag key={i} flag={f.flag} severity={f.severity} description={f.description} action={f.action} />
-            ))}
-          </div>
         )}
-        {/* Input usage table */}
-        <div className="mt-4">
-          <p className="text-xs text-muted-foreground mb-2">Input Usage</p>
-          <div className="space-y-1">
-            {[
-              { label: "Vehicle type & mass", used: !!aiAssessment.vehicleMake || totalComponents > 0 },
-              { label: "Component list", used: totalComponents > 0 },
-              { label: "Accident description", used: !!(claim?.incidentDescription ?? claim?.normalised_description) },
-              { label: "Agreed cost", used: agreedCost > 0 },
-              { label: "Market value", used: marketValue > 0 },
-              { label: "Damage photographs", used: photosJson.length > 0 || !!enrichedPhotos },
-            ].map(({ label, used }) => (
-              <div key={label} className="flex items-center gap-2 text-xs">
-                {used ? <CheckCircle className="h-3 w-3 text-emerald-400 flex-shrink-0" /> : <XCircle className="h-3 w-3 text-red-400 flex-shrink-0" />}
-                <span className={used ? "text-foreground" : "text-muted-foreground"}>{label}</span>
-                {!used && <span className="text-muted-foreground/60 ml-auto">not used</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
+      </div>
 
-      {/* ── 5b. SCENARIO-AWARE FRAUD DETECTION ──────────────────────────────── */}
-      {scenarioFraud && (
-        <Section
-          icon={<ShieldAlert className="h-4 w-4" />}
-          title="Scenario-Aware Fraud Detection"
-          subtitle={`Profile: ${scenarioFraud.engine_metadata?.scenario_profile_applied ?? scenarioFraud.engine_metadata?.scenario_type ?? "unknown"} — ${scenarioFraud.risk_level} risk`}
-        >
-          <div className="space-y-4">
-            {/* Score + risk level row */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg p-3 text-center" style={{ background: scenarioFraud.risk_level === "LOW" ? "oklch(0.35 0.14 145 / 0.15)" : scenarioFraud.risk_level === "MEDIUM" ? "oklch(0.72 0.18 60 / 0.10)" : "oklch(0.55 0.22 25 / 0.12)", border: `1px solid ${scenarioFraud.risk_level === "LOW" ? "oklch(0.55 0.18 145 / 0.4)" : scenarioFraud.risk_level === "MEDIUM" ? "oklch(0.72 0.18 60 / 0.35)" : "oklch(0.55 0.22 25 / 0.4)"}` }}>
-                <p className={`text-2xl font-black ${scenarioFraud.risk_level === "LOW" ? "text-emerald-400" : scenarioFraud.risk_level === "MEDIUM" ? "text-amber-400" : "text-red-400"}`}>{scenarioFraud.fraud_score}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Scenario Score</p>
+      {/* Case signature strip */}
+      {caseSignature && (
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-2.5">
+          <span className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Case Signature</span>
+          <code className="rounded px-2 py-0.5 text-sm font-mono font-bold text-primary bg-primary/10">{caseSignature.case_signature}</code>
+          {caseSignature.grouping_key && (
+            <>
+              <span className="text-xs text-muted-foreground hidden sm:inline">Grouping Key</span>
+              <code className="rounded px-2 py-0.5 text-xs font-mono text-muted-foreground bg-muted">{caseSignature.grouping_key}</code>
+            </>
+          )}
+          {caseSignature.metadata?.similar_cases_expected != null && (
+            <span className="ml-auto text-xs text-muted-foreground">{caseSignature.metadata.similar_cases_expected} similar cases</span>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          TAB PANEL
+          ══════════════════════════════════════════════════════════════════════ */}
+      <Tabs defaultValue="overview" className="w-full">
+        <TabsList className="w-full h-auto flex flex-wrap gap-0.5 bg-muted/50 p-1 rounded-xl">
+          <TabsTrigger value="overview"    className="flex-1 min-w-[80px] text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg">Overview</TabsTrigger>
+          <TabsTrigger value="cost"        className="flex-1 min-w-[80px] text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg">Cost Analysis</TabsTrigger>
+          <TabsTrigger value="damage"      className="flex-1 min-w-[80px] text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg">Damage</TabsTrigger>
+          <TabsTrigger value="fraud"       className="flex-1 min-w-[80px] text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg">Fraud & Risk</TabsTrigger>
+          <TabsTrigger value="technical"   className="flex-1 min-w-[80px] text-xs font-medium data-[state=active]:bg-background data-[state=active]:shadow-sm rounded-lg">Technical</TabsTrigger>
+        </TabsList>
+
+        {/* ── TAB: OVERVIEW ──────────────────────────────────────────────────── */}
+        <TabsContent value="overview" className="mt-4 space-y-4">
+
+          {/* Pipeline confidence aggregation */}
+          {confAgg && (
+            <Card title="Pipeline Confidence" icon={<Activity className="h-4 w-4" />}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className={`flex flex-col items-center justify-center rounded-lg p-4 text-center border ${
+                  confAgg.confidence_level === "HIGH" ? "bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800" :
+                  confAgg.confidence_level === "MEDIUM" ? "bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800" :
+                  "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800"
+                }`}>
+                  <p className={`text-4xl font-black tabular-nums ${
+                    confAgg.confidence_level === "HIGH" ? "text-green-600 dark:text-green-400" :
+                    confAgg.confidence_level === "MEDIUM" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"
+                  }`}>{confAgg.overall_confidence}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Overall</p>
+                  <span className={`mt-2 inline-block rounded-full px-2 py-0.5 text-xs font-bold border ${confidenceBadgeCls(confAgg.overall_confidence)}`}>{confAgg.confidence_level}</span>
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Component Scores</p>
+                  {confAgg.component_detail?.map((c: any) => (
+                    <div key={c.name} className="flex items-center gap-3">
+                      <span className={`w-28 text-xs font-medium capitalize truncate shrink-0 ${c.is_weakest ? "text-red-600 dark:text-red-400 font-bold" : "text-muted-foreground"}`}>
+                        {c.is_weakest ? "⚠ " : ""}{c.name.replace(/_/g, " ")}
+                      </span>
+                      {c.available ? (
+                        <>
+                          <div className="flex-1">
+                            <Bar value={c.score} colorCls={c.is_weakest ? "bg-red-500" : c.score >= 75 ? "bg-green-500" : c.score >= 45 ? "bg-amber-500" : "bg-red-500"} />
+                          </div>
+                          <span className={`w-8 text-right text-xs font-bold tabular-nums shrink-0 ${c.is_weakest ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>{c.score}</span>
+                        </>
+                      ) : (
+                        <span className="text-xs text-muted-foreground italic">not available</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
-              <div className="rounded-lg p-3 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.4)", border: "1px solid oklch(0.35 0.01 260 / 0.4)" }}>
-                <p className={`text-lg font-bold ${scenarioFraud.risk_level === "LOW" ? "text-emerald-400" : scenarioFraud.risk_level === "MEDIUM" ? "text-amber-400" : "text-red-400"}`}>{scenarioFraud.risk_level}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Risk Level</p>
+            </Card>
+          )}
+
+          {/* Narrative summary */}
+          <Card title="Assessment Summary" icon={<FileText className="h-4 w-4" />}>
+            <ol className="space-y-2">
+              {narrative.map((s, i) => (
+                <li key={i} className="flex items-start gap-2.5">
+                  <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                  <p className="text-sm text-foreground leading-relaxed">{s}</p>
+                </li>
+              ))}
+            </ol>
+          </Card>
+
+          {/* Evidence integrity */}
+          <Card title="Evidence Integrity" icon={<Camera className="h-4 w-4" />}>
+            {integrityFlags.length === 0 ? (
+              <div className="flex items-center gap-2 text-green-600 dark:text-green-400">
+                <CheckCircle className="h-4 w-4" />
+                <span className="text-sm font-medium">All integrity checks passed</span>
               </div>
-              <div className="rounded-lg p-3 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.4)", border: "1px solid oklch(0.35 0.01 260 / 0.4)" }}>
-                <p className="text-lg font-bold text-foreground">{scenarioFraud.engine_metadata?.false_positives_suppressed ?? 0}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">FP Suppressed</p>
+            ) : (
+              <div className="space-y-2">
+                {integrityFlags.map((f, i) => (
+                  <FlagRow key={i} flag={f.flag} severity={f.severity} description={f.description} action={f.action} />
+                ))}
+              </div>
+            )}
+            {/* Input usage checklist */}
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Input Usage</p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                {[
+                  { label: "Vehicle type & mass",   used: !!aiAssessment?.vehicleMake || totalComponents > 0 },
+                  { label: "Component list",         used: totalComponents > 0 },
+                  { label: "Accident description",   used: !!(claim?.incidentDescription ?? claim?.normalised_description) },
+                  { label: "Agreed cost",            used: agreedCost > 0 },
+                  { label: "Market value",           used: marketValue > 0 },
+                  { label: "Damage photographs",     used: photosJson.length > 0 || !!enrichedPhotos },
+                ].map(({ label, used }) => (
+                  <div key={label} className="flex items-center gap-2 text-xs py-0.5">
+                    {used
+                      ? <CheckCircle className="h-3 w-3 text-green-500 shrink-0" />
+                      : <XCircle className="h-3 w-3 text-red-400 shrink-0" />}
+                    <span className={used ? "text-foreground" : "text-muted-foreground"}>{label}</span>
+                  </div>
+                ))}
               </div>
             </div>
+          </Card>
 
-            {/* Trust signal reductions */}
-            {(scenarioFraud.engine_metadata?.trust_reduction_applied ?? 0) > 0 && (
-              <div className="flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.35 0.14 145 / 0.12)", border: "1px solid oklch(0.55 0.18 145 / 0.3)" }}>
-                <ShieldCheck className="h-4 w-4 text-emerald-400 flex-shrink-0" />
-                <p className="text-xs text-emerald-400">
-                  Trust signals applied — score reduced by {scenarioFraud.engine_metadata.trust_reduction_applied} pts
-                  {scenarioFraud.engine_metadata.trust_signals_applied?.length > 0 && (
-                    <span className="text-muted-foreground"> ({scenarioFraud.engine_metadata.trust_signals_applied.join(", ")})</span>
+          {/* Doc verification detail */}
+          {docVerification && (() => {
+            const status: string = docVerification.status ?? "UNKNOWN";
+            const keyFields: string[] = docVerification.keyFieldsDetected ?? [];
+            const missingFields: string[] = docVerification.missingCriticalFields ?? [];
+            const pdfRead: boolean = docVerification.pdfReadConfirmed ?? false;
+            const statusCls = status === "SUCCESS" ? "bg-green-50 border-green-200 dark:bg-green-950/40 dark:border-green-800" :
+              status === "PARTIAL" ? "bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800" :
+              "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800";
+            return (
+              <Card title="Document Read Verification" icon={<FileText className="h-4 w-4" />}>
+                <div className={`rounded-lg border px-4 py-3 ${statusCls}`}>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className={`text-sm font-bold ${
+                      status === "SUCCESS" ? "text-green-700 dark:text-green-300" :
+                      status === "PARTIAL" ? "text-amber-700 dark:text-amber-300" : "text-red-700 dark:text-red-300"
+                    }`}>{status}</span>
+                    <span className="text-xs text-muted-foreground">{pdfRead ? "PDF fetched via presigned URL" : "OCR text fallback"}</span>
+                    {docVerification.reason && <span className="text-xs text-muted-foreground ml-auto">{docVerification.reason}</span>}
+                  </div>
+                  {keyFields.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      <span className="text-xs text-muted-foreground mr-1">Detected:</span>
+                      {keyFields.map((f: string) => (
+                        <span key={f} className="rounded-full px-2 py-0.5 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{f}</span>
+                      ))}
+                    </div>
                   )}
+                  {missingFields.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      <span className="text-xs text-muted-foreground mr-1">Missing:</span>
+                      {missingFields.map((f: string) => (
+                        <span key={f} className="rounded-full px-2 py-0.5 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300">{f}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            );
+          })()}
+        </TabsContent>
+
+        {/* ── TAB: COST ANALYSIS ─────────────────────────────────────────────── */}
+        <TabsContent value="cost" className="mt-4 space-y-4">
+
+          {/* Cost comparison */}
+          <Card title="Cost Comparison" icon={<DollarSign className="h-4 w-4" />}>
+            <div className="space-y-4">
+              {[
+                { label: costIntel?.panelBeaterName ? `Panel Beater Quote — ${costIntel.panelBeaterName}` : "Panel Beater Quote", value: originalQuote, note: quotesReceived > 0 ? `Lowest of ${quotesReceived} quotes` : "From claim document", colorCls: "bg-red-400" },
+                { label: "AI Model Estimate",  value: aiCost,      note: "Physics-based component model",       colorCls: "bg-orange-400" },
+                { label: "Agreed Cost",        value: agreedCost > 0 ? agreedCost : null, note: "Assessor-negotiated — operative figure", colorCls: "bg-green-500" },
+              ].filter(item => (item.value ?? 0) > 0).map(({ label, value, note, colorCls }) => (
+                <div key={label}>
+                  <div className="flex items-start justify-between mb-1.5 gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-foreground">{label}</p>
+                      <p className="text-xs text-muted-foreground">{note}</p>
+                    </div>
+                    <span className="text-base font-bold text-foreground tabular-nums shrink-0">{fmt(value ?? 0)}</span>
+                  </div>
+                  <Bar value={value ?? 0} max={maxCost} colorCls={colorCls} />
+                </div>
+              ))}
+            </div>
+
+            {/* Repair-to-value */}
+            {marketValue > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <div className="flex items-center justify-between mb-1.5">
+                  <p className="text-sm font-semibold text-foreground">Repair-to-Value Ratio</p>
+                  <span className={`text-sm font-bold tabular-nums ${repairToValue < 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                    {repairToValue.toFixed(1)}% of {fmt(marketValue)}
+                  </span>
+                </div>
+                <div className="relative">
+                  <Bar value={repairToValue} colorCls={repairToValue < 70 ? "bg-green-500" : "bg-red-500"} />
+                  <div className="absolute top-0 h-1.5 w-0.5 bg-amber-400 rounded" style={{ left: "70%" }} />
+                </div>
+                <div className="flex justify-between mt-1">
+                  <span className="text-xs text-muted-foreground">0%</span>
+                  <span className="text-xs text-amber-600 dark:text-amber-400">70% total-loss threshold</span>
+                  <span className="text-xs text-muted-foreground">100%</span>
+                </div>
+                <p className={`text-xs font-semibold mt-1.5 ${repairToValue < 70 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  {repairToValue < 70 ? "✓ Clear repair case" : "⚠ Approaching total-loss threshold"}
                 </p>
               </div>
             )}
+          </Card>
 
-            {/* Active flags */}
-            {scenarioFraud.flags?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Active Fraud Flags ({scenarioFraud.flags.length})</p>
-                <div className="space-y-1.5">
-                  {scenarioFraud.flags.map((flag: any, i: number) => (
-                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: flag.severity === "HIGH" ? "oklch(0.55 0.22 25 / 0.10)" : flag.severity === "MEDIUM" ? "oklch(0.65 0.20 40 / 0.10)" : "oklch(0.72 0.18 60 / 0.08)", border: `1px solid ${flag.severity === "HIGH" ? "oklch(0.55 0.22 25 / 0.3)" : flag.severity === "MEDIUM" ? "oklch(0.65 0.20 40 / 0.3)" : "oklch(0.72 0.18 60 / 0.25)"}` }}>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-xs font-mono font-bold ${flag.severity === "HIGH" ? "text-red-400" : flag.severity === "MEDIUM" ? "text-orange-400" : "text-amber-400"}`}>{flag.code}</span>
-                          <span className={`text-xs px-1.5 py-0.5 rounded font-bold ${flag.severity === "HIGH" ? "text-red-400" : flag.severity === "MEDIUM" ? "text-orange-400" : "text-amber-400"}`} style={{ border: "1px solid currentColor" }}>{flag.severity}</span>
-                          <span className="text-xs text-muted-foreground ml-auto">+{flag.score_contribution} pts</span>
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{flag.description}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+          {/* Parts reconciliation table */}
+          {partsRecon.length > 0 && (
+            <Card title="Parts Reconciliation" icon={<BarChart2 className="h-4 w-4" />}>
+              <p className="text-xs text-muted-foreground mb-3">{quotesMapped}/{totalComponents} components mapped to quote line items</p>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <TH>Component</TH>
+                      <TH>AI Estimate</TH>
+                      <TH>Quoted</TH>
+                      <TH>Variance</TH>
+                      <TH>Status</TH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {partsRecon.slice(0, 15).map((r: any, i: number) => {
+                      const variance = r.quotedAmount != null && r.aiEstimate != null
+                        ? ((r.quotedAmount - r.aiEstimate) / Math.max(r.aiEstimate, 1)) * 100
+                        : null;
+                      const varCls = variance == null ? "text-muted-foreground" : Math.abs(variance) <= 15 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400";
+                      return (
+                        <TR key={i} cells={[
+                          <span className="font-medium">{r.component ?? "—"}</span>,
+                          r.aiEstimate != null ? fmt(r.aiEstimate) : <span className="text-muted-foreground">—</span>,
+                          r.quotedAmount != null ? fmt(r.quotedAmount) : <span className="text-muted-foreground">—</span>,
+                          variance != null ? <span className={varCls}>{variance > 0 ? "+" : ""}{variance.toFixed(1)}%</span> : <span className="text-muted-foreground">—</span>,
+                          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${
+                            r.status === "matched" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                            r.status === "unmatched" ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" :
+                            "bg-muted text-muted-foreground border-border"
+                          }`}>{r.status ?? "—"}</span>,
+                        ]} />
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            )}
-
-            {/* False positive protections */}
-            {scenarioFraud.false_positive_protection?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">False Positive Protections Applied ({scenarioFraud.false_positive_protection.length})</p>
-                <div className="space-y-1">
-                  {scenarioFraud.false_positive_protection.map((fpp: any, i: number) => (
-                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.35 0.14 145 / 0.08)", border: "1px solid oklch(0.55 0.18 145 / 0.25)" }}>
-                      <ShieldX className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-mono text-emerald-400">{fpp.suppressed_flag} <span className="text-muted-foreground font-sans font-normal">suppressed</span></p>
-                        <p className="text-xs text-muted-foreground leading-relaxed">{fpp.reason}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Missing inputs warning */}
-            {scenarioFraud.engine_metadata?.inputs_missing?.length > 0 && (
-              <div className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.72 0.18 60 / 0.08)", border: "1px solid oklch(0.72 0.18 60 / 0.25)" }}>
-                <AlertCircle className="h-3.5 w-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                <p className="text-xs text-amber-400">
-                  Missing inputs (reduced confidence): <span className="font-mono">{scenarioFraud.engine_metadata.inputs_missing.join(", ")}</span>
-                </p>
-              </div>
-            )}
-
-            {/* Reasoning */}
-            <details className="group">
-              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors select-none">Engine reasoning ▸</summary>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-l-2 border-border/50 pl-3">{scenarioFraud.reasoning}</p>
-            </details>
-          </div>
-        </Section>
-      )}
-
-      {/* ── 5b. CROSS-ENGINE CONSISTENCY VALIDATOR ─────────────────────────── */}
-      {crossEngineConsistency && (
-        <Section
-          icon={<GitCompare className="h-4 w-4" />}
-          title="Cross-Engine Consistency"
-          subtitle={`${crossEngineConsistency.overall_status} — ${crossEngineConsistency.consistency_score}/100 · ${crossEngineConsistency.agreements?.length ?? 0} agreements · ${crossEngineConsistency.conflicts?.length ?? 0} conflicts`}
-        >
-          <div className="space-y-4">
-            {/* Score row */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="rounded-lg p-3 text-center" style={{ background: crossEngineConsistency.consistency_score >= 70 ? "oklch(0.35 0.14 145 / 0.15)" : crossEngineConsistency.consistency_score >= 45 ? "oklch(0.72 0.18 60 / 0.10)" : "oklch(0.55 0.22 25 / 0.12)", border: `1px solid ${crossEngineConsistency.consistency_score >= 70 ? "oklch(0.55 0.18 145 / 0.4)" : crossEngineConsistency.consistency_score >= 45 ? "oklch(0.72 0.18 60 / 0.35)" : "oklch(0.55 0.22 25 / 0.4)"}` }}>
-                <p className={`text-2xl font-black ${crossEngineConsistency.consistency_score >= 70 ? "text-emerald-400" : crossEngineConsistency.consistency_score >= 45 ? "text-amber-400" : "text-red-400"}`}>{crossEngineConsistency.consistency_score}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Consistency</p>
-              </div>
-              <div className="rounded-lg p-3 text-center" style={{ background: "oklch(0.18 0.01 260 / 0.4)", border: "1px solid oklch(0.35 0.01 260 / 0.4)" }}>
-                <p className={`text-sm font-bold ${crossEngineConsistency.overall_status === "CONSISTENT" ? "text-emerald-400" : "text-red-400"}`}>{crossEngineConsistency.overall_status}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Status</p>
-              </div>
-              <div className="rounded-lg p-3 text-center" style={{ background: crossEngineConsistency.critical_conflict_count > 0 ? "oklch(0.55 0.22 25 / 0.12)" : "oklch(0.18 0.01 260 / 0.4)", border: `1px solid ${crossEngineConsistency.critical_conflict_count > 0 ? "oklch(0.55 0.22 25 / 0.4)" : "oklch(0.35 0.01 260 / 0.4)"}` }}>
-                <p className={`text-2xl font-black ${crossEngineConsistency.critical_conflict_count > 0 ? "text-red-400" : "text-muted-foreground"}`}>{crossEngineConsistency.critical_conflict_count}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Critical</p>
-              </div>
-            </div>
-
-            {/* Agreements */}
-            {crossEngineConsistency.agreements?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Engine Agreements ({crossEngineConsistency.agreements.length})</p>
-                <div className="space-y-1.5">
-                  {crossEngineConsistency.agreements.map((ag: any, i: number) => (
-                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: "oklch(0.35 0.14 145 / 0.08)", border: "1px solid oklch(0.55 0.18 145 / 0.25)" }}>
-                      <Link2 className="h-3.5 w-3.5 text-emerald-400 flex-shrink-0 mt-0.5" />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-emerald-400">{ag.label ?? ag.check_id}</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded font-mono" style={{ background: ag.strength === "STRONG" ? "oklch(0.35 0.14 145 / 0.25)" : "oklch(0.35 0.10 145 / 0.15)", color: "oklch(0.75 0.18 145)" }}>{ag.strength}</span>
-                          {ag.engines?.map((e: string, j: number) => <span key={j} className="text-xs px-1 py-0.5 rounded font-mono" style={{ background: "oklch(0.25 0.01 260 / 0.6)", color: "oklch(0.65 0.01 260)" }}>{e}</span>)}
-                        </div>
-                        {ag.detail && <p className="text-xs text-muted-foreground mt-0.5">{ag.detail}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Conflicts */}
-            {crossEngineConsistency.conflicts?.length > 0 && (
-              <div>
-                <p className="text-xs text-muted-foreground mb-2">Engine Conflicts ({crossEngineConsistency.conflicts.length})</p>
-                <div className="space-y-1.5">
-                  {crossEngineConsistency.conflicts.map((cf: any, i: number) => (
-                    <div key={i} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: cf.severity === "CRITICAL" ? "oklch(0.55 0.22 25 / 0.10)" : cf.severity === "SIGNIFICANT" ? "oklch(0.65 0.20 40 / 0.10)" : "oklch(0.72 0.18 60 / 0.08)", border: `1px solid ${cf.severity === "CRITICAL" ? "oklch(0.55 0.22 25 / 0.3)" : cf.severity === "SIGNIFICANT" ? "oklch(0.65 0.20 40 / 0.3)" : "oklch(0.72 0.18 60 / 0.25)"}` }}>
-                      <Link2Off className={`h-3.5 w-3.5 flex-shrink-0 mt-0.5 ${cf.severity === "CRITICAL" ? "text-red-400" : cf.severity === "SIGNIFICANT" ? "text-orange-400" : "text-amber-400"}`} />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-xs font-semibold ${cf.severity === "CRITICAL" ? "text-red-400" : cf.severity === "SIGNIFICANT" ? "text-orange-400" : "text-amber-400"}`}>{cf.label ?? cf.check_id}</span>
-                          <span className="text-xs px-1.5 py-0.5 rounded font-mono" style={{ background: cf.severity === "CRITICAL" ? "oklch(0.55 0.22 25 / 0.25)" : cf.severity === "SIGNIFICANT" ? "oklch(0.65 0.20 40 / 0.20)" : "oklch(0.72 0.18 60 / 0.15)", color: cf.severity === "CRITICAL" ? "oklch(0.75 0.22 25)" : cf.severity === "SIGNIFICANT" ? "oklch(0.75 0.20 40)" : "oklch(0.80 0.18 60)" }}>{cf.severity}</span>
-                          {cf.engines?.map((e: string, j: number) => <span key={j} className="text-xs px-1 py-0.5 rounded font-mono" style={{ background: "oklch(0.25 0.01 260 / 0.6)", color: "oklch(0.65 0.01 260)" }}>{e}</span>)}
-                        </div>
-                        {cf.physics_says && <p className="text-xs text-muted-foreground mt-0.5">Physics: <span className="text-foreground/80">{cf.physics_says}</span></p>}
-                        {cf.damage_says && cf.damage_says !== "N/A" && <p className="text-xs text-muted-foreground">Damage: <span className="text-foreground/80">{cf.damage_says}</span></p>}
-                        {cf.fraud_says && cf.fraud_says !== "N/A" && <p className="text-xs text-muted-foreground">Fraud: <span className="text-foreground/80">{cf.fraud_says}</span></p>}
-                        {cf.recommended_action && <p className="text-xs text-amber-400/80 mt-0.5 italic">{cf.recommended_action}</p>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Reasoning */}
-            <details>
-              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Engine reasoning</summary>
-              <p className="text-xs text-muted-foreground mt-2 leading-relaxed border-l-2 border-border/50 pl-3">{crossEngineConsistency.reasoning}</p>
-            </details>
-          </div>
-        </Section>
-      )}
-
-      {/* ── 5c. LEARNING GATE (Validated Outcome Recorder) ─────────────────────── */}
-      {validatedOutcome && (
-        <Section icon={<BookOpen className="h-4 w-4" />} title="Learning Gate" subtitle="Validated Outcome Recorder — Phase 3 calibration decision">
-          <div className="flex flex-col gap-3">
-            {/* Store decision */}
-            <div className="flex items-center gap-3">
-              <div className={`flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold ${
-                validatedOutcome.store
-                  ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/30'
-                  : 'bg-zinc-700/40 text-zinc-400 border border-zinc-600/30'
-              }`}>
-                {validatedOutcome.store ? '✓ STORED FOR LEARNING' : '✗ NOT STORED'}
-              </div>
-              <span className={`rounded-full px-3 py-1 text-xs font-bold ${
-                validatedOutcome.quality_tier === 'HIGH' ? 'bg-emerald-500/20 text-emerald-300' :
-                validatedOutcome.quality_tier === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300' :
-                'bg-zinc-600/30 text-zinc-400'
-              }`}>{validatedOutcome.quality_tier} QUALITY</span>
-            </div>
-            {/* Reason */}
-            <p className="text-xs text-muted-foreground leading-relaxed">{validatedOutcome.reason}</p>
-            {/* Metadata */}
-            {validatedOutcome.metadata && (
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
-                {validatedOutcome.metadata.true_cost_usd != null && (
-                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
-                    <p className="text-xs text-muted-foreground">True Cost</p>
-                    <p className="text-sm font-bold text-foreground">${validatedOutcome.metadata.true_cost_usd.toLocaleString()}</p>
-                  </div>
-                )}
-                {validatedOutcome.metadata.decision_confidence != null && (
-                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
-                    <p className="text-xs text-muted-foreground">Confidence</p>
-                    <p className="text-sm font-bold text-foreground">{validatedOutcome.metadata.decision_confidence}%</p>
-                  </div>
-                )}
-                {validatedOutcome.metadata.recommendation && (
-                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
-                    <p className="text-xs text-muted-foreground">Recommendation</p>
-                    <p className="text-xs font-bold text-foreground truncate">{validatedOutcome.metadata.recommendation}</p>
-                  </div>
-                )}
-                {validatedOutcome.metadata.assessor_present != null && (
-                  <div className="rounded-md px-3 py-2 text-center" style={{ background: 'oklch(0.25 0.01 260 / 0.5)', border: '1px solid oklch(0.35 0.01 260 / 0.4)' }}>
-                    <p className="text-xs text-muted-foreground">Assessor</p>
-                    <p className="text-sm font-bold text-foreground">{validatedOutcome.metadata.assessor_present ? 'Present' : 'Absent'}</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        </Section>
-      )}
-
-      {/* ── 6. SIMPLIFIED NARRATIVE ───────────────────────────────────────────── */}
-      <Section icon={<Activity className="h-4 w-4" />} title="Simplified Narrative" subtitle="Evidence-based summary — 5 sentences">
-        <div className="space-y-2">
-          {narrative.map((sentence, i) => (
-            <div key={i} className="flex items-start gap-2">
-              <span className="text-xs font-bold text-primary mt-0.5 flex-shrink-0">{i + 1}.</span>
-              <p className="text-sm text-foreground leading-relaxed">{sentence}</p>
-            </div>
-          ))}
-        </div>
-      </Section>
-
-      {/* ── 7. ACTIONS REQUIRED ───────────────────────────────────────────────── */}
-      {actions.length > 0 && (
-        <Section icon={<ArrowRight className="h-4 w-4" />} title="Actions Required" subtitle={`${actions.length} open action${actions.length > 1 ? "s" : ""}`}>
-          <div className="space-y-2">
-            {actions.map((action, i) => (
-              <div key={i} className="flex items-start gap-3 rounded-lg p-3 border border-border/40" style={{ background: "oklch(0.22 0.02 260 / 0.5)" }}>
-                <span className="text-xs font-bold text-primary w-5 h-5 rounded-full border border-primary/40 flex items-center justify-center flex-shrink-0 mt-0.5">{action.priority}</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-foreground">{action.label}</p>
-                  {action.flag && <p className="text-xs font-mono text-muted-foreground mt-0.5">{action.flag}</p>}
-                </div>
-                <span className={`text-xs px-2 py-0.5 rounded border flex-shrink-0 ${action.effort === "automated" ? "text-blue-400 border-blue-400/30" : "text-amber-400 border-amber-400/30"}`}>
-                  {action.effort}
-                </span>
-              </div>
-            ))}
-          </div>
-        </Section>
-      )}
-
-      {/* ── 8. RE-RUN PIPELINE ───────────────────────────────────────────────── */}
-      <Section icon={<RefreshCw className="h-4 w-4" />} title="Pipeline Controls" subtitle="Re-run the full 11-stage pipeline with the latest extraction fixes">
-        <div className="space-y-4">
-          {/* Re-run button */}
-          <div className="flex items-start gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-foreground font-medium mb-1">Re-run Full Pipeline</p>
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                Triggers all 11 stages: document OCR → structured extraction → validation → physics → fraud detection → cost intelligence.
-                Use this when the claim document has been updated or when earlier pipeline runs produced stale/incomplete data.
-              </p>
-            </div>
-            <Button
-              size="sm"
-              variant="outline"
-              className="flex-shrink-0 gap-2 border-blue-500/40 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
-              disabled={reRunMutation.isPending || !claimId}
-              onClick={() => claimId && reRunMutation.mutate({ claimId, reason: 'Manual re-run from Forensic Decision Panel' })}
-            >
-              {reRunMutation.isPending ? (
-                <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Re-running...</>
-              ) : (
-                <><RefreshCw className="h-3.5 w-3.5" /> Re-run Pipeline</>
+              {partsRecon.length > 15 && (
+                <p className="text-xs text-muted-foreground mt-2 text-right">+{partsRecon.length - 15} more components</p>
               )}
-            </Button>
-          </div>
+            </Card>
+          )}
 
-          {/* Pipeline Trace Viewer */}
-          {pipelineSummary?.stages && (
-            <div>
-              <button
-                className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left"
-                onClick={() => setShowPipelineTrace(v => !v)}
-              >
-                {showPipelineTrace ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                <span className="font-medium">Pipeline Stage Trace</span>
-                <span className="ml-auto text-xs text-muted-foreground/60">{Object.keys(pipelineSummary.stages).length} stages</span>
-              </button>
-              {showPipelineTrace && (
-                <div className="mt-3 space-y-1.5">
-                  {Object.entries(pipelineSummary.stages as Record<string, any>).map(([stageKey, stageData]: [string, any]) => {
-                    const stageName = stageKey.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase());
-                    const status: string = stageData?.status ?? 'unknown';
-                    const durationMs: number = stageData?.durationMs ?? 0;
-                    const degraded: boolean = stageData?.degraded ?? false;
-                    const recoveryCount: number = stageData?.recoveryActionCount ?? 0;
-                    const statusColor = status === 'success' ? 'text-emerald-400' : status === 'degraded' ? 'text-amber-400' : status === 'failed' ? 'text-red-400' : 'text-muted-foreground';
-                    const statusBg = status === 'success' ? 'oklch(0.35 0.14 145 / 0.10)' : status === 'degraded' ? 'oklch(0.72 0.18 60 / 0.10)' : status === 'failed' ? 'oklch(0.55 0.22 25 / 0.10)' : 'oklch(0.22 0.02 260 / 0.5)';
-                    const statusBorder = status === 'success' ? 'oklch(0.55 0.18 145 / 0.25)' : status === 'degraded' ? 'oklch(0.72 0.18 60 / 0.25)' : status === 'failed' ? 'oklch(0.55 0.22 25 / 0.25)' : 'oklch(0.35 0.01 260 / 0.3)';
+          {/* Repair intelligence */}
+          {repairIntel.length > 0 && (
+            <Card title="Repair Intelligence" icon={<Activity className="h-4 w-4" />}>
+              <div className="overflow-x-auto rounded-lg border border-border">
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50">
+                    <tr>
+                      <TH>Component</TH>
+                      <TH>Action</TH>
+                      <TH>Complexity</TH>
+                      <TH>Est. Hours</TH>
+                      <TH>Est. Cost</TH>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {repairIntel.slice(0, 12).map((r: any, i: number) => (
+                      <TR key={i} cells={[
+                        <span className="font-medium">{r.component ?? "—"}</span>,
+                        r.repair_action ?? r.action ?? "—",
+                        <span className={`text-xs font-semibold ${
+                          r.complexity === "HIGH" ? "text-red-600 dark:text-red-400" :
+                          r.complexity === "MEDIUM" ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"
+                        }`}>{r.complexity ?? "—"}</span>,
+                        r.estimated_hours != null ? `${r.estimated_hours}h` : "—",
+                        r.estimated_cost != null ? fmt(r.estimated_cost) : "—",
+                      ]} />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── TAB: DAMAGE ────────────────────────────────────────────────────── */}
+        <TabsContent value="damage" className="mt-4 space-y-4">
+
+          {/* Damage zone map */}
+          <Card title="Damage Zone Map" icon={<Activity className="h-4 w-4" />}>
+            {totalComponents === 0 ? (
+              <p className="text-sm text-muted-foreground">No components extracted from pipeline.</p>
+            ) : (
+              <div className="space-y-4">
+                {[
+                  { zone: "FRONT", components: frontComponents, colorCls: "bg-blue-500" },
+                  { zone: "REAR",  components: rearComponents,  colorCls: "bg-orange-500" },
+                  { zone: "SIDE",  components: sideComponents,  colorCls: "bg-purple-500" },
+                ].map(({ zone, components, colorCls }) => (
+                  <div key={zone}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs font-semibold text-foreground uppercase tracking-wide">{zone}</span>
+                      <span className="text-xs text-muted-foreground">{components.length} component{components.length !== 1 ? "s" : ""}</span>
+                    </div>
+                    <Bar value={components.length} max={totalComponents} colorCls={colorCls} />
+                    {components.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1.5">
+                        {components.slice(0, 8).map((c: any, i: number) => (
+                          <span key={i} className="text-xs px-2 py-0.5 rounded-full border border-border bg-muted text-foreground">
+                            {typeof c === "string" ? c : (c?.component ?? c?.name ?? "—")}
+                          </span>
+                        ))}
+                        {components.length > 8 && <span className="text-xs text-muted-foreground">+{components.length - 8} more</span>}
+                      </div>
+                    )}
+                  </div>
+                ))}
+                {/* Highest cost component */}
+                {partsRecon.length > 0 && (() => {
+                  const top = [...partsRecon].sort((a, b) => (b.aiEstimate ?? 0) - (a.aiEstimate ?? 0))[0];
+                  return top ? (
+                    <div className="mt-2 rounded-lg border border-border bg-muted/30 p-3">
+                      <p className="text-xs text-muted-foreground mb-1">Highest Cost Component</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-foreground">{top.component}</span>
+                        <span className="text-sm font-bold text-primary">{fmt(top.aiEstimate ?? 0)}</span>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+            )}
+          </Card>
+
+          {/* Damage pattern validation */}
+          {damagePattern && (
+            <Card
+              title="Damage Pattern Validation"
+              icon={<Layers className="h-4 w-4" />}
+            >
+              <div className="flex flex-wrap gap-3 mb-4">
+                {[
+                  { label: "Pattern Match", value: damagePattern.pattern_match, cls: damagePattern.pattern_match === "STRONG" ? "text-green-600 dark:text-green-400" : damagePattern.pattern_match === "MODERATE" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400" },
+                  { label: "Confidence",    value: `${damagePattern.confidence ?? "—"}%`, cls: "text-foreground" },
+                ].map(({ label, value, cls }) => (
+                  <div key={label} className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{label}</p>
+                    <p className={`text-lg font-bold ${cls}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              {damagePattern.validation_detail?.image_contradiction && (
+                <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 px-3 py-2.5 mb-3">
+                  <div className="flex items-center gap-2 mb-1">
+                    <AlertTriangle className="h-4 w-4 text-red-600 dark:text-red-400 shrink-0" />
+                    <span className="text-xs font-bold text-red-700 dark:text-red-300">IMAGE CONTRADICTION DETECTED</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground pl-6">{damagePattern.validation_detail.image_contradiction_reason ?? "Image-detected zones do not match the reported damage pattern."}</p>
+                </div>
+              )}
+              {damagePattern.missing_expected_components?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1.5">Missing Expected Components</p>
+                  <div className="flex flex-wrap gap-1">
+                    {damagePattern.missing_expected_components.map((c: string, i: number) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">{c}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {damagePattern.unexpected_components?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs text-muted-foreground mb-1.5">Unexpected Components</p>
+                  <div className="flex flex-wrap gap-1">
+                    {damagePattern.unexpected_components.slice(0, 8).map((c: string, i: number) => (
+                      <span key={i} className="text-xs px-2 py-0.5 rounded border border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">{c}</span>
+                    ))}
+                    {damagePattern.unexpected_components.length > 8 && <span className="text-xs text-muted-foreground">+{damagePattern.unexpected_components.length - 8} more</span>}
+                  </div>
+                </div>
+              )}
+              {damagePattern.reasoning && (
+                <details className="mt-2">
+                  <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground transition-colors">Engine reasoning</summary>
+                  <p className="mt-2 text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-border">{damagePattern.reasoning}</p>
+                </details>
+              )}
+            </Card>
+          )}
+
+          {/* Severity consensus */}
+          {severityConsensus && (() => {
+            const sc = severityConsensus as any;
+            return (
+              <Card title="Severity Consensus" icon={<Layers className="h-4 w-4" />}>
+                <div className="flex flex-wrap gap-3 mb-4">
+                  {[
+                    { label: "Final Severity", value: sc.final_severity?.toUpperCase() ?? "—", cls: sc.final_severity === "severe" ? "text-red-600 dark:text-red-400" : sc.final_severity === "moderate" ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400" },
+                    { label: "Alignment",      value: sc.source_alignment ?? "—",               cls: sc.source_alignment === "FULL" ? "text-green-600 dark:text-green-400" : sc.source_alignment === "PARTIAL" ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400" },
+                    { label: "Confidence",     value: `${sc.confidence ?? "—"}%`,               cls: "text-foreground" },
+                    { label: "Sources",        value: `${sc.sources_available ?? 3}/3`,          cls: "text-foreground" },
+                  ].map(({ label, value, cls }) => (
+                    <div key={label} className="rounded-lg border border-border bg-muted/30 px-4 py-2.5 text-center">
+                      <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{label}</p>
+                      <p className={`text-base font-bold ${cls}`}>{value}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {["physics", "damage", "image"].map((src) => {
+                    const val = sc.source_signals?.[src];
+                    const cls = val === "severe" ? "text-red-600 dark:text-red-400" : val === "moderate" ? "text-amber-600 dark:text-amber-400" : val === "minor" ? "text-green-600 dark:text-green-400" : "text-muted-foreground";
                     return (
-                      <div key={stageKey} className="rounded-lg px-3 py-2 flex items-center gap-3" style={{ background: statusBg, border: `1px solid ${statusBorder}` }}>
-                        <span className="text-xs font-mono text-muted-foreground w-20 flex-shrink-0">{stageKey.split('_')[0]}</span>
-                        <span className="text-xs text-foreground flex-1 truncate">{stageName}</span>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {recoveryCount > 0 && (
-                            <span className="text-xs px-1.5 py-0.5 rounded border border-amber-400/30 text-amber-400 font-mono">
-                              +{recoveryCount} recovered
-                            </span>
-                          )}
-                          {degraded && (
-                            <span className="text-xs px-1.5 py-0.5 rounded border border-amber-400/30 text-amber-400">degraded</span>
-                          )}
-                          {durationMs > 0 && (
-                            <span className="text-xs text-muted-foreground font-mono">{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}</span>
-                          )}
-                          <span className={`text-xs font-bold ${statusColor}`}>{status.toUpperCase()}</span>
-                        </div>
+                      <div key={src} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                        <p className="text-xs text-muted-foreground uppercase tracking-wide mb-1">{src}</p>
+                        <p className={`text-sm font-semibold ${cls}`}>{val ?? "N/A"}</p>
                       </div>
                     );
                   })}
-                  {/* Recovery actions log */}
-                  {(() => {
-                    const stage4 = pipelineSummary.stages?.['4_validation'];
-                    const recoveryLog: string[] = stage4?.recoveryLog ?? [];
-                    if (recoveryLog.length === 0) return null;
-                    return (
-                      <div className="mt-2 rounded-lg p-3 border border-amber-400/20" style={{ background: 'oklch(0.72 0.18 60 / 0.06)' }}>
-                        <p className="text-xs font-semibold text-amber-400 mb-2">Stage 4 Recovery Actions ({recoveryLog.length})</p>
-                        <div className="space-y-0.5">
-                          {recoveryLog.map((entry: string, i: number) => (
-                            <p key={i} className="text-xs font-mono text-muted-foreground">→ {entry}</p>
-                          ))}
+                </div>
+                {sc.reasoning && (
+                  <details>
+                    <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">Engine reasoning</summary>
+                    <p className="mt-2 text-xs text-muted-foreground leading-relaxed pl-3 border-l-2 border-border">{sc.reasoning}</p>
+                  </details>
+                )}
+              </Card>
+            );
+          })()}
+        </TabsContent>
+
+        {/* ── TAB: FRAUD & RISK ──────────────────────────────────────────────── */}
+        <TabsContent value="fraud" className="mt-4 space-y-4">
+
+          {/* Fraud summary */}
+          <Card title="Fraud Risk Summary" icon={<ShieldAlert className="h-4 w-4" />}>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className={`rounded-lg border p-3 text-center ${fraudBadgeCls(fraudScore).replace("text-", "border-").replace("bg-", "bg-")}`}>
+                <p className={`text-3xl font-black tabular-nums ${fraudScore <= 35 ? "text-green-600 dark:text-green-400" : fraudScore <= 60 ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400"}`}>{fraudScore}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Score /100</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                <p className={`text-base font-bold ${fraudScore <= 35 ? "text-green-600 dark:text-green-400" : fraudScore <= 60 ? "text-amber-600 dark:text-amber-400" : "text-purple-600 dark:text-purple-400"}`}>{fraudLabel(fraudScore).toUpperCase()}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Risk Level</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                <p className="text-base font-bold text-foreground">{fraudIndicators.length}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Active Flags</p>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                <p className="text-base font-bold text-foreground">{scenarioFraud?.engine_metadata?.false_positives_suppressed ?? 0}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">FP Suppressed</p>
+              </div>
+            </div>
+            <Bar value={fraudScore} colorCls={fraudScore <= 35 ? "bg-green-500" : fraudScore <= 60 ? "bg-amber-500" : "bg-purple-500"} />
+          </Card>
+
+          {/* Scenario fraud detection */}
+          {scenarioFraud && (
+            <Card title="Scenario-Aware Fraud Detection" icon={<ShieldAlert className="h-4 w-4" />}>
+              <p className="text-xs text-muted-foreground mb-3">
+                Profile: <span className="font-semibold text-foreground">{scenarioFraud.engine_metadata?.scenario_profile_applied ?? scenarioFraud.engine_metadata?.scenario_type ?? "unknown"}</span>
+              </p>
+              {(scenarioFraud.engine_metadata?.trust_reduction_applied ?? 0) > 0 && (
+                <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/40 px-3 py-2 mb-3">
+                  <ShieldCheck className="h-4 w-4 text-green-600 dark:text-green-400 shrink-0" />
+                  <p className="text-xs text-green-700 dark:text-green-300">
+                    Trust signals applied — score reduced by {scenarioFraud.engine_metadata.trust_reduction_applied} pts
+                    {scenarioFraud.engine_metadata.trust_signals_applied?.length > 0 && (
+                      <span className="text-muted-foreground"> ({scenarioFraud.engine_metadata.trust_signals_applied.join(", ")})</span>
+                    )}
+                  </p>
+                </div>
+              )}
+              {scenarioFraud.flags?.length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Active Flags ({scenarioFraud.flags.length})</p>
+                  {scenarioFraud.flags.map((flag: any, i: number) => (
+                    <div key={i} className={`rounded-lg border px-3 py-2.5 ${
+                      flag.severity === "HIGH" ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40" :
+                      flag.severity === "MEDIUM" ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40" :
+                      "border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/40"
+                    }`}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className={`text-xs font-bold ${flag.severity === "HIGH" ? "text-red-700 dark:text-red-300" : flag.severity === "MEDIUM" ? "text-amber-700 dark:text-amber-300" : "text-yellow-700 dark:text-yellow-300"}`}>{flag.label ?? flag.flag_id}</span>
+                        <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded border ${
+                          flag.severity === "HIGH" ? "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800" :
+                          "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800"
+                        }`}>{flag.severity}</span>
+                      </div>
+                      {flag.description && <p className="text-xs text-muted-foreground">{flag.description}</p>}
+                      {flag.recommended_action && <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5 font-medium">→ {flag.recommended_action}</p>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Cross-engine consistency */}
+          {crossEngine && (
+            <Card title="Cross-Engine Consistency" icon={<GitCompare className="h-4 w-4" />}>
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                {[
+                  { label: "Consistency", value: crossEngine.consistency_score, cls: crossEngine.consistency_score >= 70 ? "text-green-600 dark:text-green-400" : crossEngine.consistency_score >= 45 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400" },
+                  { label: "Status",      value: crossEngine.overall_status,    cls: crossEngine.overall_status === "CONSISTENT" ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400" },
+                  { label: "Critical",    value: crossEngine.critical_conflict_count, cls: crossEngine.critical_conflict_count > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground" },
+                ].map(({ label, value, cls }) => (
+                  <div key={label} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{label}</p>
+                    <p className={`text-lg font-bold ${cls}`}>{value}</p>
+                  </div>
+                ))}
+              </div>
+              {crossEngine.agreements?.length > 0 && (
+                <div className="mb-3">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Agreements ({crossEngine.agreements.length})</p>
+                  <div className="space-y-1.5">
+                    {crossEngine.agreements.map((ag: any, i: number) => (
+                      <div key={i} className="flex items-start gap-2 rounded-lg border border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/40 px-3 py-2">
+                        <Link2 className="h-3.5 w-3.5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs font-semibold text-green-700 dark:text-green-300">{ag.label ?? ag.check_id}</span>
+                            <span className="text-xs px-1.5 py-0.5 rounded font-mono bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300">{ag.strength}</span>
+                          </div>
+                          {ag.detail && <p className="text-xs text-muted-foreground mt-0.5">{ag.detail}</p>}
                         </div>
                       </div>
-                    );
-                  })()}
+                    ))}
+                  </div>
+                </div>
+              )}
+              {crossEngine.conflicts?.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Conflicts ({crossEngine.conflicts.length})</p>
+                  <div className="space-y-1.5">
+                    {crossEngine.conflicts.map((cf: any, i: number) => (
+                      <div key={i} className={`rounded-lg border px-3 py-2.5 ${
+                        cf.severity === "CRITICAL" ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40" :
+                        cf.severity === "SIGNIFICANT" ? "border-orange-200 bg-orange-50 dark:border-orange-800 dark:bg-orange-950/40" :
+                        "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40"
+                      }`}>
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <Link2Off className={`h-3.5 w-3.5 shrink-0 ${cf.severity === "CRITICAL" ? "text-red-600 dark:text-red-400" : cf.severity === "SIGNIFICANT" ? "text-orange-600 dark:text-orange-400" : "text-amber-600 dark:text-amber-400"}`} />
+                          <span className={`text-xs font-semibold ${cf.severity === "CRITICAL" ? "text-red-700 dark:text-red-300" : cf.severity === "SIGNIFICANT" ? "text-orange-700 dark:text-orange-300" : "text-amber-700 dark:text-amber-300"}`}>{cf.label ?? cf.check_id}</span>
+                          <span className={`text-xs px-1.5 py-0.5 rounded font-mono ${cf.severity === "CRITICAL" ? "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300" : "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300"}`}>{cf.severity}</span>
+                        </div>
+                        {cf.physics_says && <p className="text-xs text-muted-foreground">Physics: <span className="text-foreground/80">{cf.physics_says}</span></p>}
+                        {cf.damage_says && cf.damage_says !== "N/A" && <p className="text-xs text-muted-foreground">Damage: <span className="text-foreground/80">{cf.damage_says}</span></p>}
+                        {cf.recommended_action && <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5 font-medium">→ {cf.recommended_action}</p>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </Card>
+          )}
+        </TabsContent>
+
+        {/* ── TAB: TECHNICAL DETAILS ─────────────────────────────────────────── */}
+        <TabsContent value="technical" className="mt-4 space-y-4">
+
+          {/* Physics model */}
+          {physics && (
+            <Card title="Physics Model" icon={<Zap className="h-4 w-4" />}>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Speed",         value: estimatedSpeedKmh > 0 ? `${estimatedSpeedKmh.toFixed(1)} km/h` : "—" },
+                  { label: "ΔV",            value: deltaVKmh > 0 ? `${deltaVKmh.toFixed(1)} km/h` : "—" },
+                  { label: "Impact Force",  value: impactForceKn > 0 ? `${impactForceKn.toFixed(1)} kN` : "—" },
+                  { label: "Energy",        value: energyKj > 0 ? `${energyKj.toFixed(1)} kJ` : "—" },
+                ].map(({ label, value }) => (
+                  <div key={label} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
+                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{label}</p>
+                    <p className="text-base font-bold text-foreground tabular-nums">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Impact Direction</p>
+                  <p className="text-sm font-mono font-semibold text-primary">{impactDirection}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground mb-1">Severity Band</p>
+                  <p className="text-sm font-semibold" style={{ color: severityInfo.color }}>{severityInfo.label}</p>
+                </div>
+              </div>
+              {kineticEnergyJ > 0 && (
+                <div className="mt-3">
+                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                    <span>Energy dissipated into structure</span>
+                    <span>{((energyKj * 1000 / kineticEnergyJ) * 100).toFixed(0)}%</span>
+                  </div>
+                  <Bar value={(energyKj * 1000 / kineticEnergyJ) * 100} colorCls="bg-orange-500" />
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Causal chain */}
+          {causalChain && (
+            <Card title="Causal Chain" icon={<ArrowRight className="h-4 w-4" />}>
+              <div className="space-y-2">
+                {(causalChain.chain ?? causalChain.events ?? []).slice(0, 8).map((event: any, i: number) => (
+                  <div key={i} className="flex items-start gap-3">
+                    <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-foreground">{event.event ?? event.description ?? event}</p>
+                      {event.confidence != null && (
+                        <p className="text-xs text-muted-foreground mt-0.5">Confidence: {event.confidence}%</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+          )}
+
+          {/* Learning gate */}
+          {validatedOutcome && (
+            <Card title="Learning Gate" icon={<BookOpen className="h-4 w-4" />}>
+              <div className="flex items-center gap-3 mb-3">
+                <span className={`text-sm font-semibold px-3 py-1.5 rounded-lg border ${
+                  validatedOutcome.store
+                    ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800"
+                    : "bg-muted text-muted-foreground border-border"
+                }`}>
+                  {validatedOutcome.store ? "✓ Stored for Learning" : "✗ Not Stored"}
+                </span>
+                <span className={`text-xs font-bold px-2 py-1 rounded border ${
+                  validatedOutcome.quality_tier === "HIGH" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                  validatedOutcome.quality_tier === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
+                  "bg-muted text-muted-foreground border-border"
+                }`}>{validatedOutcome.quality_tier} QUALITY</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{validatedOutcome.reason}</p>
+              {validatedOutcome.metadata && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
+                  {validatedOutcome.metadata.true_cost_usd != null && (
+                    <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                      <p className="text-xs text-muted-foreground">True Cost</p>
+                      <p className="text-sm font-bold text-foreground">${validatedOutcome.metadata.true_cost_usd.toLocaleString()}</p>
+                    </div>
+                  )}
+                  {validatedOutcome.metadata.decision_confidence != null && (
+                    <div className="rounded-lg border border-border bg-muted/20 p-2.5 text-center">
+                      <p className="text-xs text-muted-foreground">Confidence</p>
+                      <p className="text-sm font-bold text-foreground">{validatedOutcome.metadata.decision_confidence}%</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Pipeline controls */}
+          <Card title="Pipeline Controls" icon={<RefreshCw className="h-4 w-4" />}>
+            <div className="space-y-4">
+              <div className="flex items-start gap-4">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground mb-1">Re-run Full Pipeline</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Triggers all stages: OCR → extraction → validation → physics → fraud → cost intelligence.
+                    Use when the claim document has been updated or earlier runs produced stale data.
+                  </p>
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 gap-2 border-blue-300 text-blue-700 hover:bg-blue-50 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                  disabled={reRunMutation.isPending || !claimId}
+                  onClick={() => claimId && reRunMutation.mutate({ claimId, reason: "Manual re-run from Forensic Decision Panel" })}
+                >
+                  {reRunMutation.isPending ? (
+                    <><RefreshCw className="h-3.5 w-3.5 animate-spin" /> Re-running...</>
+                  ) : (
+                    <><RefreshCw className="h-3.5 w-3.5" /> Re-run Pipeline</>
+                  )}
+                </Button>
+              </div>
+
+              {/* Pipeline trace */}
+              {pipelineSummary?.stages && (
+                <div>
+                  <button
+                    className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground transition-colors w-full text-left py-1"
+                    onClick={() => setShowPipelineTrace(v => !v)}
+                  >
+                    {showPipelineTrace ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                    <span className="font-medium">Pipeline Stage Trace</span>
+                    <span className="ml-auto text-xs text-muted-foreground/60">{Object.keys(pipelineSummary.stages).length} stages</span>
+                  </button>
+                  {showPipelineTrace && (
+                    <div className="mt-2 space-y-1.5">
+                      {Object.entries(pipelineSummary.stages as Record<string, any>).map(([stageKey, stageData]: [string, any]) => {
+                        const stageName = stageKey.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase());
+                        const status: string = stageData?.status ?? "unknown";
+                        const durationMs: number = stageData?.durationMs ?? 0;
+                        const recoveryCount: number = stageData?.recoveryActionCount ?? 0;
+                        const rowCls = status === "success" ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/30" :
+                          status === "degraded" ? "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30" :
+                          status === "failed" ? "border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/30" :
+                          "border-border bg-muted/20";
+                        const statusCls = status === "success" ? "text-green-700 dark:text-green-300" :
+                          status === "degraded" ? "text-amber-700 dark:text-amber-300" :
+                          status === "failed" ? "text-red-700 dark:text-red-300" : "text-muted-foreground";
+                        return (
+                          <div key={stageKey} className={`rounded-lg border px-3 py-2 flex items-center gap-3 ${rowCls}`}>
+                            <span className="text-xs font-mono text-muted-foreground w-16 shrink-0">{stageKey.split("_")[0]}</span>
+                            <span className="text-xs text-foreground flex-1 truncate">{stageName}</span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {recoveryCount > 0 && (
+                                <span className="text-xs px-1.5 py-0.5 rounded border border-amber-300 text-amber-700 dark:border-amber-700 dark:text-amber-300 font-mono">+{recoveryCount}</span>
+                              )}
+                              {durationMs > 0 && (
+                                <span className="text-xs text-muted-foreground font-mono">{durationMs < 1000 ? `${durationMs}ms` : `${(durationMs / 1000).toFixed(1)}s`}</span>
+                              )}
+                              <span className={`text-xs font-bold ${statusCls}`}>{status.toUpperCase()}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {/* Stage 4 recovery log */}
+                      {(() => {
+                        const stage4 = pipelineSummary.stages?.["4_validation"];
+                        const recoveryLog: string[] = stage4?.recoveryLog ?? [];
+                        if (recoveryLog.length === 0) return null;
+                        return (
+                          <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 p-3">
+                            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300 mb-2">Stage 4 Recovery Actions ({recoveryLog.length})</p>
+                            <div className="space-y-0.5">
+                              {recoveryLog.map((entry: string, i: number) => (
+                                <p key={i} className="text-xs font-mono text-muted-foreground">→ {entry}</p>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </Section>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
