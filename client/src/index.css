@@ -191,6 +191,9 @@
   --fp-success-bg: oklch(0.96 0.02 155);         /* success bg */
   --fp-success-border: oklch(0.70 0.10 155);     /* success border */
   --fp-success-text: oklch(0.35 0.14 155);       /* success text */
+  --fp-warn-bg: oklch(0.96 0.02 60);             /* warn bg alias */
+  --fp-warn-border: oklch(0.80 0.10 60);         /* warn border alias */
+  --fp-warn-text: oklch(0.45 0.18 60);           /* warn text alias */
   --fp-mismatch-bg: oklch(0.96 0.02 60);         /* mismatch bg */
   --fp-mismatch-border: oklch(0.80 0.10 60);     /* mismatch border */
   --fp-match-bg: oklch(0.96 0.02 155);           /* match bg */
@@ -361,6 +364,9 @@
   --fp-success-bg: oklch(0.18 0.04 155 / 0.4);   /* success bg */
   --fp-success-border: oklch(0.45 0.12 155);     /* success border */
   --fp-success-text: oklch(0.72 0.14 155);       /* success text */
+  --fp-warn-bg: oklch(0.18 0.05 60 / 0.4);       /* warn bg alias */
+  --fp-warn-border: oklch(0.55 0.15 60);         /* warn border alias */
+  --fp-warn-text: oklch(0.80 0.15 60);           /* warn text alias */
   --fp-mismatch-bg: oklch(0.18 0.05 60 / 0.3);   /* mismatch bg */
   --fp-mismatch-border: oklch(0.55 0.15 60);     /* mismatch border */
   --fp-match-bg: oklch(0.18 0.04 155 / 0.3);     /* match bg */

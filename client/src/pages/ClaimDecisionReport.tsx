@@ -156,12 +156,13 @@ const ALERT_STYLE: Record<string, { bg: string; border: string; icon: string; la
 // ─── Cost verdict helper ──────────────────────────────────────────────────────
 
 function computeCostVerdict(
-  aiCostCents: number,
+  aiCostDollars: number,
   fairMin: number,
   fairMax: number,
   quotedAmounts: number[]
 ): { verdict: "UNDERPRICED" | "FAIR" | "OVERPRICED"; color: string; Icon: typeof TrendingUp; explanation: string } {
-  const aiCost = aiCostCents / 100;
+  // All values are in dollars
+  const aiCost = aiCostDollars;
   const compareAmount = quotedAmounts.length > 0
     ? quotedAmounts.reduce((a, b) => a + b, 0) / quotedAmounts.length
     : aiCost;
@@ -197,6 +198,22 @@ function computeCostVerdict(
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
+
+/** Section heading divider for the report layout */
+function SectionHeading({ icon: Icon, title, subtitle }: { icon: React.ElementType; title: string; subtitle?: string }) {
+  return (
+    <div className="flex items-center gap-3 mb-3 mt-6 first:mt-0">
+      <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: "var(--fp-info-bg)" }}>
+        <Icon className="h-4 w-4" style={{ color: "var(--primary)" }} />
+      </div>
+      <div className="flex-1">
+        <p className="text-sm font-bold tracking-tight" style={{ color: "var(--foreground)" }}>{title}</p>
+        {subtitle && <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{subtitle}</p>}
+      </div>
+      <div className="flex-1 h-px" style={{ background: "var(--border)" }} />
+    </div>
+  );
+}
 
 // ─── Final Decision Banner ────────────────────────────────────────────────────
 
@@ -261,6 +278,237 @@ function ConfidenceBreakdownPanel({ confidenceBreakdown }: { confidenceBreakdown
   );
 }
 
+// ─── Conflict Sources Audit ──────────────────────────────────────────────────
+// Surfaces every detected conflict with its originating source, so reviewers
+// can quickly identify which data source introduced each discrepancy.
+
+type ConflictEntry = {
+  id: string;
+  severity: "critical" | "warning" | "info";
+  category: "cost" | "fraud" | "physics" | "direction" | "consistency";
+  title: string;
+  detail: string;
+  source: string;        // e.g. "AI Model vs Panel Beater Quote"
+  value?: string;        // the conflicting value
+  threshold?: string;    // the expected / reference value
+};
+
+function buildConflictEntries(
+  assessment: any,
+  enforcement: EnforcementResult,
+  quotes: any[]
+): ConflictEntry[] {
+  const entries: ConflictEntry[] = [];
+
+  // ── 1. Cost conflicts ──────────────────────────────────────────────────────
+  const aiCost = (assessment as any)._normalised?.costs?.totalUsd ?? assessment.estimatedCost ?? 0;
+  const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100);
+  const avgQuote = quotedAmounts.length > 0 ? quotedAmounts.reduce((a: number, b: number) => a + b, 0) / quotedAmounts.length : 0;
+  const lowestQuote = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0;
+  const fairMin = enforcement.costBenchmark.estimatedFairMin;
+  const fairMax = enforcement.costBenchmark.estimatedFairMax;
+
+  if (aiCost > 0 && avgQuote > 0) {
+    const deviationPct = ((avgQuote - aiCost) / aiCost) * 100;
+    if (Math.abs(deviationPct) > 20) {
+      entries.push({
+        id: "cost-ai-vs-quote",
+        severity: Math.abs(deviationPct) > 40 ? "critical" : "warning",
+        category: "cost",
+        title: "AI Estimate vs Panel Beater Quote Discrepancy",
+        detail: `The average panel beater quote deviates ${deviationPct > 0 ? "+" : ""}${deviationPct.toFixed(1)}% from the AI model estimate. This may indicate inflated labour rates, non-standard parts, or scope creep.`,
+        source: "AI Cost Model vs Panel Beater Quote(s)",
+        value: `Avg quote: $${avgQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+        threshold: `AI estimate: $${aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      });
+    }
+  }
+
+  if (aiCost > 0 && fairMax > 0 && aiCost > fairMax * 1.15) {
+    entries.push({
+      id: "cost-above-fair-range",
+      severity: "warning",
+      category: "cost",
+      title: "AI Estimate Exceeds Fair Range Upper Bound",
+      detail: `The AI-estimated repair cost exceeds the fair market range ceiling by ${(((aiCost - fairMax) / fairMax) * 100).toFixed(1)}%.`,
+      source: "AI Cost Model vs Market Benchmark",
+      value: `AI estimate: $${aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      threshold: `Fair range: $${fairMin.toLocaleString()} – $${fairMax.toLocaleString()}`,
+    });
+  }
+
+  if (lowestQuote > 0 && aiCost > 0 && lowestQuote > aiCost * 1.3) {
+    entries.push({
+      id: "cost-lowest-quote-high",
+      severity: "warning",
+      category: "cost",
+      title: "Lowest Quote Significantly Above AI Estimate",
+      detail: `Even the lowest submitted quote is ${(((lowestQuote - aiCost) / aiCost) * 100).toFixed(1)}% above the AI model estimate. All submitted quotes may be inflated.`,
+      source: "Panel Beater Quote(s) vs AI Cost Model",
+      value: `Lowest quote: $${lowestQuote.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+      threshold: `AI estimate: $${aiCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    });
+  }
+
+  // ── 2. Fraud conflicts ─────────────────────────────────────────────────────
+  const wf = enforcement.weightedFraud;
+  if (wf) {
+    wf.full_contributions?.filter(c => c.triggered).forEach(c => {
+      entries.push({
+        id: `fraud-${c.factor.replace(/\s+/g, "-").toLowerCase()}`,
+        severity: c.value >= 20 ? "critical" : "warning",
+        category: "fraud",
+        title: `Fraud Indicator: ${c.factor}`,
+        detail: c.detail || `This factor contributed ${c.value} points to the fraud score.`,
+        source: "Fraud Detection Engine",
+        value: `+${c.value} pts`,
+        threshold: "0 pts (no indicator)",
+      });
+    });
+    (wf as any).adjustments?.filter((a: any) => Math.abs(a.delta) > 0).forEach((a: any) => {
+      entries.push({
+        id: `fraud-adj-${a.source.replace(/\s+/g, "-").toLowerCase()}`,
+        severity: a.delta > 10 ? "warning" : "info",
+        category: "fraud",
+        title: `Fraud Score Adjustment: ${a.source}`,
+        detail: a.reason,
+        source: a.source,
+        value: `${a.delta > 0 ? "+" : ""}${a.delta} pts`,
+        threshold: "0 pts (no adjustment)",
+      });
+    });
+  }
+
+  // ── 3. Direction / damage consistency conflicts ────────────────────────────
+  if (enforcement.directionFlag.mismatch) {
+    entries.push({
+      id: "direction-mismatch",
+      severity: "warning",
+      category: "direction",
+      title: "Impact Direction vs Damage Zone Mismatch",
+      detail: enforcement.directionFlag.explanation,
+      source: "Impact Direction Engine vs Damage Zone Analysis",
+      value: `Reported direction: ${enforcement.directionFlag.impactDirection}`,
+      threshold: `Damaged zones: ${enforcement.directionFlag.damageZones.join(", ") || "none recorded"}`,
+    });
+  }
+
+  if (enforcement.consistencyFlag.flagged) {
+    entries.push({
+      id: "consistency-anomaly",
+      severity: enforcement.consistencyFlag.anomalyLevel === "high" ? "critical" : "warning",
+      category: "consistency",
+      title: "Damage Consistency Anomaly",
+      detail: enforcement.consistencyFlag.explanation,
+      source: "Damage Consistency Analyser",
+      value: `Consistency score: ${enforcement.consistencyFlag.score}%`,
+      threshold: "≥ 70% expected",
+    });
+  }
+
+  // ── 4. Physics conflicts ───────────────────────────────────────────────────
+  const normFraud = (assessment as any)._normalised?.fraud;
+  if (normFraud?.physicsContradiction) {
+    entries.push({
+      id: "physics-contradiction",
+      severity: "warning",
+      category: "physics",
+      title: "Physics Model Contradiction",
+      detail: normFraud.physicsContradictionNote ?? "The physics model output is inconsistent with the reported damage pattern.",
+      source: "Physics Engine vs Damage Report",
+    });
+  }
+
+  return entries;
+}
+
+const CONFLICT_CATEGORY_LABEL: Record<string, string> = {
+  cost: "Cost",
+  fraud: "Fraud",
+  physics: "Physics",
+  direction: "Direction",
+  consistency: "Consistency",
+};
+
+function ConflictSourcesAudit({ assessment, enforcement, quotes }: { assessment: any; enforcement: EnforcementResult; quotes: any[] }) {
+  const [open, setOpen] = useState(true);
+  const conflicts = buildConflictEntries(assessment, enforcement, quotes);
+  const criticalCount = conflicts.filter(c => c.severity === "critical").length;
+  const warningCount = conflicts.filter(c => c.severity === "warning").length;
+
+  if (conflicts.length === 0) {
+    return (
+      <div className="rounded-xl mb-4 px-4 py-3 flex items-center gap-2" style={{ background: "var(--fp-success-bg)", border: "1px solid var(--fp-match-border)" }}>
+        <CheckCircle className="h-4 w-4 shrink-0" style={{ color: "var(--fp-success-text)" }} />
+        <p className="text-sm font-semibold" style={{ color: "var(--fp-success-text)" }}>No conflicts detected — all data sources are internally consistent.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+      <button className="w-full flex items-center justify-between p-4" onClick={() => setOpen(v => !v)}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <AlertTriangle className="h-4 w-4 shrink-0" style={{ color: "var(--fp-warn-text)" }} />
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Conflict Sources Audit</p>
+          {criticalCount > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>
+              {criticalCount} critical
+            </span>
+          )}
+          {warningCount > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--fp-warn-bg)", color: "var(--fp-warn-text)", border: "1px solid var(--fp-warn-border)" }}>
+              {warningCount} warning{warningCount !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        {open ? <ChevronUp className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} /> : <ChevronDown className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+            Each entry below identifies a specific conflict between data sources, the originating sources, and the observed vs expected values.
+          </p>
+          {conflicts.map(c => (
+            <div
+              key={c.id}
+              className="rounded-lg p-3"
+              style={{
+                background: c.severity === "critical" ? "var(--fp-critical-bg)" : c.severity === "warning" ? "var(--fp-warn-bg)" : "var(--muted)",
+                border: `1px solid ${c.severity === "critical" ? "var(--fp-critical-border)" : c.severity === "warning" ? "var(--fp-warn-border)" : "var(--border)"}`,
+              }}
+            >
+              <div className="flex items-start justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2">
+                  <span
+                    className="text-xs font-bold px-1.5 py-0.5 rounded uppercase tracking-wide"
+                    style={{
+                      background: c.severity === "critical" ? "var(--fp-critical-text)" : c.severity === "warning" ? "var(--fp-warn-text)" : "var(--muted-foreground)",
+                      color: "var(--background)",
+                    }}
+                  >
+                    {c.severity}
+                  </span>
+                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>
+                    {CONFLICT_CATEGORY_LABEL[c.category] ?? c.category}
+                  </span>
+                </div>
+              </div>
+              <p className="text-sm font-bold mb-0.5" style={{ color: "var(--foreground)" }}>{c.title}</p>
+              <p className="text-xs leading-relaxed mb-2" style={{ color: "var(--foreground)" }}>{c.detail}</p>
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                <span><span className="font-semibold">Source:</span> {c.source}</span>
+                {c.value && <span><span className="font-semibold">Observed:</span> {c.value}</span>}
+                {c.threshold && <span><span className="font-semibold">Reference:</span> {c.threshold}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Rule Trace Panel ─────────────────────────────────────────────────────────
 
 function RuleTracePanel({ ruleTrace }: { ruleTrace: NonNullable<EnforcementResult["finalDecision"]>["ruleTrace"] }) {
@@ -300,9 +548,10 @@ function VerdictBanner({ assessment, enforcement, quotes }: { assessment: any; e
   const severityKey = assessment.structuralDamageSeverity ?? "unknown";
   const severity = SEVERITY_STYLE[severityKey] ?? SEVERITY_STYLE.unknown;
   const confidence = enforcement.confidenceBreakdown?.score ?? assessment.confidenceScore ?? 0;
+  // quotedAmount is in cents — divide by 100; estimatedCost is in dollars — pass directly
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100);
   const costVerdict = computeCostVerdict(
-    assessment.estimatedCost ?? 0,
+    assessment.estimatedCost ?? 0,  // already in dollars
     enforcement.costBenchmark.estimatedFairMin,
     enforcement.costBenchmark.estimatedFairMax,
     quotedAmounts
@@ -542,8 +791,8 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
         }}
       >
         {enforcement.directionFlag.mismatch
-          ? <><span className="font-bold" style={{ color: "#fbbf24" }}>⚠ Mismatch: </span>{enforcement.directionFlag.explanation}</>
-          : <><span className="font-bold" style={{ color: "#10b981" }}>✓ Consistent: </span>{enforcement.directionFlag.explanation}</>
+          ? <><span className="font-bold" style={{ color: "var(--fp-warn-text)" }}>⚠ Mismatch: </span>{enforcement.directionFlag.explanation}</>
+          : <><span className="font-bold" style={{ color: "var(--fp-success-text)" }}>✓ Consistent: </span>{enforcement.directionFlag.explanation}</>
         }
       </div>
 
@@ -575,9 +824,9 @@ function DamageImpact({ assessment, enforcement }: { assessment: any; enforcemen
       {/* Structural implication */}
       {assessment.structuralDamageSeverity && assessment.structuralDamageSeverity !== "none" && (
         <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}>
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-400" />
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "var(--fp-critical-text)" }} />
           <p className="text-xs" style={{ color: "var(--foreground)" }}>
-            <span className="font-bold text-red-400">Structural damage detected.</span> Frame or unibody inspection required before repair authorisation.
+            <span className="font-bold" style={{ color: "var(--fp-critical-text)" }}>Structural damage detected.</span> Frame or unibody inspection required before repair authorisation.
           </p>
         </div>
       )}
@@ -589,9 +838,10 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
   const [showItemised, setShowItemised] = useState(false);
   // Use guaranteed costExtraction object if available, fall back to raw assessment fields
   const ce = enforcement.costExtraction;
-  const aiCost = ce ? ce.ai_estimate : (assessment.estimatedCost ?? 0) / 100;
-  const partsCost = ce ? ce.parts : (assessment.estimatedPartsCost ?? 0) / 100;
-  const labourCost = ce ? ce.labour : (assessment.estimatedLaborCost ?? 0) / 100;
+  // estimatedCost/Parts/Labor are stored in dollars — do NOT divide by 100
+  const aiCost = ce ? ce.ai_estimate : (assessment.estimatedCost ?? 0);
+  const partsCost = ce ? ce.parts : (assessment.estimatedPartsCost ?? 0);
+  const labourCost = ce ? ce.labour : (assessment.estimatedLaborCost ?? 0);
   const fairMin = ce ? ce.fair_range.min : enforcement.costBenchmark.estimatedFairMin;
   const fairMax = ce ? ce.fair_range.max : enforcement.costBenchmark.estimatedFairMax;
   const confidence = ce ? ce.confidence : (assessment.confidenceScore ?? 75);
@@ -600,12 +850,15 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
   const dataSource = ce?.source ?? "extracted";
 
   const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100);
-  const aiCostCents = aiCost * 100;
-  const costVerdict = computeCostVerdict(aiCostCents, fairMin, fairMax, quotedAmounts);
+  // aiCost is already in dollars — pass directly to computeCostVerdict (which also expects dollars)
+  const costVerdict = computeCostVerdict(aiCost, fairMin, fairMax, quotedAmounts);
   const { Icon: CostIcon } = costVerdict;
 
   // Confidence colour
-  const confColor = confidence >= 80 ? "#10b981" : confidence >= 60 ? "#f59e0b" : "#ef4444";
+  const confColor = confidence >= 80 ? "var(--fp-success-text)" : confidence >= 60 ? "var(--fp-warn-text)" : "var(--fp-critical-text)";
+  // Reconciliation check: if parts + labour don't add up to aiCost, show a note
+  const computedTotal = partsCost + labourCost;
+  const hasReconciliationGap = computedTotal > 0 && Math.abs(computedTotal - aiCost) > 1;
   const sourceLabel: Record<string, string> = {
     extracted: "AI Extracted",
     estimated: "AI + Estimated",
@@ -664,6 +917,13 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
         )}
       </div>
 
+      {/* Reconciliation note */}
+      {hasReconciliationGap && (
+        <div className="mb-2 px-2 py-1.5 rounded text-xs" style={{ background: "var(--fp-warn-bg)", color: "var(--fp-warn-text)", border: "1px solid var(--fp-warn-border)" }}>
+          ⚠ Note: Parts (${partsCost.toLocaleString()}) + Labour (${labourCost.toLocaleString()}) = ${computedTotal.toLocaleString()} — differs from AI total estimate of ${aiCost.toLocaleString()}. The AI total is used as the authoritative figure.
+        </div>
+      )}
+
       {/* Fair range bar */}
       <div className="mb-3">
         <div className="flex justify-between text-xs mb-1" style={{ color: "var(--muted-foreground)" }}>
@@ -673,7 +933,7 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
         <div className="relative h-2 rounded-full" style={{ background: "var(--muted)" }}>
           <div
             className="absolute h-2 rounded-full"
-            style={{ left: "10%", width: "80%", background: "linear-gradient(90deg, #10b981, #22c55e)", opacity: 0.6 }}
+            style={{ left: "10%", width: "80%", background: "linear-gradient(90deg, var(--fp-success-text), var(--fp-success-text))", opacity: 0.4 }}
           />
           {aiCost > 0 && fairMax > 0 && (
             <div
@@ -711,7 +971,7 @@ function CostDecision({ assessment, enforcement, quotes }: { assessment: any; en
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>${item.total.toLocaleString()}</span>
-                    <span className="text-xs ml-1" style={{ color: "var(--muted-foreground)" }}>P:${item.parts_cost} L:${item.labour_cost}</span>
+                    <span className="text-xs ml-1" style={{ color: "var(--muted-foreground)" }}>Parts: ${item.parts_cost.toLocaleString()} · Labour: ${item.labour_cost.toLocaleString()}</span>
                   </div>
                 </div>
               ))}
@@ -788,9 +1048,9 @@ function FraudRiskDecision({ assessment, enforcement }: { assessment: any; enfor
               >
                 <div className="shrink-0 w-8 text-center">
                   {c.triggered ? (
-                    <span className="text-xs font-black" style={{ color: "#f87171" }}>+{c.value}</span>
+                    <span className="text-xs font-black" style={{ color: "var(--fp-critical-text)" }}>+{c.value}</span>
                   ) : (
-                    <span className="text-xs font-semibold" style={{ color: "#10b981" }}>0</span>
+                    <span className="text-xs font-semibold" style={{ color: "var(--fp-success-text)" }}>0</span>
                   )}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -799,9 +1059,9 @@ function FraudRiskDecision({ assessment, enforcement }: { assessment: any; enfor
                 </div>
                 <div className="shrink-0">
                   {c.triggered ? (
-                    <span className="text-xs font-bold" style={{ color: "#f87171" }}>✗ TRIGGERED</span>
+                    <span className="text-xs font-bold" style={{ color: "var(--fp-critical-text)" }}>✗ Triggered</span>
                   ) : (
-                    <span className="text-xs font-bold" style={{ color: "#10b981" }}>✓ CLEAR</span>
+                    <span className="text-xs font-bold" style={{ color: "var(--fp-success-text)" }}>✓ Clear</span>
                   )}
                 </div>
               </div>
@@ -1128,12 +1388,14 @@ export default function ClaimDecisionReport() {
     const wf = (enforcement as any).weightedFraud;
     const fd = e.finalDecision;
     const cb = e.confidenceBreakdown;
-    const aiEstimateCents = (aiAssessment.estimatedCost ?? 0) * 100;
-    const quotedCents = (quotesWithItems as any[]).length > 0
-      ? Math.max(...(quotesWithItems as any[]).map((q: any) => q.quotedAmount ?? 0)) * 100
+    // estimatedCost is in dollars; quotedAmount is in cents (divide by 100)
+    // Prefer _normalised.costs.totalUsd as the single source of truth
+    const aiEstimateDollars = (aiAssessment as any)._normalised?.costs?.totalUsd ?? aiAssessment.estimatedCost ?? 0;
+    const quotedDollars = (quotesWithItems as any[]).length > 0
+      ? Math.max(...(quotesWithItems as any[]).map((q: any) => (q.quotedAmount ?? 0) / 100))
       : 0;
-    const deviationPct = aiEstimateCents > 0 && quotedCents > 0
-      ? ((quotedCents - aiEstimateCents) / aiEstimateCents) * 100
+    const deviationPct = aiEstimateDollars > 0 && quotedDollars > 0
+      ? ((quotedDollars - aiEstimateDollars) / aiEstimateDollars) * 100
       : 0;
     saveSnapshotMutation.mutate({
       claimId: String(claimId),
@@ -1143,11 +1405,11 @@ export default function ClaimDecisionReport() {
         confidence: cb?.score ?? aiAssessment.confidenceScore ?? 0,
       },
       cost: {
-        aiEstimate: aiEstimateCents,
-        quoted: quotedCents,
+        aiEstimate: Math.round(aiEstimateDollars * 100), // snapshot stores in cents for historical compat
+        quoted: Math.round(quotedDollars * 100),
         deviationPercent: Math.round(deviationPct),
-        fairRangeMin: ce?.fair_range?.min ?? Math.round(aiEstimateCents * 0.85),
-        fairRangeMax: ce?.fair_range?.max ?? Math.round(aiEstimateCents * 1.15),
+        fairRangeMin: ce?.fair_range?.min ?? Math.round(aiEstimateDollars * 0.85),
+        fairRangeMax: ce?.fair_range?.max ?? Math.round(aiEstimateDollars * 1.15),
         verdict: ce?.verdict ?? 'FAIR',
       },
       fraud: {
@@ -1288,18 +1550,21 @@ export default function ClaimDecisionReport() {
         <CriticalAlerts alerts={(enforcement as EnforcementResult).alerts} />
 
         {/* 3. What Happened */}
+        <SectionHeading icon={FileText} title="Incident Reconstruction" subtitle="AI-generated narrative based on claim data, photos, and physics analysis" />
         <WhatHappened assessment={aiAssessment} enforcement={enforcement as EnforcementResult} claim={claim} />
 
         {/* 4. Damage & Impact + Cost Decision — two-column on wide screens */}
+        <SectionHeading icon={Car} title="Damage Assessment & Cost Analysis" subtitle="Structural damage zones, component breakdown, and repair cost reconciliation" />
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <DamageImpact assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
           <CostDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
         </div>
 
         {/* 5. Fraud & Risk Decision */}
+        <SectionHeading icon={Shield} title="Fraud & Risk Assessment" subtitle="Weighted multi-factor fraud scoring with intelligence layer adjustments" />
         <FraudRiskDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
 
-        {/* 5b. Confidence Breakdown */}
+        {/* 5b. Confidence & Rule Trace */}
         {(enforcement as EnforcementResult).confidenceBreakdown && (
           <ConfidenceBreakdownPanel confidenceBreakdown={(enforcement as EnforcementResult).confidenceBreakdown!} />
         )}
@@ -1309,9 +1574,16 @@ export default function ClaimDecisionReport() {
           <RuleTracePanel ruleTrace={(enforcement as EnforcementResult).finalDecision!.ruleTrace} />
         ) : null}
 
+        {/* 5d. Conflict Sources Audit */}
+        <SectionHeading icon={AlertTriangle} title="Conflict Sources Audit" subtitle="Every detected conflict attributed to its originating data source" />
+        <ConflictSourcesAudit assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
+
         {/* 6. Collapsible Technical Data */}
+        <SectionHeading icon={Zap} title="Technical & Supporting Data" subtitle="Physics engine output, delta-V, force estimates — expand for details" />
         <CollapsibleTechnicalData assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
 
+        {/* 7. Audit Trail */}
+        <SectionHeading icon={GitCompareArrows} title="Audit Trail & Decision History" subtitle="Immutable snapshots, version history, and logic drift detection" />
         {/* 7. Snapshot History */}
         {(snapshotHistory as any[]).length > 0 && (
           <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
@@ -1343,7 +1615,7 @@ export default function ClaimDecisionReport() {
                         {new Date(snap.createdAt).toLocaleString()}
                       </p>
                       <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-                        Fraud {snap.fraud.score}/100 · ${((snap.cost.aiEstimate ?? 0) / 100).toFixed(2)}
+                        Fraud {snap.fraud.score}/100 · ${((snap.cost.aiEstimate ?? 0) / 100).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </p>
                     </div>
                   </div>
@@ -1388,7 +1660,7 @@ export default function ClaimDecisionReport() {
                   className="text-xs overflow-auto rounded p-3"
                   style={{
                     background: "var(--fp-subtle-bg)",
-                    color: "#a5f3fc",
+                    color: "var(--primary)",
                     maxHeight: "400px",
                     fontFamily: "'Fira Code', 'Cascadia Code', monospace",
                     lineHeight: "1.5",
@@ -1494,9 +1766,9 @@ export default function ClaimDecisionReport() {
                         <tbody>
                           {replayResult.differences.map((diff, i) => (
                             <tr key={diff.field} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                              <td className="px-3 py-2 font-mono font-semibold" style={{ color: "#a5f3fc" }}>{diff.field}</td>
-                              <td className="px-3 py-2" style={{ color: "#fca5a5" }}>{JSON.stringify(diff.original)}</td>
-                              <td className="px-3 py-2" style={{ color: "#86efac" }}>{JSON.stringify(diff.new)}</td>
+                              <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--primary)" }}>{diff.field}</td>
+                              <td className="px-3 py-2" style={{ color: "var(--fp-critical-text)" }}>{JSON.stringify(diff.original)}</td>
+                              <td className="px-3 py-2" style={{ color: "var(--fp-success-text)" }}>{JSON.stringify(diff.new)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -1510,7 +1782,7 @@ export default function ClaimDecisionReport() {
                   <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Impact Analysis</p>
                   <pre
                     className="text-xs whitespace-pre-wrap"
-                    style={{ color: "#e2e8f0", fontFamily: "inherit", lineHeight: "1.6" }}
+                    style={{ color: "var(--foreground)", fontFamily: "inherit", lineHeight: "1.6" }}
                   >
                     {replayResult.impact_analysis}
                   </pre>

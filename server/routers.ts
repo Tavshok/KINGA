@@ -2737,7 +2737,45 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        return await getAiAssessmentByClaimId(input.claimId, tenantId);
+        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+        if (!assessment) return null;
+
+        // Apply normalisation service — ensures cost, fraud, and verdict are
+        // always consistent regardless of which pipeline stages ran or how
+        // data was stored. This is the single authoritative transformation
+        // for all report-facing data.
+        const { normaliseReportData } = await import('./report-normalisation');
+        let costIntelParsed: any = null;
+        let fraudBreakdownParsed: any = null;
+        let causalVerdictParsed: any = null;
+        let validatedOutcomeParsed: any = null;
+        try { costIntelParsed = assessment.costIntelligenceJson ? (typeof assessment.costIntelligenceJson === 'string' ? JSON.parse(assessment.costIntelligenceJson) : assessment.costIntelligenceJson) : null; } catch { /* ignore */ }
+        try { fraudBreakdownParsed = assessment.fraudScoreBreakdownJson ? (typeof assessment.fraudScoreBreakdownJson === 'string' ? JSON.parse(assessment.fraudScoreBreakdownJson) : assessment.fraudScoreBreakdownJson) : null; } catch { /* ignore */ }
+        try {
+          // causalVerdictJson may be stored in pipelineRunSummary or a dedicated field
+          const prs = assessment.pipelineRunSummary ? (typeof assessment.pipelineRunSummary === 'string' ? JSON.parse(assessment.pipelineRunSummary) : assessment.pipelineRunSummary) : null;
+          causalVerdictParsed = prs?.causalVerdict ?? prs?.causal_verdict ?? null;
+        } catch { /* ignore */ }
+
+        const normalised = normaliseReportData({
+          estimatedCost: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
+          estimatedPartsCost: assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : null,
+          estimatedLaborCost: assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : null,
+          fraudScore: assessment.fraudScore ? Number(assessment.fraudScore) : null,
+          fraudRiskLevel: assessment.fraudRiskLevel,
+          recommendation: assessment.recommendation,
+          currencyCode: assessment.currencyCode,
+          costIntelligenceJson: costIntelParsed,
+          fraudScoreBreakdownJson: fraudBreakdownParsed,
+          causalVerdictJson: causalVerdictParsed,
+          validatedOutcomeJson: validatedOutcomeParsed,
+        });
+
+        return {
+          ...assessment,
+          // Overwrite with normalised values — these are what the UI must use
+          _normalised: normalised,
+        };
       }),
     historicalBenchmarks: protectedProcedure
       .input(z.object({

@@ -733,6 +733,11 @@ export async function triggerAiAssessment(claimId: number) {
     confidenceScore: claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : 50,
     fraudIndicators: fraudIndicatorsJson,
     fraudRiskLevel: dbFraudLevel,
+    // SYSTEMIC FIX: Persist fraud score and recommendation as first-class columns.
+    // Previously these were only buried in JSON blobs, causing the router to always
+    // read undefined (→ fraudScore=0, recommendation=null) and produce wrong verdicts.
+    fraudScore: fraudAnalysis ? Math.round(fraudAnalysis.fraudRiskScore) : null,
+    recommendation: costAnalysis?.costDecision?.recommendation ?? null,
     fraudScoreBreakdownJson,
     modelVersion: 'pipeline-v2',
     processingTime: summary.totalDurationMs,
@@ -863,31 +868,54 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
   const { parsePhysicsAnalysis } = await import('../shared/physics-types');
   const db = await getDb();
   if (!db) return null;
+  let rawAssessment: typeof aiAssessments.$inferSelect | null = null;
+  let claimRow: typeof claims.$inferSelect | null = null;
 
-  let rawAssessment;
   if (tenantId) {
     // Join with claims to enforce tenant filtering — return the most recent assessment
-    const result = await db.select({ assessment: aiAssessments })
+    const result = await db.select({ assessment: aiAssessments, claim: claims })
       .from(aiAssessments)
       .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
       .where(and(eq(aiAssessments.claimId, claimId), eq(claims.tenantId, tenantId)))
       .orderBy(desc(aiAssessments.id))
       .limit(1);
-    rawAssessment = result.length > 0 ? result[0].assessment : null;
+    if (result.length > 0) {
+      rawAssessment = result[0].assessment;
+      claimRow = result[0].claim;
+    }
   } else {
-    const result = await db.select().from(aiAssessments)
-      .where(eq(aiAssessments.claimId, claimId))
-      .orderBy(desc(aiAssessments.id))
-      .limit(1);
-    rawAssessment = result.length > 0 ? result[0] : null;
+    const [assessmentResult, claimResult] = await Promise.all([
+      db.select().from(aiAssessments)
+        .where(eq(aiAssessments.claimId, claimId))
+        .orderBy(desc(aiAssessments.id))
+        .limit(1),
+      db.select().from(claims)
+        .where(eq(claims.id, claimId))
+        .limit(1),
+    ]);
+    rawAssessment = assessmentResult.length > 0 ? assessmentResult[0] : null;
+    claimRow = claimResult.length > 0 ? claimResult[0] : null;
   }
-  
+
   if (!rawAssessment) return null;
-  
+
   // Parse physicsAnalysis JSON with typed helper
   return {
     ...rawAssessment,
     physicsAnalysisParsed: parsePhysicsAnalysis(rawAssessment.physicsAnalysis),
+    // ── Claim fields (joined) — used by the report router so it doesn't need
+    //    a separate query. These are the authoritative values from the claims table.
+    claimNumber: claimRow?.claimNumber ?? rawAssessment.claimNumber ?? null,
+    vehicleMake: claimRow?.vehicleMake ?? null,
+    vehicleModel: claimRow?.vehicleModel ?? null,
+    vehicleYear: claimRow?.vehicleYear ?? null,
+    vehicleRegistration: claimRow?.vehicleRegistration ?? null,
+    accidentDate: claimRow?.incidentDate ?? null,
+    accidentLocation: claimRow?.incidentLocation ?? null,
+    accidentDescription: claimRow?.incidentDescription ?? null,
+    normalisedDescription: claimRow?.normalisedDescription ?? null,
+    reportedCauseLabel: claimRow?.reportedCauseLabel ?? null,
+    policyNumber: claimRow?.policyNumber ?? null,
   };
 }
 

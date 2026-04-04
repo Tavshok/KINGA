@@ -10,9 +10,11 @@
  *   Stage 42 — Cross-Engine Consensus
  */
 import { useState } from "react";
+import { Streamdown } from "streamdown";
 import { Badge } from "@/components/ui/badge";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { stripStageRefs, toHumanLabel } from "@/lib/labelUtils";
 
 interface AdvancedAnalyticsPanelProps {
   aiAssessment: any;
@@ -382,11 +384,13 @@ function CausalVerdictSection({ data }: { data: any }) {
           </div>
         </div>
       )}
-      {/* Constraint Narrative */}
+      {/* Constraint Narrative — rendered as markdown, stage refs stripped */}
       {data.constraintNarrative && (
         <div className="rounded-lg bg-muted/20 border border-border/50 p-3">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Forensic Constraint Analysis</p>
-          <p className="text-sm text-foreground leading-relaxed">{data.constraintNarrative}</p>
+          <div className="text-sm text-foreground leading-relaxed prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>ul]:pl-4 [&>ul]:list-disc [&>li]:mb-1">
+            <Streamdown>{stripStageRefs(data.constraintNarrative)}</Streamdown>
+          </div>
         </div>
       )}
       {/* Physics Constraint Validation */}

@@ -380,12 +380,20 @@ export default function InsurerComparisonView() {
 
   const fraudDetected = hasFraudIndicators();
 
+  // ── Normalised values (server-side single source of truth) ─────────────────
+  // Use _normalised.costs / _normalised.fraud for all cost and fraud displays
+  // to ensure internal consistency across all sections of this page.
+  const normCosts = aiAssessment?._normalised?.costs ?? null;
+  const normFraud = aiAssessment?._normalised?.fraud ?? null;
+
   // Derive key metrics for the hero header
-  const aiCostDollars = aiAssessment?.estimatedCost || 0;
+  // Prefer normalised total cost; fall back to raw estimatedCost only if normalised is unavailable
+  const aiCostDollars = normCosts?.totalUsd ?? aiAssessment?.estimatedCost ?? 0;
   const assessorCostCents = assessorEval?.estimatedRepairCost || 0;
   const quotedAmounts = quotes.map((q: any) => q.quotedAmount || 0);
   const lowestQuoteCents = quotedAmounts.length > 0 ? Math.min(...quotedAmounts) : 0;
-  const fraudLevel = aiAssessment?.fraudRiskLevel || assessorEval?.fraudRiskLevel || 'unknown';
+  // Use normalised fraud score as the single authoritative value
+  const fraudLevel = normFraud?.level ?? aiAssessment?.fraudRiskLevel ?? assessorEval?.fraudRiskLevel ?? 'unknown';
   const confidenceScore = aiAssessment?.confidenceScore || 0;
 
   const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'danger' :

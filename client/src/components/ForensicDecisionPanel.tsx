@@ -31,6 +31,7 @@ import { DamageImagesPanel } from "@/components/DamageImagesPanel";
 import { ImpactVectorDiagram } from "@/components/ImpactVectorDiagram";
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { CostComparisonChart, FraudBreakdownChart, DamageSeverityChart, ConfidenceGauge } from "@/components/ForensicCharts";
+import { toHumanLabel, stripStageRefs, formatIntegrityFlag } from "@/lib/labelUtils";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -185,7 +186,7 @@ function FlagRow({ flag, severity, description, action }: {
     <div className={`rounded-lg border px-3 py-2.5 ${cfg.rowCls}`}>
       <div className="flex items-center gap-2 mb-1">
         <span className={`w-2 h-2 rounded-full shrink-0 ${cfg.dotCls}`} />
-        <code className={`text-xs font-mono font-semibold ${cfg.textCls}`}>{flag}</code>
+        <span className={`text-xs font-semibold ${cfg.textCls}`}>{toHumanLabel(flag)}</span>
         <span className={`ml-auto text-xs font-bold px-1.5 py-0.5 rounded ${cfg.textCls} bg-white/40 dark:bg-black/20`}>{cfg.badge}</span>
       </div>
       <p className="text-xs text-muted-foreground pl-4 leading-relaxed">{description}</p>
@@ -248,8 +249,17 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const causalChain      = useMemo(() => safeParse(aiAssessment?.causalChainJson), [aiAssessment?.causalChainJson]);
   const fraudIndicators  = useMemo(() => safeParseArray(aiAssessment?.fraudIndicators), [aiAssessment?.fraudIndicators]);
 
+  // ── Normalised values (server-side single source of truth) ─────────────────
+  // The _normalised field is populated by the server-side report-normalisation service.
+  // Structure: { costs: NormalisedCosts, fraud: NormalisedFraud, verdict: NormalisedVerdictResult }
+  // Always prefer these values over raw fields to avoid contradictions across sections.
+  const norm = aiAssessment?._normalised ?? null;
+  const normCosts = norm?.costs ?? null;
+  const normFraud = norm?.fraud ?? null;
+  const normVerdict = norm?.verdict ?? null;
+
   // ── Derived values ──────────────────────────────────────────────────────────
-  const fraudScore       = Number(aiAssessment?.fraudScore ?? fraudBreakdown?.totalScore ?? 0);
+  const fraudScore       = Number(normFraud?.score ?? aiAssessment?.fraudScore ?? fraudBreakdown?.totalScore ?? 0);
   const confidenceScore  = Math.max(0, Math.min(100, Number(aiAssessment?.confidenceScore ?? 72)));
   const estimatedSpeedKmh = Number(physics?.estimatedSpeedKmh ?? 0);
   const deltaVKmh        = Number(physics?.deltaVKmh ?? 0);
@@ -265,17 +275,26 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const rearComponents   = damagedComponents.filter((c: any) => { const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase(); return n.includes("rear") || n.includes("boot") || n.includes("trunk") || n.includes("tail"); });
   const sideComponents   = damagedComponents.filter((c: any) => { const n = (typeof c === "string" ? c : c?.component ?? c?.name ?? "").toLowerCase(); return n.includes("door") || n.includes("side") || n.includes("wing") || n.includes("fender") || n.includes("mirror") || n.includes("sill"); });
 
-  const aiCost           = Number(aiAssessment?.estimatedCost ?? 0);
-  const agreedCost       = Number(costIntel?.documentedAgreedCostUsd ?? costIntel?.agreedCostUsd ?? 0);
-  const originalQuote    = Number(costIntel?.documentedOriginalQuoteUsd ?? costIntel?.originalQuoteUsd ?? 0);
+  // Use normalised costs as primary source — these are internally consistent
+  const aiCost           = Number(normCosts?.aiEstimateUsd ?? aiAssessment?.estimatedCost ?? 0);
+  const agreedCost       = Number(normCosts?.documentedAgreedUsd ?? costIntel?.documentedAgreedCostUsd ?? costIntel?.agreedCostUsd ?? 0);
+  const originalQuote    = Number(normCosts?.documentedQuoteUsd ?? costIntel?.documentedOriginalQuoteUsd ?? costIntel?.originalQuoteUsd ?? 0);
+  const partsTotal       = Number(normCosts?.partsUsd ?? costIntel?.partsCostUsd ?? 0);
+  const labourTotal      = Number(normCosts?.labourUsd ?? costIntel?.labourCostUsd ?? 0);
   const marketValue      = Number(costIntel?.marketValueUsd ?? 0);
   const repairToValue    = marketValue > 0 ? ((agreedCost || aiCost) / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
   const maxCost          = Math.max(aiCost, agreedCost, originalQuote, 1);
   const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
   // Cost Decision Engine output — the authoritative cost figure
   const costDecision      = costIntel?.costDecision ?? null;
-  const trueCostUsd       = Number(costDecision?.true_cost_usd ?? 0);
-  const costBasisLabel    = costDecision?.cost_basis ?? (agreedCost > 0 ? "AGREED_COST" : "AI_ESTIMATE");
+  // Use normalised total as the single authoritative cost
+  const trueCostUsd       = Number(normCosts?.totalUsd ?? costDecision?.true_cost_usd ?? 0);
+  // Derive a human-readable cost basis label from the normalised source
+  const costBasisLabel    = normCosts?.source === 'agreed_cost' ? 'Agreed Cost' :
+                            normCosts?.source === 'original_quote' ? 'Panel Beater Quote' :
+                            normCosts?.source === 'parts_labour_sum' ? 'Parts + Labour' :
+                            normCosts?.source === 'ai_estimate' ? 'AI Estimate' :
+                            costDecision?.cost_basis ?? (agreedCost > 0 ? 'Agreed Cost' : 'AI Estimate');
   const costBasis         = trueCostUsd > 0 ? trueCostUsd : (agreedCost > 0 ? agreedCost : aiCost);
   const costRecommendation = costDecision?.recommendation ?? null;
   const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];
@@ -288,13 +307,13 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   // ── Integrity flags ─────────────────────────────────────────────────────────
   const integrityFlags: Array<{ flag: string; severity: "HIGH" | "MEDIUM" | "LOW"; description: string; action: string }> = [];
   if (!aiAssessment?.physicsAnalysis || !physics?.physicsExecuted) {
-    integrityFlags.push({ flag: "physics_not_executed", severity: "MEDIUM", description: "Stage 7 physics engine did not run. Speed, force, and energy fields are absent.", action: "Re-run pipeline to generate physics analysis." });
+    integrityFlags.push({ flag: "physics_not_executed", severity: "MEDIUM", description: "Physics analysis has not been completed for this claim. Speed, force, and energy calculations are unavailable.", action: "Re-run the claim assessment to generate physics analysis." });
   }
   if (!aiAssessment?.costIntelligenceJson) {
-    integrityFlags.push({ flag: "cost_intelligence_missing", severity: "HIGH", description: "Stage 9 cost intelligence output is absent. Cost comparison cannot be performed.", action: "Re-run pipeline or upload claim document with quote." });
+    integrityFlags.push({ flag: "cost_intelligence_missing", severity: "HIGH", description: "Cost intelligence data is missing. A cost comparison cannot be performed without this data.", action: "Re-run the assessment or ensure the claim document includes a repair quote." });
   }
   if (photosJson.length === 0 && !enrichedPhotos) {
-    integrityFlags.push({ flag: "image_processing_failure", severity: "MEDIUM", description: "No damage photos extracted. Stage 11 photo enrichment has not run.", action: "Extract photos from source PDF pages 3–4 and re-run." });
+    integrityFlags.push({ flag: "image_processing_failure", severity: "MEDIUM", description: "No damage photographs were found for this claim. Visual damage assessment is unavailable.", action: "Upload damage photographs and re-run the assessment." });
   }
 
   // ── Narrative sentences ─────────────────────────────────────────────────────
@@ -303,7 +322,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
     totalComponents > 0 ? `Damage spans ${[frontComponents.length > 0 && `${frontComponents.length} front`, rearComponents.length > 0 && `${rearComponents.length} rear`, sideComponents.length > 0 && `${sideComponents.length} side`].filter(Boolean).join(", ")} components — consistent with the reported collision mechanism.` : null,
     costBasis > 0 ? `${quotesReceived > 0 ? `${quotesReceived} quotes obtained;` : "Estimated"} repair cost ${fmt(costBasis)}${marketValue > 0 ? ` (${repairToValue.toFixed(1)}% of ${fmt(marketValue)} market value)` : ""} — ${repairToValue < 70 ? "clear repair case" : "approaching total-loss threshold"}.` : null,
     fraudScore <= 15 ? `Fraud score ${fraudScore}/100 (minimal); ${fraudIndicators.length > 0 ? `active indicator: ${fraudIndicators[0]?.indicator ?? fraudIndicators[0]?.label ?? "—"}` : "no active fraud indicators"}.` : `Fraud score ${fraudScore}/100 — review required.`,
-    integrityFlags.length > 0 ? `${integrityFlags.length} system integrity flag${integrityFlags.length > 1 ? "s" : ""} open: ${integrityFlags.map(f => f.flag).join(", ")}.` : "All integrity checks passed.",
+    integrityFlags.length > 0 ? `${integrityFlags.length} attention item${integrityFlags.length > 1 ? "s" : ""} require review: ${integrityFlags.map(f => toHumanLabel(f.flag)).join("; ")}.` : "All integrity checks passed.",
   ].filter(Boolean) as string[];
 
   const decision = decisionConfig(fraudScore, confidenceScore);
@@ -416,7 +435,7 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
             <AlertCircle className="h-3.5 w-3.5 text-amber-500 shrink-0" />
             <span className="text-xs text-muted-foreground">
               <span className="font-semibold text-amber-600 dark:text-amber-400">{integrityFlags.length} open flag{integrityFlags.length > 1 ? "s" : ""}</span>
-              {" "}— {integrityFlags.map(f => f.flag).join(", ")}
+              {" "}— {integrityFlags.map(f => toHumanLabel(f.flag)).join("; ")}
             </span>
           </div>
         )}
@@ -588,43 +607,79 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         {/* ── TAB: COST ANALYSIS ─────────────────────────────────────────────── */}
         <TabsContent value="cost" className="mt-4 space-y-4">
 
-          {/* Cost Decision Summary */}
-          {costDecision && (
-            <Card title="Cost Decision" icon={<ShieldCheck className="h-4 w-4" />}>
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <p className="text-xs text-muted-foreground uppercase tracking-wide">True Cost ({costBasisLabel.replace(/_/g, " ")})</p>
-                  <p className="text-2xl font-black text-foreground tabular-nums">{fmt(trueCostUsd)}</p>
+          {/* Cost Decision Summary with Parts + Labour = Total reconciliation */}
+          <Card title="Cost Decision" icon={<ShieldCheck className="h-4 w-4" />}>
+            {/* Primary cost figure */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">Authoritative Cost ({costBasisLabel})</p>
+                <p className="text-2xl font-black text-foreground tabular-nums">{trueCostUsd > 0 ? fmt(trueCostUsd) : costBasis > 0 ? fmt(costBasis) : "Not available"}</p>
+              </div>
+              {costRecommendation && (
+                <span className={`text-xs font-semibold px-2 py-1 rounded border ${
+                  costRecommendation === "APPROVE" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                  costRecommendation === "REVIEW" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
+                  "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
+                }`}>{costRecommendation}</span>
+              )}
+            </div>
+
+            {/* Parts + Labour = Total reconciliation — always shown when data available */}
+            {(partsTotal > 0 || labourTotal > 0) && (
+              <div className="mb-4 p-3 rounded-lg border border-border bg-muted/20">
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Cost Reconciliation</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground">Parts</span>
+                    <span className="text-base font-bold text-foreground tabular-nums">{partsTotal > 0 ? fmt(partsTotal) : "—"}</span>
+                  </div>
+                  <span className="text-lg font-bold text-muted-foreground">+</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground">Labour</span>
+                    <span className="text-base font-bold text-foreground tabular-nums">{labourTotal > 0 ? fmt(labourTotal) : "—"}</span>
+                  </div>
+                  <span className="text-lg font-bold text-muted-foreground">=</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-xs text-muted-foreground">Total</span>
+                    <span className="text-base font-bold text-primary tabular-nums">
+                      {partsTotal > 0 && labourTotal > 0 ? fmt(partsTotal + labourTotal) : partsTotal > 0 ? fmt(partsTotal) : labourTotal > 0 ? fmt(labourTotal) : "—"}
+                    </span>
+                  </div>
+                  {/* Consistency check */}
+                  {partsTotal > 0 && labourTotal > 0 && trueCostUsd > 0 && (
+                    Math.abs((partsTotal + labourTotal) - trueCostUsd) / trueCostUsd < 0.05
+                      ? <span className="ml-auto text-xs font-semibold text-green-600 dark:text-green-400">✓ Reconciled</span>
+                      : <span className="ml-auto text-xs font-semibold text-amber-600 dark:text-amber-400">⚠ Variance: {(((partsTotal + labourTotal) - trueCostUsd) / trueCostUsd * 100).toFixed(1)}%</span>
+                  )}
                 </div>
-                {costRecommendation && (
-                  <span className={`text-xs font-semibold px-2 py-1 rounded border ${
-                    costRecommendation === "APPROVE" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
-                    costRecommendation === "REVIEW" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
-                    "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
-                  }`}>{costRecommendation}</span>
+                {normCosts?.hasCostContradiction && normCosts.contradictionNote && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-2 pt-2 border-t border-border">
+                    ⚠ {normCosts.contradictionNote}
+                  </p>
                 )}
               </div>
-              {costReliability && (
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xs text-muted-foreground">Reliability:</span>
-                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${
-                    costReliability.confidence_level === "HIGH" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
-                    costReliability.confidence_level === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
-                    "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
-                  }`}>{costReliability.confidence_level}</span>
-                  {costReliability.reason && <span className="text-xs text-muted-foreground">{costReliability.reason}</span>}
-                </div>
-              )}
-              {costAnomalies.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-border">
-                  <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">Anomalies Detected</p>
-                  {costAnomalies.map((a: any, i: number) => (
-                    <p key={i} className="text-xs text-muted-foreground">• {typeof a === "string" ? a : a.description ?? a.message ?? JSON.stringify(a)}</p>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
+            )}
+
+            {costReliability && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs text-muted-foreground">Reliability:</span>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${
+                  costReliability.confidence_level === "HIGH" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                  costReliability.confidence_level === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
+                  "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
+                }`}>{costReliability.confidence_level}</span>
+                {costReliability.reason && <span className="text-xs text-muted-foreground">{costReliability.reason}</span>}
+              </div>
+            )}
+            {costAnomalies.length > 0 && (
+              <div className="mt-2 pt-2 border-t border-border">
+                <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">Anomalies Detected</p>
+                {costAnomalies.map((a: any, i: number) => (
+                  <p key={i} className="text-xs text-muted-foreground">• {typeof a === "string" ? a : a.description ?? a.message ?? JSON.stringify(a)}</p>
+                ))}
+              </div>
+            )}
+          </Card>
 
           {/* Cost Narrative */}
           {costNarrative && (
@@ -1082,33 +1137,54 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         {/* ── TAB: TECHNICAL DETAILS ─────────────────────────────────────────── */}
         <TabsContent value="technical" className="mt-4 space-y-4">
 
-          {/* Physics model with force vector diagram */}
-          {physics && (
-            <Card title="Impact Vector Analysis" icon={<Zap className="h-4 w-4" />}>
-              <ImpactVectorDiagram
-                impactDirection={impactDirection}
-                impactForceKn={impactForceKn}
-                estimatedSpeedKmh={estimatedSpeedKmh}
-                deltaVKmh={deltaVKmh}
-                energyKj={energyKj}
-                impactAngle={physics?.impactVector?.angle}
-                damagedZones={[...new Set([
-                  frontComponents.length > 0 ? "FRONT" : null,
-                  rearComponents.length > 0 ? "REAR" : null,
-                  sideComponents.length > 0 ? "SIDE" : null,
-                ].filter(Boolean) as string[])]}
-              />
-              {kineticEnergyJ > 0 && (
-                <div className="mt-4 pt-3 border-t border-border">
-                  <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                    <span>Energy dissipated into structure</span>
-                    <span>{((energyKj * 1000 / kineticEnergyJ) * 100).toFixed(0)}%</span>
+          {/* Impact Vector Analysis — always shown, placeholder when physics absent */}
+          <Card title="Impact Vector Analysis" icon={<Zap className="h-4 w-4" />}>
+            {physics ? (
+              <>
+                <ImpactVectorDiagram
+                  impactDirection={impactDirection}
+                  impactForceKn={impactForceKn}
+                  estimatedSpeedKmh={estimatedSpeedKmh}
+                  deltaVKmh={deltaVKmh}
+                  energyKj={energyKj}
+                  impactAngle={physics?.impactVector?.angle}
+                  damagedZones={[...new Set([
+                    frontComponents.length > 0 ? "FRONT" : null,
+                    rearComponents.length > 0 ? "REAR" : null,
+                    sideComponents.length > 0 ? "SIDE" : null,
+                  ].filter(Boolean) as string[])]}
+                />
+                {kineticEnergyJ > 0 && (
+                  <div className="mt-4 pt-3 border-t border-border">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Energy dissipated into structure</span>
+                      <span>{((energyKj * 1000 / kineticEnergyJ) * 100).toFixed(0)}%</span>
+                    </div>
+                    <Bar value={(energyKj * 1000 / kineticEnergyJ) * 100} colorCls="bg-orange-500" />
                   </div>
-                  <Bar value={(energyKj * 1000 / kineticEnergyJ) * 100} colorCls="bg-orange-500" />
-                </div>
-              )}
-            </Card>
-          )}
+                )}
+              </>
+            ) : (
+              <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+                <ImpactVectorDiagram
+                  impactDirection={impactDirection || "FRONTAL"}
+                  impactForceKn={0}
+                  estimatedSpeedKmh={0}
+                  deltaVKmh={0}
+                  energyKj={0}
+                  damagedZones={[
+                    frontComponents.length > 0 ? "FRONT" : null,
+                    rearComponents.length > 0 ? "REAR" : null,
+                    sideComponents.length > 0 ? "SIDE" : null,
+                  ].filter(Boolean) as string[]}
+                />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Physics analysis has not been completed for this claim.
+                  Force, speed, and energy values will appear once the assessment is re-run.
+                </p>
+              </div>
+            )}
+          </Card>
 
           {/* Causal chain */}
           {causalChain && (

@@ -61,9 +61,36 @@ export function ImpactVectorDiagram({
   impactAngle,
   damagedZones = [],
 }: ImpactVectorDiagramProps) {
+  // All hooks must be called unconditionally (React Rules of Hooks)
   const angle = useMemo(() => directionToAngle(impactDirection, impactAngle), [impactDirection, impactAngle]);
   const zones = useMemo(() => impactedZones(impactDirection), [impactDirection]);
   const severity = useMemo(() => severityFromSpeed(estimatedSpeedKmh), [estimatedSpeedKmh]);
+
+  // ── Fallback: render placeholder when physics data is absent ─────────────────
+  const hasPhysicsData = estimatedSpeedKmh > 0 || impactForceKn > 0 || energyKj > 0;
+  if (!hasPhysicsData) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 py-10 px-6 rounded-xl border border-dashed border-border bg-muted/20">
+        <svg viewBox="0 0 400 200" className="w-full max-w-[320px] h-auto opacity-30" aria-hidden="true">
+          {/* Placeholder vehicle silhouette */}
+          <rect x="162" y="30" width="76" height="140" rx="15" className="fill-muted stroke-border" strokeWidth="1.5" />
+          <path d="M170,52 L230,52 L226,72 L174,72 Z" className="fill-background/50 stroke-border" strokeWidth="1" />
+          <path d="M172,132 L228,132 L226,150 L174,150 Z" className="fill-background/50 stroke-border" strokeWidth="1" />
+          <rect x="155" y="48" width="10" height="22" rx="4" className="fill-foreground/20" />
+          <rect x="235" y="48" width="10" height="22" rx="4" className="fill-foreground/20" />
+          <rect x="155" y="130" width="10" height="22" rx="4" className="fill-foreground/20" />
+          <rect x="235" y="130" width="10" height="22" rx="4" className="fill-foreground/20" />
+          {/* Dashed question mark circle */}
+          <circle cx="200" cy="100" r="90" fill="none" className="stroke-border" strokeWidth="1" strokeDasharray="6 4" />
+        </svg>
+        <div className="text-center">
+          <p className="text-sm font-semibold text-muted-foreground">Physics Analysis Pending</p>
+          <p className="text-xs text-muted-foreground mt-1">Speed, force, and energy calculations are not yet available for this claim.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Re-run the AI assessment to generate the impact vector diagram.</p>
+        </div>
+      </div>
+    );
+  }
 
   // Scale arrow length: 50px minimum, 120px max, proportional to force
   const arrowLen = Math.min(120, Math.max(50, impactForceKn * 0.9));

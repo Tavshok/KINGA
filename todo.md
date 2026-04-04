@@ -10262,3 +10262,54 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix incidentClassificationEngine.test.ts (animal strike classification, 3 failures)
 - [x] Fix photoEnrichmentAutoTrigger.test.ts (missing await on async function, 12 tests)
 - [x] Run full test suite and verify all 36 previously failing tests now pass
+
+## Systemic Report Fail-Safe Implementation
+
+### Phase A: Audit & Data Flow Mapping
+- [ ] Map all cost data sources (db.ts, routers.ts, pipeline stages)
+- [ ] Map all fraud score sources and identify authoritative one
+- [ ] Identify where cross-engine consensus dimension scores are computed
+
+### Phase B: Server-Side Normalisation Layer
+- [ ] Create server/services/reportNormaliser.ts — single-source cost resolver (parts+labour=total)
+- [ ] Create server/services/fraudScoreArbitrator.ts — single authoritative fraud score
+- [ ] Create server/services/consensusValidator.ts — validate dimension scores are 0-100
+- [ ] Wire normaliser into report tRPC procedure so ALL claims go through it
+
+### Phase C: Report Integrity Guard
+- [ ] Create server/services/reportIntegrityGuard.ts — validates report before serving
+- [ ] Guard: cost total must equal parts + labour
+- [ ] Guard: fraud score must be consistent across all sections
+- [ ] Guard: ESCALATE and APPROVE cannot coexist
+- [ ] Guard: STRONG consensus cannot coexist with all-CONFLICT dimensions
+- [ ] Guard auto-corrects or flags with clear error rather than serving contradictory data
+
+### Phase D: UI Rendering Fixes
+- [ ] Add markdown renderer to Forensic Constraint Analysis section
+- [ ] Fix SVG ImpactVectorDiagram rendering bug
+- [ ] Create labelTranslator utility: snake_case to human-readable labels
+- [ ] Strip all stage numbers from user-facing UI
+- [ ] Mask internal identifiers (case signatures, grouping keys) from insurer view
+- [ ] Replace image_processing_failure with plain English throughout
+- [ ] Remove raw weighted formula from Evidence Bundle
+- [ ] Add Probability label to Alternative Causes percentages
+- [ ] Fix dimension scores out of range (2000 values in Cross-Engine Consensus)
+
+### Phase E: Report Layout Redesign
+- [ ] Stratify report: Executive Summary, Damage, Cost, Fraud & Risk, Decision
+- [ ] Reconcile cost display: one canonical cost per section with clear source label
+- [ ] Unified fraud score badge shown consistently
+- [ ] Fix Approve/ESCALATE contradiction display
+- [ ] Fix contrast on dark red banners
+- [ ] Remove all developer-facing debug text from insurer view
+
+### Phase F: Automated Pipeline Triggers
+- [ ] Auto-surface incident type to Accident Reconstruction section
+- [ ] Auto-trigger Three-Source Consistency Check when data is available
+- [ ] Auto-calculate Repair/Value Ratio when market value is present
+
+### Phase G: Tests for Normalisation and Guards
+- [ ] Write tests for reportNormaliser (cost calculation)
+- [ ] Write tests for fraudScoreArbitrator (score consistency)
+- [ ] Write tests for reportIntegrityGuard (contradiction detection)
+- [ ] Write tests for labelTranslator (snake_case conversion)
