@@ -27,6 +27,10 @@ import { useTenantCurrency } from "@/hooks/useTenantCurrency";
 import { trpc } from "@/lib/trpc";
 import { toast } from "sonner";
 import { ValidationGate } from "@/components/ValidationGate";
+import { DamageImagesPanel } from "@/components/DamageImagesPanel";
+import { ImpactVectorDiagram } from "@/components/ImpactVectorDiagram";
+import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
+import { CostComparisonChart, FraudBreakdownChart, DamageSeverityChart, ConfidenceGauge } from "@/components/ForensicCharts";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types & helpers
@@ -100,11 +104,12 @@ function confidenceBadgeCls(score: number) {
 }
 
 function severityBand(kmh: number) {
-  if (kmh < 15) return { label: "Cosmetic", color: "#16a34a" };
-  if (kmh < 30) return { label: "Minor", color: "#d97706" };
-  if (kmh < 55) return { label: "Moderate", color: "#ea580c" };
-  if (kmh < 80) return { label: "Severe", color: "#dc2626" };
-  return { label: "Catastrophic", color: "#7f1d1d" };
+  // Use Tailwind classes instead of hardcoded hex for dark mode support
+  if (kmh < 15) return { label: "Cosmetic", color: "var(--status-approve-text, #16a34a)", cls: "text-green-600 dark:text-green-400" };
+  if (kmh < 30) return { label: "Minor", color: "var(--status-review-text, #d97706)", cls: "text-amber-600 dark:text-amber-400" };
+  if (kmh < 55) return { label: "Moderate", color: "var(--color-warning, #ea580c)", cls: "text-orange-600 dark:text-orange-400" };
+  if (kmh < 80) return { label: "Severe", color: "var(--status-reject-text, #dc2626)", cls: "text-red-600 dark:text-red-400" };
+  return { label: "Catastrophic", color: "var(--status-reject-text, #7f1d1d)", cls: "text-red-700 dark:text-red-300" };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -195,7 +200,7 @@ function TH({ children }: { children: React.ReactNode }) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicDecisionPanelProps) {
-  const { fmt } = useTenantCurrency();
+  const { fmt, currencySymbol } = useTenantCurrency();
   const utils = trpc.useUtils();
   const [showPipelineTrace, setShowPipelineTrace] = useState(false);
 
@@ -253,7 +258,16 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
   const repairToValue    = marketValue > 0 ? ((agreedCost || aiCost) / marketValue) * 100 : Number(costIntel?.repairToValuePct ?? 0);
   const maxCost          = Math.max(aiCost, agreedCost, originalQuote, 1);
   const quotesReceived   = Number(costIntel?.quotesReceived ?? 0);
-  const costBasis        = agreedCost > 0 ? agreedCost : aiCost;
+  // Cost Decision Engine output — the authoritative cost figure
+  const costDecision      = costIntel?.costDecision ?? null;
+  const trueCostUsd       = Number(costDecision?.true_cost_usd ?? 0);
+  const costBasisLabel    = costDecision?.cost_basis ?? (agreedCost > 0 ? "AGREED_COST" : "AI_ESTIMATE");
+  const costBasis         = trueCostUsd > 0 ? trueCostUsd : (agreedCost > 0 ? agreedCost : aiCost);
+  const costRecommendation = costDecision?.recommendation ?? null;
+  const costAnomalies     = Array.isArray(costDecision?.anomalies) ? costDecision.anomalies : [];
+  const costNarrative     = costIntel?.costNarrative ?? null;
+  const costReliability   = costIntel?.costReliability ?? null;
+  const hasDocumentedQuote = originalQuote > 0 || agreedCost > 0;
   const quotesMapped     = partsRecon.filter((r: any) => r.quotedAmount != null).length;
   const photosJson       = safeParseArray(aiAssessment?.damagePhotosJson);
 
@@ -309,21 +323,19 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
           {/* Cost */}
           {costBasis > 0 && (
             <div className="flex flex-col">
-              <span className="text-xs text-muted-foreground uppercase tracking-wide">Agreed Cost</span>
+              <span className="text-xs text-muted-foreground uppercase tracking-wide">
+                {costBasisLabel === "AGREED_COST" ? "Agreed Cost" : costBasisLabel === "OPTIMISED_COST" ? "Optimised Cost" : "Est. Cost"}
+              </span>
               <span className="text-lg font-bold text-foreground tabular-nums">{fmt(costBasis)}</span>
             </div>
           )}
 
-          {/* Confidence */}
-          <div className="flex flex-col">
-            <span className="text-xs text-muted-foreground uppercase tracking-wide">Confidence</span>
-            <div className="flex items-center gap-1.5">
-              <span className="text-lg font-bold text-foreground tabular-nums">{confidenceScore}</span>
-              <span className="text-xs text-muted-foreground">/100</span>
-              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${confidenceBadgeCls(confidenceScore)}`}>
-                {confidenceScore >= 80 ? "HIGH" : confidenceScore >= 60 ? "MED" : "LOW"}
-              </span>
-            </div>
+          {/* Confidence gauge */}
+          <div className="flex flex-col items-center">
+            <ConfidenceGauge score={confidenceScore} size={90} />
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border mt-1 ${confidenceBadgeCls(confidenceScore)}`}>
+              {confidenceScore >= 80 ? "HIGH" : confidenceScore >= 60 ? "MED" : "LOW"}
+            </span>
           </div>
 
           {/* Fraud */}
@@ -562,25 +574,83 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         {/* ── TAB: COST ANALYSIS ─────────────────────────────────────────────── */}
         <TabsContent value="cost" className="mt-4 space-y-4">
 
+          {/* Cost Decision Summary */}
+          {costDecision && (
+            <Card title="Cost Decision" icon={<ShieldCheck className="h-4 w-4" />}>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <p className="text-xs text-muted-foreground uppercase tracking-wide">True Cost ({costBasisLabel.replace(/_/g, " ")})</p>
+                  <p className="text-2xl font-black text-foreground tabular-nums">{fmt(trueCostUsd)}</p>
+                </div>
+                {costRecommendation && (
+                  <span className={`text-xs font-semibold px-2 py-1 rounded border ${
+                    costRecommendation === "APPROVE" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                    costRecommendation === "REVIEW" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
+                    "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
+                  }`}>{costRecommendation}</span>
+                )}
+              </div>
+              {costReliability && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs text-muted-foreground">Reliability:</span>
+                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded border ${
+                    costReliability.confidence_level === "HIGH" ? "bg-green-100 text-green-800 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800" :
+                    costReliability.confidence_level === "MEDIUM" ? "bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800" :
+                    "bg-red-100 text-red-800 border-red-200 dark:bg-red-950 dark:text-red-300 dark:border-red-800"
+                  }`}>{costReliability.confidence_level}</span>
+                  {costReliability.reason && <span className="text-xs text-muted-foreground">{costReliability.reason}</span>}
+                </div>
+              )}
+              {costAnomalies.length > 0 && (
+                <div className="mt-2 pt-2 border-t border-border">
+                  <p className="text-xs font-semibold text-amber-600 dark:text-amber-400 mb-1">Anomalies Detected</p>
+                  {costAnomalies.map((a: any, i: number) => (
+                    <p key={i} className="text-xs text-muted-foreground">• {typeof a === "string" ? a : a.description ?? a.message ?? JSON.stringify(a)}</p>
+                  ))}
+                </div>
+              )}
+            </Card>
+          )}
+
+          {/* Cost Narrative */}
+          {costNarrative && (
+            <Card title="Cost Analysis Narrative" icon={<FileText className="h-4 w-4" />}>
+              <p className="text-sm text-foreground leading-relaxed">{typeof costNarrative === "string" ? costNarrative : costNarrative.narrative ?? costNarrative.summary ?? JSON.stringify(costNarrative)}</p>
+            </Card>
+          )}
+
           {/* Cost comparison */}
           <Card title="Cost Comparison" icon={<DollarSign className="h-4 w-4" />}>
             <div className="space-y-4">
               {[
-                { label: costIntel?.panelBeaterName ? `Panel Beater Quote — ${costIntel.panelBeaterName}` : "Panel Beater Quote", value: originalQuote, note: quotesReceived > 0 ? `Lowest of ${quotesReceived} quotes` : "From claim document", colorCls: "bg-red-400" },
-                { label: "AI Model Estimate",  value: aiCost,      note: "Physics-based component model",       colorCls: "bg-orange-400" },
-                { label: "Agreed Cost",        value: agreedCost > 0 ? agreedCost : null, note: "Assessor-negotiated — operative figure", colorCls: "bg-green-500" },
-              ].filter(item => (item.value ?? 0) > 0).map(({ label, value, note, colorCls }) => (
-                <div key={label}>
+                { label: costIntel?.panelBeaterName ? `Panel Beater Quote — ${costIntel.panelBeaterName}` : "Panel Beater Quote", value: originalQuote, note: quotesReceived > 0 ? `${quotesReceived} quote${quotesReceived > 1 ? "s" : ""} received` : "From claim document", colorCls: "bg-primary", primary: hasDocumentedQuote },
+                { label: "Agreed Cost",        value: agreedCost > 0 ? agreedCost : null, note: "Assessor-negotiated — operative figure", colorCls: "bg-green-500", primary: agreedCost > 0 },
+                { label: "AI Model Estimate",  value: aiCost,      note: hasDocumentedQuote ? "Internal reference only — not used for decision" : "Physics-based component model",       colorCls: hasDocumentedQuote ? "bg-muted-foreground/30" : "bg-orange-400", primary: !hasDocumentedQuote },
+              ].filter(item => (item.value ?? 0) > 0).map(({ label, value, note, colorCls, primary }) => (
+                <div key={label} className={!primary ? "opacity-60" : ""}>
                   <div className="flex items-start justify-between mb-1.5 gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-foreground">{label}</p>
+                      <p className={`text-sm font-semibold ${primary ? "text-foreground" : "text-muted-foreground"}`}>{label}</p>
                       <p className="text-xs text-muted-foreground">{note}</p>
                     </div>
-                    <span className="text-base font-bold text-foreground tabular-nums shrink-0">{fmt(value ?? 0)}</span>
+                    <span className={`text-base font-bold tabular-nums shrink-0 ${primary ? "text-foreground" : "text-muted-foreground"}`}>{fmt(value ?? 0)}</span>
                   </div>
                   <Bar value={value ?? 0} max={maxCost} colorCls={colorCls} />
                 </div>
               ))}
+            </div>
+
+            {/* Cost comparison chart */}
+            <div className="mt-4 pt-4 border-t border-border">
+              <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Visual Comparison</p>
+              <CostComparisonChart
+                originalQuote={originalQuote}
+                agreedCost={agreedCost}
+                aiEstimate={aiCost}
+                trueCost={trueCostUsd}
+                panelBeaterName={costIntel?.panelBeaterName}
+                currencySymbol={currencySymbol}
+              />
             </div>
 
             {/* Repair-to-value */}
@@ -688,6 +758,25 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
 
         {/* ── TAB: DAMAGE ────────────────────────────────────────────────────── */}
         <TabsContent value="damage" className="mt-4 space-y-4">
+
+          {/* Vehicle damage visualisation */}
+          <VehicleDamageVisualization
+            damagedComponents={damagedComponents.map((c: any) => typeof c === "string" ? c : (c?.component ?? c?.name ?? ""))}
+            accidentType={physics?.impactVector?.direction ?? impactDirection.toLowerCase()}
+            estimatedCost={costBasis}
+            structuralDamage={severity === "severe" || severity === "catastrophic"}
+            airbagDeployment={!!physics?.airbagDeployment}
+          />
+
+          {/* Damage severity distribution chart */}
+          {damagedComponents.length > 0 && (
+            <Card title="Severity Distribution" icon={<BarChart2 className="h-4 w-4" />}>
+              <DamageSeverityChart components={damagedComponents.map((c: any) => ({
+                name: typeof c === "string" ? c : (c?.component ?? c?.name ?? ""),
+                severity: typeof c === "string" ? "minor" : (c?.severity ?? "minor"),
+              }))} />
+            </Card>
+          )}
 
           {/* Damage zone map */}
           <Card title="Damage Zone Map" icon={<Activity className="h-4 w-4" />}>
@@ -830,10 +919,25 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
               </Card>
             );
           })()}
+          {/* Damage photos */}
+          <DamageImagesPanel
+            damagePhotosJson={aiAssessment?.damagePhotosJson}
+            rawDamagePhotos={claim?.damagePhotos}
+            enrichedPhotosJson={aiAssessment?.enrichedPhotosJson}
+            photoInconsistenciesJson={aiAssessment?.photoInconsistenciesJson}
+            claimId={claim?.id}
+          />
         </TabsContent>
 
         {/* ── TAB: FRAUD & RISK ──────────────────────────────────────────────── */}
         <TabsContent value="fraud" className="mt-4 space-y-4">
+
+          {/* Fraud breakdown chart */}
+          {fraudIndicators.length > 0 && (
+            <Card title="Fraud Score Breakdown" icon={<ShieldAlert className="h-4 w-4" />}>
+              <FraudBreakdownChart fraudScore={fraudScore} indicators={fraudIndicators} />
+            </Card>
+          )}
 
           {/* Fraud summary */}
           <Card title="Fraud Risk Summary" icon={<ShieldAlert className="h-4 w-4" />}>
@@ -964,34 +1068,24 @@ export default function ForensicDecisionPanel({ aiAssessment, claim }: ForensicD
         {/* ── TAB: TECHNICAL DETAILS ─────────────────────────────────────────── */}
         <TabsContent value="technical" className="mt-4 space-y-4">
 
-          {/* Physics model */}
+          {/* Physics model with force vector diagram */}
           {physics && (
-            <Card title="Physics Model" icon={<Zap className="h-4 w-4" />}>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                {[
-                  { label: "Speed",         value: estimatedSpeedKmh > 0 ? `${estimatedSpeedKmh.toFixed(1)} km/h` : "—" },
-                  { label: "ΔV",            value: deltaVKmh > 0 ? `${deltaVKmh.toFixed(1)} km/h` : "—" },
-                  { label: "Impact Force",  value: impactForceKn > 0 ? `${impactForceKn.toFixed(1)} kN` : "—" },
-                  { label: "Energy",        value: energyKj > 0 ? `${energyKj.toFixed(1)} kJ` : "—" },
-                ].map(({ label, value }) => (
-                  <div key={label} className="rounded-lg border border-border bg-muted/20 p-3 text-center">
-                    <p className="text-xs text-muted-foreground uppercase tracking-wide mb-0.5">{label}</p>
-                    <p className="text-base font-bold text-foreground tabular-nums">{value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Impact Direction</p>
-                  <p className="text-sm font-mono font-semibold text-primary">{impactDirection}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground mb-1">Severity Band</p>
-                  <p className="text-sm font-semibold" style={{ color: severityInfo.color }}>{severityInfo.label}</p>
-                </div>
-              </div>
+            <Card title="Impact Vector Analysis" icon={<Zap className="h-4 w-4" />}>
+              <ImpactVectorDiagram
+                impactDirection={impactDirection}
+                impactForceKn={impactForceKn}
+                estimatedSpeedKmh={estimatedSpeedKmh}
+                deltaVKmh={deltaVKmh}
+                energyKj={energyKj}
+                impactAngle={physics?.impactVector?.angle}
+                damagedZones={[...new Set([
+                  frontComponents.length > 0 ? "FRONT" : null,
+                  rearComponents.length > 0 ? "REAR" : null,
+                  sideComponents.length > 0 ? "SIDE" : null,
+                ].filter(Boolean) as string[])]}
+              />
               {kineticEnergyJ > 0 && (
-                <div className="mt-3">
+                <div className="mt-4 pt-3 border-t border-border">
                   <div className="flex justify-between text-xs text-muted-foreground mb-1">
                     <span>Energy dissipated into structure</span>
                     <span>{((energyKj * 1000 / kineticEnergyJ) * 100).toFixed(0)}%</span>

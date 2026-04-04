@@ -69,15 +69,15 @@ function GateRow({ gate, passed, detail }: { gate: string; passed: boolean; deta
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           {passed
-            ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.65 0.18 145)" }} />
-            : <XCircle className="w-4 h-4 flex-shrink-0" style={{ color: "oklch(0.60 0.20 25)" }} />}
+            ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 text-green-600 dark:text-green-400" />
+            : <XCircle className="w-4 h-4 flex-shrink-0 text-red-600 dark:text-red-400" />}
           <span className="text-sm font-medium" style={{ color: "var(--foreground)" }}>{label}</span>
           <Badge
             variant="outline"
             className="text-xs px-1.5 py-0"
             style={{
-              borderColor: passed ? "oklch(0.55 0.18 145 / 0.5)" : "oklch(0.55 0.22 25 / 0.5)",
-              color: passed ? "oklch(0.65 0.18 145)" : "oklch(0.65 0.20 25)",
+              borderColor: passed ? "var(--status-approve-border)" : "var(--status-reject-border)",
+              color: passed ? "var(--status-approve-text)" : "var(--status-reject-text)",
             }}
           >
             {passed ? "PASS" : "FAIL"}
@@ -202,18 +202,18 @@ export default function ReportReadinessPanel({
         style={{
           background: isReady
             ? "oklch(0.35 0.12 145 / 0.2)"
-            : "oklch(0.35 0.18 25 / 0.15)",
-          border: `1.5px solid ${isReady ? "oklch(0.55 0.18 145 / 0.5)" : "oklch(0.55 0.22 25 / 0.4)"}`,
+            : "var(--status-reject-bg)",
+          border: `1.5px solid ${isReady ? "var(--status-approve-border)" : "oklch(0.55 0.22 25 / 0.4)"}`,
         }}
       >
         <div className="flex items-center gap-2">
           {isReady
-            ? <CheckCircle2 className="w-5 h-5" style={{ color: "oklch(0.65 0.18 145)" }} />
-            : <XCircle className="w-5 h-5" style={{ color: "oklch(0.60 0.20 25)" }} />}
+            ? <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+            : <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />}
           <div>
             <p
               className="font-bold text-sm"
-              style={{ color: isReady ? "oklch(0.72 0.18 145)" : "oklch(0.70 0.20 25)" }}
+              style={{ color: isReady ? "oklch(0.72 0.18 145)" : "var(--status-reject-text)" }}
             >
               {isReady ? "READY FOR EXPORT" : "EXPORT ON HOLD"}
             </p>
@@ -240,7 +240,7 @@ export default function ReportReadinessPanel({
               onClick={onExport}
               className="text-xs font-semibold"
               style={{
-                background: "oklch(0.50 0.18 145)",
+                background: "var(--status-approve-text)",
                 color: "oklch(0.98 0.01 145)",
               }}
             >
@@ -269,12 +269,12 @@ export default function ReportReadinessPanel({
           className="p-3 rounded-lg space-y-1.5"
           style={{ background: "oklch(0.35 0.18 25 / 0.10)", border: "1px solid oklch(0.55 0.22 25 / 0.3)" }}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "oklch(0.65 0.20 25)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-red-600 dark:text-red-400">
             Blocking Issues
           </p>
           {result.hold_reasons.map((reason, i) => (
             <div key={i} className="flex items-start gap-2">
-              <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "oklch(0.60 0.20 25)" }} />
+              <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-red-600 dark:text-red-400" />
               <p className="text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>{reason}</p>
             </div>
           ))}
@@ -287,7 +287,7 @@ export default function ReportReadinessPanel({
           className="p-3 rounded-lg space-y-1.5"
           style={{ background: "oklch(0.38 0.14 70 / 0.12)", border: "1px solid oklch(0.55 0.18 70 / 0.3)" }}
         >
-          <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "oklch(0.72 0.18 70)" }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
             Advisory Notes
           </p>
           {result.warnings.map((w, i) => (

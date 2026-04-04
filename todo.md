@@ -10198,3 +10198,22 @@ Code changes are complete but tsx watch not picking up changes despite multiple 
 - [ ] Wire verification as Stage 0 gate in orchestrator — halt pipeline on PARTIAL/FAILED
 - [ ] Surface verification status badge in claim detail UI and PDF report
 - [ ] TypeScript check and checkpoint
+
+
+## Remediation Plan (Audit 4 Apr 2026)
+- [x] P1: Persist costDecision, costNarrative, costReliability, quoteOptimisation, alignmentResult, reconciliationSummary to costIntelligenceJson in db.ts
+- [x] P1: Update ForensicDecisionPanel Cost Analysis tab to display costDecision.true_cost_usd as primary cost
+- [x] P1: Suppress AI estimate display when documented quote exists (label as Internal Reference Only)
+- [x] P2: Import and render DamageImagesPanel in ForensicDecisionPanel Damage tab
+- [ ] P2: Fix empty damage_photos_json — collect photo URLs from claim_documents (requires pipeline re-run with real images)
+- [x] P3: Build ImpactVectorDiagram SVG component for force vector visualisation
+- [x] P3: Integrate VehicleDamageVisualization into Damage tab
+- [x] P4: Add cost comparison bar chart (Chart.js) to Cost Analysis tab
+- [x] P4: Add fraud score breakdown chart to Fraud & Risk tab
+- [x] P4: Add damage severity distribution chart to Damage tab
+- [x] P4: Add confidence gauge to Decision Header
+- [x] P5: Replace hardcoded oklch() inline styles with CSS custom properties (ForensicDecisionPanel, DecisionAuthorityPanel, EscalationRoutingPanel fully cleaned; 227 decorative oklch remain in chart/graph components)
+- [x] P5: Fix dark mode muted-foreground and amber badge contrast
+- [x] P5: Fix duplicate className attributes in ReportReadinessPanel
+- [x] P5: Fix text-gray-400/500 bare classes across all pages (replaced with dark mode variants)
+- [x] P5: Fix gradient KPI cards with white text on light backgrounds

@@ -49,42 +49,42 @@ interface DecisionAuthorityPanelProps {
 function RecommendationBadge({ recommendation }: { recommendation: string }) {
   if (recommendation === "APPROVE") {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "oklch(0.35 0.12 145 / 0.3)", border: "1.5px solid oklch(0.55 0.18 145)" }}>
-        <CheckCircle2 className="w-5 h-5" style={{ color: "oklch(0.70 0.20 145)" }} />
-        <span className="font-bold text-lg" style={{ color: "oklch(0.75 0.18 145)" }}>APPROVE</span>
+      <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-100 border-2 border-green-400 dark:bg-green-950/50 dark:border-green-700">
+        <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+        <span className="font-bold text-lg text-green-700 dark:text-green-300">APPROVE</span>
       </div>
     );
   }
   if (recommendation === "REJECT") {
     return (
-      <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "oklch(0.35 0.18 25 / 0.3)", border: "1.5px solid oklch(0.55 0.22 25)" }}>
-        <XCircle className="w-5 h-5" style={{ color: "oklch(0.65 0.22 25)" }} />
-        <span className="font-bold text-lg" style={{ color: "oklch(0.70 0.20 25)" }}>REJECT</span>
+      <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-red-100 border-2 border-red-400 dark:bg-red-950/50 dark:border-red-700">
+        <XCircle className="w-5 h-5 text-red-600 dark:text-red-400" />
+        <span className="font-bold text-lg text-red-700 dark:text-red-300">REJECT</span>
       </div>
     );
   }
   return (
-    <div className="flex items-center gap-2 px-4 py-2 rounded-lg" style={{ background: "oklch(0.38 0.14 70 / 0.3)", border: "1.5px solid oklch(0.58 0.18 70)" }}>
-      <AlertTriangle className="w-5 h-5" style={{ color: "oklch(0.72 0.18 70)" }} />
-      <span className="font-bold text-lg" style={{ color: "oklch(0.78 0.16 70)" }}>REVIEW</span>
+    <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-100 border-2 border-amber-400 dark:bg-amber-950/50 dark:border-amber-700">
+      <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+      <span className="font-bold text-lg text-amber-700 dark:text-amber-300">REVIEW</span>
     </div>
   );
 }
 
 function ConfidenceBar({ confidence }: { confidence: number }) {
-  const color =
-    confidence >= 75 ? "oklch(0.65 0.18 145)" :
-    confidence >= 50 ? "oklch(0.70 0.18 70)" :
-    "oklch(0.60 0.20 25)";
+  const colorCls =
+    confidence >= 75 ? "bg-green-500 dark:bg-green-400" :
+    confidence >= 50 ? "bg-amber-500 dark:bg-amber-400" :
+    "bg-red-500 dark:bg-red-400";
   return (
     <div className="flex items-center gap-3">
-      <div className="flex-1 h-2 rounded-full" style={{ background: "var(--border)" }}>
+      <div className="flex-1 h-2 rounded-full bg-border">
         <div
-          className="h-2 rounded-full transition-all"
-          style={{ width: `${confidence}%`, background: color }}
+          className={`h-2 rounded-full transition-all ${colorCls}`}
+          style={{ width: `${confidence}%` }}
         />
       </div>
-      <span className="text-sm font-bold tabular-nums" style={{ color, minWidth: "3rem", textAlign: "right" }}>
+      <span className={`text-sm font-bold tabular-nums ${confidence >= 75 ? "text-green-600 dark:text-green-400" : confidence >= 50 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400"}`} style={{ minWidth: "3rem", textAlign: "right" }}>
         {confidence}%
       </span>
     </div>
@@ -158,8 +158,8 @@ function FullDecisionTrace({ claimId }: { claimId: number }) {
                         <span className="text-xs" style={{ color: "var(--foreground)" }}>{entry.output_summary}</span>
                       </div>
                       <div className="flex items-start gap-1.5">
-                        <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0" style={{ color: "oklch(0.60 0.18 250)" }} />
-                        <span className="text-xs italic" style={{ color: "oklch(0.65 0.14 250)" }}>{entry.impact_on_decision}</span>
+                        <ArrowRight className="w-3 h-3 mt-0.5 flex-shrink-0 text-blue-500 dark:text-blue-400" />
+                        <span className="text-xs italic text-blue-600 dark:text-blue-400">{entry.impact_on_decision}</span>
                       </div>
                     </div>
                   </div>
@@ -168,8 +168,8 @@ function FullDecisionTrace({ claimId }: { claimId: number }) {
 
               {/* Missing stages warning */}
               {trace.missing_stages.length > 0 && (
-                <div className="p-2 rounded" style={{ background: "oklch(0.38 0.14 70 / 0.15)", border: "1px solid oklch(0.55 0.18 70 / 0.3)" }}>
-                  <p className="text-xs" style={{ color: "oklch(0.72 0.18 70)" }}>
+                <div className="p-2 rounded bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800/50">
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
                     ⚠ {trace.missing_stages.length} stage(s) unavailable: {trace.missing_stages.join(", ")}
                   </p>
                 </div>
@@ -280,42 +280,37 @@ function ContradictionGate(props: ContradictionGateProps) {
 
   return (
     <div
-      className="rounded-lg p-3 space-y-2"
-      style={{
-        background: isBlocked
-          ? "oklch(0.35 0.18 25 / 0.15)"
-          : "oklch(0.35 0.12 145 / 0.10)",
-        border: `1.5px solid ${
-          isBlocked ? "oklch(0.55 0.22 25 / 0.5)" : "oklch(0.55 0.18 145 / 0.4)"
-        }`,
-      }}
+      className={`rounded-lg p-3 space-y-2 border-2 ${
+        isBlocked
+          ? "bg-red-50 border-red-300 dark:bg-red-950/20 dark:border-red-800/60"
+          : "bg-green-50 border-green-300 dark:bg-green-950/20 dark:border-green-800/60"
+      }`}
     >
       {/* Gate header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isBlocked
-            ? <ShieldX className="w-4 h-4" style={{ color: "oklch(0.65 0.22 25)" }} />
-            : <ShieldCheck className="w-4 h-4" style={{ color: "oklch(0.65 0.18 145)" }} />}
+            ? <ShieldX className="w-4 h-4 text-red-600 dark:text-red-400" />
+            : <ShieldCheck className="w-4 h-4 text-green-600 dark:text-green-400" />}
           <span
-            className="text-xs font-bold uppercase tracking-wide"
-            style={{ color: isBlocked ? "oklch(0.70 0.20 25)" : "oklch(0.70 0.18 145)" }}
+            className={`text-xs font-bold uppercase tracking-wide ${isBlocked ? "text-red-700 dark:text-red-300" : "text-green-700 dark:text-green-300"}`}
           >
             {isBlocked ? `Contradiction Gate — BLOCKED` : "Contradiction Gate — PASSED"}
           </span>
           {isBlocked && (
             <div className="flex items-center gap-1">
               {criticalCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: "oklch(0.35 0.20 25 / 0.4)", color: "oklch(0.75 0.20 25)" }}>
+                <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200">
                   {criticalCount} CRITICAL
                 </span>
               )}
               {majorCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: "oklch(0.38 0.14 70 / 0.4)", color: "oklch(0.78 0.16 70)" }}>
+                <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-amber-200 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200">
                   {majorCount} MAJOR
                 </span>
               )}
               {minorCount > 0 && (
-                <span className="text-xs px-1.5 py-0.5 rounded font-bold" style={{ background: "oklch(0.38 0.12 250 / 0.3)", color: "oklch(0.72 0.14 250)" }}>
+                <span className="text-xs px-1.5 py-0.5 rounded font-bold bg-blue-200 text-blue-900 dark:bg-blue-900/50 dark:text-blue-200">
                   {minorCount} MINOR
                 </span>
               )}
@@ -360,17 +355,11 @@ function ContradictionGate(props: ContradictionGateProps) {
             >
               <div className="flex items-center gap-2">
                 <span
-                  className="text-xs font-bold px-1.5 py-0.5 rounded"
-                  style={{
-                    background:
-                      c.severity === "CRITICAL" ? "oklch(0.35 0.20 25 / 0.4)" :
-                      c.severity === "MAJOR" ? "oklch(0.38 0.14 70 / 0.4)" :
-                      "oklch(0.38 0.12 250 / 0.3)",
-                    color:
-                      c.severity === "CRITICAL" ? "oklch(0.75 0.20 25)" :
-                      c.severity === "MAJOR" ? "oklch(0.78 0.16 70)" :
-                      "oklch(0.72 0.14 250)",
-                  }}
+                  className={`text-xs font-bold px-1.5 py-0.5 rounded ${
+                    c.severity === "CRITICAL" ? "bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200" :
+                    c.severity === "MAJOR" ? "bg-amber-200 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200" :
+                    "bg-blue-200 text-blue-900 dark:bg-blue-900/50 dark:text-blue-200"
+                  }`}
                 >
                   {c.severity}
                 </span>
@@ -588,11 +577,11 @@ export default function DecisionAuthorityPanel({
       {/* Blocking Factors */}
       {result.blocking_factors.length > 0 && (
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "oklch(0.65 0.18 25)" }}>Blocking Factors</p>
+          <p className="text-xs font-semibold uppercase tracking-wide mb-2 text-red-600 dark:text-red-400">Blocking Factors</p>
           <ul className="space-y-1">
             {result.blocking_factors.map((factor, i) => (
               <li key={i} className="flex items-start gap-2 text-sm">
-                <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: "oklch(0.60 0.20 25)" }} />
+                <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-red-500 dark:text-red-400" />
                 <span style={{ color: "var(--foreground)" }}>{factor}</span>
               </li>
             ))}
@@ -602,11 +591,11 @@ export default function DecisionAuthorityPanel({
 
       {/* Warnings */}
       {result.warnings.length > 0 && (
-        <div className="p-3 rounded-lg" style={{ background: "oklch(0.38 0.14 70 / 0.15)", border: "1px solid oklch(0.55 0.18 70 / 0.4)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: "oklch(0.72 0.18 70)" }}>Warnings</p>
+        <div className="p-3 rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/20 dark:border-amber-800/50">
+          <p className="text-xs font-semibold uppercase tracking-wide mb-1.5 text-amber-700 dark:text-amber-400">Warnings</p>
           <ul className="space-y-0.5">
             {result.warnings.map((w, i) => (
-              <li key={i} className="text-xs" style={{ color: "oklch(0.75 0.14 70)" }}>• {w}</li>
+              <li key={i} className="text-xs text-amber-700 dark:text-amber-400">• {w}</li>
             ))}
           </ul>
         </div>

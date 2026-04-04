@@ -18,33 +18,30 @@ const ROUTE_CONFIG = {
   AUTO_APPROVE: {
     label: "Auto-Approve",
     icon: "✓",
-    bg: "oklch(0.25 0.08 145)",
-    border: "oklch(0.45 0.18 145)",
-    text: "oklch(0.85 0.18 145)",
-    badge: "oklch(0.40 0.18 145)",
+    containerCls: "bg-green-50 border-green-300 dark:bg-green-950/30 dark:border-green-800",
+    textCls: "text-green-700 dark:text-green-300",
+    badgeCls: "bg-green-200 text-green-900 dark:bg-green-900/50 dark:text-green-200",
   },
   ADJUSTER_REVIEW: {
     label: "Adjuster Review",
     icon: "⚑",
-    bg: "oklch(0.25 0.08 60)",
-    border: "oklch(0.55 0.18 60)",
-    text: "oklch(0.90 0.18 60)",
-    badge: "oklch(0.50 0.18 60)",
+    containerCls: "bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-800",
+    textCls: "text-amber-700 dark:text-amber-300",
+    badgeCls: "bg-amber-200 text-amber-900 dark:bg-amber-900/50 dark:text-amber-200",
   },
   FRAUD_TEAM: {
     label: "Fraud Investigation Unit",
     icon: "⚠",
-    bg: "oklch(0.22 0.08 25)",
-    border: "oklch(0.55 0.20 25)",
-    text: "oklch(0.88 0.20 25)",
-    badge: "oklch(0.50 0.20 25)",
+    containerCls: "bg-red-50 border-red-300 dark:bg-red-950/30 dark:border-red-800",
+    textCls: "text-red-700 dark:text-red-300",
+    badgeCls: "bg-red-200 text-red-900 dark:bg-red-900/50 dark:text-red-200",
   },
 } as const;
 
 const PRIORITY_CONFIG = {
-  LOW: { label: "Low Priority", color: "oklch(0.65 0.15 145)", dot: "oklch(0.55 0.18 145)" },
-  MEDIUM: { label: "Medium Priority", color: "oklch(0.75 0.18 60)", dot: "oklch(0.65 0.20 60)" },
-  HIGH: { label: "High Priority", color: "oklch(0.75 0.20 25)", dot: "oklch(0.65 0.22 25)" },
+  LOW: { label: "Low Priority", textCls: "text-green-600 dark:text-green-400", dotCls: "bg-green-500 dark:bg-green-400" },
+  MEDIUM: { label: "Medium Priority", textCls: "text-amber-600 dark:text-amber-400", dotCls: "bg-amber-500 dark:bg-amber-400" },
+  HIGH: { label: "High Priority", textCls: "text-red-600 dark:text-red-400", dotCls: "bg-red-500 dark:bg-red-400" },
 } as const;
 
 export default function EscalationRoutingPanel({ claimId }: EscalationRoutingPanelProps) {
@@ -77,55 +74,20 @@ export default function EscalationRoutingPanel({ claimId }: EscalationRoutingPan
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
       {/* Main Route Banner */}
-      <div
-        style={{
-          background: routeConf.bg,
-          border: `1.5px solid ${routeConf.border}`,
-          borderRadius: "8px",
-          padding: "16px 20px",
-          display: "flex",
-          alignItems: "flex-start",
-          gap: "14px",
-        }}
-      >
+      <div className={`rounded-lg px-5 py-4 flex items-start gap-3.5 border-2 ${routeConf.containerCls}`}>
         {/* Icon */}
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            borderRadius: "50%",
-            background: routeConf.badge,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "18px",
-            flexShrink: 0,
-            color: "white",
-          }}
-        >
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-lg shrink-0 text-white ${routeConf.badgeCls}`}>
           {routeConf.icon}
         </div>
 
         {/* Content */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "6px" }}>
-            <span style={{ fontSize: "16px", fontWeight: 700, color: routeConf.text }}>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2.5 flex-wrap mb-1.5">
+            <span className={`text-base font-bold ${routeConf.textCls}`}>
               {routeConf.label}
             </span>
             {/* Priority badge */}
-            <span
-              style={{
-                fontSize: "11px",
-                fontWeight: 600,
-                color: priorityConf.color,
-                background: "rgba(255,255,255,0.06)",
-                border: `1px solid ${priorityConf.dot}`,
-                borderRadius: "4px",
-                padding: "2px 8px",
-                letterSpacing: "0.04em",
-                textTransform: "uppercase",
-              }}
-            >
+            <span className={`text-xs font-semibold px-2 py-0.5 rounded border uppercase tracking-wide ${priorityConf.textCls} border-current`}>
               ● {priorityConf.label}
             </span>
           </div>
@@ -150,11 +112,11 @@ export default function EscalationRoutingPanel({ claimId }: EscalationRoutingPan
           sub={data.metadata.confidence != null ? `${data.metadata.confidence}%` : "N/A"}
           color={
             data.metadata.confidence_band === "HIGH"
-              ? "oklch(0.65 0.18 145)"
+              ? "var(--status-approve-text)"
               : data.metadata.confidence_band === "MEDIUM"
-              ? "oklch(0.70 0.18 60)"
+              ? "var(--status-review-text)"
               : data.metadata.confidence_band === "LOW"
-              ? "oklch(0.70 0.18 30)"
+              ? "var(--status-reject-text)"
               : "var(--muted-foreground)"
           }
         />
@@ -164,7 +126,7 @@ export default function EscalationRoutingPanel({ claimId }: EscalationRoutingPan
           label="Fraud Signal"
           value={data.metadata.fraud_detected ? "Detected" : "None"}
           sub={data.metadata.fraud_detected ? "Fraud indicators present" : "No fraud indicators"}
-          color={data.metadata.fraud_detected ? "oklch(0.70 0.20 25)" : "oklch(0.65 0.18 145)"}
+          color={data.metadata.fraud_detected ? "var(--status-reject-text)" : "var(--status-approve-text)"}
         />
 
         {/* Anomalies */}
@@ -178,10 +140,10 @@ export default function EscalationRoutingPanel({ claimId }: EscalationRoutingPan
           }
           color={
             data.metadata.critical_anomaly_count > 0
-              ? "oklch(0.70 0.20 25)"
+              ? "var(--status-reject-text)"
               : data.metadata.anomaly_count > 0
-              ? "oklch(0.70 0.18 60)"
-              : "oklch(0.65 0.18 145)"
+              ? "var(--status-review-text)"
+              : "var(--status-approve-text)"
           }
         />
 

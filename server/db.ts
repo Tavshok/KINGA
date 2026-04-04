@@ -624,7 +624,14 @@ export async function triggerAiAssessment(claimId: number) {
     lineItems: repairQuote?.lineItems ?? [],
     documentedLabourCostUsd,
     documentedPartsCostUsd,
-    quotesReceived: 0, // will be overridden by router if needed
+    quotesReceived: costAnalysis.quoteOptimisation?.quotes_evaluated ?? (documentedOriginalQuoteUsd ? 1 : 0),
+    // Cost Decision Engine outputs — CRITICAL for correct cost display
+    costDecision: costAnalysis.costDecision ?? null,
+    costNarrative: costAnalysis.costNarrative ?? null,
+    costReliability: costAnalysis.costReliability ?? null,
+    quoteOptimisation: costAnalysis.quoteOptimisation ?? null,
+    alignmentResult: costAnalysis.alignmentResult ?? null,
+    reconciliationSummary: costAnalysis.reconciliationSummary ?? null,
   }) : (
     // Even if costAnalysis is null, still persist the documented quote values
     // so the UI can display the panel beater quote from the extracted document.
@@ -637,6 +644,12 @@ export async function triggerAiAssessment(claimId: number) {
       documentedLabourCostUsd,
       documentedPartsCostUsd,
       quotesReceived: 0,
+      costDecision: null,
+      costNarrative: null,
+      costReliability: null,
+      quoteOptimisation: null,
+      alignmentResult: null,
+      reconciliationSummary: null,
     }) : null
   );
   // Build repair intelligence and parts reconciliation JSON

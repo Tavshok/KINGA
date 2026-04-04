@@ -132,9 +132,9 @@ interface EnforcementResult {
 const RISK_STYLE: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
   minimal:  { bg: "oklch(0.25 0.05 155)", border: "oklch(0.45 0.18 155)", text: "#10b981", badge: "bg-emerald-600", dot: "#10b981" },
   low:      { bg: "oklch(0.25 0.05 155)", border: "oklch(0.45 0.18 155)", text: "#22c55e", badge: "bg-green-600",   dot: "#22c55e" },
-  moderate: { bg: "oklch(0.25 0.08 60)",  border: "oklch(0.55 0.18 60)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
+  moderate: { bg: "var(--status-review-bg)",  border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
   high:     { bg: "oklch(0.22 0.08 35)",  border: "oklch(0.55 0.18 35)",  text: "#f97316", badge: "bg-orange-600", dot: "#f97316" },
-  critical: { bg: "oklch(0.20 0.10 25)",  border: "oklch(0.55 0.22 25)",  text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
+  critical: { bg: "oklch(0.20 0.10 25)",  border: "var(--status-reject-border)",  text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
 };
 
 const SEVERITY_STYLE: Record<string, { color: string; label: string }> = {
@@ -207,8 +207,8 @@ function FinalDecisionBanner({ finalDecision, confidenceScore }: {
   const { decision, label, color, primaryReason } = finalDecision;
   const cfg = {
     green: { bg: "oklch(0.20 0.06 155 / 0.9)", border: "oklch(0.45 0.18 155)", text: "#10b981", Icon: CheckCircle },
-    amber: { bg: "oklch(0.22 0.08 60 / 0.9)",  border: "oklch(0.55 0.18 60)",  text: "#f59e0b", Icon: AlertTriangle },
-    red:   { bg: "oklch(0.20 0.10 25 / 0.9)",  border: "oklch(0.55 0.22 25)",  text: "#f87171", Icon: AlertTriangle },
+    amber: { bg: "oklch(0.22 0.08 60 / 0.9)",  border: "var(--status-review-border)",  text: "#f59e0b", Icon: AlertTriangle },
+    red:   { bg: "oklch(0.20 0.10 25 / 0.9)",  border: "var(--status-reject-border)",  text: "#f87171", Icon: AlertTriangle },
   }[color];
   const decisionLabel = decision === "FINALISE_CLAIM" ? "FINALISE CLAIM" : decision === "REVIEW_REQUIRED" ? "REVIEW REQUIRED" : "ESCALATE INVESTIGATION";
 
@@ -1444,7 +1444,7 @@ export default function ClaimDecisionReport() {
                   <div
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
                     style={{
-                      background: replayResult.changed ? "oklch(0.35 0.12 30)" : "oklch(0.25 0.08 145)",
+                      background: replayResult.changed ? "oklch(0.35 0.12 30)" : "var(--status-approve-bg)",
                       color: replayResult.changed ? "#fca5a5" : "#86efac",
                     }}
                   >
@@ -1521,7 +1521,7 @@ export default function ClaimDecisionReport() {
         )}
 
         {/* 8. Lifecycle Status Bar */}
-        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLocked ? "oklch(0.65 0.2 30)" : isFinal ? "oklch(0.65 0.18 145)" : "var(--border)"}` }}>
+        <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLocked ? "oklch(0.65 0.2 30)" : isFinal ? "var(--status-approve-text)" : "var(--border)"}` }}>
           {/* State progress track */}
           <div className="flex items-stretch" style={{ background: "var(--muted)", minHeight: "44px" }}>
             {(["DRAFT", "REVIEWED", "FINALISED", "LOCKED"] as const).map((state, i) => {
@@ -1537,7 +1537,7 @@ export default function ClaimDecisionReport() {
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-semibold px-2"
                   style={{
                     background: isActive
-                      ? state === "LOCKED" ? "oklch(0.35 0.12 30)" : state === "FINALISED" ? "oklch(0.25 0.08 145)" : "oklch(0.25 0.06 250)"
+                      ? state === "LOCKED" ? "oklch(0.35 0.12 30)" : state === "FINALISED" ? "var(--status-approve-bg)" : "oklch(0.25 0.06 250)"
                       : "transparent",
                     color: isActive
                       ? state === "LOCKED" ? "#fca5a5" : state === "FINALISED" ? "#86efac" : "#93c5fd"
