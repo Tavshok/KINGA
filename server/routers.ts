@@ -2814,6 +2814,33 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
         if (!assessment) return null;
         const quotes = await getQuotesByClaimId(input.claimId, tenantId);
+
+        // ── Prior claims lookup ──────────────────────────────────────────────
+        // Resolve hasPreviousClaims from the claimantHistory table using the
+        // claimant linked to this claim. A claimant with totalClaims > 1 has
+        // at least one prior claim on record, which adds +20 to the fraud score.
+        let hasPreviousClaims = false;
+        try {
+          const { getDb } = await import('./db');
+          const { claimantHistory, claims: claimsTable } = await import('../drizzle/schema');
+          const { eq } = await import('drizzle-orm');
+          const db = await getDb();
+          if (db) {
+            // Get the claimantId from the claims table for this claim
+            const [claimRow] = await db.select({ claimantId: claimsTable.claimantId })
+              .from(claimsTable)
+              .where(eq(claimsTable.id, input.claimId))
+              .limit(1);
+            if (claimRow?.claimantId) {
+              const [histRow] = await db.select({ totalClaims: claimantHistory.totalClaims })
+                .from(claimantHistory)
+                .where(eq(claimantHistory.claimantId, claimRow.claimantId))
+                .limit(1);
+              // totalClaims includes the current claim, so > 1 means prior claims exist
+              hasPreviousClaims = (histRow?.totalClaims ?? 0) > 1;
+            }
+          }
+        } catch { /* non-fatal: defaults to false if lookup fails */ }
         const quotedAmounts = quotes.map(q => (q.quotedAmount || 0) / 100); // cents → dollars
         // Parse physics analysis
         let physicsRaw: any = null;
@@ -2865,6 +2892,14 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';
         const aiEstimatedCost = (assessment.estimatedCost || 0); // already in dollars (stored as whole currency units)
         const extractionConfidence = assessment.confidenceScore ?? 75;
+
+        // Derive damage zones from component names and impact direction.
+        // This must be computed before both applyIntelligenceEnforcement calls
+        // so neither receives an empty array when data is available.
+        const damageZones = damagedComponents.length > 0
+          ? damagedComponents.map((c: string) => c.toLowerCase())
+          : impactDirection !== 'unknown' ? [impactDirection] : [];
+
         const result = applyIntelligenceEnforcement({
           fraudScore: Number(fraudScore),
           fraudRiskLevel: assessment.fraudRiskLevel ?? 'low',
@@ -2876,12 +2911,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           accidentSeverity,
           consistencyScore: Number(consistencyScore),
           impactDirection,
-          damageZones: [],
+          damageZones,
           damageComponents: damagedComponents,
           aiEstimatedCost,
           quotedAmounts,
           vehicleMake: '',
-          hasPreviousClaims: false,
+          hasPreviousClaims,
           fraudScoreBreakdownJson: fraudIndicators.length > 0 ? fraudIndicators : null,
           extractionConfidence: Number(extractionConfidence),
         });
@@ -2909,11 +2944,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           impactDirection,
           damageComponents: damagedComponents,
         });
-        // Derive damage zones from component names and impact direction
-        const damageZones = damagedComponents.length > 0
-          ? damagedComponents.map((c: string) => c.toLowerCase())
-          : impactDirection !== 'unknown' ? [impactDirection] : [];
-
         // Build multi-source conflict signal from Stage 12/13 consistency check result
         // Only inject when: status == "complete" AND at least one high-severity mismatch
         // confidence HIGH → weight 12, MEDIUM → weight 5, LOW → ignored
@@ -2952,7 +2982,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           quotedAmount: primaryQuotedAmount,
           impactDirection,
           damageZones,
-          hasPreviousClaims: false, // TODO: wire to claims history lookup
+          hasPreviousClaims,
           missingDataCount,
           aiIndicators: fraudIndicators.map(i => ({ label: i.indicator, points: i.score })),
           multiSourceConflict,

@@ -67,7 +67,7 @@ export interface NormalisedFraud {
   /** Fraud score 0-100. Always an integer. */
   score: number;
   /** Risk level label */
-  level: 'low' | 'medium' | 'high' | 'critical' | 'elevated';
+  level: 'minimal' | 'low' | 'moderate' | 'high' | 'elevated';
   /** True if the score was derived from JSON rather than the first-class column */
   derivedFromJson: boolean;
 }
@@ -158,12 +158,14 @@ function clampScore(v: number | null | undefined): number {
   return Math.max(0, Math.min(100, Math.round(Number(v))));
 }
 
+// Thresholds aligned with intelligence-enforcement.ts enforceFraudLevel and
+// weighted-fraud-scoring.ts scoreToLevel so all three engines agree on band names.
 const FRAUD_THRESHOLDS: Array<[number, NormalisedFraud['level']]> = [
-  [80, 'critical'],
-  [65, 'elevated'],
-  [50, 'high'],
-  [30, 'medium'],
-  [0,  'low'],
+  [81, 'elevated'],
+  [61, 'high'],
+  [41, 'moderate'],
+  [21, 'low'],
+  [0,  'minimal'],
 ];
 
 function scoreToLevel(score: number): NormalisedFraud['level'] {
@@ -307,8 +309,19 @@ export function normaliseReportData(raw: RawAssessmentData): NormalisedReportDat
     fraudScore = 0;
   }
 
-  // Use the stored level if available and consistent; otherwise derive from score
-  const storedLevel = raw.fraudRiskLevel as NormalisedFraud['level'] | null | undefined;
+  // Translate legacy DB enum values to the canonical vocabulary used by all
+  // three scoring engines (intelligence-enforcement, weighted-fraud-scoring,
+  // and this normalisation layer).
+  //   'medium'   → 'moderate'  (old label, same band: 41-60)
+  //   'critical' → 'elevated'  (old label, same band: 81+)
+  const LEGACY_LEVEL_MAP: Record<string, NormalisedFraud['level']> = {
+    medium:   'moderate',
+    critical: 'elevated',
+  };
+  const rawStoredLevel = raw.fraudRiskLevel as string | null | undefined;
+  const storedLevel: NormalisedFraud['level'] | null | undefined = rawStoredLevel
+    ? (LEGACY_LEVEL_MAP[rawStoredLevel] ?? rawStoredLevel as NormalisedFraud['level'])
+    : undefined;
   const derivedLevel = scoreToLevel(fraudScore);
   const fraudLevel: NormalisedFraud['level'] = storedLevel ?? derivedLevel;
 

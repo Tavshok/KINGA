@@ -396,8 +396,13 @@ export default function InsurerComparisonView() {
   const fraudLevel = normFraud?.level ?? aiAssessment?.fraudRiskLevel ?? assessorEval?.fraudRiskLevel ?? 'unknown';
   const confidenceScore = aiAssessment?.confidenceScore || 0;
 
-  const fraudChipClass = fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'danger' :
-    fraudLevel === 'medium' ? 'warning' : fraudLevel === 'low' ? 'success' : 'neutral';
+  // Map all canonical + legacy fraud level values to chip classes.
+  // Canonical: minimal, low, moderate, high, elevated
+  // Legacy aliases: medium (→ moderate), critical (→ elevated)
+  const fraudChipClass =
+    fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical' ? 'danger' :
+    fraudLevel === 'moderate' || fraudLevel === 'medium' ? 'warning' :
+    fraudLevel === 'low' || fraudLevel === 'minimal' ? 'success' : 'neutral';
 
   return (
     <div className="min-h-screen dark" style={{ background: 'var(--background)', colorScheme: 'dark' }}>
@@ -847,7 +852,7 @@ export default function InsurerComparisonView() {
           </div>
           <div className="comparison-section-body">
             {aiAssessment ? (
-              <ExecutiveSummaryInline claim={claim} aiAssessment={aiAssessment} quotes={quotes} assessorEval={assessorEval} />
+              <ExecutiveSummaryInline claim={claim} aiAssessment={aiAssessment} quotes={quotes} assessorEval={assessorEval} normalisedFraudLevel={fraudLevel} />
             ) : (
               <div className="flex items-center gap-3 py-4">
                 <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--muted-foreground)' }} />
@@ -2655,22 +2660,31 @@ function ExecutiveSummaryInline({
   aiAssessment,
   quotes,
   assessorEval,
+  normalisedFraudLevel,
 }: {
   claim: any;
   aiAssessment: any;
   quotes: any[];
   assessorEval: any;
+  normalisedFraudLevel?: string;
 }) {
   const vehicle = [claim.vehicleMake, claim.vehicleModel, claim.vehicleYear ? `(${claim.vehicleYear})` : ''].filter(Boolean).join(' ') || 'Vehicle details pending';
   const reg = claim.vehicleRegistration || 'N/A';
   const incidentType = ((claim.incidentType || aiAssessment.accidentType || '') as string).replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) || 'N/A';
   const incidentDate = claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
-  const aiCost = aiAssessment.estimatedCost || 0;
+  const aiCost = aiAssessment._normalised?.costs?.totalUsd ?? aiAssessment.estimatedCost ?? 0;
   const avgQuote = quotes.length > 0 ? quotes.reduce((s: number, q: any) => s + (q.quotedAmount || 0), 0) / quotes.length : 0;
-  const fraudLevel = (aiAssessment.fraudRiskLevel || 'unknown') as string;
+  // Use the normalised fraud level passed from the parent (which already resolves
+  // _normalised.fraud.level → raw fraudRiskLevel → assessorEval fallback).
+  // This ensures ExecutiveSummaryInline always shows the same fraud level as the
+  // rest of the comparison view.
+  const fraudLevel = (normalisedFraudLevel ?? aiAssessment.fraudRiskLevel ?? 'unknown') as string;
   const confidence = aiAssessment.confidenceScore || 0;
   const isTotalLoss = aiAssessment.totalLossIndicated === 1;
-  const fraudColor = fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'text-red-400' : fraudLevel === 'medium' ? 'text-amber-400' : 'text-green-400';
+  const fraudColor =
+    fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical' ? 'text-red-400' :
+    fraudLevel === 'moderate' || fraudLevel === 'medium' ? 'text-amber-400' :
+    'text-green-400';
 
   const summaryText = aiAssessment.damageDescription
     ? aiAssessment.damageDescription
@@ -2685,7 +2699,7 @@ function ExecutiveSummaryInline({
     { label: 'Avg Quote', value: avgQuote > 0 ? `US$${avgQuote.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'No quotes' },
     { label: 'Fraud Risk', value: fraudLevel.toUpperCase(), className: fraudColor },
     { label: 'AI Confidence', value: `${confidence}%` },
-    { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || fraudLevel === 'high' || fraudLevel === 'critical' || fraudLevel === 'elevated' ? 'text-red-400' : 'text-green-400' },
+    { label: 'Outcome', value: isTotalLoss ? 'Total Loss' : (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'Investigate' : 'Proceed with Repair', className: isTotalLoss || (fraudLevel === 'high' || fraudLevel === 'elevated' || fraudLevel === 'critical') ? 'text-red-400' : 'text-green-400' },
   ];
 
   return (

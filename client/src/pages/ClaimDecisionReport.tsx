@@ -130,11 +130,15 @@ interface EnforcementResult {
 // ─── Risk level config ────────────────────────────────────────────────────────
 
 const RISK_STYLE: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
-  minimal:  { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "#10b981", badge: "bg-emerald-600", dot: "#10b981" },
-  low:      { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "#22c55e", badge: "bg-green-600",   dot: "#22c55e" },
-  moderate: { bg: "var(--status-review-bg)",  border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
-  high:     { bg: "var(--fp-warning-bg)",  border: "var(--fp-warning-border)",  text: "#f97316", badge: "bg-orange-600", dot: "#f97316" },
-  critical: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",  text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
+  minimal:  { bg: "var(--fp-success-bg)",   border: "var(--fp-success-border)",       text: "#10b981", badge: "bg-emerald-600", dot: "#10b981" },
+  low:      { bg: "var(--fp-success-bg)",   border: "var(--fp-success-border)",       text: "#22c55e", badge: "bg-green-600",   dot: "#22c55e" },
+  // 'medium' is the legacy DB enum value — kept as alias for 'moderate'
+  medium:   { bg: "var(--status-review-bg)", border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
+  moderate: { bg: "var(--status-review-bg)", border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
+  high:     { bg: "var(--fp-warning-bg)",   border: "var(--fp-warning-border)",       text: "#f97316", badge: "bg-orange-600", dot: "#f97316" },
+  // 'critical' is the legacy DB enum value — kept as alias for 'elevated'
+  critical: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",   text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
+  elevated: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",   text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
 };
 
 const SEVERITY_STYLE: Record<string, { color: string; label: string }> = {
