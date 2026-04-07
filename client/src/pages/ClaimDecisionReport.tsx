@@ -42,6 +42,7 @@ import {
   ReportPageHeader,
   ReportSectionDivider,
   ReportIntegritySeal,
+  AdjusterSignOffPanel,
 } from "@/components/Batch3ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -986,9 +987,13 @@ export default function ClaimDecisionReport() {
     { enabled: !!claimId }
   );
 
-  const utils = trpc.useUtils();
+  const { data: existingSignOff, refetch: refetchSignOff } = trpc.claims.getAdjusterSignOff.useQuery(
+    { claimId },
+    { enabled: !!claimId }
+  );
 
-  // ── Snapshot auto-save: fires once when enforcement data first loads ──────
+  const utils = trpc.useUtils();
+  // ── Snapshot auto-save: fires once when enforcement data first loads ───────
   const snapshotSaved = useRef(false);
   const saveSnapshotMutation = trpc.aiAssessments.saveSnapshot.useMutation();
   const { data: snapshotHistory = [] } = trpc.aiAssessments.getSnapshots.useQuery(
@@ -1522,6 +1527,20 @@ export default function ClaimDecisionReport() {
               </div>
             )}
           </div>
+        )}
+
+        {/* v4.2 P3: Adjuster Sign-Off Panel — Section 6 bottom */}
+        {claimId > 0 && (
+          <AdjusterSignOffPanel
+            claimId={claimId}
+            aiDecision={
+              (enforcement as any)?._phase2?.finalDecision ??
+              (enforcement as any)?.finalDecision?.decision ??
+              "REVIEW"
+            }
+            existingSignOff={existingSignOff ?? null}
+            onSaved={() => refetchSignOff()}
+          />
         )}
 
         {/* v4.2 B3: Report Integrity Seal */}

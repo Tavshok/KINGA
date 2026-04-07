@@ -4547,3 +4547,23 @@ export const claimApprovals = mysqlTable("claim_approvals", {
 ]);
 export type ClaimApprovalRow = typeof claimApprovals.$inferSelect;
 export type InsertClaimApproval = typeof claimApprovals.$inferInsert;
+
+// ─── Adjuster Sign-Off ────────────────────────────────────────────────────────
+// Records an authorised adjuster's decision override on an AI-generated report.
+// One row per claim per adjuster — upsert on re-sign.
+export const adjusterSignOffs = mysqlTable("adjuster_sign_offs", {
+  id: int().autoincrement().notNull().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  adjusterUserId: int("adjuster_user_id"),
+  adjusterName: varchar("adjuster_name", { length: 255 }).notNull(),
+  decision: mysqlEnum("decision", ["APPROVE", "REJECT", "ESCALATE", "DEFER"]).notNull(),
+  notes: text("notes"),
+  aiDecision: varchar("ai_decision", { length: 50 }),
+  signedAt: bigint("signed_at", { mode: "number" }).notNull(),
+  updatedAt: bigint("updated_at", { mode: "number" }).notNull(),
+}, (table) => [
+  index("idx_aso_claim_id").on(table.claimId),
+  index("idx_aso_adjuster_user_id").on(table.adjusterUserId),
+]);
+export type AdjusterSignOffRow = typeof adjusterSignOffs.$inferSelect;
+export type InsertAdjusterSignOff = typeof adjusterSignOffs.$inferInsert;

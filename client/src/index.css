@@ -1002,7 +1002,7 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 15mm 12mm 15mm 12mm;
+    margin: 20mm 30mm 20mm 30mm;
   }
 
   /* Hide non-print elements */
@@ -1115,7 +1115,7 @@
   /* R6 — Header / footer via CSS counters */
   @page {
     size: A4 portrait;
-    margin: 18mm 14mm 18mm 14mm;
+    margin: 20mm 30mm 20mm 30mm;
     @top-center {
       content: "Claim: " attr(data-claim-number) " | Report Date: " attr(data-report-date) " | Page " counter(page) " of " counter(pages);
       font-size: 8pt;
@@ -1227,4 +1227,35 @@
   details[open] summary ~ * {
     display: block !important;
   }
+}
+
+/* ============================================================
+   MONOSPACE NUMERICS — P3 Polish
+   All currency, percentage, and numeric values in report tables
+   use tabular-nums + monospace font for vertical alignment
+   ============================================================ */
+.num {
+  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* Auto-apply to table cells that contain only numeric content */
+.report-table td:not(:first-child),
+.report-table th:not(:first-child) {
+  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Currency values */
+.currency {
+  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Percentage values */
+.pct {
+  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
 }

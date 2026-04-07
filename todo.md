@@ -10340,3 +10340,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Slim ReportPageHeader to minimal sticky nav (no decision pill duplication)
 - [x] Build SVG diamond/rectangle Decision Flowchart in Section 6
 - [x] Remove threshold exposure from gate rows and Rule Trace table
+
+## P3 Polish (Audit 2025-04-07)
+
+- [ ] Replace djb2 hash with Web Crypto SHA-256 + verification URL in sticky nav
+- [ ] Build adjuster sign-off panel with DB persistence (schema + tRPC + UI)
+- [ ] Archive dead Batch1, Batch2, Batch4 component files
+- [ ] Monospace all numeric values in report tables
+- [ ] Refine print margins (20mm top/bottom, 30mm left/right)

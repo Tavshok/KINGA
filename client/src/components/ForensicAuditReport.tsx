@@ -514,7 +514,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Incident Facts</p>
         </div>
         <div className="p-4">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm report-table">
             <tbody>
               {[
                 ["Incident type", <span className="font-semibold">{incidentType.replace(/_/g, " ")}</span>],
@@ -587,7 +587,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Phase 1 Gate Results</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                   {["Gate", "Status", "Corrections"].map(h => (
@@ -676,7 +676,7 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
         <div className="p-4">
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <table className="w-full text-xs">
+              <table className="w-full text-xs report-table">
                 <tbody>
                   {[
                     ["Delta-V (calculated)", deltaV > 0 ? `${deltaV} km/h` : "N/A"],
@@ -770,7 +770,7 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>
                 Expected vs Observed ({incidentType.replace(/_/g, " ")})
               </p>
-              <table className="w-full text-xs">
+              <table className="w-full text-xs report-table">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                     <th className="text-left px-2 py-1.5 font-semibold" style={{ color: "var(--muted-foreground)" }}>Expected</th>
@@ -809,7 +809,7 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
             <>
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Physics Constraint Status</p>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs">
+                <table className="w-full text-xs report-table">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Constraint</th>
@@ -979,7 +979,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           })()}
           {/* Reconciliation table */}
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Cost Reconciliation Summary</p>
-          <table className="w-full text-xs mb-3">
+          <table className="w-full text-xs mb-3 report-table">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                 {["Category", "AI Estimate", "Quoted (Repairer)", "Variance", "Verdict"].map(h => (
@@ -1029,7 +1029,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Itemised Parts & Labour Breakdown</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                   {["Component", "AI Parts", "AI Labour", "AI Total", "Quoted", "Variance", "Source"].map(h => (
@@ -1083,7 +1083,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>All Repairer Quotes</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                   {["Repairer", "Parts", "Labour", "Total", "vs AI Estimate", "Status"].map(h => (
@@ -1190,11 +1190,24 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             <div className="mt-3">
               <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Photo Grid</p>
               <div className="grid grid-cols-3 gap-2">
-                {photoUrls.slice(0, 9).map((url, i) => (
-                  <div key={i} className="aspect-square rounded overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
-                    <img src={url} alt={`Photo ${i + 1}`} className="w-full h-full object-cover" />
-                  </div>
-                ))}
+                {photoUrls.slice(0, 9).map((url, i) => {
+                  // Generate contextual caption from damaged zones (ordered by index)
+                  const damagedZones = (phase2?.damageZones ?? []) as string[];
+                  const zoneLabel = damagedZones[i]
+                    ? damagedZones[i].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
+                    : `View ${i + 1}`;
+                  return (
+                    <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
+                      <div className="aspect-square">
+                        <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
+                      </div>
+                      <div className="px-2 py-1" style={{ borderTop: "1px solid var(--border)" }}>
+                        <p className="text-xs font-medium truncate" style={{ color: "var(--foreground)" }}>{zoneLabel}</p>
+                        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Photo {i + 1}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
               {photoUrls.length > 9 && <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>+{photoUrls.length - 9} more images</p>}
             </div>
@@ -1207,7 +1220,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Document Extraction Table</p>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs report-table">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                 {["Document", "Type", "Extracted", "Note"].map(h => (
@@ -1300,7 +1313,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
             </p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                   {["Indicator", "Score", "Triggered", "Mitigation Note"].map(h => (
@@ -1612,7 +1625,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Rule Trace</p>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+            <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                   {["Rule", "Observed Value", "Triggered"].map(h => (
@@ -1639,7 +1652,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Audit Trail</p>
         </div>
         <div className="p-4">
-          <table className="w-full text-xs">
+          <table className="w-full text-xs report-table">
             <tbody>
               {[
                 ["Analysed by", `KINGA Engine ${engineVersion}`],

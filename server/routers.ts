@@ -2054,6 +2054,71 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           ? JSON.parse(assessment.constraintOverridesJson)
           : {};
       }),
+
+    /**
+     * Save (upsert) an adjuster sign-off decision on an AI report.
+     */
+    saveAdjusterSignOff: protectedProcedure
+      .input(z.object({
+        claimId: z.number(),
+        adjusterName: z.string().min(1),
+        decision: z.enum(["APPROVE", "REJECT", "ESCALATE", "DEFER"]),
+        notes: z.string().optional(),
+        aiDecision: z.string().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const { adjusterSignOffs } = await import('../drizzle/schema');
+        const now = Date.now();
+        const existing = await getDb()
+          .select({ id: adjusterSignOffs.id })
+          .from(adjusterSignOffs)
+          .where(eq(adjusterSignOffs.claimId, input.claimId))
+          .limit(1);
+        if (existing.length > 0) {
+          await getDb()
+            .update(adjusterSignOffs)
+            .set({
+              adjusterName: input.adjusterName,
+              adjusterUserId: ctx.user.id,
+              decision: input.decision,
+              notes: input.notes ?? null,
+              aiDecision: input.aiDecision ?? null,
+              updatedAt: now,
+            })
+            .where(eq(adjusterSignOffs.claimId, input.claimId));
+        } else {
+          await getDb()
+            .insert(adjusterSignOffs)
+            .values({
+              claimId: input.claimId,
+              adjusterUserId: ctx.user.id,
+              adjusterName: input.adjusterName,
+              decision: input.decision,
+              notes: input.notes ?? null,
+              aiDecision: input.aiDecision ?? null,
+              signedAt: now,
+              updatedAt: now,
+            });
+        }
+        return { success: true, signedAt: now };
+      }),
+
+    /**
+     * Get the adjuster sign-off for a claim (if any).
+     */
+    getAdjusterSignOff: protectedProcedure
+      .input(z.object({ claimId: z.number() }))
+      .query(async ({ ctx, input }) => {
+        if (!ctx.user) throw new TRPCError({ code: 'UNAUTHORIZED' });
+        const { adjusterSignOffs } = await import('../drizzle/schema');
+        const rows = await getDb()
+          .select()
+          .from(adjusterSignOffs)
+          .where(eq(adjusterSignOffs.claimId, input.claimId))
+          .limit(1);
+        return rows[0] ?? null;
+      }),
   }),
   // Assessor operationss
   assessors: router({
