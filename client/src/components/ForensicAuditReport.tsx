@@ -158,39 +158,85 @@ function ArcGauge({ value, max = 100, label, size = 100 }: { value: number; max?
 
 // ─── SVG Vehicle Damage Map ───────────────────────────────────────────────────
 
+// Severity levels: 0=undamaged, 1=minor, 2=moderate, 3=severe
+type DamageSeverity = 0 | 1 | 2 | 3;
+
+const SEVERITY_FILL: Record<DamageSeverity, string> = {
+  0: "transparent",
+  1: "#fef08a50",   // yellow-200 tint — minor
+  2: "#fed7aa60",   // orange-200 tint — moderate
+  3: "#fca5a560",   // red-300 tint — severe
+};
+const SEVERITY_STROKE: Record<DamageSeverity, string> = {
+  0: "var(--border)",
+  1: "#ca8a04",    // yellow-600
+  2: "#ea580c",    // orange-600
+  3: "#dc2626",    // red-600
+};
+const SEVERITY_LABEL: Record<DamageSeverity, string> = { 0: "Undamaged", 1: "Minor", 2: "Moderate", 3: "Severe" };
+
+function inferSeverity(zoneId: string, damageZones: string[]): DamageSeverity {
+  const norm = damageZones.map(z => z.toLowerCase());
+  const hit = norm.some(z => z.includes(zoneId) || zoneId.includes(z.split(" ")[0]));
+  if (!hit) return 0;
+  const hasSevere = norm.some(z => z.includes(zoneId) && (z.includes("severe") || z.includes("major") || z.includes("crush") || z.includes("deploy")));
+  const hasMinor  = norm.some(z => z.includes(zoneId) && (z.includes("minor") || z.includes("scratch") || z.includes("dent") || z.includes("chip")));
+  if (hasSevere) return 3;
+  if (hasMinor)  return 1;
+  return 2; // default moderate when zone is hit but no qualifier
+}
+
 function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]; incidentType: string }) {
   const zones = [
-    { id: "front", label: "Front", x: 110, y: 8, w: 100, h: 48 },
-    { id: "rear",  label: "Rear",  x: 110, y: 224, w: 100, h: 48 },
-    { id: "left",  label: "Left",  x: 8,   y: 78,  w: 44,  h: 124 },
-    { id: "right", label: "Right", x: 268, y: 78,  w: 44,  h: 124 },
-    { id: "cabin", label: "Cabin", x: 78,  y: 88,  w: 164, h: 104 },
-    { id: "underbody", label: "Underbody", x: 98, y: 192, w: 124, h: 32 },
+    { id: "front",     label: "Front",      x: 110, y: 8,   w: 100, h: 48 },
+    { id: "rear",      label: "Rear",       x: 110, y: 224, w: 100, h: 48 },
+    { id: "left",      label: "Left",       x: 8,   y: 78,  w: 44,  h: 124 },
+    { id: "right",     label: "Right",      x: 268, y: 78,  w: 44,  h: 124 },
+    { id: "roof",      label: "Roof",       x: 110, y: 56,  w: 100, h: 32 },
+    { id: "cabin",     label: "Cabin",      x: 78,  y: 88,  w: 164, h: 88 },
+    { id: "underbody", label: "Underbody",  x: 98,  y: 192, w: 124, h: 32 },
   ];
 
-  const normalised = (damageZones ?? []).map(z => z.toLowerCase());
-  const isHit = (zone: string) =>
-    normalised.some(z => z.includes(zone) || zone.includes(z.split(" ")[0]));
+  const norm = (damageZones ?? []).map(z => z.toLowerCase());
+  const frontHit = norm.some(z => /front|bonnet|bumper|hood|grill|headlight/.test(z));
+  const rearHit  = norm.some(z => /rear|boot|trunk|taillight/.test(z));
+  const leftHit  = norm.some(z => /left|driver/.test(z));
+  const rightHit = norm.some(z => /right|passenger/.test(z));
 
-  const frontHit = isHit("front") || isHit("bonnet") || isHit("bumper") || isHit("hood") || isHit("grill") || isHit("headlight");
-  const rearHit  = isHit("rear")  || isHit("boot")   || isHit("trunk") || isHit("taillight");
-  const leftHit  = isHit("left")  || isHit("driver");
-  const rightHit = isHit("right") || isHit("passenger");
-
-  const zoneHit = (id: string) => {
-    if (id === "front") return frontHit;
-    if (id === "rear")  return rearHit;
-    if (id === "left")  return leftHit;
-    if (id === "right") return rightHit;
-    return isHit(id);
+  const zoneIdForSeverity = (id: string): string => {
+    if (id === "front") return frontHit ? "front" : "";
+    if (id === "rear")  return rearHit  ? "rear"  : "";
+    if (id === "left")  return leftHit  ? "left"  : "";
+    if (id === "right") return rightHit ? "right" : "";
+    return id;
   };
 
-  // Arrow origin and direction
+  const getSeverity = (id: string): DamageSeverity => {
+    const lookupId = zoneIdForSeverity(id);
+    if (!lookupId) return 0;
+    // For front/rear/left/right use keyword matching against full zone strings
+    const relevant = norm.filter(z => {
+      if (id === "front") return /front|bonnet|bumper|hood|grill|headlight/.test(z);
+      if (id === "rear")  return /rear|boot|trunk|taillight/.test(z);
+      if (id === "left")  return /left|driver/.test(z);
+      if (id === "right") return /right|passenger/.test(z);
+      return z.includes(id);
+    });
+    if (relevant.length === 0) return 0;
+    if (relevant.some(z => /severe|major|crush|deploy/.test(z))) return 3;
+    if (relevant.some(z => /minor|scratch|dent|chip/.test(z))) return 1;
+    return 2;
+  };
+
   const arrow = frontHit ? { x1: 160, y1: -5, x2: 160, y2: 20 }
     : rearHit  ? { x1: 160, y1: 285, x2: 160, y2: 260 }
     : leftHit  ? { x1: -5,  y1: 140, x2: 20,  y2: 140 }
     : rightHit ? { x1: 325, y1: 140, x2: 295, y2: 140 }
     : null;
+
+  const usedSeverities = ([1, 2, 3] as DamageSeverity[]).filter(s =>
+    zones.some(z => getSeverity(z.id) === s)
+  );
 
   return (
     <div className="flex flex-col items-center">
@@ -216,21 +262,21 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
         ))}
         {/* Damage zones */}
         {zones.map(zone => {
-          const hit = zoneHit(zone.id);
+          const sev = getSeverity(zone.id);
           return (
             <g key={zone.id}>
               <rect
                 x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="5"
-                fill={hit ? "#ef444430" : "transparent"}
-                stroke={hit ? "#ef4444" : "var(--border)"}
-                strokeWidth={hit ? 2 : 1}
-                strokeDasharray={hit ? undefined : "4 3"}
+                fill={SEVERITY_FILL[sev]}
+                stroke={SEVERITY_STROKE[sev]}
+                strokeWidth={sev > 0 ? 2 : 1}
+                strokeDasharray={sev === 0 ? "4 3" : undefined}
               />
               <text
                 x={zone.x + zone.w / 2} y={zone.y + zone.h / 2 + 4}
                 textAnchor="middle" fontSize="9"
-                fill={hit ? "#ef4444" : "var(--muted-foreground)"}
-                fontWeight={hit ? "bold" : "normal"}
+                fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--muted-foreground)"}
+                fontWeight={sev > 0 ? "bold" : "normal"}
               >
                 {zone.label}
               </text>
@@ -246,15 +292,18 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
           />
         )}
       </svg>
-      <div className="flex items-center gap-3 text-xs mt-1">
-        <span className="flex items-center gap-1">
-          <span className="inline-block w-3 h-3 rounded" style={{ background: "#ef444430", border: "1px solid #ef4444" }} />
-          <span style={{ color: "var(--muted-foreground)" }}>Damaged</span>
-        </span>
+      {/* Legend */}
+      <div className="flex flex-wrap items-center gap-3 text-xs mt-1 justify-center">
         <span className="flex items-center gap-1">
           <span className="inline-block w-3 h-3 rounded" style={{ border: "1px dashed var(--border)" }} />
           <span style={{ color: "var(--muted-foreground)" }}>Undamaged</span>
         </span>
+        {([1,2,3] as DamageSeverity[]).map(s => (
+          <span key={s} className="flex items-center gap-1">
+            <span className="inline-block w-3 h-3 rounded" style={{ background: SEVERITY_FILL[s], border: `1px solid ${SEVERITY_STROKE[s]}` }} />
+            <span style={{ color: "var(--muted-foreground)" }}>{SEVERITY_LABEL[s]}</span>
+          </span>
+        ))}
         {arrow && (
           <span className="flex items-center gap-1">
             <span style={{ color: "#f97316" }}>→</span>
@@ -262,6 +311,20 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
           </span>
         )}
       </div>
+      {/* Active severity summary */}
+      {usedSeverities.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1 justify-center">
+          {zones.filter(z => getSeverity(z.id) > 0).map(z => {
+            const s = getSeverity(z.id);
+            return (
+              <span key={z.id} className="text-xs px-2 py-0.5 rounded font-medium"
+                style={{ background: SEVERITY_FILL[s], color: SEVERITY_STROKE[s], border: `1px solid ${SEVERITY_STROKE[s]}` }}>
+                {z.label}: {SEVERITY_LABEL[s]}
+              </span>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
@@ -749,19 +812,39 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                      {["Constraint", "Suppressed", "Advisory", "Verdict"].map(h => (
-                        <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
-                      ))}
+                      <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Constraint</th>
+                      <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Status</th>
+                      <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Verdict</th>
                     </tr>
                   </thead>
                   <tbody>
                     {constraints.map((c: any, i: number) => (
-                      <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                        <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{c.constraint}</td>
-                        <td className="px-3 py-2"><StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "SUPPRESSED" : "ACTIVE"} /></td>
-                        <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{c.advisory ?? "—"}</td>
-                        <td className="px-3 py-2"><StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "⚠ advisory" : "✅ pass"} /></td>
-                      </tr>
+                      <>
+                        <tr key={`c-${i}`} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                          <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{c.constraint}</td>
+                          <td className="px-3 py-2">
+                            <StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "SUPPRESSED" : "ACTIVE"} />
+                          </td>
+                          <td className="px-3 py-2">
+                            <StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "⚠ advisory" : "✅ pass"} />
+                          </td>
+                        </tr>
+                        {c.advisory && (
+                          <tr key={`a-${i}`} style={{ background: c.suppressed ? "#fffbeb" : "var(--muted)" }}>
+                            <td colSpan={3} className="px-3 pb-2 pt-0">
+                              <div className="flex items-start gap-1.5 text-xs rounded px-2 py-1.5"
+                                style={{
+                                  background: c.suppressed ? "#fef3c740" : "var(--muted)",
+                                  border: `1px solid ${c.suppressed ? "#fcd34d" : "var(--border)"}`,
+                                  color: c.suppressed ? "#92400e" : "var(--muted-foreground)",
+                                }}>
+                                <span style={{ color: c.suppressed ? "#f59e0b" : "#6b7280", flexShrink: 0 }}>{c.suppressed ? "⚠" : "ℹ"}</span>
+                                <span>{c.advisory}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        )}
+                      </>
                     ))}
                   </tbody>
                 </table>
@@ -829,32 +912,71 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           <StatusBadge status={verdict === "FAIR" ? "pass" : verdict === "OVERPRICED" ? "fail" : "info"} label={verdict} />
         </div>
         <div className="p-4">
-          <div className="space-y-3 mb-4">
-            {[
-              { label: "Quoted (Repairer)", value: quotedTotal, color: "#f59e0b", show: quotedTotal > 0 },
-              { label: "AI Estimate (Baseline)", value: aiEstimate, color: "#3b82f6", show: aiEstimate > 0 },
-              { label: "Fair Range Min", value: fairMin, color: "#9ca3af", show: fairMin > 0 },
-              { label: "Fair Range Max", value: fairMax, color: "#6b7280", show: fairMax > 0 },
-            ].filter(b => b.show).map((bar, i) => {
-              const maxVal = Math.max(quotedTotal, aiEstimate, fairMax, 1);
-              const w = Math.min(100, (bar.value / maxVal) * 100);
-              return (
-                <div key={i}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span style={{ color: "var(--muted-foreground)" }}>{bar.label}</span>
-                    <span className="font-semibold" style={{ color: "var(--foreground)" }}>{fmtUsd(bar.value)}</span>
-                  </div>
-                  <div className="h-4 rounded-full" style={{ background: "var(--muted)" }}>
-                    <div className="h-4 rounded-full flex items-center justify-end pr-2"
-                      style={{ width: `${w}%`, background: bar.color, minWidth: "2rem" }}>
-                      {w > 20 && <span className="text-white text-xs font-bold">{fmtUsd(bar.value)}</span>}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
+          {/* Step-down SVG waterfall */}
+          {(() => {
+            const steps = [
+              { label: "Repairer Quote",    value: quotedTotal, color: "#f59e0b", show: quotedTotal > 0 },
+              { label: "AI Estimate",       value: aiEstimate,  color: "#3b82f6", show: aiEstimate > 0 },
+              { label: "Fair Range Min",    value: fairMin,     color: "#10b981", show: fairMin > 0 },
+              { label: "Fair Range Max",    value: fairMax,     color: "#6b7280", show: fairMax > 0 },
+            ].filter(s => s.show);
+            if (steps.length === 0) return null;
+            const maxVal = Math.max(...steps.map(s => s.value), 1);
+            const svgW = 480;
+            const svgH = 160;
+            const barH = 28;
+            const labelW = 110;
+            const chartW = svgW - labelW - 60;
+            const yStep = (svgH - barH) / Math.max(steps.length - 1, 1);
+            return (
+              <div className="mb-4 overflow-x-auto">
+                <svg viewBox={`0 0 ${svgW} ${svgH + 20}`} width="100%" style={{ minWidth: 320 }}>
+                  {/* Fair range band */}
+                  {fairMin > 0 && fairMax > 0 && (() => {
+                    const x1 = labelW + (fairMin / maxVal) * chartW;
+                    const x2 = labelW + (fairMax / maxVal) * chartW;
+                    return (
+                      <rect x={x1} y={0} width={x2 - x1} height={svgH}
+                        fill="#10b98118" stroke="#10b98140" strokeWidth="1" strokeDasharray="4 3" />
+                    );
+                  })()}
+                  {steps.map((step, i) => {
+                    const barW = Math.max(4, (step.value / maxVal) * chartW);
+                    const y = i * yStep;
+                    const nextStep = steps[i + 1];
+                    const nextBarW = nextStep ? Math.max(4, (nextStep.value / maxVal) * chartW) : null;
+                    const nextY = nextStep ? (i + 1) * yStep : null;
+                    return (
+                      <g key={i}>
+                        {/* Connector line to next step */}
+                        {nextBarW != null && nextY != null && (
+                          <line
+                            x1={labelW + barW} y1={y + barH / 2}
+                            x2={labelW + nextBarW} y2={nextY + barH / 2}
+                            stroke="var(--border)" strokeWidth="1.5" strokeDasharray="4 3"
+                          />
+                        )}
+                        {/* Bar */}
+                        <rect x={labelW} y={y} width={barW} height={barH} rx="4"
+                          fill={step.color} opacity="0.85" />
+                        {/* Label */}
+                        <text x={labelW - 6} y={y + barH / 2 + 4}
+                          textAnchor="end" fontSize="10" fill="var(--muted-foreground)">{step.label}</text>
+                        {/* Value */}
+                        <text x={labelW + barW + 6} y={y + barH / 2 + 4}
+                          fontSize="10" fontWeight="bold" fill="var(--foreground)">{fmtUsd(step.value)}</text>
+                      </g>
+                    );
+                  })}
+                  {/* Fair range label */}
+                  {fairMin > 0 && fairMax > 0 && (
+                    <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14}
+                      fontSize="9" fill="#10b981">Fair range</text>
+                  )}
+                </svg>
+              </div>
+            );
+          })()}
           {/* Reconciliation table */}
           <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Cost Reconciliation Summary</p>
           <table className="w-full text-xs mb-3">
