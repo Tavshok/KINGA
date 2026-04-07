@@ -51,15 +51,15 @@ function pct(n: number | null | undefined): string {
 
 function decisionColour(d: string): string {
   const map: Record<string, string> = {
-    APPROVE: "#10b981",
-    FINALISE_CLAIM: "#10b981",
-    REVIEW: "#f59e0b",
-    REVIEW_REQUIRED: "#f59e0b",
-    ESCALATE: "#f97316",
-    ESCALATE_INVESTIGATION: "#f97316",
-    REJECT: "#ef4444",
+    APPROVE: "var(--fp-success-text)",
+    FINALISE_CLAIM: "var(--fp-success-text)",
+    REVIEW: "var(--fp-warning-text)",
+    REVIEW_REQUIRED: "var(--fp-warning-text)",
+    ESCALATE: "var(--fp-warning-text)",
+    ESCALATE_INVESTIGATION: "var(--fp-warning-text)",
+    REJECT: "var(--fp-critical-text)",
   };
-  return map[d] ?? "#6b7280";
+  return map[d] ?? "var(--muted-foreground)";
 }
 
 function decisionLabel(d: string): string {
@@ -98,11 +98,11 @@ function SectionDivider({ number, title }: { number: string; title: string }) {
 
 function StatusBadge({ status, label }: { status: "pass" | "warn" | "fail" | "info" | "na"; label: string }) {
   const cfg = {
-    pass: { bg: "#d1fae5", color: "#065f46", border: "#6ee7b7" },
-    warn: { bg: "#fef3c7", color: "#92400e", border: "#fcd34d" },
-    fail: { bg: "#fee2e2", color: "#991b1b", border: "#fca5a5" },
-    info: { bg: "#dbeafe", color: "#1e40af", border: "#93c5fd" },
-    na:   { bg: "#f3f4f6", color: "#374151", border: "#d1d5db" },
+    pass: { bg: "var(--status-approve-bg)", color: "var(--status-approve-text)", border: "var(--status-approve-border)" },
+    warn: { bg: "var(--status-review-bg)", color: "var(--status-review-text)", border: "var(--status-review-border)" },
+    fail: { bg: "var(--status-reject-bg)", color: "var(--status-reject-text)", border: "var(--status-reject-border)" },
+    info: { bg: "var(--fp-info-bg)", color: "var(--fp-info-text)", border: "var(--fp-info-border)" },
+    na:   { bg: "var(--muted)", color: "var(--muted-foreground)", border: "var(--border)" },
   }[status];
   return (
     <span
@@ -118,7 +118,7 @@ function StatusBadge({ status, label }: { status: "pass" | "warn" | "fail" | "in
 
 function ArcGauge({ value, max = 100, label, size = 100 }: { value: number; max?: number; label?: string; size?: number }) {
   const pctVal = Math.min(100, Math.max(0, (value / max) * 100));
-  const color = pctVal >= 70 ? "#10b981" : pctVal >= 40 ? "#f59e0b" : "#ef4444";
+  const color = pctVal >= 70 ? "var(--fp-success-text)" : pctVal >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
   const r = 38;
   const cx = 50;
   const cy = 50;
@@ -130,7 +130,7 @@ function ArcGauge({ value, max = 100, label, size = 100 }: { value: number; max?
         <path
           d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`}
           fill="none"
-          stroke="#e5e7eb"
+          stroke="var(--border)"
           strokeWidth="8"
           strokeLinecap="round"
         />
@@ -147,7 +147,7 @@ function ArcGauge({ value, max = 100, label, size = 100 }: { value: number; max?
           {Math.round(pctVal)}%
         </text>
         {label && (
-          <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7" fill="#6b7280">
+          <text x={cx} y={cy + 10} textAnchor="middle" fontSize="7" fill="var(--muted-foreground)">
             {label}
           </text>
         )}
@@ -163,15 +163,15 @@ type DamageSeverity = 0 | 1 | 2 | 3;
 
 const SEVERITY_FILL: Record<DamageSeverity, string> = {
   0: "transparent",
-  1: "#fef08a50",   // yellow-200 tint — minor
-  2: "#fed7aa60",   // orange-200 tint — moderate
-  3: "#fca5a560",   // red-300 tint — severe
+  1: "rgba(253,224,71,0.30)",   // yellow tint — minor
+  2: "rgba(251,146,60,0.30)",   // orange tint — moderate
+  3: "rgba(248,113,113,0.30)",  // red tint — severe
 };
 const SEVERITY_STROKE: Record<DamageSeverity, string> = {
   0: "var(--border)",
-  1: "#ca8a04",    // yellow-600
-  2: "#ea580c",    // orange-600
-  3: "#dc2626",    // red-600
+  1: "var(--fp-warning-text)",   // minor
+  2: "var(--fp-warning-text)",   // moderate
+  3: "var(--fp-critical-text)",  // severe
 };
 const SEVERITY_LABEL: Record<DamageSeverity, string> = { 0: "Undamaged", 1: "Minor", 2: "Moderate", 3: "Severe" };
 
@@ -243,7 +243,7 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
       <svg viewBox="0 0 320 280" width="200" height="175" style={{ maxWidth: "100%" }}>
         <defs>
           <marker id="dmg-arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-            <polygon points="0 0, 6 3, 0 6" fill="#f97316" />
+            <polygon points="0 0, 6 3, 0 6" fill="var(--fp-warning-text)" />
           </marker>
         </defs>
         {/* Vehicle body */}
@@ -287,7 +287,7 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
         {arrow && (
           <line
             x1={arrow.x1} y1={arrow.y1} x2={arrow.x2} y2={arrow.y2}
-            stroke="#f97316" strokeWidth="3.5"
+            stroke="var(--fp-warning-text)" strokeWidth="3.5"
             markerEnd="url(#dmg-arrow)"
           />
         )}
@@ -306,7 +306,7 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
         ))}
         {arrow && (
           <span className="flex items-center gap-1">
-            <span style={{ color: "#f97316" }}>→</span>
+            <span style={{ color: "var(--fp-warning-text)" }}>→</span>
             <span style={{ color: "var(--muted-foreground)" }}>Impact</span>
           </span>
         )}
@@ -445,7 +445,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
           <ul className="space-y-1">
             {keyDrivers.slice(0, 3).map((d, i) => (
               <li key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span style={{ color: "#f97316" }}>•</span>{d}
+                <span style={{ color: "var(--fp-warning-text)" }}>•</span>{d}
               </li>
             ))}
           </ul>
@@ -552,8 +552,8 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
             <div key={i} className="flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
                 {item.ok
-                  ? <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#10b981" }} />
-                  : <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#ef4444" }} />}
+                  ? <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fp-success-text)" }} />
+                  : <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fp-critical-text)" }} />}
                 <span className="text-xs" style={{ color: "var(--foreground)" }}>{item.label}</span>
               </div>
               <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.detail}</span>
@@ -565,7 +565,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
       {corrections.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <AlertTriangle className="h-3.5 w-3.5" style={{ color: "#f59e0b" }} />
+            <AlertTriangle className="h-3.5 w-3.5" style={{ color: "var(--fp-warning-text)" }} />
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>
               Phase 1 Auto-Corrections ({corrections.length})
             </p>
@@ -573,7 +573,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
           <div className="p-4 space-y-1">
             {corrections.map((c, i) => (
               <div key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span className="font-mono font-bold" style={{ color: "#f59e0b" }}>{i + 1}.</span>
+                <span className="font-mono font-bold" style={{ color: "var(--fp-warning-text)" }}>{i + 1}.</span>
                 {c}
               </div>
             ))}
@@ -713,7 +713,7 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
                     <span style={{ color: "var(--foreground)" }}>{claimedSpeed} km/h</span>
                   </div>
                   <div className="h-2 rounded-full" style={{ background: "var(--muted)" }}>
-                    <div className="h-2 rounded-full" style={{ width: `${Math.min(100, (claimedSpeed / 150) * 100)}%`, background: "#f59e0b" }} />
+                    <div className="h-2 rounded-full" style={{ width: `${Math.min(100, (claimedSpeed / 150) * 100)}%`, background: "var(--fp-warning-text)" }} />
                   </div>
                 </div>
               )}
@@ -724,7 +724,7 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
                     <span style={{ color: "var(--foreground)" }}>{deltaV} km/h</span>
                   </div>
                   <div className="h-2 rounded-full" style={{ background: "var(--muted)" }}>
-                    <div className="h-2 rounded-full" style={{ width: `${Math.min(100, (deltaV / 150) * 100)}%`, background: "#10b981" }} />
+                    <div className="h-2 rounded-full" style={{ width: `${Math.min(100, (deltaV / 150) * 100)}%`, background: "var(--fp-success-text)" }} />
                   </div>
                 </div>
               )}
@@ -733,9 +733,9 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
 
           {directionExplanation && (
             <div className="p-2 rounded-lg text-xs" style={{
-              background: directionMismatch ? "#fef3c7" : "#d1fae5",
-              border: `1px solid ${directionMismatch ? "#fcd34d" : "#6ee7b7"}`,
-              color: directionMismatch ? "#92400e" : "#065f46",
+              background: directionMismatch ? "var(--status-review-bg)" : "var(--status-approve-bg)",
+              border: `1px solid ${directionMismatch ? "var(--status-review-border)" : "var(--status-approve-border)"}`,
+              color: directionMismatch ? "var(--status-review-text)" : "var(--status-approve-text)",
             }}>
               {directionMismatch ? "⚠ Direction mismatch: " : "✓ Direction consistent: "}{directionExplanation}
             </div>
@@ -761,7 +761,7 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
                 <div className="mt-2 flex flex-wrap gap-1">
                   {damageZones.map((z, i) => (
                     <span key={i} className="text-xs px-2 py-0.5 rounded"
-                      style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fca5a5" }}>{z}</span>
+                      style={{ background: "var(--status-reject-bg)", color: "var(--status-reject-text)", border: "1px solid var(--fp-critical-border)" }}>{z}</span>
                   ))}
                 </div>
               )}
@@ -830,15 +830,15 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
                           </td>
                         </tr>
                         {c.advisory && (
-                          <tr key={`a-${i}`} style={{ background: c.suppressed ? "#fffbeb" : "var(--muted)" }}>
+                          <tr key={`a-${i}`} style={{ background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)" }}>
                             <td colSpan={3} className="px-3 pb-2 pt-0">
                               <div className="flex items-start gap-1.5 text-xs rounded px-2 py-1.5"
                                 style={{
-                                  background: c.suppressed ? "#fef3c740" : "var(--muted)",
-                                  border: `1px solid ${c.suppressed ? "#fcd34d" : "var(--border)"}`,
-                                  color: c.suppressed ? "#92400e" : "var(--muted-foreground)",
+                                  background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)",
+                                  border: `1px solid ${c.suppressed ? "var(--status-review-border)" : "var(--border)"}`,
+                                  color: c.suppressed ? "var(--status-review-text)" : "var(--muted-foreground)",
                                 }}>
-                                <span style={{ color: c.suppressed ? "#f59e0b" : "#6b7280", flexShrink: 0 }}>{c.suppressed ? "⚠" : "ℹ"}</span>
+                                <span style={{ color: c.suppressed ? "var(--fp-warning-text)" : "var(--muted-foreground)", flexShrink: 0 }}>{c.suppressed ? "⚠" : "ℹ"}</span>
                                 <span>{c.advisory}</span>
                               </div>
                             </td>
@@ -915,10 +915,10 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           {/* Step-down SVG waterfall */}
           {(() => {
             const steps = [
-              { label: "Repairer Quote",    value: quotedTotal, color: "#f59e0b", show: quotedTotal > 0 },
-              { label: "AI Estimate",       value: aiEstimate,  color: "#3b82f6", show: aiEstimate > 0 },
-              { label: "Fair Range Min",    value: fairMin,     color: "#10b981", show: fairMin > 0 },
-              { label: "Fair Range Max",    value: fairMax,     color: "#6b7280", show: fairMax > 0 },
+              { label: "Repairer Quote",    value: quotedTotal, color: "var(--fp-warning-text)", show: quotedTotal > 0 },
+              { label: "AI Estimate",       value: aiEstimate,  color: "var(--fp-info-text)", show: aiEstimate > 0 },
+              { label: "Fair Range Min",    value: fairMin,     color: "var(--fp-success-text)", show: fairMin > 0 },
+              { label: "Fair Range Max",    value: fairMax,     color: "var(--muted-foreground)", show: fairMax > 0 },
             ].filter(s => s.show);
             if (steps.length === 0) return null;
             const maxVal = Math.max(...steps.map(s => s.value), 1);
@@ -937,7 +937,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                     const x2 = labelW + (fairMax / maxVal) * chartW;
                     return (
                       <rect x={x1} y={0} width={x2 - x1} height={svgH}
-                        fill="#10b98118" stroke="#10b98140" strokeWidth="1" strokeDasharray="4 3" />
+                        fill="var(--fp-success-bg)" stroke="var(--fp-success-border)" strokeWidth="1" strokeDasharray="4 3" />
                     );
                   })()}
                   {steps.map((step, i) => {
@@ -971,7 +971,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                   {/* Fair range label */}
                   {fairMin > 0 && fairMax > 0 && (
                     <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14}
-                      fontSize="9" fill="#10b981">Fair range</text>
+                      fontSize="9" fill="var(--fp-success-text)">Fair range</text>
                   )}
                 </svg>
               </div>
@@ -1114,13 +1114,13 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
       {costCorrections.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <AlertTriangle className="h-3.5 w-3.5" style={{ color: "#f59e0b" }} />
+            <AlertTriangle className="h-3.5 w-3.5" style={{ color: "var(--fp-warning-text)" }} />
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Cost Auto-Corrections ({costCorrections.length})</p>
           </div>
           <div className="p-4 space-y-1">
             {costCorrections.map((c, i) => (
               <div key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span className="font-mono font-bold" style={{ color: "#f59e0b" }}>{i + 1}.</span>{c}
+                <span className="font-mono font-bold" style={{ color: "var(--fp-warning-text)" }}>{i + 1}.</span>{c}
               </div>
             ))}
           </div>
@@ -1172,17 +1172,17 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
             ))}
           </div>
           {isSystemFailure && (
-            <div className="p-2 rounded text-xs mb-2" style={{ background: "#fef3c7", border: "1px solid #fcd34d", color: "#92400e" }}>
+            <div className="p-2 rounded text-xs mb-2" style={{ background: "var(--status-review-bg)", border: "1px solid var(--fp-warning-border)", color: "var(--status-review-text)" }}>
               <strong>⚠ System error</strong> — Photo ingestion failed due to a pipeline error. NOT attributed to the claimant. Photo-related fraud points excluded from score.
             </div>
           )}
           {photoStatus === "CLAIMANT_OMISSION" && (
-            <div className="p-2 rounded text-xs mb-2" style={{ background: "#fee2e2", border: "1px solid #fca5a5", color: "#991b1b" }}>
+            <div className="p-2 rounded text-xs mb-2" style={{ background: "var(--status-reject-bg)", border: "1px solid var(--fp-critical-border)", color: "var(--status-reject-text)" }}>
               <strong>❌ Photos not provided</strong> — Claimant did not submit photo evidence. Contributes to fraud risk score.
             </div>
           )}
           {photoStatus === "ANALYSED" && (
-            <div className="p-2 rounded text-xs mb-2" style={{ background: "#d1fae5", border: "1px solid #6ee7b7", color: "#065f46" }}>
+            <div className="p-2 rounded text-xs mb-2" style={{ background: "var(--status-approve-bg)", border: "1px solid var(--fp-success-border)", color: "var(--status-approve-text)" }}>
               <strong>✓ Photos analysed</strong> — {photosProcessed} of {photosDetected} photos successfully processed.
             </div>
           )}
@@ -1255,7 +1255,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
   const fraudScore = wf?.score ?? 0;
   const fraudLevel = wf?.level ?? "minimal";
   const fraudLabel = wf?.explanation ?? fraudLevel;
-  const fraudColor = fraudScore >= 70 ? "#ef4444" : fraudScore >= 40 ? "#f59e0b" : "#10b981";
+  const fraudColor = fraudScore >= 70 ? "var(--fp-critical-text)" : fraudScore >= 40 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
   const fraudBand = fraudScore >= 70 ? "HIGH RISK" : fraudScore >= 40 ? "MODERATE RISK" : "LOW RISK";
 
   const contributions: any[] = wf?.full_contributions ?? wf?.contributions ?? [];
@@ -1284,9 +1284,9 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
               <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>{fraudLabel}</p>
               <div className="mt-2 space-y-1">
                 {[
-                  { label: "0–39: LOW", color: "#10b981" },
-                  { label: "40–69: MODERATE", color: "#f59e0b" },
-                  { label: "70–100: HIGH", color: "#ef4444" },
+                  { label: "0–39: LOW", color: "var(--fp-success-text)" },
+                  { label: "40–69: MODERATE", color: "var(--fp-warning-text)" },
+                  { label: "70–100: HIGH", color: "var(--fp-critical-text)" },
                 ].map(b => (
                   <div key={b.label} className="flex items-center gap-2 text-xs">
                     <span className="w-2 h-2 rounded-full" style={{ background: b.color }} />
@@ -1297,7 +1297,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
             </div>
           </div>
           <div className="h-3 rounded-full mb-1" style={{ background: "var(--muted)" }}>
-            <div className="h-3 rounded-full" style={{ width: `${Math.min(100, fraudScore)}%`, background: "linear-gradient(90deg, #10b981, #f59e0b, #ef4444)" }} />
+            <div className="h-3 rounded-full" style={{ width: `${Math.min(100, fraudScore)}%`, background: "linear-gradient(90deg, var(--fp-success-text), var(--fp-warning-text), var(--fp-critical-text))" }} />
           </div>
           <div className="flex justify-between text-xs" style={{ color: "var(--muted-foreground)" }}>
             <span>0 — Low</span><span>40 — Moderate</span><span>70 — High</span><span>100</span>
@@ -1326,7 +1326,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
                   const isPhotoFactor = c.factor?.toLowerCase().includes("photo");
                   const isExcluded = isPhotoFactor && isSystemFailure;
                   const score = c.value ?? 0;
-                  const scoreColor = isExcluded ? "var(--muted-foreground)" : score > 10 ? "#ef4444" : score > 5 ? "#f59e0b" : "#10b981";
+                  const scoreColor = isExcluded ? "var(--muted-foreground)" : score > 10 ? "var(--fp-critical-text)" : score > 5 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
 
                   const mitigationMap: Record<string, string> = {
                     damage_pattern: "Physical inspection recommended to verify damage extent",
@@ -1367,7 +1367,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
           <div className="p-4 space-y-2">
             {advisories.map((a, i) => (
               <div key={i} className="flex items-start gap-2 text-xs p-2 rounded" style={{ background: "var(--muted)", color: "var(--foreground)" }}>
-                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "#f59e0b" }} />
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "var(--fp-warning-text)" }} />
                 {a}
               </div>
             ))}
@@ -1453,8 +1453,8 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
     return `M ${x + r},${y} H ${x + w - r} Q ${x + w},${y} ${x + w},${y + r} V ${y + h - r} Q ${x + w},${y + h} ${x + w - r},${y + h} H ${x + r} Q ${x},${y + h} ${x},${y + h - r} V ${y + r} Q ${x},${y} ${x + r},${y} Z`;
   };
 
-  const passColor = "#10b981";
-  const failColor = "#ef4444";
+  const passColor = "var(--fp-success-text)";
+  const failColor = "var(--fp-critical-text)";
   const nodeColor = "var(--muted)";
   const textColor = "var(--foreground)";
   const mutedColor = "var(--muted-foreground)";
@@ -1592,7 +1592,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           <div className="p-4 space-y-1">
             {blocked.map((b, i) => (
               <div key={i} className="flex items-center gap-2 text-xs">
-                <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "#ef4444" }} />
+                <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fp-critical-text)" }} />
                 <span style={{ color: "var(--foreground)" }}>
                   {b === "APPROVE" ? "APPROVE — cannot approve while anomalies remain unexplained" :
                    b === "REJECT" ? "REJECT — no evidence of malicious intent" : b}

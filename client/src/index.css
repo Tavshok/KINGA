@@ -1130,7 +1130,52 @@
     }
   }
 
-  /* Force WCAG report palette in print */
+  /* Force WCAG report palette in print — override CSS variables so dark mode prints white */
+  :root,
+  html.dark,
+  .dark {
+    --background: #FFFFFF !important;
+    --foreground: #0F172A !important;
+    --card: #FFFFFF !important;
+    --card-foreground: #0F172A !important;
+    --muted: #F1F5F9 !important;
+    --muted-foreground: #475569 !important;
+    --border: #E2E8F0 !important;
+    --fp-subtle-bg: #F8FAFC !important;
+    --fp-subtle-border: #E2E8F0 !important;
+    --fp-critical-bg: #FEF2F2 !important;
+    --fp-critical-border: #FCA5A5 !important;
+    --fp-critical-text: #991B1B !important;
+    --fp-warning-bg: #FFFBEB !important;
+    --fp-warning-border: #FCD34D !important;
+    --fp-warning-text: #92400E !important;
+    --fp-info-bg: #EFF6FF !important;
+    --fp-info-border: #BFDBFE !important;
+    --fp-info-text: #1E40AF !important;
+    --fp-success-bg: #F0FDF4 !important;
+    --fp-success-border: #86EFAC !important;
+    --fp-success-text: #14532D !important;
+    --status-approve-bg: #DCFCE7 !important;
+    --status-approve-text: #14532D !important;
+    --status-approve-border: #86EFAC !important;
+    --status-review-bg: #FEF3C7 !important;
+    --status-review-text: #78350F !important;
+    --status-review-border: #FCD34D !important;
+    --status-reject-bg: #FEE2E2 !important;
+    --status-reject-text: #7F1D1D !important;
+    --status-reject-border: #FCA5A5 !important;
+    --fp-locked-bg: #FFF7ED !important;
+    --fp-locked-border: #FB923C !important;
+    --fp-locked-text: #9A3412 !important;
+    --fp-finalised-bg: #F0FDF4 !important;
+    --fp-finalised-border: #86EFAC !important;
+    --fp-badge-bg: #F1F5F9 !important;
+    --fp-badge-text: #1E293B !important;
+    --rpt-header-bg: #1E293B !important;
+    --rpt-header-text: #F1F5F9 !important;
+    --rpt-header-border: #334155 !important;
+    --rpt-header-muted: #94A3B8 !important;
+  }
   body {
     background: #FFFFFF !important;
     color: #0F172A !important;

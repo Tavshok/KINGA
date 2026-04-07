@@ -478,10 +478,10 @@ export function AdjusterSignOffPanel({
   };
 
   const decisionColour: Record<DecisionOverride, { bg: string; text: string; border: string }> = {
-    APPROVE:  { bg: "#d1fae5", text: "#065f46", border: "#6ee7b7" },
-    REJECT:   { bg: "#fee2e2", text: "#991b1b", border: "#fca5a5" },
-    ESCALATE: { bg: "#fef3c7", text: "#92400e", border: "#fcd34d" },
-    DEFER:    { bg: "#e0e7ff", text: "#3730a3", border: "#a5b4fc" },
+    APPROVE:  { bg: "var(--status-approve-bg)",  text: "var(--status-approve-text)",  border: "var(--status-approve-border)" },
+    REJECT:   { bg: "var(--status-reject-bg)",   text: "var(--status-reject-text)",   border: "var(--status-reject-border)" },
+    ESCALATE: { bg: "var(--status-review-bg)",   text: "var(--status-review-text)",   border: "var(--status-review-border)" },
+    DEFER:    { bg: "var(--fp-info-bg)",          text: "var(--fp-info-text)",          border: "var(--fp-info-border)" },
   };
 
   const col = decision ? decisionColour[decision] : null;
@@ -631,7 +631,7 @@ export function AdjusterSignOffPanel({
           </div>
 
           {error && (
-            <p style={{ fontSize: "11px", color: "#dc2626", margin: 0 }}>{error}</p>
+            <p style={{ fontSize: "11px", color: "var(--fp-critical-text)", margin: 0 }}>{error}</p>
           )}
 
           <button

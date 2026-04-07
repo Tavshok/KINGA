@@ -148,31 +148,31 @@ interface EnforcementResult {
 // ─── Risk level config ────────────────────────────────────────────────────────
 
 const RISK_STYLE: Record<string, { bg: string; border: string; text: string; badge: string; dot: string }> = {
-  minimal:  { bg: "var(--fp-success-bg)",   border: "var(--fp-success-border)",       text: "#10b981", badge: "bg-emerald-600", dot: "#10b981" },
-  low:      { bg: "var(--fp-success-bg)",   border: "var(--fp-success-border)",       text: "#22c55e", badge: "bg-green-600",   dot: "#22c55e" },
+  minimal:  { bg: "var(--fp-success-bg)",   border: "var(--fp-success-border)",       text: "var(--fp-success-text)", badge: "bg-emerald-600", dot: "var(--fp-success-text)" },
+  low:      { bg: "var(--fp-success-bg)",   border: "var(--fp-success-border)",       text: "var(--fp-success-text)", badge: "bg-green-600",   dot: "var(--fp-success-text)" },
   // 'medium' is the legacy DB enum value — kept as alias for 'moderate'
-  medium:   { bg: "var(--status-review-bg)", border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
-  moderate: { bg: "var(--status-review-bg)", border: "var(--status-review-border)",  text: "#f59e0b", badge: "bg-amber-600",  dot: "#f59e0b" },
-  high:     { bg: "var(--fp-warning-bg)",   border: "var(--fp-warning-border)",       text: "#f97316", badge: "bg-orange-600", dot: "#f97316" },
+  medium:   { bg: "var(--status-review-bg)", border: "var(--status-review-border)",  text: "var(--fp-warning-text)", badge: "bg-amber-600",  dot: "var(--fp-warning-text)" },
+  moderate: { bg: "var(--status-review-bg)", border: "var(--status-review-border)",  text: "var(--fp-warning-text)", badge: "bg-amber-600",  dot: "var(--fp-warning-text)" },
+  high:     { bg: "var(--fp-warning-bg)",   border: "var(--fp-warning-border)",       text: "var(--fp-warning-text)", badge: "bg-orange-600", dot: "var(--fp-warning-text)" },
   // 'critical' is the legacy DB enum value — kept as alias for 'elevated'
-  critical: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",   text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
-  elevated: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",   text: "#f87171", badge: "bg-red-700",    dot: "#ef4444" },
+  critical: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",   text: "var(--fp-critical-text)", badge: "bg-red-700",    dot: "var(--fp-critical-text)" },
+  elevated: { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",   text: "var(--fp-critical-text)", badge: "bg-red-700",    dot: "var(--fp-critical-text)" },
 };
 
 const SEVERITY_STYLE: Record<string, { color: string; label: string }> = {
-  none:         { color: "#10b981", label: "No Damage" },
-  minor:        { color: "#22c55e", label: "Minor" },
-  moderate:     { color: "#f59e0b", label: "Moderate" },
-  severe:       { color: "#f97316", label: "Severe" },
-  catastrophic: { color: "#ef4444", label: "Catastrophic" },
-  total_loss:   { color: "#dc2626", label: "Total Loss" },
-  unknown:      { color: "#6b7280", label: "Unknown" },
+  none:         { color: "var(--fp-success-text)", label: "No Damage" },
+  minor:        { color: "var(--fp-success-text)", label: "Minor" },
+  moderate:     { color: "var(--fp-warning-text)", label: "Moderate" },
+  severe:       { color: "var(--fp-warning-text)", label: "Severe" },
+  catastrophic: { color: "var(--fp-critical-text)", label: "Catastrophic" },
+  total_loss:   { color: "var(--fp-critical-text)", label: "Total Loss" },
+  unknown:      { color: "var(--muted-foreground)", label: "Unknown" },
 };
 
 const ALERT_STYLE: Record<string, { bg: string; border: string; icon: string; label: string }> = {
-  critical: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", icon: "#f87171", label: "CRITICAL" },
-  warning:  { bg: "var(--fp-warning-bg)", border: "var(--fp-warning-border)", icon: "#fbbf24", label: "WARNING"  },
-  info:     { bg: "var(--fp-info-bg)", border: "var(--fp-info-border)", icon: "#60a5fa", label: "INFO"   },
+  critical: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", icon: "var(--fp-critical-text)", label: "CRITICAL" },
+  warning:  { bg: "var(--fp-warning-bg)", border: "var(--fp-warning-border)", icon: "var(--fp-warning-text)", label: "WARNING"  },
+  info:     { bg: "var(--fp-info-bg)", border: "var(--fp-info-border)", icon: "var(--fp-info-text)", label: "INFO"   },
 };
 
 // ─── Cost verdict helper ──────────────────────────────────────────────────────
@@ -192,7 +192,7 @@ function computeCostVerdict(
   if (compareAmount > fairMax * 1.15) {
     return {
       verdict: "OVERPRICED",
-      color: "#f87171",
+      color: "var(--fp-critical-text)",
       Icon: TrendingUp,
       explanation: quotedAmounts.length > 0
         ? `The submitted quote of $${compareAmount.toLocaleString()} exceeds the fair cost ceiling of $${fairMax.toLocaleString()} by ${Math.round(((compareAmount - fairMax) / fairMax) * 100)}%.`
@@ -202,7 +202,7 @@ function computeCostVerdict(
   if (compareAmount < fairMin * 0.85) {
     return {
       verdict: "UNDERPRICED",
-      color: "#fbbf24",
+      color: "var(--fp-warning-text)",
       Icon: TrendingDown,
       explanation: quotedAmounts.length > 0
         ? `The submitted quote of $${compareAmount.toLocaleString()} is significantly below the fair cost floor of $${fairMin.toLocaleString()}. This may indicate incomplete scope of work.`
@@ -211,7 +211,7 @@ function computeCostVerdict(
   }
   return {
     verdict: "FAIR",
-    color: "#10b981",
+    color: "var(--fp-success-text)",
     Icon: Minus,
     explanation: quotedAmounts.length > 0
       ? `The submitted quote of $${compareAmount.toLocaleString()} falls within the fair cost range of $${fairMin.toLocaleString()}–$${fairMax.toLocaleString()}.`
@@ -245,9 +245,9 @@ function FinalDecisionBanner({ finalDecision, confidenceScore }: {
 }) {
   const { decision, label, color, primaryReason } = finalDecision;
   const cfg = {
-    green: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "#10b981", Icon: CheckCircle },
-    amber: { bg: "var(--fp-warning-bg)",  border: "var(--status-review-border)",  text: "#f59e0b", Icon: AlertTriangle },
-    red:   { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",  text: "#f87171", Icon: AlertTriangle },
+    green: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "var(--fp-success-text)", Icon: CheckCircle },
+    amber: { bg: "var(--fp-warning-bg)",  border: "var(--status-review-border)",  text: "var(--fp-warning-text)", Icon: AlertTriangle },
+    red:   { bg: "var(--fp-critical-bg)",  border: "var(--status-reject-border)",  text: "var(--fp-critical-text)", Icon: AlertTriangle },
   }[color];
   const decisionLabel = decision === "FINALISE_CLAIM" ? "FINALISE CLAIM" : decision === "REVIEW_REQUIRED" ? "REVIEW REQUIRED" : "ESCALATE INVESTIGATION";
 
@@ -273,7 +273,7 @@ function FinalDecisionBanner({ finalDecision, confidenceScore }: {
 
 function ConfidenceBreakdownPanel({ confidenceBreakdown }: { confidenceBreakdown: NonNullable<EnforcementResult["confidenceBreakdown"]> }) {
   const { score, penalties, summary } = confidenceBreakdown;
-  const scoreColor = score >= 85 ? "#10b981" : score >= 70 ? "#f59e0b" : "#f87171";
+  const scoreColor = score >= 85 ? "var(--fp-success-text)" : score >= 70 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
   return (
     <div className="rounded-xl p-4 mb-4" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
       <div className="flex items-center gap-2 mb-3">
@@ -289,7 +289,7 @@ function ConfidenceBreakdownPanel({ confidenceBreakdown }: { confidenceBreakdown
         <div className="space-y-1.5">
           {penalties.map((p, i) => (
             <div key={i} className="flex items-start gap-2 text-xs">
-              <span className="font-black shrink-0" style={{ color: "#f87171" }}>−{p.deduction}</span>
+              <span className="font-black shrink-0" style={{ color: "var(--fp-critical-text)" }}>−{p.deduction}</span>
               <span style={{ color: "var(--foreground)" }}>{p.factor}:</span>
               <span style={{ color: "var(--muted-foreground)" }}>{p.reason}</span>
             </div>
@@ -320,9 +320,9 @@ function RuleTracePanel({ ruleTrace }: { ruleTrace: NonNullable<EnforcementResul
         <div className="px-4 pb-4 space-y-1.5">
           {ruleTrace.map((r, i) => (
             <div key={i} className="flex items-center gap-2 text-xs rounded px-2 py-1.5" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", border: r.triggered ? "1px solid var(--fp-warning-border)" : "1px solid transparent" }}>
-              <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: r.triggered ? "#f59e0b" : "var(--muted-foreground)", color: r.triggered ? "#000" : "var(--background)" }}>{r.triggered ? "!" : "✓"}</span>
+              <span className="w-4 h-4 rounded-full flex items-center justify-center text-xs font-black shrink-0" style={{ background: r.triggered ? "var(--fp-warning-text)" : "var(--muted-foreground)", color: r.triggered ? "var(--background)" : "var(--background)" }}>{r.triggered ? "!" : "✓"}</span>
               <span className="flex-1" style={{ color: "var(--foreground)" }}>{r.rule}</span>
-              <span className="font-mono px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", color: r.triggered ? "#f59e0b" : "var(--muted-foreground)" }}>{String(r.value)}</span>
+              <span className="font-mono px-1.5 py-0.5 rounded" style={{ background: r.triggered ? "var(--fp-warning-bg)" : "var(--muted)", color: r.triggered ? "var(--fp-warning-text)" : "var(--muted-foreground)" }}>{String(r.value)}</span>
               <span style={{ color: "var(--muted-foreground)" }}>vs</span>
               <span className="font-mono" style={{ color: "var(--muted-foreground)" }}>{r.threshold}</span>
             </div>
@@ -1294,6 +1294,23 @@ export default function ClaimDecisionReport() {
     );
   }
 
+  // Set print header data attributes on both html and body so @page attr() picks them up
+  useEffect(() => {
+    if (!claim) return;
+    const claimNum = claim.claimNumber ?? String(claim.id) ?? "";
+    const reportDate = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+    document.documentElement.setAttribute("data-claim-number", claimNum);
+    document.documentElement.setAttribute("data-report-date", reportDate);
+    document.body.setAttribute("data-claim-number", claimNum);
+    document.body.setAttribute("data-report-date", reportDate);
+    return () => {
+      document.documentElement.removeAttribute("data-claim-number");
+      document.documentElement.removeAttribute("data-report-date");
+      document.body.removeAttribute("data-claim-number");
+      document.body.removeAttribute("data-report-date");
+    };
+  }, [claim]);
+
   const vehicleTitle = [claim.vehicleMake, claim.vehicleModel, claim.vehicleYear].filter(Boolean).join(" ") || `Claim #${claim.claimNumber}`;
 
   return (
@@ -1454,7 +1471,7 @@ export default function ClaimDecisionReport() {
                     className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold"
                     style={{
                       background: replayResult.changed ? "var(--fp-locked-bg)" : "var(--status-approve-bg)",
-                      color: replayResult.changed ? "#fca5a5" : "#86efac",
+                      color: replayResult.changed ? "var(--fp-critical-text)" : "var(--fp-success-text)",
                     }}
                   >
                     {replayResult.changed ? (
@@ -1481,7 +1498,7 @@ export default function ClaimDecisionReport() {
                   </div>
                   <div className="rounded-lg p-3" style={{ background: "var(--card)", border: `1px solid ${replayResult.changed && replayResult.original_verdict !== replayResult.new_verdict ? "var(--fp-locked-border)" : "var(--border)"}` }}>
                     <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Replayed Verdict</p>
-                    <p className="text-sm font-bold" style={{ color: replayResult.original_verdict !== replayResult.new_verdict ? "#fca5a5" : "var(--foreground)" }}>
+                    <p className="text-sm font-bold" style={{ color: replayResult.original_verdict !== replayResult.new_verdict ? "var(--fp-critical-text)" : "var(--foreground)" }}>
                       {replayResult.new_verdict.replace(/_/g, " ")}
                     </p>
                   </div>
@@ -1566,7 +1583,7 @@ export default function ClaimDecisionReport() {
                       ? state === "LOCKED" ? "var(--fp-locked-bg)" : state === "FINALISED" ? "var(--status-approve-bg)" : "var(--fp-badge-bg)"
                       : "transparent",
                     color: isActive
-                      ? state === "LOCKED" ? "#fca5a5" : state === "FINALISED" ? "#86efac" : "#93c5fd"
+                      ? state === "LOCKED" ? "var(--status-reject-border)" : state === "FINALISED" ? "var(--status-approve-border)" : "var(--fp-info-text)"
                       : isPast ? "var(--foreground)" : "var(--muted-foreground)",
                     borderRight: i < 3 ? "1px solid var(--border)" : undefined,
                     opacity: isPast ? 0.7 : 1,
@@ -1574,7 +1591,7 @@ export default function ClaimDecisionReport() {
                 >
                   <Icon className="h-3 w-3" />
                   {state}
-                  {isPast && <CheckCircle className="h-3 w-3" style={{ color: "#86efac" }} />}
+                  {isPast && <CheckCircle className="h-3 w-3" style={{ color: "var(--fp-success-text)" }} />}
                 </div>
               );
             })}
@@ -1585,13 +1602,13 @@ export default function ClaimDecisionReport() {
             <div>
               {isLocked ? (
                 <div className="flex items-center gap-2">
-                  <Lock className="h-4 w-4" style={{ color: "#fca5a5" }} />
-                  <span className="text-sm font-semibold" style={{ color: "#fca5a5" }}>LOCKED — Immutable Legal Record</span>
+                  <Lock className="h-4 w-4" style={{ color: "var(--fp-critical-text)" }} />
+                  <span className="text-sm font-semibold" style={{ color: "var(--fp-critical-text)" }}>LOCKED — Immutable Legal Record</span>
                 </div>
               ) : isFinal ? (
                 <div className="flex items-center gap-2">
-                  <Gavel className="h-4 w-4" style={{ color: "#86efac" }} />
-                  <span className="text-sm font-semibold" style={{ color: "#86efac" }}>FINALISED — {lifecycle?.final_decision_choice?.replace(/_/g, " ") ?? "Decision recorded"}</span>
+                  <Gavel className="h-4 w-4" style={{ color: "var(--fp-success-text)" }} />
+                  <span className="text-sm font-semibold" style={{ color: "var(--fp-success-text)" }}>FINALISED — {lifecycle?.final_decision_choice?.replace(/_/g, " ") ?? "Decision recorded"}</span>
                 </div>
               ) : (
                 <div>
@@ -1639,7 +1656,7 @@ export default function ClaimDecisionReport() {
                     size="sm"
                     variant="outline"
                     disabled={finaliseDecisionMutation.isPending}
-                    style={{ borderColor: "var(--fp-locked-border)", color: "#fca5a5" }}
+                    style={{ borderColor: "var(--fp-locked-border)", color: "var(--fp-critical-text)" }}
                     onClick={() => openReasonDialog('FINALISED', 'ESCALATE_INVESTIGATION')}
                   >
                     <AlertTriangle className="h-3.5 w-3.5 mr-1" />
@@ -1654,7 +1671,7 @@ export default function ClaimDecisionReport() {
                   size="sm"
                   variant="outline"
                   disabled={lockDecisionMutation.isPending}
-                  style={{ borderColor: "var(--fp-locked-border)", color: "#fca5a5" }}
+                  style={{ borderColor: "var(--fp-locked-border)", color: "var(--fp-critical-text)" }}
                   onClick={() => openReasonDialog('LOCKED')}
                 >
                   <Lock className="h-3.5 w-3.5 mr-1" />
@@ -1700,9 +1717,9 @@ export default function ClaimDecisionReport() {
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--fp-critical-border)", background: "var(--fp-critical-bg)" }}>
             <div className="flex items-center justify-between px-5 py-3" style={{ background: "var(--fp-critical-bg)" }}>
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" style={{ color: "#fca5a5" }} />
-                <span className="text-sm font-semibold" style={{ color: "#fca5a5" }}>Export Blocked — Validation Failed</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--fp-critical-bg)", color: "#fca5a5" }}>
+                <AlertCircle className="h-4 w-4" style={{ color: "var(--fp-critical-text)" }} />
+                <span className="text-sm font-semibold" style={{ color: "var(--fp-critical-text)" }}>Export Blocked — Validation Failed</span>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)" }}>
                   {exportValidationErrors.filter(c => !c.passed).length} check{exportValidationErrors.filter(c => !c.passed).length !== 1 ? 's' : ''} failed
                 </span>
               </div>
@@ -1712,11 +1729,11 @@ export default function ClaimDecisionReport() {
               {exportValidationErrors.map((check, i) => (
                 <div key={i} className="flex items-start gap-3 rounded-lg px-3 py-2.5" style={{ background: check.passed ? "var(--fp-success-bg)" : "var(--fp-critical-bg)", border: `1px solid ${check.passed ? "var(--fp-success-border)" : "var(--fp-critical-border)"}` }}>
                   {check.passed
-                    ? <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#86efac" }} />
-                    : <XCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "#fca5a5" }} />
+                    ? <CheckCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--fp-success-text)" }} />
+                    : <XCircle className="h-4 w-4 mt-0.5 shrink-0" style={{ color: "var(--fp-critical-text)" }} />
                   }
                   <div>
-                    <p className="text-xs font-mono font-semibold" style={{ color: check.passed ? "#86efac" : "#fca5a5" }}>{check.check}</p>
+                    <p className="text-xs font-mono font-semibold" style={{ color: check.passed ? "var(--fp-success-text)" : "var(--fp-critical-text)" }}>{check.check}</p>
                     <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{check.detail}</p>
                   </div>
                 </div>
@@ -1733,9 +1750,9 @@ export default function ClaimDecisionReport() {
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
             <div className="flex items-center justify-between px-5 py-3" style={{ background: "var(--muted)" }}>
               <div className="flex items-center gap-2">
-                <FileText className="h-4 w-4" style={{ color: "#93c5fd" }} />
+                <FileText className="h-4 w-4" style={{ color: "var(--fp-info-text)" }} />
                 <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>Governance Audit Log</span>
-                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--fp-badge-bg)", color: "#93c5fd" }}>
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "var(--fp-badge-bg)", color: "var(--fp-info-text)" }}>
                   {auditLog.length} {auditLog.length === 1 ? 'entry' : 'entries'}
                 </span>
               </div>
@@ -1764,21 +1781,21 @@ export default function ClaimDecisionReport() {
                                 : entry.action === 'FINALISED' ? "var(--fp-finalised-bg)"
                                 : entry.action === 'REVIEWED' ? "var(--fp-info-bg)"
                                 : "var(--fp-subtle-bg)",
-                              color: entry.action === 'LOCKED' ? "#fca5a5"
-                                : entry.action === 'FINALISED' ? "#86efac"
-                                : entry.action === 'REVIEWED' ? "#93c5fd"
-                                : "#c4b5fd",
+                              color: entry.action === 'LOCKED' ? "var(--fp-critical-text)"
+                                : entry.action === 'FINALISED' ? "var(--status-approve-border)"
+                                : entry.action === 'REVIEWED' ? "var(--fp-info-text)"
+                                : "var(--status-fraud-border)",
                             }}
                           >
                             {entry.action}
                           </span>
                           {entry.overrideFlag && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--fp-warning-bg)", color: "#fbbf24" }}>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>
                               ⚠️ OVERRIDE
                             </span>
                           )}
                           {!entry.actionAllowed && (
-                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--fp-critical-bg)", color: "#fca5a5" }}>
+                            <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)" }}>
                               BLOCKED
                             </span>
                           )}
@@ -1795,12 +1812,12 @@ export default function ClaimDecisionReport() {
                           <span className="font-semibold" style={{ color: "var(--foreground)" }}>Reason:</span> {entry.reason}
                         </p>
                         {entry.overrideFlag && entry.aiDecision && entry.humanDecision && (
-                          <p className="text-xs" style={{ color: "#fbbf24" }}>
+                          <p className="text-xs" style={{ color: "var(--fp-warning-text)" }}>
                             <span className="font-semibold">Override:</span> AI recommended “{entry.aiDecision.replace(/_/g, ' ')}” → Human chose “{entry.humanDecision.replace(/_/g, ' ')}”
                           </p>
                         )}
                         {entry.validationErrors.length > 0 && (
-                          <p className="text-xs" style={{ color: "#fca5a5" }}>
+                          <p className="text-xs" style={{ color: "var(--fp-critical-text)" }}>
                             <span className="font-semibold">Blocked:</span> {entry.validationErrors.join('; ')}
                           </p>
                         )}
@@ -1834,9 +1851,9 @@ export default function ClaimDecisionReport() {
                     : "var(--fp-info-bg)",
                 }}
               >
-                {reasonDialog.action === 'LOCKED' ? <Lock className="h-4 w-4" style={{ color: "#fca5a5" }} />
-                  : reasonDialog.action === 'FINALISED' ? <Gavel className="h-4 w-4" style={{ color: "#86efac" }} />
-                  : <Eye className="h-4 w-4" style={{ color: "#93c5fd" }} />}
+                {reasonDialog.action === 'LOCKED' ? <Lock className="h-4 w-4" style={{ color: "var(--fp-critical-text)" }} />
+                  : reasonDialog.action === 'FINALISED' ? <Gavel className="h-4 w-4" style={{ color: "var(--fp-success-text)" }} />
+                  : <Eye className="h-4 w-4" style={{ color: "var(--fp-info-text)" }} />}
               </div>
               <div>
                 <h3 className="text-sm font-bold" style={{ color: "var(--foreground)" }}>
@@ -1864,7 +1881,7 @@ export default function ClaimDecisionReport() {
             />
 
             <div className="flex items-center justify-between mt-1 mb-4">
-              <span className="text-xs" style={{ color: reasonDialog.error ? "#fca5a5" : "var(--muted-foreground)" }}>
+              <span className="text-xs" style={{ color: reasonDialog.error ? "var(--fp-critical-text)" : "var(--muted-foreground)" }}>
                 {reasonDialog.error || `${reasonDialog.reason.trim().length} / 10 characters minimum`}
               </span>
             </div>
