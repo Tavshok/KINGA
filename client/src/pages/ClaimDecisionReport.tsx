@@ -50,6 +50,11 @@ import {
   FinalRiskStatement,
   DocumentExtractionTable,
 } from "@/components/Batch2ReportComponents";
+import {
+  ReportPageHeader,
+  ReportSectionDivider,
+  ReportIntegritySeal,
+} from "@/components/Batch3ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1300,34 +1305,15 @@ export default function ClaimDecisionReport() {
 
   return (
     <div className="min-h-screen" style={{ background: "var(--background)" }}>
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 px-4 py-3 flex items-center justify-between" style={{ background: "var(--background)", borderBottom: "1px solid var(--border)" }}>
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => setLocation(`/insurer/claims/${claimId}/comparison`)}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            Full Report
-          </Button>
-          <div>
-            <p className="text-sm font-bold" style={{ color: "var(--foreground)" }}>{vehicleTitle}</p>
-            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{claim.claimNumber} · Decision Report</p>
-          </div>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => reRunMutation.mutate({ claimId })}
-            disabled={reRunMutation.isPending}
-          >
-            <RefreshCw className={`h-3.5 w-3.5 mr-1.5 ${reRunMutation.isPending ? "animate-spin" : ""}`} />
-            Re-run AI
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => window.print()}>
-            <Printer className="h-3.5 w-3.5 mr-1.5" />
-            Print
-          </Button>
-        </div>
-      </div>
+      {/* v4.2 B3: Unified Report Page Header (replaces old top bar) */}
+      <ReportPageHeader
+        claim={claim}
+        aiAssessment={aiAssessment}
+        enforcement={enforcement}
+        onBack={() => setLocation(`/insurer/claims/${claimId}/comparison`)}
+        onReRun={() => reRunMutation.mutate({ claimId })}
+        reRunPending={reRunMutation.isPending}
+      />
 
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
@@ -1364,18 +1350,16 @@ export default function ClaimDecisionReport() {
           />
         )}
 
-        {/* 1. Verdict Banner */}
+         {/* 1. Verdict Banner */}
         <VerdictBanner assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
-
         {/* 2. Critical Alerts */}
         <CriticalAlerts alerts={(enforcement as EnforcementResult).alerts} />
-
         {/* 3. What Happened */}
-        <SectionHeading icon={FileText} title="Incident Reconstruction" subtitle="AI-generated narrative based on claim data, photos, and physics analysis" />
+        <ReportSectionDivider label="Incident Reconstruction" icon="📋" />
         <WhatHappened assessment={aiAssessment} enforcement={enforcement as EnforcementResult} claim={claim} />
 
         {/* 4. Damage & Impact + Cost Decision — two-column on wide screens */}
-        <SectionHeading icon={Car} title="Damage Assessment & Cost Analysis" subtitle="Structural damage zones, component breakdown, and repair cost reconciliation" />
+        <ReportSectionDivider label="Damage Assessment & Cost Analysis" icon="🚗" />
 
         {/* v4.2 R2: Vehicle Damage Map */}
         <VehicleDamageMap aiAssessment={aiAssessment} enforcement={enforcement} />
@@ -1404,9 +1388,9 @@ export default function ClaimDecisionReport() {
         </div>
 
         {/* 5. Fraud & Risk Decision */}
-        <SectionHeading icon={Shield} title="Fraud & Risk Assessment" subtitle="Weighted multi-factor fraud scoring with intelligence layer adjustments" />
+        <ReportSectionDivider label="Fraud & Risk Assessment" icon="🛡" />
+        {/* FraudRiskDecision provides the narrative summary; FraudIndicatorTable provides the per-factor breakdown — no duplication */}
         <FraudRiskDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
-
         {/* v4.2 B2-2: Fraud Indicator Table with mitigation */}
         <FraudIndicatorTable enforcement={enforcement} aiAssessment={aiAssessment} />
 
@@ -1433,14 +1417,14 @@ export default function ClaimDecisionReport() {
         <DocumentExtractionTable aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
         {/* 6. Collapsible Technical Data */}
-        <SectionHeading icon={Zap} title="Technical & Supporting Data" subtitle="Physics engine output, delta-V, force estimates — expand for details" />
+        <ReportSectionDivider label="Technical & Supporting Data" icon="⚡" />
         <CollapsibleTechnicalData assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
 
         {/* 7. Phase 3 KINGA Audit Trail (R5) — Phase 1 corrections + Phase 2 decision log */}
         <KINGAAuditTrail claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
 
         {/* 7b. Audit Trail */}
-        <SectionHeading icon={GitCompareArrows} title="Audit Trail & Decision History" subtitle="Immutable snapshots, version history, and logic drift detection" />
+        <ReportSectionDivider label="Audit Trail & Decision History" icon="📜" />
         {/* 7. Snapshot History */}
         {(snapshotHistory as any[]).length > 0 && (
           <div className="mb-4 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
@@ -1648,6 +1632,9 @@ export default function ClaimDecisionReport() {
             )}
           </div>
         )}
+
+        {/* v4.2 B3: Report Integrity Seal */}
+        <ReportIntegritySeal claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
         {/* 8. Lifecycle Status Bar */}
         <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${isLocked ? "var(--fp-locked-border)" : isFinal ? "var(--status-approve-text)" : "var(--border)"}` }}>
