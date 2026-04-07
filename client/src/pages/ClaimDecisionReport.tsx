@@ -55,6 +55,11 @@ import {
   ReportSectionDivider,
   ReportIntegritySeal,
 } from "@/components/Batch3ReportComponents";
+import {
+  Phase1CorrectionsPanel,
+  KeyDriversAdvisoriesPanel,
+  DataCompletenessRing,
+} from "@/components/Batch4ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1320,6 +1325,8 @@ export default function ClaimDecisionReport() {
 
         {/* v4.2 R1: Executive Authority Cover */}
         <ExecutiveAuthorityCover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+        {/* v4.2 B4-1: Phase 1 Corrections Panel — surfaces data-integrity auto-corrections */}
+        <Phase1CorrectionsPanel aiAssessment={aiAssessment} />
 
         {/* 0. Phase 3 R7 Sanity Check (runs silently — logs to console in dev) */}
         {(() => {
@@ -1394,9 +1401,10 @@ export default function ClaimDecisionReport() {
         {/* v4.2 B2-2: Fraud Indicator Table with mitigation */}
         <FraudIndicatorTable enforcement={enforcement} aiAssessment={aiAssessment} />
 
-        {/* v4.2 R5: Decision Flowchart */}
+         {/* v4.2 R5: Decision Flowchart */}
         <DecisionFlowchart enforcement={enforcement} aiAssessment={aiAssessment} />
-
+        {/* v4.2 B4-2: Key Drivers & Advisories Panel — Phase 2 decision rationale */}
+        <KeyDriversAdvisoriesPanel enforcement={enforcement} aiAssessment={aiAssessment} />
         {/* v4.2 B2-3: Final Risk Statement */}
         <FinalRiskStatement enforcement={enforcement} aiAssessment={aiAssessment} claim={claim} />
 
@@ -1415,6 +1423,8 @@ export default function ClaimDecisionReport() {
 
         {/* v4.2 B2-4: Document Extraction Table */}
         <DocumentExtractionTable aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
+        {/* v4.2 B4-3: Data Completeness Ring — standalone full-width version */}
+        <DataCompletenessRing enforcement={enforcement} aiAssessment={aiAssessment} />
 
         {/* 6. Collapsible Technical Data */}
         <ReportSectionDivider label="Technical & Supporting Data" icon="⚡" />
