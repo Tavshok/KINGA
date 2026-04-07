@@ -44,6 +44,12 @@ import {
   ConstraintStatusMatrix,
   DecisionFlowchart,
 } from "@/components/Batch1ReportComponents";
+import {
+  CostWaterfallChart,
+  FraudIndicatorTable,
+  FinalRiskStatement,
+  DocumentExtractionTable,
+} from "@/components/Batch2ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1380,6 +1386,9 @@ export default function ClaimDecisionReport() {
         {/* 4a. Phase 3 Component Heatmap (R3.3) */}
         <ComponentHeatmap aiAssessment={aiAssessment} enforcement={enforcement} />
 
+        {/* v4.2 B2-1: Cost Waterfall Chart */}
+        <CostWaterfallChart aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
+
         {/* 4b. Phase 3 Cost Comparison Chart (R3.4) */}
         <CostComparisonChart aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
 
@@ -1398,8 +1407,14 @@ export default function ClaimDecisionReport() {
         <SectionHeading icon={Shield} title="Fraud & Risk Assessment" subtitle="Weighted multi-factor fraud scoring with intelligence layer adjustments" />
         <FraudRiskDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
 
+        {/* v4.2 B2-2: Fraud Indicator Table with mitigation */}
+        <FraudIndicatorTable enforcement={enforcement} aiAssessment={aiAssessment} />
+
         {/* v4.2 R5: Decision Flowchart */}
         <DecisionFlowchart enforcement={enforcement} aiAssessment={aiAssessment} />
+
+        {/* v4.2 B2-3: Final Risk Statement */}
+        <FinalRiskStatement enforcement={enforcement} aiAssessment={aiAssessment} claim={claim} />
 
         {/* 5b. Confidence & Rule Trace */}
         {(enforcement as EnforcementResult).confidenceBreakdown && (
@@ -1413,6 +1428,9 @@ export default function ClaimDecisionReport() {
 
         {/* 5d. Phase 3 Photo Gallery (R3.6) — shown when photos were processed */}
         <PhotoGallery aiAssessment={aiAssessment} enforcement={enforcement} />
+
+        {/* v4.2 B2-4: Document Extraction Table */}
+        <DocumentExtractionTable aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
         {/* 6. Collapsible Technical Data */}
         <SectionHeading icon={Zap} title="Technical & Supporting Data" subtitle="Physics engine output, delta-V, force estimates — expand for details" />
