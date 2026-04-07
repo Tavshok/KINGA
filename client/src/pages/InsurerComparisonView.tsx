@@ -38,6 +38,7 @@ import ClaimApprovalToolbar from "@/components/ClaimApprovalToolbar";
 import ApprovalHistoryPanel from "@/components/ApprovalHistoryPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
+import { sanitiseField } from "@/lib/sanitise";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -200,7 +201,7 @@ export default function InsurerComparisonView() {
 
     // Infer hidden damage (same logic as DamageComponentBreakdown)
     const inferredHiddenDamage: Array<{ component: string; reason: string; confidence: string }> = [];
-    const damageDescription = aiAssessment.damageDescription || "";
+    const damageDescription = sanitiseField(aiAssessment.damageDescription || "");
     // Resolve correct fields (not deprecated)
     const exportAccidentType = (claim as any)?.incidentType || aiAssessment.accidentType || "";
     const exportHasStructuralDamage = aiAssessment.structuralDamageSeverity ? aiAssessment.structuralDamageSeverity !== 'none' : false;
@@ -1496,7 +1497,7 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
   const hasAirbagDeployment = aiAssessment.damageDescription?.toLowerCase().includes('airbag') || aiAssessment.airbagDeployment || false;
 
   // Parse damage description to extract inferred hidden damage
-  const damageDescription = aiAssessment.damageDescription || "";
+  const damageDescription = sanitiseField(aiAssessment.damageDescription || "");
   
   // Component categories for cost breakdown
   const componentCategories = {
@@ -2687,7 +2688,7 @@ function ExecutiveSummaryInline({
     'text-green-400';
 
   const summaryText = aiAssessment.damageDescription
-    ? aiAssessment.damageDescription
+    ? sanitiseField(aiAssessment.damageDescription)
     : `${vehicle} (Reg: ${reg}) was involved in a ${incidentType.toLowerCase()} incident on ${incidentDate}. AI computer vision analysis identified ${aiAssessment.damagedComponentsJson ? (() => { try { const c = JSON.parse(aiAssessment.damagedComponentsJson); return Array.isArray(c) ? c.length : 0; } catch { return 0; } })() : 0} damaged components with an estimated repair cost of US$${aiCost.toLocaleString('en-US', { minimumFractionDigits: 2 })}. Fraud risk is assessed as ${fraudLevel.toUpperCase()} with ${confidence}% AI confidence.`;
 
   const metrics = [

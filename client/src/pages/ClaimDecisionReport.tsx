@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
+import { sanitiseField } from "@/lib/sanitise";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -470,7 +471,7 @@ function WhatHappened({ assessment, enforcement, claim }: { assessment: any; enf
       {assessment.damageDescription && (
         <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
           <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Original AI Description</p>
-          <p className="text-xs leading-relaxed italic" style={{ color: "var(--muted-foreground)" }}>{assessment.damageDescription}</p>
+          <p className="text-xs leading-relaxed italic" style={{ color: "var(--muted-foreground)" }}>{sanitiseField(assessment.damageDescription)}</p>
         </div>
       )}
     </div>

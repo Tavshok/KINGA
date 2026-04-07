@@ -2745,6 +2745,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // data was stored. This is the single authoritative transformation
         // for all report-facing data.
         const { normaliseReportData } = await import('./report-normalisation');
+        const { runPhase1 } = await import('./phase1-data-integrity');
         let costIntelParsed: any = null;
         let fraudBreakdownParsed: any = null;
         let causalVerdictParsed: any = null;
@@ -2756,6 +2757,29 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           const prs = assessment.pipelineRunSummary ? (typeof assessment.pipelineRunSummary === 'string' ? JSON.parse(assessment.pipelineRunSummary) : assessment.pipelineRunSummary) : null;
           causalVerdictParsed = prs?.causalVerdict ?? prs?.causal_verdict ?? null;
         } catch { /* ignore */ }
+
+        // Run Phase 1 Data Integrity & Sanitisation gate before normalisation.
+        // This validates dates, reconciles costs, corrects unit shifts, sanitises
+        // text fields, and normalises terminology. The gate results are attached
+        // to the response for audit trail purposes.
+        const p1 = runPhase1({
+          incidentDate: (assessment as any).incidentDate ?? null,
+          inspectionDate: (assessment as any).inspectionDate ?? null,
+          partsCost: assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : null,
+          labourCost: assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : null,
+          aiEstimatedTotal: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
+          repairerQuoteTotal: costIntelParsed?.documentedOriginalQuoteUsd ?? null,
+          photosDetected: (assessment as any).photosDetected ?? null,
+          photosProcessed: (assessment as any).photosProcessed ?? null,
+          photosProcessedCount: (assessment as any).photosProcessedCount ?? null,
+          incidentType: (assessment as any).incidentType ?? null,
+          incidentDescription: (assessment as any).accidentDescription ?? (assessment as any).incidentDescription ?? null,
+          policeReportNumber: (assessment as any).policeReportNumber ?? null,
+          textFields: {
+            assessorNotes: (assessment as any).assessorNotes ?? null,
+            damageDescription: (assessment as any).damageDescription ?? null,
+          },
+        });
 
         const normalised = normaliseReportData({
           estimatedCost: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
@@ -2775,6 +2799,17 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           ...assessment,
           // Overwrite with normalised values — these are what the UI must use
           _normalised: normalised,
+          // Phase 1 gate results — for audit trail and data quality indicators
+          _phase1: {
+            overallStatus: p1.overallStatus,
+            gates: p1.gates,
+            allCorrections: p1.allCorrections,
+            authoritativeTotalUsd: p1.authoritativeTotalUsd,
+            costReconciliationError: p1.costReconciliationError,
+            incidentType: p1.incidentType,
+            photoStatusMessage: p1.photoStatusMessage,
+            locale: p1.locale,
+          },
         };
       }),
     historicalBenchmarks: protectedProcedure
@@ -2841,6 +2876,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             }
           }
         } catch { /* non-fatal: defaults to false if lookup fails */ }
+        // Run Phase 1 unit-correction gate so cost values fed to the enforcement
+        // engine are already normalised (cents/dollars shift corrected, parts+labour
+        // reconciled). Non-blocking — enforcement always proceeds even if WARN.
+        const { runPhase1: runP1Enforcement } = await import('./phase1-data-integrity');
+        const p1Enforcement = runP1Enforcement({
+          partsCost: assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : null,
+          labourCost: assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : null,
+          aiEstimatedTotal: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
+          incidentType: (assessment as any).incidentType ?? null,
+          incidentDescription: (assessment as any).accidentDescription ?? null,
+          textFields: {},
+        });
+        // Use Phase 1 authoritative total if available; fall back to raw DB value
+        const enforcementAiCost = p1Enforcement.authoritativeTotalUsd ?? (assessment.estimatedCost || 0);
+        const enforcementPartsUsd = p1Enforcement.partsUsd ?? (assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : 0);
+        const enforcementLabourUsd = p1Enforcement.labourUsd ?? (assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : 0);
+
         const quotedAmounts = quotes.map(q => (q.quotedAmount || 0) / 100); // cents → dollars
         // Parse physics analysis
         let physicsRaw: any = null;
@@ -2890,7 +2942,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const accidentSeverity = (physicsRaw?.accidentSeverity ?? assessment.structuralDamageSeverity ?? 'minor') as string;
         const consistencyScore = physicsRaw?.damageConsistencyScore ?? 50;
         const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';
-        const aiEstimatedCost = (assessment.estimatedCost || 0); // already in dollars (stored as whole currency units)
+        const aiEstimatedCost = enforcementAiCost; // Phase 1 unit-corrected authoritative cost
         const extractionConfidence = assessment.confidenceScore ?? 75;
 
         // Derive damage zones from component names and impact direction.
@@ -2922,8 +2974,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         });
         // Run the Cost Extraction Engine for guaranteed populated cost object
         const { extractCosts } = await import('./cost-extraction-engine');
-        const aiPartsCost = (assessment.estimatedPartsCost || 0); // already in dollars
-        const aiLabourCost = (assessment.estimatedLaborCost || 0); // already in dollars
+        const aiPartsCost = enforcementPartsUsd; // Phase 1 unit-corrected parts cost
+        const aiLabourCost = enforcementLabourUsd; // Phase 1 unit-corrected labour cost
         const costExtraction = extractCosts({
           aiEstimatedCost,
           aiPartsCost,
