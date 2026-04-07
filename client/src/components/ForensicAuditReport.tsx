@@ -1289,15 +1289,47 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
     return `#${Math.abs(h).toString(16).padStart(8, "0").toUpperCase()}`;
   })();
 
+  // Gates: pass/fail only — no threshold values exposed to adjusters
   const gates = [
-    { label: "Physics consistency ≥ 30%", value: `${Math.round(physicsScore)}%`, threshold: "30%", pass: physicsScore >= 30 },
-    { label: "Fraud score < 70", value: Math.round(fraudScore), threshold: "70", pass: fraudScore < 70 },
-    { label: "Data completeness ≥ 50%", value: `${Math.round(dataCompleteness)}%`, threshold: "50%", pass: dataCompleteness >= 50 },
-    { label: "No critical blockers", value: blocked.length === 0 ? "None" : `${blocked.length} blocker(s)`, threshold: "0 blockers", pass: blocked.length === 0 },
+    { id: "G1", label: "Physics Consistency", result: `${Math.round(physicsScore)}%`, pass: physicsScore >= 30 },
+    { id: "G2", label: "Fraud Risk Score", result: Math.round(fraudScore), pass: fraudScore < 70 },
+    { id: "G3", label: "Data Completeness", result: `${Math.round(dataCompleteness)}%`, pass: dataCompleteness >= 50 },
+    { id: "G4", label: "Critical Blockers", result: blocked.length === 0 ? "None" : `${blocked.length} found`, pass: blocked.length === 0 },
   ];
+
+  // SVG flowchart dimensions
+  const nodeW = 160;
+  const nodeH = 44;
+  const diamondW = 180;
+  const diamondH = 52;
+  const gapY = 60;
+  const startX = 200;
+  const totalNodes = gates.length + 2; // start + 4 gates + final
+  const svgH = (totalNodes) * (diamondH + gapY) + 60;
+  const svgW = 420;
+
+  // Helper: diamond path centred at (cx, cy)
+  const diamond = (cx: number, cy: number, w: number, h: number) =>
+    `M ${cx} ${cy - h / 2} L ${cx + w / 2} ${cy} L ${cx} ${cy + h / 2} L ${cx - w / 2} ${cy} Z`;
+
+  // Helper: rect path centred at (cx, cy)
+  const rect = (cx: number, cy: number, w: number, h: number, r = 6) => {
+    const x = cx - w / 2; const y = cy - h / 2;
+    return `M ${x + r},${y} H ${x + w - r} Q ${x + w},${y} ${x + w},${y + r} V ${y + h - r} Q ${x + w},${y + h} ${x + w - r},${y + h} H ${x + r} Q ${x},${y + h} ${x},${y + h - r} V ${y + r} Q ${x},${y} ${x + r},${y} Z`;
+  };
+
+  const passColor = "#10b981";
+  const failColor = "#ef4444";
+  const nodeColor = "var(--muted)";
+  const textColor = "var(--foreground)";
+  const mutedColor = "var(--muted-foreground)";
+
+  // Y positions for each row
+  const rowY = (i: number) => 40 + i * (diamondH + gapY);
 
   return (
     <div className="mb-4 space-y-4">
+      {/* SVG Decision Flowchart */}
       <div className="rounded-xl overflow-hidden" style={{ border: `2px solid ${decisionColor}`, background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Decision Flowchart</p>
@@ -1306,26 +1338,98 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
             {decisionText}
           </div>
         </div>
-        <div className="p-4">
-          <div className="space-y-2 mb-3">
-            {gates.map((gate, i) => (
-              <div key={i} className="flex items-center gap-3 p-2 rounded" style={{ background: "var(--muted)" }}>
-                <div className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
-                  style={{ background: gate.pass ? "#10b981" : "#ef4444", color: "#fff" }}>
-                  {gate.pass ? "✓" : "✗"}
-                </div>
-                <div className="flex-1 flex items-center justify-between text-xs">
-                  <span style={{ color: "var(--foreground)" }}>{gate.label}</span>
-                  <span className="font-mono" style={{ color: gate.pass ? "#10b981" : "#ef4444" }}>{gate.value} (threshold: {gate.threshold})</span>
-                </div>
-                {!gate.pass && <div className="text-xs font-bold" style={{ color: decisionColor }}>→ {decisionText}</div>}
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 p-2 rounded text-xs font-bold text-center"
-            style={{ background: `${decisionColor}20`, color: decisionColor, border: `1px solid ${decisionColor}` }}>
-            FINAL DECISION: {decisionText}
-          </div>
+        <div className="p-4 overflow-x-auto">
+          <svg
+            viewBox={`0 0 ${svgW} ${svgH}`}
+            width="100%"
+            style={{ maxWidth: svgW, display: "block", margin: "0 auto" }}
+            aria-label="Decision flowchart"
+          >
+            {/* START node */}
+            <path d={rect(startX, rowY(0), nodeW, nodeH)} fill={nodeColor} stroke="var(--border)" strokeWidth="1.5" />
+            <text x={startX} y={rowY(0)} textAnchor="middle" dominantBaseline="middle"
+              fontSize="11" fontWeight="700" fill={textColor}>START ASSESSMENT</text>
+
+            {/* Arrow from START to G1 */}
+            <line x1={startX} y1={rowY(0) + nodeH / 2} x2={startX} y2={rowY(1) - diamondH / 2 - 4}
+              stroke="var(--border)" strokeWidth="1.5" markerEnd="url(#arrow)" />
+
+            {/* Gate nodes */}
+            {gates.map((gate, i) => {
+              const cy = rowY(i + 1);
+              const gateColor = gate.pass ? passColor : failColor;
+              const nextY = rowY(i + 2);
+              const isLast = i === gates.length - 1;
+              return (
+                <g key={gate.id}>
+                  {/* Diamond */}
+                  <path d={diamond(startX, cy, diamondW, diamondH)}
+                    fill={`${gateColor}18`} stroke={gateColor} strokeWidth="1.5" />
+                  {/* Gate ID */}
+                  <text x={startX} y={cy - 9} textAnchor="middle" dominantBaseline="middle"
+                    fontSize="9" fontWeight="700" fill={gateColor}>{gate.id}</text>
+                  {/* Gate label */}
+                  <text x={startX} y={cy + 4} textAnchor="middle" dominantBaseline="middle"
+                    fontSize="10" fontWeight="600" fill={textColor}>{gate.label}</text>
+                  {/* Result value */}
+                  <text x={startX} y={cy + 17} textAnchor="middle" dominantBaseline="middle"
+                    fontSize="9" fontFamily="monospace" fill={gateColor}>{String(gate.result)}</text>
+
+                  {/* PASS label on arrow down */}
+                  {!isLast && (
+                    <>
+                      <line x1={startX} y1={cy + diamondH / 2} x2={startX} y2={nextY - diamondH / 2 - 4}
+                        stroke={gate.pass ? passColor : "var(--border)"} strokeWidth="1.5"
+                        strokeDasharray={gate.pass ? undefined : "4 3"}
+                        markerEnd="url(#arrow)" />
+                      <text x={startX + 6} y={(cy + diamondH / 2 + nextY - diamondH / 2) / 2}
+                        fontSize="9" fill={gate.pass ? passColor : mutedColor} fontWeight="600">
+                        {gate.pass ? "PASS" : "FAIL"}
+                      </text>
+                    </>
+                  )}
+
+                  {/* FAIL side branch (right arrow to ESCALATE box) */}
+                  {!gate.pass && (
+                    <>
+                      <line x1={startX + diamondW / 2} y1={cy} x2={startX + diamondW / 2 + 30} y2={cy}
+                        stroke={failColor} strokeWidth="1.5" markerEnd="url(#arrowRed)" />
+                      <rect x={startX + diamondW / 2 + 31} y={cy - 12} width={80} height={24} rx="4"
+                        fill={`${failColor}18`} stroke={failColor} strokeWidth="1" />
+                      <text x={startX + diamondW / 2 + 71} y={cy} textAnchor="middle" dominantBaseline="middle"
+                        fontSize="9" fontWeight="700" fill={failColor}>{decisionText}</text>
+                    </>
+                  )}
+
+                  {/* Arrow from last gate to FINAL */}
+                  {isLast && (
+                    <line x1={startX} y1={cy + diamondH / 2} x2={startX} y2={rowY(gates.length + 1) - nodeH / 2 - 4}
+                      stroke={gate.pass ? passColor : "var(--border)"} strokeWidth="1.5"
+                      strokeDasharray={gate.pass ? undefined : "4 3"}
+                      markerEnd="url(#arrow)" />
+                  )}
+                </g>
+              );
+            })}
+
+            {/* FINAL DECISION node */}
+            <path d={rect(startX, rowY(gates.length + 1), nodeW + 20, nodeH)}
+              fill={`${decisionColor}20`} stroke={decisionColor} strokeWidth="2" />
+            <text x={startX} y={rowY(gates.length + 1) - 7} textAnchor="middle" dominantBaseline="middle"
+              fontSize="9" fill={decisionColor} fontWeight="600">FINAL DECISION</text>
+            <text x={startX} y={rowY(gates.length + 1) + 7} textAnchor="middle" dominantBaseline="middle"
+              fontSize="13" fontWeight="800" fill={decisionColor}>{decisionText}</text>
+
+            {/* Arrow markers */}
+            <defs>
+              <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L8,4 Z" fill="var(--border)" />
+              </marker>
+              <marker id="arrowRed" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+                <path d="M0,0 L0,8 L8,4 Z" fill={failColor} />
+              </marker>
+            </defs>
+          </svg>
         </div>
       </div>
 
@@ -1389,7 +1493,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
             <table className="w-full text-xs">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Rule", "Value", "Threshold", "Triggered"].map(h => (
+                  {["Rule", "Observed Value", "Triggered"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
@@ -1398,8 +1502,7 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
                 {ruleTrace.map((r: any, i: number) => (
                   <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                     <td className="px-3 py-2 font-mono" style={{ color: "var(--primary)" }}>{r.rule}</td>
-                    <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>{String(r.value)}</td>
-                    <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{r.threshold}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{String(r.value)}</td>
                     <td className="px-3 py-2"><StatusBadge status={r.triggered ? "fail" : "pass"} label={r.triggered ? "YES" : "NO"} /></td>
                   </tr>
                 ))}

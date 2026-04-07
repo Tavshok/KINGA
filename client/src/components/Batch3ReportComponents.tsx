@@ -2,7 +2,7 @@
  * Batch 3 Report Components — KINGA AutoVerify v4.2
  *
  * Components:
- * 1. ReportPageHeader      — sticky top bar: claim ref, vehicle, date, report hash, PDF export
+ * 1. ReportPageHeader      — minimal sticky nav: claim ref, vehicle, date, hash, print only (NO decision pill — avoids duplication with ForensicAuditReport cover)
  * 2. ReportSectionDivider  — visual divider between major report sections
  * 3. ReportIntegritySeal   — bottom-of-report hash + generation timestamp seal
  */
@@ -35,7 +35,9 @@ export function buildReportHash(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// 1. ReportPageHeader
+// 1. ReportPageHeader — minimal sticky nav only
+//    Deliberately does NOT show the decision pill — that lives on the
+//    ForensicAuditReport Section 0 cover to avoid duplication.
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface ReportPageHeaderProps {
@@ -61,6 +63,7 @@ export function ReportPageHeader({
 
   const claimRef: string = claim?.claimNumber ?? claim?.id ?? "—";
 
+  // Used only for hash computation — not displayed in the nav bar
   const finalDecision: string =
     enforcement?._phase2?.finalDecision ??
     enforcement?.finalDecision?.recommendation ??
@@ -104,36 +107,25 @@ export function ReportPageHeader({
     }
   }, [enforcement, aiAssessment]);
 
-  const decisionColour: Record<string, { bg: string; text: string }> = {
-    APPROVE: { bg: "#059669", text: "#FFFFFF" },
-    FINALISE: { bg: "#059669", text: "#FFFFFF" },
-    FINALISE_CLAIM: { bg: "#059669", text: "#FFFFFF" },
-    REVIEW: { bg: "#D97706", text: "#FFFFFF" },
-    REVIEW_REQUIRED: { bg: "#D97706", text: "#FFFFFF" },
-    ESCALATE: { bg: "#DC2626", text: "#FFFFFF" },
-    REJECT: { bg: "#DC2626", text: "#FFFFFF" },
-  };
-  const dc = decisionColour[finalDecision] ?? { bg: "#475569", text: "#FFFFFF" };
-
   const handlePrint = () => {
     window.print();
   };
 
   return (
     <div
-      className="report-page-header"
+      className="report-page-header no-print"
       style={{
-        background: "var(--rpt-card-bg)",
-        borderBottom: "2px solid #1E293B",
-        padding: "10px 16px",
+        background: "var(--card)",
+        borderBottom: "1px solid var(--border)",
+        padding: "8px 16px",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
         gap: "12px",
         flexWrap: "wrap",
-        // Print: hide the header chrome, keep the content readable
-        printColorAdjust: "exact",
-        WebkitPrintColorAdjust: "exact",
+        position: "sticky",
+        top: 0,
+        zIndex: 40,
       }}
     >
       {/* Left: back + claim identity */}
@@ -143,10 +135,10 @@ export function ReportPageHeader({
             onClick={onBack}
             style={{
               background: "transparent",
-              border: "1px solid #334155",
+              border: "1px solid var(--border)",
               borderRadius: "6px",
               padding: "4px 10px",
-              color: "var(--rpt-muted-text)",
+              color: "var(--muted-foreground)",
               fontSize: "11px",
               cursor: "pointer",
               display: "flex",
@@ -161,9 +153,9 @@ export function ReportPageHeader({
         <div style={{ minWidth: 0 }}>
           <div
             style={{
-              fontSize: "13px",
+              fontSize: "12px",
               fontWeight: 700,
-              color: "var(--rpt-card-text)",
+              color: "var(--foreground)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -174,7 +166,7 @@ export function ReportPageHeader({
           <div
             style={{
               fontSize: "10px",
-              color: "var(--rpt-muted-text)",
+              color: "var(--muted-foreground)",
               display: "flex",
               gap: "8px",
               alignItems: "center",
@@ -182,17 +174,17 @@ export function ReportPageHeader({
             }}
           >
             <span>{claimRef}</span>
-            <span style={{ color: "var(--rpt-muted-text)" }}>·</span>
+            <span>·</span>
             <span>{generatedAt}</span>
-            <span style={{ color: "var(--rpt-muted-text)" }}>·</span>
+            <span>·</span>
             <span
               style={{
                 fontFamily: "monospace",
                 fontSize: "9px",
-                background: "var(--rpt-subtle-bg)",
+                background: "var(--muted)",
                 padding: "1px 5px",
                 borderRadius: "3px",
-                color: "var(--rpt-muted-text)",
+                color: "var(--muted-foreground)",
                 letterSpacing: "0.05em",
               }}
               title="Report integrity hash — changes if any decision field is modified"
@@ -203,21 +195,20 @@ export function ReportPageHeader({
         </div>
       </div>
 
-      {/* Centre: decision pill */}
-      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+      {/* Centre: KINGA branding only */}
+      <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
         <span
           style={{
-            fontSize: "12px",
-            fontWeight: 800,
-            padding: "4px 14px",
-            borderRadius: "5px",
-            background: dc.bg,
-            color: dc.text,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
+            fontSize: "11px",
+            fontWeight: 700,
+            color: "var(--muted-foreground)",
+            letterSpacing: "0.05em",
           }}
         >
-          {finalDecision.replace(/_/g, " ")}
+          KINGA AutoVerify
+        </span>
+        <span style={{ fontSize: "10px", color: "var(--muted-foreground)", opacity: 0.6 }}>
+          v4.2
         </span>
       </div>
 
@@ -229,10 +220,10 @@ export function ReportPageHeader({
             disabled={reRunPending}
             style={{
               background: "transparent",
-              border: "1px solid #334155",
+              border: "1px solid var(--border)",
               borderRadius: "6px",
               padding: "4px 10px",
-              color: "var(--rpt-muted-text)",
+              color: "var(--muted-foreground)",
               fontSize: "11px",
               cursor: reRunPending ? "not-allowed" : "pointer",
               display: "flex",
@@ -247,11 +238,11 @@ export function ReportPageHeader({
         <button
           onClick={handlePrint}
           style={{
-            background: "#1E3A5F",
-            border: "1px solid #2563EB",
+            background: "var(--primary)",
+            border: "none",
             borderRadius: "6px",
             padding: "4px 12px",
-            color: "#93C5FD",
+            color: "var(--primary-foreground)",
             fontSize: "11px",
             cursor: "pointer",
             display: "flex",
@@ -291,7 +282,7 @@ export function ReportSectionDivider({ label, icon }: ReportSectionDividerProps)
           flex: "0 0 auto",
           height: "1px",
           width: "24px",
-          background: "#334155",
+          background: "var(--border)",
         }}
       />
       <div
@@ -301,7 +292,7 @@ export function ReportSectionDivider({ label, icon }: ReportSectionDividerProps)
           fontWeight: 700,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
-          color: "var(--rpt-muted-text)",
+          color: "var(--muted-foreground)",
           whiteSpace: "nowrap",
           display: "flex",
           alignItems: "center",
@@ -315,7 +306,7 @@ export function ReportSectionDivider({ label, icon }: ReportSectionDividerProps)
         style={{
           flex: 1,
           height: "1px",
-          background: "linear-gradient(to right, #334155, transparent)",
+          background: "var(--border)",
         }}
       />
     </div>
@@ -369,40 +360,23 @@ export function ReportIntegritySeal({
       aiAssessment?.updatedAt ??
       aiAssessment?.createdAt;
     if (!raw) return new Date().toISOString();
-    return raw;
+    return typeof raw === "number" ? new Date(raw).toISOString() : String(raw);
   }, [enforcement, aiAssessment]);
-
-  const formattedDate = useMemo(() => {
-    try {
-      return new Date(generatedAt).toLocaleString("en-US", {
-        day: "2-digit",
-        month: "long",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-        timeZoneName: "short",
-      });
-    } catch {
-      return generatedAt;
-    }
-  }, [generatedAt]);
-
-  const engineVersion =
-    enforcement?._phase2?.engineVersion ??
-    enforcement?.engineVersion ??
-    "v4.2";
 
   return (
     <div
       style={{
-        margin: "32px 0 16px",
-        padding: "14px 16px",
-        background: "var(--rpt-card-bg)",
+        background: "var(--card)",
+        border: "1px solid var(--border)",
         borderRadius: "8px",
-        border: "1px solid var(--rpt-card-border)",
+        padding: "16px 20px",
+        marginTop: "32px",
+        display: "flex",
+        flexDirection: "column",
+        gap: "8px",
       }}
     >
+      {/* Header row */}
       <div
         style={{
           display: "flex",
@@ -412,80 +386,77 @@ export function ReportIntegritySeal({
           gap: "8px",
         }}
       >
-        {/* Left: KINGA branding */}
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span style={{ fontSize: "14px" }}>🔒</span>
+          <span
             style={{
-              width: "32px",
-              height: "32px",
-              borderRadius: "6px",
-              background: "#1E3A5F",
-              border: "1px solid #2563EB",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "14px",
-              fontWeight: 900,
-              color: "#93C5FD",
-              fontFamily: "monospace",
-            }}
-          >
-            K
-          </div>
-          <div>
-            <div
-              style={{
-                fontSize: "11px",
-                fontWeight: 700,
-                color: "var(--rpt-card-text)",
-                letterSpacing: "0.04em",
-              }}
-            >
-              KINGA AutoVerify {engineVersion}
-            </div>
-            <div style={{ fontSize: "9px", color: "var(--rpt-muted-text)", marginTop: "1px" }}>
-              AI-assisted claim assessment — not a substitute for human adjudication
-            </div>
-          </div>
-        </div>
-
-        {/* Right: hash + timestamp */}
-        <div style={{ textAlign: "right" }}>
-          <div
-            style={{
-              fontFamily: "monospace",
-              fontSize: "11px",
+              fontSize: "12px",
               fontWeight: 700,
-              color: "var(--rpt-muted-text)",
-              letterSpacing: "0.08em",
+              color: "var(--foreground)",
+              letterSpacing: "0.04em",
             }}
           >
-            REPORT HASH #{reportHash}
-          </div>
-          <div style={{ fontSize: "9px", color: "var(--rpt-muted-text)", marginTop: "2px" }}>
-            Generated {formattedDate}
-          </div>
+            KINGA AutoVerify — Report Integrity Seal
+          </span>
         </div>
+        <span
+          style={{
+            fontSize: "10px",
+            color: "var(--muted-foreground)",
+            fontFamily: "monospace",
+          }}
+        >
+          Engine v4.2
+        </span>
+      </div>
+
+      {/* Hash row */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          flexWrap: "wrap",
+        }}
+      >
+        <span style={{ fontSize: "10px", color: "var(--muted-foreground)" }}>
+          Report Hash:
+        </span>
+        <span
+          style={{
+            fontFamily: "monospace",
+            fontSize: "11px",
+            fontWeight: 700,
+            color: "var(--foreground)",
+            background: "var(--muted)",
+            padding: "2px 8px",
+            borderRadius: "4px",
+            letterSpacing: "0.08em",
+          }}
+        >
+          #{reportHash}
+        </span>
+        <span style={{ fontSize: "10px", color: "var(--muted-foreground)" }}>
+          Generated: {generatedAt}
+        </span>
       </div>
 
       {/* Disclaimer */}
-      <div
+      <p
         style={{
-          marginTop: "10px",
-          paddingTop: "10px",
-          borderTop: "1px solid var(--rpt-card-border)",
           fontSize: "9px",
-          color: "var(--rpt-muted-text)",
-          lineHeight: "1.5",
+          color: "var(--muted-foreground)",
+          margin: 0,
+          lineHeight: 1.5,
         }}
       >
-        This report was generated by the KINGA AI Decision Engine. All findings are based on data
-        submitted at the time of assessment. The report hash above is a deterministic fingerprint of
-        the key decision fields; any modification to the underlying assessment will produce a
-        different hash. This document is intended for use by licensed insurance professionals only.
-        KINGA does not make final coverage determinations — all decisions require human review and
-        authorisation in accordance with applicable regulatory requirements.
-      </div>
+        This report was generated by the KINGA AutoVerify AI engine (v4.2) and is intended
+        for use by authorised insurance professionals only. The hash above is a deterministic
+        fingerprint of the key decision fields — any modification to the assessment outcome,
+        fraud score, cost estimate, or physics consistency score will produce a different hash.
+        This document does not constitute a final claims decision and must be reviewed by a
+        qualified assessor before any settlement action is taken.
+      </p>
     </div>
   );
 }

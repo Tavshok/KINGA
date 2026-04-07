@@ -10330,3 +10330,13 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Fix: All structural colours to use CSS variables (no hardcoded hex)
 - [ ] Fix: Photo ingestion failure must be labelled SYSTEM ERROR not claimant omission
 - [ ] Fix: Cost section must show actual agreed $462.33 vs quoted $591.33
+
+## P1 Report Fixes (Audit 2026-04-07)
+- [ ] Slim ReportPageHeader to minimal sticky nav (claim ID + back + print only, no decision pill duplication)
+- [ ] Build SVG Decision Flowchart in Section 6 (diamond gates + rectangular action boxes + directional arrows)
+- [ ] Remove threshold value exposure from Section 6 gate rows
+
+## P1 Report Fixes (Audit 2025-04-07)
+- [x] Slim ReportPageHeader to minimal sticky nav (no decision pill duplication)
+- [x] Build SVG diamond/rectangle Decision Flowchart in Section 6
+- [x] Remove threshold exposure from gate rows and Rule Trace table
