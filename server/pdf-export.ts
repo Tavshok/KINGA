@@ -708,7 +708,7 @@ export const exportAssessmentPDF = protectedProcedure
       let browser;
       try {
         browser = await puppeteer.launch({
-          executablePath: '/usr/bin/chromium-browser',
+          executablePath: process.env.CHROMIUM_PATH ?? '/usr/bin/chromium',
           headless: true,
           args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu'],
         });

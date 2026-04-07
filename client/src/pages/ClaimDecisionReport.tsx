@@ -1253,6 +1253,23 @@ export default function ClaimDecisionReport() {
     onError: (err) => toast.error(`Failed: ${err.message}`),
   });
 
+  // Print header data attributes — MUST be before any early returns (Rules of Hooks)
+  useEffect(() => {
+    if (!claim) return;
+    const claimNum = claim.claimNumber ?? String(claim.id) ?? "";
+    const reportDate = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
+    document.documentElement.setAttribute("data-claim-number", claimNum);
+    document.documentElement.setAttribute("data-report-date", reportDate);
+    document.body.setAttribute("data-claim-number", claimNum);
+    document.body.setAttribute("data-report-date", reportDate);
+    return () => {
+      document.documentElement.removeAttribute("data-claim-number");
+      document.documentElement.removeAttribute("data-report-date");
+      document.body.removeAttribute("data-claim-number");
+      document.body.removeAttribute("data-report-date");
+    };
+  }, [claim]);
+
   const isLoading = claimLoading || aiLoading || enforcementLoading || quotesLoading;
 
   if (isLoading) {
@@ -1293,23 +1310,6 @@ export default function ClaimDecisionReport() {
       </div>
     );
   }
-
-  // Set print header data attributes on both html and body so @page attr() picks them up
-  useEffect(() => {
-    if (!claim) return;
-    const claimNum = claim.claimNumber ?? String(claim.id) ?? "";
-    const reportDate = new Date().toLocaleDateString("en-ZA", { day: "2-digit", month: "short", year: "numeric" });
-    document.documentElement.setAttribute("data-claim-number", claimNum);
-    document.documentElement.setAttribute("data-report-date", reportDate);
-    document.body.setAttribute("data-claim-number", claimNum);
-    document.body.setAttribute("data-report-date", reportDate);
-    return () => {
-      document.documentElement.removeAttribute("data-claim-number");
-      document.documentElement.removeAttribute("data-report-date");
-      document.body.removeAttribute("data-claim-number");
-      document.body.removeAttribute("data-report-date");
-    };
-  }, [claim]);
 
   const vehicleTitle = [claim.vehicleMake, claim.vehicleModel, claim.vehicleYear].filter(Boolean).join(" ") || `Claim #${claim.claimNumber}`;
 
