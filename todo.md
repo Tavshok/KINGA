@@ -10313,3 +10313,20 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Write tests for fraudScoreArbitrator (score consistency)
 - [ ] Write tests for reportIntegrityGuard (contradiction detection)
 - [ ] Write tests for labelTranslator (snake_case conversion)
+
+
+## Report Rewrite — Forensic Audit Format (6-Section)
+- [ ] Section 0: Cover Page — Executive Authority Card (decision, 3 metric tiles, blockers, pre-flight, timeline)
+- [ ] Section 1: Incident & Data Integrity (type, speed, location, chronology, completeness checklist, corrections)
+- [ ] Section 2: Technical Forensics — 2.1 Impact Physics + 2.2 Damage Consistency (comparative table, constraint table, anomaly)
+- [ ] Section 3: Financial Validation (cost waterfall, breakdown table, parts/labour reconciliation from actual quote)
+- [ ] Section 4: Evidence Inventory (photo grid, extraction status, document table)
+- [ ] Section 5: Risk & Fraud Assessment (gauge, indicator table with system errors excluded, risk statement)
+- [ ] Section 6: Decision Authority + Audit Trail (flowchart, trigger conditions, blocked actions, next steps, hash)
+- [ ] Fix: Incident type showing N/A — must show ANIMAL_STRIKE
+- [ ] Fix: Parts cost showing $840 — must show actual $300 from quote
+- [ ] Fix: Claim ref and Report Date blank in header
+- [ ] Fix: Large black empty areas (dark mode CSS bleeding into print/PDF)
+- [ ] Fix: All structural colours to use CSS variables (no hardcoded hex)
+- [ ] Fix: Photo ingestion failure must be labelled SYSTEM ERROR not claimant omission
+- [ ] Fix: Cost section must show actual agreed $462.33 vs quoted $591.33

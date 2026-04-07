@@ -37,29 +37,12 @@ import {
   KINGAAuditTrail,
   runR7SanityChecks,
 } from "@/components/Phase3ReportComponents";
-import {
-  ExecutiveAuthorityCover,
-  VehicleDamageMap,
-  ComparativePatternTable,
-  ConstraintStatusMatrix,
-  DecisionFlowchart,
-} from "@/components/Batch1ReportComponents";
-import {
-  CostWaterfallChart,
-  FraudIndicatorTable,
-  FinalRiskStatement,
-  DocumentExtractionTable,
-} from "@/components/Batch2ReportComponents";
+import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 import {
   ReportPageHeader,
   ReportSectionDivider,
   ReportIntegritySeal,
 } from "@/components/Batch3ReportComponents";
-import {
-  Phase1CorrectionsPanel,
-  KeyDriversAdvisoriesPanel,
-  DataCompletenessRing,
-} from "@/components/Batch4ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1323,115 +1306,13 @@ export default function ClaimDecisionReport() {
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
-        {/* v4.2 R1: Executive Authority Cover */}
-        <ExecutiveAuthorityCover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
-        {/* v4.2 B4-1: Phase 1 Corrections Panel — surfaces data-integrity auto-corrections */}
-        <Phase1CorrectionsPanel aiAssessment={aiAssessment} />
-
-        {/* 0. Phase 3 R7 Sanity Check (runs silently — logs to console in dev) */}
-        {(() => {
-          const r7Decision: string =
-            (enforcement as any)?._phase2?.finalDecision ??
-            (aiAssessment as any)?._normalised?.verdict?.recommendation ??
-            (enforcement as EnforcementResult)?.finalDecision?.decision ??
-            "REVIEW";
-          const checks = runR7SanityChecks(enforcement, aiAssessment, r7Decision);
-          const failed = checks.filter(c => !c.passed);
-          if (failed.length > 0 && import.meta.env.DEV) {
-            console.warn('[KINGA R7] Sanity check failures:', failed);
-          }
-          return null;
-        })()}
-
-        {/* 0a. Phase 3 Decision Box — single authoritative verdict (R3.1) */}
-        <Phase3DecisionBox enforcement={enforcement} aiAssessment={aiAssessment} />
-
-        {/* 0b. Data Completeness Dashboard (R3.2) */}
-        <DataCompletenessDashboard aiAssessment={aiAssessment} claim={claim} enforcement={enforcement} />
-
-        {/* 0c. Final Decision Banner (FINALISE / REVIEW / ESCALATE) — governance layer */}
-        {(enforcement as EnforcementResult).finalDecision && (
-          <FinalDecisionBanner
-            finalDecision={(enforcement as EnforcementResult).finalDecision!}
-            confidenceScore={(enforcement as EnforcementResult).confidenceBreakdown?.score ?? aiAssessment.confidenceScore ?? 75}
-          />
-        )}
-
-         {/* 1. Verdict Banner */}
-        <VerdictBanner assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
-        {/* 2. Critical Alerts */}
-        <CriticalAlerts alerts={(enforcement as EnforcementResult).alerts} />
-        {/* 3. What Happened */}
-        <ReportSectionDivider label="Incident Reconstruction" icon="📋" />
-        <WhatHappened assessment={aiAssessment} enforcement={enforcement as EnforcementResult} claim={claim} />
-
-        {/* 4. Damage & Impact + Cost Decision — two-column on wide screens */}
-        <ReportSectionDivider label="Damage Assessment & Cost Analysis" icon="🚗" />
-
-        {/* v4.2 R2: Vehicle Damage Map */}
-        <VehicleDamageMap aiAssessment={aiAssessment} enforcement={enforcement} />
-
-        {/* v4.2 R3: Comparative Pattern Table */}
-        <ComparativePatternTable aiAssessment={aiAssessment} enforcement={enforcement} />
-
-        {/* 4a. Phase 3 Component Heatmap (R3.3) */}
-        <ComponentHeatmap aiAssessment={aiAssessment} enforcement={enforcement} />
-
-        {/* v4.2 B2-1: Cost Waterfall Chart */}
-        <CostWaterfallChart aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
-
-        {/* 4b. Phase 3 Cost Comparison Chart (R3.4) */}
-        <CostComparisonChart aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
-
-        {/* 4c. Phase 3 Physics Consistency Gauge (R3.5) */}
-        <PhysicsConsistencyGauge enforcement={enforcement} />
-
-        {/* v4.2 R4: Constraint Status Matrix */}
-        <ConstraintStatusMatrix enforcement={enforcement} />
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <DamageImpact assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
-          <CostDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
-        </div>
-
-        {/* 5. Fraud & Risk Decision */}
-        <ReportSectionDivider label="Fraud & Risk Assessment" icon="🛡" />
-        {/* FraudRiskDecision provides the narrative summary; FraudIndicatorTable provides the per-factor breakdown — no duplication */}
-        <FraudRiskDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
-        {/* v4.2 B2-2: Fraud Indicator Table with mitigation */}
-        <FraudIndicatorTable enforcement={enforcement} aiAssessment={aiAssessment} />
-
-         {/* v4.2 R5: Decision Flowchart */}
-        <DecisionFlowchart enforcement={enforcement} aiAssessment={aiAssessment} />
-        {/* v4.2 B4-2: Key Drivers & Advisories Panel — Phase 2 decision rationale */}
-        <KeyDriversAdvisoriesPanel enforcement={enforcement} aiAssessment={aiAssessment} />
-        {/* v4.2 B2-3: Final Risk Statement */}
-        <FinalRiskStatement enforcement={enforcement} aiAssessment={aiAssessment} claim={claim} />
-
-        {/* 5b. Confidence & Rule Trace */}
-        {(enforcement as EnforcementResult).confidenceBreakdown && (
-          <ConfidenceBreakdownPanel confidenceBreakdown={(enforcement as EnforcementResult).confidenceBreakdown!} />
-        )}
-
-        {/* 5c. Rule Trace (collapsible) */}
-        {(enforcement as EnforcementResult).finalDecision?.ruleTrace?.length ? (
-          <RuleTracePanel ruleTrace={(enforcement as EnforcementResult).finalDecision!.ruleTrace} />
-        ) : null}
-
-        {/* 5d. Phase 3 Photo Gallery (R3.6) — shown when photos were processed */}
-        <PhotoGallery aiAssessment={aiAssessment} enforcement={enforcement} />
-
-        {/* v4.2 B2-4: Document Extraction Table */}
-        <DocumentExtractionTable aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
-        {/* v4.2 B4-3: Data Completeness Ring — standalone full-width version */}
-        <DataCompletenessRing enforcement={enforcement} aiAssessment={aiAssessment} />
-
-        {/* 6. Collapsible Technical Data */}
-        <ReportSectionDivider label="Technical & Supporting Data" icon="⚡" />
-        <CollapsibleTechnicalData assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
-
-        {/* 7. Phase 3 KINGA Audit Trail (R5) — Phase 1 corrections + Phase 2 decision log */}
-        <KINGAAuditTrail claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
+        {/* ── Forensic Audit Report v4.2 — 6-section structured format ── */}
+        <ForensicAuditReport
+          claim={claim}
+          aiAssessment={aiAssessment}
+          enforcement={enforcement}
+          quotes={quotesWithItems}
+        />
 
         {/* 7b. Audit Trail */}
         <ReportSectionDivider label="Audit Trail & Decision History" icon="📜" />
