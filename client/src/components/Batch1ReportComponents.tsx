@@ -72,13 +72,13 @@ export function ExecutiveAuthorityCover({
     "REVIEW";
 
   const fraudScore: number =
-    enforcement?.weightedFraud?.totalScore ??
+    enforcement?.weightedFraud?.score ??
     aiAssessment?._normalised?.fraud?.score ??
     0;
 
   const consistencyScore: number =
-    enforcement?.consistencyScore ??
-    aiAssessment?._normalised?.fraud?.physicsConsistency ??
+    enforcement?.consistencyFlag?.score ??
+    enforcement?._phase2?.physicsConsistency ??
     0;
 
   const agreedTotal: number =
@@ -86,15 +86,14 @@ export function ExecutiveAuthorityCover({
     (aiAssessment?.estimatedCost ?? 0) / 100;
 
   const quotedTotal: number =
-    enforcement?.costExtraction?.repairerQuoteUsd ??
-    enforcement?.costExtraction?.quotedTotalUsd ??
+    enforcement?.costVerdict?.quotedCost ??
     0;
 
   const photosDetected: number =
     aiAssessment?.damagePhotoUrls?.length ?? 0;
+  const photoStatus: string = phase2.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
   const photosProcessed: number =
-    phase2.photoStatus === "ANALYSED" ? photosDetected : 0;
-  const photoStatus: string = phase2.photoStatus ?? "NOT_APPLICABLE";
+    photoStatus === "ANALYSED" ? photosDetected : 0;
 
   const dataCompleteness: number = phase2.dataCompleteness ?? 0;
   const keyDrivers: string[] = phase2.keyDrivers ?? [];
@@ -166,15 +165,15 @@ export function ExecutiveAuthorityCover({
         overflow: "hidden",
         marginBottom: "24px",
         fontFamily: "'Inter', sans-serif",
-        background: "#FFFFFF",
+        background: "var(--rpt-card-bg)",
         pageBreakAfter: "always",
       }}
     >
       {/* Header bar */}
       <div
         style={{
-          background: "#0F172A",
-          color: "#FFFFFF",
+          background: "var(--rpt-header-bg)",
+          color: "var(--rpt-header-text)",
           padding: "12px 20px",
           display: "flex",
           justifyContent: "space-between",
@@ -223,18 +222,18 @@ export function ExecutiveAuthorityCover({
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr 1fr",
-          borderBottom: "1px solid #E2E8F0",
+          borderBottom: "1px solid var(--rpt-card-border)",
         }}
       >
         {/* Physics */}
-        <div style={{ padding: "16px 20px", borderRight: "1px solid #E2E8F0" }}>
-          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569", marginBottom: "6px" }}>
+        <div style={{ padding: "16px 20px", borderRight: "1px solid var(--rpt-card-border)" }}>
+          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--rpt-muted-text)", marginBottom: "6px" }}>
             Physics
           </div>
           <div style={{ fontSize: "24px", fontWeight: 700, color: hasAnomaly ? "#D97706" : "#059669" }}>
             {consistencyScore}%
           </div>
-          <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
+          <div style={{ fontSize: "11px", color: "var(--rpt-muted-text)", marginTop: "4px" }}>
             {hasAnomaly ? "⚠ Anomaly detected" : "✓ Consistent"}
           </div>
           {advisories.length > 0 && (
@@ -245,14 +244,14 @@ export function ExecutiveAuthorityCover({
         </div>
 
         {/* Cost */}
-        <div style={{ padding: "16px 20px", borderRight: "1px solid #E2E8F0" }}>
-          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569", marginBottom: "6px" }}>
+        <div style={{ padding: "16px 20px", borderRight: "1px solid var(--rpt-card-border)" }}>
+          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--rpt-muted-text)", marginBottom: "6px" }}>
             Cost
           </div>
-          <div style={{ fontSize: "24px", fontWeight: 700, color: "#0F172A" }}>
+          <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--rpt-card-text)" }}>
             {formatCurrency(agreedTotal)}
           </div>
-          <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
+          <div style={{ fontSize: "11px", color: "var(--rpt-muted-text)", marginTop: "4px" }}>
             {quotedTotal > 0 ? `vs ${formatCurrency(quotedTotal)} quoted` : "No quote on file"}
           </div>
           <div style={{ fontSize: "10px", marginTop: "4px", color: costOk ? "#059669" : "#D97706" }}>
@@ -262,13 +261,13 @@ export function ExecutiveAuthorityCover({
 
         {/* Evidence */}
         <div style={{ padding: "16px 20px" }}>
-          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569", marginBottom: "6px" }}>
+          <div style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--rpt-muted-text)", marginBottom: "6px" }}>
             Evidence
           </div>
-          <div style={{ fontSize: "24px", fontWeight: 700, color: "#0F172A" }}>
+          <div style={{ fontSize: "24px", fontWeight: 700, color: "var(--rpt-card-text)" }}>
             {photosDetected}
           </div>
-          <div style={{ fontSize: "11px", color: "#475569", marginTop: "4px" }}>
+          <div style={{ fontSize: "11px", color: "var(--rpt-muted-text)", marginTop: "4px" }}>
             photos detected
           </div>
           <div
@@ -306,15 +305,15 @@ export function ExecutiveAuthorityCover({
       <div
         style={{
           padding: "10px 20px",
-          background: "#F8FAFC",
-          borderBottom: "1px solid #E2E8F0",
+          background: "var(--rpt-subtle-bg)",
+          borderBottom: "1px solid var(--rpt-card-border)",
           display: "flex",
           gap: "12px",
           alignItems: "center",
           flexWrap: "wrap",
         }}
       >
-        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "#475569", marginRight: "4px" }}>
+        <span style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--rpt-muted-text)", marginRight: "4px" }}>
           Pre-flight
         </span>
         {badges.map((b, i) => (
@@ -360,7 +359,7 @@ export function ExecutiveAuthorityCover({
 
       {/* Timeline */}
       <div style={{ padding: "16px 20px" }}>
-        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "#475569", marginBottom: "10px" }}>
+        <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--rpt-muted-text)", marginBottom: "10px" }}>
           Claim Timeline
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "0" }}>
@@ -383,10 +382,10 @@ export function ExecutiveAuthorityCover({
                     boxShadow: "0 0 0 2px #0369A1",
                   }}
                 />
-                <div style={{ fontSize: "10px", fontWeight: 700, color: "#0F172A" }}>
+                <div style={{ fontSize: "10px", fontWeight: 700, color: "var(--rpt-card-text)" }}>
                   {item.label}
                 </div>
-                <div style={{ fontSize: "9px", color: "#475569", marginTop: "2px" }}>
+                <div style={{ fontSize: "9px", color: "var(--rpt-muted-text)", marginTop: "2px" }}>
                   {item.date}
                 </div>
               </div>
@@ -395,7 +394,7 @@ export function ExecutiveAuthorityCover({
                   style={{
                     flex: 1,
                     height: "2px",
-                    background: "#CBD5E1",
+                    background: "var(--rpt-card-border)",
                     marginBottom: "20px",
                   }}
                 />
@@ -454,11 +453,11 @@ function severityFromLabel(label: string): Severity {
 export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMapProps) {
   // Build zone severity map from damagedComponents
   const components: Array<{ name: string; severity: string }> =
-    aiAssessment?._normalised?.costs?.components ??
-    enforcement?.costExtraction?.lineItems?.map((li: any) => ({
-      name: li.description ?? li.component ?? "",
-      severity: li.severity ?? "moderate",
+    enforcement?.costExtraction?.itemised_parts?.map((ip: any) => ({
+      name: ip.component ?? "",
+      severity: "moderate",
     })) ??
+    aiAssessment?.damagedComponents?.map((c: string) => ({ name: c, severity: "moderate" })) ??
     [];
 
   const zoneMap: Record<string, Severity> = {
@@ -501,8 +500,8 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
@@ -514,7 +513,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
           fontWeight: 700,
           textTransform: "uppercase",
           letterSpacing: "0.06em",
-          color: "#0F172A",
+          color: "var(--rpt-card-text)",
           marginBottom: "12px",
         }}
       >
@@ -531,7 +530,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
           aria-label="Vehicle damage zone diagram"
         >
           {/* Vehicle body outline */}
-          <rect x="30" y="20" width="140" height="320" rx="30" fill="#F8FAFC" stroke="#CBD5E1" strokeWidth="2" />
+          <rect x="30" y="20" width="140" height="320" rx="30" fill="#F8FAFC" stroke="var(--rpt-card-border)" strokeWidth="2" />
 
           {/* Front zone */}
           <rect
@@ -540,7 +539,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
             fill={SEVERITY_COLOUR[zoneMap.front]}
             opacity="0.7"
           />
-          <text x="100" y="65" textAnchor="middle" fontSize="10" fill="#0F172A" fontWeight="600">FRONT</text>
+          <text x="100" y="65" textAnchor="middle" fontSize="10" fill="currentColor" fontWeight="600">FRONT</text>
 
           {/* Rear zone */}
           <rect
@@ -549,7 +548,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
             fill={SEVERITY_COLOUR[zoneMap.rear]}
             opacity="0.7"
           />
-          <text x="100" y="305" textAnchor="middle" fontSize="10" fill="#0F172A" fontWeight="600">REAR</text>
+          <text x="100" y="305" textAnchor="middle" fontSize="10" fill="currentColor" fontWeight="600">REAR</text>
 
           {/* Left zone */}
           <rect
@@ -557,7 +556,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
             fill={SEVERITY_COLOUR[zoneMap.left]}
             opacity="0.7"
           />
-          <text x="50" y="185" textAnchor="middle" fontSize="9" fill="#0F172A" fontWeight="600" transform="rotate(-90 50 185)">LEFT</text>
+          <text x="50" y="185" textAnchor="middle" fontSize="9" fill="currentColor" fontWeight="600" transform="rotate(-90 50 185)">LEFT</text>
 
           {/* Right zone */}
           <rect
@@ -565,7 +564,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
             fill={SEVERITY_COLOUR[zoneMap.right]}
             opacity="0.7"
           />
-          <text x="150" y="185" textAnchor="middle" fontSize="9" fill="#0F172A" fontWeight="600" transform="rotate(90 150 185)">RIGHT</text>
+          <text x="150" y="185" textAnchor="middle" fontSize="9" fill="currentColor" fontWeight="600" transform="rotate(90 150 185)">RIGHT</text>
 
           {/* Roof/centre zone */}
           <rect
@@ -573,12 +572,12 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
             fill={SEVERITY_COLOUR[zoneMap.roof]}
             opacity="0.5"
           />
-          <text x="100" y="185" textAnchor="middle" fontSize="9" fill="#0F172A">CABIN</text>
+          <text x="100" y="185" textAnchor="middle" fontSize="9" fill="currentColor">CABIN</text>
 
           {/* Windscreen line */}
-          <line x1="40" y1="100" x2="160" y2="100" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="4,3" />
+          <line x1="40" y1="100" x2="160" y2="100" stroke="var(--rpt-card-border)" strokeWidth="1.5" strokeDasharray="4,3" />
           {/* Rear window line */}
-          <line x1="40" y1="260" x2="160" y2="260" stroke="#CBD5E1" strokeWidth="1.5" strokeDasharray="4,3" />
+          <line x1="40" y1="260" x2="160" y2="260" stroke="var(--rpt-card-border)" strokeWidth="1.5" strokeDasharray="4,3" />
 
           {/* Impact direction arrow */}
           {impactDirection && (
@@ -614,7 +613,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
                     border: "1px solid #CBD5E1",
                   }}
                 />
-                <span style={{ fontSize: "10px", color: "#475569" }}>{li.label}</span>
+                <span style={{ fontSize: "10px", color: "var(--rpt-muted-text)" }}>{li.label}</span>
               </div>
             ))}
           </div>
@@ -623,19 +622,19 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
           {components.length > 0 ? (
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
               <thead>
-                <tr style={{ background: "#F8FAFC" }}>
-                  <th style={{ textAlign: "left", padding: "4px 8px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>Component</th>
-                  <th style={{ textAlign: "left", padding: "4px 8px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>Zone</th>
-                  <th style={{ textAlign: "left", padding: "4px 8px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>Severity</th>
+                <tr style={{ background: "var(--rpt-subtle-bg)" }}>
+                  <th style={{ textAlign: "left", padding: "4px 8px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)" }}>Component</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)" }}>Zone</th>
+                  <th style={{ textAlign: "left", padding: "4px 8px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)" }}>Severity</th>
                 </tr>
               </thead>
               <tbody>
                 {components.slice(0, 10).map((c, i) => {
                   const sev = severityFromLabel(c.severity);
                   return (
-                    <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                      <td style={{ padding: "4px 8px", color: "#0F172A" }}>{c.name}</td>
-                      <td style={{ padding: "4px 8px", color: "#475569", textTransform: "capitalize" }}>{classifyZone(c.name)}</td>
+                    <tr key={i} style={{ borderBottom: "1px solid var(--rpt-table-row-border)" }}>
+                      <td style={{ padding: "4px 8px", color: "var(--rpt-card-text)" }}>{c.name}</td>
+                      <td style={{ padding: "4px 8px", color: "var(--rpt-muted-text)", textTransform: "capitalize" }}>{classifyZone(c.name)}</td>
                       <td style={{ padding: "4px 8px" }}>
                         <span
                           style={{
@@ -662,7 +661,7 @@ export function VehicleDamageMap({ aiAssessment, enforcement }: VehicleDamageMap
               </tbody>
             </table>
           ) : (
-            <div style={{ fontSize: "11px", color: "#94A3B8", fontStyle: "italic" }}>
+            <div style={{ fontSize: "11px", color: "var(--rpt-muted-text)", fontStyle: "italic" }}>
               No component data available — see Section 2 for analysis.
             </div>
           )}
@@ -739,24 +738,24 @@ export function ComparativePatternTable({
     null;
 
   const components: Array<{ name: string; severity: string }> =
-    aiAssessment?._normalised?.costs?.components ??
-    enforcement?.costExtraction?.lineItems?.map((li: any) => ({
-      name: li.description ?? li.component ?? "",
-      severity: li.severity ?? "moderate",
+    enforcement?.costExtraction?.itemised_parts?.map((ip: any) => ({
+      name: ip.component ?? "",
+      severity: "moderate",
     })) ??
+    aiAssessment?.damagedComponents?.map((c: string) => ({ name: c, severity: "moderate" })) ??
     [];
 
   if (!pattern) {
     return (
       <div
         style={{
-          background: "#FEF3C7",
-          border: "1px solid #FDE68A",
-          borderRadius: "6px",
-          padding: "12px 16px",
-          fontSize: "12px",
-          color: "#92400E",
-          marginBottom: "16px",
+        background: "#FEF3C7",
+        border: "1px solid #FDE68A",
+        borderRadius: "6px",
+        padding: "12px 16px",
+        fontSize: "12px",
+        color: "#92400E",
+        marginBottom: "16px",
         }}
       >
         ⚠ Comparative pattern analysis not available for incident type:{" "}
@@ -773,15 +772,15 @@ export function ComparativePatternTable({
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
       }}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-        <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0F172A" }}>
+        <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--rpt-card-text)" }}>
           Damage Pattern — Expected vs Observed
         </div>
         <div
@@ -798,20 +797,20 @@ export function ComparativePatternTable({
         </div>
       </div>
 
-      <div style={{ fontSize: "10px", color: "#475569", marginBottom: "10px" }}>
+      <div style={{ fontSize: "10px", color: "var(--rpt-muted-text)", marginBottom: "10px" }}>
         Incident type: <strong>{incidentType.replace(/_/g, " ")}</strong>
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
         <thead>
-          <tr style={{ background: "#F8FAFC" }}>
-            <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0", width: "35%" }}>
+          <tr style={{ background: "var(--rpt-subtle-bg)" }}>
+            <th style={{ textAlign: "left", padding: "6px 10px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)", width: "35%" }}>
               Component
             </th>
-            <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0", width: "35%" }}>
+            <th style={{ textAlign: "left", padding: "6px 10px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)", width: "35%" }}>
               Expected Pattern
             </th>
-            <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0", width: "30%" }}>
+            <th style={{ textAlign: "left", padding: "6px 10px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)", width: "30%" }}>
               Observed
             </th>
           </tr>
@@ -820,16 +819,16 @@ export function ComparativePatternTable({
           {pattern.map((row, i) => {
             const obs = getObservedStatus(row.component, components);
             return (
-              <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                <td style={{ padding: "6px 10px", color: "#0F172A" }}>{row.component}</td>
-                <td style={{ padding: "6px 10px", color: "#475569" }}>{row.expected}</td>
+              <tr key={i} style={{ borderBottom: "1px solid var(--rpt-table-row-border)" }}>
+                <td style={{ padding: "6px 10px", color: "var(--rpt-card-text)" }}>{row.component}</td>
+                <td style={{ padding: "6px 10px", color: "var(--rpt-muted-text)" }}>{row.expected}</td>
                 <td style={{ padding: "6px 10px" }}>
                   {obs.found ? (
                     <span style={{ color: "#059669", fontWeight: 600 }}>
                       ✓ {obs.severity.charAt(0).toUpperCase() + obs.severity.slice(1)}
                     </span>
                   ) : (
-                    <span style={{ color: "#94A3B8" }}>— Not observed</span>
+                    <span style={{ color: "var(--rpt-muted-text)" }}>— Not observed</span>
                   )}
                 </td>
               </tr>
@@ -852,35 +851,34 @@ interface ConstraintStatusMatrixProps {
 export function ConstraintStatusMatrix({ enforcement }: ConstraintStatusMatrixProps) {
   const phase2 = enforcement?._phase2 ?? {};
   const constraints: Array<{
-    name: string;
-    status: "pass" | "fail" | "advisory" | "suppressed";
-    verdict: string;
-    advisory?: string;
-  }> = phase2.constraints ?? [];
+    constraint: string;
+    suppressed: boolean;
+    advisory: string | null;
+  }> = phase2.physicsConstraints ?? [];
 
   const advisories: string[] = phase2.advisories ?? [];
 
-  // Build from weighted fraud indicators if phase2 constraints not available
-  const fraudIndicators: Array<{ indicator: string; score: number }> =
-    enforcement?.weightedFraud?.breakdown ?? [];
+  // Build from weighted fraud contributions if phase2 constraints not available
+  const fraudContribs: Array<{ factor: string; value: number }> =
+    enforcement?.weightedFraud?.contributions ?? [];
 
-  if (constraints.length === 0 && fraudIndicators.length === 0 && advisories.length === 0) {
+  if (constraints.length === 0 && fraudContribs.length === 0 && advisories.length === 0) {
     return null;
   }
 
-  // Merge phase2 constraints with advisories
+  // Merge phase2 physicsConstraints with advisories
   const rows: Array<{
     constraint: string;
     status: "pass" | "fail" | "advisory" | "suppressed";
     verdict: string;
   }> = [
     ...constraints.map((c) => ({
-      constraint: c.name.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
-      status: c.status,
-      verdict: c.verdict,
+      constraint: c.constraint.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+      status: (c.suppressed ? "suppressed" : c.advisory ? "advisory" : "pass") as "pass" | "fail" | "advisory" | "suppressed",
+      verdict: c.advisory ?? (c.suppressed ? "Not applicable at observed Delta-V" : "Passed"),
     })),
     ...advisories
-      .filter((a) => !constraints.some((c) => a.toLowerCase().includes(c.name.toLowerCase())))
+      .filter((a) => !constraints.some((c) => a.toLowerCase().includes(c.constraint.toLowerCase())))
       .map((a) => ({
         constraint: a.split(" ").slice(0, 4).join(" ") + "…",
         status: "advisory" as const,
@@ -907,27 +905,27 @@ export function ConstraintStatusMatrix({ enforcement }: ConstraintStatusMatrixPr
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
       }}
     >
-      <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0F172A", marginBottom: "12px" }}>
+      <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--rpt-card-text)", marginBottom: "12px" }}>
         Constraint Status Matrix
       </div>
 
       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}>
         <thead>
-          <tr style={{ background: "#F8FAFC" }}>
-            <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0", width: "35%" }}>
+          <tr style={{ background: "var(--rpt-subtle-bg)" }}>
+            <th style={{ textAlign: "left", padding: "6px 10px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)", width: "35%" }}>
               Constraint
             </th>
-            <th style={{ textAlign: "center", padding: "6px 10px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0", width: "15%" }}>
+            <th style={{ textAlign: "center", padding: "6px 10px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)", width: "15%" }}>
               Status
             </th>
-            <th style={{ textAlign: "left", padding: "6px 10px", color: "#475569", fontWeight: 600, borderBottom: "1px solid #E2E8F0" }}>
+            <th style={{ textAlign: "left", padding: "6px 10px", color: "var(--rpt-muted-text)", fontWeight: 600, borderBottom: "1px solid var(--rpt-card-border)" }}>
               Assessment
             </th>
           </tr>
@@ -936,8 +934,8 @@ export function ConstraintStatusMatrix({ enforcement }: ConstraintStatusMatrixPr
           {rows.map((row, i) => {
             const sc = statusColour[row.status] ?? statusColour.advisory;
             return (
-              <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
-                <td style={{ padding: "6px 10px", color: "#0F172A", fontWeight: 500 }}>
+              <tr key={i} style={{ borderBottom: "1px solid var(--rpt-table-row-border)" }}>
+                <td style={{ padding: "6px 10px", color: "var(--rpt-card-text)", fontWeight: 500 }}>
                   {row.constraint}
                 </td>
                 <td style={{ padding: "6px 10px", textAlign: "center" }}>
@@ -955,14 +953,14 @@ export function ConstraintStatusMatrix({ enforcement }: ConstraintStatusMatrixPr
                     {statusIcon[row.status]} {row.status.charAt(0).toUpperCase() + row.status.slice(1)}
                   </span>
                 </td>
-                <td style={{ padding: "6px 10px", color: "#475569" }}>{row.verdict}</td>
+                <td style={{ padding: "6px 10px", color: "var(--rpt-muted-text)" }}>{row.verdict}</td>
               </tr>
             );
           })}
         </tbody>
       </table>
 
-      <div style={{ marginTop: "10px", fontSize: "10px", color: "#94A3B8" }}>
+      <div style={{ marginTop: "10px", fontSize: "10px", color: "var(--rpt-muted-text)" }}>
         ○ Suppressed = constraint not applicable at observed Delta-V. Advisory = requires manual verification. No threshold values are displayed in this view.
       </div>
     </div>
@@ -984,8 +982,8 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
   const keyDrivers: string[] = phase2.keyDrivers ?? [];
   const nextSteps: string[] = phase2.nextSteps ?? [];
   const dataCompleteness: number = phase2.dataCompleteness ?? 0;
-  const consistencyScore: number = enforcement?.consistencyScore ?? 0;
-  const fraudScore: number = enforcement?.weightedFraud?.totalScore ?? 0;
+  const consistencyScore: number = enforcement?.consistencyFlag?.score ?? enforcement?._phase2?.physicsConsistency ?? 0;
+  const fraudScore: number = enforcement?.weightedFraud?.score ?? 0;
   const advisories: string[] = phase2.advisories ?? [];
 
   const dc = decisionColour(finalDecision);
@@ -1036,14 +1034,14 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
       }}
     >
-      <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "#0F172A", marginBottom: "16px" }}>
+      <div style={{ fontSize: "12px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em", color: "var(--rpt-card-text)", marginBottom: "16px" }}>
         Decision Authority Flowchart
       </div>
 
@@ -1056,8 +1054,8 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
               style={{
                 display: "inline-block",
                 padding: "4px 16px",
-                background: "#0F172A",
-                color: "#FFFFFF",
+                background: "var(--rpt-header-bg)",
+                color: "var(--rpt-header-text)",
                 borderRadius: "4px",
                 fontSize: "11px",
                 fontWeight: 700,
@@ -1070,7 +1068,7 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
           {steps.map((step, i) => (
             <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
               {/* Arrow down */}
-              <div style={{ width: "2px", height: "12px", background: "#CBD5E1" }} />
+              <div style={{ width: "2px", height: "12px", background: "var(--rpt-card-border)" }} />
 
               {/* Diamond decision node */}
               <div style={{ position: "relative", width: "180px" }}>
@@ -1081,7 +1079,7 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
                     stroke={step.pass ? "#059669" : "#DC2626"}
                     strokeWidth="1.5"
                   />
-                  <text x="90" y="20" textAnchor="middle" fontSize="9" fontWeight="600" fill="#0F172A">
+                  <text x="90" y="20" textAnchor="middle" fontSize="9" fontWeight="600" fill="currentColor">
                     {step.question}
                   </text>
                   <text x="90" y="34" textAnchor="middle" fontSize="8" fill="#475569">
@@ -1123,7 +1121,7 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
 
           {/* Arrow to final decision */}
           <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
-            <div style={{ width: "2px", height: "12px", background: "#CBD5E1" }} />
+            <div style={{ width: "2px", height: "12px", background: "var(--rpt-card-border)" }} />
             <div
               style={{
                 padding: "8px 24px",
@@ -1145,11 +1143,11 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
           {/* Trigger conditions */}
           {keyDrivers.length > 0 && (
             <div style={{ marginBottom: "12px" }}>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "#475569", marginBottom: "6px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--rpt-muted-text)", marginBottom: "6px" }}>
                 Trigger Conditions
               </div>
               {keyDrivers.map((d, i) => (
-                <div key={i} style={{ fontSize: "10px", color: "#0F172A", marginBottom: "4px" }}>
+                <div key={i} style={{ fontSize: "10px", color: "var(--rpt-card-text)", marginBottom: "4px" }}>
                   {i + 1}. {d}
                 </div>
               ))}
@@ -1158,7 +1156,7 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
 
           {/* Blocked actions */}
           <div style={{ marginBottom: "12px" }}>
-            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "#475569", marginBottom: "6px" }}>
+            <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--rpt-muted-text)", marginBottom: "6px" }}>
               Blocked Actions
             </div>
             {[blockedApprove, blockedReject].filter(Boolean).map((b, i) => (
@@ -1171,7 +1169,7 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
           {/* Required next steps */}
           {nextSteps.length > 0 && (
             <div>
-              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "#475569", marginBottom: "6px" }}>
+              <div style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", color: "var(--rpt-muted-text)", marginBottom: "6px" }}>
                 Required Next Steps
               </div>
               {nextSteps.map((s, i) => (
@@ -1186,7 +1184,7 @@ export function DecisionFlowchart({ enforcement, aiAssessment }: DecisionFlowcha
                       marginTop: "1px",
                     }}
                   />
-                  <span style={{ fontSize: "10px", color: "#0F172A" }}>{s}</span>
+                  <span style={{ fontSize: "10px", color: "var(--rpt-card-text)" }}>{s}</span>
                 </div>
               ))}
             </div>

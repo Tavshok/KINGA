@@ -67,7 +67,7 @@ export function ReportPageHeader({
     "REVIEW";
 
   const fraudScore: number =
-    enforcement?.weightedFraud?.totalScore ??
+    enforcement?.weightedFraud?.score ??
     aiAssessment?._normalised?.fraud?.score ??
     0;
 
@@ -76,8 +76,8 @@ export function ReportPageHeader({
     ((aiAssessment?.estimatedCost ?? 0) / 100);
 
   const consistencyScore: number =
-    enforcement?.consistencyScore ??
-    aiAssessment?._normalised?.fraud?.physicsConsistency ??
+    enforcement?.consistencyFlag?.score ??
+    enforcement?._phase2?.physicsConsistency ??
     0;
 
   const reportHash = useMemo(
@@ -123,7 +123,7 @@ export function ReportPageHeader({
     <div
       className="report-page-header"
       style={{
-        background: "#0F172A",
+        background: "var(--rpt-card-bg)",
         borderBottom: "2px solid #1E293B",
         padding: "10px 16px",
         display: "flex",
@@ -146,7 +146,7 @@ export function ReportPageHeader({
               border: "1px solid #334155",
               borderRadius: "6px",
               padding: "4px 10px",
-              color: "#94A3B8",
+              color: "var(--rpt-muted-text)",
               fontSize: "11px",
               cursor: "pointer",
               display: "flex",
@@ -163,7 +163,7 @@ export function ReportPageHeader({
             style={{
               fontSize: "13px",
               fontWeight: 700,
-              color: "#F1F5F9",
+              color: "var(--rpt-card-text)",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -174,7 +174,7 @@ export function ReportPageHeader({
           <div
             style={{
               fontSize: "10px",
-              color: "#64748B",
+              color: "var(--rpt-muted-text)",
               display: "flex",
               gap: "8px",
               alignItems: "center",
@@ -182,17 +182,17 @@ export function ReportPageHeader({
             }}
           >
             <span>{claimRef}</span>
-            <span style={{ color: "#334155" }}>·</span>
+            <span style={{ color: "var(--rpt-muted-text)" }}>·</span>
             <span>{generatedAt}</span>
-            <span style={{ color: "#334155" }}>·</span>
+            <span style={{ color: "var(--rpt-muted-text)" }}>·</span>
             <span
               style={{
                 fontFamily: "monospace",
                 fontSize: "9px",
-                background: "#1E293B",
+                background: "var(--rpt-subtle-bg)",
                 padding: "1px 5px",
                 borderRadius: "3px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 letterSpacing: "0.05em",
               }}
               title="Report integrity hash — changes if any decision field is modified"
@@ -232,7 +232,7 @@ export function ReportPageHeader({
               border: "1px solid #334155",
               borderRadius: "6px",
               padding: "4px 10px",
-              color: "#94A3B8",
+              color: "var(--rpt-muted-text)",
               fontSize: "11px",
               cursor: reRunPending ? "not-allowed" : "pointer",
               display: "flex",
@@ -301,7 +301,7 @@ export function ReportSectionDivider({ label, icon }: ReportSectionDividerProps)
           fontWeight: 700,
           textTransform: "uppercase",
           letterSpacing: "0.1em",
-          color: "#475569",
+          color: "var(--rpt-muted-text)",
           whiteSpace: "nowrap",
           display: "flex",
           alignItems: "center",
@@ -345,7 +345,7 @@ export function ReportIntegritySeal({
     "REVIEW";
 
   const fraudScore: number =
-    enforcement?.weightedFraud?.totalScore ??
+    enforcement?.weightedFraud?.score ??
     aiAssessment?._normalised?.fraud?.score ??
     0;
 
@@ -354,8 +354,8 @@ export function ReportIntegritySeal({
     ((aiAssessment?.estimatedCost ?? 0) / 100);
 
   const consistencyScore: number =
-    enforcement?.consistencyScore ??
-    aiAssessment?._normalised?.fraud?.physicsConsistency ??
+    enforcement?.consistencyFlag?.score ??
+    enforcement?._phase2?.physicsConsistency ??
     0;
 
   const reportHash = useMemo(
@@ -398,9 +398,9 @@ export function ReportIntegritySeal({
       style={{
         margin: "32px 0 16px",
         padding: "14px 16px",
-        background: "#0F172A",
+        background: "var(--rpt-card-bg)",
         borderRadius: "8px",
-        border: "1px solid #1E293B",
+        border: "1px solid var(--rpt-card-border)",
       }}
     >
       <div
@@ -437,13 +437,13 @@ export function ReportIntegritySeal({
               style={{
                 fontSize: "11px",
                 fontWeight: 700,
-                color: "#F1F5F9",
+                color: "var(--rpt-card-text)",
                 letterSpacing: "0.04em",
               }}
             >
               KINGA AutoVerify {engineVersion}
             </div>
-            <div style={{ fontSize: "9px", color: "#475569", marginTop: "1px" }}>
+            <div style={{ fontSize: "9px", color: "var(--rpt-muted-text)", marginTop: "1px" }}>
               AI-assisted claim assessment — not a substitute for human adjudication
             </div>
           </div>
@@ -456,13 +456,13 @@ export function ReportIntegritySeal({
               fontFamily: "monospace",
               fontSize: "11px",
               fontWeight: 700,
-              color: "#64748B",
+              color: "var(--rpt-muted-text)",
               letterSpacing: "0.08em",
             }}
           >
             REPORT HASH #{reportHash}
           </div>
-          <div style={{ fontSize: "9px", color: "#334155", marginTop: "2px" }}>
+          <div style={{ fontSize: "9px", color: "var(--rpt-muted-text)", marginTop: "2px" }}>
             Generated {formattedDate}
           </div>
         </div>
@@ -473,9 +473,9 @@ export function ReportIntegritySeal({
         style={{
           marginTop: "10px",
           paddingTop: "10px",
-          borderTop: "1px solid #1E293B",
+          borderTop: "1px solid var(--rpt-card-border)",
           fontSize: "9px",
-          color: "#334155",
+          color: "var(--rpt-muted-text)",
           lineHeight: "1.5",
         }}
       >

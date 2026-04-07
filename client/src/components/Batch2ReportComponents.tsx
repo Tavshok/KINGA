@@ -50,12 +50,12 @@ export function CostWaterfallChart({
 
   const partsUsd: number =
     costs.partsUsd ??
-    enforcement?.costExtraction?.partsTotal ??
+    enforcement?.costExtraction?.parts ??
     0;
 
   const labourUsd: number =
     costs.labourUsd ??
-    enforcement?.costExtraction?.labourTotal ??
+    enforcement?.costExtraction?.labour ??
     0;
 
   const totalUsd: number =
@@ -71,14 +71,12 @@ export function CostWaterfallChart({
     (benchmarkMin + benchmarkMax) / 2;
 
   const quotedTotal: number =
-    enforcement?.costExtraction?.repairerQuoteUsd ??
-    enforcement?.costExtraction?.quotedTotalUsd ??
+    enforcement?.costVerdict?.quotedCost ??
     (quotes.length > 0
       ? quotes.reduce((s: number, q: any) => s + (q.totalAmount ?? 0), 0) / 100
       : 0);
 
   const panelBeater: string =
-    enforcement?.costExtraction?.panelBeaterName ??
     aiAssessment?.panelBeaterName ??
     "";
 
@@ -126,8 +124,8 @@ export function CostWaterfallChart({
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
@@ -148,7 +146,7 @@ export function CostWaterfallChart({
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "#0F172A",
+            color: "var(--rpt-card-text)",
           }}
         >
           Cost Breakdown &amp; Benchmark
@@ -218,7 +216,7 @@ export function CostWaterfallChart({
                 x={labelW + barW + 5}
                 y={y + barH / 2 + 4}
                 fontSize="10"
-                fill="#0F172A"
+                fill="currentColor"
                 fontFamily="'Courier New', monospace"
                 fontWeight="600"
               >
@@ -255,14 +253,14 @@ export function CostWaterfallChart({
         }}
       >
         <div>
-          <div style={{ color: "#475569", marginBottom: "2px" }}>AI Estimate</div>
-          <div style={{ fontWeight: 700, color: "#0F172A", fontFamily: "monospace" }}>
+          <div style={{ color: "var(--rpt-muted-text)", marginBottom: "2px" }}>AI Estimate</div>
+          <div style={{ fontWeight: 700, color: "var(--rpt-card-text)", fontFamily: "monospace" }}>
             {fmt$(totalUsd)}
           </div>
         </div>
         {quotedTotal > 0 && (
           <div>
-            <div style={{ color: "#475569", marginBottom: "2px" }}>
+            <div style={{ color: "var(--rpt-muted-text)", marginBottom: "2px" }}>
               Quoted{panelBeater ? ` · ${panelBeater}` : ""}
             </div>
             <div
@@ -277,7 +275,7 @@ export function CostWaterfallChart({
           </div>
         )}
         <div>
-          <div style={{ color: "#475569", marginBottom: "2px" }}>Benchmark Range</div>
+          <div style={{ color: "var(--rpt-muted-text)", marginBottom: "2px" }}>Benchmark Range</div>
           <div style={{ fontWeight: 700, color: "#059669", fontFamily: "monospace" }}>
             {fmt$(benchmarkMin)} – {fmt$(benchmarkMax)}
           </div>
@@ -328,7 +326,7 @@ export function FraudIndicatorTable({
   aiAssessment,
 }: FraudIndicatorTableProps) {
   const weightedFraud = enforcement?.weightedFraud ?? {};
-  const totalScore: number = weightedFraud.totalScore ?? weightedFraud.score ?? 0;
+  const totalScore: number = weightedFraud.score ?? 0;
   const fraudLevel: string =
     aiAssessment?._normalised?.fraud?.level ??
     weightedFraud.level ??
@@ -427,8 +425,8 @@ export function FraudIndicatorTable({
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
@@ -449,7 +447,7 @@ export function FraudIndicatorTable({
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "#0F172A",
+            color: "var(--rpt-card-text)",
           }}
         >
           Fraud Indicator Analysis
@@ -501,14 +499,14 @@ export function FraudIndicatorTable({
         style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}
       >
         <thead>
-          <tr style={{ background: "#F8FAFC" }}>
+          <tr style={{ background: "var(--rpt-subtle-bg)" }}>
             <th
               style={{
                 textAlign: "left",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
                 width: "28%",
               }}
             >
@@ -518,9 +516,9 @@ export function FraudIndicatorTable({
               style={{
                 textAlign: "center",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
                 width: "10%",
               }}
             >
@@ -530,9 +528,9 @@ export function FraudIndicatorTable({
               style={{
                 textAlign: "left",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
                 width: "30%",
               }}
             >
@@ -542,9 +540,9 @@ export function FraudIndicatorTable({
               style={{
                 textAlign: "left",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
               }}
             >
               Mitigation
@@ -553,11 +551,11 @@ export function FraudIndicatorTable({
         </thead>
         <tbody>
           {rows.slice(0, 12).map((row, i) => (
-            <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
+            <tr key={i} style={{ borderBottom: "1px solid var(--rpt-table-row-border)" }}>
               <td
                 style={{
                   padding: "6px 8px",
-                  color: "#0F172A",
+                  color: "var(--rpt-card-text)",
                   fontWeight: 500,
                 }}
               >
@@ -593,7 +591,7 @@ export function FraudIndicatorTable({
               <td
                 style={{
                   padding: "6px 8px",
-                  color: "#475569",
+                  color: "var(--rpt-muted-text)",
                   fontSize: "10px",
                 }}
               >
@@ -617,7 +615,7 @@ export function FraudIndicatorTable({
         style={{
           marginTop: "10px",
           fontSize: "10px",
-          color: "#94A3B8",
+          color: "var(--rpt-muted-text)",
           fontStyle: "italic",
         }}
       >
@@ -654,13 +652,13 @@ export function FinalRiskStatement({
     "low";
 
   const fraudScore: number =
-    enforcement?.weightedFraud?.totalScore ??
+    enforcement?.weightedFraud?.score ??
     aiAssessment?._normalised?.fraud?.score ??
     0;
 
   const consistencyScore: number =
-    enforcement?.consistencyScore ??
-    aiAssessment?._normalised?.fraud?.physicsConsistency ??
+    enforcement?.consistencyFlag?.score ??
+    enforcement?._phase2?.physicsConsistency ??
     0;
 
   const totalUsd: number =
@@ -739,7 +737,7 @@ export function FinalRiskStatement({
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "#0F172A",
+            color: "var(--rpt-card-text)",
           }}
         >
           Final Risk Statement
@@ -764,7 +762,7 @@ export function FinalRiskStatement({
         style={{
           fontSize: "12px",
           lineHeight: "1.7",
-          color: "#0F172A",
+          color: "var(--rpt-card-text)",
           marginBottom: "10px",
         }}
       >
@@ -800,7 +798,7 @@ export function FinalRiskStatement({
           {keyDrivers.map((d, i) => (
             <div
               key={i}
-              style={{ fontSize: "11px", color: "#0F172A", marginBottom: "2px" }}
+              style={{ fontSize: "11px", color: "var(--rpt-card-text)", marginBottom: "2px" }}
             >
               {i + 1}. {d}
             </div>
@@ -820,7 +818,7 @@ export function FinalRiskStatement({
           }}
         >
           Required action:{" "}
-          <span style={{ fontWeight: 400, color: "#0F172A" }}>
+          <span style={{ fontWeight: 400, color: "var(--rpt-card-text)" }}>
             {nextSteps[0]}
           </span>
         </div>
@@ -895,7 +893,7 @@ export function DocumentExtractionTable({
   // Damage photos
   const photoCount: number = aiAssessment?.damagePhotoUrls?.length ?? 0;
   const photoStatus: string =
-    enforcement?._phase2?.photoStatus ?? "NOT_APPLICABLE";
+    enforcement?._phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
   docs.push({
     document: "Damage Photographs",
     status:
@@ -994,8 +992,8 @@ export function DocumentExtractionTable({
   return (
     <div
       style={{
-        background: "#FFFFFF",
-        border: "1px solid #E2E8F0",
+        background: "var(--rpt-card-bg)",
+        border: "1px solid var(--rpt-card-border)",
         borderRadius: "8px",
         padding: "16px",
         marginBottom: "16px",
@@ -1016,7 +1014,7 @@ export function DocumentExtractionTable({
             fontWeight: 700,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
-            color: "#0F172A",
+            color: "var(--rpt-card-text)",
           }}
         >
           Document Extraction Status
@@ -1071,14 +1069,14 @@ export function DocumentExtractionTable({
         style={{ width: "100%", borderCollapse: "collapse", fontSize: "11px" }}
       >
         <thead>
-          <tr style={{ background: "#F8FAFC" }}>
+          <tr style={{ background: "var(--rpt-subtle-bg)" }}>
             <th
               style={{
                 textAlign: "left",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
                 width: "28%",
               }}
             >
@@ -1088,9 +1086,9 @@ export function DocumentExtractionTable({
               style={{
                 textAlign: "center",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
                 width: "14%",
               }}
             >
@@ -1100,9 +1098,9 @@ export function DocumentExtractionTable({
               style={{
                 textAlign: "center",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
                 width: "14%",
               }}
             >
@@ -1112,9 +1110,9 @@ export function DocumentExtractionTable({
               style={{
                 textAlign: "left",
                 padding: "6px 8px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontWeight: 600,
-                borderBottom: "1px solid #E2E8F0",
+                borderBottom: "1px solid var(--rpt-card-border)",
               }}
             >
               Note
@@ -1125,11 +1123,11 @@ export function DocumentExtractionTable({
           {docs.map((doc, i) => {
             const sc = statusConfig[doc.status];
             return (
-              <tr key={i} style={{ borderBottom: "1px solid #F1F5F9" }}>
+              <tr key={i} style={{ borderBottom: "1px solid var(--rpt-table-row-border)" }}>
                 <td
                   style={{
                     padding: "6px 8px",
-                    color: "#0F172A",
+                    color: "var(--rpt-card-text)",
                     fontWeight: 500,
                   }}
                 >
@@ -1155,7 +1153,7 @@ export function DocumentExtractionTable({
                     padding: "6px 8px",
                     textAlign: "center",
                     fontFamily: "monospace",
-                    color: "#475569",
+                    color: "var(--rpt-muted-text)",
                   }}
                 >
                   {doc.confidence != null ? `${doc.confidence}%` : "—"}

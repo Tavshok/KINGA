@@ -121,7 +121,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
             >
               PHASE 1 DATA INTEGRITY
             </div>
-            <div style={{ fontSize: "10px", color: "#64748B", marginTop: "1px" }}>
+            <div style={{ fontSize: "10px", color: "var(--rpt-muted-text)", marginTop: "1px" }}>
               {corrections.length} auto-correction{corrections.length !== 1 ? "s" : ""} applied before assessment
             </div>
           </div>
@@ -163,7 +163,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
               {corrections.length}
             </span>
           )}
-          <span style={{ fontSize: "12px", color: "#475569" }}>{open ? "▲" : "▼"}</span>
+          <span style={{ fontSize: "12px", color: "var(--rpt-muted-text)" }}>{open ? "▲" : "▼"}</span>
         </div>
       </button>
 
@@ -183,7 +183,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  color: "#475569",
+                  color: "var(--rpt-muted-text)",
                   marginBottom: "6px",
                 }}
               >
@@ -199,8 +199,8 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                       gap: "8px",
                       padding: "5px 8px",
                       borderRadius: "4px",
-                      background: "#0F172A",
-                      border: "1px solid #1E293B",
+                      background: "var(--rpt-card-bg)",
+                      border: "1px solid var(--rpt-card-border)",
                     }}
                   >
                     <span
@@ -215,7 +215,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                     >
                       {String(i + 1).padStart(2, "0")}
                     </span>
-                    <span style={{ fontSize: "10px", color: "#94A3B8", lineHeight: "1.5" }}>
+                    <span style={{ fontSize: "10px", color: "var(--rpt-muted-text)", lineHeight: "1.5" }}>
                       {c}
                     </span>
                   </div>
@@ -227,7 +227,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
               style={{
                 marginTop: "10px",
                 fontSize: "10px",
-                color: "#475569",
+                color: "var(--rpt-muted-text)",
                 fontStyle: "italic",
               }}
             >
@@ -244,7 +244,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.08em",
-                  color: "#475569",
+                  color: "var(--rpt-muted-text)",
                   marginBottom: "6px",
                 }}
               >
@@ -259,10 +259,10 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                         style={{
                           fontSize: "9px",
                           fontWeight: 700,
-                          color: "#475569",
+                          color: "var(--rpt-muted-text)",
                           textAlign: "left",
                           padding: "4px 6px",
-                          borderBottom: "1px solid #1E293B",
+                          borderBottom: "1px solid var(--rpt-card-border)",
                           textTransform: "uppercase",
                           letterSpacing: "0.06em",
                         }}
@@ -285,7 +285,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                         <td
                           style={{
                             fontSize: "10px",
-                            color: "#94A3B8",
+                            color: "var(--rpt-muted-text)",
                             padding: "4px 6px",
                             borderBottom: "1px solid #0F172A",
                             fontFamily: "monospace",
@@ -308,7 +308,7 @@ export function Phase1CorrectionsPanel({ aiAssessment }: Phase1CorrectionsPanelP
                         <td
                           style={{
                             fontSize: "10px",
-                            color: "#64748B",
+                            color: "var(--rpt-muted-text)",
                             padding: "4px 6px",
                             borderBottom: "1px solid #0F172A",
                           }}
@@ -366,8 +366,8 @@ export function KeyDriversAdvisoriesPanel({
       style={{
         marginBottom: "12px",
         borderRadius: "8px",
-        border: "1px solid #1E293B",
-        background: "#0F172A",
+        border: "1px solid var(--rpt-card-border)",
+        background: "var(--rpt-card-bg)",
         overflow: "hidden",
       }}
     >
@@ -375,7 +375,7 @@ export function KeyDriversAdvisoriesPanel({
       <div
         style={{
           padding: "10px 14px",
-          borderBottom: "1px solid #1E293B",
+          borderBottom: "1px solid var(--rpt-card-border)",
           display: "flex",
           alignItems: "center",
           gap: "10px",
@@ -408,7 +408,7 @@ export function KeyDriversAdvisoriesPanel({
           >
             PHASE 2 DECISION DRIVERS & ADVISORIES
           </div>
-          <div style={{ fontSize: "10px", color: "#475569", marginTop: "1px" }}>
+          <div style={{ fontSize: "10px", color: "var(--rpt-muted-text)", marginTop: "1px" }}>
             Factors that shaped the final decision recommendation
           </div>
         </div>
@@ -426,7 +426,7 @@ export function KeyDriversAdvisoriesPanel({
         <div
           style={{
             padding: "12px 14px",
-            borderRight: "1px solid #1E293B",
+            borderRight: "1px solid var(--rpt-card-border)",
           }}
         >
           <div
@@ -435,14 +435,14 @@ export function KeyDriversAdvisoriesPanel({
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
-              color: "#475569",
+              color: "var(--rpt-muted-text)",
               marginBottom: "8px",
             }}
           >
             Key Drivers ({keyDrivers.length})
           </div>
           {keyDrivers.length === 0 ? (
-            <div style={{ fontSize: "10px", color: "#334155", fontStyle: "italic" }}>
+            <div style={{ fontSize: "10px", color: "var(--rpt-muted-text)", fontStyle: "italic" }}>
               No key drivers recorded
             </div>
           ) : (
@@ -466,7 +466,7 @@ export function KeyDriversAdvisoriesPanel({
                       marginTop: "5px",
                     }}
                   />
-                  <span style={{ fontSize: "10px", color: "#94A3B8", lineHeight: "1.5" }}>
+                  <span style={{ fontSize: "10px", color: "var(--rpt-muted-text)", lineHeight: "1.5" }}>
                     {d}
                   </span>
                 </div>
@@ -483,14 +483,14 @@ export function KeyDriversAdvisoriesPanel({
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
-              color: "#475569",
+              color: "var(--rpt-muted-text)",
               marginBottom: "8px",
             }}
           >
             Advisories ({advisories.length})
           </div>
           {advisories.length === 0 ? (
-            <div style={{ fontSize: "10px", color: "#334155", fontStyle: "italic" }}>
+            <div style={{ fontSize: "10px", color: "var(--rpt-muted-text)", fontStyle: "italic" }}>
               No advisories raised
             </div>
           ) : (
@@ -514,7 +514,7 @@ export function KeyDriversAdvisoriesPanel({
                       marginTop: "5px",
                     }}
                   />
-                  <span style={{ fontSize: "10px", color: "#94A3B8", lineHeight: "1.5" }}>
+                  <span style={{ fontSize: "10px", color: "var(--rpt-muted-text)", lineHeight: "1.5" }}>
                     {a}
                   </span>
                 </div>
@@ -529,8 +529,8 @@ export function KeyDriversAdvisoriesPanel({
         <div
           style={{
             padding: "10px 14px",
-            borderTop: "1px solid #1E293B",
-            background: "#0A0F1A",
+            borderTop: "1px solid var(--rpt-card-border)",
+            background: "var(--rpt-subtle-bg)",
           }}
         >
           <div
@@ -539,7 +539,7 @@ export function KeyDriversAdvisoriesPanel({
               fontWeight: 700,
               textTransform: "uppercase",
               letterSpacing: "0.08em",
-              color: "#475569",
+              color: "var(--rpt-muted-text)",
               marginBottom: "6px",
             }}
           >
@@ -559,8 +559,8 @@ export function KeyDriversAdvisoriesPanel({
                   fontSize: "10px",
                   padding: "3px 8px",
                   borderRadius: "4px",
-                  background: "#1E293B",
-                  color: "#94A3B8",
+                  background: "var(--rpt-subtle-bg)",
+                  color: "var(--rpt-muted-text)",
                   border: "1px solid #334155",
                 }}
               >
@@ -629,7 +629,7 @@ export function DataCompletenessRing({
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="#1E293B"
+            stroke="var(--rpt-card-border)"
             strokeWidth={strokeWidth}
           />
           {/* Progress */}
@@ -672,7 +672,7 @@ export function DataCompletenessRing({
           style={{
             fontSize: "9px",
             fontWeight: 700,
-            color: "#475569",
+            color: "var(--rpt-muted-text)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
             marginTop: "2px",
@@ -706,7 +706,7 @@ export function DataCompletenessRing({
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="#1E293B"
+            stroke="var(--rpt-card-border)"
             strokeWidth={strokeWidth}
           />
           <circle
@@ -760,7 +760,7 @@ export function DataCompletenessRing({
         <div
           style={{
             fontSize: "10px",
-            color: "#64748B",
+            color: "var(--rpt-muted-text)",
             marginTop: "3px",
             lineHeight: "1.5",
           }}
@@ -777,7 +777,7 @@ export function DataCompletenessRing({
             marginTop: "8px",
             height: "4px",
             borderRadius: "2px",
-            background: "#1E293B",
+            background: "var(--rpt-subtle-bg)",
             overflow: "hidden",
           }}
         >
@@ -795,7 +795,7 @@ export function DataCompletenessRing({
           style={{
             marginTop: "3px",
             fontSize: "9px",
-            color: "#334155",
+            color: "var(--rpt-muted-text)",
           }}
         >
           Phase 2 data completeness score: {clamped}/100

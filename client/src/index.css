@@ -1171,3 +1171,60 @@
     print-color-adjust: exact;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+ * KINGA Batch Report Components — theme-aware CSS variables
+ * Used by Batch1-4 components to support both light and dark mode
+ * ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Report card surfaces */
+  --rpt-card-bg:        var(--card);
+  --rpt-card-border:    var(--border);
+  --rpt-card-text:      var(--card-foreground);
+  --rpt-muted-text:     var(--muted-foreground);
+  --rpt-subtle-bg:      var(--fp-subtle-bg);
+  --rpt-subtle-border:  var(--fp-subtle-border);
+
+  /* Report header bar (dark in both modes — intentional brand element) */
+  --rpt-header-bg:      oklch(0.14 0.018 250);
+  --rpt-header-text:    oklch(0.93 0.006 250);
+  --rpt-header-border:  oklch(0.22 0.018 250);
+  --rpt-header-muted:   oklch(0.55 0.012 250);
+
+  /* Report section divider */
+  --rpt-divider-color:  var(--border);
+  --rpt-divider-text:   var(--muted-foreground);
+
+  /* Timeline dots */
+  --rpt-timeline-dot:   oklch(0.45 0.12 250);
+  --rpt-timeline-line:  var(--border);
+
+  /* Table rows */
+  --rpt-table-head-bg:  var(--muted);
+  --rpt-table-row-border: var(--border);
+  --rpt-table-text:     var(--foreground);
+  --rpt-table-muted:    var(--muted-foreground);
+}
+
+/* Light mode overrides (already correct via :root above) */
+
+/* Dark mode overrides */
+.dark {
+  --rpt-header-bg:      oklch(0.12 0.018 250);
+  --rpt-header-border:  oklch(0.20 0.018 250);
+}
+
+/* Print styles for report components */
+@media print {
+  .report-page-header {
+    position: static !important;
+    break-after: avoid;
+  }
+  .report-cover-card {
+    break-after: page;
+  }
+  details[open] summary ~ * {
+    display: block !important;
+  }
+}
