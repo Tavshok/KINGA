@@ -37,6 +37,13 @@ import {
   KINGAAuditTrail,
   runR7SanityChecks,
 } from "@/components/Phase3ReportComponents";
+import {
+  ExecutiveAuthorityCover,
+  VehicleDamageMap,
+  ComparativePatternTable,
+  ConstraintStatusMatrix,
+  DecisionFlowchart,
+} from "@/components/Batch1ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1319,6 +1326,9 @@ export default function ClaimDecisionReport() {
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
+        {/* v4.2 R1: Executive Authority Cover */}
+        <ExecutiveAuthorityCover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+
         {/* 0. Phase 3 R7 Sanity Check (runs silently — logs to console in dev) */}
         {(() => {
           const r7Decision: string =
@@ -1361,6 +1371,12 @@ export default function ClaimDecisionReport() {
         {/* 4. Damage & Impact + Cost Decision — two-column on wide screens */}
         <SectionHeading icon={Car} title="Damage Assessment & Cost Analysis" subtitle="Structural damage zones, component breakdown, and repair cost reconciliation" />
 
+        {/* v4.2 R2: Vehicle Damage Map */}
+        <VehicleDamageMap aiAssessment={aiAssessment} enforcement={enforcement} />
+
+        {/* v4.2 R3: Comparative Pattern Table */}
+        <ComparativePatternTable aiAssessment={aiAssessment} enforcement={enforcement} />
+
         {/* 4a. Phase 3 Component Heatmap (R3.3) */}
         <ComponentHeatmap aiAssessment={aiAssessment} enforcement={enforcement} />
 
@@ -1370,6 +1386,9 @@ export default function ClaimDecisionReport() {
         {/* 4c. Phase 3 Physics Consistency Gauge (R3.5) */}
         <PhysicsConsistencyGauge enforcement={enforcement} />
 
+        {/* v4.2 R4: Constraint Status Matrix */}
+        <ConstraintStatusMatrix enforcement={enforcement} />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <DamageImpact assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
           <CostDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
@@ -1378,6 +1397,9 @@ export default function ClaimDecisionReport() {
         {/* 5. Fraud & Risk Decision */}
         <SectionHeading icon={Shield} title="Fraud & Risk Assessment" subtitle="Weighted multi-factor fraud scoring with intelligence layer adjustments" />
         <FraudRiskDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
+
+        {/* v4.2 R5: Decision Flowchart */}
+        <DecisionFlowchart enforcement={enforcement} aiAssessment={aiAssessment} />
 
         {/* 5b. Confidence & Rule Trace */}
         {(enforcement as EnforcementResult).confidenceBreakdown && (
