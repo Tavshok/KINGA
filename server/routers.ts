@@ -2781,6 +2781,52 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           },
         });
 
+        // Run a lightweight Phase 2 pass using stored assessment data.
+        // This ensures the single authoritative verdict is always derived from
+        // the Phase 2 Decision Engine, even on the read path.
+        const { runPhase2: runP2Normalise } = await import('./phase2-decision-engine');
+        let p2NormDecision: 'APPROVE' | 'REVIEW' | 'ESCALATE' | 'REJECT' | null = null;
+        try {
+          // Parse damage photo URLs from damagePhotosJson
+          let byClaimPhotoUrls: string[] = [];
+          try {
+            if (assessment.damagePhotosJson) {
+              const parsed = typeof assessment.damagePhotosJson === 'string'
+                ? JSON.parse(assessment.damagePhotosJson)
+                : assessment.damagePhotosJson;
+              byClaimPhotoUrls = Array.isArray(parsed) ? parsed.filter((u: any) => typeof u === 'string') : [];
+            }
+          } catch { /* non-fatal */ }
+          // Parse physics data for consistency score
+          let byClaimPhysics: any = null;
+          try {
+            byClaimPhysics = assessment.physicsAnalysis
+              ? (typeof assessment.physicsAnalysis === 'string' ? JSON.parse(assessment.physicsAnalysis) : assessment.physicsAnalysis)
+              : null;
+          } catch { /* non-fatal */ }
+          const byClaimConsistency = byClaimPhysics?.damageConsistencyScore ?? 50;
+          const byClaimDeltaV = byClaimPhysics?.deltaVKmh ?? byClaimPhysics?.deltaV ?? 0;
+          const byClaimSeverity = assessment.structuralDamageSeverity ?? 'minor';
+          const byClaimFraudScore = assessment.fraudScore ? Number(assessment.fraudScore) : 0;
+          const p2Norm = runP2Normalise({
+            authoritativeTotalUsd: p1.authoritativeTotalUsd ?? (assessment.estimatedCost ? Number(assessment.estimatedCost) : 0),
+            incidentType: (assessment as any).incidentType ?? null,
+            incidentDescription: (assessment as any).accidentDescription ?? (assessment as any).incidentDescription ?? null,
+            photosDetected: byClaimPhotoUrls.length > 0 ? true : null,
+            photosProcessed: byClaimPhotoUrls.length > 0 ? true : null,
+            photosProcessedCount: byClaimPhotoUrls.length,
+            damagePhotoUrls: byClaimPhotoUrls,
+            policeReportNumber: (assessment as any).policeReportNumber ?? null,
+            repairerQuoteTotal: costIntelParsed?.documentedOriginalQuoteUsd ?? null,
+            deltaVKmh: Number(byClaimDeltaV),
+            physicsConsistencyScore: Number(byClaimConsistency),
+            structuralDamageSeverity: byClaimSeverity as string,
+            fraudScore: byClaimFraudScore,
+            vehicleMarketValueCents: null, // not available on read path without extra DB call
+          });
+          p2NormDecision = p2Norm.finalDecision;
+        } catch { /* non-fatal — falls back to pipeline verdict */ }
+
         const normalised = normaliseReportData({
           estimatedCost: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
           estimatedPartsCost: assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : null,
@@ -2793,6 +2839,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           fraudScoreBreakdownJson: fraudBreakdownParsed,
           causalVerdictJson: causalVerdictParsed,
           validatedOutcomeJson: validatedOutcomeParsed,
+          phase2Decision: p2NormDecision,
         });
 
         return {
@@ -3039,9 +3086,54 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           aiIndicators: fraudIndicators.map(i => ({ label: i.indicator, points: i.score })),
           multiSourceConflict,
         });
+        // Phase 2 — Decision & Consistency Engine
+        // Runs after all scoring engines so it has the final fraud score from
+        // the weighted engine. Produces the single authoritative decision.
+        const { runPhase2 } = await import('./phase2-decision-engine');
+        // Parse damage photo URLs from damagePhotosJson
+        let phase2DamagePhotoUrls: string[] = [];
+        try {
+          if (assessment.damagePhotosJson) {
+            const parsed = typeof assessment.damagePhotosJson === 'string'
+              ? JSON.parse(assessment.damagePhotosJson)
+              : assessment.damagePhotosJson;
+            phase2DamagePhotoUrls = Array.isArray(parsed) ? parsed.filter((u: any) => typeof u === 'string') : [];
+          }
+        } catch { /* non-fatal */ }
+        // Resolve vehicleMarketValue from the claims table (stored in cents)
+        let phase2MarketValueCents: number | null = null;
+        try {
+          const { claims: claimsTable } = await import('../drizzle/schema');
+          const { eq } = await import('drizzle-orm');
+          const db2 = await getDb();
+          if (db2) {
+            const [claimRow] = await db2.select({ vehicleMarketValue: claimsTable.vehicleMarketValue })
+              .from(claimsTable)
+              .where(eq(claimsTable.id, input.claimId))
+              .limit(1);
+            phase2MarketValueCents = claimRow?.vehicleMarketValue ?? null;
+          }
+        } catch { /* non-fatal */ }
+        const phase2 = runPhase2({
+          authoritativeTotalUsd: enforcementAiCost,
+          incidentType: (assessment as any).incidentType ?? null,
+          incidentDescription: (assessment as any).accidentDescription ?? (assessment as any).incidentDescription ?? null,
+          photosDetected: phase2DamagePhotoUrls.length > 0 ? true : null,
+          photosProcessed: phase2DamagePhotoUrls.length > 0 ? true : null,
+          photosProcessedCount: phase2DamagePhotoUrls.length,
+          damagePhotoUrls: phase2DamagePhotoUrls,
+          policeReportNumber: (assessment as any).policeReportNumber ?? null,
+          repairerQuoteTotal: primaryQuotedAmount > 0 ? primaryQuotedAmount : null,
+          deltaVKmh: Number(deltaVKmh),
+          physicsConsistencyScore: Number(consistencyScore),
+          structuralDamageSeverity: accidentSeverity,
+          fraudScore: weightedFraud.totalScore,
+          vehicleMarketValueCents: phase2MarketValueCents,
+        });
+
         // Stage 27: validate and auto-heal before sending to frontend
         // Include claimId so the AI_ASSESSMENT_CONTRACT critical field check passes
-        const rawResponse = { ...result, costExtraction, weightedFraud, claimId: input.claimId };
+        const rawResponse = { ...result, costExtraction, weightedFraud, _phase2: phase2, claimId: input.claimId };
         return validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
       }),
 

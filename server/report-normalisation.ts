@@ -137,6 +137,13 @@ export interface RawAssessmentData {
     recommendation?: string | null;
     verdict?: string | null;
   } | null;
+
+  /**
+   * Phase 2 single authoritative decision — if present, this is Priority 0
+   * and overrides all pipeline-stage verdicts. Set by the getEnforcement
+   * procedure after running runPhase2().
+   */
+  phase2Decision?: 'APPROVE' | 'REVIEW' | 'ESCALATE' | 'REJECT' | null;
 }
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -334,12 +341,16 @@ export function normaliseReportData(raw: RawAssessmentData): NormalisedReportDat
   // ── VERDICT ───────────────────────────────────────────────────────────────
   //
   // Priority:
+  //   0. phase2Decision (Phase 2 Decision Engine — single authoritative decision)
+  //      If present, this ALWAYS wins. All other sources are suppressed.
   //   1. recommendation DB column (populated from costDecision.recommendation)
   //   2. costIntelligenceJson.costDecision.recommendation
   //   3. causalVerdictJson.decision_outcome or .decision
   //   4. validatedOutcomeJson.recommendation
-  //   5. 'PENDING' (safe default)
+  //   5. fraud_threshold (derived from score >= 70)
+  //   6. 'PENDING' (safe default)
 
+  const v0 = raw.phase2Decision ? toVerdict(raw.phase2Decision) : null;
   const v1 = toVerdict(raw.recommendation);
   const v2 = toVerdict(ci?.costDecision?.recommendation);
   const v3 = toVerdict(raw.causalVerdictJson?.decision_outcome ?? raw.causalVerdictJson?.decision);
@@ -348,7 +359,11 @@ export function normaliseReportData(raw: RawAssessmentData): NormalisedReportDat
   let verdict: NormalisedVerdict;
   let verdictSource: VerdictSource;
 
-  if (v1) {
+  if (v0) {
+    // Phase 2 is the single authority — suppress all conflicting pipeline outputs
+    verdict = v0;
+    verdictSource = 'cost_decision'; // reuse existing VerdictSource type; Phase 2 subsumes all
+  } else if (v1) {
     verdict = v1;
     verdictSource = 'cost_decision';
   } else if (v2) {
