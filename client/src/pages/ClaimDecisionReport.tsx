@@ -27,6 +27,16 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { sanitiseField } from "@/lib/sanitise";
+import {
+  Phase3DecisionBox,
+  DataCompletenessDashboard,
+  ComponentHeatmap,
+  CostComparisonChart,
+  PhysicsConsistencyGauge,
+  PhotoGallery,
+  KINGAAuditTrail,
+  runR7SanityChecks,
+} from "@/components/Phase3ReportComponents";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1309,7 +1319,28 @@ export default function ClaimDecisionReport() {
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
-        {/* 0. Final Decision Banner (FINALISE / REVIEW / ESCALATE) */}
+        {/* 0. Phase 3 R7 Sanity Check (runs silently — logs to console in dev) */}
+        {(() => {
+          const r7Decision: string =
+            (enforcement as any)?._phase2?.finalDecision ??
+            (aiAssessment as any)?._normalised?.verdict?.recommendation ??
+            (enforcement as EnforcementResult)?.finalDecision?.decision ??
+            "REVIEW";
+          const checks = runR7SanityChecks(enforcement, aiAssessment, r7Decision);
+          const failed = checks.filter(c => !c.passed);
+          if (failed.length > 0 && import.meta.env.DEV) {
+            console.warn('[KINGA R7] Sanity check failures:', failed);
+          }
+          return null;
+        })()}
+
+        {/* 0a. Phase 3 Decision Box — single authoritative verdict (R3.1) */}
+        <Phase3DecisionBox enforcement={enforcement} aiAssessment={aiAssessment} />
+
+        {/* 0b. Data Completeness Dashboard (R3.2) */}
+        <DataCompletenessDashboard aiAssessment={aiAssessment} claim={claim} enforcement={enforcement} />
+
+        {/* 0c. Final Decision Banner (FINALISE / REVIEW / ESCALATE) — governance layer */}
         {(enforcement as EnforcementResult).finalDecision && (
           <FinalDecisionBanner
             finalDecision={(enforcement as EnforcementResult).finalDecision!}
@@ -1329,6 +1360,16 @@ export default function ClaimDecisionReport() {
 
         {/* 4. Damage & Impact + Cost Decision — two-column on wide screens */}
         <SectionHeading icon={Car} title="Damage Assessment & Cost Analysis" subtitle="Structural damage zones, component breakdown, and repair cost reconciliation" />
+
+        {/* 4a. Phase 3 Component Heatmap (R3.3) */}
+        <ComponentHeatmap aiAssessment={aiAssessment} enforcement={enforcement} />
+
+        {/* 4b. Phase 3 Cost Comparison Chart (R3.4) */}
+        <CostComparisonChart aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
+
+        {/* 4c. Phase 3 Physics Consistency Gauge (R3.5) */}
+        <PhysicsConsistencyGauge enforcement={enforcement} />
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
           <DamageImpact assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
           <CostDecision assessment={aiAssessment} enforcement={enforcement as EnforcementResult} quotes={quotesWithItems} />
@@ -1348,11 +1389,17 @@ export default function ClaimDecisionReport() {
           <RuleTracePanel ruleTrace={(enforcement as EnforcementResult).finalDecision!.ruleTrace} />
         ) : null}
 
+        {/* 5d. Phase 3 Photo Gallery (R3.6) — shown when photos were processed */}
+        <PhotoGallery aiAssessment={aiAssessment} enforcement={enforcement} />
+
         {/* 6. Collapsible Technical Data */}
         <SectionHeading icon={Zap} title="Technical & Supporting Data" subtitle="Physics engine output, delta-V, force estimates — expand for details" />
         <CollapsibleTechnicalData assessment={aiAssessment} enforcement={enforcement as EnforcementResult} />
 
-        {/* 7. Audit Trail */}
+        {/* 7. Phase 3 KINGA Audit Trail (R5) — Phase 1 corrections + Phase 2 decision log */}
+        <KINGAAuditTrail claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotesWithItems} />
+
+        {/* 7b. Audit Trail */}
         <SectionHeading icon={GitCompareArrows} title="Audit Trail & Decision History" subtitle="Immutable snapshots, version history, and logic drift detection" />
         {/* 7. Snapshot History */}
         {(snapshotHistory as any[]).length > 0 && (

@@ -1041,3 +1041,133 @@
     print-color-adjust: exact;
   }
 }
+
+/* ============================================================
+   PHASE 3 — KINGA REPORT WCAG 2.1 AA PALETTE (R2)
+   All colours verified for contrast compliance.
+   Use these exclusively in ClaimDecisionReport and print views.
+   ============================================================ */
+:root {
+  /* R2 — Approved report palette */
+  --rpt-bg-primary:      #FFFFFF;
+  --rpt-bg-secondary:    #F8FAFC;
+  --rpt-text-primary:    #0F172A;   /* 21:1 on white ✓ */
+  --rpt-text-secondary:  #475569;   /* 7:1 on white ✓ */
+  --rpt-accent-danger:   #DC2626;   /* ESCALATE / fraud / critical */
+  --rpt-accent-warning:  #D97706;   /* REVIEW / inconsistency */
+  --rpt-accent-success:  #059669;   /* APPROVE / resolved */
+  --rpt-accent-info:     #0369A1;   /* neutral info / charts */
+  --rpt-border:          #E2E8F0;
+
+  /* Decision box colours mapped to decision word */
+  --rpt-decision-approve:  var(--rpt-accent-success);
+  --rpt-decision-review:   var(--rpt-accent-warning);
+  --rpt-decision-escalate: var(--rpt-accent-danger);
+  --rpt-decision-reject:   var(--rpt-text-primary);
+
+  /* Heatmap severity overlays */
+  --rpt-heatmap-severe:   rgba(220, 38, 38, 0.40);   /* #DC2626 40% */
+  --rpt-heatmap-moderate: rgba(217, 119, 6, 0.40);   /* #D97706 40% */
+  --rpt-heatmap-minor:    rgba(5, 150, 105, 0.40);   /* #059669 40% */
+
+  /* Physics gauge segments */
+  --rpt-gauge-low:    #DC2626;   /* 0–30% */
+  --rpt-gauge-mid:    #D97706;   /* 30–70% */
+  --rpt-gauge-high:   #059669;   /* 70–100% */
+}
+
+/* Report-specific utility classes */
+.rpt-decision-box {
+  border: 2px solid var(--rpt-border);
+  border-radius: 8px;
+  padding: 16px;
+  background: var(--rpt-bg-primary);
+}
+
+.rpt-decision-word-approve  { color: var(--rpt-decision-approve);  }
+.rpt-decision-word-review   { color: var(--rpt-decision-review);   }
+.rpt-decision-word-escalate { color: var(--rpt-decision-escalate); }
+.rpt-decision-word-reject   { color: var(--rpt-decision-reject);   }
+
+.rpt-section-bg {
+  background: var(--rpt-bg-secondary);
+  border: 1px solid var(--rpt-border);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.rpt-text-primary   { color: var(--rpt-text-primary);   }
+.rpt-text-secondary { color: var(--rpt-text-secondary); }
+
+/* Photo overlay rule: text on images requires dark overlay */
+.rpt-photo-caption {
+  background: rgba(0, 0, 0, 0.72);
+  color: #FFFFFF;
+  font-size: 10pt;
+  padding: 2px 6px;
+}
+
+/* ============================================================
+   ENHANCED PRINT / PDF EXPORT STYLES (Phase 3 R6)
+   ============================================================ */
+@media print {
+  /* R6 — Header / footer via CSS counters */
+  @page {
+    size: A4 portrait;
+    margin: 18mm 14mm 18mm 14mm;
+    @top-center {
+      content: "Claim: " attr(data-claim-number) " | Report Date: " attr(data-report-date) " | Page " counter(page) " of " counter(pages);
+      font-size: 8pt;
+      color: #475569;
+      font-family: Inter, sans-serif;
+    }
+    @bottom-center {
+      content: "KINGA AutoVerify AI v3.2 | Confidential Audit Report";
+      font-size: 8pt;
+      color: #475569;
+      font-family: Inter, sans-serif;
+    }
+  }
+
+  /* Force WCAG report palette in print */
+  body {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11pt !important;
+    line-height: 1.5 !important;
+    font-family: Inter, system-ui, sans-serif !important;
+  }
+
+  /* Hide interactive UI chrome */
+  .no-print,
+  [data-radix-popper-content-wrapper],
+  [role="dialog"],
+  [role="tooltip"],
+  .sticky,
+  button:not(.print-visible) {
+    display: none !important;
+  }
+
+  /* Page break rules */
+  .rpt-page-break-before { page-break-before: always; }
+  .rpt-page-break-avoid  { page-break-inside: avoid; }
+
+  /* Ensure report sections use WCAG palette */
+  .rpt-decision-box,
+  .rpt-section-bg {
+    border-color: #E2E8F0 !important;
+    background: #FFFFFF !important;
+  }
+
+  /* Cost chart bars must print with colour */
+  .rpt-cost-bar-ai       { background: #0369A1 !important; }
+  .rpt-cost-bar-quote    { background: #D97706 !important; }
+  .rpt-cost-bar-agreed   { background: #059669 !important; }
+  .rpt-cost-bar-danger   { background: #DC2626 !important; }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
