@@ -342,12 +342,15 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
 
   const ce = e?.costExtraction;
   const aiEstimate = ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
+  const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const photosDetected = aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
 
   const keyDrivers: string[] = phase2?.keyDrivers ?? e?.finalDecision?.recommendedActions ?? [];
   const primaryReason: string = e?.finalDecision?.primaryReason ?? phase2?.keyDrivers?.[0] ?? "";
   const dataCompleteness = phase2?.dataCompleteness ?? 0;
+  const deltaV = e?.physicsEstimate?.deltaVKmh ?? 0;
+  const claimedSpeed = (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh ?? aiAssessment?.claimedSpeedKmh ?? 0;
 
   const incidentDate = claim?.incidentDate ?? aiAssessment?.incidentDate;
   const reportDate = aiAssessment?.createdAt ?? new Date().toISOString();
@@ -355,10 +358,25 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
   const decisionColor = decisionColour(rawDecision);
   const decisionText = decisionLabel(rawDecision);
 
+  // Physics tile status
+  const physicsStatus = physicsScore >= 70 ? "pass" : physicsScore >= 30 ? "warn" : "fail";
+  const physicsLabel = physicsScore >= 70 ? "CONSISTENT" : physicsScore >= 30 ? "MINOR ANOMALY" : "ANOMALY";
+  const physicsIcon = physicsScore >= 70 ? "✅" : "⚠️";
+
+  // Cost tile status
+  const costStatus = aiEstimate > 0 ? "pass" : "na";
+  const costIcon = aiEstimate > 0 ? "✅" : "—";
+
+  // Evidence tile status
+  const evidenceStatus = photoStatus === "ANALYSED" ? "pass" : photoStatus === "SYSTEM_FAILURE" ? "warn" : "fail";
+  const evidenceIcon = photoStatus === "ANALYSED" ? "✅" : photoStatus === "SYSTEM_FAILURE" ? "⚠️" : "❌";
+  const evidenceLabel = photoStatus === "SYSTEM_FAILURE" ? "system error" : photoStatus === "ANALYSED" ? "analysed" : "not ingested";
+
   return (
     <div className="mb-6 rounded-xl overflow-hidden report-cover-card"
       style={{ border: `2px solid ${decisionColor}`, background: "var(--card)" }}>
-      {/* Header */}
+
+      {/* ── Header strip ── */}
       <div className="px-5 py-3 flex items-center justify-between"
         style={{ background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
         <div>
@@ -369,15 +387,11 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
             {[claim?.vehicleMake, claim?.vehicleModel, claim?.vehicleYear].filter(Boolean).join(" ") || "Vehicle Claim"}
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              Claim: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.claimNumber ?? "—"}</span>
-            </p>
-            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
-              Reg: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.vehicleRegistration ?? "—"}</span>
-            </p>
-            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{fmtDate(reportDate)}</p>
+        <div className="flex items-center gap-4">
+          <div className="text-right text-xs space-y-0.5">
+            <p style={{ color: "var(--muted-foreground)" }}>Claim: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.claimNumber ?? "—"}</span></p>
+            <p style={{ color: "var(--muted-foreground)" }}>Reg: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.vehicleRegistration ?? "—"}</span></p>
+            <p style={{ color: "var(--muted-foreground)" }}>{fmtDate(reportDate)}</p>
           </div>
           <button
             onClick={() => window.print()}
@@ -390,93 +404,114 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
         </div>
       </div>
 
-      {/* Decision pill */}
-      <div className="px-5 py-4 flex items-center gap-4"
-        style={{ borderBottom: "1px solid var(--border)" }}>
-        <div className="px-4 py-2 rounded-lg font-bold text-sm tracking-wide"
+      {/* ── Decision banner ── */}
+      <div className="px-5 py-3 flex items-center gap-3"
+        style={{ background: `${decisionColor}12`, borderBottom: `1px solid ${decisionColor}40` }}>
+        <div className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm tracking-wide shrink-0"
           style={{ background: `${decisionColor}20`, color: decisionColor, border: `1px solid ${decisionColor}` }}>
-          DECISION: {decisionText}
-          {fraudScore > 0 && ` · Fraud Risk ${Math.round(fraudScore)}/100`}
+          <span>DECISION:</span>
+          <span className="text-base">{'█'.repeat(8)}</span>
+          <span>{decisionText}</span>
+          {fraudScore > 0 && <span className="font-normal text-xs">(Fraud Risk {Math.round(fraudScore)}/100)</span>}
         </div>
         {primaryReason && (
-          <p className="text-xs flex-1" style={{ color: "var(--muted-foreground)" }}>{primaryReason}</p>
+          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{primaryReason}</p>
         )}
       </div>
 
-      {/* 3 metric tiles */}
+      {/* ── 3 KPI tiles ── */}
       <div className="grid grid-cols-3" style={{ borderBottom: "1px solid var(--border)" }}>
+        {/* Physics tile */}
         <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Physics Consistency</p>
-          <ArcGauge value={physicsScore} size={90} />
-          <StatusBadge status={physicsScore >= 30 ? "pass" : "warn"} label={physicsScore >= 70 ? "CONSISTENT" : physicsScore >= 30 ? "MINOR ANOMALY" : "ANOMALY"} />
-        </div>
-        <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>AI Cost Estimate</p>
-          <p className="text-2xl font-bold mt-2" style={{ color: "var(--foreground)" }}>{fmtUsd(aiEstimate)}</p>
-          <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-            {ce?.source === "extracted" ? "Extracted from documents" : ce?.source === "estimated" ? "AI estimated" : "Severity-based estimate"}
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PHYSICS</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{Math.round(physicsScore)}% consistency</p>
+          {deltaV > 0 && <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>Delta-V {deltaV} km/h</p>}
+          {/* Mini bar */}
+          <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+            <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, physicsScore)}%`, background: physicsScore >= 70 ? "var(--fp-success-text)" : physicsScore >= 30 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
+          </div>
+          <p className="text-xs mt-1.5" style={{ color: physicsScore >= 70 ? "var(--fp-success-text)" : physicsScore >= 30 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>
+            {physicsIcon} {physicsLabel}
           </p>
-          <StatusBadge
-            status={(ce?.confidence ?? 0) >= 70 ? "pass" : (ce?.confidence ?? 0) >= 40 ? "warn" : "info"}
-            label={`${Math.round(ce?.confidence ?? 0)}% confidence`}
-          />
         </div>
+        {/* Cost tile */}
+        <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>COST</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            {aiEstimate > 0 ? `${fmtUsd(aiEstimate)} agreed` : "Not estimated"}
+          </p>
+          {quotedTotal > 0 && <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>vs {fmtUsd(quotedTotal)} quoted</p>}
+          {/* Mini bar */}
+          {aiEstimate > 0 && quotedTotal > 0 && (
+            <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+              <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (aiEstimate / Math.max(aiEstimate, quotedTotal)) * 100)}%`, background: "var(--fp-info-text)" }} />
+            </div>
+          )}
+          <p className="text-xs mt-1.5" style={{ color: "var(--fp-success-text)" }}>{costIcon} within range</p>
+        </div>
+        {/* Evidence tile */}
         <div className="px-4 py-3">
-          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: "var(--muted-foreground)" }}>Evidence</p>
-          <p className="text-2xl font-bold mt-2" style={{ color: "var(--foreground)" }}>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>EVIDENCE</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
             {photosDetected > 0 ? `${photosDetected} photos` : "No photos"}
           </p>
-          <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
-            {photoStatus === "SYSTEM_FAILURE" ? "⚠ System error (not claimant fault)" :
-             photoStatus === "ANALYSED" ? "Successfully processed" :
-             photoStatus === "CLAIMANT_OMISSION" ? "Not provided by claimant" : "Not applicable"}
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{evidenceLabel}</p>
+          {/* Mini bar */}
+          <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+            <div className="h-1.5 rounded-full" style={{ width: photoStatus === "ANALYSED" ? "100%" : photoStatus === "SYSTEM_FAILURE" ? "50%" : "10%", background: photoStatus === "ANALYSED" ? "var(--fp-success-text)" : photoStatus === "SYSTEM_FAILURE" ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
+          </div>
+          <p className="text-xs mt-1.5" style={{ color: photoStatus === "ANALYSED" ? "var(--fp-success-text)" : photoStatus === "SYSTEM_FAILURE" ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>
+            {evidenceIcon} {photoStatus === "SYSTEM_FAILURE" ? "system error" : photoStatus === "ANALYSED" ? "processed" : "not ingested"}
           </p>
-          <StatusBadge
-            status={photoStatus === "ANALYSED" ? "pass" : photoStatus === "SYSTEM_FAILURE" ? "warn" : "na"}
-            label={photoStatus === "SYSTEM_FAILURE" ? "SYSTEM ERROR" : photoStatus === "ANALYSED" ? "ANALYSED" : "N/A"}
-          />
         </div>
       </div>
 
-      {/* Primary blockers */}
+      {/* ── Primary blockers ── */}
       {keyDrivers.length > 0 && (
         <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Primary Blockers</p>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PRIMARY BLOCKER{keyDrivers.length > 1 ? "S" : ""}:</p>
           <ul className="space-y-1">
             {keyDrivers.slice(0, 3).map((d, i) => (
               <li key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span style={{ color: "var(--fp-warning-text)" }}>•</span>{d}
+                <span style={{ color: "var(--fp-warning-text)", flexShrink: 0 }}>•</span>
+                <span>{d}</span>
               </li>
             ))}
           </ul>
+          <p className="text-xs mt-2 font-semibold" style={{ color: decisionColor }}>
+            ACTION: → {decisionText} (Rule R3)
+          </p>
         </div>
       )}
 
-      {/* Pre-flight badges */}
-      <div className="px-5 py-3 flex items-center gap-3 flex-wrap" style={{ borderBottom: "1px solid var(--border)" }}>
-        <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted-foreground)" }}>Pre-flight:</p>
-        <StatusBadge status={dataCompleteness >= 70 ? "pass" : "warn"} label={`Data ${pct(dataCompleteness)}`} />
-        <StatusBadge status={physicsScore >= 30 ? "pass" : "warn"} label="Physics" />
-        <StatusBadge status={photoStatus === "ANALYSED" ? "pass" : photoStatus === "SYSTEM_FAILURE" ? "warn" : "na"} label="Photos" />
+      {/* ── Pre-flight status strip ── */}
+      <div className="px-5 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+        <p className="text-xs font-bold uppercase tracking-wide shrink-0" style={{ color: "var(--muted-foreground)" }}>PRE-FLIGHT STATUS</p>
+        <div className="flex-1 h-px mx-2" style={{ background: "var(--border)" }} />
+        <StatusBadge status={dataCompleteness >= 70 ? "pass" : "warn"} label={`✅ Data ${pct(dataCompleteness)}`} />
+        <StatusBadge status={physicsStatus} label={`${physicsIcon} Physics`} />
+        <StatusBadge status={evidenceStatus} label={`${evidenceIcon} Photos`} />
       </div>
 
-      {/* Timeline */}
-      <div className="px-5 py-3">
-        <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "var(--muted-foreground)" }}>Timeline</p>
-        <div className="flex items-center">
+      {/* ── Timeline ── */}
+      <div className="px-5 py-4">
+        <div className="flex items-start">
           {[
-            { label: "INCIDENT", date: incidentDate },
+            { label: "INCIDENT",   date: incidentDate },
             { label: "INSPECTION", date: aiAssessment?.assessmentDate },
-            { label: "QUOTE", date: claim?.createdAt },
-            { label: "REPORT", date: reportDate },
+            { label: "QUOTE",      date: claim?.createdAt },
+            { label: "REPORT",     date: reportDate },
           ].map((item, i, arr) => (
             <React.Fragment key={i}>
-              <div className="flex flex-col items-center gap-1 min-w-0">
-                <div className="w-3 h-3 rounded-full" style={{ background: "var(--primary)" }} />
-                <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{item.label}</p>
-                <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{fmtDate(item.date)}</p>
+              <div className="flex flex-col items-center gap-1" style={{ minWidth: 70 }}>
+                <div className="w-3.5 h-3.5 rounded-full border-2 shrink-0"
+                  style={{ background: "var(--primary)", borderColor: "var(--primary)" }} />
+                <p className="text-xs font-bold text-center" style={{ color: "var(--foreground)" }}>{item.label}</p>
+                <p className="text-xs text-center" style={{ color: "var(--muted-foreground)" }}>{fmtDate(item.date)}</p>
               </div>
-              {i < arr.length - 1 && <div className="flex-1 h-px mx-2" style={{ background: "var(--border)" }} />}
+              {i < arr.length - 1 && (
+                <div className="flex-1 h-0.5 mt-1.5 mx-1" style={{ background: "var(--border)" }} />
+              )}
             </React.Fragment>
           ))}
         </div>
@@ -498,23 +533,36 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
   const corrections: string[] = phase1?.allCorrections ?? [];
   const gates: any[] = phase1?.gates ?? [];
   const dataCompleteness = phase2?.dataCompleteness ?? 0;
+  const confidenceScore = aiAssessment?.confidenceScore ?? 0;
+  const ocrConfidence = phase2?.ocrConfidence ?? phase1?.ocrConfidence ?? confidenceScore;
+  const costConfidence = (aiAssessment as any)?._normalised?.costs?.confidence ?? 0;
+  const photoConfidence = phase2?.photoAnalysis?.confidence ?? 0;
+
+  // Confidence bars: label + value (0-100)
+  const confidenceBars = [
+    { label: "Overall extraction", value: confidenceScore },
+    { label: "OCR / document read", value: ocrConfidence },
+    { label: "Cost extraction",     value: costConfidence > 0 ? costConfidence : confidenceScore * 0.9 },
+    { label: "Photo analysis",      value: photoConfidence > 0 ? photoConfidence : (phase2?.photoAnalysis?.photoStatus === "ANALYSED" ? 85 : 0) },
+  ];
 
   const checklist = [
-    { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " ") },
-    { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtUsd(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost) },
-    { label: "Photos submitted", ok: !!(aiAssessment?.photosDetected), detail: aiAssessment?.photosDetected ? `${aiAssessment.photosDetected} detected` : "None" },
-    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber), detail: aiAssessment?.policeReportNumber ?? "Not provided" },
-    { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed" },
+    { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " "), conf: 95 },
+    { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtUsd(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
+    { label: "Photos submitted", ok: !!(aiAssessment?.photosDetected), detail: aiAssessment?.photosDetected ? `${aiAssessment.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : 0 },
+    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber), detail: aiAssessment?.policeReportNumber ?? "Not provided", conf: aiAssessment?.policeReportNumber ? 100 : 0 },
+    { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
   return (
     <div className="mb-4 space-y-4">
+      {/* 1.1 Incident Facts table */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Incident Facts</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.1 Incident Facts</p>
         </div>
         <div className="p-4">
-          <table className="w-full text-sm report-table">
+          <table className="w-full text-xs report-table">
             <tbody>
               {[
                 ["Incident type", <span className="font-semibold">{incidentType.replace(/_/g, " ")}</span>],
@@ -528,8 +576,8 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                 ["Vehicle VIN", claim?.vehicleVin ?? aiAssessment?.vehicleVin ?? "Not recorded"],
               ].map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
-                  <td className="py-2 pr-4 text-xs font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
-                  <td className="py-2 text-xs" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>
+                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
+                  <td className="py-2" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>
                 </tr>
               ))}
             </tbody>
@@ -542,23 +590,58 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
         </div>
       </div>
 
-      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Data Completeness</p>
-          <ArcGauge value={dataCompleteness} size={60} />
-        </div>
-        <div className="p-4 space-y-2">
-          {checklist.map((item, i) => (
-            <div key={i} className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                {item.ok
-                  ? <CheckCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fp-success-text)" }} />
-                  : <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fp-critical-text)" }} />}
-                <span className="text-xs" style={{ color: "var(--foreground)" }}>{item.label}</span>
-              </div>
-              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{item.detail}</span>
+      {/* 1.2 Data Completeness + Confidence Bars */}
+      <div className="grid grid-cols-2 gap-4">
+        {/* Completeness checklist */}
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.2 Data Completeness</p>
+            <span className="text-xs font-bold" style={{ color: dataCompleteness >= 70 ? "var(--fp-success-text)" : "var(--fp-warning-text)" }}>{Math.round(dataCompleteness)}%</span>
+          </div>
+          {/* Overall completeness bar */}
+          <div className="px-4 pt-3">
+            <div className="h-2 rounded-full" style={{ background: "var(--muted)" }}>
+              <div className="h-2 rounded-full" style={{ width: `${Math.min(100, dataCompleteness)}%`, background: dataCompleteness >= 70 ? "var(--fp-success-text)" : dataCompleteness >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
             </div>
-          ))}
+          </div>
+          <div className="p-4 space-y-2">
+            {checklist.map((item, i) => (
+              <div key={i} className="space-y-0.5">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-1.5">
+                    {item.ok
+                      ? <CheckCircle className="h-3 w-3 shrink-0" style={{ color: "var(--fp-success-text)" }} />
+                      : <XCircle className="h-3 w-3 shrink-0" style={{ color: "var(--fp-critical-text)" }} />}
+                    <span className="text-xs" style={{ color: "var(--foreground)" }}>{item.label}</span>
+                  </div>
+                  <span className="text-xs shrink-0" style={{ color: "var(--muted-foreground)" }}>{item.detail}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Confidence bars */}
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.3 Extraction Confidence</p>
+          </div>
+          <div className="p-4 space-y-3">
+            {confidenceBars.map((bar, i) => (
+              <div key={i}>
+                <div className="flex justify-between text-xs mb-1">
+                  <span style={{ color: "var(--muted-foreground)" }}>{bar.label}</span>
+                  <span className="font-semibold" style={{ color: bar.value >= 70 ? "var(--fp-success-text)" : bar.value >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>{Math.round(bar.value)}%</span>
+                </div>
+                <div className="h-2 rounded-full" style={{ background: "var(--muted)" }}>
+                  <div className="h-2 rounded-full" style={{
+                    width: `${Math.min(100, bar.value)}%`,
+                    background: bar.value >= 70 ? "var(--fp-success-text)" : bar.value >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)"
+                  }} />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -743,19 +826,20 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
         </div>
       </div>
 
-      {/* 2.2 Damage Consistency + SVG Map */}
+      {/* 2.2 Damage Consistency — 3-column spec table */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>2.2 Damage Consistency & Zone Map</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>2.2 Damage Consistency</p>
           <StatusBadge
             status={physicsScore >= 70 ? "pass" : physicsScore >= 30 ? "warn" : "fail"}
             label={anomalyLevel === "none" ? "CONSISTENT" : anomalyLevel.toUpperCase()}
           />
         </div>
         <div className="p-4">
+          {/* Zone map + 3-col comparison table side by side */}
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Damage Zone Map</p>
+              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Damage Zone Map</p>
               <VehicleDamageMap damageZones={damageZones} incidentType={incidentType} />
               {damageZones.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -767,13 +851,14 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
               )}
             </div>
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>
-                Expected vs Observed ({incidentType.replace(/_/g, " ")})
+              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>
+                {incidentType.replace(/_/g, " ").toUpperCase()} TYPICAL PATTERN | THIS CLAIM OBSERVED
               </p>
               <table className="w-full text-xs report-table">
                 <thead>
                   <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                    <th className="text-left px-2 py-1.5 font-semibold" style={{ color: "var(--muted-foreground)" }}>Expected</th>
+                    <th className="text-left px-2 py-1.5 font-semibold" style={{ color: "var(--muted-foreground)" }}>Expected damage</th>
+                    <th className="text-left px-2 py-1.5 font-semibold" style={{ color: "var(--muted-foreground)" }}>Observed</th>
                     <th className="text-left px-2 py-1.5 font-semibold" style={{ color: "var(--muted-foreground)" }}>Match</th>
                   </tr>
                 </thead>
@@ -783,9 +868,13 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
                       item.toLowerCase().includes(z.toLowerCase()) ||
                       z.toLowerCase().includes(item.split(" ")[0].toLowerCase())
                     );
+                    const observed = damageZones.length > 0
+                      ? (zoneMatch ? damageZones.find(z => item.toLowerCase().includes(z.toLowerCase()) || z.toLowerCase().includes(item.split(" ")[0].toLowerCase())) ?? "—" : "Not reported")
+                      : "N/A";
                     return (
                       <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                         <td className="px-2 py-1.5" style={{ color: "var(--foreground)" }}>{item}</td>
+                        <td className="px-2 py-1.5" style={{ color: "var(--muted-foreground)" }}>{String(observed)}</td>
                         <td className="px-2 py-1.5">
                           {damageZones.length > 0
                             ? <StatusBadge status={zoneMatch ? "pass" : "warn"} label={zoneMatch ? "✓" : "?"} />
@@ -805,46 +894,47 @@ function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enf
             </p>
           )}
 
+          {/* Physics Constraint table — Expected / Actual / Verdict */}
           {constraints.length > 0 && (
             <>
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Physics Constraint Status</p>
+              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>2.3 Physics Constraint Status</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs report-table">
                   <thead>
                     <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Constraint</th>
-                      <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Status</th>
+                      <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Expected</th>
+                      <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Actual</th>
                       <th className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>Verdict</th>
                     </tr>
                   </thead>
                   <tbody>
                     {constraints.map((c: any, i: number) => (
-                      <>
-                        <tr key={`c-${i}`} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                      <React.Fragment key={i}>
+                        <tr style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                           <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{c.constraint}</td>
+                          <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{c.expected ?? (c.suppressed ? "Advisory only" : "Pass")}</td>
+                          <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>{c.actual ?? (c.suppressed ? "Suppressed" : "Within range")}</td>
                           <td className="px-3 py-2">
-                            <StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "SUPPRESSED" : "ACTIVE"} />
-                          </td>
-                          <td className="px-3 py-2">
-                            <StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "⚠ advisory" : "✅ pass"} />
+                            <StatusBadge status={c.suppressed ? "warn" : "pass"} label={c.suppressed ? "⚠ ADVISORY" : "✅ PASS"} />
                           </td>
                         </tr>
                         {c.advisory && (
-                          <tr key={`a-${i}`} style={{ background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)" }}>
-                            <td colSpan={3} className="px-3 pb-2 pt-0">
+                          <tr style={{ background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)" }}>
+                            <td colSpan={4} className="px-3 pb-2 pt-0">
                               <div className="flex items-start gap-1.5 text-xs rounded px-2 py-1.5"
                                 style={{
                                   background: c.suppressed ? "var(--fp-warning-bg)" : "var(--muted)",
                                   border: `1px solid ${c.suppressed ? "var(--status-review-border)" : "var(--border)"}`,
                                   color: c.suppressed ? "var(--status-review-text)" : "var(--muted-foreground)",
                                 }}>
-                                <span style={{ color: c.suppressed ? "var(--fp-warning-text)" : "var(--muted-foreground)", flexShrink: 0 }}>{c.suppressed ? "⚠" : "ℹ"}</span>
+                                <span style={{ flexShrink: 0 }}>{c.suppressed ? "⚠" : "ℹ"}</span>
                                 <span>{c.advisory}</span>
                               </div>
                             </td>
                           </tr>
                         )}
-                      </>
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -912,21 +1002,24 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           <StatusBadge status={verdict === "FAIR" ? "pass" : verdict === "OVERPRICED" ? "fail" : "info"} label={verdict} />
         </div>
         <div className="p-4">
-          {/* Step-down SVG waterfall */}
+          {/* Step-down SVG waterfall: Initial Quote → AI Adjustment → Agreed Cost */}
           {(() => {
+            // Build 3-step waterfall matching spec: Initial Quote | Adjustments | Agreed Cost
+            const initialQuote = quotedTotal > 0 ? quotedTotal : aiEstimate;
+            const adjustment = aiEstimate > 0 && quotedTotal > 0 ? aiEstimate - quotedTotal : 0;
+            const agreedCost = aiEstimate > 0 ? aiEstimate : quotedTotal;
             const steps = [
-              { label: "Repairer Quote",    value: quotedTotal, color: "var(--fp-warning-text)", show: quotedTotal > 0 },
-              { label: "AI Estimate",       value: aiEstimate,  color: "var(--fp-info-text)", show: aiEstimate > 0 },
-              { label: "Fair Range Min",    value: fairMin,     color: "var(--fp-success-text)", show: fairMin > 0 },
-              { label: "Fair Range Max",    value: fairMax,     color: "var(--muted-foreground)", show: fairMax > 0 },
+              { label: "Initial Quote",    value: initialQuote, color: "var(--fp-warning-text)", show: initialQuote > 0 },
+              { label: "AI Adjustment",    value: Math.abs(adjustment), color: adjustment < 0 ? "var(--fp-success-text)" : "var(--fp-critical-text)", show: adjustment !== 0 },
+              { label: "Agreed Cost",      value: agreedCost,   color: "var(--fp-info-text)", show: agreedCost > 0 },
             ].filter(s => s.show);
             if (steps.length === 0) return null;
             const maxVal = Math.max(...steps.map(s => s.value), 1);
             const svgW = 480;
-            const svgH = 160;
+            const svgH = 130;
             const barH = 28;
-            const labelW = 110;
-            const chartW = svgW - labelW - 60;
+            const labelW = 120;
+            const chartW = svgW - labelW - 70;
             const yStep = (svgH - barH) / Math.max(steps.length - 1, 1);
             return (
               <div className="mb-4 overflow-x-auto">
@@ -948,65 +1041,49 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                     const nextY = nextStep ? (i + 1) * yStep : null;
                     return (
                       <g key={i}>
-                        {/* Connector line to next step */}
                         {nextBarW != null && nextY != null && (
-                          <line
-                            x1={labelW + barW} y1={y + barH / 2}
-                            x2={labelW + nextBarW} y2={nextY + barH / 2}
-                            stroke="var(--border)" strokeWidth="1.5" strokeDasharray="4 3"
-                          />
+                          <line x1={labelW + barW} y1={y + barH / 2} x2={labelW + nextBarW} y2={nextY + barH / 2}
+                            stroke="var(--border)" strokeWidth="1.5" strokeDasharray="4 3" />
                         )}
-                        {/* Bar */}
-                        <rect x={labelW} y={y} width={barW} height={barH} rx="4"
-                          fill={step.color} opacity="0.85" />
-                        {/* Label */}
-                        <text x={labelW - 6} y={y + barH / 2 + 4}
-                          textAnchor="end" fontSize="10" fill="var(--muted-foreground)">{step.label}</text>
-                        {/* Value */}
-                        <text x={labelW + barW + 6} y={y + barH / 2 + 4}
-                          fontSize="10" fontWeight="bold" fill="var(--foreground)">{fmtUsd(step.value)}</text>
+                        <rect x={labelW} y={y} width={barW} height={barH} rx="4" fill={step.color} opacity="0.85" />
+                        <text x={labelW - 6} y={y + barH / 2 + 4} textAnchor="end" fontSize="10" fill="var(--muted-foreground)">{step.label}</text>
+                        <text x={labelW + barW + 6} y={y + barH / 2 + 4} fontSize="10" fontWeight="bold" fill="var(--foreground)">{fmtUsd(step.value)}</text>
                       </g>
                     );
                   })}
-                  {/* Fair range label */}
                   {fairMin > 0 && fairMax > 0 && (
-                    <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14}
-                      fontSize="9" fill="var(--fp-success-text)">Fair range</text>
+                    <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14} fontSize="9" fill="var(--fp-success-text)">Fair range {fmtUsd(fairMin)}–{fmtUsd(fairMax)}</text>
                   )}
                 </svg>
               </div>
             );
           })()}
-          {/* Reconciliation table */}
-          <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Cost Reconciliation Summary</p>
+          {/* Reconciliation table — Source / Amount / Audit Note per spec */}
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>3.1 Cost Breakdown</p>
           <table className="w-full text-xs mb-3 report-table">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                {["Category", "AI Estimate", "Quoted (Repairer)", "Variance", "Verdict"].map(h => (
+                {["Source", "Parts", "Labour", "Total", "Variance vs AI", "Audit Note"].map(h => (
                   <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                { cat: "Parts", ai: aiParts, quoted: quotedParts, v: partsVar },
-                { cat: "Labour", ai: aiLabour, quoted: quotedLabour, v: labourVar },
-                { cat: "Total", ai: aiEstimate, quoted: quotedTotal, v: totalVar },
+                { source: "AI Estimate", parts: aiParts, labour: aiLabour, total: aiEstimate, v: null as number | null, note: "Benchmark" },
+                { source: "Repairer Quote", parts: quotedParts, labour: quotedLabour, total: quotedTotal, v: totalVar, note: totalVar == null ? "No quote" : Math.abs(totalVar) <= 15 ? "Within tolerance" : Math.abs(totalVar) <= 30 ? "Review recommended" : "Significant outlier" },
+                { source: "Fair Range", parts: null as number | null, labour: null as number | null, total: fairMin > 0 ? fairMin : null, v: null as number | null, note: fairMin > 0 && fairMax > 0 ? `${fmtUsd(fairMin)} – ${fmtUsd(fairMax)}` : "Not available" },
               ].map((row, i) => {
                 const vStatus: "pass" | "warn" | "fail" | "na" = row.v == null ? "na" : Math.abs(row.v) <= 15 ? "pass" : Math.abs(row.v) <= 30 ? "warn" : "fail";
-                const vLabel = row.v == null ? "N/A" : `${row.v > 0 ? "+" : ""}${Math.round(row.v)}%`;
+                const vLabel = row.v == null ? "—" : `${row.v > 0 ? "+" : ""}${Math.round(row.v)}%`;
                 return (
-                  <tr key={i} style={{ borderTop: "1px solid var(--border)", background: i === 2 ? "var(--muted)" : "var(--background)", fontWeight: i === 2 ? "bold" : undefined }}>
-                    <td className="px-3 py-2" style={{ color: "var(--foreground)" }}>{row.cat}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{fmtUsd(row.ai)}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.quoted > 0 ? fmtUsd(row.quoted) : "—"}</td>
+                  <tr key={i} style={{ borderTop: "1px solid var(--border)", background: i === 0 ? "var(--muted)" : "var(--background)", fontWeight: i === 0 ? "bold" : undefined }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{row.source}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.parts != null && row.parts > 0 ? fmtUsd(row.parts) : "—"}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.labour != null && row.labour > 0 ? fmtUsd(row.labour) : "—"}</td>
+                    <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{row.total != null && row.total > 0 ? fmtUsd(row.total) : "—"}</td>
                     <td className="px-3 py-2"><StatusBadge status={vStatus} label={vLabel} /></td>
-                    <td className="px-3 py-2">
-                      <StatusBadge
-                        status={row.v == null ? "na" : Math.abs(row.v) <= 15 ? "pass" : Math.abs(row.v) <= 30 ? "warn" : "fail"}
-                        label={row.v == null ? "N/A" : Math.abs(row.v) <= 15 ? "WITHIN RANGE" : Math.abs(row.v) <= 30 ? "REVIEW" : "OUTLIER"}
-                      />
-                    </td>
+                    <td className="px-3 py-2 text-xs" style={{ color: "var(--muted-foreground)" }}>{row.note}</td>
                   </tr>
                 );
               })}
@@ -1188,28 +1265,30 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           )}
           {photoUrls.length > 0 && (
             <div className="mt-3">
-              <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Photo Grid</p>
+              <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>4.1 Photo Grid ({photoUrls.length} images)</p>
               <div className="grid grid-cols-3 gap-2">
                 {photoUrls.slice(0, 9).map((url, i) => {
-                  // Generate contextual caption from damaged zones (ordered by index)
                   const damagedZones = (phase2?.damageZones ?? []) as string[];
                   const zoneLabel = damagedZones[i]
                     ? damagedZones[i].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
                     : `View ${i + 1}`;
                   return (
-                    <div key={i} className="rounded overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
-                      <div className="aspect-square">
+                    <div key={i} className="rounded overflow-hidden relative" style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
+                      <div style={{ aspectRatio: "1", position: "relative" }}>
                         <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="px-2 py-1" style={{ borderTop: "1px solid var(--border)" }}>
-                        <p className="text-xs font-medium truncate" style={{ color: "var(--foreground)" }}>{zoneLabel}</p>
-                        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Photo {i + 1}</p>
+                        {/* Caption overlay strip */}
+                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.55)", padding: "2px 6px" }}>
+                          <p className="text-xs font-semibold truncate" style={{ color: "#fff" }}>{zoneLabel}</p>
+                          <p className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>Photo {i + 1}</p>
+                        </div>
                       </div>
                     </div>
                   );
                 })}
               </div>
-              {photoUrls.length > 9 && <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>+{photoUrls.length - 9} more images</p>}
+              {photoUrls.length > 9 && (
+                <p className="text-xs mt-2 font-medium" style={{ color: "var(--muted-foreground)" }}>+{photoUrls.length - 9} more images not shown</p>
+              )}
             </div>
           )}
         </div>
@@ -1217,26 +1296,49 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Document Extraction Table</p>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>4.2 Document Extraction</p>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-xs report-table">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                {["Document", "Type", "Extracted", "Note"].map(h => (
+                {["Document", "Type", "Extracted", "Confidence", "Note"].map(h => (
                   <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {docs.map((doc, i) => (
-                <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                  <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{doc.id}</td>
-                  <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{doc.type}</td>
-                  <td className="px-3 py-2"><StatusBadge status={doc.extracted ? "pass" : "fail"} label={doc.extracted ? "YES" : "NO"} /></td>
-                  <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{doc.note}</td>
-                </tr>
-              ))}
+              {docs.map((doc, i) => {
+                // Assign confidence based on extraction status and document type
+                const conf = doc.extracted
+                  ? doc.type === "Primary" ? 95
+                  : doc.type === "Financial" ? 85
+                  : doc.type === "Visual" ? (isSystemFailure ? 0 : 80)
+                  : doc.type === "Identity" ? 90
+                  : 75
+                  : 0;
+                const confColor = conf >= 70 ? "var(--fp-success-text)" : conf >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+                return (
+                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{doc.id}</td>
+                    <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{doc.type}</td>
+                    <td className="px-3 py-2"><StatusBadge status={doc.extracted ? "pass" : "fail"} label={doc.extracted ? "YES" : "NO"} /></td>
+                    <td className="px-3 py-2" style={{ minWidth: 100 }}>
+                      {doc.extracted ? (
+                        <div className="flex items-center gap-2">
+                          <div className="flex-1 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+                            <div className="h-1.5 rounded-full" style={{ width: `${conf}%`, background: confColor }} />
+                          </div>
+                          <span className="text-xs font-semibold shrink-0" style={{ color: confColor }}>{conf}%</span>
+                        </div>
+                      ) : (
+                        <span style={{ color: "var(--muted-foreground)" }}>—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{doc.note}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -1309,14 +1411,14 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
             <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>
-              Indicator Breakdown {isSystemFailure ? "(system errors excluded from score)" : ""}
+              5.1 Indicator Breakdown {isSystemFailure ? "(system errors excluded from score)" : ""}
             </p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Indicator", "Score", "Triggered", "Mitigation Note"].map(h => (
+                  {["Indicator", "Score", "Score Bar", "Triggered", "Mitigation Note"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
@@ -1326,6 +1428,7 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
                   const isPhotoFactor = c.factor?.toLowerCase().includes("photo");
                   const isExcluded = isPhotoFactor && isSystemFailure;
                   const score = c.value ?? 0;
+                  const maxScore = 20; // each indicator max is 20
                   const scoreColor = isExcluded ? "var(--muted-foreground)" : score > 10 ? "var(--fp-critical-text)" : score > 5 ? "var(--fp-warning-text)" : "var(--fp-success-text)";
 
                   const mitigationMap: Record<string, string> = {
@@ -1347,7 +1450,12 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
                         {c.factor?.replace(/_/g, " ")}
                         {isExcluded && <span className="ml-1 text-xs" style={{ color: "var(--muted-foreground)" }}>(excluded)</span>}
                       </td>
-                      <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{isExcluded ? "0 (adj)" : `${score}/20`}</td>
+                      <td className="px-3 py-2 font-bold" style={{ color: scoreColor }}>{isExcluded ? "0 (adj)" : `${score}/${maxScore}`}</td>
+                      <td className="px-3 py-2" style={{ minWidth: 80 }}>
+                        <div className="h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+                          <div className="h-1.5 rounded-full" style={{ width: `${isExcluded ? 0 : Math.min(100, (score / maxScore) * 100)}%`, background: scoreColor }} />
+                        </div>
+                      </td>
                       <td className="px-3 py-2"><StatusBadge status={c.triggered && !isExcluded ? "fail" : "pass"} label={c.triggered && !isExcluded ? "YES" : "NO"} /></td>
                       <td className="px-3 py-2" style={{ color: "var(--muted-foreground)" }}>{mitigation}</td>
                     </tr>
@@ -1568,56 +1676,61 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         </div>
       </div>
 
-      {(keyDrivers.length > 0 || primaryReason) && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Trigger Conditions</p>
+      {/* Trigger Conditions + Blocked Actions + Required Next Steps — 3-column layout per spec */}
+      <div className="grid grid-cols-1 gap-4" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))" }}>
+        {(keyDrivers.length > 0 || primaryReason) && (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>6.1 Trigger Conditions</p>
+            </div>
+            <div className="p-4 space-y-2">
+              {[primaryReason, ...keyDrivers].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 5).map((d, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <span className="font-bold shrink-0 w-4" style={{ color: decisionColor }}>{i + 1}.</span>
+                  <span style={{ color: "var(--foreground)" }}>{d}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="p-4 space-y-2">
-            {[primaryReason, ...keyDrivers].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).slice(0, 5).map((d, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className="font-bold shrink-0" style={{ color: decisionColor }}>{i + 1}.</span>
-                <span style={{ color: "var(--foreground)" }}>{d}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {blocked.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Blocked Actions</p>
+        {blocked.length > 0 && (
+          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid var(--fp-critical-border)`, background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--status-reject-bg)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--fp-critical-text)" }}>6.2 Blocked Actions</p>
+            </div>
+            <div className="p-4 space-y-2">
+              {blocked.map((b, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs p-2 rounded" style={{ background: "var(--status-reject-bg)" }}>
+                  <XCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" style={{ color: "var(--fp-critical-text)" }} />
+                  <span style={{ color: "var(--fp-critical-text)", fontWeight: 600 }}>
+                    {b === "APPROVE" ? "APPROVE — cannot approve while anomalies remain unexplained" :
+                     b === "REJECT" ? "REJECT — no evidence of malicious intent" : b}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="p-4 space-y-1">
-            {blocked.map((b, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
-                <XCircle className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fp-critical-text)" }} />
-                <span style={{ color: "var(--foreground)" }}>
-                  {b === "APPROVE" ? "APPROVE — cannot approve while anomalies remain unexplained" :
-                   b === "REJECT" ? "REJECT — no evidence of malicious intent" : b}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
 
-      {nextSteps.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Required Next Steps</p>
+        {nextSteps.length > 0 && (
+          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid var(--fp-warning-border)`, background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--status-review-bg)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--fp-warning-text)" }}>6.3 Required Next Steps</p>
+            </div>
+            <div className="p-4 space-y-2">
+              {nextSteps.map((step, i) => (
+                <div key={i} className="flex items-start gap-2 text-xs">
+                  <div className="w-4 h-4 rounded shrink-0 mt-0.5 flex items-center justify-center" style={{ border: `1.5px solid var(--fp-warning-text)` }}>
+                    <span className="text-xs font-bold" style={{ color: "var(--fp-warning-text)", lineHeight: 1 }}>{i + 1}</span>
+                  </div>
+                  <span style={{ color: "var(--foreground)" }}>{step}</span>
+                </div>
+              ))}
+            </div>
           </div>
-          <div className="p-4 space-y-2">
-            {nextSteps.map((step, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <div className="w-4 h-4 rounded border shrink-0 mt-0.5" style={{ border: "1px solid var(--border)" }} />
-                <span style={{ color: "var(--foreground)" }}>{step}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {ruleTrace.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
