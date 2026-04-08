@@ -672,22 +672,13 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
-                  generateComparisonPDF(pdfData);
-                  toast.success("PDF report downloaded successfully");
+                  // Navigate to the Decision Report (ForensicAuditReport) for PDF export
+                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
+                  toast.success("Opening Decision Report for PDF export...");
                 }}
               >
                 <Download className="mr-2 h-4 w-4" />
-                Download PDF
-              </Button>
-              {/* Print / Save as PDF — renders page exactly as displayed */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => window.print()}
-                title="Print or Save as PDF"
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Print / PDF
+                Export PDF
               </Button>
               <ThemeToggle />
               <Button
@@ -873,7 +864,10 @@ export default function InsurerComparisonView() {
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Vehicle diagram with highlighted damage zones, severity labels, and impacted parts</p>
               </div>
               {aiAssessment && (
-                <Button variant="outline" size="sm" onClick={() => handleExportDamageReport(aiAssessment, claim)} className="gap-2"
+                <Button variant="outline" size="sm" onClick={() => {
+                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
+                  toast.success("Opening Decision Report for PDF export...");
+                }} className="gap-2"
                   style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'transparent' }}>
                   <Download className="h-4 w-4" /> Export PDF
                 </Button>
@@ -1308,7 +1302,10 @@ export default function InsurerComparisonView() {
                 aiAssessment={aiAssessment as any}
                 claim={claim as any}
                 assessorValidated={!!(claim as any)?.assessorId}
-                onExport={() => window.print()}
+                onExport={() => {
+                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
+                  toast.success("Opening Decision Report for PDF export...");
+                }}
               />
             </div>
           </div>

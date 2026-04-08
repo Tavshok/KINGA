@@ -1186,6 +1186,14 @@
     font-family: Inter, system-ui, sans-serif !important;
   }
 
+  /* Show print-only header */
+  .print-report-header {
+    display: block !important;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
   /* Hide interactive UI chrome */
   .no-print,
   [data-radix-popper-content-wrapper],

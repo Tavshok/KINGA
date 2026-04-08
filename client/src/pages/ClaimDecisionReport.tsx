@@ -1253,6 +1253,23 @@ export default function ClaimDecisionReport() {
     onError: (err) => toast.error(`Failed: ${err.message}`),
   });
 
+  // Auto-print when navigated from Comparison View with ?print=1
+  useEffect(() => {
+    if (!claim || !aiAssessment || !enforcement) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('print') === '1') {
+      // Small delay to let the report fully render before triggering print
+      const timer = setTimeout(() => {
+        window.print();
+        // Clean the URL so refreshing doesn't re-trigger print
+        const url = new URL(window.location.href);
+        url.searchParams.delete('print');
+        window.history.replaceState({}, '', url.pathname);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [claim, aiAssessment, enforcement]);
+
   // Print header data attributes — MUST be before any early returns (Rules of Hooks)
   useEffect(() => {
     if (!claim) return;
@@ -1324,6 +1341,21 @@ export default function ClaimDecisionReport() {
         onReRun={() => reRunMutation.mutate({ claimId })}
         reRunPending={reRunMutation.isPending}
       />
+
+      {/* Print-only header — visible only in @media print */}
+      <div className="print-report-header" style={{ display: 'none' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0D7377', paddingBottom: '8px', marginBottom: '12px' }}>
+          <div>
+            <div style={{ fontSize: '14pt', fontWeight: 700, color: '#0D7377' }}>KINGA AutoVerify AI</div>
+            <div style={{ fontSize: '9pt', color: '#475569' }}>Forensic Claim Decision Report v4.2</div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '9pt', color: '#475569' }}>
+            <div>Claim: <strong>{claim.claimNumber ?? claim.id}</strong></div>
+            <div>Report Date: {new Date().toLocaleDateString('en-ZA', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+            <div>Vehicle: {vehicleTitle}</div>
+          </div>
+        </div>
+      </div>
 
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">

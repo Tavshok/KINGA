@@ -179,6 +179,13 @@
 - [ ] Test document management system
 - [x] Create final checkpoint after testing
 
+## Report Format Fix (Critical)
+- [x] Remove Phase3 sections from ClaimDecisionReport — Export PDF buttons now redirect to ForensicAuditReport verdict page
+- [x] Fix print CSS to force white backgrounds and override dark mode completely
+- [x] Fix page header data attributes — added print-only HTML header with claim number, date, vehicle
+- [x] Fix invisible text on dark backgrounds in print — all CSS variables overridden in @media print
+- [x] Verify report renders only ForensicAuditReport format in both screen and print — confirmed in browser
+- [x] Auto-print useEffect added — ?print=1 query param triggers window.print() after 1.5s delay
 
 ## Bug Fixes & Testing
 - [x] Fix triage page 404 routing error
