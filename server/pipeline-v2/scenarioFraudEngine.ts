@@ -26,6 +26,12 @@
 export type ScenarioType =
   | "animal_strike"
   | "vehicle_collision"
+  | "rollover"
+  | "rear_end"
+  | "sideswipe"
+  | "head_on"
+  | "single_vehicle"
+  | "pedestrian_strike"
   | "theft"
   | "fire"
   | "flood"
@@ -325,6 +331,115 @@ const SCENARIO_PROFILES: Record<ScenarioType, ScenarioProfile> = {
     high_risk_modifiers: [
       "image_contradiction",
       "damage_pattern_none",
+      "contradictory_timeline",
+    ],
+  },
+
+  rollover: {
+    description: "Rollover",
+    police_report_required: true,
+    police_report_score: 22,
+    typical_delay_days: 7,
+    pattern_mismatch_multiplier: 1.6,
+    assessor_trust_weight: 22,
+    known_false_positives: [
+      "remote_location",
+      "single_witness",
+    ],
+    high_risk_modifiers: [
+      "missing_police_report",
+      "image_contradiction",
+      "damage_pattern_none",
+      "contradictory_timeline",
+      "recently_purchased_vehicle",
+    ],
+  },
+
+  rear_end: {
+    description: "Rear-End Collision",
+    police_report_required: true,
+    police_report_score: 18,
+    typical_delay_days: 7,
+    pattern_mismatch_multiplier: 1.4,
+    assessor_trust_weight: 25,
+    known_false_positives: [
+      "minor_timeline_gap",
+    ],
+    high_risk_modifiers: [
+      "missing_police_report",
+      "no_third_party_details",
+      "image_contradiction",
+      "contradictory_timeline",
+    ],
+  },
+
+  sideswipe: {
+    description: "Sideswipe",
+    police_report_required: true,
+    police_report_score: 18,
+    typical_delay_days: 7,
+    pattern_mismatch_multiplier: 1.4,
+    assessor_trust_weight: 25,
+    known_false_positives: [
+      "minor_timeline_gap",
+      "no_third_party_details",
+    ],
+    high_risk_modifiers: [
+      "missing_police_report",
+      "image_contradiction",
+      "contradictory_timeline",
+    ],
+  },
+
+  head_on: {
+    description: "Head-On Collision",
+    police_report_required: true,
+    police_report_score: 25,
+    typical_delay_days: 5,
+    pattern_mismatch_multiplier: 1.7,
+    assessor_trust_weight: 20,
+    known_false_positives: [],
+    high_risk_modifiers: [
+      "missing_police_report",
+      "no_third_party_details",
+      "image_contradiction",
+      "damage_pattern_none",
+      "contradictory_timeline",
+    ],
+  },
+
+  single_vehicle: {
+    description: "Single-Vehicle Accident",
+    police_report_required: true,
+    police_report_score: 20,
+    typical_delay_days: 7,
+    pattern_mismatch_multiplier: 1.5,
+    assessor_trust_weight: 25,
+    known_false_positives: [
+      "no_third_party_details",
+      "remote_location",
+    ],
+    high_risk_modifiers: [
+      "missing_police_report",
+      "image_contradiction",
+      "damage_pattern_none",
+      "contradictory_timeline",
+      "recently_purchased_vehicle",
+    ],
+  },
+
+  pedestrian_strike: {
+    description: "Pedestrian / Cyclist Strike",
+    police_report_required: true,
+    police_report_score: 30,
+    typical_delay_days: 3,
+    pattern_mismatch_multiplier: 1.6,
+    assessor_trust_weight: 18,
+    known_false_positives: [],
+    high_risk_modifiers: [
+      "missing_police_report",
+      "no_third_party_details",
+      "image_contradiction",
       "contradictory_timeline",
     ],
   },

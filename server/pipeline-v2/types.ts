@@ -71,6 +71,12 @@ export type DocumentType =
 export type CanonicalIncidentType =
   | "collision"
   | "animal_strike"
+  | "rollover"
+  | "rear_end"
+  | "head_on"
+  | "sideswipe"
+  | "single_vehicle"
+  | "pedestrian_strike"
   | "theft"
   | "vandalism"
   | "flood"

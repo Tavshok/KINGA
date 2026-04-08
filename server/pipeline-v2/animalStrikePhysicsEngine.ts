@@ -205,7 +205,7 @@ function resolveAnimalCategory(
     return input.animal_category;
   }
   // Infer from damage components
-  const components = input.damage_components.join(" ").toLowerCase();
+  const components = (input.damage_components ?? []).join(" ").toLowerCase();
   if (components.includes("chassis") || components.includes("a-pillar") || components.includes("windscreen")) {
     return "cattle"; // Only large animals cause this level of damage
   }

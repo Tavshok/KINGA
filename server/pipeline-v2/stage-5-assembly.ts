@@ -162,7 +162,7 @@ export async function runAssemblyStage(
     const damageDesc = v.damageDescription || null;
     const damageComponentNames = (v.damagedComponents || []).map((c: { name: string }) => c.name);
 
-    const incidentClassification = classifyIncident({
+    const incidentClassification = await classifyIncident({
       driver_narrative: driverNarrative,
       claim_form_incident_type: claimFormField,
       damage_description: damageDesc,

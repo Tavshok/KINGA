@@ -1,26 +1,41 @@
 /**
  * pipeline-v2/incidentClassificationEngine.ts
  *
- * Incident Classification Engine
+ * Incident Classification Engine v2
  *
- * Determines the TRUE incident type by cross-referencing three independent
- * evidence sources:
- *   1. Driver narrative (free-text description)
- *   2. Claim form fields (structured incident_type / accident_type fields)
- *   3. Damage description (damage text and component list)
+ * ARCHITECTURE: LLM-reasoning-first
+ * ─────────────────────────────────
+ * The authoritative incident type is determined by an LLM that reads the full
+ * incident narrative, damage description, and any available photo context.
+ * Keyword matching is a deterministic fallback used ONLY when:
+ *   - The LLM is unavailable (network error, timeout)
+ *   - The combined input text is too short to reason over (< 80 chars)
  *
- * KEY RULES:
- * - Animal strike (cow, goat, livestock, wildlife) is ALWAYS preferred over
- *   generic "collision" when animal evidence is present in ANY source.
- * - "collision" is NEVER the default — it must be evidenced.
- * - Conflicts between sources are detected and reported.
- * - Output is a strict JSON contract matching the specified schema.
+ * WHY LLM-FIRST:
+ * - Claim form fields are frequently wrong or too vague ("accident", "MVA")
+ * - Rollover, sideswipe, rear-end, head-on cannot be reliably detected by
+ *   keyword matching alone — they require reading the narrative in context
+ * - The LLM can distinguish "rolled over after hitting a pothole" (tripped
+ *   rollover) from "rolled over after being hit by another vehicle"
+ *   (post-collision rollover) — keyword matching cannot
  *
- * This engine was introduced to prevent the root cause of the Mazda audit
- * failure, where the pipeline stored "collision" despite the driver stating
- * explicitly that a cow was struck.
+ * INCIDENT TYPE TAXONOMY (see INCIDENT_TYPE_TAXONOMY.md for full spec):
+ *   animal_strike      — vehicle struck an animal
+ *   rollover           — vehicle rolled onto side or roof
+ *   rear_end           — struck from behind or struck another from behind
+ *   head_on            — frontal collision with oncoming vehicle
+ *   sideswipe          — lateral contact between two vehicles
+ *   single_vehicle     — left road, struck fixed object, no other vehicle
+ *   pedestrian_strike  — vehicle struck a pedestrian or cyclist
+ *   vehicle_collision  — multi-vehicle, cannot be sub-typed
+ *   theft              — vehicle stolen, hijacked, or parts removed
+ *   fire               — vehicle fire
+ *   flood              — flood, hail, weather damage
+ *   vandalism          — malicious damage
+ *   unknown            — insufficient evidence
  */
 
+import { invokeLLM } from "../_core/llm";
 import type { CanonicalIncidentType } from "./types";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,12 +44,37 @@ import type { CanonicalIncidentType } from "./types";
 
 export type ClassifiedIncidentType =
   | "animal_strike"
+  | "rollover"
+  | "rear_end"
+  | "head_on"
+  | "sideswipe"
+  | "single_vehicle"
+  | "pedestrian_strike"
   | "vehicle_collision"
   | "theft"
   | "fire"
   | "flood"
   | "vandalism"
   | "unknown";
+
+export type IncidentSubType =
+  // Rollover sub-types
+  | "tripped"           // tripped over kerb, pothole, soft verge
+  | "untripped"         // excessive speed or evasive manoeuvre
+  | "post_collision"    // rolled as secondary event after collision
+  // Single-vehicle sub-types
+  | "run_off_road"
+  | "fixed_object"      // wall, pole, tree, barrier, ditch
+  | "pothole"
+  // Theft sub-types
+  | "full_vehicle"
+  | "hijacking"
+  | "parts_theft"
+  // Fire sub-types
+  | "engine_fire"
+  | "electrical_fire"
+  | "arson"
+  | null;
 
 export type SourceName =
   | "driver_statement"
@@ -51,17 +91,73 @@ export interface SourceClassification {
 
 export interface IncidentClassificationResult {
   incident_type: ClassifiedIncidentType;
+  sub_type: IncidentSubType;
   confidence: number;            // 0–100
   sources_used: SourceName[];
   conflict_detected: boolean;
   reasoning: string;
   source_detail: SourceClassification[];
-  /** Canonical pipeline type for downstream compatibility */
+  /** Canonical pipeline type for downstream routing */
   canonical_type: CanonicalIncidentType;
+  /** Whether classification was performed by LLM or keyword fallback */
+  method: "llm" | "keyword_fallback";
+  /** Claim form stated type (for audit trail) */
+  claim_form_stated: string | null;
+  /** Whether the claim form type matched the reasoned type */
+  claim_form_matches: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ANIMAL STRIKE KEYWORDS — exhaustive African + global wildlife and livestock
+// LLM SYSTEM PROMPT
+// ─────────────────────────────────────────────────────────────────────────────
+
+const CLASSIFICATION_SYSTEM_PROMPT = `You are an expert motor insurance claims analyst specialising in incident classification.
+
+Your task is to determine the TRUE incident type from the evidence provided. You must REASON over the narrative and damage description — do not simply match keywords.
+
+INCIDENT TYPE TAXONOMY:
+- animal_strike: Vehicle struck an animal (livestock, wildlife). Evidence: animal named, struck/hit an animal, animal damage pattern (front bumper, bonnet, grille).
+- rollover: Vehicle rolled onto its side or roof. Evidence: "rolled", "overturned", "flipped", "on its roof/side", roof crush, A-pillar/B-pillar deformation. NOTE: rollover is NOT the same as a collision — it is a distinct incident type even if a collision preceded it.
+- rear_end: Vehicle was struck from behind, OR the insured vehicle struck another from behind. Evidence: "rear-ended", "hit from behind", "struck the back of", rear bumper/boot damage.
+- head_on: Frontal collision between two vehicles travelling in opposite directions. Evidence: "head-on", "oncoming vehicle", "wrong side of road", "opposite direction", heavy frontal damage + airbag deployment.
+- sideswipe: Lateral contact between two vehicles. Evidence: "sideswiped", "scraped the side", "clipped", lane-change contact, door panel / side panel damage only.
+- single_vehicle: Vehicle left the road or struck a fixed object with no other vehicle involved. Evidence: "left the road", "struck a wall/pole/tree/barrier/ditch", "lost control", "skidded off", no other vehicle mentioned.
+- pedestrian_strike: Vehicle struck a pedestrian or cyclist. Evidence: "pedestrian", "cyclist", "knocked down a person", "person crossing".
+- vehicle_collision: Multi-vehicle collision that cannot be sub-typed from available evidence. Use this ONLY when the collision type is genuinely ambiguous.
+- theft: Vehicle stolen, hijacked, or parts removed. Evidence: "stolen", "hijacked", "broke in", missing vehicle or parts.
+- fire: Vehicle fire. Evidence: "fire", "burnt", "smoke", "engine fire".
+- flood: Flood, hail, or weather damage. Evidence: "flood", "hail", "submerged", "water damage".
+- vandalism: Malicious damage. Evidence: "keyed", "smashed windows", "malicious damage", scattered damage with no collision.
+- unknown: Use ONLY when there is genuinely insufficient evidence to classify.
+
+SUB-TYPE RULES:
+For rollover: sub_type = "tripped" (kerb/pothole/verge), "untripped" (speed/evasion), or "post_collision" (rolled after being hit)
+For single_vehicle: sub_type = "run_off_road", "fixed_object", or "pothole"
+For theft: sub_type = "full_vehicle", "hijacking", or "parts_theft"
+For fire: sub_type = "engine_fire", "electrical_fire", or "arson"
+For all others: sub_type = null
+
+CRITICAL RULES:
+1. Rollover is NOT vehicle_collision — if the vehicle rolled, classify as rollover even if a collision preceded it
+2. Sideswipe is NOT vehicle_collision — lateral contact is a distinct type
+3. Rear-end is NOT vehicle_collision — if direction is clearly rear, use rear_end
+4. Head-on is NOT vehicle_collision — if oncoming/opposite direction is mentioned, use head_on
+5. The claim form field is often wrong — the narrative always takes precedence
+6. If the narrative says "collision" but also says "rolled over", classify as rollover
+7. animal_strike always overrides vehicle_collision when an animal is named
+
+Respond ONLY with a JSON object in this exact format:
+{
+  "incident_type": "<type>",
+  "sub_type": "<sub_type or null>",
+  "confidence": <0-100>,
+  "reasoning": "<2-3 sentence explanation citing specific evidence from the narrative>",
+  "claim_form_matches": <true/false>,
+  "signals": ["<signal1>", "<signal2>", ...]
+}`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// KEYWORD FALLBACK — used only when LLM is unavailable
 // ─────────────────────────────────────────────────────────────────────────────
 
 const ANIMAL_STRIKE_KEYWORDS: string[] = [
@@ -78,109 +174,91 @@ const ANIMAL_STRIKE_KEYWORDS: string[] = [
   "bushpig", "caracal", "jackal", "hyena", "cheetah",
   "leopard", "lion", "deer",
   // Generic
-  "animal", "livestock", "wildlife", "game", "buck", "antelope",
-  // Phrases
-  "hit a cow", "struck a cow", "cow ran", "cow jumped",
-  "animal ran", "animal jumped", "animal crossed",
-  "hit an animal", "struck an animal",
-  "animal strike", "animal collision", "animal impact",
-  "ran into a cow", "ran into an animal",
+  "animal", "wildlife", "livestock", "game animal",
+  "struck an animal", "hit an animal", "animal ran",
+  "animal crossed", "animal jumped",
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// THEFT KEYWORDS
-// ─────────────────────────────────────────────────────────────────────────────
+const ROLLOVER_KEYWORDS: string[] = [
+  "rolled", "rollover", "roll over", "rolled over",
+  "overturned", "overturn", "turned over",
+  "flipped", "on its side", "on its roof",
+  "roof crush", "a-pillar", "b-pillar deformation",
+  "landed on roof", "ended up on side",
+];
+
+const REAR_END_KEYWORDS: string[] = [
+  "rear-ended", "rear ended", "struck from behind",
+  "hit from behind", "hit the back of", "ran into the back",
+  "tailgated", "shunted", "rear impact",
+  "boot damage", "rear bumper struck",
+  "was hit from behind", "vehicle behind",
+];
+
+const HEAD_ON_KEYWORDS: string[] = [
+  "head-on", "head on", "oncoming",
+  "wrong side", "opposite direction",
+  "frontal collision", "met head on",
+  "collided head on", "coming towards",
+];
+
+const SIDESWIPE_KEYWORDS: string[] = [
+  "sideswiped", "side-swiped", "sideswipe",
+  "scraped the side", "brushed", "clipped the side",
+  "lane change", "merging contact", "overtaking contact",
+  "door panel scrape", "side panel scrape",
+];
+
+const SINGLE_VEHICLE_KEYWORDS: string[] = [
+  "left the road", "run off road", "ran off road",
+  "left the carriageway", "struck a wall", "struck a pole",
+  "struck a tree", "struck a barrier", "hit a ditch",
+  "hit a pothole", "lost control", "skidded off",
+  "no other vehicle", "single vehicle",
+  "hit a fence", "hit a culvert",
+];
+
+const PEDESTRIAN_KEYWORDS: string[] = [
+  "struck a pedestrian", "hit a pedestrian", "pedestrian",
+  "cyclist", "knocked down", "knocked over a person",
+  "person crossing", "person in the road",
+];
 
 const THEFT_KEYWORDS: string[] = [
-  "stolen", "theft", "hijack", "hijacking", "carjack",
-  "broke in", "break-in", "break in", "smash and grab",
-  "vehicle taken", "car taken", "vehicle missing",
-  "unlawfully removed",
+  "stolen", "theft", "hijack", "hijacked", "hijacking",
+  "broke in", "broke into", "forced entry",
+  "smash and grab", "smash-and-grab", "window smashed and", "grabbed from vehicle",
+  "vehicle missing", "vehicle not found",
+  "catalytic converter", "wheels stolen", "battery stolen",
+  "parts removed", "stripped",
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FIRE KEYWORDS
-// ─────────────────────────────────────────────────────────────────────────────
 
 const FIRE_KEYWORDS: string[] = [
-  "fire", "burnt", "burned", "burning", "ignited", "caught fire",
-  "engine fire", "electrical fire", "arson",
+  "fire", "burnt", "burned", "burning", "smoke",
+  "engine fire", "electrical fire", "arson", "set alight",
+  "caught fire", "in flames",
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FLOOD / WEATHER KEYWORDS
-// ─────────────────────────────────────────────────────────────────────────────
 
 const FLOOD_KEYWORDS: string[] = [
-  "flood", "flooded", "submerged", "hail", "hailstorm",
-  "water damage", "washed away", "storm", "lightning",
+  "flood", "flooded", "hail", "hailstorm",
+  "submerged", "water damage", "washed away",
+  "storm damage", "weather damage", "heavy rain",
+  "storm", "lightning", "hail damage", "hail storm",
+  "wind damage", "fallen tree", "tree fell",
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// VANDALISM KEYWORDS
-// ─────────────────────────────────────────────────────────────────────────────
 
 const VANDALISM_KEYWORDS: string[] = [
-  "vandal", "vandalism", "vandalised", "vandalized",
-  "keyed", "scratched deliberately", "tyres slashed",
-  "windows smashed", "graffiti", "malicious damage",
+  "vandalism", "vandalised", "malicious damage",
+  "keyed", "scratched deliberately", "smashed windows",
+  "broken windows", "graffiti", "tyres slashed",
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// VEHICLE COLLISION KEYWORDS (only used when no higher-priority type matches)
-// ─────────────────────────────────────────────────────────────────────────────
 
 const VEHICLE_COLLISION_KEYWORDS: string[] = [
-  "collision", "collided", "collide",
-  "accident", "crash", "crashed",
-  "hit another vehicle", "hit a vehicle", "hit a car", "hit a truck",
-  "struck another vehicle", "struck a vehicle",
-  "rear-ended", "rear ended", "t-bone", "t-boned",
-  "side-swiped", "sideswiped",
-  "head-on", "head on collision",
-  "ran into a vehicle", "ran into another",
-  "vehicle vs vehicle",
-  "intersection", "traffic light",
-  "overtaking", "overtook",
-  "lost control", "skidded", "rolled over", "rollover",
-  "hit a wall", "hit a pole", "hit a tree", "hit a barrier",
-  "hit a pothole", "hit a ditch",
+  "collision", "collided", "crash", "crashed",
+  "hit another vehicle", "struck another vehicle",
+  "t-bone", "t-boned", "intersection accident",
+  "vehicle vs vehicle", "multi-vehicle",
 ];
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CLAIM FORM FIELD NORMALISATION
-// Maps raw claim form values to ClassifiedIncidentType
-// ─────────────────────────────────────────────────────────────────────────────
-
-const CLAIM_FORM_MAP: Record<string, ClassifiedIncidentType> = {
-  // Animal strike variants
-  "animal_strike": "animal_strike",
-  "animal strike": "animal_strike",
-  "animal": "animal_strike",
-  "wildlife": "animal_strike",
-  "livestock": "animal_strike",
-  // Collision variants
-  "collision": "vehicle_collision",
-  "vehicle_collision": "vehicle_collision",
-  "accident": "vehicle_collision",
-  "crash": "vehicle_collision",
-  "motor vehicle accident": "vehicle_collision",
-  "mva": "vehicle_collision",
-  // Theft
-  "theft": "theft",
-  "hijacking": "theft",
-  "hijack": "theft",
-  "stolen": "theft",
-  // Fire
-  "fire": "fire",
-  // Flood
-  "flood": "flood",
-  "hail": "flood",
-  "weather": "flood",
-  // Vandalism
-  "vandalism": "vandalism",
-  "malicious damage": "vandalism",
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // HELPERS
@@ -190,272 +268,209 @@ function normalise(text: string | null | undefined): string {
   return (text ?? "").toLowerCase().replace(/[_\-]/g, " ").trim();
 }
 
-function matchKeywords(
-  text: string,
-  keywords: string[]
-): string[] {
+function matchKeywords(text: string, keywords: string[]): string[] {
   const matched: string[] = [];
   for (const kw of keywords) {
-    // Use word boundary matching for short keywords to avoid partial matches
     const pattern = kw.length <= 4
       ? new RegExp(`\\b${kw}\\b`, "i")
       : new RegExp(kw, "i");
-    if (pattern.test(text)) {
-      matched.push(kw);
-    }
+    if (pattern.test(text)) matched.push(kw);
   }
   return matched;
 }
 
-/**
- * Classify a single text source into a ClassifiedIncidentType.
- * Priority order: animal_strike > theft > fire > flood > vandalism > vehicle_collision > unknown
- */
-function classifyText(text: string | null | undefined): {
+function keywordClassifyText(text: string | null | undefined): {
   type: ClassifiedIncidentType;
+  sub_type: IncidentSubType;
   confidence: number;
   signals: string[];
 } {
   const norm = normalise(text);
+  if (!norm) return { type: "unknown", sub_type: null, confidence: 0, signals: [] };
 
-  if (!norm) {
-    return { type: "unknown", confidence: 0, signals: [] };
-  }
+  // Priority: animal_strike > rollover > pedestrian > rear_end > head_on
+  //           > sideswipe > single_vehicle > theft > fire > flood
+  //           > vandalism > vehicle_collision > unknown
 
-  // 1. Animal strike — highest priority
   const animalSignals = matchKeywords(norm, ANIMAL_STRIKE_KEYWORDS);
   if (animalSignals.length > 0) {
-    // Confidence scales with number of distinct signals (cap at 95)
-    const conf = Math.min(60 + animalSignals.length * 10, 95);
-    return { type: "animal_strike", confidence: conf, signals: animalSignals };
+    return { type: "animal_strike", sub_type: null, confidence: Math.min(60 + animalSignals.length * 10, 95), signals: animalSignals };
   }
 
-  // 2. Theft
+  const rolloverSignals = matchKeywords(norm, ROLLOVER_KEYWORDS);
+  if (rolloverSignals.length > 0) {
+    const sub_type: IncidentSubType = norm.includes("pothole") || norm.includes("kerb") || norm.includes("verge")
+      ? "tripped"
+      : norm.includes("after") || norm.includes("collision") || norm.includes("hit")
+        ? "post_collision"
+        : "untripped";
+    return { type: "rollover", sub_type, confidence: Math.min(65 + rolloverSignals.length * 8, 92), signals: rolloverSignals };
+  }
+
+  const pedestrianSignals = matchKeywords(norm, PEDESTRIAN_KEYWORDS);
+  if (pedestrianSignals.length > 0) {
+    return { type: "pedestrian_strike", sub_type: null, confidence: Math.min(65 + pedestrianSignals.length * 8, 90), signals: pedestrianSignals };
+  }
+
+  const rearEndSignals = matchKeywords(norm, REAR_END_KEYWORDS);
+  if (rearEndSignals.length > 0) {
+    return { type: "rear_end", sub_type: null, confidence: Math.min(60 + rearEndSignals.length * 8, 90), signals: rearEndSignals };
+  }
+
+  const headOnSignals = matchKeywords(norm, HEAD_ON_KEYWORDS);
+  if (headOnSignals.length > 0) {
+    return { type: "head_on", sub_type: null, confidence: Math.min(60 + headOnSignals.length * 8, 90), signals: headOnSignals };
+  }
+
+  const sideswipeSignals = matchKeywords(norm, SIDESWIPE_KEYWORDS);
+  if (sideswipeSignals.length > 0) {
+    return { type: "sideswipe", sub_type: null, confidence: Math.min(60 + sideswipeSignals.length * 8, 88), signals: sideswipeSignals };
+  }
+
+  const singleVehicleSignals = matchKeywords(norm, SINGLE_VEHICLE_KEYWORDS);
+  if (singleVehicleSignals.length > 0) {
+    const sub_type: IncidentSubType = norm.includes("pothole") ? "pothole"
+      : norm.includes("left the road") || norm.includes("run off") || norm.includes("ran off") ? "run_off_road"
+      : "fixed_object";
+    return { type: "single_vehicle", sub_type, confidence: Math.min(60 + singleVehicleSignals.length * 8, 88), signals: singleVehicleSignals };
+  }
+
   const theftSignals = matchKeywords(norm, THEFT_KEYWORDS);
   if (theftSignals.length > 0) {
-    return { type: "theft", confidence: Math.min(60 + theftSignals.length * 8, 90), signals: theftSignals };
+    const sub_type: IncidentSubType = norm.includes("hijack") ? "hijacking"
+      : norm.includes("parts") || norm.includes("catalytic") || norm.includes("wheels") || norm.includes("stripped") ? "parts_theft"
+      : "full_vehicle";
+    return { type: "theft", sub_type, confidence: Math.min(60 + theftSignals.length * 8, 90), signals: theftSignals };
   }
 
-  // 3. Fire
   const fireSignals = matchKeywords(norm, FIRE_KEYWORDS);
   if (fireSignals.length > 0) {
-    return { type: "fire", confidence: Math.min(60 + fireSignals.length * 8, 90), signals: fireSignals };
+    const sub_type: IncidentSubType = norm.includes("arson") || norm.includes("set alight") ? "arson"
+      : norm.includes("electrical") || norm.includes("wiring") ? "electrical_fire"
+      : "engine_fire";
+    return { type: "fire", sub_type, confidence: Math.min(60 + fireSignals.length * 8, 90), signals: fireSignals };
   }
 
-  // 4. Flood / weather
   const floodSignals = matchKeywords(norm, FLOOD_KEYWORDS);
   if (floodSignals.length > 0) {
-    return { type: "flood", confidence: Math.min(60 + floodSignals.length * 8, 90), signals: floodSignals };
+    return { type: "flood", sub_type: null, confidence: Math.min(60 + floodSignals.length * 8, 90), signals: floodSignals };
   }
 
-  // 5. Vandalism
   const vandalSignals = matchKeywords(norm, VANDALISM_KEYWORDS);
   if (vandalSignals.length > 0) {
-    return { type: "vandalism", confidence: Math.min(60 + vandalSignals.length * 8, 90), signals: vandalSignals };
+    return { type: "vandalism", sub_type: null, confidence: Math.min(60 + vandalSignals.length * 8, 90), signals: vandalSignals };
   }
 
-  // 6. Vehicle collision — only if explicitly evidenced
   const collisionSignals = matchKeywords(norm, VEHICLE_COLLISION_KEYWORDS);
   if (collisionSignals.length > 0) {
-    return { type: "vehicle_collision", confidence: Math.min(50 + collisionSignals.length * 5, 85), signals: collisionSignals };
+    return { type: "vehicle_collision", sub_type: null, confidence: Math.min(50 + collisionSignals.length * 5, 80), signals: collisionSignals };
   }
 
-  // 7. Unknown — no evidence for any type
-  return { type: "unknown", confidence: 0, signals: [] };
-}
-
-/**
- * Classify a claim form field value using the normalised map.
- */
-function classifyClaimFormField(
-  rawValue: string | null | undefined
-): {
-  type: ClassifiedIncidentType;
-  confidence: number;
-  signals: string[];
-} {
-  const norm = normalise(rawValue);
-  if (!norm) return { type: "unknown", confidence: 0, signals: [] };
-
-  // Exact map lookup first
-  if (CLAIM_FORM_MAP[norm]) {
-    return {
-      type: CLAIM_FORM_MAP[norm],
-      confidence: 85,
-      signals: [`claim_form_field: "${norm}"`],
-    };
-  }
-
-  // Partial map lookup
-  for (const [key, type] of Object.entries(CLAIM_FORM_MAP)) {
-    if (norm.includes(key) || key.includes(norm)) {
-      return {
-        type,
-        confidence: 70,
-        signals: [`claim_form_partial_match: "${key}"`],
-      };
-    }
-  }
-
-  // Fall back to text classification
-  return classifyText(rawValue);
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// CONFLICT DETECTION
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Detect a meaningful conflict between source classifications.
- *
- * Rules:
- * - animal_strike vs vehicle_collision is NOT a conflict — animal strikes
- *   are a subset of physical impacts; the claim form may say "collision"
- *   while the narrative says "cow". animal_strike always wins.
- * - Any other type disagreement IS a conflict.
- * - unknown sources do not contribute to conflict detection.
- */
-function detectConflict(
-  sources: SourceClassification[]
-): boolean {
-  const knownTypes = sources
-    .filter((s) => s.classified_as !== "unknown")
-    .map((s) => s.classified_as);
-
-  if (knownTypes.length <= 1) return false;
-
-  const uniqueTypes = Array.from(new Set(knownTypes));
-  if (uniqueTypes.length <= 1) return false;
-
-  // animal_strike + vehicle_collision is not a true conflict
-  // (claim form says "collision", narrative says "cow" — animal_strike wins)
-  const hasAnimalStrike = uniqueTypes.includes("animal_strike");
-  const hasVehicleCollision = uniqueTypes.includes("vehicle_collision");
-  const otherTypes = uniqueTypes.filter(
-    (t) => t !== "animal_strike" && t !== "vehicle_collision"
-  );
-
-  if (hasAnimalStrike && hasVehicleCollision && otherTypes.length === 0) {
-    return false; // Not a real conflict — animal strike overrides collision
-  }
-
-  return true;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// FINAL DECISION
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Priority-weighted vote across all source classifications.
- *
- * Priority order (highest first):
- *   animal_strike > theft > fire > flood > vandalism > vehicle_collision > unknown
- *
- * A single high-confidence animal_strike signal from ANY source overrides
- * a vehicle_collision from all other sources.
- */
-const TYPE_PRIORITY: Record<ClassifiedIncidentType, number> = {
-  animal_strike: 100,
-  theft: 80,
-  fire: 80,
-  flood: 80,
-  vandalism: 80,
-  vehicle_collision: 40,
-  unknown: 0,
-};
-
-function resolveType(
-  sources: SourceClassification[]
-): { type: ClassifiedIncidentType; confidence: number; reasoning: string } {
-  const knownSources = sources.filter((s) => s.classified_as !== "unknown");
-
-  if (knownSources.length === 0) {
-    return {
-      type: "unknown",
-      confidence: 0,
-      reasoning: "No evidence found in any source to determine incident type.",
-    };
-  }
-
-  // Find the highest-priority type across all sources
-  let bestType: ClassifiedIncidentType = "unknown";
-  let bestPriority = -1;
-
-  for (const s of knownSources) {
-    const priority = TYPE_PRIORITY[s.classified_as];
-    if (priority > bestPriority) {
-      bestPriority = priority;
-      bestType = s.classified_as;
-    }
-  }
-
-  // Collect all sources that agree with the best type
-  const agreingSources = knownSources.filter((s) => s.classified_as === bestType);
-  const disagreingSources = knownSources.filter(
-    (s) => s.classified_as !== bestType && s.classified_as !== "unknown"
-  );
-
-  // Confidence: average of agreeing sources, penalised for disagreement
-  const avgConf =
-    agreingSources.reduce((sum, s) => sum + s.confidence, 0) /
-    agreingSources.length;
-  const penalty = disagreingSources.length * 5;
-  const finalConf = Math.max(Math.round(avgConf - penalty), 10);
-
-  // Build reasoning
-  const agreeList = agreingSources
-    .map((s) => `${s.source} (signals: ${s.signals.slice(0, 3).join(", ")})`)
-    .join("; ");
-
-  let reasoning = `Classified as "${bestType}" based on evidence from: ${agreeList}.`;
-
-  if (disagreingSources.length > 0) {
-    const disagreeList = disagreingSources
-      .map((s) => `${s.source} → "${s.classified_as}"`)
-      .join(", ");
-    reasoning += ` Overriding conflicting classification(s): ${disagreeList}.`;
-
-    if (bestType === "animal_strike") {
-      reasoning +=
-        " Animal strike evidence takes precedence over generic collision classification — claim form field 'collision' is a common mis-classification when the actual striking object is an animal.";
-    }
-  }
-
-  return { type: bestType, confidence: finalConf, reasoning };
+  return { type: "unknown", sub_type: null, confidence: 0, signals: [] };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CANONICAL TYPE MAPPING
-// Maps ClassifiedIncidentType → CanonicalIncidentType for pipeline compatibility
 // ─────────────────────────────────────────────────────────────────────────────
 
 function toCanonicalType(type: ClassifiedIncidentType): CanonicalIncidentType {
   switch (type) {
-    case "animal_strike":
-      // Return animal_strike directly — Stage 7 has a dedicated animal strike
-      // physics engine (animalStrikePhysicsEngine.ts) that MUST be routed to.
-      // Previously mapped to 'collision' which caused the wrong physics engine
-      // to run and produced incorrect force/energy calculations.
-      return "animal_strike";
-    case "vehicle_collision":
-      return "collision";
-    case "theft":
-      return "theft";
-    case "fire":
-      return "fire";
-    case "flood":
-      return "flood";
-    case "vandalism":
-      return "vandalism";
+    case "animal_strike":     return "animal_strike";
+    case "rollover":          return "rollover";
+    case "rear_end":          return "rear_end";
+    case "head_on":           return "head_on";
+    case "sideswipe":         return "sideswipe";
+    case "single_vehicle":    return "single_vehicle";
+    case "pedestrian_strike": return "pedestrian_strike";
+    case "vehicle_collision": return "collision";
+    case "theft":             return "theft";
+    case "fire":              return "fire";
+    case "flood":             return "flood";
+    case "vandalism":         return "vandalism";
     case "unknown":
-    default:
-      return "unknown";
+    default:                  return "unknown";
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// MAIN EXPORT
+// LLM CLASSIFICATION PASS
+// ─────────────────────────────────────────────────────────────────────────────
+
+async function llmClassify(
+  combinedText: string,
+  claimFormType: string | null,
+): Promise<{
+  incident_type: ClassifiedIncidentType;
+  sub_type: IncidentSubType;
+  confidence: number;
+  reasoning: string;
+  claim_form_matches: boolean;
+  signals: string[];
+} | null> {
+  try {
+    const userMessage = [
+      claimFormType ? `CLAIM FORM INCIDENT TYPE: ${claimFormType}` : "CLAIM FORM INCIDENT TYPE: not provided",
+      "",
+      "INCIDENT NARRATIVE AND DAMAGE DESCRIPTION:",
+      combinedText,
+    ].join("\n");
+
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: CLASSIFICATION_SYSTEM_PROMPT },
+        { role: "user", content: userMessage },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "incident_classification",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              incident_type: { type: "string" },
+              sub_type: { type: ["string", "null"] },
+              confidence: { type: "number" },
+              reasoning: { type: "string" },
+              claim_form_matches: { type: "boolean" },
+              signals: { type: "array", items: { type: "string" } },
+            },
+            required: ["incident_type", "sub_type", "confidence", "reasoning", "claim_form_matches", "signals"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = response.choices?.[0]?.message?.content;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    const VALID_TYPES: ClassifiedIncidentType[] = [
+      "animal_strike", "rollover", "rear_end", "head_on", "sideswipe",
+      "single_vehicle", "pedestrian_strike", "vehicle_collision",
+      "theft", "fire", "flood", "vandalism", "unknown",
+    ];
+    if (!VALID_TYPES.includes(parsed.incident_type)) {
+      console.warn(`[IncidentClassification] LLM returned unknown type: ${parsed.incident_type}, falling back to keyword`);
+      return null;
+    }
+
+    return {
+      incident_type: parsed.incident_type as ClassifiedIncidentType,
+      sub_type: (parsed.sub_type ?? null) as IncidentSubType,
+      confidence: Math.max(0, Math.min(100, Math.round(parsed.confidence ?? 50))),
+      reasoning: parsed.reasoning ?? "LLM classification.",
+      claim_form_matches: Boolean(parsed.claim_form_matches),
+      signals: Array.isArray(parsed.signals) ? parsed.signals : [],
+    };
+  } catch (err) {
+    console.warn("[IncidentClassification] LLM call failed, using keyword fallback:", String(err));
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN EXPORT — async (LLM-first)
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface IncidentClassificationInput {
@@ -467,77 +482,169 @@ export interface IncidentClassificationInput {
   damage_description: string | null | undefined;
   /** Optional: raw damage component names (e.g. ["bonnet", "radiator"]) */
   damage_components?: string[] | null;
+  /** Optional: photo context summary from vision analysis */
+  photo_context?: string | null;
 }
 
 /**
  * Classify the true incident type from multiple evidence sources.
  *
- * @param input - Three independent evidence sources
- * @returns IncidentClassificationResult — the exact JSON contract specified
+ * PRIMARY PATH: LLM reasoning over the full narrative and damage context.
+ * FALLBACK PATH: Keyword matching when LLM is unavailable or input is too short.
  */
-export function classifyIncident(
+export async function classifyIncident(
   input: IncidentClassificationInput
+): Promise<IncidentClassificationResult> {
+  const textParts = [
+    input.driver_narrative ?? "",
+    input.damage_description ?? "",
+    (input.damage_components ?? []).join(" "),
+    input.photo_context ?? "",
+  ].filter(Boolean);
+  const combinedText = textParts.join("\n\n").trim();
+
+  const claimFormType = input.claim_form_incident_type?.trim() ?? null;
+
+  const sourcesUsed: SourceName[] = [];
+  if (input.driver_narrative?.trim()) sourcesUsed.push("driver_statement");
+  if (input.claim_form_incident_type?.trim()) sourcesUsed.push("claim_form");
+  if (input.damage_description?.trim() || (input.damage_components ?? []).length > 0) sourcesUsed.push("damage_description");
+
+  // ── LLM path (primary) ───────────────────────────────────────────────────
+  const MIN_LLM_LENGTH = 80;
+  let llmResult: Awaited<ReturnType<typeof llmClassify>> = null;
+
+  if (combinedText.length >= MIN_LLM_LENGTH) {
+    llmResult = await llmClassify(combinedText, claimFormType);
+  }
+
+  if (llmResult) {
+    const sourceDetail: SourceClassification[] = [];
+    if (input.driver_narrative?.trim()) {
+      const kw = keywordClassifyText(input.driver_narrative);
+      sourceDetail.push({ source: "driver_statement", raw_value: input.driver_narrative, classified_as: kw.type, confidence: kw.confidence, signals: kw.signals });
+    }
+    if (input.claim_form_incident_type?.trim()) {
+      sourceDetail.push({ source: "claim_form", raw_value: input.claim_form_incident_type, classified_as: keywordClassifyText(input.claim_form_incident_type).type, confidence: 50, signals: [`claim_form_stated: "${input.claim_form_incident_type}"`] });
+    }
+    if (input.damage_description?.trim()) {
+      const kw = keywordClassifyText(input.damage_description);
+      sourceDetail.push({ source: "damage_description", raw_value: (input.damage_description ?? "").slice(0, 300), classified_as: kw.type, confidence: kw.confidence, signals: kw.signals });
+    }
+
+    const keywordTypes = sourceDetail.map(s => s.classified_as).filter(t => t !== "unknown");
+    const uniqueKeywordTypes = Array.from(new Set(keywordTypes));
+    const conflictDetected = uniqueKeywordTypes.length > 1 && !uniqueKeywordTypes.every(t => t === llmResult!.incident_type);
+
+    return {
+      incident_type: llmResult.incident_type,
+      sub_type: llmResult.sub_type,
+      confidence: llmResult.confidence,
+      sources_used: sourcesUsed,
+      conflict_detected: conflictDetected,
+      reasoning: llmResult.reasoning,
+      source_detail: sourceDetail,
+      canonical_type: toCanonicalType(llmResult.incident_type),
+      method: "llm",
+      claim_form_stated: claimFormType,
+      claim_form_matches: llmResult.claim_form_matches,
+    };
+  }
+
+  // ── Keyword fallback path ─────────────────────────────────────────────────
+  return classifyIncidentSync(input);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SYNCHRONOUS KEYWORD-ONLY EXPORT
+// For use in test environments and places where async is not available
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function classifyIncidentSync(
+  input: Omit<IncidentClassificationInput, "photo_context">
 ): IncidentClassificationResult {
   const sourceClassifications: SourceClassification[] = [];
+  const claimFormType = input.claim_form_incident_type?.trim() ?? null;
 
-  // ── Source 1: Driver narrative ──────────────────────────────────────────
-  if (input.driver_narrative !== null && input.driver_narrative !== undefined) {
-    const result = classifyText(input.driver_narrative);
-    sourceClassifications.push({
-      source: "driver_statement",
-      raw_value: input.driver_narrative,
-      classified_as: result.type,
-      confidence: result.confidence,
-      signals: result.signals,
-    });
+  if (input.driver_narrative?.trim()) {
+    const result = keywordClassifyText(input.driver_narrative);
+    sourceClassifications.push({ source: "driver_statement", raw_value: input.driver_narrative, classified_as: result.type, confidence: result.confidence, signals: result.signals });
   }
 
-  // ── Source 2: Claim form field ──────────────────────────────────────────
-  if (
-    input.claim_form_incident_type !== null &&
-    input.claim_form_incident_type !== undefined
-  ) {
-    const result = classifyClaimFormField(input.claim_form_incident_type);
-    sourceClassifications.push({
-      source: "claim_form",
-      raw_value: input.claim_form_incident_type,
-      classified_as: result.type,
-      confidence: result.confidence,
-      signals: result.signals,
-    });
+  if (input.claim_form_incident_type?.trim()) {
+    const result = keywordClassifyText(input.claim_form_incident_type);
+    sourceClassifications.push({ source: "claim_form", raw_value: input.claim_form_incident_type, classified_as: result.type, confidence: Math.min(result.confidence, 60), signals: result.signals });
   }
 
-  // ── Source 3: Damage description + components ───────────────────────────
   const combinedDamageText = [
     input.damage_description ?? "",
     (input.damage_components ?? []).join(" "),
-  ]
-    .filter(Boolean)
-    .join(" ");
-
+  ].filter(Boolean).join(" ");
   if (combinedDamageText.trim()) {
-    const result = classifyText(combinedDamageText);
-    sourceClassifications.push({
-      source: "damage_description",
-      raw_value: combinedDamageText.slice(0, 300), // Truncate for readability
-      classified_as: result.type,
-      confidence: result.confidence,
-      signals: result.signals,
-    });
+    const result = keywordClassifyText(combinedDamageText);
+    sourceClassifications.push({ source: "damage_description", raw_value: combinedDamageText.slice(0, 300), classified_as: result.type, confidence: result.confidence, signals: result.signals });
   }
 
-  // ── Resolve final type ──────────────────────────────────────────────────
-  const { type, confidence, reasoning } = resolveType(sourceClassifications);
-  const conflictDetected = detectConflict(sourceClassifications);
-  const sourcesUsed: SourceName[] = sourceClassifications.map((s) => s.source);
+  const TYPE_PRIORITY: Record<ClassifiedIncidentType, number> = {
+    animal_strike: 100, rollover: 90, pedestrian_strike: 85,
+    rear_end: 80, head_on: 80, sideswipe: 75, single_vehicle: 70,
+    theft: 80, fire: 80, flood: 80, vandalism: 80,
+    vehicle_collision: 40, unknown: 0,
+  };
 
+  const knownSources = sourceClassifications.filter(s => s.classified_as !== "unknown");
+  let finalType: ClassifiedIncidentType = "unknown";
+  let finalSubType: IncidentSubType = null;
+  let finalConfidence = 0;
+  let finalReasoning = "No evidence found in any source to determine incident type.";
+
+  if (knownSources.length > 0) {
+    const bestSource = knownSources.reduce((best, s) =>
+      TYPE_PRIORITY[s.classified_as] > TYPE_PRIORITY[best.classified_as] ? s : best
+    );
+    finalType = bestSource.classified_as;
+    const fullResult = keywordClassifyText(bestSource.raw_value ?? "");
+    finalSubType = fullResult.sub_type;
+    const agreingSources = knownSources.filter(s => s.classified_as === finalType);
+    const avgConf = agreingSources.reduce((sum, s) => sum + s.confidence, 0) / agreingSources.length;
+    const disagreingSources = knownSources.filter(s => s.classified_as !== finalType);
+    finalConfidence = Math.max(Math.round(avgConf - disagreingSources.length * 5), 10);
+    finalReasoning = `[Keyword fallback] Classified as "${finalType}" based on: ${agreingSources.map(s => s.source).join(", ")}.`;
+    if (disagreingSources.length > 0) {
+      finalReasoning += ` Overriding: ${disagreingSources.map(s => `${s.source} → "${s.classified_as}"`).join(", ")}.`;
+    }
+  }
+
+  const sourcesUsed: SourceName[] = [];
+  if (input.driver_narrative?.trim()) sourcesUsed.push("driver_statement");
+  if (input.claim_form_incident_type?.trim()) sourcesUsed.push("claim_form");
+  if (combinedDamageText.trim()) sourcesUsed.push("damage_description");
+
+  const uniqueTypes = Array.from(new Set(knownSources.map(s => s.classified_as)));
+  // Expected overrides: animal_strike always overrides vehicle_collision — this is NOT a conflict
+  // Similarly, specific sub-types (rear_end, rollover, sideswipe, head_on) overriding vehicle_collision is expected
+  const EXPECTED_OVERRIDES: Partial<Record<ClassifiedIncidentType, ClassifiedIncidentType[]>> = {
+    animal_strike: ["vehicle_collision"],
+    rollover: ["vehicle_collision"],
+    rear_end: ["vehicle_collision"],
+    head_on: ["vehicle_collision"],
+    sideswipe: ["vehicle_collision"],
+    single_vehicle: ["vehicle_collision"],
+    pedestrian_strike: ["vehicle_collision"],
+  };
+  const isExpectedOverride = uniqueTypes.length === 2 &&
+    (EXPECTED_OVERRIDES[finalType] ?? []).some(overridden => uniqueTypes.includes(overridden));
   return {
-    incident_type: type,
-    confidence,
+    incident_type: finalType,
+    sub_type: finalSubType,
+    confidence: finalConfidence,
     sources_used: sourcesUsed,
-    conflict_detected: conflictDetected,
-    reasoning,
+    conflict_detected: uniqueTypes.length > 1 && !isExpectedOverride,
+    reasoning: finalReasoning,
     source_detail: sourceClassifications,
-    canonical_type: toCanonicalType(type),
+    canonical_type: toCanonicalType(finalType),
+    method: "keyword_fallback",
+    claim_form_stated: claimFormType,
+    claim_form_matches: finalType === keywordClassifyText(claimFormType ?? "").type,
   };
 }
