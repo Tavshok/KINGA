@@ -102,6 +102,110 @@ import {
   runIncidentNarrativeEngine,
   type NarrativeAnalysis,
 } from "./incidentNarrativeEngine";
+import { valuateVehicle } from "../services/vehicleValuation";
+import { estimateMileageFromYear } from "../services/mileageEstimation";
+import {
+  createVehicleMarketValuation,
+  getAssessorEvaluationByClaimId,
+  getDb,
+} from "../db";
+import { claims } from "../../drizzle/schema";
+import { eq } from "drizzle-orm";
+
+/**
+ * Parse a mileage string like "85 000 km", "85000", "85,000 km" → number (km).
+ * Returns null if unparseable.
+ */
+function parseMileageString(raw: string | null | undefined): number | null {
+  if (!raw) return null;
+  const cleaned = raw.replace(/[^\d.]/g, "");
+  const n = parseFloat(cleaned);
+  if (isNaN(n) || n <= 0 || n > 2_000_000) return null;
+  return Math.round(n);
+}
+
+/**
+ * Auto-trigger vehicle valuation at the end of the pipeline.
+ * Uses actual mileage from claim form if available, otherwise estimates.
+ * Non-fatal — any error is logged and ignored.
+ */
+async function runAutoValuation(
+  ctx: PipelineContext,
+  log: (stage: string, msg: string) => void
+): Promise<void> {
+  try {
+    const claimId = ctx.claimId;
+    const claim = ctx.claim;
+    if (!claim.vehicleMake || !claim.vehicleModel) {
+      log("VALUATION", "Skipping auto-valuation: vehicle make/model not available");
+      return;
+    }
+    const parsedMileage = parseMileageString(claim.vehicleMileage);
+    let resolvedMileage: number;
+    let mileageEstimated = false;
+    let mileageWarning: string | null = null;
+    if (parsedMileage && parsedMileage > 0) {
+      resolvedMileage = parsedMileage;
+      log("VALUATION", `Using claim form mileage: ${resolvedMileage.toLocaleString()} km`);
+    } else {
+      const vehicleYear = claim.vehicleYear || new Date().getFullYear();
+      const estimation = estimateMileageFromYear(vehicleYear, claim.vehicleMake, claim.vehicleModel);
+      resolvedMileage = estimation.assumed_mileage_used;
+      mileageEstimated = true;
+      mileageWarning = estimation.warning_message;
+      log("VALUATION", `Mileage not on claim form — estimated ${resolvedMileage.toLocaleString()} km from year/model`);
+    }
+    const evaluation = await getAssessorEvaluationByClaimId(claimId);
+    const repairCost = evaluation?.estimatedRepairCost;
+    const valuation = await valuateVehicle(
+      {
+        make: claim.vehicleMake,
+        model: claim.vehicleModel,
+        year: claim.vehicleYear || new Date().getFullYear(),
+        mileage: resolvedMileage,
+        condition: "good",
+        country: "Zimbabwe",
+      },
+      repairCost ?? undefined
+    );
+    if (mileageEstimated && mileageWarning) {
+      valuation.confidenceScore = Math.max(10, (valuation.confidenceScore ?? 50) - 20);
+      valuation.notes = [`⚠️ MILEAGE ESTIMATED: ${mileageWarning}`, ...valuation.notes];
+    }
+    await createVehicleMarketValuation({
+      claimId,
+      vehicleMake: claim.vehicleMake,
+      vehicleModel: claim.vehicleModel,
+      vehicleYear: claim.vehicleYear || new Date().getFullYear(),
+      vehicleRegistration: claim.vehicleRegistration ?? undefined,
+      mileage: resolvedMileage,
+      condition: "good",
+      estimatedMarketValue: valuation.estimatedMarketValue,
+      valuationMethod: valuation.valuationMethod,
+      confidenceScore: valuation.confidenceScore,
+      dataPointsCount: valuation.dataPointsCount,
+      priceRange: JSON.stringify(valuation.priceRange),
+      conditionAdjustment: valuation.conditionAdjustment,
+      mileageAdjustment: valuation.mileageAdjustment,
+      marketTrendAdjustment: valuation.marketTrendAdjustment,
+      finalAdjustedValue: valuation.finalAdjustedValue,
+      isTotalLoss: valuation.isTotalLoss ? 1 : 0,
+      totalLossThreshold: valuation.totalLossThreshold.toString(),
+      repairCostToValueRatio: valuation.repairCostToValueRatio?.toString(),
+      valuationDate: valuation.valuationDate,
+      validUntil: valuation.validUntil,
+      valuedBy: 0, // 0 = system/pipeline
+      notes: valuation.notes.join("\n"),
+    });
+    const db = await getDb();
+    if (db) {
+      await db.update(claims).set({ vehicleMarketValue: valuation.finalAdjustedValue }).where(eq(claims.id, claimId));
+    }
+    log("VALUATION", `Auto-valuation complete: $${(valuation.finalAdjustedValue / 100).toFixed(2)} ZAR${valuation.isTotalLoss ? " — TOTAL LOSS" : ""}${mileageEstimated ? " (mileage estimated)" : ""}`);
+  } catch (err) {
+    log("VALUATION", `Auto-valuation error (non-fatal): ${String(err)}`);
+  }
+}
 
 /**
  * Run the full self-healing pipeline.
@@ -789,6 +893,11 @@ export async function runPipelineV2(
   const stage2RawOcrText = stage2Data?.extractedTexts
     ? stage2Data.extractedTexts.map(et => et.rawText ?? "").filter(Boolean).join("\n\n---\n\n")
     : null;
+
+  // ── AUTO-VALUATION ────────────────────────────────────────────────────
+  // Runs after all analysis stages. Uses mileage from claim form if
+  // available, otherwise estimates from vehicle year/model.
+  await runAutoValuation(ctx, (stage, msg) => ctx.log(stage, msg));
 
   return buildResult(
     stages, pipelineStart, ctx.claimId,

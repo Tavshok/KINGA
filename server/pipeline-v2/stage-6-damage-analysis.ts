@@ -36,11 +36,13 @@ function normaliseSeverity(raw: string): AccidentSeverity {
 
 function inferZone(location: string): string {
   const loc = (location || "").toLowerCase();
+  // SA/Audatex ZA nomenclature — bonnet=front, boot lid=rear, sill=side, loadbox=rear, canopy=roof
   if (/front|bumper front|hood|bonnet|headl|grille|radiator|fender front|wing front/.test(loc)) return "front";
-  if (/rear|bumper rear|tail|trunk|boot|fender rear|wing rear/.test(loc)) return "rear";
+  if (/rear|bumper rear|tail|trunk|boot|boot.?lid|loadbox|fender rear|wing rear/.test(loc)) return "rear";
   if (/left|driver|lh|l\/h/.test(loc)) return "left_side";
   if (/right|passenger|rh|r\/h/.test(loc)) return "right_side";
-  if (/roof|top|overhead/.test(loc)) return "roof";
+  if (/roof|top|overhead|canopy|roof.?lin/.test(loc)) return "roof";
+  if (/sill|rocker/.test(loc)) return "left_side"; // sill panels default to side
   if (/under|bottom|chassis|subframe/.test(loc)) return "undercarriage";
   return "general";
 }
@@ -71,24 +73,55 @@ function inferDamageFromDescription(
 
   const inferred: DamageAnalysisComponent[] = [];
 
-  // Infer from collision direction
+  // Infer from collision direction — SA/Audatex ZA parts nomenclature throughout
   if (direction === "frontal" || /front/i.test(impactPoint)) {
+    // ── FRONTAL IMPACT ────────────────────────────────────────────────────────
     inferred.push(
       { name: "Front Bumper", location: "front", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-      { name: "Hood/Bonnet", location: "front", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
-      { name: "Headlight Assembly", location: "front", damageType: "broken", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      { name: "Bonnet", location: "front", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
+      { name: "Grille", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.1 },
+      { name: "LH Headlamp", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      { name: "RH Headlamp", location: "front", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
     );
   } else if (direction === "rear" || /rear|back/i.test(impactPoint)) {
+    // ── REAR IMPACT ───────────────────────────────────────────────────────────
     inferred.push(
       { name: "Rear Bumper", location: "rear", damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-      { name: "Trunk/Boot Lid", location: "rear", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
-      { name: "Tail Light Assembly", location: "rear", damageType: "broken", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      { name: "Boot Lid", location: "rear", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
+      { name: "LH Tail Lamp", location: "rear", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      { name: "RH Tail Lamp", location: "rear", damageType: "breakage", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
     );
   } else if (direction === "side_driver" || direction === "side_passenger") {
-    const side = direction === "side_driver" ? "left" : "right";
+    // ── SIDESWIPE / SIDE IMPACT — SA/Audatex ZA nomenclature ─────────────────
+    // Driver side (LH) = left; Passenger side (RH) = right
+    const side = direction === "side_driver" ? "LH" : "RH";
+    const sideLabel = direction === "side_driver" ? "left" : "right";
     inferred.push(
-      { name: `${side === "left" ? "Driver" : "Passenger"} Door`, location: side, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
-      { name: `${side === "left" ? "Left" : "Right"} Fender`, location: side, damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
+      { name: `${side} Front Door`, location: sideLabel, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0 },
+      { name: `${side} Rear Door`, location: sideLabel, damageType: "impact", severity: "moderate", visible: true, distanceFromImpact: 0.5 },
+      { name: `${side} B-Pillar`, location: sideLabel, damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.3 },
+      { name: `${side} Sill Panel`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.4 },
+      { name: `${side} Front Fender`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.6 },
+      { name: `${side} Rear Quarter Panel`, location: sideLabel, damageType: "deformation", severity: "minor", visible: true, distanceFromImpact: 0.7 },
+      { name: `${side} Door Glass`, location: sideLabel, damageType: "shatter", severity: "moderate", visible: true, distanceFromImpact: 0.2 },
+      { name: `${side} Door Mirror`, location: sideLabel, damageType: "breakage", severity: "minor", visible: true, distanceFromImpact: 0.1 },
+    );
+  } else if (direction === "rollover") {
+    // ── ROLLOVER — SA/Audatex ZA nomenclature ────────────────────────────────
+    // Rollover damage is distributed across roof, pillars, and all sides.
+    inferred.push(
+      { name: "Roof Panel", location: "roof", damageType: "deformation", severity: "severe", visible: true, distanceFromImpact: 0 },
+      { name: "Roof Lining", location: "roof", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.1 },
+      { name: "LH A-Pillar", location: "left", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.2 },
+      { name: "RH A-Pillar", location: "right", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.2 },
+      { name: "LH B-Pillar", location: "left", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.3 },
+      { name: "RH B-Pillar", location: "right", damageType: "bend", severity: "severe", visible: true, distanceFromImpact: 0.3 },
+      { name: "LH Front Door", location: "left", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.4 },
+      { name: "RH Front Door", location: "right", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.4 },
+      { name: "Windscreen", location: "front", damageType: "shatter", severity: "severe", visible: true, distanceFromImpact: 0.5 },
+      { name: "Rear Windscreen", location: "rear", damageType: "shatter", severity: "moderate", visible: true, distanceFromImpact: 0.5 },
+      { name: "LH Sill Panel", location: "left", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.6 },
+      { name: "RH Sill Panel", location: "right", damageType: "deformation", severity: "moderate", visible: true, distanceFromImpact: 0.6 },
     );
   } else {
     // Generic — assume front impact as most common

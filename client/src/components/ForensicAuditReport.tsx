@@ -545,6 +545,18 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
   const costConfidence = (aiAssessment as any)?._normalised?.costs?.confidence ?? 0;
   const photoConfidence = phase2?.photoAnalysis?.confidence ?? 0;
 
+  // LLM-reasoned incident classification (Stage 5 incidentClassificationEngine)
+  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  const incidentClassification = claimRecord0?.accidentDetails?.incidentClassification ?? null;
+  const classifiedType: string | null = incidentClassification?.incident_type ?? null;
+  const classifiedConfidence: number = incidentClassification?.confidence ?? 0;
+  const classifiedSources: string[] = incidentClassification?.sources_used ?? [];
+  const classifiedReasoning: string | null = incidentClassification?.reasoning ?? null;
+  const classifiedConflict: boolean = incidentClassification?.conflict_detected ?? false;
+  // Display type: prefer LLM-classified (if not unknown), fall back to raw incidentType
+  const displayIncidentType = (classifiedType && classifiedType !== "unknown") ? classifiedType : incidentType;
+  const isClassifiedByLLM = !!(classifiedType && classifiedType !== "unknown");
+
   // Confidence bars: label + value (0-100)
   const confidenceBars = [
     { label: "Overall extraction", value: confidenceScore },
@@ -593,7 +605,45 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
           <table className="w-full text-xs report-table">
             <tbody>
               {[
-                ["Incident type", <span className="font-semibold">{incidentType.replace(/_/g, " ")}</span>],
+                ["Incident type", (
+                  <span className="flex flex-col gap-1">
+                    <span className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, " ")}</span>
+                      {isClassifiedByLLM && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{
+                            background: classifiedConfidence >= 80 ? "var(--status-approve-bg)" : classifiedConfidence >= 60 ? "var(--status-review-bg)" : "var(--muted)",
+                            color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--muted-foreground)",
+                            border: `1px solid ${classifiedConfidence >= 80 ? "var(--status-approve-border)" : classifiedConfidence >= 60 ? "var(--status-review-border)" : "var(--border)"}`
+                          }}
+                        >
+                          {classifiedConfidence}% confidence
+                        </span>
+                      )}
+                      {classifiedConflict && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}>
+                          ⚠ CONFLICT DETECTED
+                        </span>
+                      )}
+                      {!isClassifiedByLLM && incidentType !== "N/A" && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
+                          from claim form
+                        </span>
+                      )}
+                    </span>
+                    {isClassifiedByLLM && classifiedSources.length > 0 && (
+                      <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                        Sources: {classifiedSources.map((s: string) => s.replace(/_/g, " ")).join(" · ")}
+                      </span>
+                    )}
+                    {isClassifiedByLLM && classifiedReasoning && (
+                      <span className="text-[10px] italic" style={{ color: "var(--muted-foreground)" }}>
+                        {classifiedReasoning.length > 180 ? classifiedReasoning.substring(0, 180) + "…" : classifiedReasoning}
+                      </span>
+                    )}
+                  </span>
+                )],
                 ["Claimed speed", claimedSpeed != null ? `${claimedSpeed} km/h` : "Not stated"],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
                 ["Incident time", accidentTime ?? "Not recorded"],
