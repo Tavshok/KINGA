@@ -682,8 +682,8 @@ export async function runPipelineV2(
   let preGenCheck: PreGenerationCheckResult | null = null;
   try {
     const physicsBasedFraudIndicators: string[] = [];
-    if (stage8Data?.fraudIndicators) {
-      for (const ind of stage8Data.fraudIndicators) {
+    if (stage8Data?.indicators) {
+      for (const ind of stage8Data.indicators) {
         const id = (ind as any).indicator ?? "";
         if (
           id === "physics_inconsistency" ||
@@ -697,14 +697,14 @@ export async function runPipelineV2(
     }
     preGenCheck = runPreGenerationConsistencyCheck({
       recommendation: stage9Data?.costDecision?.recommendation ?? null,
-      fraud_score: stage8Data?.fraudScore ?? null,
-      fraud_score_cover: stage8Data?.fraudScore ?? null,
-      physics_plausibility_score: stage7Data?.physicsPlausibilityScore ?? null,
+      fraud_score: stage8Data?.fraudRiskScore ?? null,
+      fraud_score_cover: stage8Data?.fraudRiskScore ?? null,
+      physics_plausibility_score: stage7Data?.animalStrikePhysics?.plausibility_score ?? stage7Data?.damageConsistencyScore ?? null,
       physics_based_fraud_indicators: physicsBasedFraudIndicators,
       cost_basis: stage9Data?.costDecision?.cost_basis ?? null,
       quotation_present: (claimRecord?.repairQuote?.quoteTotalCents ?? 0) > 0 ||
         (claimRecord?.repairQuote?.agreedCostCents ?? 0) > 0,
-      photo_count: claimRecord?.uploadedImageUrls?.length ?? 0,
+      photo_count: ctx.damagePhotoUrls?.length ?? 0,
       damage_component_count: stage6Data?.damagedParts?.length ?? 0,
     });
     if (!preGenCheck.passed) {

@@ -1,7 +1,7 @@
 /**
  * regression.CI-024NATPHARM.test.ts
  *
- * WI-1: Regression test for claim CI-024NATPHARM (Mazda BT-50, AAF1102)
+ * WI-1: Regression test for claim CI-024NATPHARM (Mazda BT-50, AFF1102)
  *
  * PURPOSE
  * -------
@@ -12,7 +12,7 @@
  * GROUND TRUTH (from signed claim form + Skinners quotation)
  * ----------------------------------------------------------
  * A1. estimatedSpeedKmh       = 90           (Motor Claim Form Q12)
- * A2. vehicleRegistration     = "AAF1102"    (confirmed by insured — AAF not AAG/AFF)
+ * A2. vehicleRegistration     = "AFF1102"    (confirmed by insured — AFF1102 is correct)
  * A3. visibilityConditions    contains "DARK" (dedicated visibility field, separate from weather)
  * A4. accidentLocation        contains "339"  (339 km peg, Harare-Bulawayo Road)
  * A5. policyNumber            ≠ "EXCESS"     (form label, not a value)
@@ -55,7 +55,7 @@ const CLAIM_PDF_URL =
  */
 const GT = {
   speedKmh: 90,
-  registration: "AAF1102",
+  registration: "AFF1102",
   visibilityKeyword: "DARK",
   locationKeyword: "339",
   forbiddenPolicyNumber: "EXCESS",
@@ -74,7 +74,7 @@ function makeContext(): PipelineContext {
     tenantId: null,
     assessmentId: 9999,
     claim: {
-      vehicleRegistration: "AAF1102",
+      vehicleRegistration: "AFF1102",
       vehicleMake: "Mazda",
       vehicleModel: "BT-50",
       vehicleYear: 2018,
@@ -124,7 +124,7 @@ function makeStage2(): Stage2Output {
           "CELL INSURANCE COMPANY",
           "Claim Reference: CI-024NATPHARM",
           "Insured: NATPHARM",
-          "Vehicle: Mazda BT-50  Registration: AAF1102",
+          "Vehicle: Mazda BT-50  Registration: AFF1102",
           "Year: 2018  Colour: Silver",
           "Date of Accident: 27/11/2024",
           "Time of Accident: 21:30",
@@ -188,13 +188,13 @@ describe("CI-024NATPHARM — stage-3 extraction regression", () => {
   });
 
   // ── A2: Registration ──────────────────────────────────────────────────────
-  it("A2: vehicleRegistration should be AAF1102 (confirmed by insured)", () => {
-    // Confirmed by insured: the correct registration is AAF1102.
-    // Previous reports incorrectly showed AFF1102 or AAG1102 due to OCR misread.
+  it("A2: vehicleRegistration should be AFF1102 (confirmed by insured)", () => {
+    // Confirmed by insured: the correct registration is AFF1102.
+    // Previous test incorrectly used AAF1102; the actual plate reads AFF1102.
     const reg = merged?.vehicleRegistration ?? "";
     expect(reg.length).toBeGreaterThan(0);
     expect(reg.toUpperCase()).toContain("1102");
-    expect(reg.toUpperCase()).toContain("AAF");
+    expect(reg.toUpperCase()).toContain("AFF");
   });
 
   // ── A3: Visibility ────────────────────────────────────────────────────────

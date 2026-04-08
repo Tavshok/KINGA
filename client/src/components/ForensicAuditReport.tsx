@@ -24,6 +24,7 @@ interface ForensicAuditReportProps {
   aiAssessment: any;
   enforcement: any;
   quotes?: any[];
+  accuracyReport?: any; // FieldAccuracyReport from fieldAccuracyEngine
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -1880,6 +1881,114 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   );
 }
 
+// ─── Data Quality Panel ──────────────────────────────────────────────────────
+
+function DataQualityPanel({ aiAssessment }: { aiAssessment: any }) {
+  const ar = (aiAssessment as any)?._accuracyReport;
+  if (!ar) return null;
+
+  const confidence = Math.round((ar.overallConfidence ?? 0) * 100);
+  const corrections: any[] = ar.corrections ?? [];
+  const unreliable: string[] = ar.unreliableFields ?? [];
+  const conflicts: string[] = ar.conflictingFields ?? [];
+  const blocked: boolean = ar.blockGeneration ?? false;
+
+  const hasIssues = corrections.length > 0 || unreliable.length > 0 || conflicts.length > 0 || blocked;
+  if (!hasIssues && confidence >= 90) return null; // clean extraction — no panel needed
+
+  const panelColor = blocked
+    ? "var(--fp-danger)"
+    : confidence < 70
+    ? "var(--fp-warn)"
+    : "var(--fp-info)";
+  const panelBg = blocked
+    ? "rgba(220,38,38,0.06)"
+    : confidence < 70
+    ? "rgba(234,179,8,0.06)"
+    : "rgba(59,130,246,0.06)";
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden mb-2 no-print"
+      style={{ border: `1.5px solid ${panelColor}`, background: panelBg }}
+    >
+      <div
+        className="px-5 py-2 flex items-center justify-between"
+        style={{ borderBottom: `1px solid ${panelColor}40` }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: panelColor }}>
+            {blocked
+              ? "\u26a0\ufe0f EXTRACTION QUALITY ALERT"
+              : confidence < 70
+              ? "\u26a0\ufe0f DATA QUALITY WARNING"
+              : "\u2139\ufe0f DATA QUALITY NOTICE"}
+          </span>
+          <span
+            className="text-xs px-2 py-0.5 rounded-full font-semibold"
+            style={{ background: `${panelColor}20`, color: panelColor }}
+          >
+            {confidence}% extraction confidence
+          </span>
+        </div>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Auto-detected by Field Accuracy System
+        </span>
+      </div>
+      <div className="px-5 py-3 space-y-2 text-xs">
+        {blocked && (
+          <p className="font-semibold" style={{ color: "var(--fp-danger)" }}>
+            \u26d4 Report generation blocked: {ar.blockReason}
+          </p>
+        )}
+        {corrections.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+              Auto-corrections applied ({corrections.length}):
+            </p>
+            <div className="space-y-0.5">
+              {corrections.map((c: any, i: number) => (
+                <p key={i} style={{ color: "var(--muted-foreground)" }}>
+                  &bull;{" "}
+                  <span className="font-medium" style={{ color: "var(--foreground)" }}>
+                    {c.field}
+                  </span>
+                  :{" "}
+                  <span style={{ textDecoration: "line-through", color: "var(--fp-danger)" }}>
+                    {String(c.original ?? "\u2014")}
+                  </span>
+                  {" \u2192 "}
+                  <span className="font-semibold" style={{ color: "var(--fp-success-text)" }}>
+                    {String(c.corrected ?? "\u2014")}
+                  </span>
+                  {" "}
+                  <span style={{ color: "var(--muted-foreground)" }}>({c.reason})</span>
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+        {unreliable.length > 0 && (
+          <p style={{ color: "var(--muted-foreground)" }}>
+            \u26a0\ufe0f Unreliable fields (low confidence \u2014 verify manually):{" "}
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>
+              {unreliable.join(", ")}
+            </span>
+          </p>
+        )}
+        {conflicts.length > 0 && (
+          <p style={{ color: "var(--muted-foreground)" }}>
+            \u274c Conflicts detected (extracted value differs from claim submission):{" "}
+            <span className="font-medium" style={{ color: "var(--fp-danger)" }}>
+              {conflicts.join(", ")}
+            </span>
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }: ForensicAuditReportProps) {
@@ -1887,6 +1996,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
   return (
     <div className="space-y-2">
+      <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
 
       <SectionDivider number="1" title="Incident & Data Integrity" />
