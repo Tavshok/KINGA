@@ -94,6 +94,10 @@ import {
   shouldHaltPipeline,
   type DocumentReadVerificationResult,
 } from "./documentReadVerificationEngine";
+import {
+  runPreGenerationConsistencyCheck,
+  type PreGenerationCheckResult,
+} from "./preGenerationConsistencyCheck";
 
 /**
  * Run the full self-healing pipeline.
@@ -672,6 +676,54 @@ export async function runPipelineV2(
 
   ctx.log("Pipeline", `Pipeline complete. Total: ${Date.now() - pipelineStart}ms, Assumptions: ${allAssumptions.length}, Recoveries: ${allRecoveryActions.length}`);
 
+  // ── WI-5: Pre-Generation Consistency Check ────────────────────────────────
+  // Detects self-contradicting report states and applies automatic corrections
+  // before the result is returned to the caller.
+  let preGenCheck: PreGenerationCheckResult | null = null;
+  try {
+    const physicsBasedFraudIndicators: string[] = [];
+    if (stage8Data?.fraudIndicators) {
+      for (const ind of stage8Data.fraudIndicators) {
+        const id = (ind as any).indicator ?? "";
+        if (
+          id === "physics_inconsistency" ||
+          id === "damage_direction_mismatch" ||
+          id === "speed_inconsistency" ||
+          id === "impact_force_mismatch"
+        ) {
+          physicsBasedFraudIndicators.push(id);
+        }
+      }
+    }
+    preGenCheck = runPreGenerationConsistencyCheck({
+      recommendation: stage9Data?.costDecision?.recommendation ?? null,
+      fraud_score: stage8Data?.fraudScore ?? null,
+      fraud_score_cover: stage8Data?.fraudScore ?? null,
+      physics_plausibility_score: stage7Data?.physicsPlausibilityScore ?? null,
+      physics_based_fraud_indicators: physicsBasedFraudIndicators,
+      cost_basis: stage9Data?.costDecision?.cost_basis ?? null,
+      quotation_present: (claimRecord?.repairQuote?.quoteTotalCents ?? 0) > 0 ||
+        (claimRecord?.repairQuote?.agreedCostCents ?? 0) > 0,
+      photo_count: claimRecord?.uploadedImageUrls?.length ?? 0,
+      damage_component_count: stage6Data?.damagedParts?.length ?? 0,
+    });
+    if (!preGenCheck.passed) {
+      ctx.log("WI-5", `Pre-generation consistency check FAILED: ${preGenCheck.contradictions.length} contradiction(s) detected.`);
+      for (const c of preGenCheck.contradictions) {
+        ctx.log("WI-5", `  [${c.rule_id}] ${c.description.substring(0, 120)}`);
+      }
+      // Apply recommendation override if R1 triggered
+      if (preGenCheck.recommendation_override && stage9Data?.costDecision) {
+        ctx.log("WI-5", `Overriding recommendation: ${stage9Data.costDecision.recommendation} → ${preGenCheck.recommendation_override}`);
+        (stage9Data.costDecision as any).recommendation = preGenCheck.recommendation_override;
+      }
+    } else {
+      ctx.log("WI-5", "Pre-generation consistency check passed — no contradictions detected.");
+    }
+  } catch (preGenErr) {
+    ctx.log("WI-5", `Pre-generation consistency check error (non-fatal): ${String(preGenErr)}`);
+  }
+
   // Collect raw OCR text from Stage 2 for audit persistence
   const stage2RawOcrText = stage2Data?.extractedTexts
     ? stage2Data.extractedTexts.map(et => et.rawText ?? "").filter(Boolean).join("\n\n---\n\n")
@@ -798,6 +850,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       incidentTime: null,
       animalType: null,
       weatherConditions: null,
+      visibilityConditions: null,
       roadSurface: null,
       marketValueCents: null,
       excessAmountCents: null,
@@ -844,7 +897,7 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
       impactPoint: null, estimatedSpeedKmh: null,
       maxCrushDepthM: null, totalDamageAreaM2: null,
       structuralDamage: false, airbagDeployment: false,
-      time: null, animalType: null, weatherConditions: null, roadSurface: null,
+      time: null, animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
     },
     policeReport: { reportNumber: null, station: null },
     damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },

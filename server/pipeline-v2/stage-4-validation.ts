@@ -106,7 +106,7 @@ function emptyExtraction(): ExtractedClaimFields {
     thirdPartyVehicle: null, thirdPartyRegistration: null,
     // New fields
     insurerName: null, policyNumber: null, claimReference: null,
-    incidentTime: null, animalType: null, weatherConditions: null, roadSurface: null,
+    incidentTime: null, animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
     marketValueCents: null, excessAmountCents: null, bettermentCents: null,
     driverLicenseNumber: null,
     uploadedImageUrls: [], sourceDocumentIndex: -1,

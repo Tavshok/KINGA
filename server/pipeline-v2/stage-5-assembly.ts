@@ -289,6 +289,7 @@ export async function runAssemblyStage(
       airbagDeployment: v.airbagDeployment ?? false,
       animalType: v.animalType || null,
       weatherConditions: v.weatherConditions || null,
+      visibilityConditions: v.visibilityConditions || null,
       roadSurface: v.roadSurface || null,
       time: v.incidentTime || null,
     };
@@ -412,7 +413,7 @@ export async function runAssemblyStage(
         impactPoint: null, estimatedSpeedKmh: null,
         maxCrushDepthM: null, totalDamageAreaM2: null,
         structuralDamage: false, airbagDeployment: false,
-        animalType: null, weatherConditions: null, roadSurface: null,
+        animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
       },
       policeReport: { reportNumber: null, station: null },
       damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },

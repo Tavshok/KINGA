@@ -195,6 +195,15 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Calibration override lookup failed (non-fatal): ${String(calibErr)}`);
     }
 
+    // WI-4: AGREED COST GATE
+    // If the claim record has an agreedCostCents (a signed/negotiated amount from the
+    // assessor or insurer), it takes absolute priority over the raw quoteTotalCents.
+    // This prevents the AI estimate from overriding a signed document value.
+    const agreedCostFromExtraction = claimRecord.repairQuote.agreedCostCents;
+    if (agreedCostFromExtraction && agreedCostFromExtraction > 0) {
+      ctx.log("Stage 9", `WI-4 AGREED COST GATE: agreedCostCents=${agreedCostFromExtraction} cents (USD ${(agreedCostFromExtraction/100).toFixed(2)}) is present — using as authoritative cost. quoteTotalCents will be used for deviation analysis only.`);
+    }
+
     // FIX (2026-03-21): If the claim record has no quote (quoteTotalCents is null/0)
     // but the input recovery pass found a quote in the raw document text, use the
     // recovered value so quoteDeviationPct is calculated against the correct baseline.
@@ -397,7 +406,20 @@ export async function runCostOptimisationStage(
     });
 
     // Step 4c: Run Claims Cost Decision Engine
-    const agreedCostUsd = quotedCents ? quotedCents / 100 : null;
+    // WI-4: QUOTATION-FIRST RULE
+    // Use the actual submitted quotation as the authoritative cost in ALL cases
+    // where a quotation document is present — whether signed or unsigned.
+    // Priority order:
+    //   1. agreedCostCents (signed/negotiated amount from assessor annotation)
+    //   2. quoteTotalCents (submitted quote total, signed or unsigned)
+    //   3. recovered_quote from input recovery pass
+    //   4. null → PRE_ASSESSMENT mode (AI estimate used as benchmark only)
+    const agreedCostUsd =
+      (agreedCostFromExtraction && agreedCostFromExtraction > 0)
+        ? agreedCostFromExtraction / 100
+        : (quotedCents && quotedCents > 0)
+          ? quotedCents / 100
+          : null;
     const costDecision = (() => {
       try {
         return runCostDecision({

@@ -392,7 +392,43 @@ function buildReasoning(
 export function runAnimalStrikePhysics(
   input: AnimalStrikePhysicsInput
 ): AnimalStrikePhysicsOutput {
-  // ── 1. Resolve parameters ──────────────────────────────────────────────────
+  // ── WI-4: Null-input guard ──────────────────────────────────────────────────────
+  // Speed is the primary input. If it is 0 or missing, the physics engine
+  // cannot produce a meaningful result. Return a zero-plausibility record
+  // rather than fabricating a score from an invalid input.
+  if (!input.speed_kmh || input.speed_kmh <= 0) {
+    return {
+      plausibility_score: 0,
+      plausibility_tier: "INVALID_INPUT" as any,
+      delta_v_kmh: 0,
+      impact_force_kn: 0,
+      peak_deceleration_g: 0,
+      energy_absorbed_kj: 0,
+      expected_damage_zones: [],
+      damage_consistency: {
+        matched_components: [],
+        unexpected_components: [],
+        missing_expected_components: [],
+        consistency_score: 0,
+        direction_mismatch: false,
+        severity_mismatch: false,
+      },
+      airbag_deployment_expected: false,
+      seatbelt_pretension_expected: false,
+      total_loss_threshold_exceeded: false,
+      confidence: 0,
+      assumptions: ["speed_kmh was 0 or missing — physics engine refused to run (WI-4 null-input gate)"],
+      warnings: ["INVALID INPUT: speed_kmh must be > 0 for physics analysis"],
+      _meta: {
+        vehicle_mass_kg: 0, animal_mass_kg: 0, animal_category: "unknown",
+        delta_v_ms: 0, reduced_mass_kg: 0, contact_duration_s: 0,
+        impact_force_n: 0, peak_deceleration_ms2: 0, energy_absorbed_j: 0,
+        speed_ms: 0,
+      },
+    };
+  }
+
+  // ── 1. Resolve parameters ────────────────────────────────────────────────────────
   const speedKmh = Math.max(0, input.speed_kmh);
   const speedMs = speedKmh / 3.6;
   const vehicleMassKg = resolveVehicleMass(input.vehicle_type);

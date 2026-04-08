@@ -246,6 +246,7 @@ export interface ExtractedClaimFields {
   incidentTime: string | null;    // Time of accident (HH:MM)
   animalType: string | null;      // Type of animal struck (e.g. cow, kudu)
   weatherConditions: string | null;
+  visibilityConditions: string | null; // Visibility at time of accident (DARK, DUSK, DAWN, DAYLIGHT)
   roadSurface: string | null;
   // Financial extras
   marketValueCents: number | null; // Vehicle market/retail value in cents
@@ -410,6 +411,7 @@ export interface AccidentDetails {
   airbagDeployment: boolean;
   animalType: string | null;       // Type of animal struck (e.g. cow, kudu)
   weatherConditions: string | null;
+  visibilityConditions: string | null; // Visibility at time of accident (DARK, DUSK, DAWN, DAYLIGHT)
   roadSurface: string | null;
 }
 

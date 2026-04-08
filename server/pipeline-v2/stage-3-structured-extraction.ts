@@ -96,6 +96,7 @@ const EXTRACTION_SCHEMA = {
         incidentTime: { type: ["string", "null"], description: "Time of accident in HH:MM format. Look for 'Time:', 'Time of accident:', 'Time of incident:'. Convert to 24-hour HH:MM format." },
         animalType: { type: ["string", "null"], description: "Type of animal involved if this is an animal strike (e.g. 'cow', 'kudu', 'donkey', 'goat'). Extract from accident description or any field mentioning the animal." },
         weatherConditions: { type: ["string", "null"], description: "Weather conditions at time of accident. Look for 'Weather:', 'Weather conditions:', 'Conditions:', 'Weather at time of accident:'. Common values: clear, cloudy, rain, fog, night." },
+        visibilityConditions: { type: ["string", "null"], description: "Visibility at time of accident. Look for a field labelled 'Visibility:', 'Visibility at time of accident:'. Common values: DARK, DUSK, DAWN, DAYLIGHT, NIGHT. This is SEPARATE from weather — a night with clear weather has DARK visibility. Extract the exact value from the form." },
         roadSurface: { type: ["string", "null"], description: "Road surface conditions. Look for 'Road surface:', 'Road conditions:', 'Surface:'. Common values: dry, wet, gravel, tarred, dirt." },
         // Financial extras
         marketValueCents: { type: ["integer", "null"], description: "Vehicle market/retail value in cents. Look for 'Market Value', 'Retail Value', 'Vehicle Value', 'Sum Insured'. Convert to cents (multiply by 100). Example: 20000 → 2000000." },
@@ -117,7 +118,7 @@ const EXTRACTION_SCHEMA = {
         "structuralDamage", "airbagDeployment", "maxCrushDepthM", "totalDamageAreaM2",
         "thirdPartyVehicle", "thirdPartyRegistration",
         "insurerName", "policyNumber", "claimReference",
-        "incidentTime", "animalType", "weatherConditions", "roadSurface",
+        "incidentTime", "animalType", "weatherConditions", "visibilityConditions", "roadSurface",
         "marketValueCents", "excessAmountCents", "bettermentCents",
         "driverLicenseNumber",
       ],
@@ -129,7 +130,8 @@ const EXTRACTION_SCHEMA = {
 async function extractFieldsFromPdf(
   pdfUrl: string,
   rawText: string,
-  ctx: PipelineContext
+  ctx: PipelineContext,
+  pageImageUrls: string[] = []
 ): Promise<ExtractedClaimFields> {
   const response = await llmCall({
     messages: [
@@ -210,12 +212,18 @@ Return JSON only.`,
               mime_type: "application/pdf" as const,
             },
           },
+          // WI-2: Include rendered page images for vision analysis
+          // Pass up to 10 page images so the LLM can see embedded photographs
+          // (damage photos, assessor signatures, handwritten annotations)
+          ...pageImageUrls.slice(0, 10).map(imgUrl => ({
+            type: "image_url" as const,
+            image_url: { url: imgUrl, detail: "high" as const },
+          })),
         ],
       },
     ],
     response_format: EXTRACTION_SCHEMA,
   });
-
   const content = response.choices?.[0]?.message?.content || "{}";
   const parsed = JSON.parse(content);
   return mapToExtractedFields(parsed, 0);
@@ -367,6 +375,7 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     incidentTime: raw.incidentTime || null,
     animalType: raw.animalType || null,
     weatherConditions: raw.weatherConditions || null,
+    visibilityConditions: raw.visibilityConditions || null,
     roadSurface: raw.roadSurface || null,
     // Financial extras
     marketValueCents: raw.marketValueCents ?? null,
@@ -654,8 +663,12 @@ export async function runStructuredExtractionStage(
           ? `[REPAIR QUOTE SECTION — read this first for cost data]\n${preprocessed.repairQuoteText}\n\n[CLAIM FORM SECTION — read this for incident and vehicle data]\n${preprocessed.claimFormText}\n\n[FULL DOCUMENT]\n${rawText.substring(0, 5000)}`
           : rawText.substring(0, 8000);
 
-        ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName}`);
-        const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, enrichedRawText, ctx);
+        ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName} (${pdfDoc.imageUrls.length} page images available)`);
+        const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, enrichedRawText, ctx, pdfDoc.imageUrls);
+        // WI-2: Populate uploadedImageUrls from rendered page images so A7 passes
+        if (pdfDoc.imageUrls.length > 0) {
+          fields.uploadedImageUrls = [...pdfDoc.imageUrls];
+        }
         fields.sourceDocumentIndex = pdfDoc.documentIndex;
         perDocumentExtractions.push(fields);
 

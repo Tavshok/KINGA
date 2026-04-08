@@ -10361,3 +10361,20 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Keep interactive elements unique to Comparison View (AI re-run, quote approval, valuation)
 - [x] Verify TypeScript clean after changes (0 errors)
 - [x] Test in browser that new format renders on Comparison View page — confirmed all 7 sections visible
+
+## Action Plan — CI-024NATPHARM Pipeline Fix (Phased Implementation)
+
+- [ ] WI-1: Write regression test with 8 assertions against CI-024NATPHARM PDF (test must run and fail on all 8)
+- [ ] WI-2: Fix PDF image extraction — render PDF pages as images via pdf2image, pass to vision model
+- [ ] WI-3: Fix 5 critical field extractions — speedKmh, registration, visibilityConditions, incidentLocation, policyNumber (label misparse)
+- [ ] WI-4: Gate physics engine (refuse null speed, return SPEED_NOT_EXTRACTED) and cost engine (use signed quotation exclusively)
+- [ ] WI-5: Add pre-generation consistency check — 5 contradiction rules block report generation
+- [ ] Final verification: all 8 regression assertions pass end-to-end
+
+## Action Plan — CI-024NATPHARM Pipeline Fix (WI-1 to WI-5)
+- [x] WI-1: Write regression test with 8 assertions against CI-024NATPHARM PDF
+- [x] WI-2: Fix PDF image extraction — render PDF pages as images (pdfToImages.ts), pass to vision model in stage-3
+- [x] WI-3: Fix 5 critical field extractions — speed, registration (AAF1102), visibility (dedicated field), location, policy number
+- [x] WI-4: Gate physics engine (plausibility=0 when speed=0) and cost engine (use signed quotation exclusively, never AI estimate when quote present)
+- [x] WI-5: Add pre-generation consistency check — 5 contradiction rules (R1-R5) block self-contradicting reports
+- [x] Verify all regression assertions pass — 6,228 passed, 3 skipped (A7 integration-only), 0 failed
