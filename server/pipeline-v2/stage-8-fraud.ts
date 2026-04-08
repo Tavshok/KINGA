@@ -228,17 +228,40 @@ function buildScenarioFraudInput(
   physicsAnalysis: Stage7Output
 ): ScenarioFraudInput {
   // ── Scenario type ──────────────────────────────────────────────────────────
-  const rawScenario = claimRecord.accidentDetails.incidentType ?? "unknown";
+  // Priority 1: Use LLM-reasoned classification from Stage 5 (incidentClassification).
+  // Priority 2: Fall back to raw claim form incidentType string.
+  // This ensures the fraud engine uses the correct scenario profile even when
+  // the claim form says "collision" but the engine classified it as "rollover".
+  const classifiedType = claimRecord.accidentDetails.incidentClassification?.incident_type;
+  const rawScenario = (classifiedType && classifiedType !== "unknown")
+    ? classifiedType
+    : (claimRecord.accidentDetails.incidentType ?? "unknown");
   const scenarioMap: Record<string, ScenarioType> = {
+    // Animal strike variants
     animal_strike: "animal_strike",
     animal: "animal_strike",
     livestock: "animal_strike",
     wildlife: "animal_strike",
+    // Collision sub-types — now first-class scenario types
+    rollover: "rollover",
+    rear_end: "rear_end",
+    sideswipe: "sideswipe",
+    side_swipe: "sideswipe",
+    head_on: "head_on",
+    head_on_collision: "head_on",
+    single_vehicle: "single_vehicle",
+    single_vehicle_accident: "single_vehicle",
+    pedestrian_strike: "pedestrian_strike",
+    pedestrian: "pedestrian_strike",
+    // Generic collision fallback
     vehicle_collision: "vehicle_collision",
     collision: "vehicle_collision",
     third_party: "vehicle_collision",
+    mva: "vehicle_collision",
+    // Other types
     theft: "theft",
     stolen: "theft",
+    smash_and_grab: "theft",
     fire: "fire",
     flood: "flood",
     water: "flood",

@@ -164,9 +164,9 @@ type DamageSeverity = 0 | 1 | 2 | 3;
 
 const SEVERITY_FILL: Record<DamageSeverity, string> = {
   0: "transparent",
-  1: "rgba(253,224,71,0.30)",   // yellow tint — minor
-  2: "rgba(251,146,60,0.30)",   // orange tint — moderate
-  3: "rgba(248,113,113,0.30)",  // red tint — severe
+  1: "var(--fp-warning-bg)",   // yellow tint — minor
+  2: "var(--fp-warning-bg)",   // orange tint — moderate
+  3: "var(--fp-critical-bg)",  // red tint — severe
 };
 const SEVERITY_STROKE: Record<DamageSeverity, string> = {
   0: "var(--border)",
@@ -676,17 +676,17 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                   <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "var(--muted-foreground)" }}>Incident Narrative</span>
                   {narrativeAnalysis && (
                     <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                      narrativeAnalysis.consistency_verdict === "CONSISTENT" ? "bg-green-100 text-green-800" :
-                      narrativeAnalysis.consistency_verdict === "MINOR_DISCREPANCY" ? "bg-yellow-100 text-yellow-800" :
-                      narrativeAnalysis.consistency_verdict === "INCONSISTENT" ? "bg-red-100 text-red-800" :
-                      narrativeAnalysis.consistency_verdict === "CONTAMINATED" ? "bg-orange-100 text-orange-800" :
-                      "bg-gray-100 text-gray-600"
+                      narrativeAnalysis.consistency_verdict === "CONSISTENT" ? "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200" :
+                      narrativeAnalysis.consistency_verdict === "MINOR_DISCREPANCY" ? "bg-yellow-100 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200" :
+                      narrativeAnalysis.consistency_verdict === "INCONSISTENT" ? "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200" :
+                      narrativeAnalysis.consistency_verdict === "CONTAMINATED" ? "bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-200" :
+                      "bg-muted text-muted-foreground"
                     }`}>
                       {narrativeAnalysis.consistency_verdict?.replace(/_/g, " ")}
                     </span>
                   )}
                   {narrativeAnalysis?.was_contaminated && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-100 text-orange-700">POST-INCIDENT CONTENT STRIPPED</span>
+                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-200">POST-INCIDENT CONTENT STRIPPED</span>
                   )}
                 </div>
                 <p className="leading-relaxed">
@@ -703,9 +703,9 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
 
               {/* Stripped post-incident content */}
               {narrativeAnalysis?.stripped_content && narrativeAnalysis.stripped_content.length > 0 && (
-                <div className="p-3 rounded-lg text-xs" style={{ background: "#fff7ed", border: "1px solid #fed7aa", color: "#92400e" }}>
+                <div className="p-3 rounded-lg text-xs bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200">
                   <p className="font-bold uppercase tracking-wide text-[10px] mb-1">Post-Incident Content Removed from Narrative</p>
-                  <p className="text-[10px] mb-1" style={{ color: "#b45309" }}>The following content was identified as post-incident (inspection findings, repair notes, extras quotations) and excluded from the incident narrative above.</p>
+                  <p className="text-[10px] mb-1 text-amber-700 dark:text-amber-300">The following content was identified as post-incident (inspection findings, repair notes, extras quotations) and excluded from the incident narrative above.</p>
                   <ul className="space-y-0.5">
                     {narrativeAnalysis.stripped_content.map((s: string, i: number) => (
                       <li key={i} className="text-[10px]">{s}</li>
@@ -726,9 +726,9 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                     ].filter(r => r.verdict !== "NOT_ASSESSED").map((r, i) => (
                       <div key={i} className="flex items-start gap-2">
                         <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          r.verdict === "CONSISTENT" ? "bg-green-100 text-green-800" :
-                          r.verdict === "PARTIAL" ? "bg-yellow-100 text-yellow-800" :
-                          "bg-red-100 text-red-800"
+                          r.verdict === "CONSISTENT" ? "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200" :
+                          r.verdict === "PARTIAL" ? "bg-yellow-100 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200" :
+                          "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200"
                         }`}>{r.verdict}</span>
                         <span style={{ color: "var(--muted-foreground)" }}><span className="font-semibold" style={{ color: "var(--foreground)" }}>{r.label}:</span> {r.notes}</span>
                       </div>
@@ -739,20 +739,20 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
 
               {/* Narrative fraud signals */}
               {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
-                <div className="p-3 rounded-lg text-xs" style={{ background: "#fef2f2", border: "1px solid #fecaca", color: "#7f1d1d" }}>
+                <div className="p-3 rounded-lg text-xs bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-900 dark:text-red-200">
                   <p className="font-bold uppercase tracking-wide text-[10px] mb-2">Narrative Fraud Signals ({narrativeAnalysis.fraud_signals.length})</p>
                   <div className="space-y-1.5">
                     {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => (
                       <div key={i} className="flex items-start gap-2">
                         <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          sig.severity === "HIGH" ? "bg-red-200 text-red-900" :
-                          sig.severity === "MEDIUM" ? "bg-orange-100 text-orange-800" :
-                          "bg-yellow-100 text-yellow-800"
+                          sig.severity === "HIGH" ? "bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100" :
+                          sig.severity === "MEDIUM" ? "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100" :
+                          "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100"
                         }`}>{sig.severity}</span>
                         <div>
                           <span className="font-semibold">{sig.code?.replace(/_/g, " ")}: </span>
                           <span>{sig.description}</span>
-                          {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "#b91c1c" }}>Evidence: "{sig.evidence}"</span>}
+                          {sig.evidence && <span className="block text-[10px] mt-0.5 text-red-600 dark:text-red-400">Evidence: "{sig.evidence}"</span>}
                         </div>
                       </div>
                     ))}
@@ -1508,9 +1508,9 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                       <div style={{ aspectRatio: "1", position: "relative" }}>
                         <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
                         {/* Caption overlay strip */}
-                        <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, background: "rgba(0,0,0,0.55)", padding: "2px 6px" }}>
-                          <p className="text-xs font-semibold truncate" style={{ color: "#fff" }}>{zoneLabel}</p>
-                          <p className="text-xs" style={{ color: "rgba(255,255,255,0.75)" }}>Photo {i + 1}</p>
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/55 px-1.5 py-0.5">
+                          <p className="text-xs font-semibold truncate text-white">{zoneLabel}</p>
+                          <p className="text-xs text-white/75">Photo {i + 1}</p>
                         </div>
                       </div>
                     </div>
@@ -2050,10 +2050,10 @@ function DataQualityPanel({ aiAssessment }: { aiAssessment: any }) {
     ? "var(--fp-warn)"
     : "var(--fp-info)";
   const panelBg = blocked
-    ? "rgba(220,38,38,0.06)"
+    ? "var(--fp-critical-bg)"
     : confidence < 70
-    ? "rgba(234,179,8,0.06)"
-    : "rgba(59,130,246,0.06)";
+    ? "var(--fp-warning-bg)"
+    : "var(--fp-info-bg)";
 
   return (
     <div

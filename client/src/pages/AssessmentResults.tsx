@@ -207,9 +207,9 @@ function ImageGallery({
   if (totalCount === 0) {
     return (
       <Card className="p-8 text-center">
-        <Camera className="w-12 h-12 mx-auto text-gray-600 dark:text-gray-300 mb-3" />
-        <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground font-medium">No photos extracted</p>
-        <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-1">The document may not contain embedded images.</p>
+        <Camera className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+        <p className="text-muted-foreground font-medium">No photos extracted</p>
+        <p className="text-sm text-muted-foreground/70 mt-1">The document may not contain embedded images.</p>
       </Card>
     );
   }
@@ -225,7 +225,7 @@ function ImageGallery({
           </div>
           <div className="flex items-center gap-1">
             <Button variant="ghost" size="icon" onClick={handleZoomOut} disabled={zoom <= 1} className="h-8 w-8"><ZoomOut className="w-4 h-4" /></Button>
-            <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
+            <span className="text-xs text-muted-foreground w-12 text-center">{Math.round(zoom * 100)}%</span>
             <Button variant="ghost" size="icon" onClick={handleZoomIn} disabled={zoom >= 5} className="h-8 w-8"><ZoomIn className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={resetView} className="h-8 w-8"><RotateCcw className="w-4 h-4" /></Button>
             <Button variant="ghost" size="icon" onClick={() => { resetView(); setIsFullscreen(true); }} className="h-8 w-8"><Maximize2 className="w-4 h-4" /></Button>
@@ -265,7 +265,7 @@ function ImageGallery({
 
         {filteredPhotos.length === 0 ? (
           <div className="h-48 flex items-center justify-center bg-gray-50 dark:bg-muted/50 rounded-lg">
-            <p className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">No {filter === 'damage' ? 'damage' : 'document'} photos in this category</p>
+            <p className="text-muted-foreground/70">No {filter === 'damage' ? 'damage' : 'document'} photos in this category</p>
           </div>
         ) : (
           <>
@@ -365,14 +365,14 @@ function PhysicsFraudCrossReference({ physicsAnalysis, fraudAnalysis }: { physic
       </div>
       <div className="grid md:grid-cols-2 gap-4 mb-4">
         <div className="p-4 bg-white dark:bg-card rounded-lg border">
-          <div className="flex items-center gap-2 mb-2"><Activity className="w-4 h-4 text-purple-600" /><span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Physics Validation</span></div>
+          <div className="flex items-center gap-2 mb-2"><Activity className="w-4 h-4 text-purple-600" /><span className="text-sm font-semibold text-foreground/80">Physics Validation</span></div>
           <div className="text-2xl font-bold text-purple-600">{crossRef.physics_score}/100</div>
-          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">{physicsFlags.length > 0 ? `${physicsFlags.length} flag(s) raised` : 'No flags raised'}</p>
+          <p className="text-xs text-muted-foreground mt-1">{physicsFlags.length > 0 ? `${physicsFlags.length} flag(s) raised` : 'No flags raised'}</p>
         </div>
         <div className="p-4 bg-white dark:bg-card rounded-lg border">
-          <div className="flex items-center gap-2 mb-2"><Shield className="w-4 h-4 text-primary" /><span className="text-sm font-semibold text-gray-700 dark:text-foreground/80">Fraud Risk Impact</span></div>
+          <div className="flex items-center gap-2 mb-2"><Shield className="w-4 h-4 text-primary" /><span className="text-sm font-semibold text-foreground/80">Fraud Risk Impact</span></div>
           <div className={`text-2xl font-bold ${contributes ? 'text-amber-600' : 'text-green-600'}`}>{contributes ? 'Score Elevated' : 'No Impact'}</div>
-          <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">{contributes ? 'Physics inconsistencies increased fraud score' : 'Physics supports claim legitimacy'}</p>
+          <p className="text-xs text-muted-foreground mt-1">{contributes ? 'Physics inconsistencies increased fraud score' : 'Physics supports claim legitimacy'}</p>
         </div>
       </div>
       {physicsFlags.length > 0 && (
@@ -386,7 +386,7 @@ function PhysicsFraudCrossReference({ physicsAnalysis, fraudAnalysis }: { physic
         </div>
       )}
       <div className="p-3 bg-white dark:bg-card rounded-lg border">
-        <p className="text-sm text-gray-700 dark:text-foreground/80"><strong>Analysis:</strong> {crossRef.physics_notes}</p>
+        <p className="text-sm text-foreground/80"><strong>Analysis:</strong> {crossRef.physics_notes}</p>
       </div>
     </Card>
   );
@@ -415,7 +415,7 @@ function QuoteComparisonChart({ quotes }: { quotes: QuoteFigure[] }) {
               <div className="flex items-center justify-between mb-1.5">
                 <div>
                   <span className="text-sm font-semibold text-gray-900 dark:text-foreground">{quote.label}</span>
-                  <span className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground ml-2">({quote.source})</span>
+                  <span className="text-xs text-muted-foreground ml-2">({quote.source})</span>
                 </div>
                 <span className="text-lg font-bold" style={{ color }}>${quote.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
@@ -424,7 +424,7 @@ function QuoteComparisonChart({ quotes }: { quotes: QuoteFigure[] }) {
                   {pct > 20 && `${Math.round(pct)}%`}
                 </div>
               </div>
-              {quote.description && <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mt-1">{quote.description}</p>}
+              {quote.description && <p className="text-xs text-muted-foreground mt-1">{quote.description}</p>}
             </div>
           );
         })}
@@ -482,19 +482,19 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
       <div className="grid grid-cols-4 gap-3 mb-6">
         <div className="p-3 bg-primary/5 rounded-lg text-center">
           <p className="text-2xl font-bold text-primary">{recommendations.length}</p>
-          <p className="text-xs text-gray-600 dark:text-muted-foreground">Components</p>
+          <p className="text-xs text-muted-foreground">Components</p>
         </div>
         <div className="p-3 bg-green-50 dark:bg-green-950/30 rounded-lg text-center">
           <p className="text-2xl font-bold text-green-600">{repairCount}</p>
-          <p className="text-xs text-gray-600 dark:text-muted-foreground">Repair</p>
+          <p className="text-xs text-muted-foreground">Repair</p>
         </div>
         <div className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg text-center">
           <p className="text-2xl font-bold text-red-600">{replaceCount}</p>
-          <p className="text-xs text-gray-600 dark:text-muted-foreground">Replace</p>
+          <p className="text-xs text-muted-foreground">Replace</p>
         </div>
         <div className="p-3 bg-purple-50 dark:bg-purple-950/30 rounded-lg text-center">
           <p className="text-2xl font-bold text-purple-600">{totalHours.toFixed(1)}h</p>
-          <p className="text-xs text-gray-600 dark:text-muted-foreground">Total Labor</p>
+          <p className="text-xs text-muted-foreground">Total Labor</p>
         </div>
       </div>
 
@@ -511,8 +511,8 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
                   </Badge>
                   <Badge className={`text-xs ${severityColor(rec.severity)}`}>{rec.severity}</Badge>
                 </div>
-                <p className="text-sm text-gray-600 dark:text-muted-foreground mt-1">{rec.reasoning}</p>
-                <div className="flex gap-4 mt-2 text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">
+                <p className="text-sm text-muted-foreground mt-1">{rec.reasoning}</p>
+                <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
                   <span>Labor: {rec.laborHours}h</span>
                 </div>
               </div>
@@ -526,7 +526,7 @@ function ComponentRecommendations({ recommendations }: { recommendations: Compon
 
       {/* Total */}
       <div className="mt-4 p-4 bg-gray-100 dark:bg-muted rounded-lg flex items-center justify-between">
-        <span className="font-semibold text-gray-700 dark:text-foreground/80">AI Component Total</span>
+        <span className="font-semibold text-foreground/80">AI Component Total</span>
         <span className="text-xl font-bold text-gray-900 dark:text-foreground">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
       </div>
     </Card>
@@ -728,7 +728,7 @@ export default function AssessmentResults() {
       <div className="min-h-screen bg-gradient-to-br from-primary/5 via-white to-accent/5 flex items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
-          <p className="text-gray-600 dark:text-muted-foreground">Loading assessment results...</p>
+          <p className="text-muted-foreground">Loading assessment results...</p>
         </div>
       </div>
     );
@@ -746,19 +746,19 @@ export default function AssessmentResults() {
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-foreground mb-2">Assessment Analysis Complete</h1>
-          <p className="text-gray-600 dark:text-muted-foreground">AI has successfully extracted and analyzed the assessment document</p>
+          <p className="text-muted-foreground">AI has successfully extracted and analyzed the assessment document</p>
           
           {/* Data Quality Bar */}
           <div className="mt-3 max-w-md mx-auto">
-            <div className="flex justify-between text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">
+            <div className="flex justify-between text-xs text-muted-foreground mb-1">
               <span>Data Completeness</span>
               <span className="font-semibold">{dataCompleteness}%</span>
             </div>
-            <div className="w-full bg-gray-200 rounded-full h-2">
-              <div className={`h-2 rounded-full ${dataCompleteness >= 70 ? 'bg-green-500' : dataCompleteness >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`} style={{ width: `${dataCompleteness}%` }}></div>
+            <div className="w-full bg-muted rounded-full h-2">
+              <div className={`h-2 rounded-full ${dataCompleteness >= 70 ? 'bg-emerald-500' : dataCompleteness >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${dataCompleteness}%` }}></div>
             </div>
             {extractedData.missingData && extractedData.missingData.length > 0 && (
-              <p className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-1">Missing: {extractedData.missingData.join(', ')}</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">Missing: {extractedData.missingData.join(', ')}</p>
             )}
           </div>
           
@@ -830,23 +830,23 @@ export default function AssessmentResults() {
                 
                 {!isEditing ? (
                   <div className="grid grid-cols-2 gap-4">
-                    <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Make & Model</p><p className="font-medium">{extractedData.vehicleMake || "N/A"} {extractedData.vehicleModel || ""}</p></div>
-                    <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Year</p><p className="font-medium">{extractedData.vehicleYear || "N/A"}</p></div>
-                    <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Registration</p><p className="font-medium">{extractedData.vehicleRegistration || extractedData.registration || "N/A"}</p></div>
-                    <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Claimant</p><p className="font-medium">{extractedData.claimantName || "N/A"}</p></div>
-                    {extractedData.accidentDate && <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Accident Date</p><p className="font-medium">{extractedData.accidentDate}</p></div>}
-                    {extractedData.accidentLocation && <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Location</p><p className="font-medium">{extractedData.accidentLocation}</p></div>}
-                    {extractedData.accidentType && <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Accident Type</p><p className="font-medium capitalize">{extractedData.accidentType.replace(/_/g, ' ')}</p></div>}
-                    {extractedData.assessorName && <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Assessor</p><p className="font-medium">{extractedData.assessorName}</p></div>}
-                    {extractedData.repairerName && <div><p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Repairer</p><p className="font-medium">{extractedData.repairerName}</p></div>}
+                    <div><p className="text-sm text-muted-foreground">Make & Model</p><p className="font-medium">{extractedData.vehicleMake || "N/A"} {extractedData.vehicleModel || ""}</p></div>
+                    <div><p className="text-sm text-muted-foreground">Year</p><p className="font-medium">{extractedData.vehicleYear || "N/A"}</p></div>
+                    <div><p className="text-sm text-muted-foreground">Registration</p><p className="font-medium">{extractedData.vehicleRegistration || extractedData.registration || "N/A"}</p></div>
+                    <div><p className="text-sm text-muted-foreground">Claimant</p><p className="font-medium">{extractedData.claimantName || "N/A"}</p></div>
+                    {extractedData.accidentDate && <div><p className="text-sm text-muted-foreground">Accident Date</p><p className="font-medium">{extractedData.accidentDate}</p></div>}
+                    {extractedData.accidentLocation && <div><p className="text-sm text-muted-foreground">Location</p><p className="font-medium">{extractedData.accidentLocation}</p></div>}
+                    {extractedData.accidentType && <div><p className="text-sm text-muted-foreground">Accident Type</p><p className="font-medium capitalize">{extractedData.accidentType.replace(/_/g, ' ')}</p></div>}
+                    {extractedData.assessorName && <div><p className="text-sm text-muted-foreground">Assessor</p><p className="font-medium">{extractedData.assessorName}</p></div>}
+                    {extractedData.repairerName && <div><p className="text-sm text-muted-foreground">Repairer</p><p className="font-medium">{extractedData.repairerName}</p></div>}
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground block mb-1">Make</label><Input value={editedData.vehicleMake || ""} onChange={(e) => setEditedData({...editedData, vehicleMake: e.target.value})} /></div>
-                    <div><label className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground block mb-1">Model</label><Input value={editedData.vehicleModel || ""} onChange={(e) => setEditedData({...editedData, vehicleModel: e.target.value})} /></div>
-                    <div><label className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground block mb-1">Year</label><Input type="number" value={editedData.vehicleYear || ""} onChange={(e) => setEditedData({...editedData, vehicleYear: parseInt(e.target.value)})} /></div>
-                    <div><label className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground block mb-1">Registration</label><Input value={editedData.vehicleRegistration || ""} onChange={(e) => setEditedData({...editedData, vehicleRegistration: e.target.value})} /></div>
-                    <div className="col-span-2"><label className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground block mb-1">Claimant Name</label><Input value={editedData.claimantName || ""} onChange={(e) => setEditedData({...editedData, claimantName: e.target.value})} /></div>
+                    <div><label className="text-sm text-muted-foreground block mb-1">Make</label><Input value={editedData.vehicleMake || ""} onChange={(e) => setEditedData({...editedData, vehicleMake: e.target.value})} /></div>
+                    <div><label className="text-sm text-muted-foreground block mb-1">Model</label><Input value={editedData.vehicleModel || ""} onChange={(e) => setEditedData({...editedData, vehicleModel: e.target.value})} /></div>
+                    <div><label className="text-sm text-muted-foreground block mb-1">Year</label><Input type="number" value={editedData.vehicleYear || ""} onChange={(e) => setEditedData({...editedData, vehicleYear: parseInt(e.target.value)})} /></div>
+                    <div><label className="text-sm text-muted-foreground block mb-1">Registration</label><Input value={editedData.vehicleRegistration || ""} onChange={(e) => setEditedData({...editedData, vehicleRegistration: e.target.value})} /></div>
+                    <div className="col-span-2"><label className="text-sm text-muted-foreground block mb-1">Claimant Name</label><Input value={editedData.claimantName || ""} onChange={(e) => setEditedData({...editedData, claimantName: e.target.value})} /></div>
                   </div>
                 )}
               </Card>
@@ -859,16 +859,31 @@ export default function AssessmentResults() {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <div className="flex justify-between mb-1"><span className="text-sm text-gray-600 dark:text-muted-foreground">Physics Score</span><span className="text-sm font-semibold" style={{ color: physicsData.physicsScore >= 70 ? '#16a34a' : physicsData.physicsScore >= 40 ? '#ca8a04' : '#dc2626' }}>{physicsData.physicsScore}%</span></div>
-                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full" style={{ width: `${physicsData.physicsScore}%`, backgroundColor: physicsData.physicsScore >= 70 ? '#16a34a' : physicsData.physicsScore >= 40 ? '#ca8a04' : '#dc2626' }}></div></div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-muted-foreground">Physics Score</span>
+                      <span className={`text-sm font-semibold ${physicsData.physicsScore >= 70 ? 'text-emerald-600 dark:text-emerald-400' : physicsData.physicsScore >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{physicsData.physicsScore}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div className={`h-2 rounded-full ${physicsData.physicsScore >= 70 ? 'bg-emerald-500' : physicsData.physicsScore >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${physicsData.physicsScore}%` }}></div>
+                    </div>
                   </div>
                   <div>
-                    <div className="flex justify-between mb-1"><span className="text-sm text-gray-600 dark:text-muted-foreground">Fraud Risk</span><span className="text-sm font-semibold" style={{ color: fraudData.riskScore <= 30 ? '#16a34a' : fraudData.riskScore <= 60 ? '#ca8a04' : '#dc2626' }}>{fraudData.riskScore}%</span></div>
-                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full" style={{ width: `${fraudData.riskScore}%`, backgroundColor: fraudData.riskScore <= 30 ? '#16a34a' : fraudData.riskScore <= 60 ? '#ca8a04' : '#dc2626' }}></div></div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-muted-foreground">Fraud Risk</span>
+                      <span className={`text-sm font-semibold ${fraudData.riskScore <= 30 ? 'text-emerald-600 dark:text-emerald-400' : fraudData.riskScore <= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{fraudData.riskScore}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div className={`h-2 rounded-full ${fraudData.riskScore <= 30 ? 'bg-emerald-500' : fraudData.riskScore <= 60 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${fraudData.riskScore}%` }}></div>
+                    </div>
                   </div>
                   <div>
-                    <div className="flex justify-between mb-1"><span className="text-sm text-gray-600 dark:text-muted-foreground">Data Quality</span><span className="text-sm font-semibold" style={{ color: dataCompleteness >= 70 ? '#16a34a' : dataCompleteness >= 40 ? '#ca8a04' : '#dc2626' }}>{dataCompleteness}%</span></div>
-                    <div className="w-full bg-gray-200 rounded-full h-2"><div className="h-2 rounded-full" style={{ width: `${dataCompleteness}%`, backgroundColor: dataCompleteness >= 70 ? '#16a34a' : dataCompleteness >= 40 ? '#ca8a04' : '#dc2626' }}></div></div>
+                    <div className="flex justify-between mb-1">
+                      <span className="text-sm text-muted-foreground">Data Quality</span>
+                      <span className={`text-sm font-semibold ${dataCompleteness >= 70 ? 'text-emerald-600 dark:text-emerald-400' : dataCompleteness >= 40 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400'}`}>{dataCompleteness}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div className={`h-2 rounded-full ${dataCompleteness >= 70 ? 'bg-emerald-500' : dataCompleteness >= 40 ? 'bg-amber-500' : 'bg-red-500'}`} style={{ width: `${dataCompleteness}%` }}></div>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -877,26 +892,26 @@ export default function AssessmentResults() {
             {/* Cost Summary Cards */}
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
               <Card className="p-5">
-                <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">Agreed Cost</p>
+                <p className="text-sm text-muted-foreground mb-1">Agreed Cost</p>
                 <p className="text-2xl font-bold text-green-600">${(extractedData.agreedCost || extractedData.estimatedCost || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                {extractedData.assessorName && <p className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-1">By {extractedData.assessorName}</p>}
+                {extractedData.assessorName && <p className="text-xs text-muted-foreground/70 mt-1">By {extractedData.assessorName}</p>}
               </Card>
               {extractedData.originalQuote && extractedData.originalQuote > 0 && (
                 <Card className="p-5">
-                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">Original Quote</p>
+                  <p className="text-sm text-muted-foreground mb-1">Original Quote</p>
                   <p className="text-2xl font-bold text-red-500">${extractedData.originalQuote.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
-                  {extractedData.repairerName && <p className="text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-1">By {extractedData.repairerName}</p>}
+                  {extractedData.repairerName && <p className="text-xs text-muted-foreground/70 mt-1">By {extractedData.repairerName}</p>}
                 </Card>
               )}
               {extractedData.savings && extractedData.savings > 0 && (
                 <Card className="p-5 bg-green-50/50 dark:bg-green-950/50">
-                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">Savings</p>
+                  <p className="text-sm text-muted-foreground mb-1">Savings</p>
                   <p className="text-2xl font-bold text-green-600 flex items-center gap-1"><ArrowDown className="w-5 h-5" />${extractedData.savings.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </Card>
               )}
               {extractedData.marketValue && extractedData.marketValue > 0 && (
                 <Card className="p-5">
-                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">Market Value</p>
+                  <p className="text-sm text-muted-foreground mb-1">Market Value</p>
                   <p className="text-2xl font-bold text-purple-600">${extractedData.marketValue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </Card>
               )}
@@ -913,7 +928,7 @@ export default function AssessmentResults() {
                 <div className="space-y-3">
                   {extractedData.accidentDescription && (
                     <div className="p-3 bg-gray-50 dark:bg-muted/50 rounded-lg mb-3">
-                      <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1 font-medium">Accident Description</p>
+                      <p className="text-sm text-muted-foreground mb-1 font-medium">Accident Description</p>
                       <p className="text-sm text-gray-800 dark:text-foreground">{extractedData.accidentDescription}</p>
                     </div>
                   )}
@@ -923,13 +938,13 @@ export default function AssessmentResults() {
                         <span className="font-semibold text-gray-900 dark:text-foreground">{section.component}</span>
                         <Badge className={`text-xs ${section.severity === 'minor' ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200' : section.severity === 'moderate' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-800 dark:text-orange-200' : 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200'}`}>{section.severity}</Badge>
                       </div>
-                      <p className="text-sm text-gray-700 dark:text-foreground/80">{section.description}</p>
+                      <p className="text-sm text-foreground/80">{section.description}</p>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div>
-                  <label className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground block mb-2">Damage Description</label>
+                  <label className="text-sm text-muted-foreground block mb-2">Damage Description</label>
                   <Textarea value={editedData.damageDescription || ""} onChange={(e) => setEditedData({...editedData, damageDescription: e.target.value})} rows={8} className="w-full" />
                 </div>
               )}
@@ -947,7 +962,7 @@ export default function AssessmentResults() {
                 <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg"><Car className="w-5 h-5 text-indigo-600" /></div>
                 <div>
                   <h2 className="text-xl font-semibold">Damage Visualization</h2>
-                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Visual representation of damage zones on the vehicle</p>
+                  <p className="text-sm text-muted-foreground">Visual representation of damage zones on the vehicle</p>
                 </div>
               </div>
               <VehicleDamageVisualization
@@ -962,9 +977,9 @@ export default function AssessmentResults() {
               <CrossValidationPanel data={extractedData.crossValidation} />
             ) : (
               <Card className="p-8 text-center">
-                <Eye className="w-12 h-12 mx-auto text-gray-600 dark:text-gray-300 mb-3" />
-                <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground font-medium">Cross-Validation Not Available</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-1">Cross-validation requires both damage photos and quoted components. Upload an assessment with photos to enable this analysis.</p>
+                <Eye className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground font-medium">Cross-Validation Not Available</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">Cross-validation requires both damage photos and quoted components. Upload an assessment with photos to enable this analysis.</p>
               </Card>
             )}
 
@@ -976,26 +991,26 @@ export default function AssessmentResults() {
                   <h2 className="text-xl font-semibold">Component Name Resolution</h2>
                   <Badge variant="secondary">{extractedData.normalizedComponents.length} components</Badge>
                 </div>
-                <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-4">Raw component names from the assessment mapped to standardized vehicle part taxonomy</p>
+                <p className="text-sm text-muted-foreground mb-4">Raw component names from the assessment mapped to standardized vehicle part taxonomy</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-border">
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Raw Name (from PDF)</th>
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Normalized Name</th>
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Vehicle Zone</th>
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Part ID</th>
+                        <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Raw Name (from PDF)</th>
+                        <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Normalized Name</th>
+                        <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Vehicle Zone</th>
+                        <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Part ID</th>
                       </tr>
                     </thead>
                     <tbody>
                       {extractedData.normalizedComponents.map((nc, i) => (
                         <tr key={i} className="border-b border-gray-100 hover:bg-gray-50 dark:bg-muted/50">
-                          <td className="py-2 px-3 text-gray-700 dark:text-foreground/80">{nc.raw}</td>
+                          <td className="py-2 px-3 text-foreground/80">{nc.raw}</td>
                           <td className="py-2 px-3 font-medium text-gray-900 dark:text-foreground">{nc.normalized}</td>
                           <td className="py-2 px-3">
-                            {nc.zone ? <Badge variant="outline" className="text-xs capitalize">{nc.zone.replace(/_/g, ' ')}</Badge> : <span className="text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70">—</span>}
+                            {nc.zone ? <Badge variant="outline" className="text-xs capitalize">{nc.zone.replace(/_/g, ' ')}</Badge> : <span className="text-muted-foreground/70">—</span>}
                           </td>
-                          <td className="py-2 px-3 text-xs text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 font-mono">{nc.partId || '—'}</td>
+                          <td className="py-2 px-3 text-xs text-muted-foreground/70 font-mono">{nc.partId || '—'}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1134,18 +1149,18 @@ export default function AssessmentResults() {
             {/* Cost Summary Cards */}
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               <Card className="p-5 bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 dark:border-green-800">
-                <p className="text-sm text-gray-600 dark:text-muted-foreground mb-1">Agreed / Estimated Cost</p>
+                <p className="text-sm text-muted-foreground mb-1">Agreed / Estimated Cost</p>
                 <p className="text-3xl font-bold text-green-700 dark:text-green-300">${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
               </Card>
               {extractedData.excessAmount && extractedData.excessAmount > 0 && (
                 <Card className="p-5">
-                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">Excess / Deductible</p>
+                  <p className="text-sm text-muted-foreground mb-1">Excess / Deductible</p>
                   <p className="text-2xl font-bold text-orange-600">${extractedData.excessAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </Card>
               )}
               {extractedData.betterment && extractedData.betterment > 0 && (
                 <Card className="p-5">
-                  <p className="text-sm text-gray-700 dark:text-gray-400 dark:text-muted-foreground mb-1">Betterment / Depreciation</p>
+                  <p className="text-sm text-muted-foreground mb-1">Betterment / Depreciation</p>
                   <p className="text-2xl font-bold text-amber-600">${extractedData.betterment.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                 </Card>
               )}
@@ -1187,9 +1202,9 @@ export default function AssessmentResults() {
               <QuoteComparisonChart quotes={extractedData.quotes!} />
             ) : (
               <Card className="p-8 text-center">
-                <BarChart3 className="w-12 h-12 mx-auto text-gray-600 dark:text-gray-300 mb-3" />
-                <p className="text-gray-700 dark:text-gray-400 dark:text-muted-foreground font-medium">No multiple quotes available</p>
-                <p className="text-sm text-gray-600 dark:text-gray-400 dark:text-muted-foreground/70 mt-1">Only a single cost figure was extracted from this assessment. Upload multiple assessments or create a claim to collect panel beater quotes for comparison.</p>
+                <BarChart3 className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                <p className="text-muted-foreground font-medium">No multiple quotes available</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">Only a single cost figure was extracted from this assessment. Upload multiple assessments or create a claim to collect panel beater quotes for comparison.</p>
               </Card>
             )}
 
@@ -1210,9 +1225,9 @@ export default function AssessmentResults() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-gray-200 dark:border-border">
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Description</th>
-                        <th className="text-left py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Category</th>
-                        <th className="text-right py-2 px-3 font-semibold text-gray-600 dark:text-muted-foreground">Amount</th>
+                        <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Description</th>
+                        <th className="text-left py-2 px-3 font-semibold text-muted-foreground">Category</th>
+                        <th className="text-right py-2 px-3 font-semibold text-muted-foreground">Amount</th>
                       </tr>
                     </thead>
                     <tbody>

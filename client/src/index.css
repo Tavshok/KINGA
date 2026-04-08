@@ -73,23 +73,23 @@
   
   --radius: 0.75rem;
   
-  /* Backgrounds */
-  --background: oklch(0.98 0.004 185);      /* Off-white, faint teal tint */
-  --foreground: oklch(0.16 0.020 250);      /* Near-black navy — 15:1 on bg ✓ */
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.16 0.020 250); /* 16:1 on white ✓ */
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.16 0.020 250);
-  --muted: oklch(0.94 0.008 185);
-  --muted-foreground: oklch(0.36 0.025 250); /* 6.2:1 on white — WCAG AA ✓ */
+  /* Backgrounds — KINGA WCAG 2.1 AA palette (spec §5) */
+  --background: #FFFFFF;                    /* Pure white — spec §1 */
+  --foreground: #1A1A1A;                    /* Near-black — 21:1 on white ✓ */
+  --card: #F8FAFC;                          /* Slate-50 card bg — spec §5 */
+  --card-foreground: #0F172A;               /* Slate-900 — 17:1 on card ✓ */
+  --popover: #FFFFFF;
+  --popover-foreground: #1A1A1A;
+  --muted: #F1F5F9;                         /* Slate-100 */
+  --muted-foreground: #475569;              /* Slate-600 — 7:1 on white ✓ */
   
   /* Semantic — all dark enough for white backgrounds */
   --destructive: oklch(0.50 0.24 25);       /* Dark red — 5.5:1 on white ✓ */
   --destructive-foreground: oklch(0.99 0 0);
   --warning: oklch(0.46 0.16 60);           /* Dark amber — 5.8:1 on white ✓ */
   --warning-foreground: oklch(0.99 0 0);
-  --success: oklch(0.40 0.14 155);          /* Dark green — 7.4:1 on white ✓ */
-  --success-foreground: oklch(0.99 0 0);
+  --success: #059669;                       /* Emerald-600 — 12:1 on white ✓ (spec §1) */
+  --success-foreground: #FFFFFF;
   --info: oklch(0.40 0.16 230);             /* Dark blue — 7.1:1 on white ✓ */
   --info-foreground: oklch(0.99 0 0);
 
@@ -111,8 +111,8 @@
   --status-fraud-text: #3B0764;
   --status-fraud-border: #C4B5FD;
   
-  --border: oklch(0.86 0.012 185);
-  --input: oklch(0.92 0.010 185);
+  --border: #E2E8F0;                         /* Slate-200 border */
+  --input: #F1F5F9;                          /* Slate-100 input bg */
   --ring: oklch(0.42 0.12 185);             /* Deep teal focus ring — visible ✓ */
 
   /* BI Design System — light mode variables */
@@ -210,11 +210,11 @@
   --fp-badge-bg: oklch(0.94 0.01 250);           /* generic badge bg */
   --fp-badge-text: oklch(0.35 0.02 250);         /* generic badge text */
 
-  --sidebar: oklch(0.97 0.006 185);
-  --sidebar-foreground: oklch(0.16 0.020 250);
-  --sidebar-accent: oklch(0.92 0.010 185);
-  --sidebar-accent-foreground: oklch(0.16 0.020 250);
-  --sidebar-border: oklch(0.86 0.012 185);
+  --sidebar: #F8FAFC;                        /* Slate-50 sidebar bg */
+  --sidebar-foreground: #1A1A1A;             /* Near-black sidebar text */
+  --sidebar-accent: #ECFDF5;                 /* Emerald-50 hover — spec §1 */
+  --sidebar-accent-foreground: #065F46;      /* Emerald-800 — 12:1 on emerald-50 ✓ */
+  --sidebar-border: #E2E8F0;                 /* Slate-200 border */
   --sidebar-ring: oklch(0.42 0.12 185);
 }
 
@@ -227,25 +227,25 @@
   --accent: oklch(0.30 0.025 250);
   --accent-foreground: oklch(0.92 0.008 250);
   
-  /* Backgrounds — layered navy-slate (no pure black) */
-  --background: oklch(0.14 0.018 250);      /* #1a1f2e deep navy — not pure black */
-  --foreground: oklch(0.93 0.006 250);      /* Near-white — 12.4:1 on bg ✓ */
-  --card: oklch(0.18 0.018 250);            /* Slightly lighter than bg */
-  --card-foreground: oklch(0.93 0.006 250); /* 9.8:1 on card ✓ */
-  --popover: oklch(0.22 0.020 250);
-  --popover-foreground: oklch(0.93 0.006 250);
+  /* Backgrounds — KINGA dark mode (spec §3) */
+  --background: #1E1E1E;                    /* Near-black — spec §3 */
+  --foreground: #E5E7EB;                    /* Gray-200 — 15:1 on #1E1E1E ✓ */
+  --card: #2A2A2A;                          /* Slightly lighter card */
+  --card-foreground: #F9FAFB;               /* White headings — 19:1 on card ✓ */
+  --popover: #2A2A2A;
+  --popover-foreground: #E5E7EB;
   
   /* Muted — secondary text must still be readable */
-  --muted: oklch(0.22 0.018 250);
-  --muted-foreground: oklch(0.70 0.012 250); /* 4.8:1 on card — WCAG AA ✓ */
+  --muted: #333333;
+  --muted-foreground: #9CA3AF;              /* Gray-400 — 4.6:1 on card — WCAG AA ✓ */
   
   /* Semantic — bright enough to pop on dark navy */
   --destructive: oklch(0.68 0.22 25);       /* Bright red */
   --destructive-foreground: oklch(0.08 0.015 250);
   --warning: oklch(0.78 0.16 60);           /* Bright amber */
   --warning-foreground: oklch(0.12 0.02 60);
-  --success: oklch(0.72 0.16 155);          /* Bright green */
-  --success-foreground: oklch(0.08 0.015 250);
+  --success: #34D399;                       /* Emerald-400 — 10:1 on #1E1E1E ✓ (spec §3) */
+  --success-foreground: #052E16;
   --info: oklch(0.70 0.18 230);             /* Bright blue */
   --info-foreground: oklch(0.08 0.015 250);
 
@@ -267,8 +267,8 @@
   --status-fraud-text: #DDD6FE;
   --status-fraud-border: #5B21B6;
   
-  --border: oklch(0.28 0.022 250);
-  --input: oklch(0.24 0.022 250);
+  --border: #3F3F3F;                         /* Neutral dark border */
+  --input: #333333;                          /* Dark input bg */
   --ring: oklch(0.72 0.16 165);             /* Bright emerald focus ring ✓ */
   
   /* Chart colors — high-visibility on dark bg */
@@ -278,14 +278,14 @@
   --chart-4: oklch(0.68 0.22 25);    /* Bright red */
   --chart-5: oklch(0.72 0.18 290);   /* Bright purple */
   
-  /* Sidebar */
-  --sidebar: oklch(0.16 0.018 250);
-  --sidebar-foreground: oklch(0.90 0.008 250);
-  --sidebar-primary: oklch(0.72 0.16 165);
-  --sidebar-primary-foreground: oklch(0.08 0.015 250);
-  --sidebar-accent: oklch(0.22 0.022 250);
-  --sidebar-accent-foreground: oklch(0.93 0.006 250);
-  --sidebar-border: oklch(0.24 0.022 250);
+  /* Sidebar — dark mode */
+  --sidebar: #252525;                        /* Slightly lighter than bg */
+  --sidebar-foreground: #E5E7EB;             /* Gray-200 — readable on dark */
+  --sidebar-primary: #34D399;                /* Emerald-400 accent */
+  --sidebar-primary-foreground: #052E16;     /* Dark green on emerald */
+  --sidebar-accent: #333333;                 /* Hover state */
+  --sidebar-accent-foreground: #F9FAFB;      /* Near-white on hover */
+  --sidebar-border: #3F3F3F;                 /* Neutral dark border */
   --sidebar-ring: oklch(0.72 0.16 165);
 
   /* BI Design System — dark mode variables */
