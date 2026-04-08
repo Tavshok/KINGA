@@ -292,6 +292,7 @@ export async function runAssemblyStage(
       visibilityConditions: v.visibilityConditions || null,
       roadSurface: v.roadSurface || null,
       time: v.incidentTime || null,
+      narrativeAnalysis: null, // Populated by incidentNarrativeEngine in orchestrator after Stage 7
     };
 
     const policeReport: PoliceReportRecord = {
@@ -414,6 +415,7 @@ export async function runAssemblyStage(
         maxCrushDepthM: null, totalDamageAreaM2: null,
         structuralDamage: false, airbagDeployment: false,
         animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
+        narrativeAnalysis: null,
       },
       policeReport: { reportNumber: null, station: null },
       damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },

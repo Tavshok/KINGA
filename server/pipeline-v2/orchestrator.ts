@@ -98,6 +98,10 @@ import {
   runPreGenerationConsistencyCheck,
   type PreGenerationCheckResult,
 } from "./preGenerationConsistencyCheck";
+import {
+  runIncidentNarrativeEngine,
+  type NarrativeAnalysis,
+} from "./incidentNarrativeEngine";
 
 /**
  * Run the full self-healing pipeline.
@@ -408,6 +412,63 @@ export async function runPipelineV2(
     }
   } catch (err) {
     ctx.log("Stage 7b", `Causal reasoning engine failed (non-fatal): ${String(err)}`);
+  }
+
+  // ── STAGE 7e: Incident Narrative Reasoning Engine ───────────────────────
+  // Runs after Stage 7b so physics, damage, and vision data are all available.
+  // Separates the incident narrative from post-incident content (stripping,
+  // inspection findings, extras quotations) and cross-validates the narrative
+  // against physics plausibility, damage zones, and crush depth.
+  // Results are stored on claimRecord.accidentDetails.narrativeAnalysis and
+  // consumed by Stage 8 fraud engine and the ForensicAuditReport.
+  try {
+    const rawDescription = claimRecord?.accidentDetails?.description ?? ctx.claim.incidentDescription ?? "";
+    if (rawDescription && rawDescription.trim().length > 10) {
+      const animalPhysics = stage7Data?.animalStrikePhysics ?? null;
+      const narrativeInput = {
+        raw_description: rawDescription,
+        incident_type: claimRecord?.accidentDetails?.incidentType ?? "collision",
+        claimed_speed_kmh: claimRecord?.accidentDetails?.estimatedSpeedKmh ?? null,
+        physics_plausibility_score: animalPhysics?.plausibility_score ?? stage7Data?.damageConsistencyScore ?? null,
+        physics_delta_v_kmh: animalPhysics?.delta_v_kmh ?? stage7Data?.deltaVKmh ?? null,
+        physics_impact_force_kn: animalPhysics?.impact_force_kn ?? stage7Data?.impactForceKn ?? null,
+        structural_damage: claimRecord?.accidentDetails?.structuralDamage ?? false,
+        airbag_deployment: claimRecord?.accidentDetails?.airbagDeployment ?? false,
+        crush_depth_m: claimRecord?.accidentDetails?.maxCrushDepthM ?? null,
+        damage_components: (stage6Data?.damagedParts ?? []).map((p: any) => ({
+          name: p.component ?? p.name ?? "unknown",
+          severity: p.severity ?? "unknown",
+          location: p.location ?? p.zone ?? "unknown",
+        })),
+        vision_summary: (ctx as any).enrichedPhotosJson
+          ? (() => { try { const p = JSON.parse((ctx as any).enrichedPhotosJson); return p?.summary ?? p?.overall_assessment ?? null; } catch { return null; } })()
+          : null,
+        vehicle_make_model: `${claimRecord?.vehicle?.make ?? ""} ${claimRecord?.vehicle?.model ?? ""}`.trim() || "Unknown vehicle",
+      };
+      const narrativeAnalysis = await runIncidentNarrativeEngine(narrativeInput);
+      if (claimRecord) {
+        claimRecord = {
+          ...claimRecord,
+          accidentDetails: {
+            ...claimRecord.accidentDetails,
+            narrativeAnalysis,
+          },
+        };
+      }
+      const fraudSignalCount = narrativeAnalysis.fraud_signals.length;
+      ctx.log(
+        "Stage 7e (NarrativeReasoning)",
+        `Verdict: ${narrativeAnalysis.consistency_verdict}, ` +
+        `contaminated: ${narrativeAnalysis.was_contaminated}, ` +
+        `stripped: ${narrativeAnalysis.stripped_content.length} segment(s), ` +
+        `fraud signals: ${fraudSignalCount}, ` +
+        `confidence: ${narrativeAnalysis.confidence}%.`
+      );
+    } else {
+      ctx.log("Stage 7e (NarrativeReasoning)", "Skipped — no incident description available.");
+    }
+  } catch (err) {
+    ctx.log("Stage 7e (NarrativeReasoning)", `Narrative reasoning failed (non-fatal): ${String(err)}`);
   }
 
   // ── POST-PHYSICS TRUTH RE-RESOLUTION ─────────────────────────────────
@@ -890,7 +951,7 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
       massKg: 1400, massTier: "not_available" as const, valueUsd: null, marketValueUsd: null,
     },
     driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null, licenseNumber: null },
-    accidentDetails: {
+      accidentDetails: {
       date: ctx.claim.accidentDate || null, location: null, description: null,
       incidentType: "collision", incidentSubType: null, incidentClassification: null,
       collisionDirection: "unknown",
@@ -898,6 +959,7 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
       maxCrushDepthM: null, totalDamageAreaM2: null,
       structuralDamage: false, airbagDeployment: false,
       time: null, animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
+      narrativeAnalysis: null,
     },
     policeReport: { reportNumber: null, station: null },
     damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },

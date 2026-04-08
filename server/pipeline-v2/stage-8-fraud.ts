@@ -465,6 +465,31 @@ export async function runFraudAnalysisStage(
       ctx.log("Stage 8", `Damage pattern: ${damagePatternResult.pattern_match} (confidence: ${damagePatternResult.confidence}/100, image_contradiction: ${damagePatternResult.validation_detail.image_contradiction})`);
     }
 
+    // 3b. Narrative Reasoning fraud signals (Stage 7e)
+    // If the incident narrative engine detected inconsistencies, inject them
+    // as FraudIndicator entries so they contribute to the overall risk score.
+    const narrativeAnalysis = claimRecord.accidentDetails.narrativeAnalysis;
+    if (narrativeAnalysis && narrativeAnalysis.fraud_signals.length > 0) {
+      for (const sig of narrativeAnalysis.fraud_signals) {
+        const alreadyPresent = allIndicators.some(i => i.indicator === sig.code);
+        if (!alreadyPresent) {
+          allIndicators.push({
+            indicator: sig.code,
+            category: "narrative",
+            score: Math.min(25, Math.max(0, sig.score_contribution)),
+            description: sig.description,
+            evidence: sig.evidence,
+          } as any);
+        }
+      }
+      ctx.log(
+        "Stage 8 (narrative)",
+        `Injected ${narrativeAnalysis.fraud_signals.length} narrative fraud signal(s). ` +
+        `Narrative verdict: ${narrativeAnalysis.consistency_verdict}. ` +
+        `Contaminated: ${narrativeAnalysis.was_contaminated}.`
+      );
+    }
+
     // 4. Missing data penalty
     if (claimRecord.dataQuality.completenessScore < 30) {
       isDegraded = true;

@@ -413,6 +413,8 @@ export interface AccidentDetails {
   weatherConditions: string | null;
   visibilityConditions: string | null; // Visibility at time of accident (DARK, DUSK, DAWN, DAYLIGHT)
   roadSurface: string | null;
+  /** Reasoned narrative analysis — produced by incidentNarrativeEngine after Stage 7 */
+  narrativeAnalysis: import('./incidentNarrativeEngine').NarrativeAnalysis | null;
 }
 
 export interface PoliceReportRecord {
