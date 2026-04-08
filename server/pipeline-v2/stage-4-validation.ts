@@ -104,6 +104,11 @@ function emptyExtraction(): ExtractedClaimFields {
     structuralDamage: null, airbagDeployment: null,
     maxCrushDepthM: null, totalDamageAreaM2: null,
     thirdPartyVehicle: null, thirdPartyRegistration: null,
+    // New fields
+    insurerName: null, policyNumber: null, claimReference: null,
+    incidentTime: null, animalType: null, weatherConditions: null, roadSurface: null,
+    marketValueCents: null, excessAmountCents: null, bettermentCents: null,
+    driverLicenseNumber: null,
     uploadedImageUrls: [], sourceDocumentIndex: -1,
   };
 }

@@ -120,6 +120,9 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   decisionTraceJson: text("decision_trace_json"),
   // Stage 2 output: raw OCR text extracted from the claim PDF (stored for audit and re-extraction)
   stage2RawOcrText: text("stage2_raw_ocr_text"),
+  // Stage 5 output: full ClaimRecord JSON — the canonical structured extraction result
+  // Stores all extracted fields including insurer, policy, excess, market value, driver licence, etc.
+  claimRecordJson: text("claim_record_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

@@ -127,6 +127,10 @@ export async function runAssemblyStage(
       });
     }
 
+    // Resolve market value from extraction or DB
+    const marketValueCents = v.marketValueCents ?? null;
+    const marketValueUsd = marketValueCents ? marketValueCents / 100 : null;
+
     const vehicle: VehicleRecord = {
       make: effectiveMake,
       model: effectiveModel,
@@ -141,11 +145,13 @@ export async function runAssemblyStage(
       massKg: massResult.massKg,
       massTier: massResult.tier as "explicit" | "inferred_model" | "inferred_class" | "not_available",
       valueUsd: ctx.claim.vehicleValue ? ctx.claim.vehicleValue / 100 : null,
+      marketValueUsd,
     };
 
     const driver: DriverRecord = {
       name: v.driverName || ctx.claim.driverName || null,
       claimantName: v.claimantName || ctx.claim.claimantName || null,
+      licenseNumber: v.driverLicenseNumber || null,
     };
 
     // ── Incident Classification Engine (multi-source, conflict-aware) ────────
@@ -281,6 +287,10 @@ export async function runAssemblyStage(
       totalDamageAreaM2: v.totalDamageAreaM2 || null,
       structuralDamage: v.structuralDamage ?? false,
       airbagDeployment: v.airbagDeployment ?? false,
+      animalType: v.animalType || null,
+      weatherConditions: v.weatherConditions || null,
+      roadSurface: v.roadSurface || null,
+      time: v.incidentTime || null,
     };
 
     const policeReport: PoliceReportRecord = {
@@ -318,6 +328,13 @@ export async function runAssemblyStage(
       policeReport,
       damage,
       repairQuote,
+      insuranceContext: {
+        insurerName: v.insurerName || null,
+        policyNumber: v.policyNumber || ctx.claim.policyNumber || null,
+        claimReference: v.claimReference || ctx.claim.claimNumber || null,
+        excessAmountUsd: v.excessAmountCents ? v.excessAmountCents / 100 : null,
+        bettermentUsd: v.bettermentCents ? v.bettermentCents / 100 : null,
+      },
       dataQuality: {
         completenessScore: stage4.completenessScore,
         missingFields: stage4.missingFields,
@@ -385,22 +402,30 @@ export async function runAssemblyStage(
         registration: ctx.claim.vehicleRegistration || null,
         vin: null, colour: null, engineNumber: null,
         mileageKm: null, bodyType: "sedan" as any, powertrain: "ice" as any,
-        massKg: 1400, massTier: "not_available" as const, valueUsd: null,
+        massKg: 1400, massTier: "not_available" as const, valueUsd: null, marketValueUsd: null,
       },
-      driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null },
+      driver: { name: ctx.claim.driverName || null, claimantName: ctx.claim.claimantName || null, licenseNumber: null },
       accidentDetails: {
-        date: ctx.claim.accidentDate || null, location: null, description: null,
+        date: ctx.claim.accidentDate || null, time: null, location: null, description: null,
         incidentType: "collision", incidentSubType: null, incidentClassification: null,
         collisionDirection: "unknown",
         impactPoint: null, estimatedSpeedKmh: null,
         maxCrushDepthM: null, totalDamageAreaM2: null,
         structuralDamage: false, airbagDeployment: false,
+        animalType: null, weatherConditions: null, roadSurface: null,
       },
       policeReport: { reportNumber: null, station: null },
       damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
       repairQuote: {
         repairerName: null, repairerCompany: null, assessorName: null,
         quoteTotalCents: null, agreedCostCents: null, labourCostCents: null, partsCostCents: null, lineItems: [],
+      },
+      insuranceContext: {
+        insurerName: null,
+        policyNumber: ctx.claim.policyNumber || null,
+        claimReference: ctx.claim.claimNumber || null,
+        excessAmountUsd: null,
+        bettermentUsd: null,
       },
       dataQuality: { completenessScore: 0, missingFields: ["all"], validationIssues: [] },
       marketRegion: "ZW",

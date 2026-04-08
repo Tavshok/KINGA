@@ -238,6 +238,21 @@ export interface ExtractedClaimFields {
   // Third party
   thirdPartyVehicle: string | null;
   thirdPartyRegistration: string | null;
+  // Insurance / Policy
+  insurerName: string | null;
+  policyNumber: string | null;
+  claimReference: string | null;  // Insurer's claim reference (e.g. CI-024NATPHARM)
+  // Incident context
+  incidentTime: string | null;    // Time of accident (HH:MM)
+  animalType: string | null;      // Type of animal struck (e.g. cow, kudu)
+  weatherConditions: string | null;
+  roadSurface: string | null;
+  // Financial extras
+  marketValueCents: number | null; // Vehicle market/retail value in cents
+  excessAmountCents: number | null; // Insurance excess/deductible in cents
+  bettermentCents: number | null;   // Betterment/depreciation in cents
+  // Driver
+  driverLicenseNumber: string | null;
   // Images
   uploadedImageUrls: string[];
   // Source document reference
@@ -361,15 +376,18 @@ export interface VehicleRecord {
   massKg: number;
   massTier: "explicit" | "inferred_model" | "inferred_class" | "not_available";
   valueUsd: number | null;
+  marketValueUsd: number | null;  // Stated market/retail value from claim form
 }
 
 export interface DriverRecord {
   name: string | null;
   claimantName: string | null;
+  licenseNumber: string | null;
 }
 
 export interface AccidentDetails {
   date: string | null;
+  time: string | null;          // Time of accident (HH:MM)
   location: string | null;
   description: string | null;
   incidentType: CanonicalIncidentType;
@@ -390,6 +408,9 @@ export interface AccidentDetails {
   totalDamageAreaM2: number | null;
   structuralDamage: boolean;
   airbagDeployment: boolean;
+  animalType: string | null;       // Type of animal struck (e.g. cow, kudu)
+  weatherConditions: string | null;
+  roadSurface: string | null;
 }
 
 export interface PoliceReportRecord {
@@ -428,6 +449,14 @@ export interface ClaimRecord {
   policeReport: PoliceReportRecord;
   damage: DamageRecord;
   repairQuote: RepairQuoteRecord;
+  /** Insurance / policy context */
+  insuranceContext: {
+    insurerName: string | null;
+    policyNumber: string | null;
+    claimReference: string | null;
+    excessAmountUsd: number | null;
+    bettermentUsd: number | null;
+  };
   /** Data quality metadata from Stage 4 */
   dataQuality: {
     completenessScore: number;

@@ -2907,6 +2907,13 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           phase2Decision: p2NormDecision,
         });
 
+        // Parse the full ClaimRecord JSON for the ForensicAuditReport
+        let parsedClaimRecord: any = null;
+        try {
+          if ((assessment as any).claimRecordJson) {
+            parsedClaimRecord = JSON.parse((assessment as any).claimRecordJson as string);
+          }
+        } catch { /* non-fatal */ }
         return {
           ...assessment,
           // Overwrite with normalised values — these are what the UI must use
@@ -2922,6 +2929,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             photoStatusMessage: p1.photoStatusMessage,
             locale: p1.locale,
           },
+          // Full ClaimRecord — all extracted fields including insurer, policy, excess, market value, etc.
+          _claimRecord: parsedClaimRecord,
         };
       }),
     historicalBenchmarks: protectedProcedure

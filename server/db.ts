@@ -777,6 +777,8 @@ export async function triggerAiAssessment(claimId: number) {
     caseSignatureJson: caseSignature ? JSON.stringify(caseSignature) : null,
     // Stage 2 raw OCR text — stored for audit trails and re-extraction without re-running the pipeline
     stage2RawOcrText: stage2RawOcrText ?? null,
+    // Full ClaimRecord JSON — canonical structured extraction result (all fields including insurer, policy, excess, etc.)
+    claimRecordJson: claimRecord ? JSON.stringify(claimRecord) : null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

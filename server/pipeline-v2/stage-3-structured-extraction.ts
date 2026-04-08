@@ -8,7 +8,6 @@
  * If a document extraction fails, continues with remaining documents.
  * NEVER halts — produces empty extraction if all documents fail.
  */
-
 import type {
   PipelineContext,
   StageResult,
@@ -23,6 +22,7 @@ import type {
   RecoveredQuote,
   DamageHints,
 } from "./types";
+import { runFieldRecovery } from "./fieldRecoveryEngine";
 import { invokeLLM } from "../_core/llm";
 import { preprocessDocument } from "./documentPreprocessor";
 import { scoreExtraction } from "./extractionQualityScorer";
@@ -88,6 +88,21 @@ const EXTRACTION_SCHEMA = {
         totalDamageAreaM2: { type: ["number", "null"], description: "Total damage area in square metres" },
         thirdPartyVehicle: { type: ["string", "null"], description: "Third party vehicle description" },
         thirdPartyRegistration: { type: ["string", "null"], description: "Third party vehicle registration" },
+        // Insurance / Policy
+        insurerName: { type: ["string", "null"], description: "Insurance company name (e.g. 'Cell Insurance Company', 'Old Mutual', 'Zimnat'). Look for 'Insurer:', 'Insurance Company:', 'Underwriter:', or the company name at the top of the claim form." },
+        policyNumber: { type: ["string", "null"], description: "Insurance policy number. Look for 'Policy No.', 'Policy Number', 'Policy #'." },
+        claimReference: { type: ["string", "null"], description: "Insurer's claim reference number (e.g. 'CI-024NATPHARM', 'CLM-2024-001'). Look for 'Claim Ref', 'Claim Reference', 'Claim No.', 'Reference No.'." },
+        // Incident context
+        incidentTime: { type: ["string", "null"], description: "Time of accident in HH:MM format. Look for 'Time:', 'Time of accident:', 'Time of incident:'. Convert to 24-hour HH:MM format." },
+        animalType: { type: ["string", "null"], description: "Type of animal involved if this is an animal strike (e.g. 'cow', 'kudu', 'donkey', 'goat'). Extract from accident description or any field mentioning the animal." },
+        weatherConditions: { type: ["string", "null"], description: "Weather conditions at time of accident. Look for 'Weather:', 'Weather conditions:', 'Conditions:', 'Weather at time of accident:'. Common values: clear, cloudy, rain, fog, night." },
+        roadSurface: { type: ["string", "null"], description: "Road surface conditions. Look for 'Road surface:', 'Road conditions:', 'Surface:'. Common values: dry, wet, gravel, tarred, dirt." },
+        // Financial extras
+        marketValueCents: { type: ["integer", "null"], description: "Vehicle market/retail value in cents. Look for 'Market Value', 'Retail Value', 'Vehicle Value', 'Sum Insured'. Convert to cents (multiply by 100). Example: 20000 → 2000000." },
+        excessAmountCents: { type: ["integer", "null"], description: "Insurance excess/deductible amount in cents. Look for 'Excess', 'Deductible', 'Excess Amount'. Convert to cents." },
+        bettermentCents: { type: ["integer", "null"], description: "Betterment/depreciation amount in cents. Look for 'Betterment', 'Depreciation', 'Age Deduction'. Convert to cents." },
+        // Driver
+        driverLicenseNumber: { type: ["string", "null"], description: "Driver's license number. Look for 'Licence No.', 'License Number', 'DL No.', 'Driver Licence'." },
       },
       required: [
         "claimId", "claimantName", "driverName",
@@ -101,6 +116,10 @@ const EXTRACTION_SCHEMA = {
         "damageDescription", "damagedComponents",
         "structuralDamage", "airbagDeployment", "maxCrushDepthM", "totalDamageAreaM2",
         "thirdPartyVehicle", "thirdPartyRegistration",
+        "insurerName", "policyNumber", "claimReference",
+        "incidentTime", "animalType", "weatherConditions", "roadSurface",
+        "marketValueCents", "excessAmountCents", "bettermentCents",
+        "driverLicenseNumber",
       ],
       additionalProperties: false,
     },
@@ -340,6 +359,21 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     totalDamageAreaM2: raw.totalDamageAreaM2 ?? null,
     thirdPartyVehicle: raw.thirdPartyVehicle || null,
     thirdPartyRegistration: raw.thirdPartyRegistration || null,
+    // Insurance / Policy
+    insurerName: raw.insurerName || null,
+    policyNumber: raw.policyNumber || null,
+    claimReference: raw.claimReference || null,
+    // Incident context
+    incidentTime: raw.incidentTime || null,
+    animalType: raw.animalType || null,
+    weatherConditions: raw.weatherConditions || null,
+    roadSurface: raw.roadSurface || null,
+    // Financial extras
+    marketValueCents: raw.marketValueCents ?? null,
+    excessAmountCents: raw.excessAmountCents ?? null,
+    bettermentCents: raw.bettermentCents ?? null,
+    // Driver
+    driverLicenseNumber: raw.driverLicenseNumber || null,
     uploadedImageUrls: [],
     sourceDocumentIndex,
   };
@@ -348,6 +382,38 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
 /** Create an empty extraction with all fields null */
 function emptyExtraction(): ExtractedClaimFields {
   return mapToExtractedFields({}, -1);
+}
+
+/** Merge multiple per-document extractions into a single best-of record */
+function mergeExtractions(extractions: ExtractedClaimFields[]): ExtractedClaimFields {
+  if (extractions.length === 0) return emptyExtraction();
+  if (extractions.length === 1) return { ...extractions[0] };
+  const merged: ExtractedClaimFields = { ...extractions[0] };
+  for (let i = 1; i < extractions.length; i++) {
+    const ext = extractions[i];
+    for (const key of Object.keys(ext) as Array<keyof ExtractedClaimFields>) {
+      if (key === "damagedComponents" || key === "uploadedImageUrls" || key === "sourceDocumentIndex") continue;
+      const currentVal = merged[key];
+      const newVal = ext[key];
+      if ((currentVal === null || currentVal === undefined) && newVal !== null && newVal !== undefined) {
+        (merged as any)[key] = newVal;
+      }
+    }
+  }
+  // Merge components deduped
+  const seen = new Set<string>();
+  const allComponents: any[] = [];
+  for (const ext of extractions) {
+    for (const comp of ext.damagedComponents) {
+      const k = `${(comp.name || "").toLowerCase()}|${(comp.location || "").toLowerCase()}`;
+      if (!seen.has(k)) { seen.add(k); allComponents.push(comp); }
+    }
+  }
+  merged.damagedComponents = allComponents;
+  const allImages = new Set<string>();
+  for (const ext of extractions) for (const url of ext.uploadedImageUrls) allImages.add(url);
+  merged.uploadedImageUrls = Array.from(allImages);
+  return merged;
 }
 
 // ============================================================================
@@ -683,6 +749,46 @@ export async function runStructuredExtractionStage(
       }
     } catch (recErr) {
       ctx.log("Stage 3", `Input recovery failed: ${String(recErr)} — skipping`);
+    }
+
+    // ── TARGETED FIELD RECOVERY ───────────────────────────────────────────────
+    // After all extraction passes, run targeted recovery for any null critical
+    // fields. This is the final safety net — fires focused LLM prompts for
+    // high-value fields that are still missing.
+    if (perDocumentExtractions.length > 0) {
+      try {
+        // Gather the best raw text from all PDF documents
+        const allRawText = stage2.extractedTexts.map(t => t.rawText).join("\n\n");
+        // Use the first PDF URL for visual re-extraction (handwriting, stamps)
+        const firstPdfUrl = stage1.documents.find(d => d.mimeType === "application/pdf")?.sourceUrl ?? null;
+
+        // Merge all per-document extractions into a single best-of record
+        const merged = mergeExtractions(perDocumentExtractions);
+
+        const { patchedFields, report } = await runFieldRecovery(
+          merged,
+          allRawText,
+          firstPdfUrl,
+          (msg) => ctx.log("Stage 3", msg)
+        );
+
+        // Replace the first extraction with the patched merged result
+        perDocumentExtractions[0] = patchedFields;
+
+        if (report.fieldsRecovered > 0) {
+          recoveryActions.push({
+            target: "targeted_field_recovery",
+            strategy: "partial_data",
+            success: true,
+            description: `Targeted field recovery: ${report.fieldsRecovered}/${report.totalAttempted} fields recovered. Still missing: ${report.fieldsStillMissing.join(", ") || "none"}.`,
+          });
+        }
+        if (report.fieldsStillMissing.length > 0) {
+          ctx.log("Stage 3", `Fields not recoverable from documents: ${report.fieldsStillMissing.join(", ")}`);
+        }
+      } catch (frErr) {
+        ctx.log("Stage 3", `Targeted field recovery failed: ${String(frErr)} — skipping`);
+      }
     }
 
     const output: Stage3Output = {

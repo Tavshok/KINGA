@@ -389,9 +389,15 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
         </div>
         <div className="flex items-center gap-4">
           <div className="text-right text-xs space-y-0.5">
-            <p style={{ color: "var(--muted-foreground)" }}>Claim: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.claimNumber ?? "—"}</span></p>
-            <p style={{ color: "var(--muted-foreground)" }}>Reg: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.vehicleRegistration ?? "—"}</span></p>
-            <p style={{ color: "var(--muted-foreground)" }}>{fmtDate(reportDate)}</p>
+            {/* Claim reference: try ClaimRecord first, then claim.claimNumber */}
+            <p style={{ color: "var(--muted-foreground)" }}>Claim: <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+              {(() => {
+                const cr = (aiAssessment as any)?._claimRecord;
+                return cr?.insuranceContext?.claimReference ?? cr?.insuranceContext?.policyNumber ?? claim?.claimNumber ?? claim?.claimReference ?? "\u2014";
+              })()}
+            </span></p>
+            <p style={{ color: "var(--muted-foreground)" }}>Reg: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.vehicleRegistration ?? "\u2014"}</span></p>
+            <p style={{ color: "var(--muted-foreground)" }}>Report: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{fmtDate(aiAssessment?.createdAt ?? reportDate)}</span></p>
           </div>
           <button
             onClick={() => window.print()}
@@ -554,6 +560,26 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
+  // Pull new ClaimRecord fields from the aiAssessment claimRecord (stored in DB)
+  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  const accidentTime = claimRecord?.accidentDetails?.time ?? null;
+  const animalType = claimRecord?.accidentDetails?.animalType ?? null;
+  const weatherConditions = claimRecord?.accidentDetails?.weatherConditions ?? null;
+  const roadSurface = claimRecord?.accidentDetails?.roadSurface ?? null;
+  const insurerName = claimRecord?.insuranceContext?.insurerName ?? claim?.insurerName ?? null;
+  const policyNumber = claimRecord?.insuranceContext?.policyNumber ?? claim?.policyNumber ?? null;
+  const claimReference = claimRecord?.insuranceContext?.claimReference ?? claim?.claimNumber ?? claim?.claimReference ?? null;
+  const excessAmountUsd = claimRecord?.insuranceContext?.excessAmountUsd ?? null;
+  const driverLicenseNumber = claimRecord?.driver?.licenseNumber ?? null;
+  const marketValueUsd = claimRecord?.vehicle?.marketValueUsd ?? null;
+  const vehicleMileage = claimRecord?.vehicle?.mileageKm ?? claim?.vehicleMileage ?? null;
+  const vehicleVin = claimRecord?.vehicle?.vin ?? claim?.vehicleVin ?? aiAssessment?.vehicleVin ?? null;
+  const vehicleEngineNumber = claimRecord?.vehicle?.engineNumber ?? claim?.vehicleEngineNumber ?? null;
+  const policeReportNumber = claimRecord?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber ?? null;
+  const policeStation = claimRecord?.policeReport?.station ?? null;
+  const driverName = claimRecord?.driver?.name ?? claim?.driverName ?? null;
+  const claimantName = claimRecord?.driver?.claimantName ?? claim?.claimantName ?? null;
+
   return (
     <div className="mb-4 space-y-4">
       {/* 1.1 Incident Facts table */}
@@ -567,17 +593,24 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
               {[
                 ["Incident type", <span className="font-semibold">{incidentType.replace(/_/g, " ")}</span>],
                 ["Claimed speed", claimedSpeed != null ? `${claimedSpeed} km/h` : "Not stated"],
-                ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
+                ["Incident time", accidentTime ?? "Not recorded"],
+                ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
+                ["Weather conditions", weatherConditions ?? "Not recorded"],
+                ["Road surface", roadSurface ?? "Not recorded"],
+                animalType ? ["Animal type", <span className="font-semibold capitalize">{animalType}</span>] : null,
+                ["Driver", driverName ?? "Not recorded"],
+                ["Driver licence", driverLicenseNumber ?? "Not provided"],
+                ["Claimant", claimantName ?? claim?.claimantName ?? "Not recorded"],
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
-                ["Assessor", aiAssessment?.assessorName ?? "Not assigned"],
-                ["Repairer", aiAssessment?.panelBeaterName ?? claim?.repairerName ?? "Not specified"],
-                ["Policy number", claim?.policyNumber ?? "Not provided"],
-                ["Vehicle VIN", claim?.vehicleVin ?? aiAssessment?.vehicleVin ?? "Not recorded"],
-              ].map(([k, v], i) => (
+                ["Assessor", aiAssessment?.assessorName ?? claimRecord?.repairQuote?.assessorName ?? "Not assigned"],
+                ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
+                ["Police report", policeReportNumber ?? "Not provided"],
+                policeStation ? ["Police station", policeStation] : null,
+              ].filter(Boolean).map((row: any, i: number) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
-                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
-                  <td className="py-2" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>
+                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{row[0]}</td>
+                  <td className="py-2" style={{ color: "var(--foreground)" }}>{row[1]}</td>
                 </tr>
               ))}
             </tbody>
@@ -587,6 +620,55 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
               <span className="font-semibold">Description: </span>{description}
             </div>
           )}
+        </div>
+      </div>
+
+      {/* 1.2 Insurance & Policy Context */}
+      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.2 Insurance & Policy Context</p>
+        </div>
+        <div className="p-4">
+          <table className="w-full text-xs report-table">
+            <tbody>
+              {[
+                ["Insurer", insurerName ?? "Not extracted"],
+                ["Policy number", policyNumber ?? "Not provided"],
+                ["Claim reference", claimReference ?? "Not extracted"],
+                ["Policy excess", excessAmountUsd != null ? fmtUsd(excessAmountUsd) : "Not extracted"],
+              ].map(([k, v], i) => (
+                <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
+                  <td className="py-2" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 1.3 Vehicle Details */}
+      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.3 Vehicle Details</p>
+        </div>
+        <div className="p-4">
+          <table className="w-full text-xs report-table">
+            <tbody>
+              {[
+                ["Registration", claim?.vehicleRegistration ?? claimRecord?.vehicle?.registration ?? "Not recorded"],
+                ["VIN", vehicleVin ?? "Not recorded"],
+                ["Engine number", vehicleEngineNumber ?? "Not recorded"],
+                ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not recorded"],
+                ["Market value", marketValueUsd != null ? fmtUsd(marketValueUsd) : "Not stated"],
+              ].map(([k, v], i) => (
+                <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                  <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
+                  <td className="py-2" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
