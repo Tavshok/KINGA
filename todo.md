@@ -10355,3 +10355,9 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Archive dead Batch1, Batch2, Batch4 component files
 - [ ] Monospace all numeric values in report tables
 - [ ] Refine print margins (20mm top/bottom, 30mm left/right)
+
+## InsurerComparisonView Report Format Update
+- [x] Replace old sections 1-7 in InsurerComparisonView with ForensicAuditReport component
+- [x] Keep interactive elements unique to Comparison View (AI re-run, quote approval, valuation)
+- [x] Verify TypeScript clean after changes (0 errors)
+- [x] Test in browser that new format renders on Comparison View page — confirmed all 7 sections visible

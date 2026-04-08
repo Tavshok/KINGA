@@ -39,6 +39,7 @@ import ApprovalHistoryPanel from "@/components/ApprovalHistoryPanel";
 import { Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 import { sanitiseField } from "@/lib/sanitise";
+import { ForensicAuditReport } from "@/components/ForensicAuditReport";
 
 // ─── Cost Intelligence helpers (pure, claim-relative only) ───────────────────
 
@@ -144,7 +145,13 @@ export default function InsurerComparisonView() {
   // Also get basic quotes for backward compatibility
   const quotes = quotesWithItems;
 
-  const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading;
+  // Get enforcement data for the ForensicAuditReport
+  const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
+    { claimId },
+    { enabled: !!claimId }
+  );
+
+  const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading || enforcementLoading;
 
   // Utils for cache invalidation
   const utils = trpc.useUtils();
@@ -707,472 +714,32 @@ export default function InsurerComparisonView() {
       <main className="container mx-auto px-4 py-8 space-y-5">
 
         {/* ═══════════════════════════════════════════════════════════════
-             SECTION 1 — CLAIM SNAPSHOT
+             FORENSIC AUDIT REPORT — replaces old Sections 1–7
         ═══════════════════════════════════════════════════════════════ */}
-        {/* Section 1 header is already in the hero above — this block shows the
-             vehicle/incident detail grid below the hero KPI strip */}
-        {/* ══ SECTION 1: CLAIM SNAPSHOT ══ */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num">1</span>
-            <div className="flex-1 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Claim Summary</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Key claim and vehicle details extracted from the submitted document</p>
-              </div>
-              {(!claim.vehicleMake || !claim.vehicleModel) && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 shrink-0"
-                  disabled={reRunMutation.isPending}
-                  onClick={() => reRunMutation.mutate({ claimId, reason: 'Re-extract vehicle details from PDF' })}
-                >
-                  {reRunMutation.isPending ? (
-                    <><Loader2 className="h-4 w-4 animate-spin" /> Re-running...</>
-                  ) : (
-                    <>Re-run AI Assessment</>
-                  )}
-                </Button>
-              )}
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4" style={{ color: 'var(--foreground)' }}>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Vehicle</p>
-                <p className="font-semibold text-base">
-                  {claim.vehicleMake && claim.vehicleModel
-                    ? `${claim.vehicleMake} ${claim.vehicleModel}${claim.vehicleYear ? ` (${claim.vehicleYear})` : ''}`
-                    : <span className="text-muted-foreground italic">Not yet extracted — re-run AI assessment</span>}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Registration</p>
-                <p className="font-medium">{claim.vehicleRegistration || <span className="text-muted-foreground italic">N/A</span>}</p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incident Date</p>
-                <p className="font-medium">
-                  {claim.incidentDate ? new Date(claim.incidentDate).toLocaleDateString() : <span className="text-muted-foreground italic">N/A</span>}
-                </p>
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Incident Type</p>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium capitalize">
-                    {(claim as any).incidentType || <span className="text-muted-foreground italic">N/A</span>}
-                  </span>
-                  {/* Override badge — shown when type has been manually corrected */}
-                  {(claim as any).incidentTypeOverridden === 1 && (
-                    <Badge variant="outline" className="text-xs px-1.5 py-0 border-amber-400 text-amber-600 dark:text-amber-400">
-                      overridden
-                    </Badge>
-                  )}
-                  {/* Override button — only for assessors, insurers, admins */}
-                  {user && ['assessor', 'insurer', 'admin'].includes((user as any).role) && (
-                    <button
-                      onClick={() => setOverrideDialogOpen(true)}
-                      className="ml-1 p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      title="Override incident type"
-                    >
-                      <Pencil className="h-3 w-3" />
-                    </button>
-                  )}
-                </div>
-                {/* AI-detected original value — shown only after an override */}
-                {(claim as any).incidentTypeOverridden === 1 && (claim as any).aiDetectedIncidentType && (
-                  <p className="text-xs text-muted-foreground">
-                    AI detected: <span className="capitalize">{(claim as any).aiDetectedIncidentType}</span>
-                  </p>
-                )}
-              </div>
-              {(claim as any).vehicleColor && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Colour</p>
-                  <p className="font-medium capitalize">{(claim as any).vehicleColor}</p>
-                </div>
-              )}
-              {(claim as any).vehicleVin && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">VIN / Chassis</p>
-                  <p className="font-medium font-mono text-sm">{(claim as any).vehicleVin}</p>
-                </div>
-              )}
-              {(claim as any).vehicleEngineNumber && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Engine Number</p>
-                  <p className="font-medium font-mono text-sm">{(claim as any).vehicleEngineNumber}</p>
-                </div>
-              )}
-              {(claim as any).incidentLocation && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Location</p>
-                  <p className="font-medium">{(claim as any).incidentLocation}</p>
-                </div>
-              )}
-              {(claim as any).thirdPartyVehicle && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Third-Party Vehicle</p>
-                  <p className="font-medium">{(claim as any).thirdPartyVehicle}</p>
-                </div>
-              )}
-              {(claim as any).thirdPartyRegistration && (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Third-Party Reg</p>
-                  <p className="font-medium">{(claim as any).thirdPartyRegistration}</p>
-                </div>
-              )}
-            </div>
-            {(claim as any).incidentDescription && (
-              <div className="mt-4 p-4 bg-muted/40 rounded-lg border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Incident Description</p>
-                <p className="text-sm leading-relaxed">{(claim as any).incidentDescription}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-           {/* ══ SECTION 2: EXECUTIVE SUMMARY (HUMAN-READABLE) ══ */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num">2</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Executive Summary</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Professional insurance summary of accident, damage, cost, and risk</p>
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            {aiAssessment ? (
-              <ExecutiveSummaryInline claim={claim} aiAssessment={aiAssessment} quotes={quotes} assessorEval={assessorEval} normalisedFraudLevel={fraudLevel} />
-            ) : (
-              <div className="flex items-center gap-3 py-4">
-                <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--muted-foreground)' }} />
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>AI assessment in progress — summary will appear once complete.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ══ SECTION 3: DAMAGE OVERVIEW (VISUAL FIRST) ══ */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num">3</span>
-            <div className="flex-1 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Damage Overview</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Vehicle diagram with highlighted damage zones, severity labels, and impacted parts</p>
-              </div>
-              {aiAssessment && (
-                <Button variant="outline" size="sm" onClick={() => {
-                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
-                  toast.success("Opening Decision Report for PDF export...");
-                }} className="gap-2"
-                  style={{ borderColor: 'var(--border)', color: 'var(--muted-foreground)', background: 'transparent' }}>
-                  <Download className="h-4 w-4" /> Export PDF
-                </Button>
-              )}
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            {aiAssessment ? (
-              <div className="space-y-4">
-                {/* Vehicle damage map */}
-                <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-map" />
-                {/* Damage photos */}
-                {(() => {
-                  const damagePhotosJson = (aiAssessment as any)?.damagePhotosJson ?? null;
-                  const rawDamagePhotos = (claim as any)?.damagePhotos ?? null;
-                  const hasPhotos = (() => {
-                    if (damagePhotosJson) { try { const p = JSON.parse(damagePhotosJson); return Array.isArray(p) && p.length > 0; } catch { return false; } }
-                    if (rawDamagePhotos) { try { const p = JSON.parse(rawDamagePhotos); return Array.isArray(p) && p.length > 0; } catch { return false; } }
-                    return false;
-                  })();
-                  if (!hasPhotos) return null;
-                  const enrichedPhotosJson = (aiAssessment as any)?.enrichedPhotosJson ?? null;
-                  const photoInconsistenciesJson = (aiAssessment as any)?.photoInconsistenciesJson ?? null;
-                  return (
-                    <DamageImagesPanel
-                      damagePhotosJson={damagePhotosJson}
-                      rawDamagePhotos={rawDamagePhotos}
-                      enrichedPhotosJson={enrichedPhotosJson}
-                      photoInconsistenciesJson={photoInconsistenciesJson}
-                      claimId={claim?.id}
-                    />
-                  );
-                })()}
-                {/* Structural vs cosmetic breakdown */}
-                <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="damage-analysis" />
-                {/* Three-source damage consistency check */}
-                <DamageConsistencyPanel
-                  claimId={claim?.id}
-                  assessmentId={(aiAssessment as any)?.id}
-                  consistencyCheckJson={(aiAssessment as any)?.consistencyCheckJson ?? null}
-                />
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 py-6">
-                <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--muted-foreground)' }} />
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Damage analysis pending — run AI assessment to populate this section.</p>
-              </div>
-            )}
-          </div>
-        </div>
-        {/* ══ SECTION 4: ACCIDENT RECONSTRUCTION ══ */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num">4</span>
-            <div className="flex-1 flex items-start justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Accident Reconstruction</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Impact type, speed range, direction, and advanced physics validation</p>
-              </div>
-              {aiAssessment && (
-                <button
-                  onClick={() => setShowAdvancedPhysics(v => !v)}
-                  className="text-xs px-3 py-1.5 rounded-md font-medium transition-colors flex-shrink-0"
-                  style={{
-                    background: showAdvancedPhysics ? 'var(--fp-info-bg)' : 'var(--muted)',
-                    color: showAdvancedPhysics ? 'var(--info)' : 'var(--muted-foreground)',
-                    border: '1px solid var(--border)'
-                  }}
-                >
-                  {showAdvancedPhysics ? 'Simple View' : 'Advanced View'}
-                </button>
-              )}
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            {aiAssessment ? (
-              <div className="space-y-4">
-                {/* Simple view: incident type, speed, direction */}
-                {!showAdvancedPhysics && (() => {
-                  const physRaw = (() => {
-                    if (!aiAssessment.physicsAnalysis) return null;
-                    try { return typeof aiAssessment.physicsAnalysis === 'string' ? JSON.parse(aiAssessment.physicsAnalysis) : aiAssessment.physicsAnalysis; } catch { return null; }
-                  })();
-                  const speed = physRaw?.estimatedSpeed?.value ?? physRaw?.estimatedSpeedKmh ?? 0;
-                  const deltaV = physRaw?.deltaV?.value ?? physRaw?.deltaVKmh ?? 0;
-                  const direction = physRaw?.impactVector?.direction ?? physRaw?.impactDirection ?? (claim as any)?.incidentType ?? 'unknown';
-                  const severity = physRaw?.accidentSeverity ?? aiAssessment.structuralDamageSeverity ?? 'unknown';
-                  const consistencyScore = physRaw?.damageConsistencyScore ?? 0;
-                  const items = [
-                     { label: 'Incident Type', value: ((claim as any)?.incidentType || (aiAssessment as any).accidentType || 'N/A').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) },
-                    { label: 'Estimated Speed', value: speed > 0 ? `${speed} km/h` : 'Not calculated' },
-                    { label: 'Delta-V', value: deltaV > 0 ? `${deltaV} km/h` : 'Not calculated' },
-                    { label: 'Impact Direction', value: String(direction).replace(/_/g, ' ').replace(/\w/g, (c: string) => c.toUpperCase()) },
-                    { label: 'Accident Severity', value: String(severity).replace(/_/g, ' ').replace(/\w/g, (c: string) => c.toUpperCase()) },
-                    { label: 'Damage Consistency', value: consistencyScore > 0 ? `${consistencyScore}%` : 'Pending' },
-                  ];
-                  return (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                      {items.map(({ label, value }) => (
-                        <div key={label} className="p-3 rounded-lg" style={{ background: 'var(--card)', border: '1px solid var(--border)' }}>
-                          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                          <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  );
-                })()}
-                {/* Advanced view: full physics dashboard */}
-                {showAdvancedPhysics && (
-                  <PhysicsValidationSection aiAssessment={aiAssessment} quotes={quotes} claim={claim} mode="physics" />
-                )}
-                {/* Hidden damage inference — always shown */}
-                <DamageComponentBreakdown aiAssessment={aiAssessment} claim={claim} section="hidden-damage" />
-              </div>
-            ) : (
-              <div className="flex items-center gap-3 py-6">
-                <Loader2 className="h-5 w-5 animate-spin" style={{ color: 'var(--muted-foreground)' }} />
-                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Accident reconstruction pending — run AI assessment to populate this section.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* ══ SECTION 5: REPAIR COST ANALYSIS ══ */}
-        <div className="comparison-section">
-          <div className="comparison-section-header">
-            <span className="bi-section-num">5</span>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Repair Cost Analysis</p>
-              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Quoted cost vs AI estimate vs fair range — overpricing highlighted in red, savings in green</p>
-            </div>
-          </div>
-          <div className="comparison-section-body">
-            <div className="space-y-4">
-              {/* AI cost summary row */}
-              {aiAssessment && (() => {
-                const isTotalLossHere = aiAssessment.totalLossIndicated === 1;
-                const hasNoQuotes = quotes.length === 0;
-                // Derive vehicle value in dollars from ratio (ratio = repair/value * 100)
-                const vehicleValueDollars = (aiAssessment.repairToValueRatio && aiAssessment.repairToValueRatio > 0 && aiAssessment.estimatedCost)
-                  ? Math.round((aiAssessment.estimatedCost / aiAssessment.repairToValueRatio) * 100)
-                  : null;
-                return (
-                  <>
-                    {/* Total loss alert banner */}
-                    {isTotalLossHere && (
-                      <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-red-500" style={{ background: 'var(--fp-critical-bg)' }}>
-                        <span className="text-2xl flex-shrink-0">🚨</span>
-                        <div>
-                          <p className="font-bold text-red-400 text-base mb-1">TOTAL LOSS — REPAIR NOT VIABLE</p>
-                          <p className="text-sm text-red-300">
-                            AI estimated repair cost of <strong>US${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong> exceeds vehicle market value
-                            {vehicleValueDollars ? <> of <strong>US${vehicleValueDollars.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong></> : null} at <strong>{aiAssessment.repairToValueRatio}%</strong> of vehicle value.
-                            Industry threshold for total loss is 75%. This vehicle should be written off, not repaired.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    {/* No quotes notice */}
-                    {hasNoQuotes && (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg" style={{ background: 'var(--fp-warning-bg)', border: '1px solid var(--fp-warning-border)' }}>
-                        <span className="text-amber-400 text-sm">⚠</span>
-                        <p className="text-xs text-amber-400">No panel beater quotes submitted — cost breakdown below is AI-estimated from damage analysis only, not from a real invoice.</p>
-                      </div>
-                    )}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      {[
-                        { label: 'AI Estimated Total', value: `US$${(aiAssessment.estimatedCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: isTotalLossHere },
-                        { label: hasNoQuotes ? 'Est. Parts (AI)' : 'Parts Cost', value: `US$${(aiAssessment.estimatedPartsCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
-                        { label: hasNoQuotes ? 'Est. Labour (AI)' : 'Labour Cost', value: `US$${(aiAssessment.estimatedLaborCost || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`, highlight: false },
-                        { label: 'Repair/Value Ratio', value: aiAssessment.repairToValueRatio ? `${aiAssessment.repairToValueRatio}%` : 'N/A', highlight: (aiAssessment.repairToValueRatio || 0) >= 75 },
-                      ].map(({ label, value, highlight }) => (
-                        <div key={label} className="p-3 rounded-lg" style={{ background: highlight ? 'var(--fp-critical-bg)' : 'var(--card)', border: `1px solid ${highlight ? 'var(--fp-critical-border)' : 'var(--border)'}` }}>
-                          <p className="text-xs font-semibold uppercase tracking-wide mb-1" style={{ color: 'var(--muted-foreground)' }}>{label}</p>
-                          <p className={`text-lg font-bold ${highlight ? 'text-red-400' : 'text-primary'}`}>{value}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                );
-              })()}
-              {/* Quote comparison chart */}
-              {quotes.length >= 2 && (() => {
-                const chartData = quotes.map((q, i) => ({
-                  name: (q as any).panelBeaterName || `Quote ${i + 1}`,
-                  amount: (q.quotedAmount || 0),
-                  id: q.id,
-                }));
-                const median = computeMedian(quotes.map(q => (q.quotedAmount || 0)));
-                const aiEst = aiAssessment?.estimatedCost || 0;
-                const COLORS = ['var(--chart-3)', 'var(--chart-2)', 'var(--chart-3)', 'var(--chart-4)', 'var(--chart-5)'];
-                return (
-                  <div className="p-4 rounded-lg" style={{ background: 'var(--muted)', border: '1px solid var(--border)' }}>
-                    <p className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: 'var(--muted-foreground)' }}>Quote Cost Comparison (USD)</p>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <BarChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                        <XAxis dataKey="name" tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: 'var(--muted-foreground)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v) => `$${v.toLocaleString()}`} />
-                        <Tooltip contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)', borderRadius: '8px', color: 'var(--popover-foreground)' }} formatter={(value: number) => [`US$${value.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, 'Quote Amount']} />
-                        <ReferenceLine y={median} stroke="var(--chart-3)" strokeDasharray="4 4" label={{ value: `Median $${median.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, fill: 'var(--chart-3)', fontSize: 10, position: 'right' }} />
-                        {aiEst > 0 && <ReferenceLine y={aiEst} stroke="var(--chart-1)" strokeDasharray="6 3" label={{ value: `AI Est. $${aiEst.toLocaleString('en-US', { minimumFractionDigits: 2 })}`, fill: 'var(--chart-1)', fontSize: 10, position: 'insideTopLeft' }} />}
-                        <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
-                          {chartData.map((entry, index) => {
-                            const isOver = aiEst > 0 && entry.amount > aiEst * 1.3;
-                            return <Cell key={`cell-${index}`} fill={isOver ? 'var(--destructive)' : COLORS[index % COLORS.length]} />;
-                          })}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>
-                      Yellow dashed = median quote. Teal dashed = AI estimate. <span className="text-red-400">Red bars</span> = quotes &gt;30% above AI estimate.
-                    </p>
-                  </div>
-                );
-              })()}
-              {/* Cost optimisation panel */}
-              <QuoteOptimisationPanel claimId={claimId} />
-              {/* Parts reconciliation */}
-              {quotes.length > 0 && aiAssessment && quotes.some(q => q.lineItems && q.lineItems.length > 0) && (
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: 'var(--muted-foreground)' }}>Parts Reconciliation</p>
-                  <QuoteComparison quotes={quotes} />
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* ══ SECTION 6: FRAUD & RISK ANALYSIS ══ */}
-        {aiAssessment && (
+        {aiAssessment && enforcement ? (
+          <ForensicAuditReport
+            claim={claim}
+            aiAssessment={aiAssessment}
+            enforcement={enforcement}
+            quotes={quotes}
+          />
+        ) : aiAssessment && !enforcement ? (
           <div className="comparison-section">
-            <div className="comparison-section-header">
-              <span className="bi-section-num">6</span>
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Fraud & Risk Analysis</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Fraud score gauge, risk level, and top triggered indicators</p>
-              </div>
+            <div className="comparison-section-body text-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" style={{ color: 'var(--primary)' }} />
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Loading enforcement analysis...</p>
             </div>
-            <div className="comparison-section-body">
-              <div className="space-y-4">
-                {/* Fraud level banner */}
-                {(aiAssessment.fraudRiskLevel === 'high' || aiAssessment.fraudRiskLevel === 'critical' || aiAssessment.fraudRiskLevel === 'elevated') && (
-                  <div className="flex items-start gap-3 p-4 rounded-lg border-2 border-red-500 dark:border-red-700" style={{ background: 'var(--fp-critical-bg)' }}>
-                    <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-bold text-red-700 dark:text-red-300 mb-1">HIGH FRAUD RISK DETECTED</p>
-                      <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>This claim has triggered multiple fraud indicators. Manual review is strongly recommended before approval.</p>
-                    </div>
-                  </div>
-                )}
-                {/* Full fraud score panel */}
-                <FraudScorePanel aiAssessment={aiAssessment} />
-              </div>
+          </div>
+        ) : (
+          <div className="comparison-section">
+            <div className="comparison-section-body text-center py-12">
+              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Run AI Assessment to generate the forensic report.</p>
             </div>
           </div>
         )}
 
-        {/* ══ SECTION 6b: INTELLIGENCE ENFORCEMENT LAYER ══ */}
-        {aiAssessment && claim && (
-          <div className="comparison-section">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--chart-5)' }}>AI</span>
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Intelligence Enforcement Layer</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Physics inference · consistency validation · direction-damage cross-check · cost benchmark · enforced fraud classification</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <IntelligenceEnforcementPanel claimId={claim.id} />
-            </div>
-          </div>
-        )}
-
-        {/* ══ SECTION 6c: ADVANCED ANALYTICS (Stage 35-42) ══ */}
-        {aiAssessment && (
-          <div className="comparison-section">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--chart-5)' }}>⚙</span>
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Advanced Analytics</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Causal chain · evidence bundle · realism validation · benchmark deviation · cross-engine consensus (Stages 35–42)</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <AdvancedAnalyticsPanel aiAssessment={aiAssessment} claimId={claimId} />
-            </div>
-          </div>
-        )}
-        {/* ══ SECTION 6d: FORENSIC DECISION MODEL ══ */}
-        {aiAssessment && (
-          <div className="comparison-section">
-            <div className="comparison-section-header">
-              <span className="bi-section-num" style={{ background: 'var(--success)' }}>✓</span>
-              <div>
-                <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Decision-Ready Model</p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Claim truth · physics · damage zones · cost intelligence · evidence integrity · narrative · actions</p>
-              </div>
-            </div>
-            <div className="comparison-section-body">
-              <ForensicDecisionPanel aiAssessment={aiAssessment} claim={claim} />
-            </div>
-          </div>
-        )}
-        {/* ══ SECTION 7: OPERATIONAL PERFORMANCE ══ */}
+        {/* ══ OPERATIONAL PANELS (kept from original layout) ══ */}
+        {/* Panel beater choices & repair intelligence — interactive, not in ForensicAuditReport */}
         <div className="comparison-section">
           <div className="comparison-section-header">
             <span className="bi-section-num">7</span>
@@ -1183,9 +750,7 @@ export default function InsurerComparisonView() {
           </div>
           <div className="comparison-section-body">
             <div className="space-y-4">
-              {/* Panel beater choices */}
               <PanelBeaterChoicesCard claimId={claimId} />
-              {/* Repair intelligence */}
               <RepairIntelligencePanel claimId={claimId} />
             </div>
           </div>
