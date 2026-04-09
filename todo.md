@@ -10453,3 +10453,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Cap photo forensics to 3 photos (down from 6)
 - [x] Cap vision photos to 2 (down from 4)
 - [x] Reduce per-LLM-call timeout from 3min to 90s (thinking disabled makes 90s sufficient)
+
+## Pipeline Speed Optimisation (Apr 2026)
+- [x] Create stage-7-unified.ts — unified forensic reasoning engine (S7 physics + S7c severity + S7b Pass 1 causal + S7e narrative in one call)
+- [x] Update orchestrator.ts to call runUnifiedStage7 instead of four separate stage calls
+- [x] Parallelise Stage 8 (fraud) and Stage 9 (cost) using Promise.all
+- [x] Remove unused imports from orchestrator.ts
+- [x] Full test suite: 6500 tests pass, 0 failures

@@ -34,8 +34,7 @@ import { runStructuredExtractionStage } from "./stage-3-structured-extraction";
 import { runValidationStage } from "./stage-4-validation";
 import { runAssemblyStage } from "./stage-5-assembly";
 import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
-import { runPhysicsStage } from "./stage-7-physics";
-import { computeSeverityConsensus, buildSeverityConsensusInput } from "./severityConsensusEngine";
+import { runUnifiedStage7 } from "./stage-7-unified";
 import { runFraudAnalysisStage } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
@@ -98,10 +97,7 @@ import {
   runPreGenerationConsistencyCheck,
   type PreGenerationCheckResult,
 } from "./preGenerationConsistencyCheck";
-import {
-  runIncidentNarrativeEngine,
-  type NarrativeAnalysis,
-} from "./incidentNarrativeEngine";
+// runIncidentNarrativeEngine is now called inside runUnifiedStage7
 import { valuateVehicle } from "../services/vehicleValuation";
 import { estimateMileageFromYear } from "../services/mileageEstimation";
 import {
@@ -450,130 +446,59 @@ export async function runPipelineV2(
     );
   }
 
-  // ── STAGE 7: Physics Analysis ────────────────────────────────────────
-  const s7 = await runPhysicsStage(ctx, claimRecord, stage6Data!);
-  recordStage("7_physics", s7);
-  stage7Data = s7.data; // Always has data (self-healing)
+  // ── STAGE 7 (UNIFIED): Physics + Severity Consensus + Causal Reasoning + Narrative ───
+  // Single function call replacing the sequential cluster of:
+  //   Stage 7 (physics), Stage 7b Pass 1 (causal), Stage 7c (severity), Stage 7e (narrative)
+  // Stage 7b Pass 2 (re-run with fraud+cost scores) remains separate below.
+  const s7Unified = await runUnifiedStage7(
+    ctx,
+    claimRecord!,
+    stage6Data!,
+    null, // preRunPattern — computed inside physics engine
+    null, // preRunAnimal — computed inside physics engine
+    ctx.damagePhotoUrls ?? []
+  );
+  recordStage("7_unified", s7Unified);
+  stage7Data = s7Unified.data?.physicsAnalysis ?? null;
+  causalVerdict = s7Unified.data?.causalVerdict ?? null;
 
-  // ── STAGE 7c: Severity Consensus Engine ──────────────────────────────────
-  // Fuses physics severity, damage severity score, and image severity signals
-  // into a single authoritative final_severity verdict.
-  try {
-    const enrichedPhotosForSeverity: string | null = (ctx as any).enrichedPhotosJson ?? null;
-    const severityInput = buildSeverityConsensusInput(
-      stage6Data,
-      stage7Data,
-      enrichedPhotosForSeverity
-    );
-    const severityConsensus = computeSeverityConsensus(severityInput);
-    if (stage7Data) {
-      (stage7Data as any).severityConsensus = severityConsensus;
-    }
-    ctx.log(
-      "Stage 7c (SeverityConsensus)",
-      `Final severity: ${severityConsensus.final_severity} (${severityConsensus.source_alignment}, ` +
-      `confidence: ${severityConsensus.confidence}%). Sources: physics=${severityConsensus.source_signals.physics ?? "N/A"}, ` +
-      `damage=${severityConsensus.source_signals.damage ?? "N/A"}, ` +
-      `image=${severityConsensus.source_signals.image ?? "N/A"}.`
-    );
-  } catch (err) {
-    ctx.log("Stage 7c (SeverityConsensus)", `Severity consensus failed (non-fatal): ${String(err)}`);
+  // Attach narrative analysis to claimRecord so Stage 8 fraud engine can consume it
+  if (s7Unified.data?.narrativeAnalysis && claimRecord) {
+    claimRecord = {
+      ...claimRecord,
+      accidentDetails: {
+        ...claimRecord.accidentDetails,
+        narrativeAnalysis: s7Unified.data.narrativeAnalysis,
+      },
+    };
   }
 
-  // ── STAGE 7b: Causal Reasoning Engine ──────────────────────────────────
-  // Reads description + photos + physics + damage components and produces a
-  // structured causal verdict: inferred cause, plausibility score, evidence,
-  // contradictions, and an adjuster-style narrative conclusion.
-  try {
-    const enrichedPhotosJson: string | null = (ctx as any).enrichedPhotosJson ?? null;
-    causalVerdict = await runCausalReasoningEngine(
-      claimRecord!,
-      stage6Data,
-      stage7Data,
-      enrichedPhotosJson
-    );
-    ctx.log(
-      "Stage 7b",
-      `Causal verdict: cause="${causalVerdict.inferredCause.substring(0, 80)}", ` +
-      `plausibility=${causalVerdict.plausibilityScore}% (${causalVerdict.plausibilityBand}), ` +
-      `direction=${causalVerdict.inferredCollisionDirection}, ` +
-      `physics=${causalVerdict.physicsAlignment}, images=${causalVerdict.imageAlignment}, ` +
-      `fraudFlag=${causalVerdict.flagForFraud}, llmUsed=${causalVerdict.llmUsed}`
-    );
-    // If causal engine inferred a better collision direction, update claimRecord
-    if (
-      causalVerdict.inferredCollisionDirection !== "unknown" &&
-      claimRecord?.accidentDetails?.collisionDirection === "unknown"
-    ) {
-      claimRecord = {
-        ...claimRecord,
-        accidentDetails: {
-          ...claimRecord.accidentDetails,
-          collisionDirection: causalVerdict.inferredCollisionDirection,
-        },
-      };
-      ctx.log("Stage 7b", `Updated collision direction to '${causalVerdict.inferredCollisionDirection}' from causal reasoning.`);
-    }
-  } catch (err) {
-    ctx.log("Stage 7b", `Causal reasoning engine failed (non-fatal): ${String(err)}`);
+  // If causal engine inferred a better collision direction, update claimRecord
+  if (
+    causalVerdict?.inferredCollisionDirection &&
+    causalVerdict.inferredCollisionDirection !== "unknown" &&
+    claimRecord?.accidentDetails?.collisionDirection === "unknown"
+  ) {
+    claimRecord = {
+      ...claimRecord,
+      accidentDetails: {
+        ...claimRecord.accidentDetails,
+        collisionDirection: causalVerdict.inferredCollisionDirection,
+      },
+    };
+    ctx.log("Stage 7 (Unified)", `Updated collision direction to '${causalVerdict.inferredCollisionDirection}' from causal reasoning.`);
   }
 
-  // ── STAGE 7e: Incident Narrative Reasoning Engine ───────────────────────
-  // Runs after Stage 7b so physics, damage, and vision data are all available.
-  // Separates the incident narrative from post-incident content (stripping,
-  // inspection findings, extras quotations) and cross-validates the narrative
-  // against physics plausibility, damage zones, and crush depth.
-  // Results are stored on claimRecord.accidentDetails.narrativeAnalysis and
-  // consumed by Stage 8 fraud engine and the ForensicAuditReport.
-  try {
-    const rawDescription = claimRecord?.accidentDetails?.description ?? ctx.claim.incidentDescription ?? "";
-    if (rawDescription && rawDescription.trim().length > 10) {
-      const animalPhysics = stage7Data?.animalStrikePhysics ?? null;
-      const narrativeInput = {
-        raw_description: rawDescription,
-        incident_type: claimRecord?.accidentDetails?.incidentType ?? "collision",
-        claimed_speed_kmh: claimRecord?.accidentDetails?.estimatedSpeedKmh ?? null,
-        physics_plausibility_score: animalPhysics?.plausibility_score ?? stage7Data?.damageConsistencyScore ?? null,
-        physics_delta_v_kmh: animalPhysics?.delta_v_kmh ?? stage7Data?.deltaVKmh ?? null,
-        physics_impact_force_kn: animalPhysics?.impact_force_kn ?? stage7Data?.impactForceKn ?? null,
-        structural_damage: claimRecord?.accidentDetails?.structuralDamage ?? false,
-        airbag_deployment: claimRecord?.accidentDetails?.airbagDeployment ?? false,
-        crush_depth_m: claimRecord?.accidentDetails?.maxCrushDepthM ?? null,
-        damage_components: (stage6Data?.damagedParts ?? []).map((p: any) => ({
-          name: p.component ?? p.name ?? "unknown",
-          severity: p.severity ?? "unknown",
-          location: p.location ?? p.zone ?? "unknown",
-        })),
-        vision_summary: (ctx as any).enrichedPhotosJson
-          ? (() => { try { const p = JSON.parse((ctx as any).enrichedPhotosJson); return p?.summary ?? p?.overall_assessment ?? null; } catch { return null; } })()
-          : null,
-        vehicle_make_model: `${claimRecord?.vehicle?.make ?? ""} ${claimRecord?.vehicle?.model ?? ""}`.trim() || "Unknown vehicle",
-      };
-      const narrativeAnalysis = await runIncidentNarrativeEngine(narrativeInput);
-      if (claimRecord) {
-        claimRecord = {
-          ...claimRecord,
-          accidentDetails: {
-            ...claimRecord.accidentDetails,
-            narrativeAnalysis,
-          },
-        };
-      }
-      const fraudSignalCount = narrativeAnalysis.fraud_signals.length;
-      ctx.log(
-        "Stage 7e (NarrativeReasoning)",
-        `Verdict: ${narrativeAnalysis.consistency_verdict}, ` +
-        `contaminated: ${narrativeAnalysis.was_contaminated}, ` +
-        `stripped: ${narrativeAnalysis.stripped_content.length} segment(s), ` +
-        `fraud signals: ${fraudSignalCount}, ` +
-        `confidence: ${narrativeAnalysis.confidence}%.`
-      );
-    } else {
-      ctx.log("Stage 7e (NarrativeReasoning)", "Skipped — no incident description available.");
-    }
-  } catch (err) {
-    ctx.log("Stage 7e (NarrativeReasoning)", `Narrative reasoning failed (non-fatal): ${String(err)}`);
-  }
+  ctx.log(
+    "Stage 7 (Unified)",
+    `Physics: severity=${stage7Data?.accidentSeverity ?? "N/A"}, force=${stage7Data?.impactForceKn?.toFixed(1) ?? "N/A"} kN. ` +
+    `Causal: cause="${causalVerdict?.inferredCause?.substring(0, 60) ?? "N/A"}", ` +
+    `plausibility=${causalVerdict?.plausibilityScore ?? "N/A"}% (${causalVerdict?.plausibilityBand ?? "N/A"}), ` +
+    `fraudFlag=${causalVerdict?.flagForFraud ?? false}. ` +
+    `Narrative: verdict=${s7Unified.data?.narrativeAnalysis?.consistency_verdict ?? "N/A"}, ` +
+    `signals=${s7Unified.data?.narrativeAnalysis?.fraud_signals?.length ?? 0}. ` +
+    `Status: ${s7Unified.status}.`
+  );
 
   // ── POST-PHYSICS TRUTH RE-RESOLUTION ─────────────────────────────────
   // Now that physics output is available, re-resolve with all three sources.
@@ -621,12 +546,23 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 8: Fraud Analysis ──────────────────────────────────────────
-  // Pass stage3Data so fraud engine can use inputRecovery (images_present flag)
-  const s8 = await runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined);
+  // ── STAGE 8 ‖ STAGE 9: Fraud Analysis and Cost Optimisation (PARALLEL) ──────────
+  // S8 and S9 share identical inputs (ClaimRecord + S6 + S7 + S3) and have no
+  // dependency on each other. Running them in parallel saves ~15–30s per claim.
+  // Stage 7d (confidence aggregation) and Stage 7b re-run both need S8 output
+  // and therefore run AFTER this Promise.all resolves.
+  ctx.log("Pipeline", "Starting S8 (fraud) ‖ S9 (cost) in parallel...");
+  const [s8, s9] = await Promise.all([
+    runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined),
+    runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined),
+  ]);
   recordStage("8_fraud", s8);
   stage8Data = s8.data; // Always has data (self-healing)
+  recordStage("9_cost", s9);
+  stage9Data = s9.data; // Always has data (self-healing)
+  ctx.log("Pipeline", `S8 fraud: ${stage8Data?.fraudRiskLevel ?? "N/A"} (score=${stage8Data?.fraudRiskScore ?? "N/A"}). S9 cost: deviation=${stage9Data?.quoteDeviationPct?.toFixed(1) ?? "N/A"}%.`);
 
-  // ── STAGE 7d: Confidence Aggregation ────────────────────────────────────
+  // ── STAGE 7d: Confidence Aggregation ──────────────────────────────────────
   // Run after Stage 8 so all engine outputs (physics, damage, fraud,
   // consistency) are available for the weakest-link calculation.
   try {
@@ -642,12 +578,6 @@ export async function runPipelineV2(
   } catch (err) {
     ctx.log?.("7d_confidence", `failed: ${err}`);
   }
-
-  // ── STAGE 9: Cost Optimisation ───────────────────────────────────────
-  // Pass stage3Data so cost engine can use inputRecovery.recovered_quote when quoteTotalCents is missing
-  const s9 = await runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined);
-  recordStage("9_cost", s9);
-  stage9Data = s9.data; // Always has data (self-healing)
 
   // ── STAGE 7b RE-RUN: Causal Reasoning with Downstream Scores ─────────────
   // After Stages 8 (fraud) and 9 (cost) complete, re-run Stage 7b with the
