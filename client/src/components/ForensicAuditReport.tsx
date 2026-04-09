@@ -906,13 +906,13 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
       {gates.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Phase 1 Gate Results</p>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Document Integrity Checks</p>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Gate", "Status", "Corrections"].map(h => (
+                  {["Check", "Status", "Corrections"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
@@ -920,7 +920,13 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
               <tbody>
                 {gates.map((g: any, i: number) => (
                   <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                    <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--primary)" }}>{g.gate ?? `G${i + 1}`}</td>
+                    <td className="px-3 py-2 font-semibold" style={{ color: "var(--primary)" }}>{({
+                        G1_TEMPORAL: 'Date & Timeline Consistency',
+                        G2_COST_RECONCILIATION: 'Cost Reconciliation',
+                        G3_UNIT_CORRECTION: 'Currency & Unit Normalisation',
+                        G4_SANITISATION: 'Data Sanitisation',
+                        G5_TERMINOLOGY: 'Terminology Standardisation',
+                      } as Record<string, string>)[g.gate] ?? g.gate ?? `Check ${i + 1}`}</td>
                     <td className="px-3 py-2">
                       <StatusBadge status={g.status === "PASS" ? "pass" : g.status === "WARN" ? "warn" : "fail"} label={g.status ?? "UNKNOWN"} />
                     </td>
