@@ -39,6 +39,8 @@ export type RecoveryStrategy =
   | "typical_collision"
   | "default_value"
   | "partial_data"
+  | "llm_vision"
+  | "skip"
   | "none";
 
 export interface RecoveryAction {

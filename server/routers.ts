@@ -1405,6 +1405,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const asyncUserRole = ctx.user.role;
         const asyncTenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
 
+        // ── PRE-FLIGHT: Mark pipeline as triggered BEFORE firing async job ──
+        // This prevents the claim from appearing stuck in assessment_in_progress
+        // with ai_assessment_triggered=0 (which happens when the HTTP response
+        // returns before the async job sets these fields inside triggerAiAssessment).
+        // The UI uses documentProcessingStatus='parsing' to show the spinner;
+        // ai_assessment_triggered=1 prevents the resetStuckClaim guard from
+        // incorrectly resetting a claim that is genuinely in-flight.
+        try {
+          const dbPreflight = await getDb();
+          if (dbPreflight) {
+            await dbPreflight.update(claims).set({
+              aiAssessmentTriggered: 1,
+              documentProcessingStatus: "parsing",
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, input.claimId));
+          }
+        } catch (preflightErr) {
+          console.warn(`[AI] Pre-flight status update failed for claim ${input.claimId} (non-fatal):`, preflightErr);
+        }
+
         // Fire-and-forget: run the AI assessment asynchronously so the HTTP
         // mutation response returns immediately (avoids 15-45 s LLM timeout).
         // The frontend polls aiAssessments.byClaim every 5 s until a result

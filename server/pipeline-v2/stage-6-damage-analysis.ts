@@ -161,7 +161,10 @@ Analyse the damage visible in the photo(s) and list every damaged component.`,
       },
     });
 
-    const content = response.choices?.[0]?.message?.content || "{}";
+    const rawContent = response.choices?.[0]?.message?.content || "{}";
+    // content may be a multimodal array when the model echoes back structured data;
+    // coerce to string before parsing.
+    const content = typeof rawContent === "string" ? rawContent : JSON.stringify(rawContent);
     const parsed = JSON.parse(content);
     const rawComponents: Array<{
       name: string; location: string; damageType: string;

@@ -15,6 +15,7 @@ import { serveStatic, setupVite } from "./vite";
 import { uploadAssessmentRouter } from "../upload-assessment";
 import { setupWebSocketServer } from "../websocket";
 import { startIntakeEscalationJob } from "../intake-escalation-job";
+import { startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -149,6 +150,8 @@ async function startServer() {
     
     // Start intake escalation cron job
     startIntakeEscalationJob();
+    // Start stuck assessment recovery job (clears claims stuck in assessment_in_progress)
+    startStuckAssessmentRecoveryJob();
   });
 
   // Start WebSocket server on port 8080 for real-time analytics

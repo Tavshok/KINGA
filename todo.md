@@ -10460,3 +10460,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Parallelise Stage 8 (fraud) and Stage 9 (cost) using Promise.all
 - [x] Remove unused imports from orchestrator.ts
 - [x] Full test suite: 6500 tests pass, 0 failures
+
+## Bug: Pipeline Hangs Without Completing
+- [ ] Diagnose why AI analysis runs indefinitely without producing a ForensicAuditReport
+- [ ] Fix root cause (stuck stage, missing completion signal, or infinite retry)
+- [ ] Verify pipeline completes and report is generated
+
+## Bug Fix: Pipeline Continuously Analysing Without Completing
+- [x] Diagnose root cause: claims stuck in assessment_in_progress with ai_assessment_triggered=0
+- [x] Fix 1: Pre-flight DB update in triggerAiAssessment tRPC procedure — set aiAssessmentTriggered=1 and documentProcessingStatus='parsing' synchronously BEFORE firing async job
+- [x] Fix 2: Create stuck-assessment-recovery-job.ts — auto-resets claims stuck in assessment_in_progress after 10 min (never started) or 20 min (timed out)
+- [x] Fix 3: Add llm_vision and skip to RecoveryStrategy union type (pre-existing TS errors in stage-6-damage-analysis.ts)
+- [x] Register stuck assessment recovery job in server startup (_core/index.ts)
+- [x] All 6500 tests pass after fixes
