@@ -337,12 +337,20 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
   const phase2 = (e as any)?._phase2 as any;
   const wf = e?.weightedFraud;
 
-  const rawDecision: string = phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
-  const fraudScore = wf?.score ?? 0;
+  // Use weighted fraud engine as primary decision source (same as top-level badge).
+  // Phase2 finalDecision is a secondary signal and may use a different scoring model.
+  const wfLevel = wf?.level ?? "minimal";
+  const wfScore = wf?.score ?? 0;
+  // Map weighted fraud level to a decision string
+  const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
+  const rawDecision: string = wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
+  const fraudScore = wfScore;
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
 
   const ce = e?.costExtraction;
-  const aiEstimate = ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
+  const normalised = (aiAssessment as any)?._normalised as any;
+  // Use normalised cost as AI benchmark (same as Section3Financial)
+  const aiEstimate = normalised?.costs?.totalUsd ?? ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const photosDetected = aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
@@ -930,14 +938,16 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
 
 // ─── Section 2: Technical Forensics ──────────────────────────────────────────
 
-function Section2Physics({ aiAssessment, enforcement }: { aiAssessment: any; enforcement: any }) {
+function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiAssessment: any; enforcement: any }) {
   const e = enforcement;
   const pe = e?.physicsEstimate;
   const phase2 = (e as any)?._phase2 as any;
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
   const constraints: any[] = phase2?.physicsConstraints ?? [];
-  const incidentType = phase2?.incidentType ?? aiAssessment?.incidentType ?? "unknown";
-
+  // Fall back to claim.incidentType when pipeline returns REQUIRES_CLASSIFICATION
+  const _rawIt2 = phase2?.incidentType ?? aiAssessment?.incidentType;
+  const _unresolved2 = !_rawIt2 || _rawIt2 === "REQUIRES_CLASSIFICATION" || _rawIt2 === "REQUIRES CLASSIFICATION" || _rawIt2 === "unknown";
+  const incidentType = _unresolved2 ? (claim?.incidentType ?? "unknown") : _rawIt2;
   const deltaV = pe?.deltaVKmh ?? 0;
   const claimedSpeed = (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh ?? aiAssessment?.claimedSpeedKmh ?? 0;
   const energyKj = pe?.estimatedEnergyKj ?? 0;
@@ -1189,7 +1199,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
   const ce = e?.costExtraction;
   const normalised = (aiAssessment as any)?._normalised as any;
 
-  const aiEstimate = ce?.ai_estimate ?? normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost ?? 0;
+  // Prefer the normalised AI estimate (independent benchmark) over costExtraction.ai_estimate
+  // which can be set to the quote total when no independent estimate is available.
+  const aiEstimate = normalised?.costs?.totalUsd ?? ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
   const aiParts = ce?.parts ?? aiAssessment?.estimatedPartsCost ?? 0;
   const aiLabour = ce?.labour ?? aiAssessment?.estimatedLaborCost ?? 0;
   const fairMin = ce?.fair_range?.min ?? e?.costBenchmark?.estimatedFairMin ?? 0;
@@ -1215,11 +1227,26 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
   const partsVar = variance(quotedParts, aiParts);
   const labourVar = variance(quotedLabour, aiLabour);
 
-  const verdict = e?.costVerdict?.verdict ?? (
-    aiEstimate > 0 && fairMax > 0
-      ? aiEstimate > fairMax * 1.15 ? "OVERPRICED" : aiEstimate < fairMin * 0.85 ? "UNDERPRICED" : "FAIR"
-      : "FAIR"
-  );
+  // Derive verdict from the quote vs AI estimate comparison.
+  // Only use NO_QUOTE when there is genuinely no quote AND no AI estimate.
+  // If we have a quote but no AI estimate, show FAIR (cannot compare).
+  // If we have both, compare them.
+  const verdict: string = e?.costVerdict?.verdict !== "NO_QUOTE"
+    ? (e?.costVerdict?.verdict ?? (
+        aiEstimate > 0 && quotedTotal > 0
+          ? quotedTotal > aiEstimate * 1.15 ? "OVERPRICED"
+            : quotedTotal < aiEstimate * 0.85 ? "UNDERPRICED"
+            : "FAIR"
+          : aiEstimate > 0 && fairMax > 0
+            ? aiEstimate > fairMax * 1.15 ? "OVERPRICED" : aiEstimate < fairMin * 0.85 ? "UNDERPRICED" : "FAIR"
+            : quotedTotal > 0 ? "FAIR" : "NO_QUOTE"
+      ))
+    // costVerdict says NO_QUOTE — but if we actually have a quote, override it
+    : quotedTotal > 0
+      ? (quotedTotal > (aiEstimate > 0 ? aiEstimate : quotedTotal) * 1.15 ? "OVERPRICED"
+         : quotedTotal < (aiEstimate > 0 ? aiEstimate : quotedTotal) * 0.85 ? "UNDERPRICED"
+         : "FAIR")
+      : "NO_QUOTE";
 
   const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
   const costCorrections = corrections.filter(c => c.toLowerCase().includes("cost") || c.toLowerCase().includes("$") || c.toLowerCase().includes("amount"));
@@ -1233,16 +1260,12 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           <StatusBadge status={verdict === "FAIR" ? "pass" : verdict === "OVERPRICED" ? "fail" : "info"} label={verdict} />
         </div>
         <div className="p-4">
-          {/* Step-down SVG waterfall: Initial Quote → AI Adjustment → Agreed Cost */}
+          {/* Step-down SVG waterfall: AI Estimate → Repair Quote */}
           {(() => {
-            // Build 3-step waterfall matching spec: Initial Quote | Adjustments | Agreed Cost
-            const initialQuote = quotedTotal > 0 ? quotedTotal : aiEstimate;
-            const adjustment = aiEstimate > 0 && quotedTotal > 0 ? aiEstimate - quotedTotal : 0;
-            const agreedCost = aiEstimate > 0 ? aiEstimate : quotedTotal;
+            // Show AI Estimate vs Repair Quote side-by-side for meaningful comparison
             const steps = [
-              { label: "Initial Quote",    value: initialQuote, color: "var(--fp-warning-text)", show: initialQuote > 0 },
-              { label: "AI Adjustment",    value: Math.abs(adjustment), color: adjustment < 0 ? "var(--fp-success-text)" : "var(--fp-critical-text)", show: adjustment !== 0 },
-              { label: "Agreed Cost",      value: agreedCost,   color: "var(--fp-info-text)", show: agreedCost > 0 },
+              { label: "AI Estimate",    value: aiEstimate,   color: "var(--fp-info-text)",     show: aiEstimate > 0 },
+              { label: "Repair Quote",   value: quotedTotal,  color: "var(--fp-warning-text)",  show: quotedTotal > 0 },
             ].filter(s => s.show);
             if (steps.length === 0) return null;
             const maxVal = Math.max(...steps.map(s => s.value), 1);
@@ -1739,8 +1762,11 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
 function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; aiAssessment: any; enforcement: any }) {
   const e = enforcement;
   const phase2 = (e as any)?._phase2 as any;
-
-  const rawDecision: string = phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
+  const wf = e?.weightedFraud;
+  const wfScore = wf?.score ?? 0;
+  // Use weighted fraud engine as primary decision source (same as top-level badge)
+  const wfDecision = wfScore >= 70 ? "DECLINE" : wfScore >= 40 ? "REVIEW_REQUIRED" : null;
+  const rawDecision: string = wfDecision ?? phase2?.finalDecision ?? e?.finalDecision?.decision ?? "REVIEW";
   const decisionColor = decisionColour(rawDecision);
   const decisionText = decisionLabel(rawDecision);
 
@@ -2151,7 +2177,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
       <SectionDivider number="2" title="Technical Forensics" />
-      <Section2Physics aiAssessment={aiAssessment} enforcement={enforcement} />
+      <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
       <SectionDivider number="3" title="Financial Validation" />
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />

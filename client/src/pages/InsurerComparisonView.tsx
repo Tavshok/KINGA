@@ -503,12 +503,13 @@ export default function InsurerComparisonView() {
             </div>
           </div>
 
-          {/* Action bar */}
-          <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid var(--border)' }}>
+          {/* Action bar — bi-hero is always dark so use explicit white-tinted styles */}
+          <div className="flex items-center gap-2 mt-4 pt-4" style={{ borderTop: '1px solid rgba(255,255,255,0.12)' }}>
             <div className="flex gap-2">
               <Button 
                 variant="outline" 
                 size="sm"
+                style={{ borderColor: 'rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.06)' }}
                 onClick={() => {
                   // Prepare data for PDF export
                   const pdfData = {
@@ -700,6 +701,7 @@ export default function InsurerComparisonView() {
               <Button 
                 variant="outline" 
                 size="sm"
+                style={{ borderColor: 'rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.85)', background: 'rgba(255,255,255,0.06)' }}
                 onClick={() => setLocation(INSURER_CLAIMS_LIST_PATH)}
               >
                 <ArrowLeft className="mr-2 h-4 w-4" />
