@@ -10445,3 +10445,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] db.ts: pipeline trigger loads tenant rates before running pipeline
 - [x] tenant router: getRates and updateRates procedures (admin-gated)
 - [x] tenant-rates.test.ts: 19 tests pass
+
+## Pipeline Timeout Fix (Apr 2026)
+- [x] Add 15-minute global pipeline timeout in db.ts (marks claim as failed if exceeded)
+- [x] Reduce LLM max_tokens from 32768 to 8192 in _core/llm.ts
+- [x] Disable LLM thinking budget (set to 0) to eliminate extended thinking latency
+- [x] Cap photo forensics to 3 photos (down from 6)
+- [x] Cap vision photos to 2 (down from 4)
+- [x] Reduce per-LLM-call timeout from 3min to 90s (thinking disabled makes 90s sufficient)

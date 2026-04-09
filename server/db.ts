@@ -528,7 +528,24 @@ export async function triggerAiAssessment(claimId: number) {
     log: (stage: string, msg: string) => console.log(`[${stage}] Claim ${claimId}: ${msg}`),
     tenantRates,
   };
-  const result = await runPipelineV2(pipelineCtx);
+  // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
+  // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled
+  // and per-call timeouts at 90s, the worst-case pipeline (12 LLM calls +
+  // 3 photo forensics) should complete in under 10 minutes. The 15-minute
+  // guard prevents zombie jobs from holding DB connections indefinitely.
+  const PIPELINE_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
+  let pipelineTimeoutId: ReturnType<typeof setTimeout> | null = null;
+  const pipelineWithTimeout = Promise.race([
+    runPipelineV2(pipelineCtx),
+    new Promise<never>((_, reject) => {
+      pipelineTimeoutId = setTimeout(
+        () => reject(new Error(`Pipeline timed out after 15 minutes for claim ${claimId}`)),
+        PIPELINE_TIMEOUT_MS
+      );
+    }),
+  ]);
+  const result = await pipelineWithTimeout;
+  if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
   const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText } = result;

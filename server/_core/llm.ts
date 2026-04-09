@@ -296,10 +296,13 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
-  }
+  // Keep token budget tight — pipeline stages use structured JSON output
+  // that rarely exceeds 4k tokens. Extended thinking adds 10-30s latency
+  // with minimal benefit for deterministic extraction tasks.
+  payload.max_tokens = 8192;
+  // Disable extended thinking (budget_tokens = 0) for pipeline calls.
+  // This alone cuts per-call latency significantly on Gemini 2.5 Flash.
+  payload.thinking = { budget_tokens: 0 };
 
   const normalizedResponseFormat = normalizeResponseFormat({
     responseFormat,
@@ -312,10 +315,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  // 3-minute hard timeout — prevents the fire-and-forget AI pipeline from
-  // hanging indefinitely when the LLM API is slow or unresponsive.
+  // 90-second hard timeout per LLM call — prevents the fire-and-forget AI
+  // pipeline from hanging indefinitely. With thinking disabled and max_tokens
+  // capped at 8192, responses should arrive well within 60s under normal load.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3 * 60 * 1000);
+  const timeoutId = setTimeout(() => controller.abort(), 90 * 1000);
 
   let response: Response;
   try {

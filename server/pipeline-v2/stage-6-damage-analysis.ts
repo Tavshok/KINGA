@@ -31,7 +31,7 @@ import type {
   RecoveryAction,
 } from "./types";
 
-const MAX_VISION_PHOTOS = 4; // Cap to keep latency bounded
+const MAX_VISION_PHOTOS = 2; // Cap at 2 to keep pipeline latency bounded
 
 function normaliseSeverity(raw: string): AccidentSeverity {
   const s = (raw || "").toLowerCase().trim();

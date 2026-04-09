@@ -25,9 +25,9 @@ import type { FraudIndicator } from "./types";
 const execAsync = promisify(exec);
 
 const PYTHON_DIR = path.join(__dirname, "../../python");
-const MAX_PHOTOS_TO_ANALYSE = 6;
-const DOWNLOAD_TIMEOUT_MS = 15_000;
-const ANALYSIS_TIMEOUT_MS = 30_000;
+const MAX_PHOTOS_TO_ANALYSE = 3;   // Cap at 3 to keep pipeline latency bounded
+const DOWNLOAD_TIMEOUT_MS = 10_000; // 10s download timeout per photo
+const ANALYSIS_TIMEOUT_MS = 20_000; // 20s Python analysis timeout per photo
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
