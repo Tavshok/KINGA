@@ -968,6 +968,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         incidentLocation: z.string(),
         damagePhotos: z.array(z.string()), // Array of S3 URLs
         policyNumber: z.string(),
+        /**
+         * Odometer reading in km, supplied by the claimant at intake.
+         * Must be a numeric string (e.g. "85000") or omitted.
+         * Free-text values such as "unknown" or "N/A" are rejected by the
+         * shared validateMileageInput utility before this point, but we
+         * also guard here with a Zod refinement for defence-in-depth.
+         */
+        vehicleMileage: z.string().optional().refine(
+          (v) => {
+            if (!v || v.trim() === "") return true; // blank is fine
+            const stripped = v.trim().replace(/[\s,]/g, "");
+            if (!/^\d+$/.test(stripped)) return false;
+            const n = parseInt(stripped, 10);
+            return n > 0 && n <= 2_000_000;
+          },
+          { message: "Odometer reading must be a positive integer in km (e.g. 85000) or left blank." }
+        ),
         // Structured 3-choice panel beater selection — all must be insurer-approved
         panelBeaterChoice1: z.string().uuid(),
         panelBeaterChoice2: z.string().uuid(),
@@ -1034,6 +1051,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           panelBeaterChoice1: input.panelBeaterChoice1,
           panelBeaterChoice2: input.panelBeaterChoice2,
           panelBeaterChoice3: input.panelBeaterChoice3,
+          // Persist validated mileage string (e.g. "85000") for pipeline use
+          vehicleMileage: input.vehicleMileage?.trim() || null,
           status: "submitted",
         });
 

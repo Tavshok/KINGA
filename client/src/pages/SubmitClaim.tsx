@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { validateMileageInput } from "@shared/mileageValidation";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +68,7 @@ export default function SubmitClaim() {
   const [extracting, setExtracting] = useState(false);
   const [extractedDocs, setExtractedDocs] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
+  const [mileageError, setMileageError] = useState<string | null>(null);
 
   // Form state - comprehensive
   const [formData, setFormData] = useState({
@@ -425,6 +427,15 @@ export default function SubmitClaim() {
       return;
     }
 
+    // Mileage validation — must be numeric or blank
+    const mileageResult = validateMileageInput(formData.vehicleMileage);
+    if (!mileageResult.ok) {
+      setMileageError(mileageResult.reason);
+      toast.error(mileageResult.reason);
+      return;
+    }
+    setMileageError(null);
+
     submitClaim.mutate({
       vehicleMake: formData.vehicleMake,
       vehicleModel: formData.vehicleModel,
@@ -435,6 +446,7 @@ export default function SubmitClaim() {
       incidentLocation: formData.incidentLocation,
       policyNumber: formData.policyNumber,
       damagePhotos: formData.damagePhotos,
+      vehicleMileage: formData.vehicleMileage.trim() || undefined,
       panelBeaterChoice1: formData.panelBeaterChoice1,
       panelBeaterChoice2: formData.panelBeaterChoice2,
       panelBeaterChoice3: formData.panelBeaterChoice3,
@@ -814,9 +826,19 @@ export default function SubmitClaim() {
                   <Label>Odometer Reading (km)</Label>
                   <Input
                     value={formData.vehicleMileage}
-                    onChange={(e) => updateField("vehicleMileage", e.target.value)}
+                    onChange={(e) => {
+                      updateField("vehicleMileage", e.target.value);
+                      // Clear error as user types
+                      if (mileageError) setMileageError(null);
+                    }}
                     placeholder="e.g., 85000"
+                    className={mileageError ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
+                  {mileageError ? (
+                    <p className="text-xs text-destructive">{mileageError}</p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Numbers only, in km (e.g. 85000). Leave blank if unknown — the system will estimate.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label>Policy Number *</Label>

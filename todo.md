@@ -10378,3 +10378,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] WI-4: Gate physics engine (plausibility=0 when speed=0) and cost engine (use signed quotation exclusively, never AI estimate when quote present)
 - [x] WI-5: Add pre-generation consistency check — 5 contradiction rules (R1-R5) block self-contradicting reports
 - [x] Verify all regression assertions pass — 6,228 passed, 3 skipped (A7 integration-only), 0 failed
+
+## Mileage Validation at Intake
+- [x] Add client-side mileage validation in SubmitClaim.tsx (numeric-only, reject "unknown"/"N/A", show inline error)
+- [x] Add server-side Zod validation in claims.submit procedure (coerce to number, reject non-numeric strings)
+- [x] Add vehicleMileage to the submit mutation input schema and pass it through to createClaim
+- [x] Show helper text on the form field explaining expected format
+- [x] Write unit tests for mileage validation logic
