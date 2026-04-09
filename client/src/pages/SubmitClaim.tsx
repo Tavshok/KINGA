@@ -1,5 +1,6 @@
 import { useState, useCallback } from "react";
 import { validateMileageInput } from "@shared/mileageValidation";
+import { validateVehicleYear, vehicleYearMax, VEHICLE_YEAR_MIN } from "@shared/vehicleYearValidation";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -69,6 +70,7 @@ export default function SubmitClaim() {
   const [extractedDocs, setExtractedDocs] = useState<string[]>([]);
   const [currentStep, setCurrentStep] = useState(1);
   const [mileageError, setMileageError] = useState<string | null>(null);
+  const [yearWarning, setYearWarning] = useState<string | null>(null);
 
   // Form state - comprehensive
   const [formData, setFormData] = useState({
@@ -785,11 +787,36 @@ export default function SubmitClaim() {
                   <Input
                     type="number"
                     required
-                    value={formData.vehicleYear}
-                    onChange={(e) => updateField("vehicleYear", parseInt(e.target.value) || 0)}
-                    min="1900"
-                    max={new Date().getFullYear() + 1}
+                    value={formData.vehicleYear || ""}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      const parsed = parseInt(raw) || 0;
+                      updateField("vehicleYear", parsed);
+                      if (raw === "" || raw === "0") {
+                        setYearWarning(null);
+                      } else {
+                        const result = validateVehicleYear(parsed);
+                        if (!result.valid) {
+                          setYearWarning(result.reason);
+                        } else {
+                          setYearWarning(null);
+                        }
+                      }
+                    }}
+                    min={VEHICLE_YEAR_MIN}
+                    max={vehicleYearMax()}
+                    className={yearWarning ? "border-amber-500 focus-visible:ring-amber-500" : ""}
                   />
+                  {yearWarning ? (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3 shrink-0" />
+                      {yearWarning}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">
+                      Model year ({VEHICLE_YEAR_MIN}–{vehicleYearMax()})
+                    </p>
+                  )}
                 </div>
               </div>
 

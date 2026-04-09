@@ -78,6 +78,11 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
       warning_message: string;
     } | null | undefined;
 
+    // Year assumption metadata — set when vehicleYear was missing or nulled by Stage 4 OCR normalisation
+    const yearAssumed = (valuation as any).yearAssumed as boolean | undefined;
+    const yearAssumedReason = (valuation as any).yearAssumedReason as string | null | undefined;
+    const resolvedYear = (valuation as any).resolvedYear as number | undefined;
+
     return (
       <Card className={valuation.isTotalLoss ? "border-red-500 border-2" : ""}>
         <CardHeader>
@@ -98,6 +103,23 @@ export default function VehicleValuationCard({ claimId, vehicleMileage, vehicleY
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
+          {/* Year assumption warning — shown when vehicleYear was missing or nulled by OCR normalisation */}
+          {yearAssumed && (
+            <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-amber-800 dark:text-amber-200">
+                  Vehicle Year Assumed ({resolvedYear})
+                </p>
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  {yearAssumedReason ?? `Vehicle year could not be confirmed from documents. Year ${resolvedYear} has been assumed for valuation purposes.`}
+                </p>
+                <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                  Valuation confidence has been reduced by 15 points. Confirm the vehicle year and re-run to improve accuracy.
+                </p>
+              </div>
+            </div>
+          )}
           {/* Mileage estimation warning — shown when no actual mileage was provided */}
           {mileageEst && (
             <div className="flex items-start gap-3 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700 rounded-lg">

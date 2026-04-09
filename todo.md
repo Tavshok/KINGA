@@ -10385,3 +10385,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add vehicleMileage to the submit mutation input schema and pass it through to createClaim
 - [x] Show helper text on the form field explaining expected format
 - [x] Write unit tests for mileage validation logic
+
+## narrativeAnalysis DB Wiring
+- [ ] Add narrative_analysis_json column to ai_assessments in drizzle/schema.ts
+- [ ] Run pnpm db:push to migrate
+- [ ] Write narrativeAnalysis from orchestrator after Stage 7e
+- [ ] Include narrative_analysis_json in byClaim tRPC response
+
+## vehicleYear Range Validation at Intake
+- [ ] Add shared vehicleYear validation utility (1950–currentYear+1)
+- [ ] Add client-side guard in SubmitClaim.tsx with inline error
+- [ ] Add server-side Zod refinement in claims.submit procedure
+- [ ] Write unit tests for vehicleYear validation

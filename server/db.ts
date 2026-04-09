@@ -520,6 +520,9 @@ export async function triggerAiAssessment(claimId: number) {
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
   const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText } = result;
 
+  // Extract narrativeAnalysis from claimRecord for dedicated column storage
+  const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
+
   // Map fraud risk level to DB enum
   const fraudLevelMap: Record<string, 'low' | 'medium' | 'high' | 'critical' | 'elevated'> = {
     minimal: 'low', low: 'low', medium: 'medium', high: 'high', critical: 'elevated', elevated: 'elevated',
@@ -779,6 +782,10 @@ export async function triggerAiAssessment(claimId: number) {
     stage2RawOcrText: stage2RawOcrText ?? null,
     // Full ClaimRecord JSON — canonical structured extraction result (all fields including insurer, policy, excess, etc.)
     claimRecordJson: claimRecord ? JSON.stringify(claimRecord) : null,
+    // Stage 7e output: narrative analysis stored as a dedicated column for fast access
+    // (also embedded in claimRecordJson.accidentDetails.narrativeAnalysis, but stored here
+    //  so the ForensicAuditReport can load it without parsing the full ClaimRecord)
+    narrativeAnalysisJson: narrativeAnalysis ? JSON.stringify(narrativeAnalysis) : null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

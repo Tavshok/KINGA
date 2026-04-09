@@ -2933,6 +2933,20 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             parsedClaimRecord = JSON.parse((assessment as any).claimRecordJson as string);
           }
         } catch { /* non-fatal */ }
+
+        // Parse the dedicated narrativeAnalysisJson column (Stage 7e output).
+        // Falls back to the value embedded inside claimRecord.accidentDetails.narrativeAnalysis
+        // so historical assessments that pre-date the dedicated column still render correctly.
+        let parsedNarrativeAnalysis: any = null;
+        try {
+          if ((assessment as any).narrativeAnalysisJson) {
+            parsedNarrativeAnalysis = JSON.parse((assessment as any).narrativeAnalysisJson as string);
+          } else if (parsedClaimRecord?.accidentDetails?.narrativeAnalysis) {
+            // Fallback: extract from claimRecord for assessments before the dedicated column was added
+            parsedNarrativeAnalysis = parsedClaimRecord.accidentDetails.narrativeAnalysis;
+          }
+        } catch { /* non-fatal */ }
+
         return {
           ...assessment,
           // Overwrite with normalised values — these are what the UI must use
@@ -2950,6 +2964,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           },
           // Full ClaimRecord — all extracted fields including insurer, policy, excess, market value, etc.
           _claimRecord: parsedClaimRecord,
+          // Stage 7e Narrative Analysis — dedicated field for ForensicAuditReport
+          // Falls back to claimRecord.accidentDetails.narrativeAnalysis for pre-column assessments
+          _narrativeAnalysis: parsedNarrativeAnalysis,
         };
       }),
     historicalBenchmarks: protectedProcedure
@@ -4139,6 +4156,18 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const evaluation = await getAssessorEvaluationByClaimId(input.claimId);
         const repairCost = evaluation?.estimatedRepairCost;
 
+        // ── Year resolution ───────────────────────────────────────────────────
+        // If the claim has no vehicleYear (or it was nulled by Stage 4 OCR normalisation),
+        // fall back to the current year and set yearAssumed so the UI can show an amber note.
+        const { normaliseOcrYear } = await import("../shared/vehicleYearValidation");
+        const rawYear = claim.vehicleYear;
+        const { year: normalisedYear, warning: yearNormWarning } = normaliseOcrYear(rawYear);
+        const resolvedYear = normalisedYear ?? new Date().getFullYear();
+        const yearAssumed = !normalisedYear; // true when year was missing or nulled
+        const yearAssumedReason = yearAssumed
+          ? (yearNormWarning ?? `Vehicle year not available; assumed ${resolvedYear} for valuation purposes.`)
+          : null;
+
         // ── Mileage resolution ────────────────────────────────────────────────
         // If the user did not supply a mileage, estimate it from vehicle year/type.
         // The estimate carries LOW confidence and reduces the overall valuation
@@ -4147,9 +4176,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         let resolvedMileage: number | undefined = input.mileage;
         let mileageEstimation: ReturnType<typeof estimateMileageFromYear> | null = null;
         if (!resolvedMileage) {
-          const vehicleYear = claim.vehicleYear || new Date().getFullYear();
           mileageEstimation = estimateMileageFromYear(
-            vehicleYear,
+            resolvedYear,
             claim.vehicleMake,
             claim.vehicleModel,
           );
@@ -4163,7 +4191,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           {
             make: claim.vehicleMake || '',
             model: claim.vehicleModel || '',
-            year: claim.vehicleYear || new Date().getFullYear(),
+            year: resolvedYear,
             mileage: resolvedMileage,
             condition: input.condition,
             country: 'Zimbabwe',
@@ -4177,6 +4205,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           valuation.notes = [
             `⚠️ MILEAGE ESTIMATED: ${mileageEstimation.warning_message}`,
             `Estimated range: ${mileageEstimation.estimated_mileage_range[0].toLocaleString()}–${mileageEstimation.estimated_mileage_range[1].toLocaleString()} km (midpoint ${mileageEstimation.assumed_mileage_used.toLocaleString()} km used)`,
+            ...valuation.notes,
+          ];
+        }
+
+        // Apply confidence penalty when year was assumed
+        if (yearAssumed) {
+          valuation.confidenceScore = Math.max(10, (valuation.confidenceScore ?? 50) - 15);
+          valuation.notes = [
+            `⚠️ YEAR ASSUMED: ${yearAssumedReason}`,
             ...valuation.notes,
           ];
         }
@@ -4221,7 +4258,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Sync vehicle market value to claims table for repair ratio calculation
         await getDb().update(claims).set({ vehicleMarketValue: valuation.finalAdjustedValue }).where(eq(claims.id, input.claimId));
 
-        // Return valuation enriched with mileage estimation metadata
+        // Return valuation enriched with mileage estimation and year assumption metadata
         return {
           ...valuation,
           mileageEstimation: mileageEstimation ? {
@@ -4231,6 +4268,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             source: mileageEstimation.source,
             warning_message: mileageEstimation.warning_message,
           } : null,
+          yearAssumed,
+          yearAssumedReason,
+          resolvedYear,
         };
       }),
 

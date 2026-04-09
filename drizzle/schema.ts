@@ -123,6 +123,10 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Stage 5 output: full ClaimRecord JSON — the canonical structured extraction result
   // Stores all extracted fields including insurer, policy, excess, market value, driver licence, etc.
   claimRecordJson: text("claim_record_json"),
+  // Stage 7e output: incident narrative reasoning engine result (JSON NarrativeAnalysis)
+  // Persisted so the ForensicAuditReport renders correctly for historical assessments
+  // without requiring a live pipeline re-run.
+  narrativeAnalysisJson: text("narrative_analysis_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

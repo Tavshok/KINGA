@@ -26,6 +26,7 @@ import { checkClaimConsistency } from "./claimConsistencyChecker";
 import type { ConsistencyCheckResult } from "./claimConsistencyChecker";
 import { evaluateGate } from "./pipelineGateController";
 import type { GateControllerResult } from "./pipelineGateController";
+import { normaliseOcrYear } from "../../shared/vehicleYearValidation";
 
 const CRITICAL_FIELDS: Array<{ field: keyof ExtractedClaimFields; label: string; severity: "critical" | "warning" }> = [
   { field: "vehicleMake", label: "Vehicle make", severity: "critical" },
@@ -268,6 +269,43 @@ export async function runValidationStage(
 
   try {
     const issues: ValidationIssue[] = [];
+
+    // Step 0: Normalise OCR-extracted vehicleYear before merging
+    // Expands two-digit years (e.g. 24 → 2024) and nulls implausible values.
+    // Must run before mergeExtractions so each per-document extraction is clean.
+    for (const extraction of stage3.perDocumentExtractions) {
+      if (extraction.vehicleYear !== null && extraction.vehicleYear !== undefined) {
+        const { year: normYear, warning: yearWarning, expanded } = normaliseOcrYear(extraction.vehicleYear);
+        if (normYear === null) {
+          // Out-of-range or non-numeric — null it so the estimator takes over
+          ctx.log("Stage 4", `OCR year "${extraction.vehicleYear}" is implausible — nulled. ${yearWarning ?? ''}`);
+          extraction.vehicleYear = null;
+          if (yearWarning) {
+            issues.push({
+              field: "vehicleYear",
+              severity: "warning",
+              message: yearWarning,
+              secondaryExtractionAttempted: false,
+              resolved: false,
+            });
+          }
+        } else if (expanded) {
+          ctx.log("Stage 4", `OCR year auto-expanded: "${extraction.vehicleYear}" → ${normYear}`);
+          extraction.vehicleYear = normYear;
+          if (yearWarning) {
+            issues.push({
+              field: "vehicleYear",
+              severity: "info",
+              message: yearWarning,
+              secondaryExtractionAttempted: false,
+              resolved: true,
+            });
+          }
+        } else {
+          extraction.vehicleYear = normYear;
+        }
+      }
+    }
 
     // Step 1: Merge all document extractions
     let validatedFields = mergeExtractions(stage3.perDocumentExtractions);
