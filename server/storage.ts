@@ -28,13 +28,17 @@ function buildUploadUrl(baseUrl: string, relKey: string): URL {
 async function buildDownloadUrl(
   baseUrl: string,
   relKey: string,
-  apiKey: string
+  apiKey: string,
+  expiresInSeconds?: number
 ): Promise<string> {
   const downloadApiUrl = new URL(
     "v1/storage/downloadUrl",
     ensureTrailingSlash(baseUrl)
   );
   downloadApiUrl.searchParams.set("path", normalizeKey(relKey));
+  if (expiresInSeconds) {
+    downloadApiUrl.searchParams.set("expiresIn", String(expiresInSeconds));
+  }
   const response = await fetch(downloadApiUrl, {
     method: "GET",
     headers: buildAuthHeaders(apiKey),
@@ -93,11 +97,20 @@ export async function storagePut(
   return { key, url };
 }
 
-export async function storageGet(relKey: string): Promise<{ key: string; url: string; }> {
+/**
+ * Get a presigned download URL for a stored file.
+ * @param relKey - Relative S3 key
+ * @param expiresInSeconds - URL validity in seconds (default: platform default ~15 min).
+ *   Pass 3600 for pipeline use-cases where the URL must survive a full pipeline run.
+ */
+export async function storageGet(
+  relKey: string,
+  expiresInSeconds?: number
+): Promise<{ key: string; url: string; }> {
   const { baseUrl, apiKey } = getStorageConfig();
   const key = normalizeKey(relKey);
   return {
     key,
-    url: await buildDownloadUrl(baseUrl, key, apiKey),
+    url: await buildDownloadUrl(baseUrl, key, apiKey, expiresInSeconds),
   };
 }

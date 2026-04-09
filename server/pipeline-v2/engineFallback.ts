@@ -327,6 +327,7 @@ export function ensureFraudContract(
     damageConsistencyNotes: partial.damageConsistencyNotes ?? fallback.damageConsistencyNotes,
     scenarioFraudResult: partial.scenarioFraudResult ?? null,
     crossEngineConsistency: partial.crossEngineConsistency ?? null,
+    photoForensics: partial.photoForensics ?? null,
     _fallback_fields: missing,
   };
 }

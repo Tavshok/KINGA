@@ -9,6 +9,7 @@
 
 import { ensureFraudContract } from "./engineFallback";
 import { validateCrossEngineConsistency } from "./crossEngineConsistencyValidator";
+import { runPhotoForensics } from "./photoForensicsEngine";
 import {
   evaluateScenarioFraud,
   type ScenarioFraudInput,
@@ -513,6 +514,50 @@ export async function runFraudAnalysisStage(
       );
     }
 
+    // 3c. Photo Forensics — EXIF, GPS, manipulation detection
+    let photoForensicsResult: Stage8Output["photoForensics"] = null;
+    const photoUrlsForForensics = claimRecord.damage.imageUrls ?? [];
+    if (photoUrlsForForensics.length > 0) {
+      try {
+        const forensics = await runPhotoForensics(photoUrlsForForensics);
+        photoForensicsResult = {
+          analysedCount: forensics.analysedCount,
+          errorCount: forensics.errorCount,
+          anyGpsPresent: forensics.anyGpsPresent,
+          anySuspicious: forensics.anySuspicious,
+          photos: forensics.photos.map(p => ({
+            url: p.url,
+            error: p.error,
+            analysisResult: p.analysisResult ? {
+              is_suspicious: p.analysisResult.is_suspicious,
+              confidence: p.analysisResult.confidence,
+              flags: p.analysisResult.flags,
+              gps_coordinates: p.analysisResult.gps_coordinates,
+              capture_datetime: p.analysisResult.capture_datetime,
+              manipulation_indicators: p.analysisResult.manipulation_indicators,
+              image_hash: p.analysisResult.image_hash,
+              recommendations: p.analysisResult.recommendations,
+            } : null,
+          })),
+        };
+        // Inject photo forensics fraud indicators
+        for (const ind of forensics.indicators) {
+          const alreadyPresent = allIndicators.some(i => i.indicator === ind.indicator);
+          if (!alreadyPresent) {
+            allIndicators.push(ind);
+          }
+        }
+        ctx.log(
+          "Stage 8 (photo-forensics)",
+          `Analysed ${forensics.analysedCount}/${photoUrlsForForensics.length} photo(s). ` +
+          `GPS present: ${forensics.anyGpsPresent}. Suspicious: ${forensics.anySuspicious}. ` +
+          `Indicators injected: ${forensics.indicators.length}. Errors: ${forensics.errorCount}.`
+        );
+      } catch (photoErr) {
+        ctx.log("Stage 8 (photo-forensics)", `Photo forensics failed: ${String(photoErr)} — skipping`);
+      }
+    }
+
     // 4. Missing data penalty
     if (claimRecord.dataQuality.completenessScore < 30) {
       isDegraded = true;
@@ -565,6 +610,7 @@ export async function runFraudAnalysisStage(
       damageConsistencyNotes: consistency.notes,
       scenarioFraudResult,
       crossEngineConsistency,
+      photoForensics: photoForensicsResult,
     }, isDegraded ? "degraded_analysis" : "success");
 
     ctx.log("Stage 8", `Fraud analysis complete. Risk: ${fraudRiskLevel} (${fraudRiskScore}/100), Indicators: ${allIndicators.length}, Consistency: ${consistency.score}/100`);

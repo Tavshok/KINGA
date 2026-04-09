@@ -668,6 +668,30 @@ export interface Stage8Output {
       inputs_available: Record<string, boolean>;
     };
   } | null;
+  /**
+   * Photo forensics results — EXIF, GPS, manipulation detection per photo.
+   * Null when no damage photos were available or forensics was skipped.
+   */
+  photoForensics?: {
+    analysedCount: number;
+    errorCount: number;
+    anyGpsPresent: boolean;
+    anySuspicious: boolean;
+    photos: Array<{
+      url: string;
+      error?: string;
+      analysisResult?: {
+        is_suspicious: boolean;
+        confidence: number;
+        flags: string[];
+        gps_coordinates: { latitude: number; longitude: number } | null;
+        capture_datetime: string | null;
+        manipulation_indicators: { manipulation_score?: number };
+        image_hash: string;
+        recommendations: string[];
+      } | null;
+    }>;
+  } | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -957,6 +981,18 @@ export interface PipelineRunSummary {
   completedAt: string;
 }
 
+/** Per-tenant overrides for cost rates — loaded from tenants.configJson at pipeline start */
+export interface TenantRates {
+  /** Labour rate in USD per hour (overrides regional default) */
+  labourRateUsdPerHour?: number;
+  /** Paint cost per panel in USD (overrides global default) */
+  paintCostPerPanelUsd?: number;
+  /** Currency code for display (e.g. 'ZAR', 'USD') */
+  currencyCode?: string;
+  /** Currency symbol for display (e.g. 'R', '$') */
+  currencySymbol?: string;
+}
+
 export interface PipelineContext {
   claimId: number;
   tenantId: number | null;
@@ -968,4 +1004,6 @@ export interface PipelineContext {
   log: (stage: string, msg: string) => void;
   /** Set by Stage 0 (Evidence Registry Engine) — available to all downstream stages */
   evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
+  /** Per-tenant cost rate overrides — loaded from tenants.configJson at pipeline start */
+  tenantRates?: TenantRates | null;
 }

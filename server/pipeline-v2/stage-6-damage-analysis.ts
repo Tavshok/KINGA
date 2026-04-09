@@ -1,17 +1,24 @@
 /**
  * pipeline-v2/stage-6-damage-analysis.ts
  *
- * STAGE 6 — DAMAGE ANALYSIS ENGINE (Self-Healing)
+ * STAGE 6 — DAMAGE ANALYSIS ENGINE (Self-Healing + Vision)
  *
  * Using vehicle photos and damage descriptions from the ClaimRecord:
- *   - Identify damaged components
+ *   - Identify damaged components (from structured data OR LLM vision on photos)
  *   - Create damage zones
  *   - Compute severity scores
+ *
+ * VISION PATH: When damagePhotoUrls are present in the pipeline context,
+ * the LLM is called with the actual damage photos to extract components
+ * directly from the images. Vision results are merged with any structured
+ * components from the claim record (structured data takes precedence for
+ * components already identified; vision adds newly detected components).
  *
  * NEVER halts — if no damage data exists, produces empty analysis with assumptions.
  */
 
 import { ensureDamageContract } from "./engineFallback";
+import { invokeLLM } from "../_core/llm";
 import type {
   PipelineContext,
   StageResult,
@@ -23,6 +30,8 @@ import type {
   Assumption,
   RecoveryAction,
 } from "./types";
+
+const MAX_VISION_PHOTOS = 4; // Cap to keep latency bounded
 
 function normaliseSeverity(raw: string): AccidentSeverity {
   const s = (raw || "").toLowerCase().trim();
@@ -58,6 +67,146 @@ function calculateOverallSeverity(components: DamageAnalysisComponent[]): number
   const avg = total / components.length;
   const countBoost = Math.min(20, components.length * 2);
   return Math.min(100, Math.round(avg + countBoost));
+}
+
+/**
+ * Use LLM vision to read damage components from actual damage photos.
+ * Returns an array of DamageAnalysisComponent extracted from the images.
+ * Fails silently — returns empty array on any error.
+ */
+async function readDamageFromPhotos(
+  photoUrls: string[],
+  claimRecord: ClaimRecord,
+  ctx: PipelineContext,
+  assumptions: Assumption[],
+  recoveryActions: RecoveryAction[]
+): Promise<DamageAnalysisComponent[]> {
+  const urls = photoUrls.slice(0, MAX_VISION_PHOTOS);
+  if (urls.length === 0) return [];
+
+  ctx.log("Stage 6", `Vision: analysing ${urls.length} damage photo(s) with LLM`);
+
+  const vehicleContext = [
+    claimRecord.vehicle.make,
+    claimRecord.vehicle.model,
+    claimRecord.vehicle.year,
+  ].filter(Boolean).join(" ");
+
+  const imageParts = urls.map(url => ({
+    type: "image_url" as const,
+    image_url: { url, detail: "high" as const },
+  }));
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        {
+          role: "system",
+          content: `You are an expert vehicle damage assessor for insurance claims.
+Analyse the provided vehicle damage photo(s) and identify every visibly damaged component.
+Use South African / Audatex ZA parts nomenclature (e.g. "Bonnet" not "Hood", "Boot Lid" not "Trunk Lid",
+"Windscreen" not "Windshield", "LH/RH" for left/right).
+For each component provide: name, location (front/rear/left/right/roof/undercarriage/general),
+damageType (impact/deformation/breakage/shatter/scratch/bend/other), and severity.
+Return ONLY a JSON object matching the schema — no prose.`,
+        },
+        {
+          role: "user",
+          content: [
+            {
+              type: "text" as const,
+              text: `Vehicle: ${vehicleContext || "Unknown vehicle"}.
+Collision direction: ${claimRecord.accidentDetails.collisionDirection || "unknown"}.
+Analyse the damage visible in the photo(s) and list every damaged component.`,
+            },
+            ...imageParts,
+          ],
+        },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "vision_damage_extraction",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              components: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    location: { type: "string" },
+                    damageType: { type: "string" },
+                    severity: {
+                      type: "string",
+                      enum: ["cosmetic", "minor", "moderate", "severe", "catastrophic"],
+                    },
+                    visible: { type: "boolean" },
+                    notes: { type: "string" },
+                  },
+                  required: ["name", "location", "damageType", "severity", "visible"],
+                  additionalProperties: false,
+                },
+              },
+              overall_severity_assessment: { type: "string" },
+              structural_damage_suspected: { type: "boolean" },
+              confidence: { type: "string", enum: ["high", "medium", "low"] },
+            },
+            required: ["components", "overall_severity_assessment", "structural_damage_suspected", "confidence"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const content = response.choices?.[0]?.message?.content || "{}";
+    const parsed = JSON.parse(content);
+    const rawComponents: Array<{
+      name: string; location: string; damageType: string;
+      severity: string; visible: boolean; notes?: string;
+    }> = parsed.components || [];
+
+    const visionComponents: DamageAnalysisComponent[] = rawComponents.map((c, i) => ({
+      name: c.name || "Unknown Component",
+      location: c.location || "general",
+      damageType: c.damageType || "impact",
+      severity: normaliseSeverity(c.severity),
+      visible: c.visible !== false,
+      distanceFromImpact: i * 0.3,
+    }));
+
+    ctx.log("Stage 6", `Vision: extracted ${visionComponents.length} components (confidence: ${parsed.confidence ?? "unknown"})`);
+
+    if (visionComponents.length > 0) {
+      assumptions.push({
+        field: "damagedParts",
+        assumedValue: `${visionComponents.length} vision-extracted components`,
+        reason: `LLM vision analysis of ${urls.length} damage photo(s) identified ${visionComponents.length} damaged components. Confidence: ${parsed.confidence ?? "unknown"}.`,
+        strategy: "llm_vision",
+        confidence: parsed.confidence === "high" ? 85 : parsed.confidence === "medium" ? 65 : 40,
+        stage: "Stage 6",
+      });
+      recoveryActions.push({
+        target: "damagedParts",
+        strategy: "llm_vision",
+        success: true,
+        description: `Vision analysis of ${urls.length} photo(s) extracted ${visionComponents.length} damage components.`,
+      });
+    }
+
+    return visionComponents;
+  } catch (err) {
+    ctx.log("Stage 6", `Vision analysis failed: ${String(err)} — continuing without vision data`);
+    recoveryActions.push({
+      target: "vision_damage_extraction",
+      strategy: "skip",
+      success: false,
+      description: `LLM vision damage extraction failed: ${String(err)}. Falling back to structured data.`,
+    });
+    return [];
+  }
 }
 
 /**
@@ -144,6 +293,24 @@ function inferDamageFromDescription(
   return inferred;
 }
 
+/**
+ * Merge vision-extracted components with structured components.
+ * Structured components take precedence; vision adds newly detected parts
+ * not already present in the structured list (deduplication by name).
+ */
+function mergeComponents(
+  structured: DamageAnalysisComponent[],
+  vision: DamageAnalysisComponent[]
+): DamageAnalysisComponent[] {
+  if (vision.length === 0) return structured;
+  if (structured.length === 0) return vision;
+
+  const existingNames = new Set(structured.map(c => c.name.toLowerCase().trim()));
+  const newFromVision = vision.filter(c => !existingNames.has(c.name.toLowerCase().trim()));
+
+  return [...structured, ...newFromVision];
+}
+
 export async function runDamageAnalysisStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord
@@ -156,11 +323,10 @@ export async function runDamageAnalysisStage(
   let isDegraded = false;
 
   try {
-    let damagedParts: DamageAnalysisComponent[];
-
+    // ── STEP 1: Structured components from claim record ───────────────────────
+    let structuredParts: DamageAnalysisComponent[] = [];
     if (claimRecord.damage.components.length > 0) {
-      // Normal path: build from extracted components
-      damagedParts = claimRecord.damage.components.map((comp, index) => ({
+      structuredParts = claimRecord.damage.components.map((comp, index) => ({
         name: comp.name || "Unknown Component",
         location: comp.location || "general",
         damageType: comp.damageType || "impact",
@@ -168,8 +334,27 @@ export async function runDamageAnalysisStage(
         visible: true,
         distanceFromImpact: index * 0.3,
       }));
+      ctx.log("Stage 6", `Structured: ${structuredParts.length} components from claim record`);
+    }
+
+    // ── STEP 2: LLM vision — read damage from photos ─────────────────────────
+    const photoUrls = ctx.damagePhotoUrls ?? [];
+    let visionParts: DamageAnalysisComponent[] = [];
+    if (photoUrls.length > 0) {
+      visionParts = await readDamageFromPhotos(photoUrls, claimRecord, ctx, assumptions, recoveryActions);
+    }
+
+    // ── STEP 3: Determine final component list ────────────────────────────────
+    let damagedParts: DamageAnalysisComponent[];
+
+    if (structuredParts.length > 0 || visionParts.length > 0) {
+      // Merge: structured takes precedence, vision adds newly detected parts
+      damagedParts = mergeComponents(structuredParts, visionParts);
+      if (visionParts.length > 0 && structuredParts.length > 0) {
+        ctx.log("Stage 6", `Merged: ${structuredParts.length} structured + ${visionParts.length} vision = ${damagedParts.length} total components`);
+      }
     } else {
-      // Self-healing: no components — infer from description/direction
+      // Self-healing: no components at all — infer from description/direction
       isDegraded = true;
       ctx.log("Stage 6", "DEGRADED: No damage components available — inferring from accident details");
       damagedParts = inferDamageFromDescription(claimRecord, assumptions);
@@ -177,11 +362,11 @@ export async function runDamageAnalysisStage(
         target: "damagedParts",
         strategy: "contextual_inference",
         success: damagedParts.length > 0,
-        description: `No damage components in extraction. Inferred ${damagedParts.length} components from collision direction and impact point.`,
+        description: `No damage components in extraction or vision. Inferred ${damagedParts.length} components from collision direction and impact point.`,
       });
     }
 
-    // Group into damage zones
+    // ── STEP 4: Group into damage zones ──────────────────────────────────────
     const zoneMap = new Map<string, { components: DamageAnalysisComponent[] }>();
     for (const part of damagedParts) {
       const zone = inferZone(part.location);
@@ -216,7 +401,8 @@ export async function runDamageAnalysisStage(
     };
     const output = ensureDamageContract(rawOutput, isDegraded ? "inferred_components" : "success");
 
-    ctx.log("Stage 6", `Damage analysis complete. ${damagedParts.length} parts, ${damageZones.length} zones, severity: ${overallSeverityScore}/100, structural: ${structuralDamageDetected}`);
+    const visionNote = visionParts.length > 0 ? `, vision: ${visionParts.length} photo-detected` : "";
+    ctx.log("Stage 6", `Damage analysis complete. ${damagedParts.length} parts${visionNote}, ${damageZones.length} zones, severity: ${overallSeverityScore}/100, structural: ${structuralDamageDetected}`);
 
     return {
       status: isDegraded ? "degraded" : "success",

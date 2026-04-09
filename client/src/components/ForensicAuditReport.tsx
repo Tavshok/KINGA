@@ -1603,11 +1603,94 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           </table>
         </div>
       </div>
+
+      {/* 4.3 Photo Forensics — EXIF, GPS & manipulation analysis */}
+      {(() => {
+        const pf = (enforcement as any)?._photoForensics as any;
+        if (!pf) return null;
+        const suspiciousPhotos = (pf.photos ?? []).filter((p: any) => p.analysisResult?.is_suspicious);
+        const gpsPhotos = (pf.photos ?? []).filter((p: any) => p.analysisResult?.gps_coordinates);
+        const overallStatus = pf.anySuspicious ? "warn" : "pass";
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>4.3 Photo Forensics — EXIF & Manipulation Analysis</p>
+              <StatusBadge status={overallStatus} label={pf.anySuspicious ? "SUSPICIOUS" : "CLEAN"} />
+            </div>
+            <div className="p-4">
+              <div className="grid grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: "Analysed", value: pf.analysedCount ?? 0 },
+                  { label: "Suspicious", value: suspiciousPhotos.length },
+                  { label: "GPS Present", value: gpsPhotos.length },
+                  { label: "Errors", value: pf.errorCount ?? 0 },
+                ].map((m, i) => (
+                  <div key={i} className="text-center p-2 rounded" style={{ background: "var(--muted)" }}>
+                    <p className="text-lg font-bold" style={{ color: m.label === "Suspicious" && m.value > 0 ? "var(--fp-critical-text)" : "var(--foreground)" }}>{m.value}</p>
+                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{m.label}</p>
+                  </div>
+                ))}
+              </div>
+              {(pf.photos ?? []).length > 0 && (
+                <div className="space-y-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Per-Photo Results</p>
+                  {(pf.photos as any[]).map((photo: any, i: number) => {
+                    const r = photo.analysisResult;
+                    if (!r) return (
+                      <div key={i} className="p-2 rounded text-xs" style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
+                        <span className="font-medium" style={{ color: "var(--foreground)" }}>Photo {i + 1}</span>
+                        <span className="ml-2" style={{ color: "var(--fp-warning-text)" }}>{photo.error ?? "Analysis unavailable"}</span>
+                      </div>
+                    );
+                    const flagColor = r.is_suspicious ? "var(--fp-critical-text)" : "var(--fp-success-text)";
+                    const bgColor = r.is_suspicious ? "var(--status-review-bg)" : "var(--status-approve-bg)";
+                    const borderColor = r.is_suspicious ? "var(--fp-warning-border)" : "var(--fp-success-border)";
+                    return (
+                      <div key={i} className="p-3 rounded" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>Photo {i + 1}</span>
+                          <div className="flex items-center gap-2">
+                            {r.gps_coordinates && (
+                              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                                GPS: {r.gps_coordinates.latitude.toFixed(4)}, {r.gps_coordinates.longitude.toFixed(4)}
+                              </span>
+                            )}
+                            {r.capture_datetime && (
+                              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{r.capture_datetime.slice(0, 10)}</span>
+                            )}
+                            <span className="text-xs font-bold" style={{ color: flagColor }}>{r.is_suspicious ? "SUSPICIOUS" : "CLEAN"}</span>
+                          </div>
+                        </div>
+                        {r.flags && r.flags.length > 0 && (
+                          <ul className="mt-1 space-y-0.5">
+                            {r.flags.map((flag: string, fi: number) => (
+                              <li key={fi} className="text-xs" style={{ color: "var(--foreground)" }}>• {flag}</li>
+                            ))}
+                          </ul>
+                        )}
+                        {r.manipulation_indicators?.manipulation_score !== undefined && (
+                          <div className="mt-1.5 flex items-center gap-2">
+                            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Manipulation score:</span>
+                            <div className="flex-1 h-1.5 rounded-full" style={{ background: "var(--muted)", maxWidth: 120 }}>
+                              <div className="h-1.5 rounded-full" style={{ width: `${Math.round((r.manipulation_indicators.manipulation_score ?? 0) * 100)}%`, background: r.manipulation_indicators.manipulation_score > 0.5 ? "var(--fp-critical-text)" : "var(--fp-warning-text)" }} />
+                            </div>
+                            <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{Math.round((r.manipulation_indicators.manipulation_score ?? 0) * 100)}%</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
 
-// ─── Section 5: Risk & Fraud Assessment ──────────────────────────────────────
+// ─── Section 5: Risk & Fraud Assessment ──────────────────────────────────────────────────────────────────────────────
 
 function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enforcement: any }) {
   const e = enforcement;

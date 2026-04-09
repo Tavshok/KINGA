@@ -42,7 +42,8 @@ function estimateComponentCost(
   severity: string,
   repairAction: string,
   labourRate: number,
-  _vehicleBodyType?: string  // reserved for future use — do NOT apply multipliers; use quoted costs
+  _vehicleBodyType?: string,  // reserved for future use — do NOT apply multipliers; use quoted costs
+  paintCostPerPanelUsd?: number  // per-tenant override; defaults to $45/panel
 ): { partsCents: number; labourCents: number; paintCents: number } {
   const name = (componentName || "").toLowerCase();
   const sev = (severity || "moderate").toLowerCase();
@@ -82,8 +83,10 @@ function estimateComponentCost(
   }
 
   const labourCents = Math.round(labourHours * labourRate * 100);
+  // Paint cost: use per-tenant rate if provided, otherwise use labour-rate-based estimate
+  const paintPerPanel = paintCostPerPanelUsd ?? 45;
   const paintCents = action === "refinish" || action === "repair"
-    ? Math.round(labourRate * 100 * 1.5)
+    ? Math.round(paintPerPanel * 100)
     : 0;
 
   return { partsCents, labourCents, paintCents };
@@ -105,8 +108,17 @@ export async function runCostOptimisationStage(
 
   try {
     const region = claimRecord.marketRegion || "DEFAULT";
-    const labourRate = LABOUR_RATES[region] || LABOUR_RATES.DEFAULT;
-    const currency = region === "ZA" ? "ZAR" : region === "ZW" ? "USD" : "USD";
+    // ── Tenant rate overrides: use configJson rates if set, else fall back to regional defaults
+    const regionalLabourRate = LABOUR_RATES[region] || LABOUR_RATES.DEFAULT;
+    const labourRate = ctx.tenantRates?.labourRateUsdPerHour ?? regionalLabourRate;
+    const paintCostPerPanelUsd = ctx.tenantRates?.paintCostPerPanelUsd ?? 45; // default $45/panel
+    const currency = ctx.tenantRates?.currencyCode ?? (region === "ZA" ? "ZAR" : region === "ZW" ? "USD" : "USD");
+    if (ctx.tenantRates?.labourRateUsdPerHour) {
+      ctx.log("Stage 9", `Tenant rate override: labour $${labourRate}/hr (regional default: $${regionalLabourRate}/hr)`);
+    }
+    if (ctx.tenantRates?.paintCostPerPanelUsd) {
+      ctx.log("Stage 9", `Tenant rate override: paint $${paintCostPerPanelUsd}/panel`);
+    }
 
     let totalPartsCents = 0;
     let totalLabourCents = 0;
@@ -144,7 +156,7 @@ export async function runCostOptimisationStage(
     } else {
       const vehicleBodyType = claimRecord.vehicle?.bodyType || "sedan";
       for (const comp of damageAnalysis.damagedParts) {
-        const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType);
+        const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType, paintCostPerPanelUsd);
         totalPartsCents += cost.partsCents;
         totalLabourCents += cost.labourCents;
         totalPaintCents += cost.paintCents;
@@ -256,7 +268,7 @@ export async function runCostOptimisationStage(
 
     // Build per-component repair intelligence
     const repairIntelligence = damageAnalysis.damagedParts.map(comp => {
-      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate);
+      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
       const action = comp.severity === "cosmetic" || comp.severity === "minor" ? "repair" : "replace";
       return {
         component: comp.name,
@@ -283,7 +295,7 @@ export async function runCostOptimisationStage(
       : null;
 
     const partsReconciliation = damageAnalysis.damagedParts.map(comp => {
-      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate);
+      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
       const aiEstimate = Math.round((cost.partsCents + cost.labourCents) / 100);
 
       // Find if this component was matched in the reconciliation
@@ -542,7 +554,7 @@ export async function runCostOptimisationStage(
             severity: p.severity as "cosmetic" | "minor" | "moderate" | "severe" | "catastrophic",
             repairAction: (p.severity === "cosmetic" || p.severity === "minor" ? "repair" : "replace") as "repair" | "replace",
             estimatedCostCents: (() => {
-              const c = estimateComponentCost(p.name, p.severity, "replace", labourRate);
+              const c = estimateComponentCost(p.name, p.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
               return c.partsCents + c.labourCents;
             })(),
           })),

@@ -10397,3 +10397,51 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Add client-side guard in SubmitClaim.tsx with inline error
 - [ ] Add server-side Zod refinement in claims.submit procedure
 - [ ] Write unit tests for vehicleYear validation
+
+## Pipeline Capability Activation (4 Phases)
+
+### Phase 1 — Photo Ingestion Fix
+- [ ] Extend presigned URL TTL in storageGet() to 3600s (60 min) to prevent expiry during pipeline run
+- [ ] Add TTL parameter to storageGet call in db.ts pipeline trigger
+- [ ] Write test: verify presigned URL is valid for 60+ minutes
+
+### Phase 2 — EXIF/GPS Fraud Detection (Activate Dormant Python)
+- [ ] Update image_forensics.py to accept URLs (download to temp before analysis)
+- [ ] Wire analyzeImage() from python-integration.ts into Stage 8 fraud detection
+- [ ] Add GPS location mismatch fraud indicator (photo location vs claimed accident location)
+- [ ] Add DateTimeOriginal pre-accident fraud indicator
+- [ ] Add manipulation score to fraud weight calculation
+- [ ] Write tests for EXIF fraud indicator generation
+
+### Phase 3 — Multi-Quote + Cost Learning Read-Back
+- [ ] Stage 3: extract ALL quotes from document (not just first found)
+- [ ] Feed all extracted quotes to quoteOptimisationEngine in Stage 9
+- [ ] Implement cost learning read-back: query cost_learning_records at benchmark lookup time
+- [ ] Write tests for multi-quote extraction and calibrated benchmark
+
+### Phase 4 — LLM Vision Depth Analysis + Tenant Rates
+- [ ] Stage 6: add LLM vision prompt to classify deformation depth from photos
+- [ ] Integrate depth category into severity classification and cost estimate
+- [ ] Make LABOUR_RATE_USD_PER_HOUR and PAINT_COST_PER_PANEL_USD tenant-configurable
+- [ ] Write tests for depth classification and rate configuration
+
+## Phase 2–4 Capability Activation (Apr 2026)
+- [x] image_forensics.py: accepts URLs (download + analyse + cleanup)
+- [x] image_forensics.py: extracts GPS lat/lon from EXIF GPSInfo tag
+- [x] photoForensicsEngine.ts: downloads damage photos, runs EXIF/manipulation analysis
+- [x] Stage 8: injects EXIF fraud indicators (GPS mismatch, date pre-accident, manipulation)
+- [x] Stage8Output type: added photoForensics field
+- [x] db.ts: fraudScoreBreakdownJson persists photoForensics results
+- [x] getEnforcement router: exposes photoForensics to frontend
+- [x] ForensicAuditReport Section 4.3: Photo Forensics panel (per-photo EXIF/manipulation results)
+- [x] photoForensicsEngine.test.ts: 12 tests pass
+- [x] Stage 6: LLM vision prompt reads damage photos to extract components/severity
+- [x] Stage 6: merges vision-detected components with structured claim components
+- [x] Stage 6: inferZone() maps component names to body zones
+- [x] stage-6-vision.test.ts: 29 tests pass
+- [x] PipelineContext: tenantRates optional field (labourRateUsdPerHour, paintCostPerPanelUsd)
+- [x] Stage 9: uses ctx.tenantRates overrides for labour rate and paint cost per panel
+- [x] db.ts: getTenantRates() and updateTenantRates() helpers
+- [x] db.ts: pipeline trigger loads tenant rates before running pipeline
+- [x] tenant router: getRates and updateRates procedures (admin-gated)
+- [x] tenant-rates.test.ts: 19 tests pass

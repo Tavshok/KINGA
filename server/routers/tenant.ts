@@ -29,6 +29,7 @@ import {
   getTenantSlaConfig,
   updateTenantSlaConfig
 } from "../services/tenant-config";
+import { getTenantRates, updateTenantRates } from "../db";
 
 /**
  * Tenant configuration router
@@ -331,6 +332,40 @@ export const tenantRouter = router({
         .set({ currencyCode: input.currencyCode, currencySymbol: input.currencySymbol })
         .where(eq(tenants.id, input.tenantId));
 
+      return { success: true };
+    }),
+
+  /**
+   * Get cost rate overrides for a tenant (labour rate, paint cost per panel)
+   */
+  getRates: protectedProcedure
+    .input(z.object({ tenantId: z.string() }))
+    .query(async ({ input, ctx }) => {
+      if (ctx.user.role !== 'admin' && ctx.user.tenantId !== input.tenantId) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Access denied' });
+      }
+      const rates = await getTenantRates(input.tenantId);
+      return rates ?? {};
+    }),
+
+  /**
+   * Update cost rate overrides for a tenant (admin only).
+   * Pass null to clear a rate and revert to the regional default.
+   */
+  updateRates: protectedProcedure
+    .input(z.object({
+      tenantId: z.string(),
+      labourRateUsdPerHour: z.number().positive().nullable().optional(),
+      paintCostPerPanelUsd: z.number().positive().nullable().optional(),
+      currencyCode: z.string().min(1).max(10).nullable().optional(),
+      currencySymbol: z.string().min(1).max(10).nullable().optional(),
+    }))
+    .mutation(async ({ input, ctx }) => {
+      if (ctx.user.role !== 'admin') {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Only admins can update cost rate settings' });
+      }
+      const { tenantId, ...rates } = input;
+      await updateTenantRates(tenantId, rates);
       return { success: true };
     })
 });

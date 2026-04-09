@@ -419,7 +419,9 @@ export async function triggerAiAssessment(claimId: number) {
       if (sourceDoc && sourceDoc.s3Key) {
         try {
           const { storageGet } = await import('./storage');
-          const { url: presignedUrl } = await storageGet(sourceDoc.s3Key);
+          // Request a 60-minute presigned URL — the pipeline can take up to 15 min
+          // and the default TTL (~15 min) causes LLM vision to silently fail on later stages.
+          const { url: presignedUrl } = await storageGet(sourceDoc.s3Key, 3600);
           pdfUrl = presignedUrl;
           console.log(`[AI Assessment] Claim ${claimId}: Generated presigned PDF URL for LLM: ${sourceDoc.originalFilename}`);
         } catch (presignErr: any) {
@@ -499,11 +501,22 @@ export async function triggerAiAssessment(claimId: number) {
     }).where(eq(claims.id, claimId));
     return { success: true, message: "Placeholder assessment created. Please upload damage photos or documents for full analysis." };
   }
-
-  // ── PIPELINE V2 ──────────────────────────────────────────────────────
+  // ── PIPELINE V2 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
   // Build pipeline context and run the 10-stage orchestrator.
   // The old monolithic LLM call + inline stages are replaced by this.
-  // ────────────────────────────────────────────────────────────────────
+  // ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+  // Load per-tenant cost rate overrides (non-fatal — falls back to regional defaults)
+  let tenantRates = null;
+  try {
+    if (claim.tenantId) {
+      tenantRates = await getTenantRates(claim.tenantId);
+      if (tenantRates) {
+        console.log(`[AI Assessment] Claim ${claimId}: Tenant rate overrides loaded — labour=$${tenantRates.labourRateUsdPerHour ?? 'default'}/hr, paint=$${tenantRates.paintCostPerPanelUsd ?? 'default'}/panel`);
+      }
+    }
+  } catch (rateErr) {
+    console.warn(`[AI Assessment] Claim ${claimId}: Failed to load tenant rates (non-fatal):`, rateErr);
+  }
   const pipelineCtx = {
     claimId,
     tenantId: claim.tenantId ? Number(claim.tenantId) : null,
@@ -513,8 +526,8 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotoUrls: damagePhotos,
     db,
     log: (stage: string, msg: string) => console.log(`[${stage}] Claim ${claimId}: ${msg}`),
+    tenantRates,
   };
-
   const result = await runPipelineV2(pipelineCtx);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
@@ -584,6 +597,7 @@ export async function triggerAiAssessment(claimId: number) {
         scenarioFraudResult: fraudAnalysis.scenarioFraudResult ?? null,
         crossEngineConsistency: fraudAnalysis.crossEngineConsistency ?? null,
         confidenceAggregation: (fraudAnalysis as any).confidenceAggregation ?? null,
+        photoForensics: fraudAnalysis.photoForensics ?? null,
       })
     : null;
 
@@ -2178,4 +2192,121 @@ export async function getActiveCalibrationMultiplier(
     console.warn("[CalibrationOverride] Failed to fetch multiplier:", err);
     return 1.0;
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TENANT RATE CONFIGURATION
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Read per-tenant cost rate overrides from tenants.configJson.
+ * Returns null if no tenant is found or no rate overrides are configured.
+ *
+ * Expected configJson shape (all fields optional):
+ * {
+ *   "labourRateUsdPerHour": 35,
+ *   "paintCostPerPanelUsd": 50,
+ *   "currencyCode": "ZAR",
+ *   "currencySymbol": "R"
+ * }
+ */
+export async function getTenantRates(tenantId: number | string | null): Promise<{
+  labourRateUsdPerHour?: number;
+  paintCostPerPanelUsd?: number;
+  currencyCode?: string;
+  currencySymbol?: string;
+} | null> {
+  if (!tenantId) return null;
+  try {
+    const tenantIdStr = String(tenantId);
+    const rows = await db
+      .select({
+        configJson: schema.tenants.configJson,
+        currencyCode: schema.tenants.currencyCode,
+        currencySymbol: schema.tenants.currencySymbol,
+      })
+      .from(schema.tenants)
+      .where(eq(schema.tenants.id, tenantIdStr))
+      .limit(1);
+    if (rows.length === 0) return null;
+    const row = rows[0];
+    const config = (row.configJson as Record<string, unknown> | null) ?? {};
+    const result: {
+      labourRateUsdPerHour?: number;
+      paintCostPerPanelUsd?: number;
+      currencyCode?: string;
+      currencySymbol?: string;
+    } = {};
+    if (typeof config.labourRateUsdPerHour === "number" && config.labourRateUsdPerHour > 0) {
+      result.labourRateUsdPerHour = config.labourRateUsdPerHour;
+    }
+    if (typeof config.paintCostPerPanelUsd === "number" && config.paintCostPerPanelUsd > 0) {
+      result.paintCostPerPanelUsd = config.paintCostPerPanelUsd;
+    }
+    // Currency from configJson takes precedence; fall back to tenants.currencyCode column
+    const currencyCode = (typeof config.currencyCode === "string" ? config.currencyCode : null)
+      ?? row.currencyCode ?? undefined;
+    const currencySymbol = (typeof config.currencySymbol === "string" ? config.currencySymbol : null)
+      ?? row.currencySymbol ?? undefined;
+    if (currencyCode) result.currencyCode = currencyCode;
+    if (currencySymbol) result.currencySymbol = currencySymbol;
+    return Object.keys(result).length > 0 ? result : null;
+  } catch (err) {
+    console.warn("[TenantRates] Failed to fetch tenant rates:", err);
+    return null;
+  }
+}
+
+/**
+ * Update per-tenant cost rate overrides in tenants.configJson.
+ * Merges the provided rates into the existing configJson (preserves other fields).
+ */
+export async function updateTenantRates(
+  tenantId: string,
+  rates: {
+    labourRateUsdPerHour?: number | null;
+    paintCostPerPanelUsd?: number | null;
+    currencyCode?: string | null;
+    currencySymbol?: string | null;
+  }
+): Promise<void> {
+  const rows = await db
+    .select({ configJson: schema.tenants.configJson })
+    .from(schema.tenants)
+    .where(eq(schema.tenants.id, tenantId))
+    .limit(1);
+  const existing = (rows[0]?.configJson as Record<string, unknown> | null) ?? {};
+  const updated = { ...existing };
+  if (rates.labourRateUsdPerHour !== undefined) {
+    if (rates.labourRateUsdPerHour === null) {
+      delete updated.labourRateUsdPerHour;
+    } else {
+      updated.labourRateUsdPerHour = rates.labourRateUsdPerHour;
+    }
+  }
+  if (rates.paintCostPerPanelUsd !== undefined) {
+    if (rates.paintCostPerPanelUsd === null) {
+      delete updated.paintCostPerPanelUsd;
+    } else {
+      updated.paintCostPerPanelUsd = rates.paintCostPerPanelUsd;
+    }
+  }
+  if (rates.currencyCode !== undefined) {
+    if (rates.currencyCode === null) {
+      delete updated.currencyCode;
+    } else {
+      updated.currencyCode = rates.currencyCode;
+    }
+  }
+  if (rates.currencySymbol !== undefined) {
+    if (rates.currencySymbol === null) {
+      delete updated.currencySymbol;
+    } else {
+      updated.currencySymbol = rates.currencySymbol;
+    }
+  }
+  await db
+    .update(schema.tenants)
+    .set({ configJson: updated })
+    .where(eq(schema.tenants.id, tenantId));
 }

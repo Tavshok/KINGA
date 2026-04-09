@@ -7,11 +7,13 @@ Detects photo manipulation, duplicate images, and analyzes EXIF data
 import cv2
 import numpy as np
 from PIL import Image
-from PIL.ExifTags import TAGS
+from PIL.ExifTags import TAGS, GPSTAGS
 import imagehash
 from typing import Dict, List, Tuple, Optional
 import json
 import sys
+import os
+import tempfile
 from datetime import datetime
 
 
@@ -21,7 +23,7 @@ class ImageForensics:
     """
     
     def __init__(self):
-        self.known_hashes = {}  # Store hashes of previously seen images
+        self.known_hashes: dict = {}  # Store hashes of previously seen images
         
     def analyze_image(self, image_path: str) -> Dict:
         """
@@ -45,9 +47,11 @@ class ImageForensics:
             img_pil = Image.open(image_path)
             img_cv = cv2.imread(image_path)
             
-            # 1. Extract and validate EXIF data
+            # 1. Extract and validate EXIF data (including GPS)
             exif_data = self._extract_exif(img_pil)
-            exif_flags = self._validate_exif(exif_data)
+            gps_coords = self._extract_gps(img_pil)
+            capture_dt = exif_data.get("DateTimeOriginal") or exif_data.get("DateTime")
+            exif_flags = self._validate_exif(exif_data, gps_coords)
             flags.extend(exif_flags)
             
             # 2. Detect image manipulation
@@ -89,6 +93,8 @@ class ImageForensics:
                 "confidence": confidence,
                 "flags": flags,
                 "exif_data": exif_data,
+                "gps_coordinates": gps_coords,
+                "capture_datetime": capture_dt,
                 "manipulation_indicators": manipulation_indicators,
                 "image_hash": str(img_hash),
                 "recommendations": recommendations,
@@ -100,49 +106,84 @@ class ImageForensics:
                 "is_suspicious": True,
                 "confidence": 0.0,
                 "flags": [f"ERROR: Failed to analyze image - {str(e)}"],
+                "gps_coordinates": None,
+                "capture_datetime": None,
             }
     
     def _extract_exif(self, img: Image.Image) -> Dict:
-        """Extract EXIF metadata from image"""
+        """Extract EXIF metadata from image (string-safe, skips GPSInfo raw bytes)."""
         exif_data = {}
         try:
             exif_raw = img._getexif()
             if exif_raw:
                 for tag_id, value in exif_raw.items():
                     tag = TAGS.get(tag_id, tag_id)
-                    exif_data[tag] = str(value)
-        except:
+                    if tag == "GPSInfo":
+                        continue  # handled separately by _extract_gps
+                    exif_data[str(tag)] = str(value)
+        except Exception:
             pass
         return exif_data
-    
-    def _validate_exif(self, exif_data: Dict) -> List[str]:
-        """Validate EXIF data for fraud indicators"""
+
+    def _extract_gps(self, img: Image.Image) -> Optional[Dict]:
+        """
+        Extract GPS coordinates from EXIF GPSInfo tag.
+        Returns {"latitude": float, "longitude": float} or None.
+        """
+        try:
+            exif_raw = img._getexif()
+            if not exif_raw:
+                return None
+            gps_raw = exif_raw.get(34853)  # 34853 == GPSInfo
+            if not gps_raw:
+                return None
+            gps_info = {}
+            for key, val in gps_raw.items():
+                gps_info[GPSTAGS.get(key, key)] = val
+
+            def _dms_to_decimal(dms, ref: str) -> float:
+                d, m, s = float(dms[0]), float(dms[1]), float(dms[2])
+                decimal = d + m / 60.0 + s / 3600.0
+                if ref in ("S", "W"):
+                    decimal = -decimal
+                return decimal
+
+            lat = gps_info.get("GPSLatitude")
+            lat_ref = gps_info.get("GPSLatitudeRef", "N")
+            lon = gps_info.get("GPSLongitude")
+            lon_ref = gps_info.get("GPSLongitudeRef", "E")
+
+            if lat and lon:
+                return {
+                    "latitude":  round(_dms_to_decimal(lat, lat_ref), 6),
+                    "longitude": round(_dms_to_decimal(lon, lon_ref), 6),
+                }
+        except Exception:
+            pass
+        return None
+
+    def _validate_exif(self, exif_data: Dict, gps_coords: Optional[Dict] = None) -> List[str]:
+        """Validate EXIF data for fraud indicators."""
         flags = []
-        
-        # Check if EXIF data exists
+
         if not exif_data:
             flags.append("SUSPICIOUS: No EXIF data found - image may have been edited or screenshots")
-        
-        # Check for editing software
+
         software_tags = ["Software", "ProcessingSoftware", "HostComputer"]
-        editing_software = ["Photoshop", "GIMP", "Paint", "Pixlr", "Snapseed"]
-        
+        editing_software = ["Photoshop", "GIMP", "Paint", "Pixlr", "Snapseed", "Lightroom", "Affinity"]
         for tag in software_tags:
             if tag in exif_data:
                 value = exif_data[tag].lower()
                 if any(editor.lower() in value for editor in editing_software):
                     flags.append(f"MANIPULATION: Image edited with {exif_data[tag]}")
-        
-        # Check date/time consistency
+
         if "DateTime" in exif_data and "DateTimeOriginal" in exif_data:
             if exif_data["DateTime"] != exif_data["DateTimeOriginal"]:
                 flags.append("SUSPICIOUS: Image modification date differs from capture date")
-        
-        # Check for GPS data (useful for location verification)
-        has_gps = any("GPS" in key for key in exif_data.keys())
-        if not has_gps:
+
+        if gps_coords is None:
             flags.append("WARNING: No GPS data - cannot verify photo location")
-        
+
         return flags
     
     def _detect_manipulation(self, img: np.ndarray) -> Tuple[float, List[str]]:
@@ -299,31 +340,46 @@ class ImageForensics:
             return {"error": str(e)}
 
 
+def _download_url(url: str) -> str:
+    """Download a remote image to a temp file and return the local path."""
+    import urllib.request
+    suffix = os.path.splitext(url.split("?")[0])[-1] or ".jpg"
+    fd, tmp_path = tempfile.mkstemp(suffix=suffix)
+    os.close(fd)
+    urllib.request.urlretrieve(url, tmp_path)
+    return tmp_path
+
+
 def main():
     """
-    CLI interface for image forensics
-    Usage: python3 image_forensics.py <image_path>
+    CLI interface for image forensics.
+    Usage: python3 image_forensics.py <image_path_or_url>
     """
     if len(sys.argv) < 2:
-        print(json.dumps({
-            "error": "Usage: python3 image_forensics.py <image_path>"
-        }))
+        print(json.dumps({"error": "Usage: python3 image_forensics.py <image_path_or_url>"}))
         sys.exit(1)
-    
+
+    arg = sys.argv[1]
+    tmp_file = None
+
     try:
-        image_path = sys.argv[1]
-        
+        if arg.startswith("http://") or arg.startswith("https://"):
+            tmp_file = _download_url(arg)
+            image_path = tmp_file
+        else:
+            image_path = arg
+
         forensics = ImageForensics()
         result = forensics.analyze_image(image_path)
-        
         print(json.dumps(result, indent=2))
-        
+
     except Exception as e:
-        print(json.dumps({
-            "error": str(e),
-            "success": False
-        }))
+        print(json.dumps({"error": str(e), "is_suspicious": True, "confidence": 0.0, "flags": [f"ERROR: {str(e)}"]})) 
         sys.exit(1)
+
+    finally:
+        if tmp_file and os.path.exists(tmp_file):
+            os.unlink(tmp_file)
 
 
 if __name__ == "__main__":

@@ -57,7 +57,8 @@ import {
   updatePoliceReport,
   createVehicleMarketValuation,
   getVehicleMarketValuationByClaimId,
-  getQuoteLineItemsByQuoteId
+  getQuoteLineItemsByQuoteId,
+  getTenantRates
 } from "./db";
 import { nanoid } from "nanoid";
 import { storagePut } from "./storage";
@@ -1572,6 +1573,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
         }
 
+        // Load per-tenant cost rate overrides for debug run
+        let debugTenantRates = null;
+        try {
+          if (claim.tenantId) debugTenantRates = await getTenantRates(claim.tenantId);
+        } catch { /* non-fatal */ }
         const pipelineCtx = {
           claimId: input.claimId,
           tenantId: claim.tenantId ? Number(claim.tenantId) : null,
@@ -1581,6 +1587,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           damagePhotoUrls: damagePhotos,
           db,
           log: (stage: string, msg: string) => console.log(`[Debug][${stage}] Claim ${input.claimId}: ${msg}`),
+          tenantRates: debugTenantRates,
         };
 
         const report = await runDebugPipeline(pipelineCtx);
@@ -3243,7 +3250,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
 
         // Stage 27: validate and auto-heal before sending to frontend
         // Include claimId so the AI_ASSESSMENT_CONTRACT critical field check passes
-        const rawResponse = { ...result, costExtraction, weightedFraud, _phase2: phase2, claimId: input.claimId };
+        // Extract photoForensics from the stored fraudScoreBreakdownJson
+        const photoForensicsData = fraudScoreBreakdown?.photoForensics ?? null;
+        const rawResponse = { ...result, costExtraction, weightedFraud, _phase2: phase2, claimId: input.claimId, _photoForensics: photoForensicsData };
         return validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
       }),
 
