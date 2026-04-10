@@ -698,8 +698,25 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                   )}
                 </div>
                 <p className="leading-relaxed">
-                  {narrativeAnalysis?.cleaned_incident_narrative || description}
+                  {(() => {
+                    const narrative = narrativeAnalysis?.cleaned_incident_narrative;
+                    const original = description;
+                    // SAFEGUARD: If the cleaned narrative is significantly shorter than the original,
+                    // it may have been truncated. Show the original instead.
+                    if (narrative && original && narrative.length < original.length * 0.5 && original.length > 50) {
+                      return original;
+                    }
+                    return narrative || original;
+                  })()}
                 </p>
+                {/* SAFEGUARD: Show original description if narrative was truncated */}
+                {narrativeAnalysis?.cleaned_incident_narrative && description &&
+                  narrativeAnalysis.cleaned_incident_narrative.length < description.length * 0.5 &&
+                  description.length > 50 && (
+                  <div className="mt-1 p-2 rounded text-[10px]" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>
+                    Note: The AI-processed narrative was shorter than expected. The original description has been displayed instead.
+                  </div>
+                )}
                 {/* Sequence of events */}
                 {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
                   <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
@@ -926,7 +943,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                         G3_UNIT_CORRECTION: 'Currency & Unit Normalisation',
                         G4_SANITISATION: 'Data Sanitisation',
                         G5_TERMINOLOGY: 'Terminology Standardisation',
-                      } as Record<string, string>)[g.gate] ?? g.gate ?? `Check ${i + 1}`}</td>
+                      } as Record<string, string>)[g.gate] ?? (g.gate ? g.gate.replace(/^G\d+_?/i, '').replace(/_/g, ' ') : `Check ${i + 1}`)}</td>
                     <td className="px-3 py-2">
                       <StatusBadge status={g.status === "PASS" ? "pass" : g.status === "WARN" ? "warn" : "fail"} label={g.status ?? "UNKNOWN"} />
                     </td>
@@ -1270,7 +1287,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           {(() => {
             // Show AI Estimate vs Repair Quote side-by-side for meaningful comparison
             const steps = [
-              { label: "AI Estimate",    value: aiEstimate,   color: "var(--fp-info-text)",     show: aiEstimate > 0 },
+              { label: "Learning Benchmark", value: aiEstimate, color: "var(--fp-info-text)",     show: aiEstimate > 0 },
               { label: "Repair Quote",   value: quotedTotal,  color: "var(--fp-warning-text)",  show: quotedTotal > 0 },
             ].filter(s => s.show);
             if (steps.length === 0) return null;
@@ -1323,14 +1340,14 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           <table className="w-full text-xs mb-3 report-table">
             <thead>
               <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                {["Source", "Parts", "Labour", "Total", "Variance vs AI", "Audit Note"].map(h => (
+                {["Source", "Parts", "Labour", "Total", "Variance vs Benchmark", "Audit Note"].map(h => (
                   <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {[
-                { source: "AI Estimate", parts: aiParts, labour: aiLabour, total: aiEstimate, v: null as number | null, note: "Benchmark" },
+                { source: "Learning Benchmark", parts: aiParts, labour: aiLabour, total: aiEstimate, v: null as number | null, note: aiEstimate > 0 ? "From accumulated claims data" : "Insufficient learning data" },
                 { source: "Repairer Quote", parts: quotedParts, labour: quotedLabour, total: quotedTotal, v: totalVar, note: totalVar == null ? "No quote" : Math.abs(totalVar) <= 15 ? "Within tolerance" : Math.abs(totalVar) <= 30 ? "Review recommended" : "Significant outlier" },
                 { source: "Fair Range", parts: null as number | null, labour: null as number | null, total: fairMin > 0 ? fairMin : null, v: null as number | null, note: fairMin > 0 && fairMax > 0 ? `${fmtUsd(fairMin)} – ${fmtUsd(fairMax)}` : "Not available" },
               ].map((row, i) => {
@@ -1369,7 +1386,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Component", "AI Parts", "AI Labour", "AI Total", "Quoted", "Variance", "Source"].map(h => (
+                  {["Component", "Benchmark", "Quoted", "Variance", "Source"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
@@ -1380,19 +1397,23 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                     li.description?.toLowerCase().includes(part.component?.toLowerCase()?.split(" ")[0])
                   );
                   const quotedPartCost = matchingLine ? (matchingLine.lineTotal ?? 0) / 100 : null;
-                  const v = quotedPartCost != null && part.total > 0 ? ((quotedPartCost - part.total) / part.total) * 100 : null;
+                  const hasBenchmark = part.total != null && part.total > 0;
+                  const v = quotedPartCost != null && hasBenchmark ? ((quotedPartCost - part.total) / part.total) * 100 : null;
+                  // Determine source label from the backend's costSource field
+                  const sourceLabel = part.costSource === "learning_db" ? "Learning DB" : part.source === "extracted" ? "Extracted" : hasBenchmark ? "Benchmark" : "Insufficient data";
+                  const sourceStatus = part.costSource === "learning_db" ? "pass" : part.source === "extracted" ? "pass" : hasBenchmark ? "info" : "na";
                   return (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{part.component}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{fmtUsd(part.parts_cost)}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{fmtUsd(part.labour_cost)}</td>
-                      <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{fmtUsd(part.total)}</td>
+                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>
+                        {hasBenchmark ? fmtUsd(part.total) : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Insufficient data</span>}
+                      </td>
                       <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{quotedPartCost != null ? fmtUsd(quotedPartCost) : "—"}</td>
                       <td className="px-3 py-2">
                         {v != null ? <StatusBadge status={Math.abs(v) <= 20 ? "pass" : Math.abs(v) <= 40 ? "warn" : "fail"} label={`${v > 0 ? "+" : ""}${Math.round(v)}%`} /> : <span style={{ color: "var(--muted-foreground)" }}>—</span>}
                       </td>
                       <td className="px-3 py-2">
-                        <StatusBadge status={part.source === "extracted" ? "pass" : "info"} label={part.source === "extracted" ? "Extracted" : "Estimated"} />
+                        <StatusBadge status={sourceStatus as any} label={sourceLabel} />
                       </td>
                     </tr>
                   );
@@ -1401,8 +1422,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
               <tfoot>
                 <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
                   <td className="px-3 py-2 font-bold" style={{ color: "var(--foreground)" }}>TOTAL</td>
-                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtUsd(itemisedParts.reduce((s: number, p: any) => s + (p.parts_cost ?? 0), 0))}</td>
-                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtUsd(itemisedParts.reduce((s: number, p: any) => s + (p.labour_cost ?? 0), 0))}</td>
                   <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtUsd(itemisedParts.reduce((s: number, p: any) => s + (p.total ?? 0), 0))}</td>
                   <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{quotedTotal > 0 ? fmtUsd(quotedTotal) : "—"}</td>
                   <td colSpan={2} />
@@ -1423,7 +1442,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Repairer", "Parts", "Labour", "Total", "vs AI Estimate", "Status"].map(h => (
+                  {["Repairer", "Parts", "Labour", "Total", "vs Benchmark", "Status"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
@@ -1463,6 +1482,67 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
           </div>
         </div>
       )}
+
+      {/* 3.2 Vehicle Valuation — populated from extracted data */}
+      <ValuationSubsection aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+    </div>
+  );
+}
+
+// ─── 3.2 Vehicle Valuation Subsection ─────────────────────────────────────────
+
+function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessment: any; enforcement: any; quotes?: any[] }) {
+  const normalised = (aiAssessment as any)?._normalised as any;
+  const claimRecord = normalised?.claimRecord ?? (enforcement as any)?._phase1?.claimRecord;
+  const marketValueUsd = claimRecord?.vehicle?.marketValueUsd ?? null;
+  const excessUsd = claimRecord?.insuranceContext?.excessAmountUsd ?? null;
+  const bettermentUsd = claimRecord?.insuranceContext?.bettermentUsd ?? null;
+  const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
+  const agreedCostUsd = claimRecord?.costs?.agreedCostUsd ?? null;
+  const repairCost = agreedCostUsd ?? quotedTotal;
+  const repairToValue = marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null;
+  const isWriteOff = repairToValue != null && repairToValue >= 70;
+
+  // Only show if we have at least market value or repair cost
+  if (!marketValueUsd && !repairCost) return null;
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+      <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.2 Vehicle Valuation</p>
+        {isWriteOff != null && (
+          <StatusBadge status={isWriteOff ? "fail" : "pass"} label={isWriteOff ? "POTENTIAL WRITE-OFF" : "REPAIRABLE"} />
+        )}
+      </div>
+      <div className="p-4">
+        <table className="w-full text-xs report-table">
+          <tbody>
+            {[
+              ["Market Value", marketValueUsd != null ? fmtUsd(marketValueUsd) : "Not stated"],
+              ["Repair Cost (Quoted)", repairCost > 0 ? fmtUsd(repairCost) : "Not available"],
+              ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
+              ["Excess / Deductible", excessUsd != null ? fmtUsd(excessUsd) : "Not stated"],
+              ["Betterment / Depreciation", bettermentUsd != null ? fmtUsd(bettermentUsd) : "Not stated"],
+              ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtUsd(excessUsd + bettermentUsd) : excessUsd != null ? fmtUsd(excessUsd) : "Not available"],
+            ].map(([k, v], i) => (
+              <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                <td className="py-2 pr-4 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
+                <td className="py-2 font-mono" style={{ color: "var(--foreground)" }}>{v as string}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {repairToValue != null && (
+          <div className="mt-3 p-2 rounded text-xs" style={{
+            background: isWriteOff ? "var(--status-reject-bg)" : "var(--fp-success-bg)",
+            color: isWriteOff ? "var(--fp-critical-text)" : "var(--fp-success-text)",
+          }}>
+            {isWriteOff
+              ? `Repair cost is ${repairToValue.toFixed(1)}% of market value — exceeds 70% threshold. Potential economic write-off.`
+              : `Repair cost is ${repairToValue.toFixed(1)}% of market value — within repairable range.`}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1879,11 +1959,12 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
   })();
 
   // Gates: pass/fail only — no threshold values exposed to adjusters
+  // SAFEGUARD: G-codes removed per user request — labels are descriptive only
   const gates = [
-    { id: "G1", label: "Physics Consistency", result: `${Math.round(physicsScore)}%`, pass: physicsScore >= 30 },
-    { id: "G2", label: "Fraud Risk Score", result: Math.round(fraudScore), pass: fraudScore < 70 },
-    { id: "G3", label: "Data Completeness", result: `${Math.round(dataCompleteness)}%`, pass: dataCompleteness >= 50 },
-    { id: "G4", label: "Critical Blockers", result: blocked.length === 0 ? "None" : `${blocked.length} found`, pass: blocked.length === 0 },
+    { id: "", label: "Physics Consistency", result: `${Math.round(physicsScore)}%`, pass: physicsScore >= 30 },
+    { id: "", label: "Fraud Risk Score", result: Math.round(fraudScore), pass: fraudScore < 70 },
+    { id: "", label: "Data Completeness", result: `${Math.round(dataCompleteness)}%`, pass: dataCompleteness >= 50 },
+    { id: "", label: "Critical Blockers", result: blocked.length === 0 ? "None" : `${blocked.length} found`, pass: blocked.length === 0 },
   ];
 
   // SVG flowchart dimensions
@@ -1950,18 +2031,15 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
               const nextY = rowY(i + 2);
               const isLast = i === gates.length - 1;
               return (
-                <g key={gate.id}>
+                <g key={`gate-${i}`}>
                   {/* Diamond */}
                   <path d={diamond(startX, cy, diamondW, diamondH)}
                     fill={`${gateColor}18`} stroke={gateColor} strokeWidth="1.5" />
-                  {/* Gate ID */}
-                  <text x={startX} y={cy - 9} textAnchor="middle" dominantBaseline="middle"
-                    fontSize="9" fontWeight="700" fill={gateColor}>{gate.id}</text>
-                  {/* Gate label */}
-                  <text x={startX} y={cy + 4} textAnchor="middle" dominantBaseline="middle"
+                  {/* Gate label in diamond — G-codes removed, label centred */}
+                  <text x={startX} y={cy - 5} textAnchor="middle" dominantBaseline="middle"
                     fontSize="10" fontWeight="600" fill={textColor}>{gate.label}</text>
                   {/* Result value */}
-                  <text x={startX} y={cy + 17} textAnchor="middle" dominantBaseline="middle"
+                  <text x={startX} y={cy + 11} textAnchor="middle" dominantBaseline="middle"
                     fontSize="9" fontFamily="monospace" fill={gateColor}>{String(gate.result)}</text>
 
                   {/* PASS label on arrow down */}
@@ -2078,33 +2156,45 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         )}
       </div>
 
-      {ruleTrace.length > 0 && (
-        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Rule Trace</p>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs report-table">
-              <thead>
-                <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Rule", "Observed Value", "Triggered"].map(h => (
-                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {ruleTrace.map((r: any, i: number) => (
-                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--primary)" }}>{r.rule}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{String(r.value)}</td>
-                    <td className="px-3 py-2"><StatusBadge status={r.triggered ? "fail" : "pass"} label={r.triggered ? "YES" : "NO"} /></td>
+      {ruleTrace.length > 0 && (() => {
+        // SAFEGUARD: Detect contradiction between rule trace fraud_score and weighted fraud score
+        const traceScoreRule = ruleTrace.find((r: any) => r.rule === "fraud_score" || r.rule === "fraud_risk_score");
+        const traceScore = traceScoreRule ? Number(traceScoreRule.value) : null;
+        const hasContradiction = traceScore != null && Math.abs(traceScore - fraudScore) > 15;
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Rule Trace</p>
+            </div>
+            {hasContradiction && (
+              <div className="px-4 py-2 text-xs" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)", borderBottom: "1px solid var(--border)" }}>
+                Note: The rule trace shows a preliminary fraud score of {traceScore} which differs from the final weighted score of {Math.round(fraudScore)}.
+                The weighted score incorporates additional factors (photo analysis, physics consistency, cost validation) and is the authoritative figure.
+              </div>
+            )}
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs report-table">
+                <thead>
+                  <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+                    {["Rule", "Observed Value", "Triggered"].map(h => (
+                      <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ruleTrace.map((r: any, i: number) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                      <td className="px-3 py-2 font-mono" style={{ color: "var(--primary)" }}>{r.rule}</td>
+                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{String(r.value)}</td>
+                      <td className="px-3 py-2"><StatusBadge status={r.triggered ? "fail" : "pass"} label={r.triggered ? "YES" : "NO"} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>

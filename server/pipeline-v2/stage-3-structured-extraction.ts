@@ -176,6 +176,18 @@ CRITICAL SPEED EXTRACTION RULES:
   Example: '90KM/HRS' → 90, '90 km/h' → 90, '120kph' → 120.
   Look for a field labelled 'Speed', 'What was your speed?', 'Speed at time of accident', or similar near the accident circumstances section.
   Also check the accident narrative for phrases like 'travelling at 90 KM/HRS', 'doing 60 km/h', 'speed of 80'.
+  IMPORTANT: This field is often HANDWRITTEN on the form. Look carefully at handwritten text next to speed labels.
+  If you see a handwritten number like '90' near a speed field, extract it.
+
+CRITICAL HANDWRITTEN FIELD EXTRACTION RULES:
+- Many claim forms have handwritten entries. Pay special attention to:
+  * Weather conditions: often handwritten next to 'Weather:', 'Weather conditions:' labels. Common values: CLEAR, CLOUDY, RAIN, FOG, NIGHT.
+  * Visibility: often handwritten next to 'Visibility:' label. Common values: DARK, DUSK, DAWN, DAYLIGHT, GOOD, POOR.
+  * Road surface: often handwritten next to 'Road surface:', 'Road conditions:' labels. Common values: DRY, WET, GRAVEL, TARRED, DIRT.
+  * Speed: often handwritten next to 'Speed:' label. Extract numeric value only.
+  * Location: often handwritten. Preserve the full location text as written.
+- For handwritten text: read carefully, consider context, and extract the most likely value.
+- Do NOT return null for these fields if there is ANY handwritten text near the corresponding label.
 
 CRITICAL COST EXTRACTION RULES:
 - quoteTotalCents: The repair quotation is typically on the LAST pages of the document — read ALL pages. Use the FINAL 'Total (Incl)' or 'Grand Total' figure (in cents).
@@ -199,6 +211,9 @@ CRITICAL DESCRIPTION RULES:
   Example of what to EXCLUDE: "The vehicle was stripped in order to identify omitted damages", "After final inspection we noted that...", "The repairer omitted seatbelts".
 - damageDescription: extract the complete list of damaged parts and repair actions.
 - For damagedComponents damageType: use ONLY standard automotive damage terms (dent, scratch, crack, shatter, bend, tear, puncture, corrosion, deformation, misalignment, breakage). NEVER invent terms.
+- For damagedComponents name: PRESERVE the EXACT component name as written in the document. Do NOT normalise South African automotive terminology to US English.
+  Examples: Keep 'bonnet' (not 'hood'), 'boot' (not 'trunk'), 'wing' (not 'fender'), 'windscreen' (not 'windshield'), 'number plate' (not 'license plate'), 'indicator' (not 'turn signal'), 'diff connector' (not 'differential connector').
+  Use the exact spelling and terminology from the claim form or quotation.
 
 Additional OCR text for reference (may be partial):
 ${rawText.substring(0, 8000)}

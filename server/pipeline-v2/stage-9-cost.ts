@@ -294,6 +294,8 @@ export async function runCostOptimisationStage(
       ? reconcileDamageComponents(damageComponentNames, quoteComponents)
       : null;
 
+    // SAFEGUARD: Preserve original component names from the claim form (SA nomenclature).
+    // Do NOT normalise or translate part names — use exactly what the claimant/assessor wrote.
     const partsReconciliation = damageAnalysis.damagedParts.map(comp => {
       const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
       const aiEstimate = Math.round((cost.partsCents + cost.labourCents) / 100);

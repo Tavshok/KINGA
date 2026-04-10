@@ -97,7 +97,10 @@ function estimatePhysicsFromDamage(
   assumptions: Assumption[]
 ): Stage7Output {
   const mass = claimRecord.vehicle.massKg;
-  const speedKmh = claimRecord.accidentDetails.estimatedSpeedKmh || 30;
+  // SAFEGUARD: Use extracted speed from claim form; only fall back to 30 km/h if truly missing
+  const speedKmh = claimRecord.accidentDetails.estimatedSpeedKmh && claimRecord.accidentDetails.estimatedSpeedKmh > 0
+    ? claimRecord.accidentDetails.estimatedSpeedKmh
+    : 30;
   const speedMs = speedKmh / 3.6;
 
   // KE = 0.5 * m * v^2
@@ -241,15 +244,37 @@ export async function runPhysicsStage(
   const assumptions: Assumption[] = [];
   const recoveryActions: RecoveryAction[] = [];
 
+  // ── SPEED EXTRACTION SAFEGUARD ──────────────────────────────────────────────
+  // SAFEGUARD: If the claim form contains a speed value, it MUST flow through
+  // to the physics engine. Log a warning if speed is missing so the extraction
+  // stage can be investigated.
+  const extractedSpeed = claimRecord.accidentDetails.estimatedSpeedKmh;
+  if (!extractedSpeed || extractedSpeed <= 0) {
+    ctx.log("Stage 7", `⚠️ SPEED SAFEGUARD: No speed extracted from claim form (estimatedSpeedKmh=${extractedSpeed}). ` +
+      `If the claim form contains a handwritten speed, the OCR extraction (Stage 2/3) may have missed it. ` +
+      `Physics will use a conservative default. Review extraction logs.`);
+    assumptions.push({
+      field: "estimatedSpeedKmh",
+      assumedValue: "Default speed used (extraction gap)",
+      reason: `No speed was extracted from the claim form. If the claimant wrote a speed on the form, ` +
+              `the OCR extraction stage may have failed to capture it. A conservative default will be used.`,
+      strategy: "default_value",
+      confidence: 20,
+      stage: "Stage 7",
+    });
+  } else {
+    ctx.log("Stage 7", `Speed from claim form: ${extractedSpeed} km/h — using as primary speed input`);
+  }
+
   // ── ANIMAL STRIKE ROUTING ──────────────────────────────────────────────────
   // When incident type is confirmed as animal_strike, use the dedicated
   // Animal Strike Physics Engine instead of the vehicle-collision model.
-  // This is the direct fix for the Mazda BT-50 audit failure.
   if (isAnimalStrike) {
     ctx.log("Stage 7", "Animal strike detected — routing to Animal Strike Physics Engine");
     try {
       const { runAnimalStrikePhysics } = await import("./animalStrikePhysicsEngine");
-      const speedKmh = claimRecord.accidentDetails.estimatedSpeedKmh || 60;
+      // SAFEGUARD: Use extracted speed from claim form, not a hardcoded default
+      const speedKmh = extractedSpeed && extractedSpeed > 0 ? extractedSpeed : 60;
       const damageComponents = damageAnalysis.damagedParts.map(p => p.name);
       const hasBullbar: "true" | "false" | "unknown" = "unknown";
 

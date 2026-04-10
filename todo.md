@@ -10498,3 +10498,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Rebuild forensic report template to match v4.2 format (all 11 sections)
 - [x] Guarantee pipeline never gets stuck (finally block safety net)
 - [x] End-to-end verification with real claim document
+
+## Report Quality Overhaul — Pipeline Safeguards (Apr 2026)
+- [x] Fix narrative engine — prevent AI fabrication with token fidelity contract (≥50% original tokens preserved)
+- [x] Fix narrative engine — add fallback to original description when LLM output is truncated
+- [x] Fix cost engine — replace hardcoded COMPONENT_COST_DB with learning-first architecture
+- [x] Fix cost engine — query costLearningRecords table for benchmarks by vehicle/component/severity/region
+- [x] Fix cost engine — label all cost sources clearly (learning_db, submitted_quote, fallback_estimate)
+- [x] Rename "AI Estimate" to "Learning Benchmark" throughout report template
+- [x] Fix physics engine — add speed extraction safeguard from incident description when structured field is missing
+- [x] Fix physics engine — improve animal strike speed handling (use extracted speed, not default 60km/h)
+- [x] Fix Stage 3 extraction — enhance OCR prompt for handwritten fields (speed, weather, visibility, road surface)
+- [x] Fix Stage 3 extraction — add SA nomenclature preservation instruction (bonnet not hood, boot not trunk, etc.)
+- [x] Remove G1, G2, G3, G4 gate codes from decision flowchart — use descriptive labels only
+- [x] Remove G-code labels from Document Integrity Checks section
+- [x] Add Vehicle Valuation subsection (3.2) — market value, repair-to-value ratio, write-off threshold
+- [x] Fix fraud score contradiction — add warning note when rule trace score differs from weighted score
+- [x] Fix incident description truncation — add safeguard to show original when cleaned narrative is too short
+- [x] Add pipeline-level quality gates to Stage 10 (QG-1 through QG-5)
+- [x] Add queryLearningBenchmark function to db.ts
+- [x] Write comprehensive test suite for all quality safeguards (21 tests, all passing)

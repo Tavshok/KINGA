@@ -356,6 +356,58 @@ export async function runReportGenerationStage(
       ctx.log("Stage 10", `Decision Readiness Gate: PROCEED — confidence ${decisionReadiness.confidence}%`);
     }
 
+    // ── QUALITY GATES — Structural safeguards against recurring quality issues ────
+    // These gates log warnings for data quality issues that have caused report defects.
+    // They do NOT block report generation but ensure issues are visible in the audit trail.
+
+    // QG-1: Speed extraction gate
+    if (!claimRecord.accidentDetails.estimatedSpeedKmh || claimRecord.accidentDetails.estimatedSpeedKmh <= 0) {
+      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-1: No speed extracted from claim form. Physics analysis may use default values.`);
+      assumptions.push({
+        field: "estimatedSpeedKmh",
+        assumedValue: "Not extracted",
+        reason: "Speed was not extracted from the claim form. If the form contains a handwritten speed, the OCR may have missed it.",
+        strategy: "default_value",
+        confidence: 20,
+        stage: "Stage 10 (QG-1)",
+      });
+    }
+
+    // QG-2: Incident description completeness gate
+    const desc = claimRecord.accidentDetails.description;
+    if (!desc || desc.length < 20) {
+      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-2: Incident description is missing or too short (${desc?.length ?? 0} chars).`);
+      assumptions.push({
+        field: "accidentDescription",
+        assumedValue: "Incomplete",
+        reason: "The incident description is missing or very short. The report narrative may be incomplete.",
+        strategy: "partial_data",
+        confidence: 15,
+        stage: "Stage 10 (QG-2)",
+      });
+    }
+
+    // QG-3: Cost source transparency gate
+    if (costAnalysis) {
+      const hasLearningData = (costAnalysis as any).repairIntelligence?.some?.((r: any) => r.costSource === "learning_db");
+      if (!hasLearningData) {
+        ctx.log("Stage 10", `ℹ️ QUALITY GATE QG-3: No learning DB data available for cost benchmarks. All benchmarks are estimates.`);
+      }
+    }
+
+    // QG-4: Weather/visibility/road surface extraction gate
+    const weather = claimRecord.accidentDetails.weatherConditions;
+    const visibility = claimRecord.accidentDetails.visibilityConditions;
+    const roadSurface = claimRecord.accidentDetails.roadSurface;
+    if (!weather && !visibility && !roadSurface) {
+      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-4: No environmental conditions extracted (weather, visibility, road surface).`);
+    }
+
+    // QG-5: Market value gate (needed for valuation section)
+    if (!claimRecord.vehicle.marketValueUsd || claimRecord.vehicle.marketValueUsd <= 0) {
+      ctx.log("Stage 10", `⚠️ QUALITY GATE QG-5: No market value extracted. Valuation section will show 'Not stated'.`);
+    }
+
     // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
