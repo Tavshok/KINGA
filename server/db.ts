@@ -575,6 +575,17 @@ export async function triggerAiAssessment(claimId: number) {
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
   const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText } = result;
 
+  // Diagnostic logging: show which pipeline outputs are populated vs null
+  console.log(`[AI Assessment] Claim ${claimId}: Pipeline result summary — ` +
+    `claimRecord=${claimRecord ? 'YES' : 'NULL'}, ` +
+    `damageAnalysis=${damageAnalysis ? 'YES' : 'NULL'}, ` +
+    `physicsAnalysis=${physicsAnalysis ? 'YES' : 'NULL'}, ` +
+    `fraudAnalysis=${fraudAnalysis ? 'YES' : 'NULL'}, ` +
+    `costAnalysis=${costAnalysis ? 'YES' : 'NULL'}, ` +
+    `stage2RawOcrText=${stage2RawOcrText ? `${stage2RawOcrText.length} chars` : 'NULL'}, ` +
+    `totalDuration=${summary?.totalDurationMs ?? 'N/A'}ms`
+  );
+
   // Extract narrativeAnalysis from claimRecord for dedicated column storage
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
 
@@ -775,7 +786,10 @@ export async function triggerAiAssessment(claimId: number) {
   }
 
   // Delete any previous assessment for this claim
-  await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch(() => {});
+  console.log(`[AI Assessment] Claim ${claimId}: Deleting previous assessment and inserting new one...`);
+  await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch((delErr) => {
+    console.warn(`[AI Assessment] Claim ${claimId}: Failed to delete previous assessment (non-fatal):`, delErr);
+  });
 
   // Insert new assessment
   await db.insert(aiAssessments).values({
@@ -886,7 +900,7 @@ export async function triggerAiAssessment(claimId: number) {
   }
   await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
 
-  console.log(`[AI Assessment] Claim ${claimId} — Pipeline v2 complete. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
+  console.log(`[AI Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 
   // END TOP-LEVEL TRY
   } catch (topLevelError) {
@@ -907,6 +921,32 @@ export async function triggerAiAssessment(claimId: number) {
       console.error(`[AI Assessment] Could not update failure status for claim ${claimId}:`, updateError);
     }
     throw topLevelError; // Re-throw so the caller's setImmediate catch logs it
+  } finally {
+    // GUARANTEED SAFETY NET: Ensure claim is NEVER left in a transient state.
+    // If documentProcessingStatus is still 'parsing' or 'extracting' after the
+    // try/catch completes, it means neither the success path (line 887) nor the
+    // catch path (line 898) managed to update it — mark as 'failed' so the UI
+    // shows a retry button instead of an infinite spinner.
+    try {
+      const dbFinally = await getDb();
+      if (dbFinally) {
+        const [currentState] = await dbFinally.select({
+          dps: claims.documentProcessingStatus,
+        }).from(claims).where(eq(claims.id, claimId)).limit(1);
+        if (currentState && (currentState.dps === 'parsing' || currentState.dps === 'extracting' || currentState.dps === 'analysing')) {
+          console.error(`[AI Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline — forcing to 'failed'.`);
+          await dbFinally.update(claims).set({
+            documentProcessingStatus: "failed",
+            status: "intake_pending",
+            workflowState: "intake_queue",
+            aiAssessmentTriggered: 0,
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId));
+        }
+      }
+    } catch (finallyErr) {
+      console.error(`[AI Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
+    }
   }
 }
 

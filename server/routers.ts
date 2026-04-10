@@ -1491,8 +1491,24 @@ If any value is not found, use 0 for numbers and empty string for text.`;
               console.error(`[AI] Post-assessment notification failed for claim ${input.claimId}:`, notifyErr);
             }
           })
-          .catch((err: unknown) => {
+          .catch(async (err: unknown) => {
             console.error(`[AI] Background assessment failed for claim ${input.claimId}:`, err);
+            // CRITICAL: Update claim status to 'failed' so it doesn't stay stuck at 'extracting' forever
+            try {
+              const dbFail = await getDb();
+              if (dbFail) {
+                await dbFail.update(claims).set({
+                  documentProcessingStatus: "failed",
+                  status: "intake_pending",
+                  workflowState: "intake_queue",
+                  aiAssessmentTriggered: 0,
+                  updatedAt: new Date().toISOString(),
+                }).where(eq(claims.id, input.claimId));
+                console.log(`[AI] Claim ${input.claimId} marked as failed after background assessment error.`);
+              }
+            } catch (failUpdateErr) {
+              console.error(`[AI] CRITICAL: Could not mark claim ${input.claimId} as failed:`, failUpdateErr);
+            }
           });
         
         // Create audit entry for manual AI assessment trigger (immediate — before async job)
