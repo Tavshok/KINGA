@@ -316,10 +316,11 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   // 45-second hard timeout per LLM call — prevents the fire-and-forget AI
-  // pipeline from hanging indefinitely. With thinking disabled and max_tokens
-  // capped at 8192, responses should arrive well within 30s under normal load.
-  // Reduced from 90s: with up to 17 parallel LLM calls, a 90s timeout per call
-  // meant worst-case pipeline time of 1530s. At 45s the worst case is 765s.
+  // pipeline from hanging indefinitely when the API is unresponsive.
+  // With thinking disabled (budget_tokens=0) and max_tokens capped at 8192,
+  // a real extraction of a multi-page PDF completes in 8-20s under normal load.
+  // The 45s guard only fires when the API hangs entirely (e.g. dead PDF URL,
+  // network issue) — NOT during legitimate slow extractions.
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 45 * 1000);
 
