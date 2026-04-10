@@ -10484,17 +10484,17 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Phase 4: Stage 2 multi-doc parallelisation — run OCR extraction for multiple PDFs concurrently
 
 ## Pipeline Extraction Fix - Deep Investigation
-- [ ] Pipeline still stuck at Extracting after presigned URL fix — deep investigation needed
-- [ ] Trace full pipeline execution path from triggerAiAssessment to completion
-- [ ] Fix all blocking points in extraction pipeline
-- [ ] Ensure full pipeline completes end-to-end and produces correct forensic report
+- [x] Pipeline still stuck at Extracting after presigned URL fix — deep investigation needed
+- [x] Trace full pipeline execution path from triggerAiAssessment to completion
+- [x] Fix all blocking points in extraction pipeline
+- [x] Ensure full pipeline completes end-to-end and produces correct forensic report
 
 ## Full Pipeline Quality Overhaul
-- [ ] Run full pipeline end-to-end on real claim and capture every stage output
-- [ ] Audit each stage for data loss, misinterpretation, missing fields
+- [x] Run full pipeline end-to-end on real claim and capture every stage output
+- [x] Audit each stage for data loss, misinterpretation, missing fields
 - [ ] Fix extraction to read every field from claim forms accurately
 - [ ] Fix analysis to produce consistent physics/fraud/cost results without conflicts
 - [ ] Ensure AI cost and extracted quotation cost are both captured and reconciled
 - [ ] Rebuild forensic report template to match v4.2 format (all 11 sections)
 - [x] Guarantee pipeline never gets stuck (finally block safety net)
-- [ ] End-to-end verification with real claim document
+- [x] End-to-end verification with real claim document

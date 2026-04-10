@@ -16,6 +16,8 @@
  */
 
 import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 import os from "os";
 import fs from "fs/promises";
 import { exec } from "child_process";
@@ -24,7 +26,9 @@ import type { FraudIndicator } from "./types";
 
 const execAsync = promisify(exec);
 
-const PYTHON_DIR = path.join(__dirname, "../../python");
+const __filename_esm = fileURLToPath(import.meta.url);
+const __dirname_esm = dirname(__filename_esm);
+const PYTHON_DIR = path.join(__dirname_esm, "../../python");
 const MAX_PHOTOS_TO_ANALYSE = 3;   // Cap at 3 to keep pipeline latency bounded
 const DOWNLOAD_TIMEOUT_MS = 10_000; // 10s download timeout per photo
 const ANALYSIS_TIMEOUT_MS = 20_000; // 20s Python analysis timeout per photo

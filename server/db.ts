@@ -573,7 +573,7 @@ export async function triggerAiAssessment(claimId: number) {
   if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────
-  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText } = result;
+  const { claimRecord, report, damageAnalysis, physicsAnalysis, fraudAnalysis, costAnalysis, turnaroundAnalysis, summary, causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult, causalVerdict, validatedOutcome, caseSignature, stage2RawOcrText, decisionAuthority, reportReadiness, forensicAnalysis } = result;
 
   // Diagnostic logging: show which pipeline outputs are populated vs null
   console.log(`[AI Assessment] Claim ${claimId}: Pipeline result summary — ` +
@@ -582,6 +582,9 @@ export async function triggerAiAssessment(claimId: number) {
     `physicsAnalysis=${physicsAnalysis ? 'YES' : 'NULL'}, ` +
     `fraudAnalysis=${fraudAnalysis ? 'YES' : 'NULL'}, ` +
     `costAnalysis=${costAnalysis ? 'YES' : 'NULL'}, ` +
+    `decisionAuthority=${decisionAuthority ? decisionAuthority.recommendation : 'NULL'}, ` +
+    `reportReadiness=${reportReadiness ? reportReadiness.status : 'NULL'}, ` +
+    `forensicAnalysis=${forensicAnalysis ? 'YES' : 'NULL'}, ` +
     `stage2RawOcrText=${stage2RawOcrText ? `${stage2RawOcrText.length} chars` : 'NULL'}, ` +
     `totalDuration=${summary?.totalDurationMs ?? 'N/A'}ms`
   );
@@ -810,7 +813,9 @@ export async function triggerAiAssessment(claimId: number) {
     // Previously these were only buried in JSON blobs, causing the router to always
     // read undefined (→ fraudScore=0, recommendation=null) and produce wrong verdicts.
     fraudScore: fraudAnalysis ? Math.round(fraudAnalysis.fraudRiskScore) : null,
-    recommendation: costAnalysis?.costDecision?.recommendation ?? null,
+    // Use Decision Authority recommendation (Stage 12) as the single source of truth.
+    // Falls back to cost engine recommendation if Decision Authority didn't run.
+    recommendation: decisionAuthority?.recommendation ?? costAnalysis?.costDecision?.recommendation ?? null,
     fraudScoreBreakdownJson,
     modelVersion: 'pipeline-v2',
     processingTime: summary.totalDurationMs,
@@ -856,6 +861,12 @@ export async function triggerAiAssessment(claimId: number) {
     // (also embedded in claimRecordJson.accidentDetails.narrativeAnalysis, but stored here
     //  so the ForensicAuditReport can load it without parsing the full ClaimRecord)
     narrativeAnalysisJson: narrativeAnalysis ? JSON.stringify(narrativeAnalysis) : null,
+    // Stage 12: Claims Decision Authority — single non-contradictory recommendation
+    decisionAuthorityJson: decisionAuthority ? JSON.stringify(decisionAuthority) : null,
+    // Stage 12.5: Report Readiness Gate — whether the claim can be exported as a report
+    reportReadinessJson: reportReadiness ? JSON.stringify(reportReadiness) : null,
+    // Stage 13: Forensic Analysis — comprehensive forensic analysis summary from all stages
+    forensicAnalysis: forensicAnalysis ? JSON.stringify(forensicAnalysis) : null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

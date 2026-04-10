@@ -98,6 +98,14 @@ import {
   runPreGenerationConsistencyCheck,
   type PreGenerationCheckResult,
 } from "./preGenerationConsistencyCheck";
+import {
+  evaluateClaimDecision,
+  type ClaimsDecisionOutput,
+} from "./claimsDecisionAuthority";
+import {
+  checkReportReadiness,
+  type ReportReadinessResult,
+} from "./reportReadinessGate";
 // runIncidentNarrativeEngine is now called inside runUnifiedStage7
 import { valuateVehicle } from "../services/vehicleValuation";
 import { estimateMileageFromYear } from "../services/mileageEstimation";
@@ -872,13 +880,152 @@ export async function runPipelineV2(
   // available, otherwise estimates from vehicle year/model.
   await runAutoValuation(ctx, (stage, msg) => ctx.log(stage, msg));
 
+  // ── STAGE 12: Claims Decision Authority ─────────────────────────────────
+  // Synthesises all upstream signals into a single non-contradictory decision.
+  let decisionAuthorityResult: ClaimsDecisionOutput | null = null;
+  try {
+    const overallConfidence = claimRecord
+      ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore))
+      : null;
+    decisionAuthorityResult = evaluateClaimDecision({
+      scenario_type: claimRecord?.accidentDetails?.incidentType ?? null,
+      severity: stage7Data?.accidentSeverity ?? null,
+      physics_result: stage7Data ? {
+        is_plausible: (stage7Data.damageConsistencyScore ?? 0) >= 50,
+        confidence: stage7Data.damageConsistencyScore ?? null,
+        has_critical_inconsistency: (stage7Data.damageConsistencyScore ?? 100) < 30,
+        summary: stage7Data.impactVector?.direction
+          ? `Impact from ${stage7Data.impactVector.direction} at ${(stage7Data.impactVector as any).estimatedSpeedKmh ?? 'unknown'} km/h`
+          : null,
+      } : null,
+      damage_validation: stage6Data ? {
+        is_consistent: true,
+        consistency_score: stage7Data?.damageConsistencyScore ?? null,
+        has_unexplained_damage: false,
+        summary: `${stage6Data.damagedParts?.length ?? 0} damaged components identified`,
+      } : null,
+      fraud_result: stage8Data ? {
+        fraud_risk_level: stage8Data.fraudRiskLevel ?? null,
+        fraud_risk_score: stage8Data.fraudRiskScore ?? null,
+        critical_flag_count: stage8Data.indicators?.filter((i: any) => i.severity === 'critical').length ?? 0,
+        scenario_fraud_flagged: (stage8Data.fraudRiskScore ?? 0) >= 70,
+        reasoning: (stage8Data as any).fraudSummary ?? null,
+      } : null,
+      costDecision: stage9Data?.costDecision ? {
+        recommendation: stage9Data.costDecision.recommendation === 'APPROVE' ? 'PROCEED_TO_ASSESSMENT'
+          : stage9Data.costDecision.recommendation === 'REJECT' ? 'ESCALATE'
+          : 'NEGOTIATE',
+        is_within_range: stage9Data.costDecision.confidence >= 60,
+        confidence: stage9Data.costDecision.confidence,
+        has_anomalies: (stage9Data.costDecision.confidence ?? 100) < 50,
+        reasoning: stage9Data.costDecision.reasoning ?? null,
+      } : null,
+      overall_confidence: overallConfidence,
+      consistency_status: consensusResult ? {
+        overall_status: consensusResult.conflict_present ? 'CONFLICTED' : 'CONSISTENT',
+        critical_conflict_count: consensusResult.conflict_dimension_count ?? 0,
+        proceed: !consensusResult.conflict_present,
+        summary: `Consensus score: ${consensusResult.consensus_score}, label: ${consensusResult.consensus_label}`,
+      } : null,
+    });
+    ctx.log("Stage12", `Decision Authority: ${decisionAuthorityResult.recommendation} (confidence: ${decisionAuthorityResult.confidence}, basis: ${decisionAuthorityResult.decision_basis})`);
+  } catch (err) {
+    ctx.log("Stage12", `Decision Authority error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── STAGE 12.5: Report Readiness Gate ────────────────────────────────────
+  // Determines whether the claim can be exported as a report.
+  let reportReadinessResult: ReportReadinessResult | null = null;
+  try {
+    const overallConfidence = claimRecord
+      ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore))
+      : null;
+    reportReadinessResult = checkReportReadiness({
+      decision_ready: {
+        is_ready: decisionAuthorityResult != null,
+        recommendation: decisionAuthorityResult?.recommendation ?? null,
+        decision_basis: decisionAuthorityResult?.decision_basis ?? null,
+        assessor_validated: decisionAuthorityResult?.decision_basis === 'assessor_validated',
+        has_blocking_factors: (decisionAuthorityResult?.blocking_factors?.length ?? 0) > 0,
+      },
+      contradiction_check: preGenCheck ? {
+        valid: preGenCheck.passed,
+        action: preGenCheck.passed ? 'ALLOW' : 'BLOCK',
+        critical_count: preGenCheck.contradictions?.filter((c: any) => c.severity === 'critical').length ?? 0,
+        major_count: preGenCheck.contradictions?.filter((c: any) => c.severity === 'major').length ?? 0,
+        minor_count: preGenCheck.contradictions?.filter((c: any) => c.severity === 'minor').length ?? 0,
+      } : { valid: true, action: 'ALLOW', critical_count: 0, major_count: 0, minor_count: 0 },
+      overall_confidence: overallConfidence,
+      documents_attached: (ctx.damagePhotoUrls?.length ?? 0) > 0,
+    });
+    ctx.log("Stage12.5", `Report Readiness: ${reportReadinessResult.status} (export_allowed: ${reportReadinessResult.export_allowed}, reason: ${reportReadinessResult.reason.substring(0, 100)})`);
+  } catch (err) {
+    ctx.log("Stage12.5", `Report Readiness error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+  // ── STAGE 13: Forensic Analysis Summary ─────────────────────────────────
+  // Builds a comprehensive forensic analysis object from all stage data.
+  let forensicAnalysisResult: Record<string, any> | null = null;
+  try {
+    forensicAnalysisResult = {
+      version: '2.0.0',
+      generatedAt: new Date().toISOString(),
+      claimId: ctx.claimId,
+      // Vehicle & incident context
+      vehicle: claimRecord?.vehicle ?? null,
+      accidentDetails: claimRecord?.accidentDetails ?? null,
+      // Damage assessment
+      damagedComponents: stage6Data?.damagedParts ?? [],
+      damageComponentCount: stage6Data?.damagedParts?.length ?? 0,
+      // Physics analysis
+      physicsPlausibility: stage7Data?.damageConsistencyScore ?? null,
+      impactVector: stage7Data?.impactVector ?? null,
+      accidentSeverity: stage7Data?.accidentSeverity ?? null,
+      physicsViolations: (stage7Data as any)?.physicsViolations ?? [],
+      // Fraud analysis
+      fraudRiskLevel: stage8Data?.fraudRiskLevel ?? null,
+      fraudRiskScore: stage8Data?.fraudRiskScore ?? null,
+      fraudIndicators: stage8Data?.indicators ?? [],
+      fraudSummary: (stage8Data as any)?.fraudSummary ?? null,
+      // Cost analysis
+      costDecision: stage9Data?.costDecision ?? null,
+      estimatedRepairCost: stage9Data?.costDecision?.true_cost_usd ?? null,
+      costBreakdown: stage9Data?.breakdown ?? null,
+      partsReconciliation: stage9Data?.partsReconciliation ?? null,
+      // Repair quote from claim
+      repairQuote: claimRecord?.repairQuote ?? null,
+      // Narrative analysis
+      narrativeAnalysis: claimRecord?.accidentDetails?.narrativeAnalysis ?? null,
+      // Turnaround time
+      turnaroundEstimate: stage9bData ?? null,
+      // Decision
+      decisionAuthority: decisionAuthorityResult ?? null,
+      reportReadiness: reportReadinessResult ?? null,
+      // Causal chain
+      causalChain: causalChain ?? null,
+      // Evidence
+      evidenceBundle: evidenceBundle ?? null,
+      // Consistency
+      preGenerationCheck: preGenCheck ?? null,
+      consensusResult: consensusResult ?? null,
+      // Data quality
+      dataQuality: claimRecord?.dataQuality ?? null,
+      assumptions: allAssumptions,
+      recoveryActions: allRecoveryActions,
+    };
+    ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
+  } catch (err) {
+    ctx.log("Stage13", `Forensic analysis build error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+
   return buildResult(
     stages, pipelineStart, ctx.claimId,
     claimRecord, stage10Data,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
     causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult,
-    documentVerificationResult, stage2RawOcrText
+    documentVerificationResult, stage2RawOcrText,
+    decisionAuthorityResult, reportReadinessResult, forensicAnalysisResult
   );
 }
 
@@ -903,7 +1050,10 @@ function buildResult(
   validatedOutcome: ValidatedOutcomeResult | null = null,
   caseSignature: CaseSignatureOutput | null = null,
   docVerification: DocumentReadVerificationResult | null = null,
-  stage2RawOcrText: string | null = null
+  stage2RawOcrText: string | null = null,
+  decisionAuthority: ClaimsDecisionOutput | null = null,
+  reportReadiness: ReportReadinessResult | null = null,
+  forensicAnalysis: Record<string, any> | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -941,6 +1091,9 @@ function buildResult(
     validatedOutcome,
     caseSignature,
     stage2RawOcrText,
+    decisionAuthority,
+    reportReadiness,
+    forensicAnalysis,
   };
 }
 

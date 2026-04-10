@@ -7,10 +7,14 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import path from "path";
+import { fileURLToPath } from "url";
+import { dirname } from "path";
 
 const execAsync = promisify(exec);
 
-const PYTHON_DIR = path.join(__dirname, "../python");
+const __filename_esm = fileURLToPath(import.meta.url);
+const __dirname_esm = dirname(__filename_esm);
+const PYTHON_DIR = path.join(__dirname_esm, "../python");
 
 export interface PhysicsValidationResult {
   is_valid: boolean;
