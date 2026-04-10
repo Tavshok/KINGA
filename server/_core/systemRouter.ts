@@ -1,22 +1,22 @@
 import { z } from "zod";
 import { readFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { join } from "path";
 import { notifyOwner } from "./notification";
 import { adminProcedure, publicProcedure, router } from "./trpc";
 import { getDb } from "../db";
 
 // Read version from package.json
+// IMPORTANT: Use process.cwd() not __dirname — in production the server bundle
+// is at /usr/src/app/dist/index.js so __dirname-relative paths break.
 let version = "unknown";
 try {
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = dirname(__filename);
   const packageJson = JSON.parse(
-    readFileSync(join(__dirname, "../../package.json"), "utf-8")
+    readFileSync(join(process.cwd(), "package.json"), "utf-8")
   );
   version = packageJson.version || "unknown";
 } catch (error) {
-  console.error("Failed to read version from package.json:", error);
+  // Silently ignore — version is non-critical
+  version = "unknown";
 }
 
 const startTime = Date.now();
