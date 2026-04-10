@@ -270,9 +270,15 @@ export async function runPipelineV2(
   const s1 = await runIngestionStage(ctx);
   recordStage("1_ingestion", s1);
   stage1Data = s1.data; // May be degraded but always has data
-
-  // ── STAGE 2: OCR & Text Extraction ───────────────────────────────────
+  // ── STAGE 2: OCR & Text Extraction ─────────────────────────────────────
   if (stage1Data) {
+    // Update status to 'extracting' so the UI shows progress (not stuck at 'parsing')
+    try {
+      const dbInst = await getDb();
+      if (dbInst) {
+        await dbInst.update(claims).set({ documentProcessingStatus: 'extracting', updatedAt: new Date().toISOString() }).where(eq(claims.id, ctx.claimId));
+      }
+    } catch (_statusErr) { /* non-fatal */ }
     const s2 = await runExtractionStage(ctx, stage1Data);
     recordStage("2_extraction", s2);
     stage2Data = s2.data;

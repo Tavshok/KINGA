@@ -315,11 +315,13 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  // 90-second hard timeout per LLM call — prevents the fire-and-forget AI
+  // 45-second hard timeout per LLM call — prevents the fire-and-forget AI
   // pipeline from hanging indefinitely. With thinking disabled and max_tokens
-  // capped at 8192, responses should arrive well within 60s under normal load.
+  // capped at 8192, responses should arrive well within 30s under normal load.
+  // Reduced from 90s: with up to 17 parallel LLM calls, a 90s timeout per call
+  // meant worst-case pipeline time of 1530s. At 45s the worst case is 765s.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 90 * 1000);
+  const timeoutId = setTimeout(() => controller.abort(), 45 * 1000);
 
   let response: Response;
   try {
@@ -335,7 +337,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } catch (fetchErr: any) {
     clearTimeout(timeoutId);
     if (fetchErr.name === "AbortError") {
-      throw new Error("LLM invoke timed out after 3 minutes");
+      throw new Error("LLM invoke timed out after 45 seconds");
     }
     throw fetchErr;
   }

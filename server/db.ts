@@ -445,6 +445,32 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   }
 
+  // ── PRE-FLIGHT: Verify PDF URL is accessible before passing to LLM ──────
+  // The LLM receives the PDF as a file_url reference. If the URL is not publicly
+  // accessible (e.g. expired presigned URL, CloudFront auth required, network error),
+  // the LLM silently fails or hangs for 45s per call. We do a fast HEAD check first.
+  if (pdfUrl) {
+    try {
+      const headController = new AbortController();
+      const headTimeout = setTimeout(() => headController.abort(), 8000);
+      const headResp = await fetch(pdfUrl, { method: 'HEAD', signal: headController.signal }).catch(() => null);
+      clearTimeout(headTimeout);
+      if (!headResp || !headResp.ok) {
+        console.warn(`[AI Assessment] Claim ${claimId}: PDF URL pre-flight failed (status=${headResp?.status ?? 'timeout'}) — LLM will receive null pdfUrl and fall back to text-only extraction.`);
+        pdfUrl = null;
+        // Fall back to cached damage photos if available
+        if (!damagePhotos.length) {
+          damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
+        }
+      } else {
+        console.log(`[AI Assessment] Claim ${claimId}: PDF URL pre-flight OK (${headResp.status}) — proceeding with LLM PDF extraction.`);
+      }
+    } catch (preflightErr: any) {
+      console.warn(`[AI Assessment] Claim ${claimId}: PDF URL pre-flight threw (${preflightErr.message}) — continuing with null pdfUrl.`);
+      pdfUrl = null;
+    }
+  }
+
   // ── PERMANENT FIX: PDF image re-extraction ──────────────────────────
   // When a PDF is present but damagePhotos is empty (e.g. re-run, re-assessment,
   // or claims that bypassed the upload processor), extract images from the PDF
@@ -454,9 +480,16 @@ export async function triggerAiAssessment(claimId: number) {
     try {
       console.log(`[AI Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
       const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
-      const fetch = (await import('node-fetch')).default;
-      const pdfResponse = await fetch(pdfUrl, { timeout: 30000 } as any);
-      if (pdfResponse.ok) {
+      // Use native fetch with AbortController (node-fetch v3 removed timeout option)
+      const pdfAbortController = new AbortController();
+      const pdfFetchTimeout = setTimeout(() => pdfAbortController.abort(), 30000);
+      let pdfResponse: Response | null = null;
+      try {
+        pdfResponse = await fetch(pdfUrl, { signal: pdfAbortController.signal });
+      } finally {
+        clearTimeout(pdfFetchTimeout);
+      }
+      if (pdfResponse && pdfResponse.ok) {
         const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
         const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, `claim-${claimId}.pdf`);
         // Filter to images that are likely real photos (not tiny logos/icons)
@@ -471,7 +504,7 @@ export async function triggerAiAssessment(claimId: number) {
           }).where(eq(claims.id, claimId)).catch(() => {});
         }
       } else {
-        console.warn(`[AI Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse.status}`);
+        console.warn(`[AI Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
       }
     } catch (imgErr: any) {
       console.warn(`[AI Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
