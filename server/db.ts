@@ -409,29 +409,21 @@ export async function triggerAiAssessment(claimId: number) {
   let damagePhotos: string[] = [];
 
   if (claim.sourceDocumentId) {
-    // PDF-sourced claim: look up the source document and generate a presigned URL
-    // CRITICAL: We must use storageGet(s3Key) to get a presigned download URL that the
-    // LLM can fetch publicly. The raw s3Url requires Forge API authentication and the
-    // LLM cannot authenticate with it — causing it to silently fall back to OCR text only.
+    // PDF-sourced claim: look up the source document and use the raw public CloudFront URL.
+    // The raw s3Url stored in ingestion_documents is publicly accessible (HTTP 200) and
+    // can be fetched by the LLM without authentication. Do NOT use storageGet() — it
+    // generates a presigned URL that returns HTTP 403 from the LLM's servers.
     try {
       const [sourceDoc] = await db.select().from(ingestionDocuments)
         .where(eq(ingestionDocuments.id, claim.sourceDocumentId)).limit(1);
-      if (sourceDoc && sourceDoc.s3Key) {
-        try {
-          const { storageGet } = await import('./storage');
-          // Request a 60-minute presigned URL — the pipeline can take up to 15 min
-          // and the default TTL (~15 min) causes LLM vision to silently fail on later stages.
-          const { url: presignedUrl } = await storageGet(sourceDoc.s3Key, 3600);
-          pdfUrl = presignedUrl;
-          console.log(`[AI Assessment] Claim ${claimId}: Generated presigned PDF URL for LLM: ${sourceDoc.originalFilename}`);
-        } catch (presignErr: any) {
-          // Fallback to raw s3Url if presigning fails
-          pdfUrl = sourceDoc.s3Url;
-          console.warn(`[AI Assessment] Claim ${claimId}: Presigning failed, using raw s3Url (LLM may not read PDF): ${presignErr.message}`);
-        }
-      } else if (sourceDoc && sourceDoc.s3Url) {
+      if (sourceDoc && sourceDoc.s3Url) {
+        // Use the raw public CloudFront URL directly.
+        // IMPORTANT: storageGet() generates a presigned URL that returns HTTP 403 when
+        // accessed by the LLM API (which cannot supply the required Forge auth headers).
+        // The raw s3Url stored in ingestion_documents is a public CloudFront URL (HTTP 200)
+        // that the LLM can fetch without authentication. Always use this directly.
         pdfUrl = sourceDoc.s3Url;
-        console.warn(`[AI Assessment] Claim ${claimId}: No s3Key found, using raw s3Url (LLM may not read PDF).`);
+        console.log(`[AI Assessment] Claim ${claimId}: Using public S3 URL for LLM: ${sourceDoc.originalFilename}`);
       } else {
         console.warn(`[AI Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
       }
