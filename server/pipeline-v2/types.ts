@@ -929,6 +929,27 @@ export interface Stage10Output {
   missingDocuments: MissingDocument[];
   /** Fields that remain NULL after all recovery attempts */
   missingFields: string[];
+  /**
+   * Evidence trace — a structured audit trail linking each conclusion to its
+   * source evidence, engine, and confidence level. Designed for regulatory
+   * review, legal dispute, and insurer transparency.
+   */
+  evidenceTrace?: {
+    /** Claim tier assigned by the complexity gate */
+    claimTier: "SIMPLE" | "STANDARD" | "COMPLEX";
+    /** Complexity score (0–100) */
+    complexityScore: number;
+    /** Reasons for the tier assignment */
+    complexityReasons: string[];
+    /** Whether Stage 7b Pass 2 (re-run with fraud+cost scores) was executed */
+    stage7bPass2Executed: boolean;
+    /** Stages that ran concurrently (for audit transparency) */
+    parallelStages: Array<{ stages: string[]; rationale: string }>;
+    /** Total pipeline duration in milliseconds */
+    totalDurationMs: number;
+    /** Per-stage duration summary */
+    stageDurations: Record<string, number>;
+  } | null;
   /** Decision Readiness Engine result — null if not yet evaluated */
   decisionReadiness: {
     decision_ready: boolean;

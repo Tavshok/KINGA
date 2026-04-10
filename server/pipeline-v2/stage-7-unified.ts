@@ -1,4 +1,4 @@
-/**
+/*
  * pipeline-v2/stage-7-unified.ts
  *
  * STAGE 7 — UNIFIED FORENSIC REASONING ENGINE
@@ -64,10 +64,13 @@ export interface UnifiedStage7Output {
  * runUnifiedStage7
  *
  * Orchestrates Stage 7 (physics), Stage 7c (severity consensus),
- * Stage 7b Pass 1 (causal reasoning), and Stage 7e (narrative analysis)
- * in a single function call. All four engines run sequentially because
- * each feeds into the next:
- *   physics → severity consensus → causal reasoning → narrative analysis
+ * Stage 7b Pass 1 (causal reasoning), and Stage 7e (narrative analysis).
+ *
+ * Execution order:
+ *   1. Stage 7  (physics) — deterministic, must run first
+ *   2. Stage 7c (severity consensus) — deterministic, needs physics output
+ *   3. Stage 7b (causal) ‖ Stage 7e (narrative) — both need physics output,
+ *      neither needs the other's output, so they run concurrently.
  *
  * @param ctx            Pipeline context (logging, claim ID, photo URLs)
  * @param claimRecord    Assembled claim record from Stage 5
@@ -111,84 +114,99 @@ export async function runUnifiedStage7(
     ctx.log("Stage 7c (SeverityConsensus)", `Severity consensus failed (non-fatal): ${String(err)}`);
   }
 
-  // ── STEP 3: Causal Reasoning Pass 1 (Stage 7b) ──────────────────────────
-  // LLM call — infers the most likely cause of damage from all available evidence.
-  // Pass 2 (with fraud+cost scores) remains in the orchestrator after S8/S9.
+  // ── STEPS 3 & 4 (concurrent): Causal Reasoning + Narrative Analysis ─────
+  //
+  // Stage 7b (causal reasoning) and Stage 7e (narrative analysis) both depend
+  // only on physicsAnalysis (Step 2 output) and claimRecord/damageAnalysis.
+  // Neither depends on the other's output, so they run concurrently.
+  //
+  // This saves approximately 8–12 seconds per claim (the time Stage 7e was
+  // previously waiting for Stage 7b's definePhysicsConstraints + constraintNarrative
+  // LLM calls to complete before it could start).
   const enrichedPhotosJson: string | null = (ctx as any).enrichedPhotosJson ?? null;
-  let causalVerdict: CausalVerdict;
-  try {
-    causalVerdict = await runCausalReasoningEngine(
-      claimRecord,
-      damageAnalysis,
-      physicsAnalysis,
-      enrichedPhotosJson
-      // No precomputedScores — this is Pass 1 (fraud/cost scores not yet available)
-    );
-    ctx.log(
-      "Stage 7b (CausalReasoning)",
-      `Causal verdict: cause="${causalVerdict.inferredCause.substring(0, 80)}", ` +
-      `plausibility=${causalVerdict.plausibilityScore}% (${causalVerdict.plausibilityBand}), ` +
-      `direction=${causalVerdict.inferredCollisionDirection}, ` +
-      `physics=${causalVerdict.physicsAlignment}, images=${causalVerdict.imageAlignment}, ` +
-      `fraudFlag=${causalVerdict.flagForFraud}, llmUsed=${causalVerdict.llmUsed}`
-    );
-  } catch (err) {
-    ctx.log("Stage 7b (CausalReasoning)", `Causal reasoning failed — using fallback: ${String(err)}`);
-    causalVerdict = buildDefaultCausalVerdict(claimRecord);
-  }
-
-  // ── STEP 4: Incident Narrative Analysis (Stage 7e) ──────────────────────
-  // LLM call — separates incident narrative from post-incident content,
-  // cross-validates against physics and damage, extracts fraud signals.
-  let narrativeAnalysis: NarrativeAnalysis;
   const rawDescription = claimRecord.accidentDetails?.description ?? "";
-  try {
-    if (rawDescription && rawDescription.trim().length > 10) {
-      const animalPhysics = physicsAnalysis.animalStrikePhysics ?? null;
-      narrativeAnalysis = await runIncidentNarrativeEngine({
-        raw_description: rawDescription,
-        incident_type: claimRecord.accidentDetails?.incidentType ?? "collision",
-        claimed_speed_kmh: claimRecord.accidentDetails?.estimatedSpeedKmh ?? null,
-        physics_plausibility_score: animalPhysics?.plausibility_score ?? physicsAnalysis.damageConsistencyScore ?? null,
-        physics_delta_v_kmh: animalPhysics?.delta_v_kmh ?? physicsAnalysis.deltaVKmh ?? null,
-        physics_impact_force_kn: animalPhysics?.impact_force_kn ?? physicsAnalysis.impactForceKn ?? null,
-        structural_damage: claimRecord.accidentDetails?.structuralDamage ?? false,
-        airbag_deployment: claimRecord.accidentDetails?.airbagDeployment ?? false,
-        crush_depth_m: claimRecord.accidentDetails?.maxCrushDepthM ?? null,
-        damage_components: (damageAnalysis.damagedParts ?? []).map((p) => ({
-          name: p.name,
-          severity: p.severity,
-          location: p.location,
-        })),
-        vision_summary: enrichedPhotosJson
-          ? (() => {
-              try {
-                const parsed = JSON.parse(enrichedPhotosJson);
-                return parsed?.summary ?? parsed?.overall_assessment ?? null;
-              } catch {
-                return null;
-              }
-            })()
-          : null,
-        vehicle_make_model:
-          `${claimRecord.vehicle?.make ?? ""} ${claimRecord.vehicle?.model ?? ""}`.trim() || "Unknown vehicle",
-      });
-      ctx.log(
-        "Stage 7e (NarrativeReasoning)",
-        `Verdict: ${narrativeAnalysis.consistency_verdict}, ` +
-        `contaminated: ${narrativeAnalysis.was_contaminated}, ` +
-        `stripped: ${narrativeAnalysis.stripped_content.length} segment(s), ` +
-        `fraud signals: ${narrativeAnalysis.fraud_signals.length}, ` +
-        `confidence: ${narrativeAnalysis.confidence}%.`
+
+  const causalReasoningTask = async (): Promise<CausalVerdict> => {
+    try {
+      const verdict = await runCausalReasoningEngine(
+        claimRecord,
+        damageAnalysis,
+        physicsAnalysis,
+        enrichedPhotosJson
+        // No precomputedScores — this is Pass 1 (fraud/cost scores not yet available)
       );
-    } else {
-      ctx.log("Stage 7e (NarrativeReasoning)", "Skipped — no incident description available.");
-      narrativeAnalysis = buildDefaultNarrativeAnalysis(rawDescription);
+      ctx.log(
+        "Stage 7b (CausalReasoning)",
+        `Causal verdict: cause="${verdict.inferredCause.substring(0, 80)}", ` +
+        `plausibility=${verdict.plausibilityScore}% (${verdict.plausibilityBand}), ` +
+        `direction=${verdict.inferredCollisionDirection}, ` +
+        `physics=${verdict.physicsAlignment}, images=${verdict.imageAlignment}, ` +
+        `fraudFlag=${verdict.flagForFraud}, llmUsed=${verdict.llmUsed}`
+      );
+      return verdict;
+    } catch (err) {
+      ctx.log("Stage 7b (CausalReasoning)", `Causal reasoning failed — using fallback: ${String(err)}`);
+      return buildDefaultCausalVerdict(claimRecord);
     }
-  } catch (err) {
-    ctx.log("Stage 7e (NarrativeReasoning)", `Narrative reasoning failed — using fallback: ${String(err)}`);
-    narrativeAnalysis = buildDefaultNarrativeAnalysis(rawDescription);
-  }
+  };
+
+  const narrativeTask = async (): Promise<NarrativeAnalysis> => {
+    try {
+      if (rawDescription && rawDescription.trim().length > 10) {
+        const animalPhysics = physicsAnalysis.animalStrikePhysics ?? null;
+        const result = await runIncidentNarrativeEngine({
+          raw_description: rawDescription,
+          incident_type: claimRecord.accidentDetails?.incidentType ?? "collision",
+          claimed_speed_kmh: claimRecord.accidentDetails?.estimatedSpeedKmh ?? null,
+          physics_plausibility_score: animalPhysics?.plausibility_score ?? physicsAnalysis.damageConsistencyScore ?? null,
+          physics_delta_v_kmh: animalPhysics?.delta_v_kmh ?? physicsAnalysis.deltaVKmh ?? null,
+          physics_impact_force_kn: animalPhysics?.impact_force_kn ?? physicsAnalysis.impactForceKn ?? null,
+          structural_damage: claimRecord.accidentDetails?.structuralDamage ?? false,
+          airbag_deployment: claimRecord.accidentDetails?.airbagDeployment ?? false,
+          crush_depth_m: claimRecord.accidentDetails?.maxCrushDepthM ?? null,
+          damage_components: (damageAnalysis.damagedParts ?? []).map((p) => ({
+            name: p.name,
+            severity: p.severity,
+            location: p.location,
+          })),
+          vision_summary: enrichedPhotosJson
+            ? (() => {
+                try {
+                  const parsed = JSON.parse(enrichedPhotosJson);
+                  return parsed?.summary ?? parsed?.overall_assessment ?? null;
+                } catch {
+                  return null;
+                }
+              })()
+            : null,
+          vehicle_make_model:
+            `${claimRecord.vehicle?.make ?? ""} ${claimRecord.vehicle?.model ?? ""}`.trim() || "Unknown vehicle",
+        });
+        ctx.log(
+          "Stage 7e (NarrativeReasoning)",
+          `Verdict: ${result.consistency_verdict}, ` +
+          `contaminated: ${result.was_contaminated}, ` +
+          `stripped: ${result.stripped_content.length} segment(s), ` +
+          `fraud signals: ${result.fraud_signals.length}, ` +
+          `confidence: ${result.confidence}%.`
+        );
+        return result;
+      } else {
+        ctx.log("Stage 7e (NarrativeReasoning)", "Skipped — no incident description available.");
+        return buildDefaultNarrativeAnalysis(rawDescription);
+      }
+    } catch (err) {
+      ctx.log("Stage 7e (NarrativeReasoning)", `Narrative reasoning failed — using fallback: ${String(err)}`);
+      return buildDefaultNarrativeAnalysis(rawDescription);
+    }
+  };
+
+  // Fire Stage 7b and Stage 7e concurrently
+  ctx.log("Stage 7 (Unified)", "Firing causal reasoning (7b) and narrative analysis (7e) in parallel");
+  const [causalVerdict, narrativeAnalysis] = await Promise.all([
+    causalReasoningTask(),
+    narrativeTask(),
+  ]);
 
   return {
     status: physicsResult.status === "failed" ? "degraded" : physicsResult.status,
@@ -249,19 +267,19 @@ function buildDefaultNarrativeAnalysis(rawDescription: string): NarrativeAnalysi
       time_of_day_mentioned: false,
       police_mentioned: false,
       evasive_action_taken: false,
-      sequence_of_events: "",
-    },
-    cross_validation: {
-      physics_verdict: "NOT_ASSESSED",
-      physics_notes: "Narrative analysis engine encountered an error.",
-      damage_verdict: "NOT_ASSESSED",
-      damage_notes: "Narrative analysis engine encountered an error.",
-      crush_depth_verdict: "NOT_ASSESSED",
-      crush_depth_notes: "Narrative analysis engine encountered an error.",
+      sequence_of_events: "Insufficient data to reconstruct sequence of events.",
     },
     fraud_signals: [],
+    cross_validation: {
+      physics_verdict: "NOT_ASSESSED",
+      physics_notes: "",
+      damage_verdict: "NOT_ASSESSED",
+      damage_notes: "",
+      crush_depth_verdict: "NOT_ASSESSED",
+      crush_depth_notes: "",
+    },
     consistency_verdict: "INSUFFICIENT_DATA",
-    reasoning_summary: "Narrative analysis engine encountered an error or no description was provided.",
+    reasoning_summary: "Narrative analysis skipped — no description available or engine failed.",
     confidence: 0,
   };
 }

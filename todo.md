@@ -10473,3 +10473,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix 3: Add llm_vision and skip to RecoveryStrategy union type (pre-existing TS errors in stage-6-damage-analysis.ts)
 - [x] Register stuck assessment recovery job in server startup (_core/index.ts)
 - [x] All 6500 tests pass after fixes
+
+## Pipeline Redesign: Speed Optimisation (Target: <60s)
+
+- [ ] Phase 1a: Field recovery — replace sequential for-loop with Promise.all in fieldRecoveryEngine.ts
+- [ ] Phase 1b: Stage 3 — run PDF extraction, photo extraction, quote extraction, and Stage 0a concurrently
+- [ ] Phase 2a: Stage 7e — start narrative analysis concurrently with definePhysicsConstraints (after main verdict)
+- [ ] Phase 2b: Complexity gate — skip Stage 7b re-run for SIMPLE tier claims (fraud<25, cost±20%, completeness>80%)
+- [ ] Phase 3: evidenceTrace schema — add unified evidence chain to Stage 10 ForensicAuditReport
+- [ ] Phase 4: Stage 2 multi-doc parallelisation — run OCR extraction for multiple PDFs concurrently

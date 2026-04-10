@@ -306,7 +306,8 @@ export async function runReportGenerationStage(
   costAnalysis: Stage9Output | null,
   turnaroundAnalysis: TurnaroundTimeOutput | null,
   allAssumptions: Assumption[],
-  causalChain?: CausalChainOutput | null
+  causalChain?: CausalChainOutput | null,
+  evidenceTrace?: Stage10Output["evidenceTrace"]
 ): Promise<StageResult<Stage10Output>> {
   const start = Date.now();
   ctx.log("Stage 10", "Report generation starting");
@@ -463,6 +464,7 @@ export async function runReportGenerationStage(
       assumptions: allAssumptions,
       missingDocuments,
       missingFields: claimRecord.dataQuality.missingFields,
+      evidenceTrace: evidenceTrace ?? null,
       decisionReadiness,
     };
 
@@ -509,6 +511,7 @@ export async function runReportGenerationStage(
       }],
       missingDocuments: [],
       missingFields: claimRecord.dataQuality.missingFields,
+      evidenceTrace: null,
       decisionReadiness: null,
     };
 

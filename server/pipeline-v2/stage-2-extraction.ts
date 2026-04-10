@@ -414,40 +414,56 @@ export async function runExtractionStage(
       ctx.log("Stage 2", "DEGRADED: No documents to extract text from");
     }
 
-    for (const doc of stage1.documents) {
+    // ── PHASE 4: Parallel multi-document extraction ──────────────────────────────────────────────
+    // Each document is fully independent. All OCR passes (primary, secondary,
+    // handwriting, table) for each document run sequentially within that document
+    // but all documents are processed concurrently via Promise.all.
+    type DocResult = {
+      extracted: ExtractedText;
+      docAssumptions: Assumption[];
+      docRecoveryActions: RecoveryAction[];
+      docDegraded: boolean;
+    };
+
+    const processDoc = async (doc: (typeof stage1.documents)[number]): Promise<DocResult> => {
+      const docAssumptions: Assumption[] = [];
+      const docRecoveryActions: RecoveryAction[] = [];
+      let docDegraded = false;
+
       try {
         if (doc.mimeType === "application/pdf" && doc.sourceUrl) {
-          ctx.log("Stage 2", `Extracting text from PDF: ${doc.fileName}`);
+          ctx.log("Stage 2", `[doc ${doc.documentIndex}] Extracting text from PDF: ${doc.fileName}`);
           let result = await extractTextFromPdf(doc.sourceUrl, ctx);
 
           // Self-healing: if OCR confidence is low, attempt secondary pass
           if (result.ocrConfidence < LOW_CONFIDENCE_THRESHOLD) {
-            ctx.log("Stage 2", `Low OCR confidence (${result.ocrConfidence}%) — attempting secondary OCR pass`);
-            recoveryActions.push({
+            ctx.log("Stage 2", `[doc ${doc.documentIndex}] Low OCR confidence (${result.ocrConfidence}%) — attempting secondary OCR pass`);
+            const secondaryAction: RecoveryAction = {
               target: `document_${doc.documentIndex}_ocr`,
               strategy: "secondary_ocr",
-              success: false, // will update below
+              success: false,
               description: `Primary OCR confidence was ${result.ocrConfidence}%. Attempting secondary extraction.`,
-            });
+            };
+            docRecoveryActions.push(secondaryAction);
 
             try {
               const secondary = await secondaryOcrPass(doc.sourceUrl, result.rawText, ctx);
               if (secondary.ocrConfidence > result.ocrConfidence) {
                 result = { ...result, rawText: secondary.rawText, ocrConfidence: secondary.ocrConfidence };
-                recoveryActions[recoveryActions.length - 1].success = true;
-                recoveryActions[recoveryActions.length - 1].recoveredValue = `Improved confidence to ${secondary.ocrConfidence}%`;
-                ctx.log("Stage 2", `Secondary OCR improved confidence to ${secondary.ocrConfidence}%`);
+                secondaryAction.success = true;
+                secondaryAction.recoveredValue = `Improved confidence to ${secondary.ocrConfidence}%`;
+                ctx.log("Stage 2", `[doc ${doc.documentIndex}] Secondary OCR improved confidence to ${secondary.ocrConfidence}%`);
               } else {
-                recoveryActions[recoveryActions.length - 1].description += ` Secondary pass did not improve (${secondary.ocrConfidence}%).`;
-                ctx.log("Stage 2", `Secondary OCR did not improve confidence (${secondary.ocrConfidence}%)`);
+                secondaryAction.description += ` Secondary pass did not improve (${secondary.ocrConfidence}%).`;
+                ctx.log("Stage 2", `[doc ${doc.documentIndex}] Secondary OCR did not improve confidence (${secondary.ocrConfidence}%)`);
               }
             } catch (secondaryErr) {
-              ctx.log("Stage 2", `Secondary OCR failed: ${String(secondaryErr)} — using primary result`);
+              ctx.log("Stage 2", `[doc ${doc.documentIndex}] Secondary OCR failed: ${String(secondaryErr)} — using primary result`);
             }
 
             if (result.ocrConfidence < LOW_CONFIDENCE_THRESHOLD) {
-              isDegraded = true;
-              assumptions.push({
+              docDegraded = true;
+              docAssumptions.push({
                 field: `document_${doc.documentIndex}_text`,
                 assumedValue: "low_confidence_text",
                 reason: `OCR confidence remains low (${result.ocrConfidence}%) after secondary pass. Extracted text may contain errors.`,
@@ -458,15 +474,11 @@ export async function runExtractionStage(
             }
           }
 
-          // ── ENHANCEMENT: Document Pre-Processor ──────────────────────────
-          // Run the preprocessor on the extracted text to detect section types,
-          // handwritten regions, and table-like structures.
+          // ── ENHANCEMENT: Document Pre-Processor ──────────────────────────────────────────
           const preprocessed = preprocessDocument(result.rawText);
-          ctx.log("Stage 2", `Preprocessor: ${preprocessed.totalChunks} chunks, multiDoc=${preprocessed.hasMultipleDocuments}, quoteChunks=${preprocessed.repairQuoteChunks.length}, handwrittenChunks=${preprocessed.chunks.filter(c => c.likelyHandwritten).length}`);
+          ctx.log("Stage 2", `[doc ${doc.documentIndex}] Preprocessor: ${preprocessed.totalChunks} chunks, multiDoc=${preprocessed.hasMultipleDocuments}, quoteChunks=${preprocessed.repairQuoteChunks.length}, handwrittenChunks=${preprocessed.chunks.filter(c => c.likelyHandwritten).length}`);
 
-          // ── ENHANCEMENT: Targeted handwriting OCR pass ────────────────────
-          // If any chunk is flagged as likely handwritten, run a dedicated
-          // handwriting-focused OCR pass and append the result to the raw text.
+          // ── ENHANCEMENT: Targeted handwriting OCR pass ────────────────────────────────────
           const handwrittenChunks = preprocessed.chunks.filter(c => c.likelyHandwritten);
           if (handwrittenChunks.length > 0 && doc.sourceUrl) {
             try {
@@ -478,24 +490,21 @@ export async function runExtractionStage(
                   rawText: result.rawText + "\n\n[HANDWRITING_OCR]\n" + hwResult.rawText,
                   ocrConfidence: Math.max(result.ocrConfidence, hwResult.ocrConfidence),
                 };
-                recoveryActions.push({
+                docRecoveryActions.push({
                   target: `document_${doc.documentIndex}_handwriting`,
                   strategy: "secondary_ocr",
                   success: true,
                   description: `Handwriting OCR pass added ${hwResult.rawText.length} chars from ${handwrittenChunks.length} handwritten section(s).`,
                   recoveredValue: hwResult.rawText.substring(0, 200),
                 });
-                ctx.log("Stage 2", `Handwriting OCR: added ${hwResult.rawText.length} chars`);
+                ctx.log("Stage 2", `[doc ${doc.documentIndex}] Handwriting OCR: added ${hwResult.rawText.length} chars`);
               }
             } catch (hwErr) {
-              ctx.log("Stage 2", `Handwriting OCR pass failed: ${String(hwErr)} — continuing`);
+              ctx.log("Stage 2", `[doc ${doc.documentIndex}] Handwriting OCR pass failed: ${String(hwErr)} — continuing`);
             }
           }
 
-          // ── ENHANCEMENT: Targeted table OCR pass ─────────────────────────
-          // If repair quote chunks were detected and the primary confidence is
-          // below the handwriting threshold, run a table-focused re-extraction
-          // on the quote section specifically.
+          // ── ENHANCEMENT: Targeted table OCR pass ──────────────────────────────────────────────────
           if (preprocessed.repairQuoteChunks.length > 0 && result.ocrConfidence < HANDWRITING_CONFIDENCE_THRESHOLD && doc.sourceUrl) {
             try {
               const tableHint = preprocessed.repairQuoteText.substring(0, 400);
@@ -506,59 +515,73 @@ export async function runExtractionStage(
                   rawText: result.rawText + "\n\n[TABLE_OCR]\n" + tableResult.rawText,
                   ocrConfidence: Math.max(result.ocrConfidence, tableResult.ocrConfidence),
                 };
-                recoveryActions.push({
+                docRecoveryActions.push({
                   target: `document_${doc.documentIndex}_table`,
                   strategy: "secondary_ocr",
                   success: true,
                   description: `Table OCR pass added ${tableResult.rawText.length} chars from repair quote section.`,
                   recoveredValue: tableResult.rawText.substring(0, 200),
                 });
-                ctx.log("Stage 2", `Table OCR: added ${tableResult.rawText.length} chars`);
+                ctx.log("Stage 2", `[doc ${doc.documentIndex}] Table OCR: added ${tableResult.rawText.length} chars`);
               }
             } catch (tableErr) {
-              ctx.log("Stage 2", `Table OCR pass failed: ${String(tableErr)} — continuing`);
+              ctx.log("Stage 2", `[doc ${doc.documentIndex}] Table OCR pass failed: ${String(tableErr)} — continuing`);
             }
           }
 
-          extractedTexts.push({
-            documentIndex: doc.documentIndex,
-            rawText: result.rawText,
-            tables: result.tables,
-            ocrApplied: true,
-            ocrConfidence: result.ocrConfidence,
-          });
-          totalPages += 1;
-          ctx.log("Stage 2", `PDF extracted: ${result.rawText.length} chars, ${result.tables.length} tables, confidence: ${result.ocrConfidence}%`);
+          ctx.log("Stage 2", `[doc ${doc.documentIndex}] PDF extracted: ${result.rawText.length} chars, ${result.tables.length} tables, confidence: ${result.ocrConfidence}%`);
+          return {
+            extracted: { documentIndex: doc.documentIndex, rawText: result.rawText, tables: result.tables, ocrApplied: true, ocrConfidence: result.ocrConfidence },
+            docAssumptions,
+            docRecoveryActions,
+            docDegraded,
+          };
 
         } else if (doc.mimeType.startsWith("image/") && doc.sourceUrl) {
           const result = await extractTextFromImage(doc.sourceUrl, ctx);
-          extractedTexts.push({
-            documentIndex: doc.documentIndex,
-            rawText: result.rawText,
-            tables: [],
-            ocrApplied: true,
-            ocrConfidence: result.ocrConfidence,
-          });
-          totalPages += 1;
+          return {
+            extracted: { documentIndex: doc.documentIndex, rawText: result.rawText, tables: [], ocrApplied: true, ocrConfidence: result.ocrConfidence },
+            docAssumptions,
+            docRecoveryActions,
+            docDegraded,
+          };
         }
+
+        // Unknown mime type — skip
+        return {
+          extracted: { documentIndex: doc.documentIndex, rawText: "", tables: [], ocrApplied: false, ocrConfidence: 0 },
+          docAssumptions,
+          docRecoveryActions,
+          docDegraded: false,
+        };
+
       } catch (docErr) {
         // Self-healing: individual document extraction failed — continue with others
-        ctx.log("Stage 2", `Failed to extract document ${doc.documentIndex}: ${String(docErr)} — skipping`);
-        isDegraded = true;
-        recoveryActions.push({
-          target: `document_${doc.documentIndex}`,
-          strategy: "partial_data",
-          success: true,
-          description: `Extraction failed for ${doc.fileName}: ${String(docErr)}. Skipping this document and continuing.`,
-        });
-        extractedTexts.push({
-          documentIndex: doc.documentIndex,
-          rawText: "",
-          tables: [],
-          ocrApplied: false,
-          ocrConfidence: 0,
-        });
+        ctx.log("Stage 2", `[doc ${doc.documentIndex}] Failed to extract: ${String(docErr)} — skipping`);
+        return {
+          extracted: { documentIndex: doc.documentIndex, rawText: "", tables: [], ocrApplied: false, ocrConfidence: 0 },
+          docAssumptions: [],
+          docRecoveryActions: [{
+            target: `document_${doc.documentIndex}`,
+            strategy: "partial_data",
+            success: true,
+            description: `Extraction failed for ${doc.fileName}: ${String(docErr)}. Skipping this document and continuing.`,
+          }],
+          docDegraded: true,
+        };
       }
+    };
+
+    // Fire all document extractions concurrently
+    const docResults = await Promise.all(stage1.documents.map(processDoc));
+
+    // Merge results in document order
+    for (const dr of docResults) {
+      extractedTexts.push(dr.extracted);
+      totalPages += dr.extracted.ocrApplied ? 1 : 0;
+      assumptions.push(...dr.docAssumptions);
+      recoveryActions.push(...dr.docRecoveryActions);
+      if (dr.docDegraded) isDegraded = true;
     }
 
     const output: Stage2Output = {

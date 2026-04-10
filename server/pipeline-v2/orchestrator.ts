@@ -35,6 +35,7 @@ import { runValidationStage } from "./stage-4-validation";
 import { runAssemblyStage } from "./stage-5-assembly";
 import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runUnifiedStage7 } from "./stage-7-unified";
+import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexityScorer";
 import { runFraudAnalysisStage } from "./stage-8-fraud";
 import { aggregateConfidence, buildConfidenceAggregationInput } from "./confidenceAggregationEngine";
 import { runCostOptimisationStage } from "./stage-9-cost";
@@ -418,6 +419,19 @@ export async function runPipelineV2(
     });
   }
 
+  // ── COMPLEXITY GATE: Classify claim tier after assembly ─────────────────
+  // Deterministic, <1ms. Controls which optional stages are skipped.
+  let complexityScore: ComplexityScore | null = null;
+  if (claimRecord) {
+    complexityScore = scoreClaimComplexity(claimRecord);
+    ctx.log(
+      "ComplexityGate",
+      `Tier: ${complexityScore.tier} (score: ${complexityScore.score}/100). ` +
+      `Skip 7b Pass 2: ${complexityScore.skipStage7bPass2}. ` +
+      `Reasons: ${complexityScore.reasons.join("; ")}`
+    );
+  }
+
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
   const s6 = await runDamageAnalysisStage(ctx, claimRecord);
   recordStage("6_damage_analysis", s6);
@@ -583,7 +597,11 @@ export async function runPipelineV2(
   // After Stages 8 (fraud) and 9 (cost) complete, re-run Stage 7b with the
   // fraud risk score, fraud indicators, and quote deviation populated in
   // precomputedScores. This gives the causal engine a complete forensic picture.
-  if (stage8Data && stage9Data) {
+  //
+  // COMPLEXITY GATE: Skipped for SIMPLE tier claims (low value, clean data,
+  // no fraud pre-signals). All 13 fraud detection layers remain fully active.
+  // The primary Stage 7b Pass 1 verdict is already captured above.
+  if (stage8Data && stage9Data && !complexityScore?.skipStage7bPass2) {
     try {
       const enrichedPhotosJsonRerun: string | null = (ctx as any).enrichedPhotosJson ?? null;
       const precomputedScores = {
@@ -716,12 +734,31 @@ export async function runPipelineV2(
   recordStage("9b_turnaround", s9b);
   stage9bData = s9b.data; // Always has data (self-healing)
 
-  // ── STAGE 10: Report Generation ──────────────────────────────────────
+  // ── STAGE 10: Report Generation ───────────────────────────────────────────────
+  // Build evidenceTrace for audit transparency
+  const stage7bPass2Executed = !!(stage8Data && stage9Data && !complexityScore?.skipStage7bPass2);
+  const evidenceTrace: import('./types').Stage10Output['evidenceTrace'] = complexityScore ? {
+    claimTier: complexityScore.tier,
+    complexityScore: complexityScore.score,
+    complexityReasons: complexityScore.reasons,
+    stage7bPass2Executed,
+    parallelStages: [
+      { stages: ["3_pdf_extraction", "3_photo_extraction", "3_quote_extraction"], rationale: "Document extraction passes are independent — all read from the same raw text/image bytes" },
+      { stages: ["7_causal_reasoning", "7e_narrative"], rationale: "Stage 7e (narrative) only needs physics output, not the causal verdict" },
+      { stages: ["8_fraud", "9_cost"], rationale: "Fraud and cost engines have identical inputs and no mutual dependency" },
+    ],
+    totalDurationMs: Date.now() - pipelineStart,
+    stageDurations: Object.fromEntries(
+      Object.entries(stages).map(([k, v]) => [k, (v as any).durationMs ?? 0])
+    ),
+  } : null;
+
   const s10 = await runReportGenerationStage(
     ctx, claimRecord,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     allAssumptions,
-    causalChain
+    causalChain,
+    evidenceTrace
   );
   recordStage("10_report", s10);
   stage10Data = s10.data;

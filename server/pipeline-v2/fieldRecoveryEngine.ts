@@ -469,6 +469,11 @@ export async function runFieldRecovery(
 
   log(`Field recovery: ${nullCriticalFields.length} null critical fields to recover: ${nullCriticalFields.join(", ")}`);
 
+  // ─── PASS 1: Synchronous strategies (cross-field inference + regex) ───────────
+  // These are instant and may produce values that other fields can use via
+  // cross-field inference, so they must complete before any LLM calls fire.
+  const needsLlm: (keyof ExtractedClaimFields)[] = [];
+
   for (const field of nullCriticalFields) {
     let recovered = false;
     let value: any = null;
@@ -476,7 +481,7 @@ export async function runFieldRecovery(
     let source: FieldRecoveryResult["source"] = "not_found";
     let notes = "";
 
-    // STEP 1: Cross-field inference (instant)
+    // STEP 1: Cross-field inference (instant — reads patchedFields so must be sequential)
     const crossResult = tryCrossFieldInference(field, patchedFields);
     if (crossResult !== null) {
       value = crossResult.value;
@@ -486,7 +491,7 @@ export async function runFieldRecovery(
       notes = `Inferred from related field`;
     }
 
-    // STEP 2: Regex fallback (fast)
+    // STEP 2: Regex fallback (fast, no LLM)
     if (!recovered && rawText) {
       const regexResult = tryRegexExtract(field, rawText);
       if (regexResult !== null) {
@@ -498,28 +503,42 @@ export async function runFieldRecovery(
       }
     }
 
-    // STEP 3: Targeted LLM prompt (most accurate — fires for high-value fields)
-    if (!recovered && TARGETED_PROMPTS[field]) {
-      const llmResult = await tryLlmRecover(field, rawText, pdfUrl);
-      if (llmResult !== null) {
-        value = llmResult.value;
-        confidence = llmResult.confidence;
-        source = "llm_targeted";
-        recovered = true;
-        notes = `Recovered via targeted LLM extraction`;
-      }
-    }
-
     if (recovered && value !== null) {
-      // Apply the recovered value to the patched fields
       (patchedFields as any)[field] = value;
       log(`Field recovery: ${field} = ${JSON.stringify(value)} (${source}, ${confidence})`);
+      results.push({ field, recovered, value, confidence, source, notes });
+    } else if (TARGETED_PROMPTS[field]) {
+      // Defer to parallel LLM pass
+      needsLlm.push(field);
     } else {
       notes = `Field not found in document after all recovery strategies`;
       log(`Field recovery: ${field} = NOT FOUND`);
+      results.push({ field, recovered: false, value: null, confidence: "low", source: "not_found", notes });
     }
+  }
 
-    results.push({ field, recovered, value, confidence, source, notes });
+  // ─── PASS 2: Parallel LLM recovery ────────────────────────────────────────
+  // All remaining fields that need LLM recovery are fired concurrently.
+  // Each call is fully independent — they read from rawText/pdfUrl, not from
+  // patchedFields, so there is no ordering dependency between them.
+  if (needsLlm.length > 0) {
+    log(`Field recovery: firing ${needsLlm.length} LLM calls in parallel for: ${needsLlm.join(", ")}`);
+    const llmResults = await Promise.all(
+      needsLlm.map(async (field) => {
+        const llmResult = await tryLlmRecover(field, rawText, pdfUrl);
+        return { field, llmResult };
+      })
+    );
+    for (const { field, llmResult } of llmResults) {
+      if (llmResult !== null) {
+        (patchedFields as any)[field] = llmResult.value;
+        log(`Field recovery: ${field} = ${JSON.stringify(llmResult.value)} (llm_targeted, ${llmResult.confidence})`);
+        results.push({ field, recovered: true, value: llmResult.value, confidence: llmResult.confidence, source: "llm_targeted", notes: `Recovered via targeted LLM extraction` });
+      } else {
+        log(`Field recovery: ${field} = NOT FOUND`);
+        results.push({ field, recovered: false, value: null, confidence: "low", source: "not_found", notes: `Field not found in document after all recovery strategies` });
+      }
+    }
   }
 
   const fieldsRecovered = results.filter(r => r.recovered).length;

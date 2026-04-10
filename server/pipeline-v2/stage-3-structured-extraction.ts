@@ -645,123 +645,107 @@ export async function runStructuredExtractionStage(
       ctx.log("Stage 3", "DEGRADED: No documents to extract from");
     }
 
-    // Extract from PDF documents
+    // ─── PARALLEL EXTRACTION TIER ────────────────────────────────────────────
+    // PDF extraction, photo extraction, and input recovery (quote extraction)
+    // are all independent — they read from stage1/stage2 inputs and do not
+    // depend on each other's output. Fire them all concurrently.
     const pdfDocs = stage1.documents.filter(d => d.mimeType === "application/pdf");
-    for (const pdfDoc of pdfDocs) {
-      try {
-        const extractedText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex);
-        const rawText = extractedText?.rawText || "";
-
-        // ── ENHANCEMENT: Section-targeted extraction ──────────────────────────
-        // Run the preprocessor to split the document into labelled sections.
-        // Prepend the repair quote section to the raw text context so the LLM
-        // sees it prominently and does not stop reading at the claim form.
-        const preprocessed = preprocessDocument(rawText);
-        ctx.log("Stage 3", `Preprocessor: ${preprocessed.totalChunks} chunks, quoteText=${preprocessed.repairQuoteText.length}chars, claimFormText=${preprocessed.claimFormText.length}chars, multiDoc=${preprocessed.hasMultipleDocuments}`);
-
-        const enrichedRawText = preprocessed.repairQuoteText.length > 100
-          ? `[REPAIR QUOTE SECTION — read this first for cost data]\n${preprocessed.repairQuoteText}\n\n[CLAIM FORM SECTION — read this for incident and vehicle data]\n${preprocessed.claimFormText}\n\n[FULL DOCUMENT]\n${rawText.substring(0, 5000)}`
-          : rawText.substring(0, 8000);
-
-        ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName} (${pdfDoc.imageUrls.length} page images available)`);
-        const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, enrichedRawText, ctx, pdfDoc.imageUrls);
-        // WI-2: Populate uploadedImageUrls from rendered page images so A7 passes
-        if (pdfDoc.imageUrls.length > 0) {
-          fields.uploadedImageUrls = [...pdfDoc.imageUrls];
-        }
-        fields.sourceDocumentIndex = pdfDoc.documentIndex;
-        perDocumentExtractions.push(fields);
-
-        // Score extraction quality
-        const qualityScore = scoreExtraction(fields);
-        ctx.log("Stage 3", `PDF extraction complete. Vehicle: ${fields.vehicleMake || 'unknown'} ${fields.vehicleModel || 'unknown'}, Components: ${fields.damagedComponents.length}, QuoteTotal: ${fields.quoteTotalCents}. Quality: ${qualityScore.score}/100 (${qualityScore.tier}). Missing: ${qualityScore.missingFields.join(", ") || "none"}.`);
-        if (qualityScore.tier === "LOW") {
-          isDegraded = true;
-          recoveryActions.push({
-            target: `pdf_extraction_quality_${pdfDoc.documentIndex}`,
-            strategy: "partial_data",
-            success: false,
-            description: `Extraction quality LOW (${qualityScore.score}/100). Missing critical fields: ${qualityScore.missingFields.join(", ")}. Notes: ${qualityScore.notes.join("; ")}.`,
-          });
-        }
-      } catch (docErr) {
-        // Self-healing: individual PDF extraction failed — continue
-        isDegraded = true;
-        ctx.log("Stage 3", `Failed to extract from PDF ${pdfDoc.fileName}: ${String(docErr)} — skipping`);
-        recoveryActions.push({
-          target: `pdf_extraction_${pdfDoc.documentIndex}`,
-          strategy: "partial_data",
-          success: true,
-          description: `PDF extraction failed for ${pdfDoc.fileName}: ${String(docErr)}. Continuing with other documents.`,
-        });
-      }
-    }
-
-    // Extract from damage photos
     const photoDocs = stage1.documents.filter(d => d.documentType === "vehicle_photos");
-    if (photoDocs.length > 0) {
-      const photoUrls = photoDocs.map(d => d.sourceUrl).filter(Boolean) as string[];
-      if (photoUrls.length > 0) {
+    const photoUrls = photoDocs.map(d => d.sourceUrl).filter(Boolean) as string[];
+
+    // ── PDF extraction task ──────────────────────────────────────────────────
+    const pdfExtractionTask = async (): Promise<ExtractedClaimFields[]> => {
+      const results: ExtractedClaimFields[] = [];
+      for (const pdfDoc of pdfDocs) {
         try {
-          ctx.log("Stage 3", `Extracting structured fields from ${photoUrls.length} damage photo(s)`);
-          const photoFields = await extractFieldsFromPhotos(photoUrls, ctx);
-          photoFields.uploadedImageUrls = photoUrls;
-          perDocumentExtractions.push(photoFields);
-          ctx.log("Stage 3", `Photo extraction complete. Components: ${photoFields.damagedComponents.length}`);
-        } catch (photoErr) {
+          const extractedText = stage2.extractedTexts.find(t => t.documentIndex === pdfDoc.documentIndex);
+          const rawText = extractedText?.rawText || "";
+          const preprocessed = preprocessDocument(rawText);
+          ctx.log("Stage 3", `Preprocessor: ${preprocessed.totalChunks} chunks, quoteText=${preprocessed.repairQuoteText.length}chars, claimFormText=${preprocessed.claimFormText.length}chars, multiDoc=${preprocessed.hasMultipleDocuments}`);
+          const enrichedRawText = preprocessed.repairQuoteText.length > 100
+            ? `[REPAIR QUOTE SECTION — read this first for cost data]\n${preprocessed.repairQuoteText}\n\n[CLAIM FORM SECTION — read this for incident and vehicle data]\n${preprocessed.claimFormText}\n\n[FULL DOCUMENT]\n${rawText.substring(0, 5000)}`
+            : rawText.substring(0, 8000);
+          ctx.log("Stage 3", `Extracting structured fields from PDF: ${pdfDoc.fileName} (${pdfDoc.imageUrls.length} page images available)`);
+          const fields = await extractFieldsFromPdf(pdfDoc.sourceUrl, enrichedRawText, ctx, pdfDoc.imageUrls);
+          if (pdfDoc.imageUrls.length > 0) fields.uploadedImageUrls = [...pdfDoc.imageUrls];
+          fields.sourceDocumentIndex = pdfDoc.documentIndex;
+          const qualityScore = scoreExtraction(fields);
+          ctx.log("Stage 3", `PDF extraction complete. Vehicle: ${fields.vehicleMake || 'unknown'} ${fields.vehicleModel || 'unknown'}, Components: ${fields.damagedComponents.length}, QuoteTotal: ${fields.quoteTotalCents}. Quality: ${qualityScore.score}/100 (${qualityScore.tier}). Missing: ${qualityScore.missingFields.join(", ") || "none"}.`);
+          if (qualityScore.tier === "LOW") {
+            isDegraded = true;
+            recoveryActions.push({ target: `pdf_extraction_quality_${pdfDoc.documentIndex}`, strategy: "partial_data", success: false, description: `Extraction quality LOW (${qualityScore.score}/100). Missing critical fields: ${qualityScore.missingFields.join(", ")}. Notes: ${qualityScore.notes.join("; ")}.` });
+          }
+          results.push(fields);
+        } catch (docErr) {
           isDegraded = true;
-          ctx.log("Stage 3", `Failed to extract from photos: ${String(photoErr)} — skipping`);
-          recoveryActions.push({
-            target: "photo_extraction",
-            strategy: "partial_data",
-            success: true,
-            description: `Photo extraction failed: ${String(photoErr)}. Damage assessment will rely on text descriptions.`,
-          });
+          ctx.log("Stage 3", `Failed to extract from PDF ${pdfDoc.fileName}: ${String(docErr)} — skipping`);
+          recoveryActions.push({ target: `pdf_extraction_${pdfDoc.documentIndex}`, strategy: "partial_data", success: true, description: `PDF extraction failed for ${pdfDoc.fileName}: ${String(docErr)}. Continuing with other documents.` });
         }
       }
-    }
+      return results;
+    };
 
-    if (perDocumentExtractions.length === 0 && stage1.documents.length > 0) {
-      isDegraded = true;
-      assumptions.push({
-        field: "perDocumentExtractions",
-        assumedValue: "all_failed",
-        reason: "All document extractions failed. Will rely on claim database fields at assembly stage.",
-        strategy: "partial_data",
-        confidence: 15,
-        stage: "Stage 3",
-      });
-    }
+    // ── Photo extraction task ────────────────────────────────────────────────
+    const photoExtractionTask = async (): Promise<ExtractedClaimFields | null> => {
+      if (photoUrls.length === 0) return null;
+      try {
+        ctx.log("Stage 3", `Extracting structured fields from ${photoUrls.length} damage photo(s)`);
+        const photoFields = await extractFieldsFromPhotos(photoUrls, ctx);
+        photoFields.uploadedImageUrls = photoUrls;
+        ctx.log("Stage 3", `Photo extraction complete. Components: ${photoFields.damagedComponents.length}`);
+        return photoFields;
+      } catch (photoErr) {
+        isDegraded = true;
+        ctx.log("Stage 3", `Failed to extract from photos: ${String(photoErr)} — skipping`);
+        recoveryActions.push({ target: "photo_extraction", strategy: "partial_data", success: true, description: `Photo extraction failed: ${String(photoErr)}. Damage assessment will rely on text descriptions.` });
+        return null;
+      }
+    };
 
-    // Run 5-step input recovery pass
-    let inputRecovery;
-    try {
-      inputRecovery = await runInputRecovery(stage1, stage2, perDocumentExtractions);
+    // ── Input recovery task (quote extraction) ───────────────────────────────
+    // runInputRecovery reads stage1/stage2 and any already-available extractions.
+    // Since it only needs the raw text (not the LLM extraction results), it can
+    // run concurrently with PDF and photo extraction.
+    const inputRecoveryTask = async () => {
+      try {
+        const result = await runInputRecovery(stage1, stage2, []);
+        return result;
+      } catch (recErr) {
+        ctx.log("Stage 3", `Input recovery failed: ${String(recErr)} — skipping`);
+        return undefined;
+      }
+    };
+
+    // Fire all three tasks concurrently
+    ctx.log("Stage 3", "Firing PDF extraction, photo extraction, and input recovery in parallel");
+    const [pdfResults, photoResult, inputRecoveryResult] = await Promise.all([
+      pdfExtractionTask(),
+      photoExtractionTask(),
+      inputRecoveryTask(),
+    ]);
+
+    // Merge results
+    perDocumentExtractions.push(...pdfResults);
+    if (photoResult) perDocumentExtractions.push(photoResult);
+    let inputRecovery = inputRecoveryResult;
+
+    if (inputRecovery) {
       const llmQuoteCount = inputRecovery.extracted_quotes?.filter(q => q.total_cost !== null).length ?? 0;
       ctx.log("Stage 3", `Input recovery complete. Quote recovered: ${inputRecovery.recovered_quote ? `USD ${inputRecovery.recovered_quote.total} (${inputRecovery.recovered_quote.confidence})` : 'none'}. LLM quotes extracted: ${llmQuoteCount}. Images present: ${inputRecovery.images_present}. Flags: ${inputRecovery.failure_flags.join(", ") || "none"}.`);
-      // Only degrade on flags that indicate actual data loss — not benign flags like images_not_processed
       const criticalRecoveryFlags = (inputRecovery.failure_flags as string[]).filter(
         (f: string) => f !== "images_not_processed" && f !== "no_photos"
       );
       if (criticalRecoveryFlags.length > 0) {
         isDegraded = true;
-        recoveryActions.push({
-          target: "input_recovery",
-          strategy: "partial_data",
-          success: true,
-          description: `Input recovery flagged (critical): ${criticalRecoveryFlags.join(", ")}. Downstream stages should use recovered values where available.`,
-        });
+        recoveryActions.push({ target: "input_recovery", strategy: "partial_data", success: true, description: `Input recovery flagged (critical): ${criticalRecoveryFlags.join(", ")}. Downstream stages should use recovered values where available.` });
       } else if (inputRecovery.failure_flags.length > 0) {
-        // Log benign flags without degrading the extraction status
-        recoveryActions.push({
-          target: "input_recovery",
-          strategy: "partial_data",
-          success: true,
-          description: `Input recovery benign flags (non-critical, no degradation): ${(inputRecovery.failure_flags as string[]).join(", ")}.`,
-        });
+        recoveryActions.push({ target: "input_recovery", strategy: "partial_data", success: true, description: `Input recovery benign flags (non-critical, no degradation): ${(inputRecovery.failure_flags as string[]).join(", ")}.` });
       }
-    } catch (recErr) {
-      ctx.log("Stage 3", `Input recovery failed: ${String(recErr)} — skipping`);
+    }
+
+    if (perDocumentExtractions.length === 0 && stage1.documents.length > 0) {
+      isDegraded = true;
+      assumptions.push({ field: "perDocumentExtractions", assumedValue: "all_failed", reason: "All document extractions failed. Will rely on claim database fields at assembly stage.", strategy: "partial_data", confidence: 15, stage: "Stage 3" });
     }
 
     // ── TARGETED FIELD RECOVERY ───────────────────────────────────────────────
