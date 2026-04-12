@@ -228,6 +228,7 @@ export async function runPipelineV2(
   costAnalysis: Stage9Output | null;
   turnaroundAnalysis: TurnaroundTimeOutput | null;
   causalVerdict: CausalVerdict | null;
+  enrichedPhotosJson: string | null;
 }> {
   const pipelineStart = Date.now();
   const stages: Record<string, PipelineStageSummary> = {};
@@ -341,6 +342,7 @@ export async function runPipelineV2(
           costAnalysis: null,
           turnaroundAnalysis: null,
           causalVerdict: null,
+          enrichedPhotosJson: null,
         };
       }
     } catch (err) {
@@ -1025,7 +1027,8 @@ export async function runPipelineV2(
     causalChain, evidenceBundle, realismBundle, benchmarkBundle, consensusResult,
     causalVerdict, evidenceRegistryData, validatedOutcomeResult, caseSignatureResult,
     documentVerificationResult, stage2RawOcrText,
-    decisionAuthorityResult, reportReadinessResult, forensicAnalysisResult
+    decisionAuthorityResult, reportReadinessResult, forensicAnalysisResult,
+    (ctx as any).enrichedPhotosJson ?? null
   );
 }
 
@@ -1053,7 +1056,8 @@ function buildResult(
   stage2RawOcrText: string | null = null,
   decisionAuthority: ClaimsDecisionOutput | null = null,
   reportReadiness: ReportReadinessResult | null = null,
-  forensicAnalysis: Record<string, any> | null = null
+  forensicAnalysis: Record<string, any> | null = null,
+  enrichedPhotosJson: string | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
   return {
@@ -1094,6 +1098,9 @@ function buildResult(
     decisionAuthority,
     reportReadiness,
     forensicAnalysis,
+    // Image analysis monitoring — enriched photo metadata from Stage 6 vision analysis
+    // Passed to db.ts so it can compute imageAnalysisSuccessCount/FailedCount/SuccessRate.
+    enrichedPhotosJson,
   };
 }
 

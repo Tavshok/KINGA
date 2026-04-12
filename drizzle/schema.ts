@@ -127,6 +127,13 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Persisted so the ForensicAuditReport renders correctly for historical assessments
   // without requiring a live pipeline re-run.
   narrativeAnalysisJson: text("narrative_analysis_json"),
+  // Image analysis monitoring — tracks vision success rate per assessment run
+  // Used to detect systemic failures and alert the team when success rate drops below threshold.
+  imageAnalysisTotalCount: int("image_analysis_total_count").default(0),
+  imageAnalysisSuccessCount: int("image_analysis_success_count").default(0),
+  imageAnalysisFailedCount: int("image_analysis_failed_count").default(0),
+  // Percentage 0–100 (null = no images were submitted for analysis)
+  imageAnalysisSuccessRate: int("image_analysis_success_rate"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

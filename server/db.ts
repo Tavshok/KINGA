@@ -437,30 +437,13 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   }
 
-  // ── PRE-FLIGHT: Verify PDF URL is accessible before passing to LLM ──────
-  // The LLM receives the PDF as a file_url reference. If the URL is not publicly
-  // accessible (e.g. expired presigned URL, CloudFront auth required, network error),
-  // the LLM silently fails or hangs for 45s per call. We do a fast HEAD check first.
+  // NOTE: Pre-flight HEAD check removed — Manus storage proxy URLs return non-200
+  // for HEAD requests even when the LLM can access them via GET (file_url).
+  // The HEAD check was a false negative that set pdfUrl=null and caused the pipeline
+  // to create a placeholder instead of running. The LLM's 45s per-call timeout is
+  // sufficient protection against truly inaccessible URLs.
   if (pdfUrl) {
-    try {
-      const headController = new AbortController();
-      const headTimeout = setTimeout(() => headController.abort(), 8000);
-      const headResp = await fetch(pdfUrl, { method: 'HEAD', signal: headController.signal }).catch(() => null);
-      clearTimeout(headTimeout);
-      if (!headResp || !headResp.ok) {
-        console.warn(`[AI Assessment] Claim ${claimId}: PDF URL pre-flight failed (status=${headResp?.status ?? 'timeout'}) — LLM will receive null pdfUrl and fall back to text-only extraction.`);
-        pdfUrl = null;
-        // Fall back to cached damage photos if available
-        if (!damagePhotos.length) {
-          damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
-        }
-      } else {
-        console.log(`[AI Assessment] Claim ${claimId}: PDF URL pre-flight OK (${headResp.status}) — proceeding with LLM PDF extraction.`);
-      }
-    } catch (preflightErr: any) {
-      console.warn(`[AI Assessment] Claim ${claimId}: PDF URL pre-flight threw (${preflightErr.message}) — continuing with null pdfUrl.`);
-      pdfUrl = null;
-    }
+    console.log(`[AI Assessment] Claim ${claimId}: PDF URL ready — proceeding with LLM extraction: ${pdfUrl.substring(0, 100)}...`);
   }
 
   // ── PERMANENT FIX: PDF image re-extraction ──────────────────────────
@@ -867,6 +850,33 @@ export async function triggerAiAssessment(claimId: number) {
     reportReadinessJson: reportReadiness ? JSON.stringify(reportReadiness) : null,
     // Stage 13: Forensic Analysis — comprehensive forensic analysis summary from all stages
     forensicAnalysis: forensicAnalysis ? JSON.stringify(forensicAnalysis) : null,
+    // Image analysis monitoring — tracks vision success rate per assessment run
+    // Derived from enrichedPhotosJson set by Stage 6 on ctx and passed through orchestrator return.
+    // Used to detect systemic failures and alert the team when success rate drops below threshold.
+    imageAnalysisTotalCount: damagePhotos.length,
+    imageAnalysisSuccessCount: (() => {
+      if (damagePhotos.length === 0) return 0;
+      try {
+        const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
+        return enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
+      } catch { return 0; }
+    })(),
+    imageAnalysisFailedCount: (() => {
+      if (damagePhotos.length === 0) return 0;
+      try {
+        const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
+        const successCount = enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
+        return Math.max(0, damagePhotos.length - successCount);
+      } catch { return damagePhotos.length; }
+    })(),
+    imageAnalysisSuccessRate: (() => {
+      if (damagePhotos.length === 0) return null;
+      try {
+        const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
+        const successCount = enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
+        return enriched.length > 0 ? Math.round((successCount / enriched.length) * 100) : 0;
+      } catch { return 0; }
+    })(),
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

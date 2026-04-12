@@ -15,6 +15,42 @@
 
 import { invokeLLM } from "../_core/llm";
 
+// ── Reliability helpers ────────────────────────────────────────────────────
+
+const PHOTO_TIMEOUT_MS = 45_000;
+const PHOTO_RETRIES = 2;
+
+async function withTimeout<T>(fn: () => Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`Vision call timed out after ${ms}ms`)), ms);
+    fn().then(
+      (v) => { clearTimeout(timer); resolve(v); },
+      (e) => { clearTimeout(timer); reject(e); }
+    );
+  });
+}
+
+async function withRetry<T>(fn: () => Promise<T>, retries: number): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try { return await fn(); } catch (e) {
+      lastErr = e;
+      if (attempt < retries) await new Promise((r) => setTimeout(r, 1000 * Math.pow(2, attempt)));
+    }
+  }
+  throw lastErr;
+}
+
+async function isUrlAccessible(url: string): Promise<boolean> {
+  try {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), 5000);
+    const r = await fetch(url, { method: 'GET', signal: ctrl.signal }).catch(() => null);
+    clearTimeout(t);
+    return r ? r.status < 400 : true;
+  } catch { return true; }
+}
+
 // ── Types ──────────────────────────────────────────────────────────────────
 
 export type DamageSeverity = 'minor' | 'moderate' | 'severe' | 'critical';
@@ -72,10 +108,71 @@ export interface PhotoEnrichmentResult {
 
 // ── Per-image vision analysis ──────────────────────────────────────────────
 
+/** Simpler fallback prompt when primary returns invalid/empty response */
+async function analyzePhotoFallback(url: string, index: number): Promise<EnrichedPhoto> {
+  try {
+    const response = await withRetry(
+      () => withTimeout(() => invokeLLM({
+        messages: [
+          { role: 'system', content: 'You are a vehicle damage assessor. Describe any visible vehicle damage in the image. Return JSON only.' },
+          {
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url, detail: 'low' } },
+              { type: 'text', text: 'Describe visible vehicle damage. If no vehicle or damage is visible, say so. Return JSON with: impactZone (string), detectedComponents (array of strings), severity (minor|moderate|severe|critical), confidenceScore (0-100), caption (string), imageQuality (good|poor|unusable).' },
+            ],
+          },
+        ],
+        response_format: {
+          type: 'json_schema',
+          json_schema: {
+            name: 'photo_analysis_fallback',
+            strict: true,
+            schema: {
+              type: 'object',
+              properties: {
+                impactZone: { type: 'string' },
+                detectedComponents: { type: 'array', items: { type: 'string' } },
+                severity: { type: 'string', enum: ['minor', 'moderate', 'severe', 'critical'] },
+                confidenceScore: { type: 'integer' },
+                caption: { type: 'string' },
+                imageQuality: { type: 'string', enum: ['good', 'poor', 'unusable'] },
+              },
+              required: ['impactZone', 'detectedComponents', 'severity', 'confidenceScore', 'caption', 'imageQuality'],
+              additionalProperties: false,
+            },
+          },
+        },
+      }), PHOTO_TIMEOUT_MS),
+      1 // only 1 retry for fallback
+    );
+    const content = response?.choices?.[0]?.message?.content;
+    const parsed = typeof content === 'string' ? JSON.parse(content) : content;
+    if (!parsed?.impactZone) return buildFallbackPhoto(url, index, 'Fallback prompt also returned invalid response');
+    return {
+      url, index,
+      impactZone: parsed.impactZone,
+      detectedComponents: Array.isArray(parsed.detectedComponents) ? parsed.detectedComponents : [],
+      severity: parsed.severity ?? 'moderate',
+      confidenceScore: Math.min(100, Math.max(0, Number(parsed.confidenceScore) || 30)),
+      caption: parsed.caption ?? '',
+      imageQuality: parsed.imageQuality ?? 'poor',
+      enrichedAt: new Date().toISOString(),
+    };
+  } catch (err) {
+    return buildFallbackPhoto(url, index, `Fallback failed: ${String(err)}`);
+  }
+}
+
 async function analyzePhoto(
   url: string,
   index: number,
 ): Promise<EnrichedPhoto> {
+  // Pre-validate URL (non-blocking — assume accessible on network error)
+  const accessible = await isUrlAccessible(url);
+  if (!accessible) {
+    return buildFallbackPhoto(url, index, 'Image URL returned HTTP 4xx/5xx — skipped');
+  }
   const systemPrompt =
     'You are a vehicle damage analysis assistant.\n\n' +
     'Your task is to describe visible damage objectively.\n\n' +
@@ -102,7 +199,8 @@ async function analyzePhoto(
     'Return structured JSON.';
 
   try {
-    const response = await invokeLLM({
+    const response = await withRetry(
+      () => withTimeout(() => invokeLLM({
       messages: [
         { role: 'system', content: systemPrompt },
         {
@@ -133,13 +231,16 @@ async function analyzePhoto(
           },
         },
       },
-    });
+    }), PHOTO_TIMEOUT_MS),
+    PHOTO_RETRIES
+    );
 
     const content = response?.choices?.[0]?.message?.content;
     const parsed = typeof content === 'string' ? JSON.parse(content) : content;
 
     if (!parsed || !parsed.impactZone) {
-      return buildFallbackPhoto(url, index, 'LLM returned invalid response');
+      // Fallback: try a simpler prompt if primary returned invalid
+      return await analyzePhotoFallback(url, index);
     }
 
     return {

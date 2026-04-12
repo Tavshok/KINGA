@@ -1507,6 +1507,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 // ─── 3.2 Vehicle Valuation Subsection ─────────────────────────────────────────
 
 function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessment: any; enforcement: any; quotes?: any[] }) {
+  // Currency-aware formatter — derived from claim currency code
+  const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
   // Read claimRecord from the correct location — same as the rest of the report
   const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const marketValueUsd = claimRecord?.vehicle?.marketValueUsd ?? null;
@@ -1565,6 +1567,8 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
 // ─── Section 4: Evidence Inventory ───────────────────────────────────────────
 
 function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: any; enforcement: any; claim: any }) {
+  // Currency-aware formatter — derived from claim currency code
+  const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
   const phase2 = (enforcement as any)?._phase2 as any;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
   const photosDetected = aiAssessment?.photosDetected ?? 0;
