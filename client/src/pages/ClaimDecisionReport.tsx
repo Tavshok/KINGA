@@ -1361,6 +1361,45 @@ export default function ClaimDecisionReport() {
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
+        {/* ── PIPELINE_INCOMPLETE banner ── */}
+        {(() => {
+          const summaryJson = (aiAssessment as any)?.pipelineExecutionSummaryJson;
+          let summary: any = null;
+          try { summary = summaryJson ? JSON.parse(summaryJson) : null; } catch {}
+          if (summary?.status === 'PIPELINE_INCOMPLETE') {
+            return (
+              <div className="mb-4 rounded-xl border-2 border-red-500 bg-red-50 dark:bg-red-950/30 p-4 flex gap-3">
+                <div className="text-red-600 text-xl mt-0.5">⛔</div>
+                <div>
+                  <div className="font-bold text-red-700 dark:text-red-400 text-sm mb-1">AI Assessment Incomplete — Manual Review Required</div>
+                  <div className="text-red-600 dark:text-red-300 text-xs">{summary.reason ?? 'The AI pipeline did not complete successfully. This claim cannot be adjudicated using AI-generated data. An assessor must review the claim manually before any decision is recorded.'}</div>
+                  {summary.missingComponents?.length > 0 && (
+                    <div className="text-red-500 dark:text-red-400 text-xs mt-1">Missing: {summary.missingComponents.join(', ')}</div>
+                  )}
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
+        {/* ── REPLAY_INCOMPLETE warning ── */}
+        {(() => {
+          const felSnap = (aiAssessment as any)?._felVersionSnapshot;
+          if (felSnap && felSnap.replaySupported === false) {
+            return (
+              <div className="mb-4 rounded-xl border border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 flex gap-3">
+                <div className="text-amber-600 text-lg mt-0.5">⚠️</div>
+                <div>
+                  <div className="font-semibold text-amber-700 dark:text-amber-400 text-sm mb-0.5">Audit Replay Incomplete</div>
+                  <div className="text-amber-600 dark:text-amber-300 text-xs">{felSnap.replayLimitation ?? 'This assessment cannot be fully replayed for audit purposes because one or more pipeline stages are missing prompt version hashes.'}</div>
+                </div>
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         {/* ── Phase 5A: Decision Narrative View ── */}
         <ReportSectionDivider label="Decision Narrative" icon="🧠" />
         <div className="mb-6 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)', padding: '1.25rem' }}>

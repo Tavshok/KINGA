@@ -385,7 +385,7 @@ export async function triggerAiAssessment(claimId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  const { runPipelineV2 } = await import("./pipeline-v2/orchestrator");
+  const { runPipelineV2, PipelineIncompleteError } = await import("./pipeline-v2/orchestrator");
 
   // Get claim details including damage photos
   const claim = await getClaimById(claimId);
@@ -552,7 +552,45 @@ export async function triggerAiAssessment(claimId: number) {
       );
     }),
   ]);
-  const result = await pipelineWithTimeout;
+  let result: Awaited<ReturnType<typeof runPipelineV2>>;
+  try {
+    result = await pipelineWithTimeout;
+  } catch (pipelineErr) {
+    if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
+    if (pipelineErr instanceof PipelineIncompleteError) {
+      // Route to PIPELINE_INCOMPLETE state — do not write a report
+      console.error(`[AI Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
+      await db.update(claims).set({
+        aiAssessmentStatus: "failed",
+        updatedAt: new Date(),
+      }).where(eq(claims.id, claimId));
+      // Upsert a minimal ai_assessment record so the exception queue can surface it
+      const existingAssessment = await db.select({ id: aiAssessments.id })
+        .from(aiAssessments).where(eq(aiAssessments.claimId, claimId)).limit(1);
+      const pipelineIncompleteJson = JSON.stringify({
+        status: "PIPELINE_INCOMPLETE",
+        reason: pipelineErr.message,
+        missingComponents: pipelineErr.guardResult?.missingComponents ?? [],
+        timestamp: new Date().toISOString(),
+      });
+      if (existingAssessment.length > 0) {
+        await db.update(aiAssessments).set({
+          pipelineExecutionSummaryJson: pipelineIncompleteJson,
+          updatedAt: new Date(),
+        }).where(eq(aiAssessments.claimId, claimId));
+      } else {
+        await db.insert(aiAssessments).values({
+          claimId,
+          tenantId: claim.tenantId ? Number(claim.tenantId) : null,
+          pipelineExecutionSummaryJson: pipelineIncompleteJson,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
+      return;
+    }
+    throw pipelineErr;
+  }
   if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
 
   // ── PERSIST RESULTS TO DATABASE ────────────────────────────────────

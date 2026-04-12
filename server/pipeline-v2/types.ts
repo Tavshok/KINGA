@@ -262,6 +262,9 @@ export interface ExtractedClaimFields {
   bettermentCents: number | null;   // Betterment/depreciation in cents
   // Driver
   driverLicenseNumber: string | null;
+  // Cross-border
+  repairCountry: string | null;   // ISO 3166-1 alpha-2 country where repair is happening (e.g. 'ZA', 'ZW')
+  quoteCurrency: string | null;   // Currency of the repair quote (e.g. 'ZAR', 'USD', 'ZWL')
   // Images
   uploadedImageUrls: string[];
   // Source document reference

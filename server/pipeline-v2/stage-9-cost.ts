@@ -115,7 +115,24 @@ export async function runCostOptimisationStage(
     const regionalLabourRate = LABOUR_RATES[region] || LABOUR_RATES.DEFAULT;
     const labourRate = ctx.tenantRates?.labourRateUsdPerHour ?? regionalLabourRate;
     const paintCostPerPanelUsd = ctx.tenantRates?.paintCostPerPanelUsd ?? 45; // default $45/panel
-    const currency = ctx.tenantRates?.currencyCode ?? (region === "ZA" ? "ZAR" : region === "ZW" ? "USD" : "USD");
+    // ── Cross-border detection: use extracted repairCountry/quoteCurrency from Stage 3 ──
+    // For Zimbabwean policies (region=ZW) with repairs in South Africa (repairCountry=ZA),
+    // the quote will be in ZAR. The policy is paid in USD/ZWL. We detect this from Stage 3
+    // extraction and apply the correct normalisation in Stage 9.
+    const extractedRepairCountry = stage3?.perDocumentExtractions?.[0]?.repairCountry ?? null;
+    const extractedQuoteCurrency = stage3?.perDocumentExtractions?.[0]?.quoteCurrency ?? null;
+    const isCrossBorderRepair = extractedRepairCountry !== null && extractedRepairCountry !== region;
+    // Policy currency: tenant override > cross-border detection > regional default
+    const currency = ctx.tenantRates?.currencyCode ??
+      (isCrossBorderRepair && extractedRepairCountry === 'ZA' ? 'ZAR' :
+       region === 'ZA' ? 'ZAR' :
+       region === 'ZW' ? 'USD' : 'USD');
+    // Quote currency: extracted > inferred from repairCountry > same as policy currency
+    const quoteCurrencyCode = extractedQuoteCurrency ??
+      (isCrossBorderRepair && extractedRepairCountry === 'ZA' ? 'ZAR' : currency);
+    if (isCrossBorderRepair) {
+      ctx.log('Stage 9', `Cross-border repair detected: policy region=${region}, repair in ${extractedRepairCountry}, quoteCurrency=${quoteCurrencyCode}, policyCurrency=${currency}`);
+    }
     if (ctx.tenantRates?.labourRateUsdPerHour) {
       ctx.log("Stage 9", `Tenant rate override: labour $${labourRate}/hr (regional default: $${regionalLabourRate}/hr)`);
     }
@@ -561,12 +578,19 @@ export async function runCostOptimisationStage(
       if (quoteOptimisation && quoteOptimisation.selected_quotes.length > 0) {
         const policyCurrency = ctx.tenantRates?.currencyCode ?? currency;
         const exchangeRate = economicContext?.exchangeRateToUsd ?? 1;
+        // Cross-border: if quote is in ZAR but policy is in USD, convert ZAR→USD
+        // ZAR/USD rate: use ECE exchange rate if available, else use a safe fallback
+        const zarToUsdRate = (quoteCurrencyCode === 'ZAR' && policyCurrency === 'USD')
+          ? (economicContext?.exchangeRateToUsd ?? (1 / 18.5)) // ~18.5 ZAR per USD fallback
+          : null;
         const candidates = buildDOECandidates({
           selectedQuotes: quoteOptimisation.selected_quotes.map(q => ({
             panel_beater: q.panel_beater,
-            total_cost: policyCurrency !== 'USD' && exchangeRate > 0
-              ? q.total_cost / exchangeRate
-              : q.total_cost,
+            total_cost: zarToUsdRate !== null
+              ? q.total_cost * zarToUsdRate  // ZAR → USD
+              : (policyCurrency !== 'USD' && exchangeRate > 0
+                ? q.total_cost / exchangeRate
+                : q.total_cost),
             coverage_ratio: q.coverage_ratio,
             structurally_complete: q.structurally_complete,
             structural_gaps: q.structural_gaps,

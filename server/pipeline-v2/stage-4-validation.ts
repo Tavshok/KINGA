@@ -110,6 +110,8 @@ function emptyExtraction(): ExtractedClaimFields {
     incidentTime: null, animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
     marketValueCents: null, excessAmountCents: null, bettermentCents: null,
     driverLicenseNumber: null,
+    repairCountry: null,
+    quoteCurrency: null,
     uploadedImageUrls: [], sourceDocumentIndex: -1,
   };
 }

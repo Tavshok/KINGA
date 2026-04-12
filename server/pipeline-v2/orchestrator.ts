@@ -1586,6 +1586,8 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       excessAmountCents: null,
       bettermentCents: null,
       driverLicenseNumber: null,
+      repairCountry: null,
+      quoteCurrency: null,
       sourceDocumentIndex: 0,
     },
     completenessScore: 10,
