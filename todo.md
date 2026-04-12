@@ -10617,3 +10617,48 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Add d9_damageVsCost dimension to crossEngineConsensus.ts
 - [ ] Add d10_costVsFraudSignals dimension to crossEngineConsensus.ts
 - [ ] Wire CONFLICTING consensus result to FLAGGED_EXCEPTION in orchestrator
+
+## Phase 3 — Input Fidelity Engine, FEL Version Registry, Decision Optimisation Engine
+
+- [x] Build inputFidelityEngine.ts — IFE with Data Attribution Layer (4 attribution classes)
+- [x] Attribution priority: INSURER_DATA_GAP → DOCUMENT_LIMITATION → SYSTEM_EXTRACTION_FAILURE → CLAIMANT_DEFICIENCY
+- [x] Add INSURER_DATA_GAP as 4th attribution class (emerging-market policy record gaps)
+- [x] Image quality assessment: resolution, blur, duplicate, corrupt detection
+- [x] DOE eligibility gate in IFE (completeness < 55% → doeEligible=false)
+- [x] FCDI adjustment factor: system/insurer failures reduce FCDI penalty
+- [x] Build felVersionRegistry.ts — per-stage prompt hash, model ID, input/output hash, contract version
+- [x] hashContent, hashPrompt, generatePipelineRunId deterministic utilities
+- [x] buildStageVersionSnapshot, buildFELVersionSnapshot, buildEnhancedFELRecord
+- [x] Replay limitation note: current model version, not pinned (Phase 4 item)
+- [x] Build decisionOptimisationEngine.ts — multi-objective DOE
+- [x] Multi-objective scoring: cost (30%), quality (25%), reliability (20%), turnaround (15%), fraud risk (10%)
+- [x] Fraud disqualification: high/elevated fraud risk → disqualify with audit trail entry
+- [x] ALL_DISQUALIFIED status when every candidate is disqualified
+- [x] FCDI hard gate (< 40 → GATED_LOW_FCDI)
+- [x] Input completeness hard gate (< 55% → GATED_LOW_INPUT)
+- [x] buildDOECandidates helper to map quoteOptimisation output to DOE input
+- [x] Write Phase 3 Vitest tests (32 tests — IFE, image quality, FEL version registry, DOE)
+- [x] All 88 tests passing (34 Phase 1 + 22 Phase 2 + 32 Phase 3)
+
+
+## Phase 3 — Input Fidelity Engine, FEL Version Registry, Decision Optimisation Engine
+
+- [x] Build inputFidelityEngine.ts — IFE with Data Attribution Layer (4 attribution classes)
+- [x] Attribution priority: INSURER_DATA_GAP → DOCUMENT_LIMITATION → SYSTEM_EXTRACTION_FAILURE → CLAIMANT_DEFICIENCY
+- [x] Add INSURER_DATA_GAP as 4th attribution class (emerging-market policy record gaps)
+- [x] Image quality assessment: resolution, blur, duplicate, corrupt detection
+- [x] DOE eligibility gate in IFE (completeness < 55% → doeEligible=false)
+- [x] FCDI adjustment factor: system/insurer failures reduce FCDI penalty
+- [x] Build felVersionRegistry.ts — per-stage prompt hash, model ID, input/output hash, contract version
+- [x] hashContent, hashPrompt, generatePipelineRunId deterministic utilities
+- [x] buildStageVersionSnapshot, buildFELVersionSnapshot, buildEnhancedFELRecord
+- [x] Replay limitation note: current model version, not pinned (Phase 4 item)
+- [x] Build decisionOptimisationEngine.ts — multi-objective DOE
+- [x] Multi-objective scoring: cost (30%), quality (25%), reliability (20%), turnaround (15%), fraud risk (10%)
+- [x] Fraud disqualification: high/elevated fraud risk → disqualify with audit trail entry
+- [x] ALL_DISQUALIFIED status when every candidate is disqualified
+- [x] FCDI hard gate (< 40 → GATED_LOW_FCDI)
+- [x] Input completeness hard gate (< 55% → GATED_LOW_INPUT)
+- [x] buildDOECandidates helper to map quoteOptimisation output to DOE input
+- [x] Write Phase 3 Vitest tests (32 tests — IFE, image quality, FEL version registry, DOE)
+- [x] All 88 tests passing (34 Phase 1 + 22 Phase 2 + 32 Phase 3)
