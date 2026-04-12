@@ -1289,6 +1289,13 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
   const costCorrections = corrections.filter(c => c.toLowerCase().includes("cost") || c.toLowerCase().includes("$") || c.toLowerCase().includes("amount"));
 
+  // Cost Decision Engine outputs — from costIntelligenceJson (C-3 fix)
+  const costIntel = (aiAssessment as any)?.costIntelligenceJson ?? null;
+  const costDecision = costIntel?.costDecision ?? null;
+  const costNarrative = costIntel?.costNarrative ?? null;
+  const costReliability = costIntel?.costReliability ?? null;
+  const reconciliationSummary = costIntel?.reconciliationSummary ?? null;
+
   return (
     <div className="mb-4 space-y-4">
       {/* Cost waterfall */}
@@ -1494,6 +1501,55 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                 <span className="font-mono font-bold" style={{ color: "var(--fp-warning-text)" }}>{i + 1}.</span>{c}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cost Decision Engine output — surfaced from costIntelligenceJson (C-3 fix) */}
+      {(costDecision || costNarrative || reconciliationSummary) && (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+          <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.1a Cost Decision Engine</p>
+            {costReliability && (
+              <StatusBadge
+                status={costReliability === "high" ? "pass" : costReliability === "medium" ? "warn" : "fail"}
+                label={`Reliability: ${costReliability.toUpperCase()}`}
+              />
+            )}
+          </div>
+          <div className="p-4 space-y-3">
+            {costDecision && (
+              <table className="w-full text-xs report-table">
+                <tbody>
+                  {costDecision.recommendation && (
+                    <tr>
+                      <td className="py-1.5 pr-3 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>Recommendation</td>
+                      <td className="py-1.5 font-mono" style={{ color: "var(--foreground)" }}>{costDecision.recommendation}</td>
+                    </tr>
+                  )}
+                  {costDecision.approvedAmountUsd != null && (
+                    <tr style={{ borderTop: "1px solid var(--border)" }}>
+                      <td className="py-1.5 pr-3 font-semibold" style={{ color: "var(--muted-foreground)" }}>Approved Amount</td>
+                      <td className="py-1.5 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtMoney(costDecision.approvedAmountUsd)}</td>
+                    </tr>
+                  )}
+                  {costDecision.savingsUsd != null && costDecision.savingsUsd > 0 && (
+                    <tr style={{ borderTop: "1px solid var(--border)" }}>
+                      <td className="py-1.5 pr-3 font-semibold" style={{ color: "var(--muted-foreground)" }}>Savings Identified</td>
+                      <td className="py-1.5 font-mono" style={{ color: "var(--fp-success-text)" }}>{fmtMoney(costDecision.savingsUsd)}</td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            )}
+            {costNarrative && (
+              <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{costNarrative}</p>
+            )}
+            {reconciliationSummary && (
+              <div className="p-2 rounded text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                <span className="font-semibold">Reconciliation: </span>{reconciliationSummary}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2368,8 +2424,44 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
   const currencyCode = claim?.currencyCode ?? aiAssessment?.currencyCode ?? 'USD';
   const fmtMoney = makeFmtCurrency(currencyCode);
 
+  // C-5: Pre-generation consistency check contradictions
+  const preGenCheck = (aiAssessment as any)?._preGenerationCheck ?? null;
+  const contradictions: any[] = preGenCheck?.contradictions ?? [];
+  const hasContradictions = contradictions.length > 0;
+
   return (
     <div className="space-y-2">
+      {/* C-5: Contradiction warning banner — shown when the pre-generation check found self-contradicting report states */}
+      {hasContradictions && (
+        <div className="rounded-xl overflow-hidden" style={{ border: "2px solid var(--fp-warning-border)", background: "var(--fp-warning-bg)" }}>
+          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--fp-warning-border)" }}>
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" style={{ color: "var(--fp-warning-text)" }} />
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--fp-warning-text)" }}>
+              Report Integrity Alert — {contradictions.length} Contradiction{contradictions.length > 1 ? "s" : ""} Detected
+            </p>
+          </div>
+          <div className="p-4 space-y-3">
+            <p className="text-xs" style={{ color: "var(--fp-warning-text)" }}>
+              The following self-contradicting states were detected in this report. Auto-corrections have been applied where possible.
+              Items marked <strong>Requires Re-run</strong> need the claim to be re-assessed with corrected input data.
+            </p>
+            {contradictions.map((c: any, i: number) => (
+              <div key={i} className="rounded p-3 text-xs space-y-1" style={{ background: "var(--card)", border: "1px solid var(--fp-warning-border)" }}>
+                <div className="flex items-center gap-2">
+                  <span className="font-mono font-bold text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>{c.rule_id}</span>
+                  {c.auto_corrected
+                    ? <StatusBadge status="pass" label="Auto-Corrected" />
+                    : <StatusBadge status="fail" label={c.requires_rerun ? "Requires Re-run" : "Flagged"} />}
+                </div>
+                <p style={{ color: "var(--foreground)" }}>{c.description}</p>
+                {c.correction_applied && (
+                  <p className="italic" style={{ color: "var(--muted-foreground)" }}>Correction: {c.correction_applied}</p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 

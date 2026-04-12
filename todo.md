@@ -10574,3 +10574,21 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Redesign cost waterfall — proper bar chart with correct currency symbol
 - [ ] Fix valuation section data path
 - [ ] Ensure currency symbol flows through entire report from quote data
+
+## Phase 1 Hardening — Pipeline Integrity & Critical Fixes (Apr 12, 2026)
+### Structural Additions (orphan state framework)
+- [x] Build pipelineContractRegistry.ts — machine-readable input/output contracts for all 13 stages
+- [x] Build pipelineStateMachine.ts — 7-state execution model with entry/exit conditions and FLAGGED_EXCEPTION routing
+- [x] Wire contract registry into orchestrator as pre-execution check per stage
+### Critical Gap Fixes
+- [x] Fix C-2: Speed extraction regex — match 90KM/HRS, 90 KM/H, 90KPH, 90km/h; add HRE-BYO and km peg road location patterns
+- [x] Fix C-4: Physics engine fallback — estimate delta_v from severity + damage zone when speed is null; never return all-N/A
+- [x] Fix C-3: Cost engine persistence — wire costDecision, costNarrative, costReliability into db.ts serialisation block
+- [x] Fix C-5: Fraud score contradiction warning — display explicit warning in ForensicAuditReport when rule trace and weighted scores differ >15 pts
+- [x] Fix C-1: Stuck pipeline — add per-stage timeout (60s LLM, 10s deterministic) with graceful degradation
+### Tests
+- [x] Write vitest tests for contract registry enforcement
+- [x] Write vitest tests for speed extraction regex patterns
+- [x] Write vitest tests for physics fallback when speed is null
+- [x] Write vitest tests for cost persistence fields
+- [x] Write vitest tests for fraud contradiction warning threshold

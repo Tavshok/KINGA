@@ -3002,6 +3002,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           }
         } catch { /* non-fatal */ }
 
+        // Parse forensicAnalysis JSON to extract preGenerationCheck contradictions (C-5 fix)
+        let parsedPreGenerationCheck: any = null;
+        try {
+          if ((assessment as any).forensicAnalysisJson) {
+            const fa = JSON.parse((assessment as any).forensicAnalysisJson as string);
+            parsedPreGenerationCheck = fa?.preGenerationCheck ?? null;
+          }
+        } catch { /* non-fatal */ }
+
         return {
           ...assessment,
           // Overwrite with normalised values — these are what the UI must use
@@ -3022,6 +3031,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Stage 7e Narrative Analysis — dedicated field for ForensicAuditReport
           // Falls back to claimRecord.accidentDetails.narrativeAnalysis for pre-column assessments
           _narrativeAnalysis: parsedNarrativeAnalysis,
+          // Pre-generation consistency check contradictions (C-5 fix)
+          // Surfaces fraud score contradictions, physics indicator conflicts, and cost basis mismatches
+          _preGenerationCheck: parsedPreGenerationCheck,
         };
       }),
     historicalBenchmarks: protectedProcedure
@@ -3146,11 +3158,26 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Use pipeline total if available and > 0
           if ((fraudScoreBreakdown.totalScore ?? 0) > 0) fraudScore = fraudScoreBreakdown.totalScore;
         }
-        const estimatedSpeedKmh = physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value ?? 0;
-        const deltaVKmh = physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV ?? 0;
-        const impactForceKn = physicsRaw?.impactForceKn ?? 0;
-        const energyKj = physicsRaw?.energyDistribution?.energyDissipatedKj ?? 0;
-        const vehicleMassKg = physicsRaw?.vehicleMassKg ?? 1600;
+        // Use physicsNumerical contract as fallback when LLM physics engine returned 0
+        const _physNum = physicsRaw?.physicsNumerical ?? null;
+        const _velRange = physicsRaw?.velocityRange ?? _physNum?.velocity_range ?? null;
+        const estimatedSpeedKmh =
+          (physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value ?? 0) > 0
+            ? (physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value)
+            : (_velRange?.mid_kmh ?? _physNum?.velocity_range?.mid_kmh ?? 0);
+        const deltaVKmh =
+          (physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV ?? 0) > 0
+            ? (physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV)
+            : (_physNum?.delta_v ?? 0);
+        const impactForceKn =
+          (physicsRaw?.impactForceKn ?? 0) > 0
+            ? physicsRaw.impactForceKn
+            : (_physNum?.impact_force_kn ?? 0);
+        const energyKj =
+          (physicsRaw?.energyDistribution?.energyDissipatedKj ?? 0) > 0
+            ? physicsRaw.energyDistribution.energyDissipatedKj
+            : (_physNum?.energy_kj ?? 0);
+        const vehicleMassKg = physicsRaw?.vehicleMassKg ?? _physNum?.estimation_detail?.mass_kg ?? 1600;
         const accidentSeverity = (physicsRaw?.accidentSeverity ?? assessment.structuralDamageSeverity ?? 'minor') as string;
         const consistencyScore = physicsRaw?.damageConsistencyScore ?? 50;
         const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';

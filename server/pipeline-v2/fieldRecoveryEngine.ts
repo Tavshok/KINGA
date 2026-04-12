@@ -75,11 +75,21 @@ const CRITICAL_FIELDS: (keyof ExtractedClaimFields)[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 const REGEX_PATTERNS: Partial<Record<keyof ExtractedClaimFields, RegExp[]>> = {
   estimatedSpeedKmh: [
-    /speed[:\s]+(\d+)\s*(?:km\/h|km\/hr|kph|kmh|KM\/HRS?|KPH)/i,
-    /travelling\s+at\s+(\d+)\s*(?:km\/h|km\/hr|kph|kmh|KM\/HRS?)/i,
-    /doing\s+(\d+)\s*(?:km\/h|km\/hr|kph|kmh)/i,
-    /at\s+(?:a\s+speed\s+of\s+)?(\d+)\s*(?:km\/h|km\/hr|kph|kmh|KM\/HRS?)/i,
-    /speed\s*(?:of\s+)?(\d+)\s*(?:km|kph|kmh)/i,
+    // Pattern 1: Speed label followed by number + unit (e.g. "Speed: 90KM/HRS", "Speed: 90 km/h")
+    /speed[:\s]+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)/i,
+    // Pattern 2: Number immediately followed by unit, no space (e.g. "90KM/HRS", "90KPH", "90kmh")
+    /\b([1-9]\d{0,2})(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)\b/i,
+    // Pattern 3: Travelling/doing at speed
+    /(?:travelling|traveling|driving|moving)\s+at\s+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)?/i,
+    /doing\s+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)?/i,
+    // Pattern 4: "at a speed of X" or "at X km/h"
+    /at\s+(?:a\s+speed\s+of\s+)?([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)/i,
+    // Pattern 5: "speed of X km" or "speed X kph"
+    /speed\s*(?:of\s+)?([1-9]\d{0,2})\s*(?:km|kph|kmh)/i,
+    // Pattern 6: Speed label followed by bare number (e.g. form field "Speed: 90" or "Speed 90")
+    /\bspeed[:\s]+([1-9]\d{0,2})\b/i,
+    // Pattern 7: "speed was X" or "speed is X" or "speed of X" with optional unit
+    /speed\s+(?:was|is|of)\s+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)?/i,
   ],
   accidentDate: [
     /(?:date\s+of\s+(?:accident|incident|loss))[:\s]+(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{2,4})/i,
@@ -165,6 +175,20 @@ const REGEX_PATTERNS: Partial<Record<keyof ExtractedClaimFields, RegExp[]>> = {
     /DL\s*(?:no|#)?[:\s]+([A-Z0-9\/\-]+)/i,
     /driver(?:'s)?\s+licen[cs]e[:\s]+([A-Z0-9\/\-]+)/i,
   ],
+  accidentLocation: [
+    // Pattern 1: Explicit location label
+    /(?:place|location|scene)\s+of\s+(?:accident|incident|loss)[:\s]+([^\n]{4,80})/i,
+    /(?:accident|incident)\s+location[:\s]+([^\n]{4,80})/i,
+    /location[:\s]+([^\n]{4,80})/i,
+    // Pattern 2: Road/highway notation — "HRE-BYO", "A5", "Harare-Bulawayo Road"
+    /(?:on\s+(?:the\s+)?)?([A-Z]{2,4}[-\/][A-Z]{2,4}(?:\s+road)?)/i,
+    /(?:on\s+(?:the\s+)?)?((?:Harare|Bulawayo|Mutare|Gweru|Kwekwe|Masvingo|Chinhoyi|Bindura|Marondera|Zvishavane|Beitbridge|Plumtree|Victoria\s+Falls|Hwange|Kariba|Chiredzi|Chipinge)(?:[\s-]+(?:Road|Highway|Rd|Hwy))?)/i,
+    // Pattern 3: KM peg notation — "km 45", "45km", "peg 45"
+    /\b(?:km\s*peg|peg|km)\s*([0-9]+)\b/i,
+    /\b([0-9]+)\s*km\s+(?:from|along|on)/i,
+    // Pattern 4: City/town name near accident context
+    /(?:near|at|outside|in|along)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?(?:\s+(?:Road|Street|Ave|Highway|Rd))?)/,
+  ],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -232,6 +256,15 @@ Response format: { "value": "RB 123/2024" } or { "value": null }`,
 Look for: "Mileage:", "Odometer:", "Kilometres:", "KM:", or any number followed by "km" near vehicle details.
 Return as a number (e.g., 45000 for 45,000 km).
 Response format: { "value": 45000 } or { "value": null }`,
+
+  accidentLocation: `Extract ONLY the location/place where the accident occurred.
+Look for: "Place of accident:", "Location:", "Scene:", "Accident location:", or any description of where the incident happened.
+Recognise these regional formats:
+- Road codes: "HRE-BYO" (Harare-Bulawayo road), "HRE-MSV" (Harare-Masvingo), "BYO-BEI" (Bulawayo-Beitbridge), "A5", "A4"
+- KM pegs: "km 45", "peg 45", "45km from Harare"
+- Town names: Harare, Bulawayo, Mutare, Gweru, Masvingo, Chinhoyi, Kwekwe, Bindura, Marondera, Zvishavane, Beitbridge, Victoria Falls
+Return the full location string as found (e.g., "HRE-BYO road, km peg 45").
+Response format: { "value": "HRE-BYO road, km peg 45" } or { "value": null }`,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -555,4 +588,32 @@ export async function runFieldRecovery(
       totalAttempted: nullCriticalFields.length,
     },
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TESTABLE EXPORTS — thin wrappers around internal logic for unit testing
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Extracts a speed value (km/h) from a raw text string using the registered
+ * regex patterns. Returns the numeric speed or null if no match is found.
+ *
+ * Exported for unit testing only — production code uses runFieldRecovery.
+ */
+export function extractSpeedFromText(text: string): number | null {
+  const result = tryRegexExtract("estimatedSpeedKmh", text);
+  if (result && typeof result.value === "number") return result.value;
+  return null;
+}
+
+/**
+ * Extracts an accident location string from a raw text string using the
+ * registered regex patterns. Returns the location string or null.
+ *
+ * Exported for unit testing only — production code uses runFieldRecovery.
+ */
+export function extractLocationFromText(text: string): string | null {
+  const result = tryRegexExtract("accidentLocation", text);
+  if (result && typeof result.value === "string") return result.value;
+  return null;
 }

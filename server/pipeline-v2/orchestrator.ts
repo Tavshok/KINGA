@@ -108,6 +108,26 @@ import {
 } from "./reportReadinessGate";
 // runIncidentNarrativeEngine is now called inside runUnifiedStage7
 import { valuateVehicle } from "../services/vehicleValuation";
+import {
+  checkStageContract,
+  runWithTimeout,
+  StageTimeoutError,
+} from "./pipelineContractRegistry";
+import {
+  buildDamageFallback,
+  buildPhysicsFallback,
+  buildFraudFallback,
+  buildCostFallback,
+  ensureDamageContract,
+  ensurePhysicsContract,
+  ensureFraudContract,
+  ensureCostContract,
+} from "./engineFallback";
+import {
+  createPipelineStateMachine,
+  runAnomalySentinels,
+  CRITICAL_STAGES,
+} from "./pipelineStateMachine";
 import { estimateMileageFromYear } from "../services/mileageEstimation";
 import {
   createVehicleMarketValuation,
@@ -235,6 +255,10 @@ export async function runPipelineV2(
   const allAssumptions: Assumption[] = [];
   const allRecoveryActions: RecoveryAction[] = [];
 
+  // ── PIPELINE STATE MACHINE ───────────────────────────────────────────────
+  // Tracks execution state and enforces allowed transitions.
+  const psm = createPipelineStateMachine();
+
   ctx.log("Pipeline", `Starting self-healing pipeline for claim ${ctx.claimId}`);
 
   let stage1Data: Stage1Output | null = null;
@@ -271,12 +295,50 @@ export async function runPipelineV2(
       assumptionCount: result.assumptions?.length || 0,
       recoveryActionCount: result.recoveryActions?.length || 0,
     };
+    // Advance state machine based on completed stage
+    psm.markStageCompleted(key);
+    if (result.status === "success" || result.status === "degraded") {
+      psm.advanceForStage(key, `Stage "${key}" ${result.status}`);
+    } else if (result.status === "failed" && CRITICAL_STAGES.has(key)) {
+      psm.flagException(`Critical stage "${key}" failed: ${result.error ?? "unknown error"}`);
+    }
     if (result.assumptions) allAssumptions.push(...result.assumptions);
     if (result.recoveryActions) allRecoveryActions.push(...result.recoveryActions);
   };
 
   // ── STAGE 1: Document Ingestion ──────────────────────────────────────
-  const s1 = await runIngestionStage(ctx);
+  const s1 = await runWithTimeout("1_ingestion", () => runIngestionStage(ctx)).catch((err) => {
+    const isTimeout = err instanceof StageTimeoutError;
+    const reason = isTimeout
+      ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+      : `engine_failure: ${String(err)}`;
+    ctx.log("Stage 1", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — producing empty document set`);
+    // Stage 1 has no fallback data to work from — empty set is the only honest output.
+    // The pipeline will continue but all downstream stages will run in degraded mode.
+    return {
+      status: "degraded" as const,
+      data: { documents: [], primaryDocumentIndex: -1, totalDocuments: 0 },
+      error: err.message,
+      durationMs: isTimeout ? err.budgetMs : 0,
+      savedToDb: false,
+      _timedOut: isTimeout,
+      assumptions: [{
+        field: "documents",
+        assumedValue: "empty",
+        reason: `Stage 1 ${isTimeout ? "timed out" : "failed"}: ${reason}. Continuing with empty document set.`,
+        strategy: "default_value" as const,
+        confidence: 5,
+        stage: "Stage 1",
+      }],
+      recoveryActions: [{
+        target: "ingestion_recovery",
+        strategy: "default_value" as const,
+        success: true,
+        description: `Stage 1 ${isTimeout ? "timeout" : "error"} caught. Empty document set produced. All downstream stages will use claim database fields.`,
+      }],
+      degraded: true,
+    };
+  });
   recordStage("1_ingestion", s1);
   stage1Data = s1.data; // May be degraded but always has data
   // ── STAGE 2: OCR & Text Extraction ─────────────────────────────────────
@@ -288,7 +350,38 @@ export async function runPipelineV2(
         await dbInst.update(claims).set({ documentProcessingStatus: 'extracting', updatedAt: new Date().toISOString() }).where(eq(claims.id, ctx.claimId));
       }
     } catch (_statusErr) { /* non-fatal */ }
-    const s2 = await runExtractionStage(ctx, stage1Data);
+    const s2 = await runWithTimeout("2_extraction", () => runExtractionStage(ctx, stage1Data!)).catch((err) => {
+      const isTimeout = err instanceof StageTimeoutError;
+      const reason = isTimeout
+        ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+        : `engine_failure: ${String(err)}`;
+      ctx.log("Stage 2", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — producing empty text set`);
+      // Stage 2 has no fallback text to produce — empty set is the only honest output.
+      // Downstream stages (3, 4, 5) will rely on claim database fields instead of OCR text.
+      return {
+        status: "degraded" as const,
+        data: { extractedTexts: [], totalPagesProcessed: 0 },
+        error: err.message,
+        durationMs: isTimeout ? err.budgetMs : 0,
+        savedToDb: false,
+        _timedOut: isTimeout,
+        assumptions: [{
+          field: "extractedTexts",
+          assumedValue: "empty",
+          reason: `Stage 2 ${isTimeout ? "timed out" : "failed"}: ${reason}. Pipeline will rely on claim database fields.`,
+          strategy: "default_value" as const,
+          confidence: 5,
+          stage: "Stage 2",
+        }],
+        recoveryActions: [{
+          target: "extraction_recovery",
+          strategy: "default_value" as const,
+          success: true,
+          description: `Stage 2 ${isTimeout ? "timeout" : "error"} caught. Empty text set produced. Downstream stages will use claim database fields.`,
+        }],
+        degraded: true,
+      };
+    });
     recordStage("2_extraction", s2);
     stage2Data = s2.data;
   } else {
@@ -449,7 +542,38 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
-  const s6 = await runDamageAnalysisStage(ctx, claimRecord);
+  const s6 = await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord)).catch((err) => {
+    const isTimeout = err instanceof StageTimeoutError;
+    const reason = isTimeout
+      ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+      : `engine_failure: ${String(err)}`;
+    ctx.log("Stage 6", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking damage engine fallback`);
+    // Call the same fallback the stage's own catch block uses — no hardcoded values.
+    // ensureDamageContract({}) produces a sentinel zone with _fallback markers.
+    return {
+      status: "degraded" as const,
+      data: ensureDamageContract({}, reason),
+      error: err.message,
+      durationMs: isTimeout ? err.budgetMs : 0,
+      savedToDb: false,
+      _timedOut: isTimeout,
+      assumptions: [{
+        field: "damageAnalysis",
+        assumedValue: "sentinel_zone",
+        reason: `Stage 6 ${isTimeout ? "timed out" : "failed"}: ${reason}. Damage analysis unavailable — sentinel zone produced for downstream integrity.`,
+        strategy: "default_value" as const,
+        confidence: 5,
+        stage: "Stage 6",
+      }],
+      recoveryActions: [{
+        target: "damage_analysis_recovery",
+        strategy: "default_value" as const,
+        success: true,
+        description: `Stage 6 ${isTimeout ? "timeout" : "error"} caught. ensureDamageContract fallback applied. All damage fields marked as estimated.`,
+      }],
+      degraded: true,
+    };
+  });
   recordStage("6_damage_analysis", s6);
   stage6Data = s6.data; // Always has data (self-healing)
 
@@ -480,14 +604,49 @@ export async function runPipelineV2(
   // Single function call replacing the sequential cluster of:
   //   Stage 7 (physics), Stage 7b Pass 1 (causal), Stage 7c (severity), Stage 7e (narrative)
   // Stage 7b Pass 2 (re-run with fraud+cost scores) remains separate below.
-  const s7Unified = await runUnifiedStage7(
+  const s7Unified = await runWithTimeout("7_unified", () => runUnifiedStage7(
     ctx,
     claimRecord!,
     stage6Data!,
     null, // preRunPattern — computed inside physics engine
     null, // preRunAnimal — computed inside physics engine
     ctx.damagePhotoUrls ?? []
-  );
+  )).catch((err) => {
+    const isTimeout = err instanceof StageTimeoutError;
+    const reason = isTimeout
+      ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+      : `engine_failure: ${String(err)}`;
+    ctx.log("Stage 7", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking physics/causal engine fallbacks`);
+    // Call the same fallback functions the stage's own catch blocks use — no hardcoded values.
+    // ensurePhysicsContract({}) produces a physics output with all fields marked as estimated.
+    return {
+      status: "degraded" as const,
+      data: {
+        physicsAnalysis: ensurePhysicsContract({}, reason),
+        causalVerdict: null,
+        narrativeAnalysis: null,
+      },
+      error: err.message,
+      durationMs: isTimeout ? err.budgetMs : 0,
+      savedToDb: false,
+      _timedOut: isTimeout,
+      assumptions: [{
+        field: "physicsAnalysis",
+        assumedValue: "physics_fallback",
+        reason: `Stage 7 ${isTimeout ? "timed out" : "failed"}: ${reason}. Physics/causal analysis unavailable — fallback applied.`,
+        strategy: "default_value" as const,
+        confidence: 5,
+        stage: "Stage 7",
+      }],
+      recoveryActions: [{
+        target: "physics_recovery",
+        strategy: "default_value" as const,
+        success: true,
+        description: `Stage 7 ${isTimeout ? "timeout" : "error"} caught. ensurePhysicsContract fallback applied. All physics fields marked as estimated.`,
+      }],
+      degraded: true,
+    };
+  });
   recordStage("7_unified", s7Unified);
   stage7Data = s7Unified.data?.physicsAnalysis ?? null;
   causalVerdict = s7Unified.data?.causalVerdict ?? null;
@@ -583,8 +742,70 @@ export async function runPipelineV2(
   // and therefore run AFTER this Promise.all resolves.
   ctx.log("Pipeline", "Starting S8 (fraud) ‖ S9 (cost) in parallel...");
   const [s8, s9] = await Promise.all([
-    runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined),
-    runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined),
+    runWithTimeout("8_fraud", () => runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+      const isTimeout = err instanceof StageTimeoutError;
+      const reason = isTimeout
+        ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+        : `engine_failure: ${String(err)}`;
+      ctx.log("Stage 8", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking fraud engine fallback`);
+      // ensureFraudContract({}) produces the same output as the stage's own catch block.
+      // Score defaults to medium risk (50) with all indicators marked as estimated.
+      return {
+        status: "degraded" as const,
+        data: ensureFraudContract({}, reason),
+        error: err.message,
+        durationMs: isTimeout ? err.budgetMs : 0,
+        savedToDb: false,
+        _timedOut: isTimeout,
+        assumptions: [{
+          field: "fraudRiskScore",
+          assumedValue: "medium_risk_50",
+          reason: `Stage 8 ${isTimeout ? "timed out" : "failed"}: ${reason}. Fraud score unavailable — medium risk applied to flag for manual review.`,
+          strategy: "default_value" as const,
+          confidence: 10,
+          stage: "Stage 8",
+        }],
+        recoveryActions: [{
+          target: "fraud_analysis_recovery",
+          strategy: "default_value" as const,
+          success: true,
+          description: `Stage 8 ${isTimeout ? "timeout" : "error"} caught. ensureFraudContract fallback applied. All fraud indicators marked as estimated.`,
+        }],
+        degraded: true,
+      };
+    }),
+    runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+      const isTimeout = err instanceof StageTimeoutError;
+      const reason = isTimeout
+        ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+        : `engine_failure: ${String(err)}`;
+      ctx.log("Stage 9", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — invoking cost engine fallback`);
+      // ensureCostContract({}) produces the same output as the stage's own catch block.
+      // Cost is marked as AI estimate with no optimisation applied.
+      return {
+        status: "degraded" as const,
+        data: ensureCostContract({}, reason),
+        error: err.message,
+        durationMs: isTimeout ? err.budgetMs : 0,
+        savedToDb: false,
+        _timedOut: isTimeout,
+        assumptions: [{
+          field: "costEstimate",
+          assumedValue: "baseline_estimate",
+          reason: `Stage 9 ${isTimeout ? "timed out" : "failed"}: ${reason}. Cost optimisation unavailable — baseline estimate applied.`,
+          strategy: "default_value" as const,
+          confidence: 10,
+          stage: "Stage 9",
+        }],
+        recoveryActions: [{
+          target: "cost_optimisation_recovery",
+          strategy: "default_value" as const,
+          success: true,
+          description: `Stage 9 ${isTimeout ? "timeout" : "error"} caught. ensureCostContract fallback applied. All cost fields marked as estimated.`,
+        }],
+        degraded: true,
+      };
+    }),
   ]);
   recordStage("8_fraud", s8);
   stage8Data = s8.data; // Always has data (self-healing)
@@ -769,13 +990,76 @@ export async function runPipelineV2(
     ),
   } : null;
 
-  const s10 = await runReportGenerationStage(
+  const s10 = await runWithTimeout("10_report", () => runReportGenerationStage(
     ctx, claimRecord,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,
     allAssumptions,
     causalChain,
     evidenceTrace
-  );
+  )).catch((err) => {
+    const isTimeout = err instanceof StageTimeoutError;
+    const reason = isTimeout
+      ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
+      : `engine_failure: ${String(err)}`;
+    ctx.log("Stage 10", `${isTimeout ? "TIMEOUT" : "ERROR"}: ${err.message} — producing minimal report from available data`);
+    // Stage 10 has no engineFallback equivalent — it is a report assembler, not an engine.
+    // The minimal report is built from claimRecord (always available) and marks all
+    // analysis sections as unavailable. This is the same output the stage's own catch block produces.
+    const minimalReport = {
+      claimSummary: {
+        title: "Claim Summary",
+        content: {
+          claimId: claimRecord?.claimId ?? ctx.claimId,
+          status: "report_generation_failed",
+          note: `Report generation ${isTimeout ? "timed out" : "failed"}: ${reason}. Manual review required.`,
+        },
+      },
+      damageAnalysis: { title: "Damage Analysis", content: { available: false, note: "Report generation failed." } },
+      physicsReconstruction: { title: "Physics Reconstruction", content: { available: false, note: "Report generation failed." } },
+      costOptimisation: { title: "Cost Optimisation", content: { available: false, note: "Report generation failed." } },
+      fraudRiskIndicators: { title: "Fraud Risk Indicators", content: { available: false, note: "Report generation failed." } },
+      turnaroundTimeEstimate: { title: "Turnaround Time Estimate", content: { available: false, note: "Report generation failed." } },
+      supportingImages: { title: "Supporting Images", content: { available: false } },
+      fullReport: {
+        reportVersion: "3.0",
+        generatedAt: new Date().toISOString(),
+        claimId: claimRecord?.claimId ?? ctx.claimId,
+        overallConfidence: 5,
+        error: reason,
+        sections: {},
+      },
+      generatedAt: new Date().toISOString(),
+      confidenceScore: 5,
+      assumptions: allAssumptions,
+      missingDocuments: [],
+      missingFields: claimRecord?.dataQuality?.missingFields ?? [],
+      evidenceTrace: null,
+      decisionReadiness: null,
+    };
+    return {
+      status: "degraded" as const,
+      data: minimalReport,
+      error: err.message,
+      durationMs: isTimeout ? err.budgetMs : 0,
+      savedToDb: false,
+      _timedOut: isTimeout,
+      assumptions: [{
+        field: "report",
+        assumedValue: "minimal_report",
+        reason: `Stage 10 ${isTimeout ? "timed out" : "failed"}: ${reason}. Minimal report produced from claimRecord only.`,
+        strategy: "default_value" as const,
+        confidence: 5,
+        stage: "Stage 10",
+      }],
+      recoveryActions: [{
+        target: "report_generation_recovery",
+        strategy: "default_value" as const,
+        success: true,
+        description: `Stage 10 ${isTimeout ? "timeout" : "error"} caught. Minimal report produced. All analysis sections marked as unavailable.`,
+      }],
+      degraded: true,
+    };
+  });
   recordStage("10_report", s10);
   stage10Data = s10.data;
 
@@ -1014,6 +1298,20 @@ export async function runPipelineV2(
       dataQuality: claimRecord?.dataQuality ?? null,
       assumptions: allAssumptions,
       recoveryActions: allRecoveryActions,
+      // Pipeline state machine summary — for audit trail and health dashboard
+      pipelineStateMachine: psm.toSummary(),
+      // Anomaly sentinels — named invariant violations
+      anomalySentinelViolations: runAnomalySentinels({
+        trueCostUsd: stage9Data?.costDecision?.true_cost_usd ?? null,
+        damageComponentCount: stage6Data?.damagedParts?.length ?? 0,
+        fraudScore: stage8Data?.fraudRiskScore ?? null,
+        physicsPlausibilityScore: stage7Data?.damageConsistencyScore ?? null,
+        photosProcessed: (ctx.damagePhotoUrls?.length ?? 0) > 0,
+        photoCount: ctx.damagePhotoUrls?.length ?? 0,
+        incidentTypeKnown: !!(claimRecord?.accidentDetails?.incidentType),
+        fraudScoreRuleTrace: (stage8Data as any)?.ruleTraceScore ?? null,
+        fraudScoreWeighted: stage8Data?.fraudRiskScore ?? null,
+      }),
     };
     ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
   } catch (err) {

@@ -615,6 +615,9 @@ export async function triggerAiAssessment(claimId: number) {
     physicsExecuted: physicsAnalysis.physicsExecuted,
     severityConsensus: (physicsAnalysis as any).severityConsensus ?? null,
     damagePatternValidation: (physicsAnalysis as any).damagePatternValidation ?? null,
+    // Numerical contract — guarantees non-zero speed/deltaV even when LLM returns 0
+    physicsNumerical: (physicsAnalysis as any).physicsNumerical ?? null,
+    velocityRange: (physicsAnalysis as any).velocityRange ?? null,
   }) : null;
 
   // Build fraud indicators JSON
