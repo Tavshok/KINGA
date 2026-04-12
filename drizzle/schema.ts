@@ -2356,6 +2356,8 @@ export const quoteLineItems = mysqlTable("quote_line_items", {
 	quantity: decimal({ precision: 10, scale: 2 }).notNull(),
 	unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
 	lineTotal: decimal("line_total", { precision: 10, scale: 2 }).notNull(),
+	// ISO 4217 currency code inherited from the parent quote (e.g. USD, ZAR, ZMW, ZIG)
+	currency: varchar("currency", { length: 10 }).notNull().default("USD"),
 	vatRate: decimal("vat_rate", { precision: 5, scale: 2 }).default('15.00'),
 	vatAmount: decimal("vat_amount", { precision: 10, scale: 2 }),
 	totalWithVat: decimal("total_with_vat", { precision: 10, scale: 2 }),
@@ -4435,7 +4437,10 @@ export const costLearningRecords = mysqlTable("cost_learning_records", {
   componentCount: int("component_count").notNull().default(0),
   // Number of structural components
   structuralComponentCount: int("structural_component_count").notNull().default(0),
-  // Final agreed/quoted cost in USD cents (null if not available)
+  // ISO 4217 currency code for all cost figures in this record (e.g. USD, ZAR, ZMW, ZIG)
+  // CRITICAL: never mix currencies across records — query must always filter by currency
+  currency: varchar("currency", { length: 10 }).notNull().default("USD"),
+  // Final agreed/quoted cost in the claim's native currency (null if not available)
   finalCostUsdCents: int("final_cost_usd_cents"),
   // Whether the final cost was from an assessor-agreed figure
   costIsAgreed: tinyint("cost_is_agreed").notNull().default(0),

@@ -34,8 +34,27 @@ function fmt(n: number | null | undefined, decimals = 2): string {
   return n.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+/**
+ * Currency-aware formatter. Reads ISO 4217 code from the claim's currencyCode field.
+ * Falls back to USD if not set. NEVER hardcodes a currency symbol.
+ */
+function makeFmtCurrency(currencyCode: string | null | undefined) {
+  const code = (currencyCode ?? 'USD').toUpperCase().trim();
+  // Map ISO 4217 codes to symbols for common currencies; others use the code itself
+  const SYMBOL_MAP: Record<string, string> = {
+    USD: '$', EUR: '€', GBP: '£', ZAR: 'R', ZMW: 'ZMW', ZIG: 'ZiG',
+    KES: 'KSh', NGN: '₦', GHS: 'GH₵', BWP: 'P', MWK: 'MK', TZS: 'TSh',
+    UGX: 'USh', MZN: 'MT', NAD: 'N$', SZL: 'L', LSL: 'L', AOA: 'Kz',
+  };
+  const symbol = SYMBOL_MAP[code] ?? code;
+  return function fmtCurrency(n: number | null | undefined): string {
+    if (n == null || isNaN(n) || n === 0) return '—';
+    return `${symbol}${fmt(n)}`;
+  };
+}
+// Legacy alias — replaced at component level with currency-aware version
 function fmtUsd(n: number | null | undefined): string {
-  if (n == null || isNaN(n) || n === 0) return "—";
+  if (n == null || isNaN(n) || n === 0) return '—';
   return `$${fmt(n)}`;
 }
 
@@ -332,7 +351,7 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
 
 // ─── Section 0: Executive Authority Cover ────────────────────────────────────
 
-function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[] }) {
+function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fmtUsd }: { claim: any; aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string }) {
   const e = enforcement;
   const phase2 = (e as any)?._phase2 as any;
   const wf = e?.weightedFraud;
@@ -453,9 +472,9 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
         <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
           <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>COST</p>
           <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            {aiEstimate > 0 ? `${fmtUsd(aiEstimate)} agreed` : "Not estimated"}
+            {aiEstimate > 0 ? `${fmtMoney(aiEstimate)} agreed` : "Not estimated"}
           </p>
-          {quotedTotal > 0 && <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>vs {fmtUsd(quotedTotal)} quoted</p>}
+          {quotedTotal > 0 && <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>vs {fmtMoney(quotedTotal)} quoted</p>}
           {/* Mini bar */}
           {aiEstimate > 0 && quotedTotal > 0 && (
             <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
@@ -537,7 +556,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes }: { claim: an
 
 // ─── Section 1: Incident & Data Integrity ─────────────────────────────────────
 
-function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; aiAssessment: any; enforcement: any }) {
+function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd }: { claim: any; aiAssessment: any; enforcement: any; fmtMoney?: (n: number | null | undefined) => string }) {
   const phase2 = (enforcement as any)?._phase2 as any;
   const phase1 = (aiAssessment as any)?._phase1 as any;
   const normalised = (aiAssessment as any)?._normalised as any;
@@ -575,7 +594,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
 
   const checklist = [
     { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " "), conf: 95 },
-    { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtUsd(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
+    { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtMoney(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
     { label: "Photos submitted", ok: !!(aiAssessment?.photosDetected), detail: aiAssessment?.photosDetected ? `${aiAssessment.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : 0 },
     { label: "Police report", ok: !!(aiAssessment?.policeReportNumber), detail: aiAssessment?.policeReportNumber ?? "Not provided", conf: aiAssessment?.policeReportNumber ? 100 : 0 },
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
@@ -805,7 +824,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                 ["Insurer", insurerName ?? "Not extracted"],
                 ["Policy number", policyNumber ?? "Not provided"],
                 ["Claim reference", claimReference ?? "Not extracted"],
-                ["Policy excess", excessAmountUsd != null ? fmtUsd(excessAmountUsd) : "Not extracted"],
+                ["Policy excess", excessAmountUsd != null ? fmtMoney(excessAmountUsd) : "Not extracted"],
               ].map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
@@ -830,7 +849,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                 ["VIN", vehicleVin ?? "Not recorded"],
                 ["Engine number", vehicleEngineNumber ?? "Not recorded"],
                 ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not recorded"],
-                ["Market value", marketValueUsd != null ? fmtUsd(marketValueUsd) : "Not stated"],
+                ["Market value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
               ].map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
@@ -1213,7 +1232,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
 
 // ─── Section 3: Financial Validation ─────────────────────────────────────────
 
-function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment: any; enforcement: any; quotes?: any[] }) {
+function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUsd }: { aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string }) {
   const e = enforcement;
   const ce = e?.costExtraction;
   const normalised = (aiAssessment as any)?._normalised as any;
@@ -1320,12 +1339,12 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                         )}
                         <rect x={labelW} y={y} width={barW} height={barH} rx="4" fill={step.color} opacity="0.85" />
                         <text x={labelW - 6} y={y + barH / 2 + 4} textAnchor="end" fontSize="10" fill="var(--muted-foreground)">{step.label}</text>
-                        <text x={labelW + barW + 6} y={y + barH / 2 + 4} fontSize="10" fontWeight="bold" fill="var(--foreground)">{fmtUsd(step.value)}</text>
+                        <text x={labelW + barW + 6} y={y + barH / 2 + 4} fontSize="10" fontWeight="bold" fill="var(--foreground)">{fmtMoney(step.value)}</text>
                       </g>
                     );
                   })}
                   {fairMin > 0 && fairMax > 0 && (
-                    <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14} fontSize="9" fill="var(--fp-success-text)">Fair range {fmtUsd(fairMin)}–{fmtUsd(fairMax)}</text>
+                    <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14} fontSize="9" fill="var(--fp-success-text)">Fair range {fmtMoney(fairMin)}–{fmtMoney(fairMax)}</text>
                   )}
                 </svg>
               </div>
@@ -1345,16 +1364,16 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
               {[
                 { source: "Learning Benchmark", parts: aiParts, labour: aiLabour, total: aiEstimate, v: null as number | null, note: aiEstimate > 0 ? "From accumulated claims data" : "Insufficient learning data" },
                 { source: "Repairer Quote", parts: quotedParts, labour: quotedLabour, total: quotedTotal, v: totalVar, note: totalVar == null ? "No quote" : Math.abs(totalVar) <= 15 ? "Within tolerance" : Math.abs(totalVar) <= 30 ? "Review recommended" : "Significant outlier" },
-                { source: "Fair Range", parts: null as number | null, labour: null as number | null, total: fairMin > 0 ? fairMin : null, v: null as number | null, note: fairMin > 0 && fairMax > 0 ? `${fmtUsd(fairMin)} – ${fmtUsd(fairMax)}` : "Not available" },
+                { source: "Fair Range", parts: null as number | null, labour: null as number | null, total: fairMin > 0 ? fairMin : null, v: null as number | null, note: fairMin > 0 && fairMax > 0 ? `${fmtMoney(fairMin)} – ${fmtMoney(fairMax)}` : "Not available" },
               ].map((row, i) => {
                 const vStatus: "pass" | "warn" | "fail" | "na" = row.v == null ? "na" : Math.abs(row.v) <= 15 ? "pass" : Math.abs(row.v) <= 30 ? "warn" : "fail";
                 const vLabel = row.v == null ? "—" : `${row.v > 0 ? "+" : ""}${Math.round(row.v)}%`;
                 return (
                   <tr key={i} style={{ borderTop: "1px solid var(--border)", background: i === 0 ? "var(--muted)" : "var(--background)", fontWeight: i === 0 ? "bold" : undefined }}>
                     <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{row.source}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.parts != null && row.parts > 0 ? fmtUsd(row.parts) : "—"}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.labour != null && row.labour > 0 ? fmtUsd(row.labour) : "—"}</td>
-                    <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{row.total != null && row.total > 0 ? fmtUsd(row.total) : "—"}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.parts != null && row.parts > 0 ? fmtMoney(row.parts) : "—"}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.labour != null && row.labour > 0 ? fmtMoney(row.labour) : "—"}</td>
+                    <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{row.total != null && row.total > 0 ? fmtMoney(row.total) : "—"}</td>
                     <td className="px-3 py-2"><StatusBadge status={vStatus} label={vLabel} /></td>
                     <td className="px-3 py-2 text-xs" style={{ color: "var(--muted-foreground)" }}>{row.note}</td>
                   </tr>
@@ -1365,7 +1384,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
 
           {fairMin > 0 && fairMax > 0 && (
             <div className="p-2 rounded text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-              Fair range benchmark: {fmtUsd(fairMin)} – {fmtUsd(fairMax)} · AI estimate is{" "}
+              Fair range benchmark: {fmtMoney(fairMin)} – {fmtMoney(fairMax)} · AI estimate is{" "}
               {aiEstimate < fairMin ? "below" : aiEstimate > fairMax ? "above" : "within"} the benchmark range.
             </div>
           )}
@@ -1402,9 +1421,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{part.component}</td>
                       <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>
-                        {hasBenchmark ? fmtUsd(part.total) : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Insufficient data</span>}
+                        {hasBenchmark ? fmtMoney(part.total) : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Insufficient data</span>}
                       </td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{quotedPartCost != null ? fmtUsd(quotedPartCost) : "—"}</td>
+                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{quotedPartCost != null ? fmtMoney(quotedPartCost) : "—"}</td>
                       <td className="px-3 py-2">
                         {v != null ? <StatusBadge status={Math.abs(v) <= 20 ? "pass" : Math.abs(v) <= 40 ? "warn" : "fail"} label={`${v > 0 ? "+" : ""}${Math.round(v)}%`} /> : <span style={{ color: "var(--muted-foreground)" }}>—</span>}
                       </td>
@@ -1418,8 +1437,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
               <tfoot>
                 <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
                   <td className="px-3 py-2 font-bold" style={{ color: "var(--foreground)" }}>TOTAL</td>
-                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtUsd(itemisedParts.reduce((s: number, p: any) => s + (p.total ?? 0), 0))}</td>
-                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{quotedTotal > 0 ? fmtUsd(quotedTotal) : "—"}</td>
+                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtMoney(itemisedParts.reduce((s: number, p: any) => s + (p.total ?? 0), 0))}</td>
+                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : "—"}</td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>
@@ -1449,9 +1468,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
                   return (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{q.name}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtUsd(q.parts) : "—"}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtUsd(q.labour) : "—"}</td>
-                      <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{fmtUsd(q.total)}</td>
+                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
+                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
+                      <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
                       <td className="px-3 py-2">{v != null ? <StatusBadge status={Math.abs(v) <= 15 ? "pass" : Math.abs(v) <= 30 ? "warn" : "fail"} label={`${v > 0 ? "+" : ""}${Math.round(v)}%`} /> : "—"}</td>
                       <td className="px-3 py-2"><StatusBadge status={q.status === "accepted" ? "pass" : q.status === "rejected" ? "fail" : "info"} label={q.status.toUpperCase()} /></td>
                     </tr>
@@ -1514,12 +1533,12 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
         <table className="w-full text-xs report-table">
           <tbody>
             {[
-              ["Market Value", marketValueUsd != null ? fmtUsd(marketValueUsd) : "Not stated"],
-              ["Repair Cost (Quoted)", repairCost > 0 ? fmtUsd(repairCost) : "Not available"],
+              ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
+              ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
               ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
-              ["Excess / Deductible", excessUsd != null ? fmtUsd(excessUsd) : "Not stated"],
-              ["Betterment / Depreciation", bettermentUsd != null ? fmtUsd(bettermentUsd) : "Not stated"],
-              ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtUsd(excessUsd + bettermentUsd) : excessUsd != null ? fmtUsd(excessUsd) : "Not available"],
+              ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
+              ["Betterment / Depreciation", bettermentUsd != null ? fmtMoney(bettermentUsd) : "Not stated"],
+              ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtMoney(excessUsd + bettermentUsd) : excessUsd != null ? fmtMoney(excessUsd) : "Not available"],
             ].map(([k, v], i) => (
               <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                 <td className="py-2 pr-4 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
@@ -1557,7 +1576,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
   const docs = [
     { id: "Claim Form", type: "Primary", extracted: true, note: "Submitted by claimant" },
     { id: "Police Report", type: "Supporting", extracted: !!(aiAssessment?.policeReportNumber), note: aiAssessment?.policeReportNumber ? `Case: ${aiAssessment.policeReportNumber}` : "Not provided" },
-    { id: "Repair Quote", type: "Financial", extracted: !!(aiAssessment?.estimatedCost), note: aiAssessment?.estimatedCost ? `${fmtUsd(aiAssessment.estimatedCost)} extracted` : "Not submitted" },
+    { id: "Repair Quote", type: "Financial", extracted: !!(aiAssessment?.estimatedCost), note: aiAssessment?.estimatedCost ? `${fmtMoney(aiAssessment.estimatedCost)} extracted` : "Not submitted" },
     { id: "Photos", type: "Visual", extracted: photosDetected > 0, note: isSystemFailure ? "SYSTEM ERROR — not claimant fault" : photosDetected > 0 ? `${photosDetected} detected, ${photosProcessed} processed` : "Not submitted" },
     { id: "Driver Licence", type: "Identity", extracted: !!(claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber), note: claim?.driverLicenseNumber ?? aiAssessment?.driverLicenseNumber ?? "Not recorded" },
     { id: "Vehicle Registration", type: "Identity", extracted: !!(claim?.vehicleRegistration), note: claim?.vehicleRegistration ?? "Not recorded" },
@@ -2338,19 +2357,26 @@ function DataQualityPanel({ aiAssessment }: { aiAssessment: any }) {
 export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }: ForensicAuditReportProps) {
   if (!enforcement || !aiAssessment) return null;
 
+  // ── Currency-aware formatter ─────────────────────────────────────────────
+  // Reads the claim's currencyCode (ISO 4217) and builds a formatter that
+  // uses the correct symbol. This is the ONLY place the currency symbol is
+  // determined — all child sections receive `fmtMoney` as a prop.
+  const currencyCode = claim?.currencyCode ?? aiAssessment?.currencyCode ?? 'USD';
+  const fmtMoney = makeFmtCurrency(currencyCode);
+
   return (
     <div className="space-y-2">
       <DataQualityPanel aiAssessment={aiAssessment} />
-      <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+      <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
       <SectionDivider number="1" title="Incident & Data Integrity" />
-      <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+      <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
       <SectionDivider number="2" title="Technical Forensics" />
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
       <SectionDivider number="3" title="Financial Validation" />
-      <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
+      <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
       <SectionDivider number="4" title="Evidence Inventory" />
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />

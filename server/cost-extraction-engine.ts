@@ -82,6 +82,8 @@ export interface CostExtractionInput {
   quoteLineItems?: QuoteLineItemInput[];
   /** Learning DB benchmark data (if available) */
   learningBenchmark?: LearningBenchmarkInput | null;
+  /** ISO 4217 currency code from the claim (e.g. 'USD', 'ZAR', 'ZIG', 'ZMW'). Defaults to 'USD'. */
+  currencyCode?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -112,7 +114,11 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
     quotedAmounts,
     quoteLineItems,
     learningBenchmark,
+    currencyCode = 'USD',
   } = input;
+
+  // Currency symbol for display in basis strings (e.g. '$', 'R', 'ZIG')
+  const currSymbol = currencyCode === 'USD' ? '$' : currencyCode === 'ZAR' ? 'R' : currencyCode;
 
   const hasQuotes = quotedAmounts.length > 0;
 
@@ -156,7 +162,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       confidence,
       itemised_parts,
       source: "quote_line_items",
-      basis: `Actual submitted quote with ${quoteLineItems.length} line item(s)`,
+      basis: `Actual submitted quote with ${quoteLineItems.length} line item(s) [${currencyCode}]`,
     };
   }
 
@@ -205,7 +211,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
 
     const confidence = Math.min(80, extractionConfidence > 0 ? extractionConfidence - 10 : 50);
     const benchmarkNote = learningBenchmark?.avgCostUsd
-      ? ` Learning benchmark: $${learningBenchmark.avgCostUsd.toFixed(0)} (${learningBenchmark.sampleSize} claims).`
+      ? ` Learning benchmark: ${currSymbol}${learningBenchmark.avgCostUsd.toFixed(0)} (${learningBenchmark.sampleSize} claims, ${currencyCode}).`
       : ' No learning benchmark available yet.';
 
     return {
@@ -215,8 +221,8 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
       fair_range: computeFairRange(aiEstimatedCost, confidence, hasQuotes),
       confidence,
       itemised_parts,
-      source: learningBenchmark?.avgCostUsd ? "learning_db" : "extracted",
-      basis: `AI-extracted total from claim document (${extractionConfidence}% confidence).${benchmarkNote}`,
+      source: (learningBenchmark?.avgCostUsd && (learningBenchmark?.sampleSize ?? 0) >= 3) ? "learning_db" : "extracted",
+      basis: `AI-extracted total from claim document (${extractionConfidence}% confidence, ${currencyCode}).${benchmarkNote}`,
     };
   }
 
@@ -240,7 +246,7 @@ export function extractCosts(input: CostExtractionInput): CostExtractionResult {
         source_label: "Repairer quote total — no line item breakdown available",
       }],
       source: "quote_line_items",
-      basis: `Repairer quote total: $${primaryQuote.toFixed(0)} (no AI extraction or line items available)`,
+      basis: `Repairer quote total: ${currSymbol}${primaryQuote.toFixed(0)} ${currencyCode} (no AI extraction or line items available)`,
     };
   }
 

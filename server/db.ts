@@ -1032,6 +1032,8 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
     normalisedDescription: claimRow?.normalisedDescription ?? null,
     reportedCauseLabel: claimRow?.reportedCauseLabel ?? null,
     policyNumber: claimRow?.policyNumber ?? null,
+    currencyCode: claimRow?.currencyCode ?? null,
+    countryCode: claimRow?.countryCode ?? null,
   };
 }
 

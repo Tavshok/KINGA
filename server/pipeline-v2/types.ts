@@ -1025,6 +1025,8 @@ export interface PipelineContext {
   damagePhotoUrls: string[];
   db: any;
   log: (stage: string, msg: string) => void;
+  /** Set by Stage 1 — PDF pages rendered to images for vision analysis (fallback when no damagePhotoUrls) */
+  pdfPageImageUrls?: string[];
   /** Set by Stage 0 (Evidence Registry Engine) — available to all downstream stages */
   evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
   /** Per-tenant cost rate overrides — loaded from tenants.configJson at pipeline start */

@@ -712,7 +712,7 @@ export default function SubmitClaim() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>SA ID Number</Label>
+                  <Label>National ID / Passport Number</Label>
                   <Input
                     value={formData.claimantIdNumber}
                     onChange={(e) => updateField("claimantIdNumber", e.target.value)}

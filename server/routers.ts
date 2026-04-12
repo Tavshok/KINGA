@@ -2889,6 +2889,18 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // This validates dates, reconciles costs, corrects unit shifts, sanitises
         // text fields, and normalises terminology. The gate results are attached
         // to the response for audit trail purposes.
+        // Derive photosDetected from damagePhotosJson — photosDetected is NOT a DB column.
+        // Previously this always resolved to null, causing Phase 1 to report PHOTO_STATUS=NOT_APPLICABLE.
+        let p1PhotoUrls: string[] = [];
+        try {
+          if (assessment.damagePhotosJson) {
+            const _p1Photos = typeof assessment.damagePhotosJson === 'string'
+              ? JSON.parse(assessment.damagePhotosJson)
+              : assessment.damagePhotosJson;
+            p1PhotoUrls = Array.isArray(_p1Photos) ? _p1Photos.filter((u: any) => typeof u === 'string') : [];
+          }
+        } catch { /* non-fatal */ }
+        const p1PhotosDetected = p1PhotoUrls.length > 0 ? true : null;
         const p1 = runPhase1({
           incidentDate: (assessment as any).incidentDate ?? null,
           inspectionDate: (assessment as any).inspectionDate ?? null,
@@ -2896,9 +2908,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           labourCost: assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : null,
           aiEstimatedTotal: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
           repairerQuoteTotal: costIntelParsed?.documentedOriginalQuoteUsd ?? null,
-          photosDetected: (assessment as any).photosDetected ?? null,
-          photosProcessed: (assessment as any).photosProcessed ?? null,
-          photosProcessedCount: (assessment as any).photosProcessedCount ?? null,
+          photosDetected: p1PhotosDetected,
+          photosProcessed: p1PhotosDetected,
+          photosProcessedCount: p1PhotoUrls.length,
           incidentType: (assessment as any).incidentType ?? null,
           incidentDescription: (assessment as any).accidentDescription ?? (assessment as any).incidentDescription ?? null,
           policeReportNumber: (assessment as any).policeReportNumber ?? null,
@@ -3182,18 +3194,35 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         try {
           if (quotes.length > 0) {
             const { getQuoteLineItemsByQuoteId } = await import('./db');
-            // Load line items from the primary (first) quote
-            const primaryQuote = quotes[0];
-            const lineItems = await getQuoteLineItemsByQuoteId(primaryQuote.id);
-            quoteLineItemsForCost = lineItems.map((li: any) => ({
-              description: li.description ?? 'Unknown item',
-              category: li.category ?? 'other',
-              quantity: Number(li.quantity ?? 1),
-              unitPrice: Number(li.unitPrice ?? 0),
-              lineTotal: Number(li.lineTotal ?? 0),
-              isRepair: li.isRepair === 1,
-              isReplacement: li.isReplacement === 1,
-            }));
+            // Load line items from ALL quotes for multi-quote optimisation
+            const allLineItemsByQuote: Array<{ quoteId: number; repairer: string; items: typeof quoteLineItemsForCost }> = [];
+            for (const quote of quotes) {
+              const lineItems = await getQuoteLineItemsByQuoteId(quote.id);
+              const mappedItems = lineItems.map((li: any) => ({
+                description: li.description ?? 'Unknown item',
+                category: li.category ?? 'other',
+                quantity: Number(li.quantity ?? 1),
+                unitPrice: Number(li.unitPrice ?? 0),
+                lineTotal: Number(li.lineTotal ?? 0),
+                isRepair: li.isRepair === 1,
+                isReplacement: li.isReplacement === 1,
+              }));
+              allLineItemsByQuote.push({ quoteId: quote.id, repairer: (quote as any).repairerName ?? `Repairer ${quote.id}`, items: mappedItems });
+              // Use first quote as primary source for backward compat
+              if (quote.id === quotes[0].id) {
+                quoteLineItemsForCost = mappedItems;
+              }
+            }
+            // Run multi-quote optimisation when more than one quote exists
+            if (quotes.length > 1) {
+              try {
+                const { runQuoteOptimisation } = await import('./pipeline-v2/quoteOptimisationEngine');
+                const optimisationResult = await runQuoteOptimisation(allLineItemsByQuote);
+                (quoteLineItemsForCost as any).__optimisation = optimisationResult;
+              } catch (optErr) {
+                console.warn('[getEnforcement] Quote optimisation failed:', optErr);
+              }
+            }
           }
         } catch (err) {
           console.warn('[getEnforcement] Failed to load quote line items:', err);
@@ -3216,12 +3245,14 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                 .where(sqlFn`vehicle_descriptor LIKE ${`%${vehicleDesc}%`}`);
               const row = rows[0] as any;
               if (row && Number(row.cnt) > 0) {
+                // Use claim's currency code for learning benchmark segmentation
+                const claimCurrencyCode = (assessment as any).currencyCode ?? 'USD';
                 learningBenchmark = {
                   vehicleDescriptor: vehicleDesc,
                   componentCount: damagedComponents.length,
                   collisionDirection: impactDirection,
-                  marketRegion: 'ZA',
-                  avgCostUsd: row.avgCost ? Number(row.avgCost) / 100 : null, // cents → dollars
+                  marketRegion: claimCurrencyCode, // segmented by currency, not hardcoded country
+                  avgCostUsd: row.avgCost ? Number(row.avgCost) / 100 : null, // cents → base currency unit
                   sampleSize: Number(row.cnt),
                 };
               }
@@ -3231,6 +3262,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           console.warn('[getEnforcement] Failed to query learning benchmark:', err);
         }
 
+        const claimCurrency = (assessment as any).currencyCode ?? 'USD';
         const costExtraction = extractCosts({
           aiEstimatedCost,
           aiPartsCost,
@@ -3241,6 +3273,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           quotedAmounts,
           quoteLineItems: quoteLineItemsForCost,
           learningBenchmark,
+          currencyCode: claimCurrency,
         });
         // Run the Weighted Fraud Scoring Engine — deterministic, rule-based
         const { computeWeightedFraudScore, countMissingFields } = await import('./weighted-fraud-scoring');

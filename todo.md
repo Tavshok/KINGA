@@ -10541,3 +10541,36 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix ValuationSubsection to read claimRecord from correct location (aiAssessment._claimRecord)
 - [x] Remove G-code labels from Document Integrity Checks table
 - [x] Write and pass enforcement layer tests (10/10)
+
+## Comprehensive Overhaul — Apr 12, 2026 (Round 3)
+
+### Data Layer — Currency-Aware Schema
+- [ ] Add `currency` (VARCHAR 3, ISO 4217) to `costLearningRecords` table
+- [ ] Add `currency` to `quoteLineItems` table
+- [ ] Add `currency` to `quotes` table
+- [ ] Run `pnpm db:push` to apply migrations
+
+### Enforcement Layer — Country-Neutral & Accurate
+- [ ] Fix locale override in orchestrator.ts — stop passing 'en' explicitly, derive from document
+- [ ] Remove G-code prefixes from Phase 1 Auto-Corrections display in ForensicAuditReport
+- [ ] Fix fraud score escalation text to use weighted engine score, not pipeline score
+- [ ] Remove "SA ID" label — replace with country-neutral "National ID / Passport Number"
+- [ ] Scan all UI labels for country-specific assumptions and neutralise them
+
+### Cost Engine — Currency-Aware + Multi-Quote Optimisation
+- [ ] Currency-aware cost display — read currency from quote, display correct symbol/code
+- [ ] No waterfall / no benchmark when no quote submitted — show "No quotation submitted"
+- [ ] Single quote — show quoted costs as primary, learning benchmark as reference only
+- [ ] Multi-quote — line-by-line cost optimisation with outlier flagging per component
+- [ ] Learning DB stores currency as first-class field — no cross-currency contamination
+
+### Pipeline — Speed Extraction & Photo Extraction
+- [ ] Fix speed extraction regex to match 90KM/HRS, 90 KM/H, 90KPH, 90km/h patterns
+- [ ] Add PDF embedded image extraction to Stage 2 for photo evidence
+- [ ] Strengthen narrative engine anti-fabrication prompt
+
+### Report Template — Design Upgrade
+- [ ] Redesign damage SVG — vehicle outline with impact direction arrows, force vectors, colour-coded zones
+- [ ] Redesign cost waterfall — proper bar chart with correct currency symbol
+- [ ] Fix valuation section data path
+- [ ] Ensure currency symbol flows through entire report from quote data

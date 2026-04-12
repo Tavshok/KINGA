@@ -340,14 +340,27 @@ export async function runDamageAnalysisStage(
       ctx.log("Stage 6", `Structured: ${structuredParts.length} components from claim record`);
     }
 
-    // ── STEP 2: LLM vision — read damage from photos ─────────────────────────
+    // ── STEP 2: LLM vision — read damage from photos or PDF pages ─────────────────────────────────────────────────────────────────────────────────────────
+    // Primary: use dedicated damage photos if available
+    // Fallback: use PDF page images (claim form pages rendered as images) for visual evidence
     const photoUrls = ctx.damagePhotoUrls ?? [];
+    const pdfPageUrls: string[] = (ctx as any).pdfPageImageUrls ?? [];
+    const visionSourceUrls = photoUrls.length > 0 ? photoUrls : pdfPageUrls;
     let visionParts: DamageAnalysisComponent[] = [];
-    if (photoUrls.length > 0) {
-      visionParts = await readDamageFromPhotos(photoUrls, claimRecord, ctx, assumptions, recoveryActions);
+    if (visionSourceUrls.length > 0) {
+      if (photoUrls.length === 0 && pdfPageUrls.length > 0) {
+        ctx.log("Stage 6", `No damage photos — using ${pdfPageUrls.length} PDF page images as visual evidence fallback`);
+        recoveryActions.push({
+          target: "damagePhotoUrls",
+          strategy: "partial_data",
+          success: true,
+          description: `No dedicated damage photos provided. Using ${pdfPageUrls.length} PDF page renders for visual damage analysis.`,
+        });
+      }
+      visionParts = await readDamageFromPhotos(visionSourceUrls, claimRecord, ctx, assumptions, recoveryActions);
     }
 
-    // ── STEP 3: Determine final component list ────────────────────────────────
+    // ── STEP 3: Determine final component list ────────────────────────────────────────────────
     let damagedParts: DamageAnalysisComponent[];
 
     if (structuredParts.length > 0 || visionParts.length > 0) {

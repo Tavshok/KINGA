@@ -110,6 +110,12 @@ export async function runIngestionStage(
       }
       // ─────────────────────────────────────────────────────────────────────
 
+      // ── Store PDF page images in context for downstream stages (Stage 6 vision fallback) ──
+      if (pdfPageImageUrls.length > 0) {
+        (ctx as any).pdfPageImageUrls = pdfPageImageUrls;
+        ctx.log("Stage 1", `Stored ${pdfPageImageUrls.length} PDF page image URLs in context for Stage 6 vision fallback`);
+      }
+
       const pdfDoc: IngestedDocument = {
         documentIndex: docIndex,
         documentType: classifyDocument(
