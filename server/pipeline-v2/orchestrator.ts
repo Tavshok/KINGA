@@ -135,6 +135,12 @@ import {
   type ForensicExecutionLedger,
   type StageExecutionRecord,
 } from "./forensicExecutionLedger";
+import {
+  buildFELVersionSnapshot,
+  buildStageVersionSnapshot,
+  STAGE_CODE_VERSIONS,
+  KINGA_PLATFORM_VERSION,
+} from "./felVersionRegistry";
 import { estimateMileageFromYear } from "../services/mileageEstimation";
 import {
   createVehicleMarketValuation,
@@ -1399,6 +1405,30 @@ export async function runPipelineV2(
     });
     forensicAnalysisResult.forensicExecutionLedger = fel;
     ctx.log("Stage13", `FEL built: ${felStageRecords.length} stage records, replayable=${fel.replayable}`);
+
+    // ── Phase 4B: FEL Version Snapshot ────────────────────────────────────────
+    // Build per-stage version snapshots for deterministic replay tracking.
+    try {
+      const pipelineRunAt = new Date().toISOString();
+      const stageVersionSnapshots = Object.entries(stages).map(([stageId, s]) =>
+        buildStageVersionSnapshot({
+          stageId,
+          executedAt: pipelineRunAt,
+          inputSnapshot: null,
+          outputSnapshot: (s as any).outputSnapshot ?? null,
+        })
+      );
+      const felVersionSnapshot = buildFELVersionSnapshot(
+        ctx.claimId,
+        pipelineRunAt,
+        stageVersionSnapshots
+      );
+      forensicAnalysisResult.felVersionSnapshot = felVersionSnapshot;
+      ctx.log("Stage13", `FEL version snapshot: platform=${KINGA_PLATFORM_VERSION}, stages=${stageVersionSnapshots.length}, replaySupported=${felVersionSnapshot.replaySupported}`);
+    } catch (felVersionErr) {
+      ctx.log("Stage13", `FEL version snapshot build failed (non-fatal): ${String(felVersionErr)}`);
+    }
+
     ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
   } catch (err) {
     ctx.log("Stage13", `Forensic analysis build error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);

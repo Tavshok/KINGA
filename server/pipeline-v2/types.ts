@@ -868,6 +868,10 @@ export interface Stage9Output {
   documentedPartsCostUsd: number | null;
   /** Phase 2B: Economic Context Engine output — policy-based currency, PPP, NCI */
   economicContext: import('./economicContextEngine').EconomicContext | null;
+  /** Phase 4A: Input Fidelity Engine result — 4-class attribution, completeness score, DOE eligibility */
+  ifeResult: import('./inputFidelityEngine').IFEReport | null;
+  /** Phase 4A: Decision Optimisation Engine result — multi-objective scoring, fraud-aware disqualification */
+  doeResult: import('./decisionOptimisationEngine').DOEResult | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

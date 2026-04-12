@@ -405,6 +405,8 @@ export function buildCostFallback(reason = "insufficient_input"): CostFallbackOu
     documentedLabourCostUsd: null,
     documentedPartsCostUsd: null,
     economicContext: null,  // Phase 2B: ECE not available in fallback path
+    ifeResult: null,          // Phase 4A: IFE not available in fallback path
+    doeResult: null,          // Phase 4A: DOE not available in fallback path
     _fallback: fallbackMeta,
     _fallback_fields: ["ai_estimate", "parts", "labour", "fair_range", "expectedRepairCostCents"],
   };
@@ -450,6 +452,8 @@ export function ensureCostContract(
     documentedLabourCostUsd: partial.documentedLabourCostUsd ?? null,
     documentedPartsCostUsd: partial.documentedPartsCostUsd ?? null,
     economicContext: partial.economicContext ?? null,  // Phase 2B: ECE
+    ifeResult: partial.ifeResult ?? null,              // Phase 4A: IFE
+    doeResult: partial.doeResult ?? null,              // Phase 4A: DOE
   };
 
   return {

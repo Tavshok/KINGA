@@ -149,6 +149,21 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Phase 2B: Economic Context Engine output
   // Policy-based currency, PPP factor, parts sourcing profile, NCI, exchange rate source.
   economicContextJson: text("economic_context_json"),
+  // Phase 4A: Input Fidelity Engine (IFE) result
+  // 4-class Data Attribution Layer: INSURER_DATA_GAP, DOCUMENT_LIMITATION,
+  // SYSTEM_EXTRACTION_FAILURE, CLAIMANT_DEFICIENCY. Includes completeness score,
+  // attributed gaps, FCDI system-failure penalty reduction, and DOE eligibility gate.
+  ifeResultJson: text("ife_result_json"),
+  // Phase 4A: Decision Optimisation Engine (DOE) result
+  // Multi-objective scoring (cost 30%, quality 25%, reliability 20%, turnaround 15%, fraud 10%).
+  // Fraud-aware disqualification with full audit trail. FCDI + completeness hard gates.
+  // Schema: { status, selectedDecision, rejectedOptions, scoringMatrix, gatingConditions, rationale }
+  doeResultJson: text("doe_result_json"),
+  // Phase 4B: FEL Version Snapshot
+  // Per-stage: prompt hash, model ID, input hash, output hash, contract version.
+  // Enables court-grade audit trails and deterministic replay readiness.
+  // isReplayable flag indicates whether the decision can be reproduced exactly.
+  felVersionSnapshotJson: text("fel_version_snapshot_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

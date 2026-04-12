@@ -10,6 +10,8 @@
 
 import { ensureCostContract } from "./engineFallback";
 import { deriveEconomicContext } from "./economicContextEngine";
+import { computeIFE, type IFEReport } from "./inputFidelityEngine";
+import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord, getActiveCalibrationMultiplier } from "../db";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
@@ -520,6 +522,91 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Economic context derivation failed (non-fatal): ${eceErr}`);
     }
 
+    // ── Phase 4A: Input Fidelity Engine (IFE) ──────────────────────────────────
+    // Compute 4-class data attribution and DOE eligibility gate.
+    // Run AFTER economic context so we have the full extraction picture.
+    let ifeResult: IFEReport | null = null;
+    try {
+      const primaryDocType = (claimRecord as any).documents?.[0]?.documentType ?? null;
+      ifeResult = computeIFE({
+        extractedFields: {
+          claimantName:         claimRecord.driver?.claimantName ?? null,
+          vehicleMake:          claimRecord.vehicle?.make ?? null,
+          vehicleModel:         claimRecord.vehicle?.model ?? null,
+          vehicleYear:          claimRecord.vehicle?.year ?? null,
+          vehicleRegistration:  claimRecord.vehicle?.registration ?? null,
+          incidentDate:         claimRecord.accidentDetails?.date ?? null,
+          incidentDescription:  claimRecord.damage?.description ?? null,
+          repairQuoteTotal:     claimRecord.repairQuote?.quoteTotalCents ?? null,
+          agreedCost:           claimRecord.repairQuote?.agreedCostCents ?? null,
+          policyNumber:         (claimRecord as any).policy?.policyNumber ?? null,
+          insuredValue:         (claimRecord as any).policy?.insuredValueCents ?? null,
+          excess:               (claimRecord as any).policy?.excessAmountCents ?? null,
+          driverLicence:        (claimRecord as any).driver?.licenseNumber ?? null,
+        },
+        extractionConfidence: stage3?.perDocumentExtractions?.[0] ? 0.75 : 0.5,
+        primaryDocumentType: primaryDocType,
+        documentHasOtherFields: !!(claimRecord.vehicle?.make || claimRecord.driver?.claimantName),
+      });
+      ctx.log("Stage 9", `IFE: completeness=${ifeResult.completenessScore}%, doeEligible=${ifeResult.doeEligible}, gaps=${ifeResult.gapCount}`);
+    } catch (ifeErr) {
+      ctx.log("Stage 9", `IFE computation failed (non-fatal): ${String(ifeErr)}`);
+    }
+
+    // ── Phase 4A: Decision Optimisation Engine (DOE) ─────────────────────────
+    // Runs AFTER IFE gate check. Cross-border currency normalisation applied:
+    // ZW vehicle damaged in SA → quotes in ZAR converted to policy currency (USD/ZWL).
+    let doeResult: DOEResult | null = null;
+    try {
+      if (quoteOptimisation && quoteOptimisation.selected_quotes.length > 0) {
+        const policyCurrency = ctx.tenantRates?.currencyCode ?? currency;
+        const exchangeRate = economicContext?.exchangeRateToUsd ?? 1;
+        const candidates = buildDOECandidates({
+          selectedQuotes: quoteOptimisation.selected_quotes.map(q => ({
+            panel_beater: q.panel_beater,
+            total_cost: policyCurrency !== 'USD' && exchangeRate > 0
+              ? q.total_cost / exchangeRate
+              : q.total_cost,
+            coverage_ratio: q.coverage_ratio,
+            structurally_complete: q.structurally_complete,
+            structural_gaps: q.structural_gaps,
+            confidence: q.confidence,
+          })),
+          excludedQuotes: quoteOptimisation.excluded_quotes.map(q => ({
+            panel_beater: q.panel_beater,
+            total_cost: q.total_cost !== null && policyCurrency !== 'USD' && exchangeRate > 0
+              ? q.total_cost / exchangeRate
+              : (q.total_cost ?? 0),
+            reason: q.reason,
+            confidence: 'low' as const,
+          })),
+          currency: policyCurrency,
+          overallFraudRisk: (ctx as any).fraudRiskLevel ?? 'low',
+          fraudSignal: null,
+          turnaroundDays: null,
+        });
+        const benchmarkInPolicyCurrency = policyCurrency !== 'USD' && exchangeRate > 0
+          ? (totalExpectedCents / 100) / exchangeRate
+          : totalExpectedCents / 100;
+        const fcdiForDOE = ifeResult
+          ? Math.max(0, 100 - ifeResult.fcdiSystemFailurePenaltyReduction)
+          : 50;
+        doeResult = runDOE({
+          candidates,
+          benchmarkCost: benchmarkInPolicyCurrency,
+          fcdiScore: fcdiForDOE,
+          inputCompletenessScore: ifeResult?.completenessScore ?? 50,
+          doeEligible: ifeResult?.doeEligible ?? false,
+          doeIneligibilityReason: ifeResult?.doeIneligibilityReason ?? null,
+        });
+        ctx.log("Stage 9", `DOE: status=${doeResult.status}, selected=${doeResult.selectedPanelBeater ?? 'none'}, confidence=${doeResult.decisionConfidence}`);
+      } else {
+        ctx.log("Stage 9", `DOE skipped: no selected quotes available`);
+      }
+    } catch (doeErr) {
+      ctx.log("Stage 9", `DOE computation failed (non-fatal): ${String(doeErr)}`);
+    }
+
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
@@ -551,6 +638,8 @@ export async function runCostOptimisationStage(
       documentedLabourCostUsd: claimRecord.repairQuote.labourCostCents ? claimRecord.repairQuote.labourCostCents / 100 : null,
       documentedPartsCostUsd: claimRecord.repairQuote.partsCostCents ? claimRecord.repairQuote.partsCostCents / 100 : null,
       economicContext,
+      ifeResult: ifeResult ?? null,
+      doeResult: doeResult ?? null,
     }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);

@@ -33,6 +33,8 @@ import {
   buildFraudNarrative,
   buildCostNarrative,
 } from "./narrativeEngine";
+import { buildDataResponsibilityMatrix } from "./dataResponsibilityMatrix";
+import { buildDecisionTransparencyLayer } from "./decisionTransparencyLayer";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
@@ -408,6 +410,12 @@ export async function runReportGenerationStage(
       ctx.log("Stage 10", `⚠️ QUALITY GATE QG-5: No market value extracted. Valuation section will show 'Not stated'.`);
     }
 
+    // ── Phase 4C: Data Responsibility Matrix + Decision Transparency Layer ────────
+    const ifeResult = costAnalysis?.ifeResult ?? null;
+    const doeResult = costAnalysis?.doeResult ?? null;
+    const dataResponsibilityMatrix = buildDataResponsibilityMatrix(ifeResult);
+    const decisionTransparencyLayer = buildDecisionTransparencyLayer(doeResult);
+
     // Build each section — null-safe, always produces output
     const claimSummary = buildClaimSummary(claimRecord);
     const damageSection = buildDamageSection(damageAnalysis, claimRecord);
@@ -498,6 +506,30 @@ export async function runReportGenerationStage(
             warning_step_count: causalChain.warning_step_count,
           },
         } : {}),
+        // Phase 4C: Data Responsibility Matrix
+        dataResponsibilityMatrix: {
+          totalGaps: dataResponsibilityMatrix.totalGaps,
+          byAttribution: dataResponsibilityMatrix.byAttribution,
+          hasInsurerGaps: dataResponsibilityMatrix.hasInsurerGaps,
+          hasSystemFailures: dataResponsibilityMatrix.hasSystemFailures,
+          narrative: dataResponsibilityMatrix.narrative,
+          entries: dataResponsibilityMatrix.entries,
+        },
+        // Phase 4C: Decision Transparency Layer
+        decisionTransparencyLayer: {
+          doeStatus: decisionTransparencyLayer.doeStatus,
+          decisionMode: decisionTransparencyLayer.decisionMode,
+          selectedPanelBeater: decisionTransparencyLayer.selectedPanelBeater,
+          selectedCost: decisionTransparencyLayer.selectedCost,
+          currency: decisionTransparencyLayer.currency,
+          benchmarkDeviationPct: decisionTransparencyLayer.benchmarkDeviationPct,
+          decisionConfidence: decisionTransparencyLayer.decisionConfidence,
+          fcdiScoreAtDecision: decisionTransparencyLayer.fcdiScoreAtDecision,
+          candidates: decisionTransparencyLayer.candidates,
+          disqualifications: decisionTransparencyLayer.disqualifications,
+          rationale: decisionTransparencyLayer.rationale,
+          narrative: decisionTransparencyLayer.narrative,
+        },
       },
     };
 

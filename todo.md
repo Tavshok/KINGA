@@ -10662,3 +10662,19 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] buildDOECandidates helper to map quoteOptimisation output to DOE input
 - [x] Write Phase 3 Vitest tests (32 tests — IFE, image quality, FEL version registry, DOE)
 - [x] All 88 tests passing (34 Phase 1 + 22 Phase 2 + 32 Phase 3)
+
+## Phase 4 — Activation: IFE+DOE Wiring, FEL Persistence, DRM+DTL in Report
+
+- [x] Schema migration: add doeResultJson, ifeResultJson, felVersionSnapshotJson columns to ai_assessments
+- [x] Wire IFE into Stage 9 cost stage (compute input fidelity before DOE)
+- [x] Wire DOE into Stage 9 cost stage (run decision optimisation after IFE)
+- [x] Cross-border currency normalisation in DOE (ECE exchange rate fed into benchmark)
+- [x] Add ifeResult and doeResult to Stage9Output type
+- [x] Fix engineFallback.ts to pass ifeResult and doeResult through
+- [x] Build FEL version snapshot in orchestrator after FEL is built
+- [x] Persist ifeResultJson, doeResultJson, felVersionSnapshotJson in db.ts upsert
+- [x] Data Responsibility Matrix (DRM) builder (dataResponsibilityMatrix.ts)
+- [x] Decision Transparency Layer (DTL) builder (decisionTransparencyLayer.ts)
+- [x] Wire DRM + DTL into Stage 10 fullReport.sections
+- [x] Phase 4 test suite: 17 tests (phase4-fixes.test.ts)
+- [x] Phase 4C test suite: 21 tests (phase4c-fixes.test.ts)

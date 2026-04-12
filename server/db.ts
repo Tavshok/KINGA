@@ -923,6 +923,27 @@ export async function triggerAiAssessment(claimId: number) {
         return ec ? JSON.stringify(ec) : null;
       } catch { return null; }
     })(),
+    // Phase 4A: Input Fidelity Engine — 4-class attribution, completeness score, DOE eligibility
+    ifeResultJson: (() => {
+      try {
+        const ife = costAnalysis?.ifeResult;
+        return ife ? JSON.stringify(ife) : null;
+      } catch { return null; }
+    })(),
+    // Phase 4A: Decision Optimisation Engine — multi-objective scoring, fraud-aware disqualification
+    doeResultJson: (() => {
+      try {
+        const doe = costAnalysis?.doeResult;
+        return doe ? JSON.stringify(doe) : null;
+      } catch { return null; }
+    })(),
+    // Phase 4B: FEL Version Snapshot — per-stage version tracking for deterministic replay
+    felVersionSnapshotJson: (() => {
+      try {
+        const felVersion = forensicAnalysis?.felVersionSnapshot;
+        return felVersion ? JSON.stringify(felVersion) : null;
+      } catch { return null; }
+    })(),
   });
 
   // Update claim status to complete + backfill vehicle info from extraction
