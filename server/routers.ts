@@ -113,6 +113,7 @@ import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
 import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
+import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
@@ -166,6 +167,7 @@ export const appRouter = router({
   platformUserRoles: platformUserRolesRouter,
   platform: platformRouter,
   quoteIntelligence: quoteIntelligenceRouter,
+  exceptionIntelligence: exceptionIntelligenceRouter,
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
   assessorSubscription: router({
     /**
@@ -3010,6 +3012,31 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             parsedPreGenerationCheck = fa?.preGenerationCheck ?? null;
           }
         } catch { /* non-fatal */ }
+        // Phase 4 — Parse IFE, DOE, and FEL version snapshot for Decision Narrative View
+        let parsedIfeResult: any = null;
+        let parsedDoeResult: any = null;
+        let parsedFelVersionSnapshot: any = null;
+        try {
+          if ((assessment as any).ifeResultJson) {
+            parsedIfeResult = typeof (assessment as any).ifeResultJson === 'string'
+              ? JSON.parse((assessment as any).ifeResultJson)
+              : (assessment as any).ifeResultJson;
+          }
+        } catch { /* non-fatal */ }
+        try {
+          if ((assessment as any).doeResultJson) {
+            parsedDoeResult = typeof (assessment as any).doeResultJson === 'string'
+              ? JSON.parse((assessment as any).doeResultJson)
+              : (assessment as any).doeResultJson;
+          }
+        } catch { /* non-fatal */ }
+        try {
+          if ((assessment as any).felVersionSnapshotJson) {
+            parsedFelVersionSnapshot = typeof (assessment as any).felVersionSnapshotJson === 'string'
+              ? JSON.parse((assessment as any).felVersionSnapshotJson)
+              : (assessment as any).felVersionSnapshotJson;
+          }
+        } catch { /* non-fatal */ }
 
         return {
           ...assessment,
@@ -3034,6 +3061,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Pre-generation consistency check contradictions (C-5 fix)
           // Surfaces fraud score contradictions, physics indicator conflicts, and cost basis mismatches
           _preGenerationCheck: parsedPreGenerationCheck,
+          // Phase 4 — Decision Narrative View data
+          _ifeResult: parsedIfeResult,
+          _doeResult: parsedDoeResult,
+          _felVersionSnapshot: parsedFelVersionSnapshot,
         };
       }),
     historicalBenchmarks: protectedProcedure

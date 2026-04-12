@@ -61,6 +61,7 @@ const ClaimsManagerComparisonView = lazy(() => import("./pages/ClaimsManagerComp
 const WorkflowSettings = lazy(() => import("./pages/WorkflowSettings"));
 const MonetizationDashboard = lazy(() => import("./pages/MonetizationDashboard"));
 const OperationalHealthDashboard = lazy(() => import("./pages/OperationalHealthDashboard"));
+const ExceptionIntelligenceHub = lazy(() => import("./pages/ExceptionIntelligenceHub"));
 const PlatformOverviewDashboard = lazy(() => import("./pages/PlatformOverviewDashboard"));
 const PlatformClaimTrace = lazy(() => import("./pages/PlatformClaimTrace"));
 const PlatformMarketplace = lazy(() => import("./pages/PlatformMarketplace"));
@@ -158,6 +159,11 @@ function Router() {
         <Route path="/admin/operational-health">
           <ProtectedRoute allowedRoles={["admin"]}>
             <OperationalHealthDashboard />
+        <Route path="/insurer-portal/exception-intelligence">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <ExceptionIntelligenceHub />
+          </ProtectedRoute>
+        </Route>
           </ProtectedRoute>
         </Route>
         

@@ -10678,3 +10678,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Wire DRM + DTL into Stage 10 fullReport.sections
 - [x] Phase 4 test suite: 17 tests (phase4-fixes.test.ts)
 - [x] Phase 4C test suite: 21 tests (phase4c-fixes.test.ts)
+
+## Phase 5 — Decision Narrative View, Exception Intelligence Hub, Governance Gate
+
+- [x] Phase 5A: DecisionNarrativeView component (sequential DRM + FCDI + DOE + DTL)
+- [x] Phase 5A: Wire DecisionNarrativeView into ClaimDecisionReport
+- [x] Phase 5A: Parse ifeResult/doeResult/felVersionSnapshot in byClaim tRPC procedure
+- [x] Phase 5B: exception-intelligence.ts router (queue, aggregates, drift, recommendations)
+- [x] Phase 5B: ExceptionIntelligenceHub.tsx page (4 panels)
+- [x] Phase 5B: Route /insurer-portal/exception-intelligence registered in App.tsx
+- [x] Phase 5B: Exception Hub added to DashboardLayout sidebar
+- [x] Phase 5C: reportVersionGate.ts (detectReportVersion, buildVersionGateResult, isLegacyReport)
+- [x] Phase 5C: 17 tests covering all version gate scenarios
+- [x] Total: 109 tests passing (Phases 2-5)

@@ -44,6 +44,7 @@ import {
   ReportIntegritySeal,
   AdjusterSignOffPanel,
 } from "@/components/Batch3ReportComponents";
+import { DecisionNarrativeView } from "@/components/DecisionNarrativeView";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1360,7 +1361,18 @@ export default function ClaimDecisionReport() {
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
 
-        {/* ── Forensic Audit Report v4.2 — 6-section structured format ── */}
+        {/* ── Phase 5A: Decision Narrative View ── */}
+        <ReportSectionDivider label="Decision Narrative" icon="🧠" />
+        <div className="mb-6 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)', padding: '1.25rem' }}>
+          <DecisionNarrativeView
+            ifeResult={(aiAssessment as any)?._ifeResult ?? null}
+            doeResult={(aiAssessment as any)?._doeResult ?? null}
+            fcdiScore={aiAssessment?.fcdiScore ? Number(aiAssessment.fcdiScore) : null}
+            reportVersion={(aiAssessment as any)?.reportVersion ?? null}
+            claimId={claimId}
+          />
+        </div>
+                {/* ── Forensic Audit Report v4.2 — 6-section structured format ── */}
         <ForensicAuditReport
           claim={claim}
           aiAssessment={aiAssessment}
