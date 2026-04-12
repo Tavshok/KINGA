@@ -141,6 +141,7 @@ import {
   STAGE_CODE_VERSIONS,
   KINGA_PLATFORM_VERSION,
 } from "./felVersionRegistry";
+import { enforceCompletenessOrThrow, PipelineIncompleteError } from "./pipelineCompletenessGuard";
 import { estimateMileageFromYear } from "../services/mileageEstimation";
 import {
   createVehicleMarketValuation,
@@ -1432,6 +1433,18 @@ export async function runPipelineV2(
     ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
   } catch (err) {
     ctx.log("Stage13", `Forensic analysis build error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
+  }
+
+
+  // ── Phase 6: Pipeline Completeness Guard ─────────────────────────────────
+  // Throws PipelineIncompleteError if IFE or DOE is absent.
+  const _guardResult = enforceCompletenessOrThrow(ctx.claimId, {
+    ifeResult: stage9Data?.ifeResult ?? null,
+    doeResult: stage9Data?.doeResult ?? null,
+    felVersionSnapshot: forensicAnalysisResult?.felVersionSnapshot ?? null,
+  });
+  if (_guardResult.failureState === "REPLAY_INCOMPLETE") {
+    ctx.log("Stage13", `REPLAY_INCOMPLETE: ${_guardResult.exceptionReason}`);
   }
 
   return buildResult(

@@ -10691,3 +10691,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Phase 5C: reportVersionGate.ts (detectReportVersion, buildVersionGateResult, isLegacyReport)
 - [x] Phase 5C: 17 tests covering all version gate scenarios
 - [x] Total: 109 tests passing (Phases 2-5)
+
+## Phase 6 — Pipeline Completeness Enforcement
+
+- [x] pipelineCompletenessGuard.ts: hard exit if IFE/DOE absent, route to PIPELINE_INCOMPLETE
+- [x] REPLAY_INCOMPLETE flag in FEL version snapshot when prompt hashes missing
+- [x] Wire completeness guard into orchestrator before report write
+- [x] Tests covering all guard scenarios (15 tests)
