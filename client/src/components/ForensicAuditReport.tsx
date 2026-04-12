@@ -697,31 +697,27 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                     <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-200">POST-INCIDENT CONTENT STRIPPED</span>
                   )}
                 </div>
+                {/* SAFEGUARD: Always show the original description as the authoritative text */}
                 <p className="leading-relaxed">
-                  {(() => {
-                    const narrative = narrativeAnalysis?.cleaned_incident_narrative;
-                    const original = description;
-                    // SAFEGUARD: If the cleaned narrative is significantly shorter than the original,
-                    // it may have been truncated. Show the original instead.
-                    if (narrative && original && narrative.length < original.length * 0.5 && original.length > 50) {
-                      return original;
-                    }
-                    return narrative || original;
-                  })()}
+                  {description || narrativeAnalysis?.cleaned_incident_narrative || "No incident description available."}
                 </p>
-                {/* SAFEGUARD: Show original description if narrative was truncated */}
+                {/* Show AI-processed narrative only if it differs meaningfully and adds value */}
                 {narrativeAnalysis?.cleaned_incident_narrative && description &&
-                  narrativeAnalysis.cleaned_incident_narrative.length < description.length * 0.5 &&
-                  description.length > 50 && (
-                  <div className="mt-1 p-2 rounded text-[10px]" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>
-                    Note: The AI-processed narrative was shorter than expected. The original description has been displayed instead.
+                  narrativeAnalysis.cleaned_incident_narrative !== description &&
+                  narrativeAnalysis.cleaned_incident_narrative.length > 20 && (
+                  <div className="mt-2 p-2 rounded text-[10px]" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                    <span className="font-semibold">AI-processed narrative: </span>
+                    {narrativeAnalysis.cleaned_incident_narrative}
                   </div>
                 )}
-                {/* Sequence of events */}
+                {/* Sequence of events — AI-reconstructed, may contain inferences */}
                 {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
                   <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-                    <span className="font-semibold">Sequence of events: </span>
+                    <span className="font-semibold">AI-Reconstructed Sequence of Events: </span>
                     <span style={{ color: "var(--muted-foreground)" }}>{narrativeAnalysis.extracted_facts.sequence_of_events}</span>
+                    <div className="mt-1 text-[9px]" style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>
+                      Note: This sequence is AI-reconstructed from the incident description and may contain inferences not present in the original claim form. Always verify against the original description above.
+                    </div>
                   </div>
                 )}
               </div>
@@ -943,7 +939,7 @@ function Section1Incident({ claim, aiAssessment, enforcement }: { claim: any; ai
                         G3_UNIT_CORRECTION: 'Currency & Unit Normalisation',
                         G4_SANITISATION: 'Data Sanitisation',
                         G5_TERMINOLOGY: 'Terminology Standardisation',
-                      } as Record<string, string>)[g.gate] ?? (g.gate ? g.gate.replace(/^G\d+_?/i, '').replace(/_/g, ' ') : `Check ${i + 1}`)}</td>
+                      } as Record<string, string>)[g.gate] ?? (g.gate ? g.gate.replace(/^G\d+_?/i, '').replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()) : `Check ${i + 1}`)}</td>
                     <td className="px-3 py-2">
                       <StatusBadge status={g.status === "PASS" ? "pass" : g.status === "WARN" ? "warn" : "fail"} label={g.status ?? "UNKNOWN"} />
                     </td>
@@ -1492,8 +1488,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes }: { aiAssessment
 // ─── 3.2 Vehicle Valuation Subsection ─────────────────────────────────────────
 
 function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessment: any; enforcement: any; quotes?: any[] }) {
-  const normalised = (aiAssessment as any)?._normalised as any;
-  const claimRecord = normalised?.claimRecord ?? (enforcement as any)?._phase1?.claimRecord;
+  // Read claimRecord from the correct location — same as the rest of the report
+  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const marketValueUsd = claimRecord?.vehicle?.marketValueUsd ?? null;
   const excessUsd = claimRecord?.insuranceContext?.excessAmountUsd ?? null;
   const bettermentUsd = claimRecord?.insuranceContext?.bettermentUsd ?? null;
@@ -2156,45 +2152,40 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         )}
       </div>
 
-      {ruleTrace.length > 0 && (() => {
-        // SAFEGUARD: Detect contradiction between rule trace fraud_score and weighted fraud score
-        const traceScoreRule = ruleTrace.find((r: any) => r.rule === "fraud_score" || r.rule === "fraud_risk_score");
-        const traceScore = traceScoreRule ? Number(traceScoreRule.value) : null;
-        const hasContradiction = traceScore != null && Math.abs(traceScore - fraudScore) > 15;
-        return (
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Rule Trace</p>
-            </div>
-            {hasContradiction && (
-              <div className="px-4 py-2 text-xs" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)", borderBottom: "1px solid var(--border)" }}>
-                Note: The rule trace shows a preliminary fraud score of {traceScore} which differs from the final weighted score of {Math.round(fraudScore)}.
-                The weighted score incorporates additional factors (photo analysis, physics consistency, cost validation) and is the authoritative figure.
-              </div>
-            )}
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs report-table">
-                <thead>
-                  <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                    {["Rule", "Observed Value", "Triggered"].map(h => (
-                      <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ruleTrace.map((r: any, i: number) => (
-                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--primary)" }}>{r.rule}</td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{String(r.value)}</td>
-                      <td className="px-3 py-2"><StatusBadge status={r.triggered ? "fail" : "pass"} label={r.triggered ? "YES" : "NO"} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {/* Fraud Score Breakdown — uses authoritative weighted fraud engine (not pipeline rule trace) */}
+      {wf?.full_contributions && wf.full_contributions.length > 0 && (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+          <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Fraud Score Breakdown</p>
           </div>
-        );
-      })()}
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs report-table">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+                  {["Factor", "Points", "Triggered", "Detail"].map(h => (
+                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {wf.full_contributions.map((c: any, i: number) => (
+                  <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
+                    <td className="px-3 py-2 font-semibold" style={{ color: "var(--primary)" }}>{c.factor}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: c.triggered ? "var(--fp-critical-text)" : "var(--muted-foreground)" }}>{c.triggered ? `+${c.value}` : "0"}</td>
+                    <td className="px-3 py-2"><StatusBadge status={c.triggered ? "fail" : "pass"} label={c.triggered ? "YES" : "NO"} /></td>
+                    <td className="px-3 py-2 max-w-xs" style={{ color: "var(--muted-foreground)" }}>{c.detail}</td>
+                  </tr>
+                ))}
+                <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
+                  <td className="px-3 py-2 font-bold" style={{ color: "var(--foreground)" }}>Total Score</td>
+                  <td className="px-3 py-2 font-mono font-bold" style={{ color: fraudScore >= 70 ? "var(--fp-critical-text)" : fraudScore >= 40 ? "var(--fp-warning-text)" : "var(--fp-success-text)" }}>{Math.round(fraudScore)}/100</td>
+                  <td colSpan={2} className="px-3 py-2 font-semibold" style={{ color: "var(--foreground)" }}>{wf.level?.toUpperCase() ?? ""} — {wf.explanation ?? ""}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>

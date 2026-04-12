@@ -10518,3 +10518,26 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Add pipeline-level quality gates to Stage 10 (QG-1 through QG-5)
 - [x] Add queryLearningBenchmark function to db.ts
 - [x] Write comprehensive test suite for all quality safeguards (21 tests, all passing)
+
+## CRITICAL: Previous Fixes Had No Effect (Apr 2026 - Round 2)
+- [ ] Trace pipeline orchestrator to find why fixes are not executing
+- [ ] Fix G5_TERMINOLOGY gate — currently REPLACING SA terms with US/UK (opposite of desired)
+- [ ] Fix "Sequence of events" generator — separate from narrative engine, still fabricating "traffic prevented swerving"
+- [ ] Fix Stage 3 extraction — speed "90KM/HRS" not being extracted, location "HRE-BYO AT 339K PEG" not mapped
+- [ ] Fix weather OCR cleanup — "CLEAIL" should be "CLEAR"
+- [ ] Fix cost engine — actual quote line items ($855 total) not flowing through to report
+- [ ] Fix fraud score contradiction — rule trace shows 100 but weighted score is 35, no warning displayed
+- [ ] Fix valuation section — not appearing in the report despite being added
+- [ ] Fix physics engine — all values N/A, no calculations performed
+
+## Enforcement Layer Fixes (Root Cause) — Apr 12, 2026
+- [x] Traced root cause: enforcement layer generates report data at VIEW time, not pipeline
+- [x] Fix phase1-data-integrity.ts G5 terminology — default locale to en-ZA, preserve SA terms
+- [x] Rewrite cost-extraction-engine.ts — remove hardcoded COMPONENT_COST_DB, use quote line items + learning DB
+- [x] Update getEnforcement router to load quote line items and learning benchmark
+- [x] Fix ForensicAuditReport incident description — always show original as authoritative, AI narrative as supplementary
+- [x] Add AI-reconstructed label + disclaimer to Sequence of Events
+- [x] Fix fraud score contradiction — replace pipeline rule trace with weighted fraud engine full_contributions
+- [x] Fix ValuationSubsection to read claimRecord from correct location (aiAssessment._claimRecord)
+- [x] Remove G-code labels from Document Integrity Checks table
+- [x] Write and pass enforcement layer tests (10/10)

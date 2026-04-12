@@ -3176,6 +3176,61 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const { extractCosts } = await import('./cost-extraction-engine');
         const aiPartsCost = enforcementPartsUsd; // Phase 1 unit-corrected parts cost
         const aiLabourCost = enforcementLabourUsd; // Phase 1 unit-corrected labour cost
+
+        // ── Load actual quote line items for authoritative per-item costs ──
+        let quoteLineItemsForCost: Array<{ description: string; category: string; quantity: number; unitPrice: number; lineTotal: number; isRepair?: boolean; isReplacement?: boolean }> = [];
+        try {
+          if (quotes.length > 0) {
+            const { getQuoteLineItemsByQuoteId } = await import('./db');
+            // Load line items from the primary (first) quote
+            const primaryQuote = quotes[0];
+            const lineItems = await getQuoteLineItemsByQuoteId(primaryQuote.id);
+            quoteLineItemsForCost = lineItems.map((li: any) => ({
+              description: li.description ?? 'Unknown item',
+              category: li.category ?? 'other',
+              quantity: Number(li.quantity ?? 1),
+              unitPrice: Number(li.unitPrice ?? 0),
+              lineTotal: Number(li.lineTotal ?? 0),
+              isRepair: li.isRepair === 1,
+              isReplacement: li.isReplacement === 1,
+            }));
+          }
+        } catch (err) {
+          console.warn('[getEnforcement] Failed to load quote line items:', err);
+        }
+
+        // ── Load learning DB benchmark ──
+        let learningBenchmark: { vehicleDescriptor: string; componentCount: number; collisionDirection: string; marketRegion: string; avgCostUsd: number | null; sampleSize: number } | null = null;
+        try {
+          const { costLearningRecords } = await import('../drizzle/schema');
+          const { sql: sqlFn } = await import('drizzle-orm');
+          const dbConn = await getDb();
+          if (dbConn && assessment.vehicleMake) {
+            const vehicleDesc = `${(assessment.vehicleMake ?? '').toLowerCase()} ${(assessment.vehicleModel ?? '').toLowerCase()}`.trim();
+            if (vehicleDesc) {
+              const rows = await dbConn.select({
+                avgCost: sqlFn`AVG(final_cost_usd_cents)`.as('avg_cost'),
+                cnt: sqlFn`COUNT(*)`.as('cnt'),
+              })
+                .from(costLearningRecords)
+                .where(sqlFn`vehicle_descriptor LIKE ${`%${vehicleDesc}%`}`);
+              const row = rows[0] as any;
+              if (row && Number(row.cnt) > 0) {
+                learningBenchmark = {
+                  vehicleDescriptor: vehicleDesc,
+                  componentCount: damagedComponents.length,
+                  collisionDirection: impactDirection,
+                  marketRegion: 'ZA',
+                  avgCostUsd: row.avgCost ? Number(row.avgCost) / 100 : null, // cents → dollars
+                  sampleSize: Number(row.cnt),
+                };
+              }
+            }
+          }
+        } catch (err) {
+          console.warn('[getEnforcement] Failed to query learning benchmark:', err);
+        }
+
         const costExtraction = extractCosts({
           aiEstimatedCost,
           aiPartsCost,
@@ -3184,6 +3239,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           accidentSeverity,
           extractionConfidence: Number(extractionConfidence),
           quotedAmounts,
+          quoteLineItems: quoteLineItemsForCost,
+          learningBenchmark,
         });
         // Run the Weighted Fraud Scoring Engine — deterministic, rule-based
         const { computeWeightedFraudScore, countMissingFields } = await import('./weighted-fraud-scoring');

@@ -383,14 +383,21 @@ function runG4(textFields: Record<string, string | null | undefined>): {
  */
 const TERMINOLOGY_DICT: Record<string, Record<string, string>> = {
   'en': {
-    // Enforce neutral professional terms regardless of locale
+    // Default: preserve South African / Commonwealth terms as-is.
+    // Only correct colloquialisms that are not professional insurance terms.
     'hooters': 'horn',
-    'bonnet catch': 'hood latch',
-    'fan cowling': 'radiator fan shroud',
-    'boot lid': 'trunk lid',
-    'wing mirror': 'side mirror',
-    'tyre': 'tyre', // preserve ZW/UK spelling
-    'windscreen': 'windscreen', // preserve ZW/UK spelling
+    // DO NOT convert SA terms — they are the correct professional nomenclature
+    // in the Southern African insurance market.
+    'tyre': 'tyre',
+    'windscreen': 'windscreen',
+    'bonnet': 'bonnet',
+    'boot': 'boot',
+    'boot lid': 'boot lid',
+    'bonnet catch': 'bonnet catch',
+    'fan cowling': 'fan cowling',
+    'wing mirror': 'wing mirror',
+    'indicator': 'indicator',
+    'number plate': 'number plate',
   },
   'en-ZW': {
     // Zimbabwe English → professional insurance terms
@@ -413,11 +420,18 @@ const TERMINOLOGY_DICT: Record<string, Record<string, string>> = {
     'hooters': 'horn',
   },
   'en-ZA': {
-    // South African English (similar to ZW)
+    // South African English — preserve all SA terms, only correct colloquialisms
     'hooters': 'horn',
-    'bakkie': 'pickup truck',
     'tyre': 'tyre',
     'windscreen': 'windscreen',
+    'bonnet': 'bonnet',
+    'boot': 'boot',
+    'boot lid': 'boot lid',
+    'bonnet catch': 'bonnet catch',
+    'fan cowling': 'fan cowling',
+    'wing mirror': 'wing mirror',
+    'indicator': 'indicator',
+    'number plate': 'number plate',
   },
 };
 
@@ -426,9 +440,9 @@ function detectLocale(input: Phase1Input): string {
   if (input.locale && TERMINOLOGY_DICT[input.locale]) {
     return input.locale;
   }
-  // Default to neutral 'en' — do not assume regional locale from claim origin
-  // Regional mappings should only apply when explicitly confirmed
-  return 'en';
+  // Default to 'en-ZA' — the system is primarily used in Southern Africa.
+  // SA terminology is the correct professional nomenclature for this market.
+  return 'en-ZA';
 }
 
 function normaliseTerminology(text: string, locale: string, corrections: string[]): string {

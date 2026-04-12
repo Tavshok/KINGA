@@ -217,6 +217,16 @@ async function runLLMReasoningPass(
 
   const prompt = `You are a forensic insurance claims analyst specialising in motor vehicle incidents. Your task is to reason over an incident description from a claim form and produce a structured analysis.
 
+CRITICAL RULES — ANTI-FABRICATION CONTRACT
+-------------------------------------------
+- The cleaned_incident_narrative MUST preserve the original meaning and key phrases from the raw description.
+- DO NOT invent details not present in the raw description (e.g., "failed to swerve because of traffic", "visibility was poor").
+- DO NOT add causal explanations that are not stated in the original text.
+- If the description is short or lacks detail, keep the cleaned narrative short — do NOT pad it with assumptions.
+- The sequence_of_events MUST only describe what is explicitly stated or directly implied by the raw text.
+- Every factual claim in your output must be traceable to a specific phrase in the raw description.
+- If information is not available, use null or "not stated" — never fabricate.
+
 CLAIM CONTEXT
 -------------
 Vehicle: ${input.vehicle_make_model}
@@ -528,9 +538,29 @@ export async function runIncidentNarrativeEngine(
   // Step 2: LLM reasoning pass
   const llmResult = await runLLMReasoningPass(input, preCleanedNarrative, stripped);
 
+  // ── TOKEN FIDELITY SAFEGUARD ──────────────────────────────────────────────
+  // If the LLM output contains fabricated content (key phrases from original
+  // are missing), fall back to the pre-cleaned narrative.
+  const originalTokens = new Set(
+    preCleanedNarrative.toLowerCase().split(/\s+/).filter(t => t.length > 3)
+  );
+  const outputTokens = new Set(
+    (llmResult.cleaned_incident_narrative ?? "").toLowerCase().split(/\s+/).filter(t => t.length > 3)
+  );
+  let matchCount = 0;
+  for (const t of originalTokens) {
+    if (outputTokens.has(t)) matchCount++;
+  }
+  const fidelityRatio = originalTokens.size > 0 ? matchCount / originalTokens.size : 1;
+  const FIDELITY_THRESHOLD = 0.40; // At least 40% of original tokens must be preserved
+  const useFallback = fidelityRatio < FIDELITY_THRESHOLD && preCleanedNarrative.length > 20;
+  if (useFallback) {
+    console.warn(`[NarrativeEngine] Token fidelity too low (${(fidelityRatio * 100).toFixed(1)}%). Falling back to pre-cleaned narrative.`);
+  }
+
   return {
     raw_description: raw,
-    cleaned_incident_narrative: llmResult.cleaned_incident_narrative,
+    cleaned_incident_narrative: useFallback ? preCleanedNarrative : llmResult.cleaned_incident_narrative,
     stripped_content: stripped,
     was_contaminated: wasContaminated || llmResult.segments.some(s => !s.isIncident),
     segments: llmResult.segments,
