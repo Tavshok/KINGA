@@ -1429,8 +1429,11 @@ export async function runPipelineV2(
     } catch (felVersionErr) {
       ctx.log("Stage13", `FEL version snapshot build failed (non-fatal): ${String(felVersionErr)}`);
     }
-
-    ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
+    // ── Phase 4A: IFE + DOE results — add to forensicAnalysisResult for db.ts persistence ──
+    forensicAnalysisResult.ifeResult = stage9Data?.ifeResult ?? null;
+    forensicAnalysisResult.doeResult = stage9Data?.doeResult ?? null;
+    ctx.log("Stage13", `IFE result: ${forensicAnalysisResult.ifeResult ? 'present' : 'absent'}, DOE result: ${forensicAnalysisResult.doeResult ? 'present' : 'absent'}`);
+     ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
   } catch (err) {
     ctx.log("Stage13", `Forensic analysis build error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
   }
