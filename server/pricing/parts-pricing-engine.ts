@@ -188,11 +188,25 @@ export async function getExchangeRates(): Promise<Record<string, number>> {
       return DEFAULT_EXCHANGE_RATES;
     }
     
-    // TODO: Query currencyExchangeRates table when it exists
-    // For now, return defaults
-    exchangeRatesCache = { ...DEFAULT_EXCHANGE_RATES };
+    // Query the currencyExchangeRates table for live rates
+    const { currencyExchangeRates } = await import("../../drizzle/schema");
+    const { eq } = await import("drizzle-orm");
+    const rows = await db
+      .select({ currencyCode: currencyExchangeRates.currencyCode, rateToUsd: currencyExchangeRates.rateToUsd })
+      .from(currencyExchangeRates)
+      .where(eq(currencyExchangeRates.isActive, 1));
+
+    if (rows.length === 0) {
+      // No active rates in DB — fall back to hardcoded defaults
+      exchangeRatesCache = { ...DEFAULT_EXCHANGE_RATES };
+    } else {
+      const rates: Record<string, number> = { ...DEFAULT_EXCHANGE_RATES };
+      for (const row of rows) {
+        rates[row.currencyCode] = parseFloat(String(row.rateToUsd));
+      }
+      exchangeRatesCache = rates;
+    }
     exchangeRatesCacheTime = Date.now();
-    
     return exchangeRatesCache;
   } catch (error) {
     console.error("Failed to fetch exchange rates:", error);

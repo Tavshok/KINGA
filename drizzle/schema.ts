@@ -134,6 +134,21 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   imageAnalysisFailedCount: int("image_analysis_failed_count").default(0),
   // Percentage 0–100 (null = no images were submitted for analysis)
   imageAnalysisSuccessRate: int("image_analysis_success_rate"),
+  // Phase 2A: Forensic Confidence Degradation Index (FCDI)
+  // 0 = maximally degraded, 100 = fully reliable.
+  // Computed from fallback count, timeout count, assumption count, low-confidence stages.
+  fcdiScore: int("fcdi_score"),
+  // Phase 2A: Forensic Execution Ledger (FEL)
+  // Court-grade per-stage audit record: input hash, output snapshot, fallback used,
+  // assumptions introduced, confidence score, model/prompt/contract versions.
+  forensicExecutionLedgerJson: text("forensic_execution_ledger_json"),
+  // Phase 2C: Assumption Registry
+  // Queryable record of all assumptions introduced during the pipeline run,
+  // classified by type and impact level.
+  assumptionRegistryJson: text("assumption_registry_json"),
+  // Phase 2B: Economic Context Engine output
+  // Policy-based currency, PPP factor, parts sourcing profile, NCI, exchange rate source.
+  economicContextJson: text("economic_context_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

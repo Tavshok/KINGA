@@ -10592,3 +10592,28 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Write vitest tests for physics fallback when speed is null
 - [x] Write vitest tests for cost persistence fields
 - [x] Write vitest tests for fraud contradiction warning threshold
+
+## Phase 2A — Observability & Forensic Execution Ledger
+- [x] Build forensicCDI.ts — Forensic Confidence Degradation Index (FCDI) using Phase 1 state machine summary
+- [ ] Add fcdiScore column to ai_assessments schema and db.ts save
+- [ ] Add forensicExecutionLedgerJson column to ai_assessments schema
+- [ ] Build per-stage StageExecutionRecord in orchestrator (input hash, output snapshot, fallback used, assumptions, confidence, model/prompt/contract version)
+- [ ] Add modelVersion, promptVersion, contractVersion constants to LLM call wrappers
+- [ ] Extend Pipeline Intelligence Dashboard to show FCDI, fallback rates, assumption density per stage
+- [ ] Extend ForensicAuditReport cover page to show FCDI score
+
+## Phase 2B — Economic Context Engine
+- [ ] Create economicContextProfiles table (PPP, inflation index, labour baseline, parts import ratio, benchmark repair cost per market)
+- [ ] Seed initial profiles for ZW, ZA, ZM, GB, KE
+- [ ] Update Stage 9 to produce three-tier cost output: local currency, USD equivalent, normalised cost index (0-1)
+- [ ] Update costIntelligenceJson schema and db.ts save to include normalised index and USD equivalent
+- [ ] Update Section 3 of ForensicAuditReport to display three-tier cost output
+
+## Phase 2C — Assumption Registry & Consistency Engine
+- [ ] Extend Assumption interface with assumptionType and impact fields
+- [ ] Update all assumption-generating stages to classify type and impact
+- [ ] Add assumptionThresholds config and FLAGGED_EXCEPTION routing in orchestrator
+- [ ] Add assumptionRegistryJson column to ai_assessments
+- [ ] Add d9_damageVsCost dimension to crossEngineConsensus.ts
+- [ ] Add d10_costVsFraudSignals dimension to crossEngineConsensus.ts
+- [ ] Wire CONFLICTING consensus result to FLAGGED_EXCEPTION in orchestrator

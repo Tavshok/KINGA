@@ -35,6 +35,7 @@ import type {
   Stage6Output,
   Stage7Output,
   Stage8Output,
+  Stage9Output,
   AccidentSeverity,
   CollisionDirection,
 } from "./types";
@@ -453,13 +454,116 @@ function buildNarrative(
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * D9 — Damage-vs-Cost consistency
+ * Checks whether the cost estimate is plausible given the damage severity.
+ * Severe damage with very low cost, or minor damage with very high cost, is a conflict.
+ */
+function d9_damageCostConsistency(
+  stage6: Stage6Output | null,
+  stage9: Stage9Output | null
+): ConsensusAgreementDimension {
+  const severity = stage6?.overallSeverityScore ?? null;
+  const totalCents = stage9?.breakdown?.totalCents ?? null;
+  let score = 70;
+  const details: string[] = [];
+
+  if (severity === null || totalCents === null) {
+    score = 50;
+    details.push("insufficient data for damage-cost comparison");
+  } else {
+    const totalUsd = totalCents / 100;
+    // Thresholds: minor (<40) should be <$3k, severe (>70) should be >$1k
+    if (severity < 40 && totalUsd > 5000) {
+      score = 20;
+      details.push(`minor damage (severity=${severity}) but high cost ($${totalUsd.toFixed(0)}) — possible inflation`);
+    } else if (severity > 70 && totalUsd < 500) {
+      score = 25;
+      details.push(`severe damage (severity=${severity}) but very low cost ($${totalUsd.toFixed(0)}) — possible underquote`);
+    } else if (severity >= 40 && severity <= 70 && totalUsd >= 500 && totalUsd <= 15000) {
+      score = 90;
+      details.push(`moderate damage (severity=${severity}) with proportionate cost ($${totalUsd.toFixed(0)})`);
+    } else {
+      score = 70;
+      details.push(`damage severity=${severity}, cost=$${totalUsd.toFixed(0)} — within expected range`);
+    }
+  }
+
+  const conflict = score < 50;
+  return {
+    dimension_id: "d9_damage_cost_consistency",
+    label: "Damage-Cost Consistency",
+    sources: ["damage", "cost"],
+    agreement_score: score,
+    weight: 0.10,
+    weighted_contribution: score * 0.10,
+    conflict,
+    detail: details.join("; "),
+  };
+}
+
+/**
+ * D10 — Cost-vs-Fraud consistency
+ * High fraud risk with low cost deviation is suspicious (fraud without financial gain).
+ * High cost deviation with low fraud risk may indicate legitimate complex repair.
+ */
+function d10_costFraudConsistency(
+  stage8: Stage8Output | null,
+  stage9: Stage9Output | null
+): ConsensusAgreementDimension {
+  const fraudScore = stage8?.fraudRiskScore ?? null;
+  const deviationPct = stage9?.quoteDeviationPct ?? null;
+  let score = 70;
+  const details: string[] = [];
+
+  if (fraudScore === null || deviationPct === null) {
+    score = 50;
+    details.push("insufficient data for cost-fraud comparison");
+  } else {
+    const absDev = Math.abs(deviationPct);
+    // High fraud + low deviation: suspicious — fraud without financial motive
+    if (fraudScore > 70 && absDev < 5) {
+      score = 30;
+      details.push(`high fraud risk (${fraudScore}) but quote deviation only ${absDev.toFixed(1)}% — inconsistent pattern`);
+    }
+    // High fraud + high deviation: consistent — financial motive present
+    else if (fraudScore > 70 && absDev > 20) {
+      score = 85;
+      details.push(`high fraud risk (${fraudScore}) with significant deviation (${absDev.toFixed(1)}%) — consistent pattern`);
+    }
+    // Low fraud + high deviation: possible legitimate complex repair
+    else if (fraudScore < 30 && absDev > 30) {
+      score = 65;
+      details.push(`low fraud risk (${fraudScore}) with high deviation (${absDev.toFixed(1)}%) — may be legitimate complex repair`);
+    }
+    // Normal range
+    else {
+      score = 80;
+      details.push(`fraud risk=${fraudScore}, quote deviation=${absDev.toFixed(1)}% — within expected correlation`);
+    }
+  }
+
+  const conflict = score < 50;
+  return {
+    dimension_id: "d10_cost_fraud_consistency",
+    label: "Cost-Fraud Consistency",
+    sources: ["cost", "fraud"],
+    agreement_score: score,
+    weight: 0.09,
+    weighted_contribution: score * 0.09,
+    conflict,
+    detail: details.join("; "),
+  };
+}
+
 export function computeConsensus(
   claimRecord: ClaimRecord | null,
   stage6: Stage6Output | null,
   stage7: Stage7Output | null,
   stage8: Stage8Output | null,
   coherenceResult: DamagePhysicsCoherenceResult | null,
-  _truthResolution?: TruthResolutionResult | null
+  _truthResolution?: TruthResolutionResult | null,
+  stage9?: Stage9Output | null
 ): ConsensusResult {
   const dimensions: ConsensusAgreementDimension[] = [
     d1_physicsVsDamageSeverity(stage6, stage7),
@@ -470,6 +574,8 @@ export function computeConsensus(
     d6_photoEvidencePresence(claimRecord),
     d7_documentCompleteness(claimRecord),
     d8_coherenceMismatch(coherenceResult),
+    d9_damageCostConsistency(stage6, stage9 ?? null),
+    d10_costFraudConsistency(stage8, stage9 ?? null),
   ];
 
   // Weighted composite score

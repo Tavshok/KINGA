@@ -9,6 +9,7 @@
  */
 
 import { ensureCostContract } from "./engineFallback";
+import { deriveEconomicContext } from "./economicContextEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord, getActiveCalibrationMultiplier } from "../db";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
@@ -498,6 +499,27 @@ export async function runCostOptimisationStage(
     const documentedAgreedCostUsd = claimRecord.repairQuote.agreedCostCents
       ? claimRecord.repairQuote.agreedCostCents / 100
       : null;
+    // Phase 2B: Derive economic context from policy/tenant configuration
+    let economicContext = null;
+    try {
+      economicContext = await deriveEconomicContext({
+        tenantId: claimRecord.tenantId ? String(claimRecord.tenantId) : null,
+        primaryCurrency: ctx.tenantRates?.currencyCode ?? currency,
+        primaryCurrencySymbol: ctx.tenantRates?.currencySymbol ?? (currency === 'ZAR' ? 'R' : currency === 'ZMW' ? 'K' : '$'),
+        labourRateUsdPerHour: labourRate,
+        marketRegion: region,
+      });
+      // Propagate inflation flags from the learning database if available
+      if (economicContext && costDecision?.anomalies) {
+        const hasPartsInflation = costDecision.anomalies.some(a => a.category === 'overpricing' && a.severity === 'high');
+        const hasLabourInflation = costDecision.anomalies.some(a => a.description?.toLowerCase().includes('labour'));
+        economicContext = { ...economicContext, partsInflationDetected: hasPartsInflation, labourInflationDetected: hasLabourInflation };
+      }
+      ctx.log("Stage 9", `Economic context: ${economicContext.currency} (NCI=${economicContext.normalisedCostIndex.toFixed(4)}, PPP=${economicContext.pppFactor}, parts=${economicContext.partsSourceProfile}, rate_source=${economicContext.exchangeRateSource})`);
+    } catch (eceErr) {
+      ctx.log("Stage 9", `Economic context derivation failed (non-fatal): ${eceErr}`);
+    }
+
     const output = ensureCostContract({
       expectedRepairCostCents: totalExpectedCents,
       reconciliationSummary,
@@ -528,6 +550,7 @@ export async function runCostOptimisationStage(
       panelBeaterName: claimRecord.repairQuote.repairerName ?? claimRecord.repairQuote.repairerCompany ?? null,
       documentedLabourCostUsd: claimRecord.repairQuote.labourCostCents ? claimRecord.repairQuote.labourCostCents / 100 : null,
       documentedPartsCostUsd: claimRecord.repairQuote.partsCostCents ? claimRecord.repairQuote.partsCostCents / 100 : null,
+      economicContext,
     }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);

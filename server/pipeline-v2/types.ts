@@ -866,6 +866,8 @@ export interface Stage9Output {
   panelBeaterName: string | null;
   documentedLabourCostUsd: number | null;
   documentedPartsCostUsd: number | null;
+  /** Phase 2B: Economic Context Engine output — policy-based currency, PPP, NCI */
+  economicContext: import('./economicContextEngine').EconomicContext | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

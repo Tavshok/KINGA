@@ -648,6 +648,10 @@ export const adminRouter = router({
             isReanalysis: aiAssessments.isReanalysis,
             fraudRiskLevel: aiAssessments.fraudRiskLevel,
             confidenceScore: aiAssessments.confidenceScore,
+            fcdiScore: aiAssessments.fcdiScore,
+            forensicExecutionLedgerJson: aiAssessments.forensicExecutionLedgerJson,
+            assumptionRegistryJson: aiAssessments.assumptionRegistryJson,
+            forensicAnalysis: aiAssessments.forensicAnalysis,
           })
           .from(aiAssessments)
           .orderBy(desc(aiAssessments.createdAt))
@@ -660,6 +664,40 @@ export const adminRouter = router({
               parsedSummary = JSON.parse(row.pipelineRunSummary as string);
             }
           } catch { /* ignore parse errors */ }
+
+          // Parse FEL for summary stats
+          let felSummary: any = null;
+          try {
+            if (row.forensicExecutionLedgerJson) {
+              const fel = JSON.parse(row.forensicExecutionLedgerJson as string);
+              felSummary = {
+                replayable: fel.replayable ?? false,
+                stageCount: fel.stageRecords?.length ?? 0,
+                timedOutStages: (fel.stageRecords ?? []).filter((s: any) => s.timedOut).map((s: any) => s.stageId),
+                fallbackStages: (fel.stageRecords ?? []).filter((s: any) => s.fallbackUsed).map((s: any) => s.stageId),
+              };
+            }
+          } catch { /* ignore */ }
+          // Parse assumption registry for count
+          let assumptionCount = 0;
+          let highImpactAssumptions = 0;
+          try {
+            if (row.assumptionRegistryJson) {
+              const ar = JSON.parse(row.assumptionRegistryJson as string);
+              assumptionCount = ar.totalCount ?? 0;
+              highImpactAssumptions = (ar.assumptions ?? []).filter((a: any) => a.impactLevel === 'HIGH').length;
+            }
+          } catch { /* ignore */ }
+          // Parse forensicAnalysis for state machine and anomaly sentinels
+          let psmSummary: any = null;
+          let anomalyViolations: any[] = [];
+          try {
+            if (row.forensicAnalysis) {
+              const fa = JSON.parse(row.forensicAnalysis as string);
+              psmSummary = fa.pipelineStateMachine ?? null;
+              anomalyViolations = fa.anomalySentinelViolations ?? [];
+            }
+          } catch { /* ignore */ }
 
           return {
             assessmentId: row.id,
@@ -675,6 +713,14 @@ export const adminRouter = router({
             totalDurationMs: parsedSummary?.totalDurationMs ?? null,
             completedAt: parsedSummary?.completedAt ?? null,
             allSavedToDb: parsedSummary?.allSavedToDb ?? null,
+            // Phase 2A additions
+            fcdiScore: row.fcdiScore ?? null,
+            felSummary,
+            assumptionCount,
+            highImpactAssumptions,
+            psmCurrentState: psmSummary?.currentState ?? null,
+            psmFlaggedExceptionCount: (psmSummary?.history ?? []).filter((h: any) => h.to === 'FLAGGED_EXCEPTION').length,
+            anomalyViolationCount: anomalyViolations.filter((v: any) => v.violated).length,
           };
         });
       } catch (error: any) {

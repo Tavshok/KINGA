@@ -404,6 +404,7 @@ export function buildCostFallback(reason = "insufficient_input"): CostFallbackOu
     panelBeaterName: null,
     documentedLabourCostUsd: null,
     documentedPartsCostUsd: null,
+    economicContext: null,  // Phase 2B: ECE not available in fallback path
     _fallback: fallbackMeta,
     _fallback_fields: ["ai_estimate", "parts", "labour", "fair_range", "expectedRepairCostCents"],
   };
@@ -448,6 +449,7 @@ export function ensureCostContract(
     panelBeaterName: partial.panelBeaterName ?? null,
     documentedLabourCostUsd: partial.documentedLabourCostUsd ?? null,
     documentedPartsCostUsd: partial.documentedPartsCostUsd ?? null,
+    economicContext: partial.economicContext ?? null,  // Phase 2B: ECE
   };
 
   return {

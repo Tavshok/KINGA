@@ -880,6 +880,49 @@ export async function triggerAiAssessment(claimId: number) {
         return enriched.length > 0 ? Math.round((successCount / enriched.length) * 100) : 0;
       } catch { return 0; }
     })(),
+    // Phase 2A: FCDI — Forensic Confidence Degradation Index (0–100)
+    fcdiScore: (() => {
+      try {
+        const fcdi = forensicAnalysis?.fcdi;
+        return typeof fcdi?.scorePercent === 'number' ? fcdi.scorePercent : null;
+      } catch { return null; }
+    })(),
+    // Phase 2A: FEL — Forensic Execution Ledger (per-stage audit record)
+    forensicExecutionLedgerJson: (() => {
+      try {
+        const fel = forensicAnalysis?.forensicExecutionLedger;
+        return fel ? JSON.stringify(fel) : null;
+      } catch { return null; }
+    })(),
+    // Phase 2C: Assumption Registry — queryable record of all assumptions
+    assumptionRegistryJson: (() => {
+      try {
+        const assumptions = forensicAnalysis?.assumptions;
+        if (!assumptions || !Array.isArray(assumptions) || assumptions.length === 0) return null;
+        return JSON.stringify({
+          version: '1.0.0',
+          claimId: result.summary?.claimId,
+          totalCount: assumptions.length,
+          assumptions: assumptions.map((a: any, idx: number) => ({
+            id: idx + 1,
+            field: a.field ?? null,
+            assumedValue: a.assumedValue ?? null,
+            reason: a.reason ?? null,
+            strategy: a.strategy ?? null,
+            confidence: a.confidence ?? null,
+            stageId: a.stageId ?? null,
+            impactLevel: (a.confidence ?? 50) < 40 ? 'HIGH' : (a.confidence ?? 50) < 70 ? 'MEDIUM' : 'LOW',
+          })),
+        });
+      } catch { return null; }
+    })(),
+    // Phase 2B: Economic Context Engine — policy-based currency, PPP, NCI
+    economicContextJson: (() => {
+      try {
+        const ec = costAnalysis?.economicContext;
+        return ec ? JSON.stringify(ec) : null;
+      } catch { return null; }
+    })(),
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

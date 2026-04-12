@@ -128,6 +128,13 @@ import {
   runAnomalySentinels,
   CRITICAL_STAGES,
 } from "./pipelineStateMachine";
+import { computeFCDI, type FCDIResult } from "./forensicCDI";
+import {
+  buildForensicExecutionLedger,
+  buildStageRecord,
+  type ForensicExecutionLedger,
+  type StageExecutionRecord,
+} from "./forensicExecutionLedger";
 import { estimateMileageFromYear } from "../services/mileageEstimation";
 import {
   createVehicleMarketValuation,
@@ -302,7 +309,18 @@ export async function runPipelineV2(
     } else if (result.status === "failed" && CRITICAL_STAGES.has(key)) {
       psm.flagException(`Critical stage "${key}" failed: ${result.error ?? "unknown error"}`);
     }
-    if (result.assumptions) allAssumptions.push(...result.assumptions);
+    if (result.assumptions) {
+      allAssumptions.push(...result.assumptions);
+      // Phase 2C: Assumption Registry — FLAGGED_EXCEPTION routing
+      // HIGH-impact assumptions (confidence < 30) trigger a flag so the report
+      // and dashboard surface them for manual review. The pipeline still completes.
+      const highImpact = result.assumptions.filter((a: Assumption) => (a.confidence ?? 50) < 30);
+      for (const ha of highImpact) {
+        psm.flagException(
+          `HIGH-impact assumption in ${key}: field="${ha.field ?? 'unknown'}" assumed="${ha.assumedValue ?? 'unknown'}" confidence=${ha.confidence ?? 0}% — ${ha.reason ?? 'no reason'}`
+        );
+      }
+    }
     if (result.recoveryActions) allRecoveryActions.push(...result.recoveryActions);
   };
 
@@ -542,7 +560,11 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
-  const s6 = await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord)).catch((err) => {
+  // claimRecord is guaranteed non-null here: Stage 5 (assembly) either
+  // produced a valid ClaimRecord or the pipeline would have flagged an exception.
+  // The non-null assertion is intentional — if claimRecord is null, Stage 5 failed
+  // and the pipeline state machine will have already flagged FLAGGED_EXCEPTION.
+  const s6 = await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord!)).catch((err) => {
     const isTimeout = err instanceof StageTimeoutError;
     const reason = isTimeout
       ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -960,8 +982,21 @@ export async function runPipelineV2(
       stage7Data,
       stage8Data,
       coherenceResult,
+      undefined, // truthResolution
+      stage9Data  // Phase 2C: D9 damage-cost + D10 cost-fraud dimensions
     );
     ctx.log("Stage 42", `Consensus: score=${consensusResult.consensus_score}, label=${consensusResult.consensus_label}, conflict=${consensusResult.conflict_present}, conflicts=${consensusResult.conflict_dimension_count}`);
+
+    // Phase 2C: FLAGGED_EXCEPTION routing when consensus is CONFLICTING
+    // A CONFLICTING consensus means multiple engines fundamentally disagree.
+    // This is not a pipeline failure — the pipeline completes, but the state
+    // machine records the exception so the report and dashboard can surface it.
+    if (consensusResult.conflict_present && consensusResult.consensus_label === "CONFLICTING") {
+      psm.flagException(
+        `Cross-engine consensus CONFLICTING (score=${consensusResult.consensus_score}/100): ${consensusResult.conflict_summary}`
+      );
+      ctx.log("Stage 42", `FLAGGED_EXCEPTION: ${consensusResult.conflict_summary}`);
+    }
   } catch (err) {
     ctx.log("Stage 42", `Cross-engine consensus failed (non-fatal): ${String(err)}`);
   }
@@ -1313,6 +1348,57 @@ export async function runPipelineV2(
         fraudScoreWeighted: stage8Data?.fraudRiskScore ?? null,
       }),
     };
+    // ── FCDI: Forensic Confidence Degradation Index ──────────────────────────────────────────
+    // Compute how far this pipeline run is from being fully reliable.
+    // Penalises fallbacks, timeouts, assumptions, low-confidence stages, and skipped critical stages.
+    const fcdiInput = {
+      stages: Object.fromEntries(
+        Object.entries(stages).map(([id, s]) => [
+          id,
+          {
+            status: s.status,
+            degraded: s.status === "degraded",
+            _timedOut: (s as any)._timedOut ?? false,
+            assumptionCount: (s as any).assumptionCount ?? 0,
+            confidenceScore: (s as any).confidenceScore ?? null,
+          },
+        ])
+      ),
+      totalAssumptionCount: allAssumptions.length,
+    };
+    const fcdiResult = computeFCDI(fcdiInput);
+    forensicAnalysisResult.fcdi = fcdiResult;
+    ctx.log("Stage13", `FCDI: ${fcdiResult.scorePercent}% (${fcdiResult.label}) — ${fcdiResult.explanation.slice(0, 100)}`);
+    // ── FEL: Forensic Execution Ledger ─────────────────────────────────────────────────────────
+    // Build a per-stage audit record for court-grade traceability.
+    // Each record captures: input hash, output snapshot, fallback used,
+    // assumptions introduced, confidence score, model/prompt/contract versions.
+    const felStageRecords: StageExecutionRecord[] = Object.entries(stages).map(([stageId, s]) => {
+      return buildStageRecord({
+        stageId,
+        input: null, // Input hashing requires stage-level instrumentation (Phase 2B)
+        output: (s as any).outputSnapshot ?? null,
+        executionTimeMs: s.durationMs ?? 0,
+        timedOut: (s as any)._timedOut ?? false,
+        fallbackUsed: s.status === "degraded" ? (s as any).fallbackFunction ?? "unknown_fallback" : null,
+        assumptions: allAssumptions.filter((a: any) => a.stageId === stageId),
+        confidenceScore: (s as any).confidenceScore ?? null,
+        status: (s.status === "success" || s.status === "degraded" || s.status === "skipped" || s.status === "failed")
+          ? s.status as "success" | "degraded" | "skipped" | "failed"
+          : "success",
+      });
+    });
+    const fel = buildForensicExecutionLedger({
+      claimId: ctx.claimId,
+      pipelineRunAt: new Date().toISOString(),
+      totalDurationMs: Date.now() - pipelineStart,
+      stageRecords: felStageRecords,
+      fcdiScorePercent: fcdiResult.scorePercent,
+      fcdiLabel: fcdiResult.label,
+      finalPipelineState: psm.toSummary().currentState,
+    });
+    forensicAnalysisResult.forensicExecutionLedger = fel;
+    ctx.log("Stage13", `FEL built: ${felStageRecords.length} stage records, replayable=${fel.replayable}`);
     ctx.log("Stage13", `Forensic analysis built: ${Object.keys(forensicAnalysisResult).length} sections`);
   } catch (err) {
     ctx.log("Stage13", `Forensic analysis build error (non-fatal): ${err instanceof Error ? err.message : String(err)}`);
