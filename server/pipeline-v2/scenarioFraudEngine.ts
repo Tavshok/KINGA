@@ -627,32 +627,48 @@ function evaluateTimeline(
   return flags;
 }
 
-/** Rule 3: Damage pattern evaluation — scenario-aware */
+//** Rule 3: Damage pattern evaluation — scenario-aware */
 function evaluateDamagePattern(
   input: ScenarioFraudInput,
   profile: ScenarioProfile
 ): FraudFlag[] {
   const flags: FraudFlag[] = [];
   const { damage_pattern_result, scenario_type } = input;
-
   if (!damage_pattern_result) return flags;
-
   const { pattern_match, confidence, validation_detail } = damage_pattern_result;
   const mult = profile.pattern_mismatch_multiplier;
-
   if (pattern_match === "NONE") {
-    // NONE pattern is always HIGH severity regardless of scenario multiplier
-    const baseScore = Math.max(42, Math.round(35 * mult));
-    flags.push(buildFlag(
-      "damage_pattern_none",
-      "pattern",
-      "HIGH",
-      Math.min(55, baseScore),
-      `No expected damage components for a ${scenario_type.replace(/_/g, " ")} scenario were found ` +
-      `(primary coverage: ${validation_detail.primary_coverage_pct}%, confidence: ${confidence}/100). ` +
-      `The damage profile does not match the claimed incident type.`,
-      true
-    ));
+    // CRITICAL FIX (2026-04-14): When confidence === 0, the NONE result means
+    // the pattern engine had NO evidence to work with (no damage components,
+    // no photos). This is a DATA ABSENCE, not a fraud signal. Treating it as
+    // fraud produces false positives on legitimate claims with missing photos.
+    // Only fire the fraud flag when confidence > 0 (i.e., the engine actually
+    // evaluated evidence and found no match).
+    if (confidence === 0) {
+      // No evidence available — emit a LOW-severity informational flag only
+      flags.push(buildFlag(
+        "damage_pattern_unverifiable",
+        "pattern",
+        "LOW",
+        5,
+        `Damage pattern could not be validated: no damage components or photographs were available ` +
+        `for the ${scenario_type.replace(/_/g, " ")} scenario. Manual photo review recommended.`,
+        false
+      ));
+    } else {
+      // NONE pattern is always HIGH severity regardless of scenario multiplier
+      const baseScore = Math.max(42, Math.round(35 * mult));
+      flags.push(buildFlag(
+        "damage_pattern_none",
+        "pattern",
+        "HIGH",
+        Math.min(55, baseScore),
+        `No expected damage components for a ${scenario_type.replace(/_/g, " ")} scenario were found ` +
+        `(primary coverage: ${validation_detail.primary_coverage_pct}%, confidence: ${confidence}/100). ` +
+        `The damage profile does not match the claimed incident type.`,
+        true
+      ));
+    }
   } else if (pattern_match === "WEAK") {
     const baseScore = Math.round(20 * mult);
     flags.push(buildFlag(

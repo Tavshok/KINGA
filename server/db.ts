@@ -1178,19 +1178,26 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (topLevelError) {
     // LLM call, JSON parse, or other unhandled failure
     console.error(`[AI Assessment] Fatal error for claim ${claimId}:`, topLevelError);
-    try {
-      const dbInner = await getDb();
-      if (dbInner) {
-        await dbInner.update(claims).set({
-          documentProcessingStatus: "failed",
-          status: "intake_pending",
-          workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
-          updatedAt: new Date().toISOString(),
-        }).where(eq(claims.id, claimId));
-        console.log(`[AI Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
+    // CRITICAL FIX: If pipelineSucceeded is already true, the success path already
+    // wrote assessment_complete to the DB. Do NOT reset to intake_pending — that
+    // is the claim-cycling bug. Only reset when the pipeline genuinely failed.
+    if (!pipelineSucceeded) {
+      try {
+        const dbInner = await getDb();
+        if (dbInner) {
+          await dbInner.update(claims).set({
+            documentProcessingStatus: "failed",
+            status: "intake_pending",
+            workflowState: "intake_queue",  // Reset workflow state so re-run can transition cleanly
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId));
+          console.log(`[AI Assessment] Claim ${claimId} marked as failed after AI error. workflowState reset to intake_queue.`);
+        }
+      } catch (updateError) {
+        console.error(`[AI Assessment] Could not update failure status for claim ${claimId}:`, updateError);
       }
-    } catch (updateError) {
-      console.error(`[AI Assessment] Could not update failure status for claim ${claimId}:`, updateError);
+    } else {
+      console.warn(`[AI Assessment] Claim ${claimId}: error thrown AFTER pipelineSucceeded=true — pipeline completed successfully, NOT resetting to intake_pending. Error:`, topLevelError);
     }
     throw topLevelError; // Re-throw so the caller's setImmediate catch logs it
   } finally {

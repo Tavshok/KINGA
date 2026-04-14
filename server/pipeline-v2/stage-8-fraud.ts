@@ -439,10 +439,17 @@ export async function runFraudAnalysisStage(
     // a NONE pattern match as a fraud signal. If photos were not ingested (e.g.
     // images_not_processed flag is set, or imageUrls is empty), the NONE result
     // simply means there were no photos to validate against — not actual fraud.
-    const imagesWereProcessed = (
-      claimRecord.damage.imageUrls.length > 0 ||
-      !(stage3?.inputRecovery?.failure_flags?.includes('images_not_processed') ?? false)
-    );
+    //
+    // CRITICAL BUG FIX (2026-04-14): The original logic was:
+    //   imageUrls.length > 0 || !(failure_flags?.includes(...) ?? false)
+    // When imageUrls is empty AND failure_flags is null/undefined, this evaluates to:
+    //   false || !(false) = false || true = TRUE — incorrectly treating NONE as fraud.
+    // Correct logic: images were processed ONLY if imageUrls actually has content.
+    // The failure_flags check is a secondary signal (explicit failure marker), not
+    // a fallback that makes the result true when data is absent.
+    const hasImages = claimRecord.damage.imageUrls.length > 0;
+    const explicitlyFailed = stage3?.inputRecovery?.failure_flags?.includes('images_not_processed') === true;
+    const imagesWereProcessed = hasImages && !explicitlyFailed;
     if (damagePatternResult) {
       if (damagePatternResult.pattern_match === "NONE") {
         if (imagesWereProcessed) {

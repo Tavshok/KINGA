@@ -1516,3 +1516,87 @@ describe("Score integrity", () => {
     expect(result.fraud_score).toBeLessThanOrEqual(100);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// REGRESSION TESTS — BUG FIX 2026-04-14
+// ─────────────────────────────────────────────────────────────────────────────
+
+describe("BUG FIX: NONE pattern with confidence=0 (no photos) must NOT be a fraud signal", () => {
+  const NO_PHOTO_NONE_PATTERN: DamagePatternResult = {
+    pattern_match: "NONE",
+    structural_damage_detected: false,
+    // confidence=0 means the engine had no evidence to evaluate (no damage components, no photos)
+    confidence: 0,
+    validation_detail: {
+      image_contradiction: false,
+      primary_coverage_pct: 0,
+      secondary_coverage_pct: 0,
+    },
+  };
+
+  it("animal_strike with no photos (confidence=0) → does NOT fire damage_pattern_none flag", () => {
+    const result = evaluateScenarioFraud({
+      scenario_type: "animal_strike",
+      police_report_status: "absent",
+      timeline_consistency: "consistent",
+      damage_pattern_result: NO_PHOTO_NONE_PATTERN,
+      assessor_confirmation: "not_yet",
+    });
+    // The HIGH-severity damage_pattern_none flag must NOT be present
+    expect(result.flags.some(f => f.code === "damage_pattern_none")).toBe(false);
+    // Instead, only the LOW-severity informational flag should be present
+    expect(result.flags.some(f => f.code === "damage_pattern_unverifiable")).toBe(true);
+    const unverifiableFlag = result.flags.find(f => f.code === "damage_pattern_unverifiable");
+    expect(unverifiableFlag?.severity).toBe("LOW");
+    expect(unverifiableFlag?.score_contribution).toBeLessThanOrEqual(10);
+  });
+
+  it("animal_strike with no photos (confidence=0) → fraud score stays LOW (not REJECT territory)", () => {
+    const result = evaluateScenarioFraud({
+      scenario_type: "animal_strike",
+      police_report_status: "absent",
+      timeline_consistency: "consistent",
+      damage_pattern_result: NO_PHOTO_NONE_PATTERN,
+      assessor_confirmation: "not_yet",
+    });
+    // With no photos and no other fraud signals, the score must not reach HIGH (>=70)
+    expect(result.fraud_score).toBeLessThan(45);
+    // Risk level must not be HIGH or ELEVATED
+    expect(["LOW", "MEDIUM"]).toContain(result.risk_level);
+  });
+
+  it("vehicle_collision with no photos (confidence=0) → does NOT fire damage_pattern_none flag", () => {
+    const result = evaluateScenarioFraud({
+      scenario_type: "vehicle_collision",
+      police_report_status: "present",
+      timeline_consistency: "consistent",
+      damage_pattern_result: NO_PHOTO_NONE_PATTERN,
+      assessor_confirmation: "not_yet",
+    });
+    expect(result.flags.some(f => f.code === "damage_pattern_none")).toBe(false);
+    expect(result.flags.some(f => f.code === "damage_pattern_unverifiable")).toBe(true);
+  });
+
+  it("NONE pattern with confidence=85 (evidence evaluated, no match) → STILL fires damage_pattern_none (genuine fraud signal)", () => {
+    const GENUINE_NONE: DamagePatternResult = {
+      pattern_match: "NONE",
+      structural_damage_detected: false,
+      confidence: 85,
+      validation_detail: {
+        image_contradiction: false,
+        primary_coverage_pct: 0,
+        secondary_coverage_pct: 0,
+      },
+    };
+    const result = evaluateScenarioFraud({
+      scenario_type: "animal_strike",
+      police_report_status: "absent",
+      timeline_consistency: "consistent",
+      damage_pattern_result: GENUINE_NONE,
+      assessor_confirmation: "not_yet",
+    });
+    // When confidence > 0, the engine had evidence and found no match — this IS fraud
+    expect(result.flags.some(f => f.code === "damage_pattern_none")).toBe(true);
+    expect(result.fraud_score).toBeGreaterThanOrEqual(25);
+  });
+});
