@@ -3061,6 +3061,16 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // Pre-generation consistency check contradictions (C-5 fix)
           // Surfaces fraud score contradictions, physics indicator conflicts, and cost basis mismatches
           _preGenerationCheck: parsedPreGenerationCheck,
+          // Full forensic analysis JSON — provides reconciliationLog, integrityGate, and schema validation
+          // to the CongruencyPanel in ForensicAuditReport
+          _forensicAnalysis: (() => {
+            try {
+              if ((assessment as any).forensicAnalysisJson) {
+                return JSON.parse((assessment as any).forensicAnalysisJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
           // Phase 4 — Decision Narrative View data
           _ifeResult: parsedIfeResult,
           _doeResult: parsedDoeResult,

@@ -2412,6 +2412,133 @@ function DataQualityPanel({ aiAssessment }: { aiAssessment: any }) {
   );
 }
 
+// ─── Congruency & Integrity Panel ────────────────────────────────────────────────────
+// Surfaces the reconciliation log, integrity gate result, and schema
+// compliance score. Shown at the top of the report, above the cover section.
+function CongruencyPanel({ aiAssessment }: { aiAssessment: any }) {
+  const forensicAnalysis = (aiAssessment as any)?._forensicAnalysis ?? null;
+  const reconciliationLog = forensicAnalysis?.reconciliationLog ?? null;
+  const integrityGate = forensicAnalysis?.integrityGate ?? null;
+
+  // Only show if there is something meaningful to surface
+  const hasBlockingIssues = (integrityGate?.blockingReasons?.length ?? 0) > 0;
+  const hasWarnings = (integrityGate?.warnings?.length ?? 0) > 0;
+  const hasOverrides = (reconciliationLog?.overrideCount ?? 0) > 0;
+  const congruencyScore = reconciliationLog?.congruencyScore ?? null;
+
+  if (!hasBlockingIssues && !hasWarnings && !hasOverrides && congruencyScore === null) return null;
+
+  const panelColor = hasBlockingIssues
+    ? "var(--fp-danger)"
+    : hasWarnings
+    ? "var(--fp-warn)"
+    : "var(--fp-success)";
+  const panelBg = hasBlockingIssues
+    ? "var(--fp-critical-bg)"
+    : hasWarnings
+    ? "var(--fp-warning-bg)"
+    : "var(--fp-success-bg)";
+
+  return (
+    <div
+      className="rounded-xl overflow-hidden mb-2 no-print"
+      style={{ border: `1.5px solid ${panelColor}`, background: panelBg }}
+    >
+      <div
+        className="px-5 py-2 flex items-center justify-between"
+        style={{ borderBottom: `1px solid ${panelColor}40` }}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-bold" style={{ color: panelColor }}>
+            {hasBlockingIssues
+              ? "⛔ REPORT INTEGRITY BLOCKED"
+              : hasWarnings
+              ? "⚠️ INTEGRITY GATE: PROCEED WITH WARNINGS"
+              : "✅ INTEGRITY GATE: CLEAR"}
+          </span>
+          {congruencyScore !== null && (
+            <span
+              className="text-xs px-2 py-0.5 rounded-full font-semibold"
+              style={{ background: `${panelColor}20`, color: panelColor }}
+            >
+              {congruencyScore}% cross-stage congruency
+            </span>
+          )}
+        </div>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          Pre-Report Integrity Gate
+        </span>
+      </div>
+      <div className="px-5 py-3 space-y-3 text-xs">
+        {/* Blocking reasons */}
+        {hasBlockingIssues && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-danger)" }}>
+              ⛔ Blocking issues — this report cannot be used for a repudiation decision until resolved:
+            </p>
+            <div className="space-y-0.5">
+              {(integrityGate.blockingReasons as string[]).map((reason: string, i: number) => (
+                <p key={i} style={{ color: "var(--fp-danger)" }}>&bull; {reason}</p>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Warnings */}
+        {hasWarnings && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+              Warnings ({integrityGate.warnings.length}):
+            </p>
+            <div className="space-y-0.5">
+              {(integrityGate.warnings as string[]).map((w: string, i: number) => (
+                <p key={i} style={{ color: "var(--muted-foreground)" }}>&bull; {w}</p>
+              ))}
+            </div>
+          </div>
+        )}
+        {/* Reconciliation overrides */}
+        {hasOverrides && reconciliationLog?.entries && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+              Cross-stage field overrides ({reconciliationLog.overrideCount}):
+            </p>
+            <div className="space-y-0.5">
+              {(reconciliationLog.entries as any[])
+                .filter((entry: any) => entry.action === "override")
+                .map((entry: any, i: number) => (
+                  <p key={i} style={{ color: "var(--muted-foreground)" }}>
+                    &bull;{" "}
+                    <span className="font-medium" style={{ color: "var(--foreground)" }}>
+                      {entry.field}
+                    </span>
+                    :{" "}
+                    <span style={{ textDecoration: "line-through", color: "var(--fp-danger)" }}>
+                      {String(entry.stage3Value ?? entry.originalValue ?? "—")}
+                    </span>
+                    {" → "}
+                    <span className="font-semibold" style={{ color: "var(--fp-success-text)" }}>
+                      {String(entry.resolvedValue ?? "—")}
+                    </span>
+                    {" "}
+                    <span style={{ color: "var(--muted-foreground)" }}>
+                      (source: {entry.winningSource}, confidence: {entry.winningConfidence}%)
+                    </span>
+                  </p>
+                ))}
+            </div>
+          </div>
+        )}
+        {/* Agreement summary */}
+        {reconciliationLog && reconciliationLog.agreementCount > 0 && !hasBlockingIssues && (
+          <p style={{ color: "var(--muted-foreground)" }}>
+            ✓ {reconciliationLog.agreementCount} field(s) agreed across all pipeline stages.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }: ForensicAuditReportProps) {
@@ -2462,6 +2589,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
           </div>
         </div>
       )}
+      <CongruencyPanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 

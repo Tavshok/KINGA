@@ -41,6 +41,8 @@ import { aggregateConfidence, buildConfidenceAggregationInput } from "./confiden
 import { runCostOptimisationStage } from "./stage-9-cost";
 import { runTurnaroundTimeStage } from "./stage-9b-turnaround";
 import { runReportGenerationStage } from "./stage-10-report";
+import { runReconciliationPass, type ReconciliationLog } from "./reconciliation-engine";
+import { validateClaimRecordSchema, type ClaimRecordValidationResult } from "../claim-record-schema";
 import { resolveSourceTruth, getResolvedDirection } from "./sourceTruthResolver";
 import {
   validateDamagePhysicsCoherence,
@@ -298,6 +300,8 @@ export async function runPipelineV2(
   let validatedOutcomeResult: ValidatedOutcomeResult | null = null;
   let caseSignatureResult: CaseSignatureOutput | null = null;
   let documentVerificationResult: DocumentReadVerificationResult | null = null;
+  let reconciliationLog: ReconciliationLog | null = null;
+  let schemaValidationResult: ClaimRecordValidationResult | null = null;
 
   // Helper to record stage summary
   const recordStage = (key: string, result: { status: string; durationMs: number; savedToDb: boolean; error?: string; assumptions?: Assumption[]; recoveryActions?: RecoveryAction[]; degraded?: boolean }) => {
@@ -791,7 +795,7 @@ export async function runPipelineV2(
   // and therefore run AFTER this Promise.all resolves.
   ctx.log("Pipeline", "Starting S8 (fraud) ‖ S9 (cost) in parallel...");
   const [s8, s9] = await Promise.all([
-    runWithTimeout("8_fraud", () => runFraudAnalysisStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+    runWithTimeout("8_fraud", () => runFraudAnalysisStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
       const reason = isTimeout
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -823,7 +827,7 @@ export async function runPipelineV2(
         degraded: true,
       };
     }),
-    runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
+    runWithTimeout("9_cost", () => runCostOptimisationStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
       const reason = isTimeout
         ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
@@ -1032,6 +1036,149 @@ export async function runPipelineV2(
   const s9b = await runTurnaroundTimeStage(ctx, claimRecord, stage6Data!, stage9Data);
   recordStage("9b_turnaround", s9b);
   stage9bData = s9b.data; // Always has data (self-healing)
+
+  // ── CROSS-STAGE RECONCILIATION PASS ──────────────────────────────────────
+  // Arbitrates conflicts between stages and patches claimRecord with the
+  // highest-confidence value for each field. Every override is logged in
+  // reconciliationLog so the report can explain every value it shows.
+  if (claimRecord) {
+    try {
+      const narrativeAnalysis = claimRecord.accidentDetails?.narrativeAnalysis ?? null;
+      const { patchedRecord, reconciliationLog: rLog } = runReconciliationPass(
+        claimRecord,
+        stage6Data,
+        stage7Data,
+        stage8Data,
+        stage9Data,
+        narrativeAnalysis
+      );
+      claimRecord = patchedRecord as ClaimRecord;
+      reconciliationLog = rLog;
+      ctx.log(
+        "Reconciliation",
+        `Congruency: ${rLog.congruencyScore}% — ${rLog.overrideCount} override(s), ` +
+        `${rLog.agreementCount} agreement(s) across ${rLog.overrideCount + rLog.agreementCount} fields.`
+      );
+    } catch (err) {
+      ctx.log("Reconciliation", `Reconciliation pass failed (non-fatal): ${String(err)}`);
+    }
+  }
+
+  // ── ZOD SCHEMA VALIDATION ────────────────────────────────────────────────────
+  // Validate the claimRecord against the schema contract before generating
+  // the report. Blocking issues become CG-2 integrity gate violations.
+  if (claimRecord) {
+    try {
+      schemaValidationResult = validateClaimRecordSchema({
+        vehicleRegistration: claimRecord.vehicle?.registration ?? null,
+        vehicleMake: claimRecord.vehicle?.make ?? null,
+        vehicleModel: claimRecord.vehicle?.model ?? null,
+        accidentDate: claimRecord.accidentDetails?.date ?? null,
+        incidentType: claimRecord.accidentDetails?.incidentType ?? null,
+        estimatedCostUsd: stage9Data?.costDecision?.true_cost_usd ?? null,
+        vehicleYear: claimRecord.vehicle?.year ?? null,
+        estimatedSpeedKmh: claimRecord.accidentDetails?.estimatedSpeedKmh ?? null,
+        policyNumber: claimRecord.insuranceContext?.policyNumber ?? null,
+        excessAmountUsd: claimRecord.insuranceContext?.excessAmountUsd ?? null,
+        insurer: claimRecord.insuranceContext?.insurerName ?? null,
+        policeReportNumber: (claimRecord as any)?.insuranceContext?.policeReportNumber ?? null,
+        fraudScore: stage8Data?.fraudRiskScore ?? null,
+        physicsConsistencyScore: stage7Data?.damageConsistencyScore ?? null,
+        dataCompletenessScore: claimRecord.dataQuality?.completenessScore ?? null,
+        photosDetected: (claimRecord as any)?._photosDetected ?? null,
+        photosIngested: (claimRecord as any)?._photosIngested ?? null,
+      });
+      ctx.log(
+        "SchemaValidation",
+        `Compliance: ${schemaValidationResult.complianceScore}% — ` +
+        `${schemaValidationResult.blockingIssues.length} blocking, ` +
+        `${schemaValidationResult.warnings.length} warning(s). ` +
+        (schemaValidationResult.blockingIssues.length > 0
+          ? `Blocking: ${schemaValidationResult.blockingIssues.map(i => i.field).join(", ")}`
+          : "All required fields present.")
+      );
+    } catch (err) {
+      ctx.log("SchemaValidation", `Schema validation failed (non-fatal): ${String(err)}`);
+    }
+  }
+
+  // ── PRE-REPORT INTEGRITY GATE ─────────────────────────────────────────────
+  // Hard checks before Stage 10. If any CRITICAL check fails, the report is
+  // generated in BLOCKED mode — it is produced but stamped as NOT READY FOR
+  // DECISION and the blocking reasons are surfaced prominently.
+  const integrityGateResult = (() => {
+    const blockingReasons: string[] = [];
+    const warnings: string[] = [];
+
+    // Promote Zod schema blocking issues to CG-2 violations
+    if (schemaValidationResult && !schemaValidationResult.valid) {
+      for (const issue of schemaValidationResult.blockingIssues) {
+        blockingReasons.push(`CG-2 [${issue.field}]: ${issue.message}`);
+      }
+    }
+    // Promote Zod schema warnings to gate warnings
+    if (schemaValidationResult) {
+      for (const w of schemaValidationResult.warnings) {
+        warnings.push(`Schema [${w.field}]: ${w.message}`);
+      }
+    }
+
+    // CG-1: FCDI floor — if FCDI < 40%, the pipeline ran with too many fallbacks
+    // to produce a reliable report. The report is blocked.
+    // (FCDI is computed in Stage 13 after Stage 10, so we use the consensus score
+    //  as a proxy here — if consensus is CONFLICTING, treat as low-confidence.)
+    if (consensusResult?.consensus_label === "CONFLICTING" && (consensusResult?.consensus_score ?? 100) < 40) {
+      blockingReasons.push(
+        `CG-1: Cross-engine consensus CONFLICTING with score ${consensusResult.consensus_score}/100 — ` +
+        `multiple engines fundamentally disagree. Manual review required before decision.`
+      );
+    }
+
+    // CG-2: Critical fields — vehicle registration and incident date are required
+    // for a legally defensible report.
+    const reg = claimRecord?.vehicle?.registration ?? (claimRecord as any)?.vehicleRegistration;
+    if (!reg) {
+      blockingReasons.push(
+        `CG-2: Vehicle registration not extracted. Report cannot be used for repudiation decisions.`
+      );
+    }
+    const incDate = claimRecord?.accidentDetails?.date;
+    if (!incDate) {
+      blockingReasons.push(
+        `CG-2: Incident date not extracted. Chronological analysis is unreliable.`
+      );
+    }
+
+    // CG-3: Photos detected but not ingested — flag as warning (not blocking)
+    const photosDetected = (claimRecord as any)?._photosDetected;
+    const photosIngested = (claimRecord as any)?._photosIngested;
+    if (photosDetected && !photosIngested) {
+      warnings.push(
+        `CG-3: Damage photographs detected in source document but not processed. ` +
+        `Damage analysis is based on text description only.`
+      );
+    }
+
+    // CG-4: Reconciliation congruency — if congruency < 50%, too many fields
+    // were overridden between stages, indicating data quality issues.
+    if (reconciliationLog && reconciliationLog.congruencyScore < 50) {
+      warnings.push(
+        `CG-4: Cross-stage congruency score is ${reconciliationLog.congruencyScore}% — ` +
+        `multiple fields were revised between pipeline stages. Review reconciliation log.`
+      );
+    }
+
+    const blocked = blockingReasons.length > 0;
+    if (blocked) {
+      ctx.log("IntegrityGate", `BLOCKED — ${blockingReasons.length} critical issue(s): ${blockingReasons.join(" | ")}`);
+    } else if (warnings.length > 0) {
+      ctx.log("IntegrityGate", `PROCEED WITH WARNINGS — ${warnings.join(" | ")}`);
+    } else {
+      ctx.log("IntegrityGate", `CLEAR — all critical checks passed.`);
+    }
+
+    return { blocked, blockingReasons, warnings };
+  })();
 
   // ── STAGE 10: Report Generation ───────────────────────────────────────────────
   // Build evidenceTrace for audit transparency
@@ -1360,6 +1507,10 @@ export async function runPipelineV2(
       dataQuality: claimRecord?.dataQuality ?? null,
       assumptions: allAssumptions,
       recoveryActions: allRecoveryActions,
+      // Cross-stage reconciliation log — every field override between stages
+      reconciliationLog: reconciliationLog ?? null,
+      // Pre-report integrity gate result
+      integrityGate: integrityGateResult,
       // Pipeline state machine summary — for audit trail and health dashboard
       pipelineStateMachine: psm.toSummary(),
       // Anomaly sentinels — named invariant violations
