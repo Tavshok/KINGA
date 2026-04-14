@@ -118,6 +118,153 @@ import { validateAiAssessmentResponse, validateClaimDetailResponse } from './api
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
+// ─────────────────────────────────────────────────────────────────────────────
+// INTEGRITY METRICS ROUTER
+// Aggregates integrity gate, reconciliation, and photo ingestion data
+// across all assessments for the Integrity Metrics Dashboard.
+// ─────────────────────────────────────────────────────────────────────────────
+export const integrityRouter = router({
+  getMetrics: protectedProcedure
+    .input(z.object({
+      tenantId: z.number().optional(),
+      days: z.number().default(30),
+    }))
+    .query(async ({ ctx, input }) => {
+      const db = await getDb();
+      const since = new Date(Date.now() - input.days * 24 * 60 * 60 * 1000);
+
+      // Fetch recent assessments with forensic_analysis JSON
+      const tenantFilter = input.tenantId
+        ? `AND a.tenant_id = ${input.tenantId}`
+        : (ctx.user.role === 'admin' ? '' : `AND a.tenant_id = ${(ctx.user as any).tenantId || 0}`);
+
+      const [rows] = await db.execute(`
+        SELECT
+          a.id,
+          a.fcdi_score,
+          a.fraud_score,
+          a.recommendation,
+          a.created_at,
+          a.forensic_analysis,
+          c.claim_number
+        FROM ai_assessments a
+        LEFT JOIN claims c ON a.claim_id = c.id
+        WHERE a.created_at >= ?
+        ${tenantFilter}
+        ORDER BY a.created_at DESC
+        LIMIT 500
+      `, [since]);
+
+      const assessments = rows as any[];
+
+      // Aggregate integrity gate outcomes
+      const gateCounts = { CLEAR: 0, WARNINGS: 0, BLOCKED: 0, UNKNOWN: 0 };
+      const blockingCauses: Record<string, number> = {};
+      const warningCauses: Record<string, number> = {};
+      const overriddenFields: Record<string, number> = {};
+      const conflictingStages: Record<string, number> = {};
+      let totalCongruencyScore = 0;
+      let congruencyCount = 0;
+      let totalPhotoReviewRequired = 0;
+      let totalPhotosAvailable = 0;
+      let totalNoPhotos = 0;
+      let totalPhotoFailed = 0;
+
+      for (const row of assessments) {
+        let fa: any = null;
+        try {
+          fa = row.forensic_analysis ? JSON.parse(row.forensic_analysis) : null;
+        } catch { /* skip malformed */ }
+
+        // Integrity gate
+        const gate = fa?.integrityGate;
+        if (gate) {
+          const status = gate.status || 'UNKNOWN';
+          gateCounts[status as keyof typeof gateCounts] = (gateCounts[status as keyof typeof gateCounts] || 0) + 1;
+          for (const b of (gate.blockers || [])) {
+            blockingCauses[b.code || b.reason || 'unknown'] = (blockingCauses[b.code || b.reason || 'unknown'] || 0) + 1;
+          }
+          for (const w of (gate.warnings || [])) {
+            warningCauses[w.code || w.reason || 'unknown'] = (warningCauses[w.code || w.reason || 'unknown'] || 0) + 1;
+          }
+        } else {
+          gateCounts.UNKNOWN++;
+        }
+
+        // Reconciliation log
+        const recon = fa?.reconciliationLog;
+        if (recon) {
+          if (typeof recon.congruencyScore === 'number') {
+            totalCongruencyScore += recon.congruencyScore;
+            congruencyCount++;
+          }
+          for (const ov of (recon.overrides || [])) {
+            const field = ov.field || 'unknown';
+            overriddenFields[field] = (overriddenFields[field] || 0) + 1;
+            const stages = [ov.loserSource, ov.winnerSource].filter(Boolean);
+            for (const s of stages) {
+              conflictingStages[s] = (conflictingStages[s] || 0) + 1;
+            }
+          }
+        }
+
+        // Photo ingestion log
+        const photoLog = fa?.photoIngestionLog;
+        if (photoLog) {
+          if (photoLog.requiresPhotoReview) totalPhotoReviewRequired++;
+          if (photoLog.overallOutcome === 'photos_available') totalPhotosAvailable++;
+          else if (photoLog.overallOutcome === 'no_photos_in_document') totalNoPhotos++;
+          else if (photoLog.overallOutcome === 'extraction_failed') totalPhotoFailed++;
+        }
+      }
+
+      const avgCongruencyScore = congruencyCount > 0
+        ? Math.round(totalCongruencyScore / congruencyCount)
+        : null;
+
+      // Top 5 blocking causes
+      const topBlockers = Object.entries(blockingCauses)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([cause, count]) => ({ cause, count }));
+
+      // Top 5 warning causes
+      const topWarnings = Object.entries(warningCauses)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([cause, count]) => ({ cause, count }));
+
+      // Top 5 overridden fields
+      const topOverriddenFields = Object.entries(overriddenFields)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([field, count]) => ({ field, count }));
+
+      // Top 5 conflicting stages
+      const topConflictingStages = Object.entries(conflictingStages)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([stage, count]) => ({ stage, count }));
+
+      return {
+        period: { days: input.days, since: since.toISOString() },
+        totalAssessments: assessments.length,
+        gateDistribution: gateCounts,
+        avgCongruencyScore,
+        topBlockers,
+        topWarnings,
+        topOverriddenFields,
+        topConflictingStages,
+        photoIngestion: {
+          photosAvailable: totalPhotosAvailable,
+          noPhotos: totalNoPhotos,
+          extractionFailed: totalPhotoFailed,
+          requiresReview: totalPhotoReviewRequired,
+        },
+      };
+    }),
+});
+
 export const appRouter = router({
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
@@ -168,6 +315,7 @@ export const appRouter = router({
   platform: platformRouter,
   quoteIntelligence: quoteIntelligenceRouter,
   exceptionIntelligence: exceptionIntelligenceRouter,
+  integrity: integrityRouter,
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
   assessorSubscription: router({
     /**

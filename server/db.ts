@@ -1061,6 +1061,15 @@ export async function triggerAiAssessment(claimId: number) {
     if (ins.excessAmountCents != null) claimUpdate.excessAmountCents = ins.excessAmountCents;
     if (ins.claimReference) claimUpdate.claimReference = ins.claimReference;
     if (ins.insurerName) claimUpdate.insurerName = ins.insurerName;
+    // productType — write the insurance product type (e.g. 'EXCESS', 'COMPREHENSIVE') separately from policyNumber
+    if (ins.productType) {
+      (claimUpdate as any).productType = ins.productType;
+      (claimUpdate as any).productTypeSource = 'stage_3_llm';
+    } else if (ins.policyNumber && /^(EXCESS|COMPREHENSIVE|THIRD.PARTY|FIRE|MOTOR|THEFT)$/i.test(ins.policyNumber.trim())) {
+      // Fallback: if policyNumber looks like a product type, rescue it here
+      (claimUpdate as any).productType = ins.policyNumber.trim().toUpperCase();
+      (claimUpdate as any).productTypeSource = 'stage_3_llm_rescue';
+    }
   }
   // Backfill data quality score from claimRecord
   if (claimRecord?.dataQuality?.completenessScore != null) {

@@ -10698,3 +10698,22 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] REPLAY_INCOMPLETE flag in FEL version snapshot when prompt hashes missing
 - [x] Wire completeness guard into orchestrator before report write
 - [x] Tests covering all guard scenarios (15 tests)
+
+## Pre-Natpharm Governance Run Improvements
+- [ ] Add productType + productTypeSource columns to claims schema and push migration
+- [ ] Wire productType into Stage 3 LLM extraction and post-pipeline DB sync
+- [ ] Implement photo ingestion multi-pass (primary + pdf2image fallback + classification pass)
+- [ ] Add structured photoIngestion log (detected, extracted, strategyUsed, failureReason)
+- [ ] Build Integrity Metrics Dashboard (CLEAR/WARN/BLOCKED distribution, top causes, overridden fields)
+- [ ] Implement CongruencyPanel plain-language mode with assessor-friendly narrative and tooltips
+
+## Photo Pipeline Hardening & UI Improvements (Pre-Natpharm)
+- [x] Hardened pdf-image-extractor: scanned PDF detection, adaptive DPI (150→300), dimension gate (min 200×200), blur detection, text-heavy page filter, per-image retry
+- [x] Per-image independent LLM classification (no batch failure risk), quality-aware prompts
+- [x] PhotoQualitySummary type with quality metrics wired into assessment-processor photoIngestionLog
+- [x] Enrich photo-ingestion-log.ts with PhotoQualitySummary, overallOutcome, requiresPhotoReview fields
+- [x] CongruencyPanel plain-language mode toggle
+- [x] CongruencyPanel surfaces photo ingestion issues (scanned PDF, extraction failed, blurry photos)
+- [x] Integrity Metrics Dashboard wired into ExecutiveDashboard and InsurerClaimsTriage navigation
+- [x] integrityRouter initialization order fixed
+- [x] TypeScript: 0 errors, tests: passing

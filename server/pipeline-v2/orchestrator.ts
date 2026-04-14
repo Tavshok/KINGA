@@ -1750,6 +1750,7 @@ function buildMinimalStage4(ctx: PipelineContext): Stage4Output {
       // New fields — insurance context, incident context, financial extras, driver
       insurerName: null,
       policyNumber: null,
+      productType: null,
       claimReference: null,
       incidentTime: null,
       animalType: null,
@@ -1815,6 +1816,7 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
     insuranceContext: {
       insurerName: null,
       policyNumber: ctx.claim.policyNumber || null,
+      productType: null,
       claimReference: ctx.claim.claimNumber || null,
       excessAmountUsd: null,
       bettermentUsd: null,

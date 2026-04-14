@@ -102,6 +102,7 @@ const TenantManagement = lazy(() => import("./pages/admin/TenantManagement"));
 const TenantRoleConfig = lazy(() => import("./pages/admin/TenantRoleConfig"));
 const TenantRegistration = lazy(() => import("./pages/admin/TenantRegistration"));
 const MarketQuotesIngestion = lazy(() => import("./pages/MarketQuotesIngestion"));
+const IntegrityMetricsDashboard = lazy(() => import("./pages/admin/IntegrityMetricsDashboard"));
 const KingaAgency = lazy(() => import("./pages/KingaAgency"));
 const AgencyFleetQuotes = lazy(() => import("./pages/AgencyFleetQuotes"));
 const InsurerFleetRFQs = lazy(() => import("./pages/InsurerFleetRFQs"));
@@ -631,6 +632,11 @@ function Router() {
         <Route path="/admin/observability">
           <ProtectedRoute allowedRoles={["platform_super_admin"]}>
             <ObservabilityDashboard />
+          </ProtectedRoute>
+        </Route>
+        <Route path="/admin/integrity-metrics">
+          <ProtectedRoute allowedRoles={["platform_super_admin", "admin", "insurer"]}>
+            <IntegrityMetricsDashboard />
           </ProtectedRoute>
         </Route>
         <Route path="/admin/pipeline-health">

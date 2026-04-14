@@ -20,7 +20,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign, ClipboardList, ChevronsUpDown, Download, LayoutDashboard, RefreshCw, Activity } from "lucide-react";
+import { ArrowLeft, CheckCircle, XCircle, Zap, Eye, BarChart3, Search, DollarSign, ClipboardList, ChevronsUpDown, Download, LayoutDashboard, RefreshCw, Activity, ShieldCheck } from "lucide-react";
 import { RiskBadge } from "@/components/ClaimRiskIndicators";
 import KingaLogo from "@/components/KingaLogo";
 import { trpc } from "@/lib/trpc";
@@ -250,6 +250,14 @@ export default function InsurerClaimsTriage() {
               >
                 <LayoutDashboard className="h-3 w-3" />
                 Dashboard
+              </button>
+              <button
+                onClick={() => setLocation("/admin/integrity-metrics")}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                style={{ background: 'var(--muted)', border: '1px solid var(--border)', color: 'var(--muted-foreground)' }}
+              >
+                <ShieldCheck className="h-3 w-3" />
+                Integrity
               </button>
               <button
                 onClick={() => setLocation("/admin/pipeline-health")}

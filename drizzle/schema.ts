@@ -836,6 +836,13 @@ export const claims = mysqlTable("claims", {
 	incidentTypeOverriddenAt: timestamp("incident_type_overridden_at", { mode: 'string' }),
 	// JSON blob: result of re-running impact direction + damage consistency checks after override.
 	incidentTypeRevalidationJson: text("incident_type_revalidation_json"),
+	// ── Product / Policy Type (data semantics hardening) ─────────────────────────
+	// The insurance product type extracted from the claim document (e.g. 'EXCESS', 'COMPREHENSIVE', 'THIRD_PARTY').
+	// Distinct from policyNumber — this is the product class, not the policy identifier.
+	productType: varchar("product_type", { length: 100 }),
+	// Source attribution for productType — which pipeline stage or user action set this value.
+	// Format: 'stage_3_llm' | 'stage_5_assembly' | 'manual_override' | 'claim_record_bridge'
+	productTypeSource: varchar("product_type_source", { length: 50 }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),

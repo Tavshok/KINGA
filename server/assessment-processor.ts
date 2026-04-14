@@ -1049,155 +1049,224 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
   console.log('\n🖼️ Step 3: Extracting and classifying images from PDF...');
   let damagePhotoUrls: string[] = [];
   let allPhotos: PhotoWithClassification[] = [];
+  // Photo ingestion tracking for structured log
+  const _photoIngestionStart = new Date();
+  let _photoPageRenderCount = 0;
+  let _photoEmbeddedCount = 0;
+  let _photoLlmClassificationFailed = false;
+  let _photoExtractionError: string | undefined;
+  let _photoQualitySummary: import('./pipeline-v2/photo-ingestion-log').PhotoQualitySummary | undefined;
   
   try {
-    // Step 3a: Extract actual images from PDF using pdfimages + sharp
+    // Step 3a: Extract actual images from PDF using hardened extractor
     const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
     const extractedImages = await extractImagesFromPDFBuffer(fileBuffer, fileName);
-    
-    console.log(`📸 Extracted ${extractedImages.length} images from PDF`);
+    // Track extraction counts for the ingestion log
+    _photoPageRenderCount = extractedImages.filter((i: any) => i.source === 'page_render').length;
+    _photoEmbeddedCount = extractedImages.filter((i: any) => i.source === 'embedded_image').length;
+    // Build quality summary from extracted image metadata
+    const _blurryImages = extractedImages.filter((i: any) => i.quality?.isBlurry);
+    const _textHeavyImages = extractedImages.filter((i: any) => i.quality?.isTextHeavy);
+    const _rejectedSmall = (extractedImages as any[]).reduce((acc: number, i: any) => acc + (i.quality?.rejectedCount ?? 0), 0);
+    const _sharpnessScores = extractedImages
+      .map((i: any) => i.quality?.sharpnessScore)
+      .filter((s: any): s is number => typeof s === 'number');
+    const _isScannedPdf = extractedImages.some((i: any) => i.fromScannedPdf === true);
+    const _renderDpi = extractedImages.find((i: any) => i.renderDpi)?.renderDpi ?? 150;
+    _photoQualitySummary = {
+      passedDimensionGate: extractedImages.length,
+      rejectedTooSmall: _rejectedSmall,
+      blurryCount: _blurryImages.length,
+      textHeavyCount: _textHeavyImages.length,
+      isScannedPdf: _isScannedPdf,
+      renderDpi: _renderDpi,
+      avgSharpnessScore: _sharpnessScores.length > 0
+        ? _sharpnessScores.reduce((a: number, b: number) => a + b, 0) / _sharpnessScores.length
+        : null,
+    };
+    console.log(
+      `📸 Extracted ${extractedImages.length} images from PDF ` +
+      `(${_photoPageRenderCount} page renders, ${_photoEmbeddedCount} embedded, ` +
+      `${extractedImages.filter((i: any) => i.quality?.isBlurry).length} blurry, ` +
+      `${extractedImages.filter((i: any) => i.quality?.isTextHeavy).length} text-heavy)`
+    );
     
     if (extractedImages.length > 0) {
-      // Step 3b: Use LLM to classify each extracted image as damage_photo or document
-      // Build image content for LLM classification
-      const imageContents: any[] = extractedImages.slice(0, 20).map((img, idx) => ({
-        type: "image_url" as const,
-        image_url: { url: img.url, detail: "low" as const }
-      }));
-      
-      imageContents.push({
-        type: "text" as const,
-        text: `I've shown you ${imageContents.length} images extracted from a vehicle damage assessment PDF report.\n\nFor each image (numbered 1 to ${imageContents.length}), classify it into one of these categories:\n- 'damage_photo': An actual photograph of the vehicle showing damage, vehicle exterior/interior, accident scene, or the vehicle itself. These are real photographs taken with a camera.\n- 'document': A scanned document page, form, letterhead, logo, stamp, signature, diagram, table, chart, or any non-photographic content.\n\nIMPORTANT: If an image shows a real photograph of a vehicle (even if damage is not clearly visible), classify it as 'damage_photo'. Only classify as 'document' if it is clearly a non-photographic element like a form, logo, or text document.\n\nAlso provide a brief description of what each image shows and an overall summary of all visible damage across all photos.`
-      });
-      
-      try {
-        const classifyResponse = await invokeLLM({
-          messages: [
-            {
-              role: "system",
-              content: "You are an expert vehicle damage image classifier. You analyze images extracted from insurance assessment PDFs and classify them as either actual vehicle photographs or document elements. Be generous in classifying photos - if it looks like a real photograph of a vehicle or vehicle part, classify it as damage_photo. Respond with JSON only."
-            },
-            {
-              role: "user",
-              content: imageContents
-            }
-          ],
-          response_format: {
-            type: "json_schema",
-            json_schema: {
-              name: "image_classification",
-              strict: true,
-              schema: {
-                type: "object",
-                properties: {
-                  classifications: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        imageIndex: { type: "integer", description: "1-based index of the image" },
-                        classification: { type: "string", description: "damage_photo or document" },
-                        description: { type: "string", description: "Brief description of what the image shows" },
-                        detectedDamageArea: { type: "string", description: "Primary damage area visible, e.g. 'Front bumper and bonnet deformation'" },
-                        impactZone: { type: "string", description: "Primary impact zone: front, rear, left, right, roof, undercarriage, or unknown" },
-                        detectedComponents: {
-                          type: "array",
-                          description: "List of damaged components visible in this photo",
-                          items: {
-                            type: "object",
-                            properties: {
-                              name: { type: "string", description: "Component name, e.g. Front Bumper" },
-                              severity: { type: "string", description: "minor, moderate, severe, or total_loss" },
-                              zone: { type: "string", description: "front, rear, left, right, roof, undercarriage, interior, or unknown" }
-                            },
-                            required: ["name", "severity", "zone"],
-                            additionalProperties: false
-                          }
-                        }
-                      },
-                      required: ["imageIndex", "classification", "description", "detectedDamageArea", "impactZone", "detectedComponents"],
-                      additionalProperties: false
-                    }
+      // Step 3b: Per-image independent classification (hardened)
+      // Each image is classified independently so one failure never kills all.
+      // Text-heavy images (form pages) are still classified but with a hint.
+      // Blurry images get a quality-aware prompt that asks the LLM to try harder.
+
+      const PER_IMAGE_CLASSIFY_SCHEMA = {
+        type: "json_schema" as const,
+        json_schema: {
+          name: "single_image_classification",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              classification: { type: "string", description: "damage_photo or document" },
+              description: { type: "string", description: "Brief description of what the image shows" },
+              detectedDamageArea: { type: "string", description: "Primary damage area visible, e.g. Front bumper deformation, or empty string if none" },
+              impactZone: { type: "string", description: "front, rear, left, right, roof, undercarriage, or unknown" },
+              detectedComponents: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    severity: { type: "string" },
+                    zone: { type: "string" },
                   },
-                  overallDamageAssessment: { type: "string", description: "Summary of all visible damage" }
+                  required: ["name", "severity", "zone"],
+                  additionalProperties: false,
                 },
-                required: ["classifications", "overallDamageAssessment"],
-                additionalProperties: false
-              }
-            }
-          }
-        });
-        
-        const classData = JSON.parse(classifyResponse.choices[0].message.content as string);
-        
-        // Map classifications to extracted images
-        for (const cls of classData.classifications) {
-          const imgIdx = cls.imageIndex - 1; // Convert to 0-based
-          if (imgIdx >= 0 && imgIdx < extractedImages.length) {
-            const img = extractedImages[imgIdx];
-            const classification = cls.classification === 'damage_photo' ? 'damage_photo' : 'document';
-            
-            allPhotos.push({
-              url: img.url,
-              classification: classification as 'damage_photo' | 'document',
-              page: img.pageNumber,
-              caption: cls.description || '',
-              detectedDamageArea: cls.detectedDamageArea || '',
-              impactZone: cls.impactZone || 'unknown',
-              detectedComponents: cls.detectedComponents || [],
-              source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
-              overallAssessment: classData.overallDamageAssessment || '',
+              },
+            },
+            required: ["classification", "description", "detectedDamageArea", "impactZone", "detectedComponents"],
+            additionalProperties: false,
+          },
+        },
+      };
+
+      async function classifyOneImage(img: any, idx: number): Promise<{
+        classification: 'damage_photo' | 'document';
+        description: string;
+        detectedDamageArea: string;
+        impactZone: string;
+        detectedComponents: any[];
+        failed: boolean;
+      }> {
+        const isBlurry = img.quality?.isBlurry ?? false;
+        const isTextHeavy = img.quality?.isTextHeavy ?? false;
+        const isScanned = img.fromScannedPdf ?? false;
+        const detail = isBlurry ? 'high' : 'high'; // Always use high for damage assessment
+
+        const qualityHint = [
+          isBlurry ? 'Note: this image has low sharpness — look carefully for any vehicle damage evidence.' : '',
+          isTextHeavy ? 'Note: this image appears to be a document/form page — only classify as damage_photo if you can see a real vehicle photograph embedded in it.' : '',
+          isScanned ? 'Note: this is from a scanned PDF — the image may have reduced quality.' : '',
+        ].filter(Boolean).join(' ');
+
+        const systemPrompt = `You are an expert vehicle damage image classifier for insurance claims.
+Classify this single image as either:
+- 'damage_photo': A real photograph of a vehicle showing damage, the vehicle exterior/interior, or accident scene. Real photos have photographic texture, depth, and natural lighting.
+- 'document': A scanned form, text document, letterhead, logo, stamp, signature, table, or any non-photographic content.
+
+CRITICAL RULES:
+1. If you can see ANY part of a real vehicle (even partially, even blurry), classify as damage_photo.
+2. Only classify as 'document' if the image is CLEARLY a text/form/logo element with no vehicle photograph.
+3. For blurry or low-quality images: if there is ANY evidence of a vehicle, classify as damage_photo.
+4. For scanned PDFs: full-page renders that show a vehicle photo embedded in a form — classify as damage_photo.
+5. When uncertain, default to damage_photo (false negatives are worse than false positives for claims).
+${qualityHint}`;
+
+        for (let attempt = 1; attempt <= 2; attempt++) {
+          try {
+            const resp = await invokeLLM({
+              messages: [
+                { role: 'system', content: systemPrompt },
+                {
+                  role: 'user',
+                  content: [
+                    {
+                      type: 'text' as const,
+                      text: `Classify this image (image ${idx + 1} from the PDF). Is it a vehicle damage photograph or a document element?`,
+                    },
+                    {
+                      type: 'image_url' as const,
+                      image_url: { url: img.url, detail: detail as 'high' | 'low' | 'auto' },
+                    },
+                  ],
+                },
+              ],
+              response_format: PER_IMAGE_CLASSIFY_SCHEMA,
             });
-            
-            if (classification === 'damage_photo') {
-              damagePhotoUrls.push(img.url);
+            const raw = resp.choices?.[0]?.message?.content || '{}';
+            const parsed = JSON.parse(typeof raw === 'string' ? raw : JSON.stringify(raw));
+            return {
+              classification: parsed.classification === 'damage_photo' ? 'damage_photo' : 'document',
+              description: parsed.description || '',
+              detectedDamageArea: parsed.detectedDamageArea || '',
+              impactZone: parsed.impactZone || 'unknown',
+              detectedComponents: parsed.detectedComponents || [],
+              failed: false,
+            };
+          } catch (err: any) {
+            if (attempt === 2) {
+              console.warn(`⚠️ [Photo Classify] Image ${idx + 1} failed after 2 attempts: ${err.message} — defaulting to damage_photo`);
+              return {
+                classification: 'damage_photo',
+                description: `Image ${idx + 1} — classification failed, treated as damage photo`,
+                detectedDamageArea: 'Unknown',
+                impactZone: 'unknown',
+                detectedComponents: [],
+                failed: true,
+              };
             }
+            await new Promise(r => setTimeout(r, 1500));
           }
         }
-        
-        // Any unclassified images default to damage_photo (better to show than hide)
-        for (let i = 0; i < extractedImages.length; i++) {
-          const alreadyClassified = allPhotos.some(p => p.url === extractedImages[i].url);
-          if (!alreadyClassified) {
-            allPhotos.push({
-              url: extractedImages[i].url,
-              classification: 'damage_photo',
-              page: extractedImages[i].pageNumber,
-              caption: `Page ${extractedImages[i].pageNumber} — vehicle damage photo`,
-              detectedDamageArea: 'Vehicle damage',
-              impactZone: 'unknown',
-              detectedComponents: [],
-              source: extractedImages[i].source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
-            });
-            damagePhotoUrls.push(extractedImages[i].url);
-          }
-        }
-        
-        const damageCount = allPhotos.filter(p => p.classification === 'damage_photo').length;
-        const docCount = allPhotos.filter(p => p.classification === 'document').length;
-        console.log(`📸 Classified: ${damageCount} damage photos, ${docCount} document images`);
-        
-        if (classData.overallDamageAssessment) {
-          console.log(`🔍 Damage summary: ${classData.overallDamageAssessment.substring(0, 200)}`);
-        }
-        
-      } catch (classifyError: any) {
-        console.warn(`⚠️ LLM classification failed, treating all images as damage photos: ${classifyError.message}`);
-        // Fallback: treat all extracted images as damage photos
-        for (const img of extractedImages) {
+        // Should never reach here
+        return { classification: 'damage_photo', description: '', detectedDamageArea: '', impactZone: 'unknown', detectedComponents: [], failed: true };
+      }
+
+      // Process up to 20 images, in batches of 5 to avoid overwhelming the API
+      const imagesToClassify = extractedImages.slice(0, 20);
+      const CLASSIFY_BATCH = 5;
+      let overallDamageAssessment = '';
+
+      for (let batchStart = 0; batchStart < imagesToClassify.length; batchStart += CLASSIFY_BATCH) {
+        const batch = imagesToClassify.slice(batchStart, batchStart + CLASSIFY_BATCH);
+        const batchResults = await Promise.all(
+          batch.map((img: any, bIdx: number) => classifyOneImage(img, batchStart + bIdx))
+        );
+
+        for (let i = 0; i < batch.length; i++) {
+          const img = batch[i];
+          const cls = batchResults[i];
           allPhotos.push({
             url: img.url,
-            classification: 'damage_photo',
+            classification: cls.classification,
             page: img.pageNumber,
-            caption: `Page ${img.pageNumber} — vehicle damage photo`,
-            detectedDamageArea: 'Vehicle damage',
-            impactZone: 'unknown',
-            detectedComponents: [],
+            caption: cls.description,
+            detectedDamageArea: cls.detectedDamageArea,
+            impactZone: cls.impactZone,
+            detectedComponents: cls.detectedComponents,
             source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
+            overallAssessment: overallDamageAssessment,
+            qualityReport: img.quality,
           });
-          damagePhotoUrls.push(img.url);
+          if (cls.classification === 'damage_photo') {
+            damagePhotoUrls.push(img.url);
+          }
         }
       }
+
+      // Any images beyond 20 default to damage_photo (safety net)
+      for (let i = 20; i < extractedImages.length; i++) {
+        const img = extractedImages[i];
+        allPhotos.push({
+          url: img.url,
+          classification: 'damage_photo' as const,
+          page: img.pageNumber,
+          caption: `Page ${img.pageNumber} — vehicle damage photo (unclassified)`,
+          detectedDamageArea: 'Vehicle damage',
+          impactZone: 'unknown',
+          detectedComponents: [],
+          source: img.source === 'embedded_image' ? 'pdf_embedded' : 'pdf_page_render',
+          qualityReport: img.quality,
+        });
+        damagePhotoUrls.push(img.url);
+      }
+      
+      const damageCount = allPhotos.filter(p => p.classification === 'damage_photo').length;
+      const docCount = allPhotos.filter(p => p.classification === 'document').length;
+      const blurryDamageCount = allPhotos.filter(p => p.classification === 'damage_photo' && (p as any).qualityReport?.isBlurry).length;
+      console.log(
+        `📸 Classified: ${damageCount} damage photos, ${docCount} document images` +
+        (blurryDamageCount > 0 ? ` (${blurryDamageCount} blurry damage photos — flagged for review)` : '')
+      );
       
       // Update data quality
       dataQuality.hasPhotos = true;
@@ -1208,11 +1277,30 @@ For damagedComponents, infer from damage description (e.g., 'left handside' = le
     }
     
   } catch (error: any) {
+    _photoExtractionError = error.message;
     console.warn(`⚠️ Image extraction failed: ${error.message}`);
   }
 
   // Deduplicate damage photo URLs
   damagePhotoUrls = Array.from(new Set(damagePhotoUrls));
+
+  // Build structured photo ingestion log
+  const { buildPhotoIngestionLog } = await import('./pipeline-v2/photo-ingestion-log');
+  const photoIngestionLog = buildPhotoIngestionLog({
+    sourceUrl: pdfUrl || '',
+    isPdf: true,
+    pageRenderCount: _photoPageRenderCount,
+    embeddedImageCount: _photoEmbeddedCount,
+    totalExtracted: allPhotos.length,
+    damagePhotoCount: damagePhotoUrls.length,
+    documentPhotoCount: allPhotos.filter(p => p.classification === 'document').length,
+    llmClassificationFailed: _photoLlmClassificationFailed,
+    extractionError: _photoExtractionError,
+    startedAt: _photoIngestionStart,
+    totalDurationMs: Date.now() - _photoIngestionStart.getTime(),
+    qualitySummary: _photoQualitySummary,
+  });
+  console.log(`📸 [Photo Ingestion] ${photoIngestionLog.summary}`);
 
   // ============================================================
   // STEP 4: Generate component repair/replace recommendations

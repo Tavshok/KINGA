@@ -249,6 +249,8 @@ export interface ExtractedClaimFields {
   // Insurance / Policy
   insurerName: string | null;
   policyNumber: string | null;
+  /** Insurance product/coverage type — distinct from policyNumber. E.g. 'EXCESS', 'COMPREHENSIVE', 'THIRD PARTY'. Set when the policy number field contains a product type rather than a policy identifier. */
+  productType: string | null;
   claimReference: string | null;  // Insurer's claim reference (e.g. CI-024NATPHARM)
   // Incident context
   incidentTime: string | null;    // Time of accident (HH:MM)
@@ -468,6 +470,8 @@ export interface ClaimRecord {
   insuranceContext: {
     insurerName: string | null;
     policyNumber: string | null;
+    /** Insurance product/coverage type — distinct from policyNumber. E.g. 'EXCESS', 'COMPREHENSIVE'. */
+    productType: string | null;
     claimReference: string | null;
     excessAmountUsd: number | null;
     bettermentUsd: number | null;

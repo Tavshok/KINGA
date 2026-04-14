@@ -391,6 +391,7 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     // Insurance / Policy
     insurerName: raw.insurerName || null,
     policyNumber: raw.policyNumber || null,
+    productType: raw.productType || null,
     claimReference: raw.claimReference || null,
     // Incident context
     incidentTime: raw.incidentTime || null,

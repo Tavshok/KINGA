@@ -22,7 +22,7 @@ import { toast } from "sonner";
 import { 
   Search, TrendingUp, DollarSign, AlertTriangle, CheckCircle, 
   Clock, Users, Wrench, BarChart3, FileText, Activity,
-  ArrowUpRight, ArrowDownRight, Shield, TrendingDown, Download,
+  ArrowUpRight, ArrowDownRight, Shield, ShieldCheck, TrendingDown, Download,
   MessageSquare, Eye, AlertCircle, Gauge, Target, Zap
 } from "lucide-react";
 import { Link } from "wouter";
@@ -383,6 +383,12 @@ export default function ExecutiveDashboard() {
                 <p className="text-sm font-medium" style={{ color: 'var(--foreground)' }}>{new Date().toLocaleTimeString()}</p>
               </div>
               <ThemeToggle />
+              <Link href="/admin/integrity-metrics">
+                <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent' }}>
+                  <ShieldCheck className="mr-2 h-4 w-4" />
+                  Integrity
+                </Button>
+              </Link>
               <Link href="/admin/pipeline-health">
                 <Button variant="outline" size="sm" style={{ borderColor: 'var(--border)', color: 'var(--foreground)', background: 'transparent' }}>
                   <Activity className="mr-2 h-4 w-4" />

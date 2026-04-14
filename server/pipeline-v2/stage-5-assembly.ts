@@ -333,6 +333,7 @@ export async function runAssemblyStage(
       insuranceContext: {
         insurerName: v.insurerName || null,
         policyNumber: v.policyNumber || ctx.claim.policyNumber || null,
+        productType: v.productType || (ctx.claim as any).productType || null,
         claimReference: v.claimReference || ctx.claim.claimNumber || null,
         excessAmountUsd: v.excessAmountCents ? v.excessAmountCents / 100 : null,
         bettermentUsd: v.bettermentCents ? v.bettermentCents / 100 : null,
@@ -426,6 +427,7 @@ export async function runAssemblyStage(
       insuranceContext: {
         insurerName: null,
         policyNumber: ctx.claim.policyNumber || null,
+        productType: (ctx.claim as any).productType || null,
         claimReference: ctx.claim.claimNumber || null,
         excessAmountUsd: null,
         bettermentUsd: null,
