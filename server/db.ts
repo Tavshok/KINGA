@@ -1051,15 +1051,45 @@ export async function triggerAiAssessment(claimId: number) {
     const d = claimRecord.damage;
     if (d.description) claimUpdate.incidentDescription = d.description;
   }
+  // Backfill insurance context from pipeline extraction
+  if (claimRecord?.insuranceContext) {
+    const ins = claimRecord.insuranceContext;
+    // Only write policyNumber if it looks like a real policy number (not a product type)
+    if (ins.policyNumber && !/^(EXCESS|COMPREHENSIVE|THIRD.PARTY|FIRE|MOTOR|THEFT)$/i.test(ins.policyNumber.trim())) {
+      claimUpdate.policyNumber = ins.policyNumber;
+    }
+    if (ins.excessAmountCents != null) claimUpdate.excessAmountCents = ins.excessAmountCents;
+    if (ins.claimReference) claimUpdate.claimReference = ins.claimReference;
+    if (ins.insurerName) claimUpdate.insurerName = ins.insurerName;
+  }
+  // Backfill data quality score from claimRecord
+  if (claimRecord?.dataQuality?.completenessScore != null) {
+    claimUpdate.dataCompletenessScore = claimRecord.dataQuality.completenessScore;
+  }
+  // Backfill speed from accidentDetails or narrativeAnalysis
+  const resolvedSpeed = claimRecord?.accidentDetails?.estimatedSpeedKmh
+    ?? (claimRecord as any)?._narrativeSpeed
+    ?? null;
+  if (resolvedSpeed != null && resolvedSpeed > 0) {
+    claimUpdate.estimatedSpeedKmh = resolvedSpeed;
+  }
   // incidentType lives in accidentDetails (DamageRecord has no incidentType field)
   if (claimRecord?.accidentDetails) {
     const a = claimRecord.accidentDetails;
     if (a.date) claimUpdate.incidentDate = a.date;
     if (a.incidentType && a.incidentType !== 'unknown') {
-      // Map CanonicalIncidentType → DB enum
+      // Map CanonicalIncidentType → DB enum (all canonical types supported)
       const typeMap: Record<string, string> = {
-        collision: 'collision', theft: 'theft', vandalism: 'vandalism',
-        flood: 'flood', fire: 'fire', hijacking: 'hijacking',
+        collision: 'collision',
+        theft: 'theft',
+        vandalism: 'vandalism',
+        flood: 'flood',
+        fire: 'fire',
+        hijacking: 'hijacking',
+        animal_strike: 'animal_strike',
+        hail: 'hail',
+        rollover: 'rollover',
+        mechanical_failure: 'mechanical_failure',
       };
       const mapped = typeMap[a.incidentType];
       if (mapped) claimUpdate.incidentType = mapped;

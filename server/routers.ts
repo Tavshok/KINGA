@@ -3131,6 +3131,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             }
           }
         } catch { /* non-fatal: defaults to false if lookup fails */ }
+        // ── ClaimRecordBridge: single authoritative data resolution ──────────
+        // Resolves every field from claim_record_json first, then flat DB columns.
+        // ALL downstream consumers in this procedure MUST use `bridge.*` instead
+        // of reading directly from `assessment.*` to prevent split-brain data issues.
+        const { resolveClaimRecord } = await import('./claim-record-bridge');
+        const bridge = resolveClaimRecord(assessment as Record<string, unknown>);
+        // Populate quotedAmountUsd from quotes table
+        bridge.quotedAmountUsd = quotes.length > 0 ? Math.max(...quotes.map((q: any) => (q.quotedAmount || 0) / 100)) : null;
+
         // Run Phase 1 unit-correction gate so cost values fed to the enforcement
         // engine are already normalised (cents/dollars shift corrected, parts+labour
         // reconciled). Non-blocking — enforcement always proceeds even if WARN.
@@ -3139,8 +3148,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           partsCost: assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : null,
           labourCost: assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : null,
           aiEstimatedTotal: assessment.estimatedCost ? Number(assessment.estimatedCost) : null,
-          incidentType: (assessment as any).incidentType ?? null,
-          incidentDescription: (assessment as any).accidentDescription ?? null,
+          incidentType: bridge.incidentType !== 'unknown' ? bridge.incidentType : null,
+          incidentDescription: bridge.incidentDescription,
           textFields: {},
         });
         // Use Phase 1 authoritative total if available; fall back to raw DB value
@@ -3148,83 +3157,37 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const enforcementPartsUsd = p1Enforcement.partsUsd ?? (assessment.estimatedPartsCost ? Number(assessment.estimatedPartsCost) : 0);
         const enforcementLabourUsd = p1Enforcement.labourUsd ?? (assessment.estimatedLaborCost ? Number(assessment.estimatedLaborCost) : 0);
 
-        const quotedAmounts = quotes.map(q => (q.quotedAmount || 0) / 100); // cents → dollars
-        // Parse physics analysis
-        let physicsRaw: any = null;
-        try {
-          physicsRaw = assessment.physicsAnalysis
-            ? (typeof assessment.physicsAnalysis === 'string' ? JSON.parse(assessment.physicsAnalysis) : assessment.physicsAnalysis)
-            : null;
-        } catch { /* ignore */ }
-        // Parse damaged components
-        let damagedComponents: string[] = [];
-        try {
-          const comps = assessment.damagedComponentsJson
-            ? (typeof assessment.damagedComponentsJson === 'string' ? JSON.parse(assessment.damagedComponentsJson) : assessment.damagedComponentsJson)
-            : [];
-          damagedComponents = Array.isArray(comps)
-            ? comps.map((c: any) => (typeof c === 'string' ? c : c?.name || c?.component || '')).filter(Boolean)
-            : [];
-        } catch { /* ignore */ }
-        // Parse fraud score breakdown
+        // ── All field reads now go through bridge — no more ad-hoc JSON parsing ──────
+        const quotedAmounts = quotes.map((q: any) => (q.quotedAmount || 0) / 100); // cents → dollars
+        const damagedComponents = bridge.damagedComponents;
+        const fraudIndicators = bridge.fraudIndicators;
+        const fraudScore = bridge.fraudScore;
+        const estimatedSpeedKmh = bridge.estimatedSpeedKmh;
+        const deltaVKmh = bridge.deltaVKmh;
+        const impactForceKn = bridge.impactForceKn;
+        const energyKj = bridge.energyKj;
+        const vehicleMassKg = bridge.vehicleMassKg;
+        const accidentSeverity = bridge.structuralDamageSeverity;
+        const consistencyScore = bridge.physicsConsistencyScore;
+        const impactDirection = bridge.impactDirection;
+        const aiEstimatedCost = enforcementAiCost; // Phase 1 unit-corrected authoritative cost
+        const extractionConfidence = assessment.confidenceScore ?? bridge.dataCompletenessScore ?? 75;
+        // Keep fraudScoreBreakdown for legacy consumers that still reference it below
         let fraudScoreBreakdown: any = null;
         try {
           fraudScoreBreakdown = assessment.fraudScoreBreakdownJson
             ? (typeof assessment.fraudScoreBreakdownJson === 'string' ? JSON.parse(assessment.fraudScoreBreakdownJson) : assessment.fraudScoreBreakdownJson)
             : null;
         } catch { /* ignore */ }
-        // Extract fraud score — prefer the raw pipeline score over the breakdown total
-        // The breakdown JSON has {indicators: [{name, score}]} or [{indicator, score}] structure
-        let fraudIndicators: Array<{ indicator: string; score: number }> = [];
-        let fraudScore = assessment.fraudScore ?? 0;
-        if (fraudScoreBreakdown) {
-          // Try multiple JSON shapes from the AI pipeline
-          const indicators = fraudScoreBreakdown.indicators ?? fraudScoreBreakdown.breakdown ?? [];
-          if (Array.isArray(indicators)) {
-            fraudIndicators = indicators.map((item: any) => ({
-              indicator: item.indicator ?? item.name ?? item.factor ?? 'Unknown',
-              score: Number(item.score ?? item.value ?? item.contribution ?? 0),
-            }));
-          }
-          // Use pipeline total if available and > 0
-          if ((fraudScoreBreakdown.totalScore ?? 0) > 0) fraudScore = fraudScoreBreakdown.totalScore;
-        }
-        // Use physicsNumerical contract as fallback when LLM physics engine returned 0
-        const _physNum = physicsRaw?.physicsNumerical ?? null;
-        const _velRange = physicsRaw?.velocityRange ?? _physNum?.velocity_range ?? null;
-        const estimatedSpeedKmh =
-          (physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value ?? 0) > 0
-            ? (physicsRaw?.estimatedSpeedKmh ?? physicsRaw?.estimatedSpeed?.value)
-            : (_velRange?.mid_kmh ?? _physNum?.velocity_range?.mid_kmh ?? 0);
-        const deltaVKmh =
-          (physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV ?? 0) > 0
-            ? (physicsRaw?.deltaVKmh ?? physicsRaw?.deltaV)
-            : (_physNum?.delta_v ?? 0);
-        const impactForceKn =
-          (physicsRaw?.impactForceKn ?? 0) > 0
-            ? physicsRaw.impactForceKn
-            : (_physNum?.impact_force_kn ?? 0);
-        const energyKj =
-          (physicsRaw?.energyDistribution?.energyDissipatedKj ?? 0) > 0
-            ? physicsRaw.energyDistribution.energyDissipatedKj
-            : (_physNum?.energy_kj ?? 0);
-        const vehicleMassKg = physicsRaw?.vehicleMassKg ?? _physNum?.estimation_detail?.mass_kg ?? 1600;
-        const accidentSeverity = (physicsRaw?.accidentSeverity ?? assessment.structuralDamageSeverity ?? 'minor') as string;
-        const consistencyScore = physicsRaw?.damageConsistencyScore ?? 50;
-        const impactDirection = physicsRaw?.impactVector?.direction ?? physicsRaw?.impactDirection ?? 'unknown';
-        const aiEstimatedCost = enforcementAiCost; // Phase 1 unit-corrected authoritative cost
-        const extractionConfidence = assessment.confidenceScore ?? 75;
 
         // Derive damage zones from component names and impact direction.
-        // This must be computed before both applyIntelligenceEnforcement calls
-        // so neither receives an empty array when data is available.
         const damageZones = damagedComponents.length > 0
           ? damagedComponents.map((c: string) => c.toLowerCase())
           : impactDirection !== 'unknown' ? [impactDirection] : [];
 
         const result = applyIntelligenceEnforcement({
           fraudScore: Number(fraudScore),
-          fraudRiskLevel: assessment.fraudRiskLevel ?? 'low',
+          fraudRiskLevel: bridge.fraudRiskLevel,
           estimatedSpeedKmh: Number(estimatedSpeedKmh),
           deltaVKmh: Number(deltaVKmh),
           impactForceKn: Number(impactForceKn),
@@ -3237,7 +3200,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           damageComponents: damagedComponents,
           aiEstimatedCost,
           quotedAmounts,
-          vehicleMake: '',
+          vehicleMake: bridge.vehicleMake ?? '',
           hasPreviousClaims,
           fraudScoreBreakdownJson: fraudIndicators.length > 0 ? fraudIndicators : null,
           extractionConfidence: Number(extractionConfidence),
@@ -3336,14 +3299,18 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Run the Weighted Fraud Scoring Engine — deterministic, rule-based
         const { computeWeightedFraudScore, countMissingFields } = await import('./weighted-fraud-scoring');
         const primaryQuotedAmount = quotedAmounts.length > 0 ? Math.max(...quotedAmounts) : 0;
-        const missingDataCount = countMissingFields({
-          estimatedSpeedKmh: Number(estimatedSpeedKmh),
-          impactForceKn: Number(impactForceKn),
-          energyKj: Number(energyKj),
-          vehicleMake: assessment.vehicleMake ?? '',
-          impactDirection,
-          damageComponents: damagedComponents,
-        });
+        // Use bridge.dataCompletenessScore if available (from claimRecord.dataQuality),
+        // otherwise fall back to countMissingFields() heuristic
+        const missingDataCount = bridge.dataCompletenessScore > 0
+          ? Math.round((1 - bridge.dataCompletenessScore / 100) * 10) // convert % to missing-field count
+          : countMissingFields({
+              estimatedSpeedKmh: Number(estimatedSpeedKmh),
+              impactForceKn: Number(impactForceKn),
+              energyKj: Number(energyKj),
+              vehicleMake: bridge.vehicleMake ?? '',
+              impactDirection,
+              damageComponents: damagedComponents,
+            });
         // Build multi-source conflict signal from Stage 12/13 consistency check result
         // Only inject when: status == "complete" AND at least one high-severity mismatch
         // confidence HIGH → weight 12, MEDIUM → weight 5, LOW → ignored
@@ -3415,20 +3382,28 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             phase2MarketValueCents = claimRow?.vehicleMarketValue ?? null;
           }
         } catch { /* non-fatal */ }
+        // Use bridge for authoritative photo and incident data
+        const phase2PhotoUrls = bridge.photoUrls.length > 0 ? bridge.photoUrls : phase2DamagePhotoUrls;
         const phase2 = runPhase2({
           authoritativeTotalUsd: enforcementAiCost,
-          incidentType: (assessment as any).incidentType ?? null,
-          incidentDescription: (assessment as any).accidentDescription ?? (assessment as any).incidentDescription ?? null,
-          photosDetected: phase2DamagePhotoUrls.length > 0 ? true : null,
-          photosProcessed: phase2DamagePhotoUrls.length > 0 ? true : null,
-          photosProcessedCount: phase2DamagePhotoUrls.length,
-          damagePhotoUrls: phase2DamagePhotoUrls,
-          policeReportNumber: (assessment as any).policeReportNumber ?? null,
+          incidentType: bridge.incidentType !== 'unknown' ? bridge.incidentType : null,
+          incidentDescription: bridge.incidentDescription,
+          // photosDetected: true if photos exist in source doc (even if ingestion failed)
+          photosDetected: bridge.photosDetected ? true : null,
+          // photosProcessed: true only if photos were actually ingested and processed
+          photosProcessed: bridge.photosIngested ? true : null,
+          photosProcessedCount: phase2PhotoUrls.length,
+          photosIngestionFailed: bridge.photosIngestionFailed,
+          damagePhotoUrls: phase2PhotoUrls,
+          policeReportNumber: bridge.policeReportNumber,
           repairerQuoteTotal: primaryQuotedAmount > 0 ? primaryQuotedAmount : null,
           deltaVKmh: Number(deltaVKmh),
           physicsConsistencyScore: Number(consistencyScore),
           structuralDamageSeverity: accidentSeverity,
-          fraudScore: weightedFraud.totalScore,
+          // Use pipeline fraud score (bridge.fraudScore) not weightedFraud.totalScore
+          // weightedFraud is a supplementary scoring engine; the pipeline Stage 8 score
+          // is the primary authoritative fraud score.
+          fraudScore: bridge.fraudScore > 0 ? bridge.fraudScore : (weightedFraud.score ?? 0),
           vehicleMarketValueCents: phase2MarketValueCents,
         });
 

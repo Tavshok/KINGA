@@ -90,7 +90,8 @@ const EXTRACTION_SCHEMA = {
         thirdPartyRegistration: { type: ["string", "null"], description: "Third party vehicle registration" },
         // Insurance / Policy
         insurerName: { type: ["string", "null"], description: "Insurance company name (e.g. 'Cell Insurance Company', 'Old Mutual', 'Zimnat'). Look for 'Insurer:', 'Insurance Company:', 'Underwriter:', or the company name at the top of the claim form." },
-        policyNumber: { type: ["string", "null"], description: "Insurance policy number. Look for 'Policy No.', 'Policy Number', 'Policy #'." },
+        policyNumber: { type: ["string", "null"], description: "Insurance policy number. Look for 'Policy No.', 'Policy Number', 'Policy #'. IMPORTANT: If the value in the policy number field looks like a product type or coverage type (e.g. 'EXCESS', 'COMPREHENSIVE', 'THIRD PARTY', 'FIRE AND THEFT', 'MOTOR') rather than an alphanumeric policy number, set this to null and set productType instead. A valid policy number typically contains letters and numbers (e.g. 'POL-2024-001', 'CI-024NATPHARM', 'ZIM/2024/001')." },
+        productType: { type: ["string", "null"], description: "Insurance product or coverage type. Set this when the policy number field contains a coverage type rather than a policy number (e.g. 'EXCESS', 'COMPREHENSIVE', 'THIRD PARTY', 'MOTOR COMPREHENSIVE'). Leave null if a real policy number was found." },
         claimReference: { type: ["string", "null"], description: "Insurer's claim reference number (e.g. 'CI-024NATPHARM', 'CLM-2024-001'). Look for 'Claim Ref', 'Claim Reference', 'Claim No.', 'Reference No.'." },
         // Incident context
         incidentTime: { type: ["string", "null"], description: "Time of accident in HH:MM format. Look for 'Time:', 'Time of accident:', 'Time of incident:'. Convert to 24-hour HH:MM format." },
@@ -100,7 +101,7 @@ const EXTRACTION_SCHEMA = {
         roadSurface: { type: ["string", "null"], description: "Road surface conditions. Look for 'Road surface:', 'Road conditions:', 'Surface:'. Common values: dry, wet, gravel, tarred, dirt." },
         // Financial extras
         marketValueCents: { type: ["integer", "null"], description: "Vehicle market/retail value in cents. Look for 'Market Value', 'Retail Value', 'Vehicle Value', 'Sum Insured'. Convert to cents (multiply by 100). Example: 20000 → 2000000." },
-        excessAmountCents: { type: ["integer", "null"], description: "Insurance excess/deductible amount in cents. Look for 'Excess', 'Deductible', 'Excess Amount'. Convert to cents." },
+        excessAmountCents: { type: ["integer", "null"], description: "Insurance excess/deductible amount in cents. This is the amount the INSURED must pay out of pocket before the insurer pays. Look for a field explicitly labelled 'Excess', 'Deductible', 'Excess Amount', 'Policy Excess'. CRITICAL: Do NOT confuse this with the repair quote total, agreed repair cost, or any amount from the repair quotation. If the only dollar amount you can find is the repair cost, set this to null. A typical excess is a small fixed amount (e.g. $50, $100, $200, $500) — if the value matches the repair cost exactly, it is NOT the excess." },
         bettermentCents: { type: ["integer", "null"], description: "Betterment/depreciation amount in cents. Look for 'Betterment', 'Depreciation', 'Age Deduction'. Convert to cents." },
         // Driver
         driverLicenseNumber: { type: ["string", "null"], description: "Driver's license number. Look for 'Licence No.', 'License Number', 'DL No.', 'Driver Licence'." },
