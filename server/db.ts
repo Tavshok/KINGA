@@ -430,13 +430,33 @@ export async function triggerAiAssessment(claimId: number) {
   const claim = await getClaimById(claimId);
   if (!claim) throw new Error("Claim not found");
 
-  // Mark assessment as triggered and transition to 'parsing'
+  // CLEAN SLATE: Delete all existing aiAssessments records for this claim before
+  // running the pipeline. This ensures the report always reflects the latest run.
+  // Without this, stale records accumulate and byClaim may return an old result
+  // if the new pipeline run fails partway through.
+  try {
+    const deletedCount = await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId));
+    console.log(`[AI Assessment] Claim ${claimId}: Deleted existing aiAssessments records before re-run.`);
+  } catch (deleteErr) {
+    console.warn(`[AI Assessment] Claim ${claimId}: Could not delete existing aiAssessments (non-fatal):`, deleteErr);
+  }
+
+  // Mark assessment as triggered and transition to 'parsing'.
+  // Also reset aiAssessmentCompleted to 0 so the frontend polling knows to wait.
   await db.update(claims).set({
     aiAssessmentTriggered: 1,
+    aiAssessmentCompleted: 0,
     documentProcessingStatus: "parsing",
     updatedAt: new Date().toISOString(),
   }).where(eq(claims.id, claimId));
-  console.log(`[AI Assessment] Claim ${claimId} — Pipeline v2 starting.`);
+  console.log(`[AI Assessment] Claim ${claimId} — Pipeline v2 starting (clean slate).`);
+
+  // This flag is set to true just before the success-path DB write.
+  // The finally safety-net checks this flag before resetting the claim to
+  // intake_pending — if the pipeline succeeded, the finally block does nothing.
+  // Without this flag, a race between the success DB write and the finally
+  // DB read could reset a successfully-completed claim back to intake_pending.
+  let pipelineSucceeded = false;
 
   // -----------------------------------------------------------------------
   // TOP-LEVEL FAILURE GUARD
@@ -1147,6 +1167,9 @@ export async function triggerAiAssessment(claimId: number) {
       if (mapped) claimUpdate.incidentType = mapped;
     }
   }
+  // Mark success BEFORE the DB write so the finally safety-net does not
+  // reset this claim even if there is a brief delay in the DB commit.
+  pipelineSucceeded = true;
   await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
 
   console.log(`[AI Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
@@ -1172,29 +1195,29 @@ export async function triggerAiAssessment(claimId: number) {
     throw topLevelError; // Re-throw so the caller's setImmediate catch logs it
   } finally {
     // GUARANTEED SAFETY NET: Ensure claim is NEVER left in a transient state.
-    // If documentProcessingStatus is still 'parsing' or 'extracting' after the
-    // try/catch completes, it means neither the success path (line 887) nor the
-    // catch path (line 898) managed to update it — mark as 'failed' so the UI
-    // shows a retry button instead of an infinite spinner.
-    try {
-      const dbFinally = await getDb();
-      if (dbFinally) {
-        const [currentState] = await dbFinally.select({
-          dps: claims.documentProcessingStatus,
-        }).from(claims).where(eq(claims.id, claimId)).limit(1);
-        if (currentState && (currentState.dps === 'parsing' || currentState.dps === 'extracting' || currentState.dps === 'analysing')) {
-          console.error(`[AI Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline — forcing to 'failed'.`);
-          await dbFinally.update(claims).set({
-            documentProcessingStatus: "failed",
-            status: "intake_pending",
-            workflowState: "intake_queue",
-            aiAssessmentTriggered: 0,
-            updatedAt: new Date().toISOString(),
-          }).where(eq(claims.id, claimId));
+    // IMPORTANT: Only fires if the pipeline did NOT succeed. If pipelineSucceeded
+    // is true, the success path already wrote the correct status — do not reset.
+    if (!pipelineSucceeded) {
+      try {
+        const dbFinally = await getDb();
+        if (dbFinally) {
+          const [currentState] = await dbFinally.select({
+            dps: claims.documentProcessingStatus,
+          }).from(claims).where(eq(claims.id, claimId)).limit(1);
+          if (currentState && (currentState.dps === 'parsing' || currentState.dps === 'extracting' || currentState.dps === 'analysing')) {
+            console.error(`[AI Assessment] SAFETY NET: Claim ${claimId} still in '${currentState.dps}' after pipeline failure — forcing to 'failed'.`);
+            await dbFinally.update(claims).set({
+              documentProcessingStatus: "failed",
+              status: "intake_pending",
+              workflowState: "intake_queue",
+              aiAssessmentTriggered: 0,
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, claimId));
+          }
         }
+      } catch (finallyErr) {
+        console.error(`[AI Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
       }
-    } catch (finallyErr) {
-      console.error(`[AI Assessment] SAFETY NET DB update failed for claim ${claimId}:`, finallyErr);
     }
   }
 }

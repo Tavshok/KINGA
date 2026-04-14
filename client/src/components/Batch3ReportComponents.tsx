@@ -102,6 +102,7 @@ interface ReportPageHeaderProps {
   onBack?: () => void;
   onReRun?: () => void;
   reRunPending?: boolean;
+  isPolling?: boolean;
 }
 
 export function ReportPageHeader({
@@ -111,6 +112,7 @@ export function ReportPageHeader({
   onBack,
   onReRun,
   reRunPending = false,
+  isPolling = false,
 }: ReportPageHeaderProps) {
   const vehicleTitle = [claim?.vehicleMake, claim?.vehicleModel, claim?.vehicleYear]
     .filter(Boolean)
@@ -201,7 +203,14 @@ export function ReportPageHeader({
           <div style={{ fontSize: "10px", color: "var(--muted-foreground)", display: "flex", gap: "8px", alignItems: "center", marginTop: "1px", flexWrap: "wrap" }}>
             <span>{claimRef}</span>
             <span>·</span>
-            <span>{generatedAt}</span>
+            {isPolling ? (
+              <span style={{ color: "var(--primary)", display: "flex", alignItems: "center", gap: "4px" }}>
+                <span style={{ display: "inline-block", width: "8px", height: "8px", borderRadius: "50%", background: "var(--primary)", animation: "pulse 1.2s ease-in-out infinite" }} />
+                Analysing…
+              </span>
+            ) : (
+              <span>{generatedAt}</span>
+            )}
             {shortHash && (
               <>
                 <span>·</span>

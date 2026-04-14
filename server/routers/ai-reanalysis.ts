@@ -143,48 +143,12 @@ export const aiReanalysisRouter = router({
 
       const nextVersion = (maxVersion?.maxVersion || 0) + 1;
 
-      // 9. Mark as re-analysis in metadata before running
-      // The real pipeline (triggerAiAssessment) will DELETE and re-INSERT the assessment row.
-      // We capture the original assessment ID first so we can backfill re-analysis metadata after.
+      // 9. Capture original assessment ID for audit trail
       const previousAssessmentId = originalAssessment?.id || null;
 
-      // 10. Run the REAL AI pipeline (same pipeline as initial intake)
-      // This runs all 10 stages: LLM extraction, incident classification, physics engine,
-      // hidden damage propagation, fraud scoring, repair intelligence, parts reconciliation,
-      // cost intelligence, confidence scoring, and cross-claim signals.
-      try {
-        await triggerAiAssessment(input.claimId);
-      } catch (pipelineErr: any) {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: `AI pipeline failed: ${pipelineErr.message}`,
-        });
-      }
-
-      // 11. Fetch the newly created assessment (pipeline deletes old + inserts new)
-      const [newAssessment] = await db
-        .select()
-        .from(aiAssessments)
-        .where(eq(aiAssessments.claimId, input.claimId))
-        .orderBy(desc(aiAssessments.createdAt))
-        .limit(1);
-
-      // 12. Backfill re-analysis metadata on the new assessment row
-      if (newAssessment) {
-        await db
-          .update(aiAssessments)
-          .set({
-            isReanalysis: 1,
-            triggeredBy: userId,
-            triggeredRole: userRole,
-            previousAssessmentId,
-            reanalysisReason: input.reason || null,
-            versionNumber: nextVersion,
-          })
-          .where(eq(aiAssessments.id, newAssessment.id));
-      }
-
-      // 13. Log governance audit trail
+      // 10. Log governance audit trail BEFORE firing the pipeline (fire-and-forget)
+      // We return immediately so the frontend can start polling for completion.
+      // The pipeline is async and takes 2-4 minutes — do NOT await it here.
       await db.insert(auditTrail).values({
         action: "AI_REANALYSIS",
         userId: userId,
@@ -194,16 +158,45 @@ export const aiReanalysisRouter = router({
           reason: input.reason,
           versionNumber: nextVersion,
           previousAssessmentId,
-          newAssessmentId: newAssessment?.id,
         }),
         tenantId: tenantId || null,
       });
 
+      // 11. Fire the REAL AI pipeline asynchronously (fire-and-forget).
+      // triggerAiAssessment deletes old aiAssessments records and runs all pipeline stages.
+      // The frontend polls claim.documentProcessingStatus to detect completion.
+      setImmediate(async () => {
+        try {
+          await triggerAiAssessment(input.claimId);
+          // Backfill re-analysis metadata on the newly created assessment row
+          const dbInner = await getDb();
+          if (dbInner) {
+            const [newAssessment] = await dbInner
+              .select()
+              .from(aiAssessments)
+              .where(eq(aiAssessments.claimId, input.claimId))
+              .orderBy(desc(aiAssessments.createdAt))
+              .limit(1);
+            if (newAssessment) {
+              await dbInner.update(aiAssessments).set({
+                isReanalysis: 1,
+                triggeredBy: userId,
+                triggeredRole: userRole,
+                previousAssessmentId,
+                reanalysisReason: input.reason || null,
+                versionNumber: nextVersion,
+              }).where(eq(aiAssessments.id, newAssessment.id));
+            }
+          }
+        } catch (pipelineErr: any) {
+          console.error(`[AI Re-analysis] Pipeline failed for claim ${input.claimId}:`, pipelineErr);
+        }
+      });
+
       return {
         success: true,
-        assessmentId: newAssessment?.id,
         versionNumber: nextVersion,
-        message: `AI re-analysis completed successfully (Version #${nextVersion})`,
+        message: `AI re-analysis started (Version #${nextVersion}). The report will update automatically when complete.`,
       };
     }),
 

@@ -1314,3 +1314,15 @@
   font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
+
+/* Pipeline running animations */
+@keyframes progress-indeterminate {
+  0%   { transform: translateX(-100%); }
+  50%  { transform: translateX(0%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}

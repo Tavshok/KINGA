@@ -971,18 +971,53 @@ export default function ClaimDecisionReport() {
   const [, params] = useRoute("/insurer/claims/:id/verdict");
   const claimId = params?.id ? parseInt(params.id) : 0;
 
+  // ── Pipeline polling: auto-refresh while re-assessment is running ──────────
+  // Set to true when a re-assessment is triggered; cleared when pipeline completes.
+  const [isPollingForPipeline, setIsPollingForPipeline] = useState(false);
+  const pipelineTriggeredAtRef = useRef<number | null>(null);
+
   const { data: claim, isLoading: claimLoading } = trpc.claims.getById.useQuery(
     { id: claimId },
-    { enabled: !!claimId }
+    {
+      enabled: !!claimId,
+      refetchInterval: isPollingForPipeline ? 5000 : false,
+    }
   );
   const { data: aiAssessment, isLoading: aiLoading } = trpc.aiAssessments.byClaim.useQuery(
     { claimId },
-    { enabled: !!claimId }
+    {
+      enabled: !!claimId,
+      refetchInterval: isPollingForPipeline ? 5000 : false,
+    }
   );
   const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
     { claimId },
-    { enabled: !!claimId }
+    {
+      enabled: !!claimId,
+      refetchInterval: isPollingForPipeline ? 5000 : false,
+    }
   );
+
+  // Stop polling when pipeline completes or times out (5 min max)
+  useEffect(() => {
+    if (!isPollingForPipeline) return;
+    const processingStatus = (claim as any)?.documentProcessingStatus;
+    const assessmentCompleted = (claim as any)?.aiAssessmentCompleted;
+    const elapsed = pipelineTriggeredAtRef.current ? Date.now() - pipelineTriggeredAtRef.current : 0;
+    const isDone =
+      assessmentCompleted === 1 ||
+      (processingStatus && processingStatus !== 'parsing') ||
+      elapsed > 5 * 60 * 1000;
+    if (isDone) {
+      setIsPollingForPipeline(false);
+      const succeeded = assessmentCompleted === 1 || (processingStatus && processingStatus !== 'parsing' && processingStatus !== 'failed');
+      if (succeeded) {
+        toast.success('Assessment complete', { description: 'The report has been updated with the latest results.' });
+      } else if (processingStatus === 'failed') {
+        toast.error('Assessment failed', { description: 'The pipeline did not complete. Check the Pipeline Confidence panel for details.' });
+      }
+    }
+  }, [claim, isPollingForPipeline]);
   const { data: quotesWithItems = [], isLoading: quotesLoading } = trpc.quotes.getWithLineItems.useQuery(
     { claimId },
     { enabled: !!claimId }
@@ -1246,10 +1281,20 @@ export default function ClaimDecisionReport() {
 
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
+      // Start polling so the report auto-refreshes when the pipeline completes.
+      // The pipeline deletes the old aiAssessments record first, so byClaim returns
+      // null until the new record is written. The polling useEffect stops when
+      // aiAssessmentCompleted flips to 1 or documentProcessingStatus changes.
+      pipelineTriggeredAtRef.current = Date.now();
+      setIsPollingForPipeline(true);
+      // Invalidate cache so stale data is cleared immediately
       utils.claims.getById.invalidate({ id: claimId });
       utils.aiAssessments.byClaim.invalidate({ claimId });
       utils.aiAssessments.getEnforcement.invalidate({ claimId });
-      toast.success("AI assessment re-triggered", { description: "Results will update in 30–60 seconds." });
+      toast.info("AI analysis running", {
+        description: "The report will update automatically when the pipeline completes. This typically takes 2–4 minutes.",
+        duration: 10000,
+      });
     },
     onError: (err) => toast.error(`Failed: ${err.message}`),
   });
@@ -1341,6 +1386,7 @@ export default function ClaimDecisionReport() {
         onBack={() => setLocation(`/insurer/claims/${claimId}/comparison`)}
         onReRun={() => reRunMutation.mutate({ claimId })}
         reRunPending={reRunMutation.isPending}
+        isPolling={isPollingForPipeline}
       />
 
       {/* Print-only header — visible only in @media print */}
@@ -1360,6 +1406,22 @@ export default function ClaimDecisionReport() {
 
       {/* Main content */}
       <div className="max-w-3xl mx-auto px-4 py-6">
+
+        {/* ── PIPELINE RUNNING banner ── */}
+        {isPollingForPipeline && (
+          <div className="mb-4 rounded-xl border-2 p-4 flex gap-3" style={{ borderColor: "var(--primary)", background: "var(--fp-info-bg)" }}>
+            <div style={{ color: "var(--primary)", fontSize: "20px", marginTop: "2px" }}>⟳</div>
+            <div>
+              <div className="font-bold text-sm mb-1" style={{ color: "var(--primary)" }}>AI Analysis Running</div>
+              <div className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                The pipeline is processing this claim. All 42 stages are running — extraction, physics analysis, fraud scoring, damage intelligence, and cost validation. The report will update automatically when complete (typically 2–4 minutes).
+              </div>
+              <div className="mt-2 h-1 rounded-full overflow-hidden" style={{ background: "var(--muted)" }}>
+                <div className="h-full rounded-full" style={{ background: "var(--primary)", width: "100%", animation: "progress-indeterminate 1.8s ease-in-out infinite" }} />
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── PIPELINE_INCOMPLETE banner ── */}
         {(() => {
