@@ -10717,3 +10717,18 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Integrity Metrics Dashboard wired into ExecutiveDashboard and InsurerClaimsTriage navigation
 - [x] integrityRouter initialization order fixed
 - [x] TypeScript: 0 errors, tests: passing
+
+## Re-extract at 300 DPI Feature
+- [ ] Server: photo-reextraction-worker.ts — high-DPI PDF render + Stage 6 damage re-analysis
+- [ ] Server: tRPC procedure claims.reextractPhotos (trigger) + claims.reextractStatus (poll)
+- [ ] DB: photoReextractions table to track re-extraction jobs and results
+- [ ] UI: Re-extract button in Section 4.4 with progress indicator and result update
+
+## Re-extract at 300 DPI Feature
+- [x] photo-reextraction-worker.ts: high-DPI PDF render + Stage 6 damage re-analysis
+- [x] photoReextractionRouter: trigger, getStatus, getLatest procedures
+- [x] photo_reextraction_jobs DB table created via SQL
+- [x] PhotoReextractButton component in Section 4.4 with polling + progress indicator
+- [x] Button shown only when scanned PDF + avgSharpness < 60
+- [x] Report auto-refreshes after successful re-extraction (trpc cache invalidation)
+- [x] vitest: 10 tests passing for photo-reextraction router

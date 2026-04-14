@@ -409,6 +409,7 @@ async function _doExtraction(
   sessionId: string,
   tempDir: string,
   pdfPath: string,
+  forceDpi?: number,
 ): Promise<ExtractionSummary> {
   const errors: string[] = [];
   const extractedImages: ExtractedImage[] = [];
@@ -424,7 +425,8 @@ async function _doExtraction(
 
     // ── STEP 1: Detect scanned PDF and page count ──────────────────────────
     const { isScanned, pageCount } = detectScannedPdf(pdfPath);
-    const renderDpi = isScanned ? DPI_SCANNED : DPI_NATIVE;
+    // forceDpi overrides adaptive DPI selection — used for high-DPI re-extraction
+    const renderDpi = forceDpi ?? (isScanned ? DPI_SCANNED : DPI_NATIVE);
 
     console.log(
       `🔍 [PDF Extractor] PDF type: ${isScanned ? 'SCANNED' : 'NATIVE'}, ` +
@@ -591,14 +593,13 @@ export async function extractImagesFromPDFBuffer(
     `(${pdfBuffer.length} bytes, session: ${sessionId})`
   );
 
-  const extractionPromise = _doExtraction(pdfBuffer, pdfFileName, sessionId, tempDir, pdfPath);
+   const extractionPromise = _doExtraction(pdfBuffer, pdfFileName, sessionId, tempDir, pdfPath);
   const timeoutPromise = new Promise<ExtractionSummary>((_, reject) =>
     setTimeout(
       () => reject(new Error(`PDF extraction timed out after ${GLOBAL_TIMEOUT_MS / 1000}s`)),
       GLOBAL_TIMEOUT_MS
     )
   );
-
   try {
     const summary = await Promise.race([extractionPromise, timeoutPromise]);
     return summary.images;
@@ -616,6 +617,7 @@ export async function extractImagesFromPDFBuffer(
 export async function extractImagesWithSummary(
   pdfBuffer: Buffer,
   pdfFileName?: string,
+  options?: { forceDpi?: number },
 ): Promise<ExtractionSummary> {
   const sessionId = nanoid(8);
   const tempDir = `/tmp/pdf-extract-${sessionId}`;
@@ -626,7 +628,7 @@ export async function extractImagesWithSummary(
     `(${pdfBuffer.length} bytes, session: ${sessionId})`
   );
 
-  const extractionPromise = _doExtraction(pdfBuffer, pdfFileName, sessionId, tempDir, pdfPath);
+  const extractionPromise = _doExtraction(pdfBuffer, pdfFileName, sessionId, tempDir, pdfPath, options?.forceDpi);
   const timeoutPromise = new Promise<ExtractionSummary>((_, reject) =>
     setTimeout(
       () => reject(new Error(`PDF extraction timed out after ${GLOBAL_TIMEOUT_MS / 1000}s`)),

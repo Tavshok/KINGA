@@ -4623,3 +4623,31 @@ export const adjusterSignOffs = mysqlTable("adjuster_sign_offs", {
 ]);
 export type AdjusterSignOffRow = typeof adjusterSignOffs.$inferSelect;
 export type InsertAdjusterSignOff = typeof adjusterSignOffs.$inferInsert;
+
+// ─── Photo Re-Extraction Jobs ─────────────────────────────────────────────────
+// Tracks high-DPI photo re-extraction jobs triggered from the forensic report
+// when a scanned PDF has low sharpness (blurScore < 60).
+export const photoReextractionJobs = mysqlTable("photo_reextraction_jobs", {
+  id: int().autoincrement().notNull().primaryKey(),
+  assessmentId: int("assessment_id").notNull(),
+  claimId: int("claim_id").notNull(),
+  pdfUrl: text("pdf_url").notNull(),
+  status: mysqlEnum("status", ["pending", "running", "completed", "failed"]).default("pending").notNull(),
+  requestedDpi: int("requested_dpi").default(300).notNull(),
+  photosExtracted: int("photos_extracted"),
+  renderDpi: int("render_dpi"),
+  avgSharpness: int("avg_sharpness"),
+  resultJson: text("result_json"),
+  errorMessage: text("error_message"),
+  createdAt: varchar("created_at", { length: 50 }).notNull(),
+  startedAt: varchar("started_at", { length: 50 }),
+  completedAt: varchar("completed_at", { length: 50 }),
+  durationMs: int("duration_ms"),
+  triggeredByUserId: int("triggered_by_user_id"),
+}, (table) => [
+  index("idx_prerj_assessment_id").on(table.assessmentId),
+  index("idx_prerj_claim_id").on(table.claimId),
+  index("idx_prerj_status").on(table.status),
+]);
+export type PhotoReextractionJobRow = typeof photoReextractionJobs.$inferSelect;
+export type InsertPhotoReextractionJob = typeof photoReextractionJobs.$inferInsert;

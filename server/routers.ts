@@ -103,6 +103,7 @@ import { auditRouter } from "./routers/audit";
 import { governanceRouter } from "./routers/governance";
 import { governanceDashboardRouter } from "./routers/governance-dashboard";
 import { aiReanalysisRouter } from "./routers/ai-reanalysis";
+import { photoReextractionRouter } from "./routers/photo-reextraction";
 import { intakeGateRouter } from "./routers/intake-gate";
 import { aiAnalysisRouter } from "./routers/ai-analysis";
 import { notificationsRouter } from "./routers/notifications";
@@ -316,6 +317,7 @@ export const appRouter = router({
   quoteIntelligence: quoteIntelligenceRouter,
   exceptionIntelligence: exceptionIntelligenceRouter,
   integrity: integrityRouter,
+  photoReextraction: photoReextractionRouter,
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────
   assessorSubscription: router({
     /**

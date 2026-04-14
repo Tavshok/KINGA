@@ -14,7 +14,8 @@
  * All data paths verified against actual server output shapes.
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useCallback } from "react";
+import { trpc } from "@/lib/trpc";
 import { CheckCircle, XCircle, AlertTriangle, Printer } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -1622,6 +1623,128 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
 
 // ─── Section 4: Evidence Inventory ───────────────────────────────────────────
 
+// ─── Photo Re-Extraction Button ───────────────────────────────────────────────
+// Shown in Section 4.4 when a scanned PDF has low sharpness (< 60%).
+// Triggers a high-DPI (300 DPI) re-extraction and Stage 6 damage re-analysis.
+function PhotoReextractButton({ assessmentId, claimId }: { assessmentId?: number; claimId?: number }) {
+  const utils = trpc.useUtils();
+  const [jobId, setJobId] = useState<number | null>(null);
+  const [polling, setPolling] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  // Check for existing latest job on mount
+  const { data: latestJob } = trpc.photoReextraction.getLatest.useQuery(
+    { assessmentId: assessmentId! },
+    { enabled: !!assessmentId }
+  );
+
+  // Poll job status when we have a running job
+  const { data: jobStatus } = trpc.photoReextraction.getStatus.useQuery(
+    { jobId: jobId! },
+    {
+      enabled: !!jobId && polling,
+      refetchInterval: polling ? 3000 : false,
+    }
+  );
+
+  // Handle job status updates
+  useEffect(() => {
+    if (!jobStatus) return;
+    if (jobStatus.status === "completed") {
+      setPolling(false);
+      setResult(jobStatus);
+      // Invalidate the assessment query so the report refreshes with new photos
+      utils.aiAssessments.byClaim.invalidate({ claimId: claimId! });
+    } else if (jobStatus.status === "failed") {
+      setPolling(false);
+      setError(jobStatus.errorMessage ?? "Re-extraction failed");
+    }
+  }, [jobStatus, claimId, utils]);
+
+  const triggerMutation = trpc.photoReextraction.trigger.useMutation({
+    onSuccess: (data) => {
+      setJobId(data.jobId);
+      setPolling(true);
+      setError(null);
+    },
+    onError: (err) => {
+      setError(err.message);
+    },
+  });
+
+  const handleTrigger = useCallback(() => {
+    if (!assessmentId || !claimId) return;
+    setResult(null);
+    setError(null);
+    triggerMutation.mutate({ assessmentId, claimId });
+  }, [assessmentId, claimId, triggerMutation]);
+
+  const isRunning = triggerMutation.isPending || polling || jobStatus?.status === "running";
+  const alreadyCompleted = result || (latestJob?.status === "completed");
+
+  // Don't render if IDs are missing
+  if (!assessmentId || !claimId) return null;
+
+  return (
+    <div className="mt-4 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex-1">
+          <p className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+            Low-sharpness scanned PDF detected
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+            Re-extract photos at 300 DPI for a sharper damage analysis. This re-runs only the photo extraction
+            and damage analysis stages — the rest of the report stays unchanged.
+          </p>
+          {error && (
+            <p className="text-xs mt-1 font-semibold" style={{ color: "var(--fp-critical-text)" }}>
+              ⚠ {error}
+            </p>
+          )}
+          {alreadyCompleted && !isRunning && (
+            <div className="mt-2 p-2 rounded text-xs" style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
+              <span className="font-semibold" style={{ color: "var(--fp-success-text)" }}>✓ Re-extraction complete — </span>
+              <span style={{ color: "var(--muted-foreground)" }}>
+                {(result ?? latestJob)?.photosExtracted ?? 0} photo(s) extracted at {(result ?? latestJob)?.renderDpi ?? 300} DPI
+                {(result ?? latestJob)?.avgSharpness ? `, avg sharpness ${(result ?? latestJob).avgSharpness}%` : ""}
+              </span>
+              <span className="ml-2" style={{ color: "var(--muted-foreground)" }}>
+                · Report photos updated
+              </span>
+            </div>
+          )}
+          {isRunning && (
+            <div className="mt-2 flex items-center gap-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
+              <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              {jobStatus?.status === "running"
+                ? "Re-extracting photos at 300 DPI…"
+                : "Queuing re-extraction…"}
+            </div>
+          )}
+        </div>
+        <button
+          onClick={handleTrigger}
+          disabled={isRunning}
+          className="shrink-0 px-3 py-1.5 rounded text-xs font-semibold transition-opacity"
+          style={{
+            background: isRunning ? "var(--muted)" : "var(--fp-warning-text)",
+            color: isRunning ? "var(--muted-foreground)" : "#fff",
+            opacity: isRunning ? 0.6 : 1,
+            cursor: isRunning ? "not-allowed" : "pointer",
+            border: "none",
+          }}
+        >
+          {alreadyCompleted && !isRunning ? "Re-run 300 DPI" : isRunning ? "Running…" : "Re-extract at 300 DPI"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: any; enforcement: any; claim: any }) {
   // Currency-aware formatter — derived from claim currency code
   const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
@@ -1947,6 +2070,13 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                   {rejectedSmall > 0 && `${rejectedSmall} image(s) were too small (likely logos or stamps) and excluded from damage analysis. `}
                   {blurryCount > 0 && `${blurryCount} image(s) were flagged as low-sharpness. Damage analysis was still attempted but results may benefit from clearer photos.`}
                 </div>
+              )}
+              {/* Re-extract at 300 DPI button — shown when scanned PDF + low sharpness */}
+              {isScanned && avgSharpness !== null && avgSharpness < 60 && (
+                <PhotoReextractButton
+                  assessmentId={aiAssessment?.id}
+                  claimId={aiAssessment?.claimId}
+                />
               )}
             </div>
           </div>
