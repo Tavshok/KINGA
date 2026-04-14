@@ -91,6 +91,45 @@ export async function getDb() {
   return _db;
 }
 
+/**
+ * Execute a database operation with automatic retry on transient connection errors.
+ * Handles ECONNRESET / PROTOCOL_CONNECTION_LOST by resetting the pool and retrying.
+ * Use this wrapper for any DB call that runs outside of a live HTTP request context
+ * (e.g. background jobs, scheduled tasks, fire-and-forget pipeline steps).
+ */
+export async function withDbRetry<T>(
+  operation: () => Promise<T>,
+  maxAttempts = 3,
+  delayMs = 1000,
+  label = 'DB operation'
+): Promise<T> {
+  let lastError: Error | null = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await operation();
+    } catch (err: any) {
+      const isTransient =
+        err?.code === 'ECONNRESET' ||
+        err?.code === 'PROTOCOL_CONNECTION_LOST' ||
+        err?.cause?.code === 'ECONNRESET' ||
+        err?.cause?.code === 'PROTOCOL_CONNECTION_LOST' ||
+        String(err?.message).includes('ECONNRESET') ||
+        String(err?.message).includes('PROTOCOL_CONNECTION_LOST');
+      if (isTransient && attempt < maxAttempts) {
+        console.warn(`[Database] ${label}: transient error on attempt ${attempt}/${maxAttempts} — resetting pool and retrying in ${delayMs * attempt}ms:`, err.message);
+        // Force pool reset so getDb() creates a fresh connection on next call
+        _db = null;
+        _pool = null;
+        await new Promise(resolve => setTimeout(resolve, delayMs * attempt));
+        lastError = err;
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError ?? new Error(`${label}: exhausted ${maxAttempts} attempts`);
+}
+
 // ============================================================================
 // USER OPERATIONS
 // ============================================================================
@@ -422,7 +461,9 @@ export async function triggerAiAssessment(claimId: number) {
         // accessed by the LLM API (which cannot supply the required Forge auth headers).
         // The raw s3Url stored in ingestion_documents is a public CloudFront URL (HTTP 200)
         // that the LLM can fetch without authentication. Always use this directly.
-        pdfUrl = sourceDoc.s3Url;
+        // URL-encode spaces in the filename portion of the CloudFront URL.
+        // Unencoded spaces cause HTTP 400 errors when the LLM API fetches the PDF.
+        pdfUrl = sourceDoc.s3Url.replace(/ /g, '%20');
         console.log(`[AI Assessment] Claim ${claimId}: Using public S3 URL for LLM: ${sourceDoc.originalFilename}`);
       } else {
         console.warn(`[AI Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);

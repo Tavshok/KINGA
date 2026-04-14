@@ -18,9 +18,12 @@
  *   - CASE 2: Claims in assessment_in_progress with ai_assessment_triggered=1
  *     but ai_assessment_completed=0 and documentProcessingStatus='parsing'
  *     for > 20 minutes → reset to intake_pending (pipeline timed out or crashed).
+ *
+ * All DB queries are wrapped with withDbRetry() to survive transient ECONNRESET
+ * errors from TiDB Cloud dropping idle connections overnight.
  */
 
-import { getDb } from "./db";
+import { getDb, withDbRetry } from "./db";
 import { claims } from "../drizzle/schema";
 import { eq, and, lt } from "drizzle-orm";
 
@@ -28,12 +31,6 @@ const TEN_MINUTES_MS = 10 * 60 * 1000;
 const TWENTY_MINUTES_MS = 20 * 60 * 1000;
 
 export async function runStuckAssessmentRecoveryJob(): Promise<void> {
-  const db = await getDb();
-  if (!db) {
-    console.warn("[StuckRecovery] Database not available — skipping run");
-    return;
-  }
-
   const now = new Date();
   const tenMinutesAgo = new Date(now.getTime() - TEN_MINUTES_MS).toISOString();
   const twentyMinutesAgo = new Date(now.getTime() - TWENTY_MINUTES_MS).toISOString();
@@ -44,17 +41,21 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
     // ── CASE 1: assessment_in_progress but pipeline never started ──────────
     // ai_assessment_triggered = 0 means triggerAiAssessment() was never called.
     // Reset after 10 minutes.
-    const neverStarted = await db
-      .select({ id: claims.id, claimNumber: claims.claimNumber })
-      .from(claims)
-      .where(
-        and(
-          eq(claims.status, "assessment_in_progress"),
-          eq(claims.aiAssessmentTriggered, 0),
-          lt(claims.updatedAt, tenMinutesAgo)
+    const neverStarted = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.status, "assessment_in_progress"),
+            eq(claims.aiAssessmentTriggered, 0),
+            lt(claims.updatedAt, tenMinutesAgo)
+          )
         )
-      )
-      .limit(50);
+        .limit(50);
+    }, 3, 2000, 'StuckRecovery case-1 query');
 
     if (neverStarted.length > 0) {
       console.log(
@@ -63,12 +64,16 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of neverStarted) {
         try {
-          await db.update(claims).set({
-            status: "intake_pending",
-            documentProcessingStatus: "pending",
-            workflowState: "intake_queue",
-            updatedAt: new Date().toISOString(),
-          }).where(eq(claims.id, claim.id));
+          await withDbRetry(async () => {
+            const db = await getDb();
+            if (!db) return;
+            return db.update(claims).set({
+              status: "intake_pending",
+              documentProcessingStatus: "pending",
+              workflowState: "intake_queue",
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, claim.id));
+          }, 3, 2000, `StuckRecovery reset claim ${claim.id}`);
           console.log(`[StuckRecovery] Reset claim ${claim.claimNumber} (id=${claim.id}) → intake_pending [pipeline never started]`);
           totalReset++;
         } catch (err) {
@@ -81,19 +86,23 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
     // ai_assessment_triggered=1, ai_assessment_completed=0, status still parsing.
     // The 15-minute pipeline timeout should have fired, but the failure handler
     // may not have run (e.g. server crash). Reset after 20 minutes.
-    const timedOut = await db
-      .select({ id: claims.id, claimNumber: claims.claimNumber })
-      .from(claims)
-      .where(
-        and(
-          eq(claims.status, "assessment_in_progress"),
-          eq(claims.aiAssessmentTriggered, 1),
-          eq(claims.aiAssessmentCompleted, 0),
-          eq(claims.documentProcessingStatus, "parsing"),
-          lt(claims.updatedAt, twentyMinutesAgo)
+    const timedOut = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.status, "assessment_in_progress"),
+            eq(claims.aiAssessmentTriggered, 1),
+            eq(claims.aiAssessmentCompleted, 0),
+            eq(claims.documentProcessingStatus, "parsing"),
+            lt(claims.updatedAt, twentyMinutesAgo)
+          )
         )
-      )
-      .limit(50);
+        .limit(50);
+    }, 3, 2000, 'StuckRecovery case-2 query');
 
     if (timedOut.length > 0) {
       console.log(
@@ -102,13 +111,17 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       );
       for (const claim of timedOut) {
         try {
-          await db.update(claims).set({
-            status: "intake_pending",
-            documentProcessingStatus: "failed",
-            workflowState: "intake_queue",
-            aiAssessmentTriggered: 0,
-            updatedAt: new Date().toISOString(),
-          }).where(eq(claims.id, claim.id));
+          await withDbRetry(async () => {
+            const db = await getDb();
+            if (!db) return;
+            return db.update(claims).set({
+              status: "intake_pending",
+              documentProcessingStatus: "failed",
+              workflowState: "intake_queue",
+              aiAssessmentTriggered: 0,
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, claim.id));
+          }, 3, 2000, `StuckRecovery timeout-reset claim ${claim.id}`);
           console.log(
             `[StuckRecovery] Timeout-reset claim ${claim.claimNumber} (id=${claim.id}) ` +
             `→ intake_pending [documentProcessingStatus=failed]`
