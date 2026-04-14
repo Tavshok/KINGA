@@ -492,7 +492,14 @@ export async function triggerAiAssessment(claimId: number) {
   // or claims that bypassed the upload processor), extract images from the PDF
   // directly before running the pipeline. This ensures photos are always available
   // for damage analysis and fraud detection regardless of how the assessment was triggered.
+  // Track photo ingestion quality for the forensic report
+  let _dbPhotoIngestionLog: any = null;
   if (pdfUrl && damagePhotos.length === 0) {
+    const _photoIngestionStart = Date.now();
+    let _extractionError: string | null = null;
+    let _totalExtracted = 0;
+    let _qualitySummary: any = null;
+    let _isScannedPdf = false;
     try {
       console.log(`[AI Assessment] Claim ${claimId}: No cached photos — extracting images from PDF: ${pdfUrl}`);
       const { extractImagesFromPDFBuffer } = await import('./pdf-image-extractor');
@@ -508,10 +515,24 @@ export async function triggerAiAssessment(claimId: number) {
       if (pdfResponse && pdfResponse.ok) {
         const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
         const extractedImages = await extractImagesFromPDFBuffer(pdfBuffer, `claim-${claimId}.pdf`);
+        _totalExtracted = extractedImages.length;
+        _isScannedPdf = extractedImages.some((img: any) => img.isPageRender === true);
+        // Build quality summary from extractor metadata
+        _qualitySummary = {
+          isScannedPdf: _isScannedPdf,
+          renderDpi: extractedImages.find((img: any) => img.renderDpi)?.renderDpi ?? null,
+          passedDimensionGate: extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200).length,
+          rejectedTooSmall: extractedImages.filter((img: any) => img.width < 200 || img.height < 200).length,
+          blurryCount: extractedImages.filter((img: any) => img.isBlurry === true).length,
+          textHeavyCount: extractedImages.filter((img: any) => img.isTextHeavy === true).length,
+          avgSharpnessScore: extractedImages.length > 0
+            ? Math.round(extractedImages.reduce((s: number, img: any) => s + (img.sharpnessScore ?? 80), 0) / extractedImages.length)
+            : null,
+        };
         // Filter to images that are likely real photos (not tiny logos/icons)
-        const photoImages = extractedImages.filter(img => img.width >= 200 && img.height >= 200);
-        damagePhotos = photoImages.map(img => img.url);
-        console.log(`[AI Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found)`);
+        const photoImages = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
+        damagePhotos = photoImages.map((img: any) => img.url);
+        console.log(`[AI Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
         // Persist extracted photos to claim record so future re-runs skip this step
         if (damagePhotos.length > 0) {
           await db.update(claims).set({
@@ -520,11 +541,31 @@ export async function triggerAiAssessment(claimId: number) {
           }).where(eq(claims.id, claimId)).catch(() => {});
         }
       } else {
+        _extractionError = `HTTP ${pdfResponse?.status ?? 'aborted'}`;
         console.warn(`[AI Assessment] Claim ${claimId}: Failed to download PDF for image extraction: HTTP ${pdfResponse?.status ?? 'aborted'}`);
       }
     } catch (imgErr: any) {
+      _extractionError = imgErr.message;
       console.warn(`[AI Assessment] Claim ${claimId}: PDF image re-extraction failed (non-fatal): ${imgErr.message}`);
     }
+    // Build structured photo ingestion log for the forensic report
+    try {
+      const { buildPhotoIngestionLog } = await import('./pipeline-v2/photo-ingestion-log');
+      _dbPhotoIngestionLog = buildPhotoIngestionLog({
+        sourceUrl: pdfUrl,
+        isPdf: true,
+        pageRenderCount: _isScannedPdf ? (_qualitySummary?.passedDimensionGate ?? 0) + (_qualitySummary?.rejectedTooSmall ?? 0) : 0,
+        embeddedImageCount: _isScannedPdf ? 0 : _totalExtracted,
+        totalExtracted: _totalExtracted,
+        damagePhotoCount: damagePhotos.length,
+        documentPhotoCount: 0,
+        llmClassificationFailed: false,
+        extractionError: _extractionError,
+        startedAt: new Date(_photoIngestionStart),
+        totalDurationMs: Date.now() - _photoIngestionStart,
+        qualitySummary: _qualitySummary,
+      });
+    } catch { /* non-fatal */ }
   }
 
   // If we have neither a PDF nor photos, create a placeholder and return
@@ -576,6 +617,8 @@ export async function triggerAiAssessment(claimId: number) {
     db,
     log: (stage: string, msg: string) => console.log(`[${stage}] Claim ${claimId}: ${msg}`),
     tenantRates,
+    // Photo ingestion log from pre-pipeline PDF extraction (if applicable)
+    photoIngestionLog: _dbPhotoIngestionLog,
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled

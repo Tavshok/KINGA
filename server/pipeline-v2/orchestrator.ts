@@ -1511,6 +1511,8 @@ export async function runPipelineV2(
       reconciliationLog: reconciliationLog ?? null,
       // Pre-report integrity gate result
       integrityGate: integrityGateResult,
+      // Photo ingestion quality log — extraction method, quality gate results, scanned PDF flag
+      photoIngestionLog: (ctx as any).photoIngestionLog ?? null,
       // Pipeline state machine summary — for audit trail and health dashboard
       pipelineStateMachine: psm.toSummary(),
       // Anomaly sentinels — named invariant violations

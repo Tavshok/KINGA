@@ -1841,6 +1841,117 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           </div>
         );
       })()}
+      {/* 4.4 Photo Quality Intelligence — extraction method, quality gate, scanned PDF */}
+      {(() => {
+        const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
+        const pil = fa?.photoIngestionLog ?? null;
+        if (!pil) return null;
+        const qs = pil.qualitySummary ?? null;
+        const isScanned = qs?.isScannedPdf ?? false;
+        const renderDpi = qs?.renderDpi ?? null;
+        const totalExtracted = pil.totalExtracted ?? 0;
+        const damageCount = pil.finalDamagePhotoCount ?? pil.damagePhotoCount ?? 0;
+        const rejectedSmall = qs?.rejectedTooSmall ?? 0;
+        const blurryCount = qs?.blurryCount ?? 0;
+        const textHeavyCount = qs?.textHeavyCount ?? 0;
+        const avgSharpness = qs?.avgSharpnessScore ?? null;
+        const extractionError = pil.extractionError ?? null;
+        const durationMs = pil.totalDurationMs ?? null;
+        const hasQualityIssues = rejectedSmall > 0 || blurryCount > 0 || !!extractionError;
+        const qualityStatus: "pass" | "warn" | "fail" = extractionError ? "fail" : hasQualityIssues ? "warn" : "pass";
+        const qualityLabel = extractionError ? "EXTRACTION ERROR" : hasQualityIssues ? "QUALITY ISSUES" : "QUALITY OK";
+        const qualityBg = extractionError ? "var(--status-reject-bg)" : hasQualityIssues ? "var(--status-review-bg)" : "var(--status-approve-bg)";
+        const qualityBorder = extractionError ? "var(--fp-critical-border)" : hasQualityIssues ? "var(--fp-warning-border)" : "var(--fp-success-border)";
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>4.4 Photo Quality Intelligence</p>
+              <div className="flex items-center gap-2">
+                {isScanned && (
+                  <span className="text-xs px-2 py-0.5 rounded font-semibold" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
+                    SCANNED PDF
+                  </span>
+                )}
+                <StatusBadge status={qualityStatus} label={qualityLabel} />
+              </div>
+            </div>
+            <div className="p-4">
+              {extractionError && (
+                <div className="p-2 rounded text-xs mb-3" style={{ background: qualityBg, border: `1px solid ${qualityBorder}`, color: "var(--fp-critical-text)" }}>
+                  <strong>Extraction error:</strong> {extractionError}. This is a system-level issue and is not attributed to the claimant.
+                </div>
+              )}
+              <div className="grid grid-cols-4 gap-3 mb-3">
+                {[
+                  { label: "Total found", value: totalExtracted, color: "var(--foreground)" },
+                  { label: "Damage photos", value: damageCount, color: damageCount > 0 ? "var(--fp-success-text)" : "var(--fp-warning-text)" },
+                  { label: "Rejected (size)", value: rejectedSmall, color: rejectedSmall > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
+                  { label: "Blurry / low-res", value: blurryCount, color: blurryCount > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
+                ].map((m, i) => (
+                  <div key={i} className="text-center p-2 rounded" style={{ background: "var(--muted)" }}>
+                    <p className="text-lg font-bold" style={{ color: m.color }}>{m.value}</p>
+                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{m.label}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between">
+                    <span style={{ color: "var(--muted-foreground)" }}>Extraction method:</span>
+                    <span className="font-semibold" style={{ color: "var(--foreground)" }}>
+                      {isScanned ? `Scanned PDF — rendered at ${renderDpi ?? "auto"} DPI` : "Native PDF image extraction"}
+                    </span>
+                  </div>
+                  {avgSharpness !== null && (
+                    <div className="flex justify-between items-center">
+                      <span style={{ color: "var(--muted-foreground)" }}>Avg. sharpness:</span>
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 rounded-full" style={{ width: 60, background: "var(--muted)" }}>
+                          <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, avgSharpness)}%`, background: avgSharpness >= 70 ? "var(--fp-success-text)" : avgSharpness >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
+                        </div>
+                        <span className="font-semibold" style={{ color: avgSharpness >= 70 ? "var(--fp-success-text)" : avgSharpness >= 40 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>{avgSharpness}%</span>
+                      </div>
+                    </div>
+                  )}
+                  {textHeavyCount > 0 && (
+                    <div className="flex justify-between">
+                      <span style={{ color: "var(--muted-foreground)" }}>Text-only pages skipped:</span>
+                      <span className="font-semibold" style={{ color: "var(--muted-foreground)" }}>{textHeavyCount}</span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  {durationMs !== null && (
+                    <div className="flex justify-between">
+                      <span style={{ color: "var(--muted-foreground)" }}>Extraction time:</span>
+                      <span className="font-semibold" style={{ color: "var(--foreground)" }}>{(durationMs / 1000).toFixed(1)}s</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span style={{ color: "var(--muted-foreground)" }}>Dimension gate (min 200px):</span>
+                    <span className="font-semibold" style={{ color: rejectedSmall > 0 ? "var(--fp-warning-text)" : "var(--fp-success-text)" }}>
+                      {rejectedSmall > 0 ? `${rejectedSmall} rejected` : "All passed"}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span style={{ color: "var(--muted-foreground)" }}>Blur detection:</span>
+                    <span className="font-semibold" style={{ color: blurryCount > 0 ? "var(--fp-warning-text)" : "var(--fp-success-text)" }}>
+                      {blurryCount > 0 ? `${blurryCount} flagged` : "None flagged"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              {(rejectedSmall > 0 || blurryCount > 0) && !extractionError && (
+                <div className="mt-3 p-2 rounded text-xs" style={{ background: qualityBg, border: `1px solid ${qualityBorder}`, color: "var(--foreground)" }}>
+                  <strong>Quality note:</strong>{" "}
+                  {rejectedSmall > 0 && `${rejectedSmall} image(s) were too small (likely logos or stamps) and excluded from damage analysis. `}
+                  {blurryCount > 0 && `${blurryCount} image(s) were flagged as low-sharpness. Damage analysis was still attempted but results may benefit from clearer photos.`}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -2628,6 +2739,129 @@ function CongruencyPanel({ aiAssessment }: { aiAssessment: any }) {
   );
 }
 
+// ─── Pipeline Confidence Panel (FCDI) ────────────────────────────────────────
+// Surfaces the Forensic Confidence Degradation Index, pipeline stage health,
+// and anomaly sentinel violations. Shown above Section 1 in the report.
+function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
+  const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
+  if (!fa) return null;
+  const fcdi = fa.fcdi ?? null;
+  const psm = fa.pipelineStateMachine ?? null;
+  const sentinels: any[] = fa.anomalySentinelViolations ?? [];
+  const dataQuality = fa.dataQuality ?? null;
+  if (!fcdi && !psm && sentinels.length === 0 && !dataQuality) return null;
+
+  const fcdiScore: number = fcdi?.score ?? 0;
+  const fcdiLabel: string = fcdi?.label ?? (fcdiScore <= 20 ? "RELIABLE" : fcdiScore <= 50 ? "DEGRADED" : "UNRELIABLE");
+  const fcdiColor = fcdiScore <= 20 ? "var(--fp-success-text)" : fcdiScore <= 50 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+  const fcdiBg = fcdiScore <= 20 ? "var(--status-approve-bg)" : fcdiScore <= 50 ? "var(--status-review-bg)" : "var(--status-reject-bg)";
+  const fcdiBorder = fcdiScore <= 20 ? "var(--fp-success-border)" : fcdiScore <= 50 ? "var(--fp-warning-border)" : "var(--fp-critical-border)";
+
+  const stageHealth: any[] = psm?.stages ?? [];
+  const failedStages = stageHealth.filter((s: any) => s.status === "failed" || s.status === "error");
+  const degradedStages = stageHealth.filter((s: any) => s.status === "degraded" || s.status === "partial");
+  const completenessScore: number = dataQuality?.completenessScore ?? dataQuality?.completeness ?? 0;
+  const missingFields: string[] = dataQuality?.missingFields ?? dataQuality?.missing ?? [];
+  const assumptions: any[] = fa.assumptions ?? [];
+
+  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0;
+  if (!hasPipelineIssues && fcdiScore <= 20 && completenessScore >= 80) return null;
+
+  return (
+    <div className="rounded-xl overflow-hidden mb-2 no-print" style={{ border: `1.5px solid ${fcdiBorder}`, background: fcdiBg }}>
+      <div className="px-5 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${fcdiBorder}40` }}>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-bold" style={{ color: fcdiColor }}>
+            {fcdiScore <= 20 ? "✓ PIPELINE RELIABLE" : fcdiScore <= 50 ? "⚠️ PIPELINE DEGRADED" : "⛔ PIPELINE UNRELIABLE"}
+          </span>
+          <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${fcdiColor}20`, color: fcdiColor }}>
+            FCDI {fcdiScore}/100 — {fcdiLabel}
+          </span>
+          {completenessScore > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+              {completenessScore}% data completeness
+            </span>
+          )}
+        </div>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Forensic Confidence Degradation Index</span>
+      </div>
+      <div className="px-5 py-3 space-y-3 text-xs">
+        {fcdi?.explanation && (
+          <p style={{ color: "var(--foreground)" }}>{fcdi.explanation}</p>
+        )}
+        {failedStages.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-danger)" }}>
+              Pipeline stages with errors ({failedStages.length}):
+            </p>
+            <div className="space-y-0.5">
+              {failedStages.map((s: any, i: number) => (
+                <p key={i} style={{ color: "var(--fp-danger)" }}>
+                  &bull; <span className="font-mono">{s.name ?? s.stage}</span>
+                  {s.error && <span className="ml-1" style={{ color: "var(--muted-foreground)" }}>— {s.error}</span>}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+        {degradedStages.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-warn)" }}>
+              Degraded stages — partial results ({degradedStages.length}):
+            </p>
+            <div className="space-y-0.5">
+              {degradedStages.map((s: any, i: number) => (
+                <p key={i} style={{ color: "var(--muted-foreground)" }}>
+                  &bull; <span className="font-mono">{s.name ?? s.stage}</span>
+                  {s.reason && <span className="ml-1">— {s.reason}</span>}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+        {sentinels.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+              Anomaly sentinels triggered ({sentinels.length}):
+            </p>
+            <div className="space-y-0.5">
+              {sentinels.map((s: any, i: number) => (
+                <p key={i} style={{ color: "var(--muted-foreground)" }}>
+                  &bull; <span className="font-semibold font-mono" style={{ color: "var(--foreground)" }}>{s.name ?? s.sentinel}</span>
+                  {s.description && <span className="ml-1">— {s.description}</span>}
+                </p>
+              ))}
+            </div>
+          </div>
+        )}
+        {missingFields.length > 0 && (
+          <p style={{ color: "var(--muted-foreground)" }}>
+            Missing fields (verify manually):{" "}
+            <span className="font-medium" style={{ color: "var(--foreground)" }}>{missingFields.join(", ")}</span>
+          </p>
+        )}
+        {assumptions.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--foreground)" }}>
+              Assumptions applied by pipeline ({assumptions.length}):
+            </p>
+            <div className="space-y-0.5">
+              {assumptions.slice(0, 5).map((a: any, i: number) => (
+                <p key={i} style={{ color: "var(--muted-foreground)" }}>
+                  &bull; {typeof a === "string" ? a : (a.description ?? a.field ?? JSON.stringify(a))}
+                </p>
+              ))}
+              {assumptions.length > 5 && (
+                <p style={{ color: "var(--muted-foreground)" }}>+{assumptions.length - 5} more assumptions</p>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
 export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }: ForensicAuditReportProps) {
@@ -2679,6 +2913,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
         </div>
       )}
       <CongruencyPanel aiAssessment={aiAssessment} />
+      <PipelineConfidencePanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
