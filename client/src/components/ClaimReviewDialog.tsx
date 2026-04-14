@@ -220,7 +220,7 @@ export function ClaimReviewDialog({ claimId, open, onOpenChange }: ClaimReviewDi
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">AI Estimate:</span>
                       <span className="font-medium">
-                        {aiAssessment?.estimatedCost ? fmt(aiAssessment.estimatedCost) : "N/A"}
+                        {aiAssessment?.estimatedCost ? fmt((aiAssessment.estimatedCost || 0) * 100) : "N/A"}
                       </span>
                     </div>
                     <div className="flex justify-between">

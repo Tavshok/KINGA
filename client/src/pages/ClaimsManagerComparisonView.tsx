@@ -176,7 +176,7 @@ export default function ClaimsManagerComparisonView() {
     );
   }
 
-  const aiCost = aiAssessment?.estimatedCost ? aiAssessment.estimatedCost / 100 : null;
+  const aiCost = aiAssessment?.estimatedCost ? aiAssessment.estimatedCost : null;
   const assessorCost = assessorEval?.estimatedRepairCost ? assessorEval.estimatedRepairCost / 100 : null;
 
   // Find lowest and selected quotes

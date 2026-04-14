@@ -240,7 +240,8 @@ async function runAutoValuation(
     if (db) {
       await db.update(claims).set({ vehicleMarketValue: valuation.finalAdjustedValue }).where(eq(claims.id, claimId));
     }
-    log("VALUATION", `Auto-valuation complete: $${(valuation.finalAdjustedValue / 100).toFixed(2)} ZAR${valuation.isTotalLoss ? " — TOTAL LOSS" : ""}${mileageEstimated ? " (mileage estimated)" : ""}`);
+    const claimCurrency = (ctx.claim as any).currencyCode || "USD";
+    log("VALUATION", `Auto-valuation complete: ${claimCurrency} ${(valuation.finalAdjustedValue / 100).toFixed(2)}${valuation.isTotalLoss ? " — TOTAL LOSS" : ""}${mileageEstimated ? " (mileage estimated)" : ""}`);
   } catch (err) {
     log("VALUATION", `Auto-valuation error (non-fatal): ${String(err)}`);
   }
@@ -682,11 +683,30 @@ export async function runPipelineV2(
 
   // Attach narrative analysis to claimRecord so Stage 8 fraud engine can consume it
   if (s7Unified.data?.narrativeAnalysis && claimRecord) {
+    const narrativeAnalysis = s7Unified.data.narrativeAnalysis;
+    // SPEED RECONCILIATION: if structured extraction did not find a speed value
+    // (estimatedSpeedKmh is null or was a Stage 5 heuristic estimate of 30/45/60),
+    // and the narrative engine extracted a higher-confidence implied speed, write it
+    // back so the structured section of the report reflects the narrative-derived value.
+    const narrativeSpeed: number | null =
+      (narrativeAnalysis as any)?.extracted_facts?.implied_speed_kmh ?? null;
+    const currentSpeed = claimRecord.accidentDetails?.estimatedSpeedKmh ?? null;
+    const isHeuristicSpeed = currentSpeed === 30 || currentSpeed === 45 || currentSpeed === 60;
+    const shouldOverrideSpeed =
+      narrativeSpeed !== null && (currentSpeed === null || isHeuristicSpeed);
+    if (shouldOverrideSpeed) {
+      ctx.log(
+        "Stage 7 (Unified)",
+        `Speed reconciliation: narrative implied_speed_kmh=${narrativeSpeed} km/h overrides ` +
+        `structured estimatedSpeedKmh=${currentSpeed === null ? 'null' : currentSpeed + ' (heuristic)'}.`
+      );
+    }
     claimRecord = {
       ...claimRecord,
       accidentDetails: {
         ...claimRecord.accidentDetails,
-        narrativeAnalysis: s7Unified.data.narrativeAnalysis,
+        narrativeAnalysis,
+        ...(shouldOverrideSpeed ? { estimatedSpeedKmh: narrativeSpeed } : {}),
       },
     };
   }

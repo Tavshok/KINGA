@@ -534,9 +534,9 @@ function calculateFraudStatistics(claims: any[]) {
   ];
 
   // Cost impact data for bar chart
-  const highRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 70).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100;
-  const mediumRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 40 && (c.fraudRiskScore || 0) <= 70).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100;
-  const lowRiskCost = claims.filter(c => (c.fraudRiskScore || 0) <= 40).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0) / 100;
+  const highRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 70).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0);
+  const mediumRiskCost = claims.filter(c => (c.fraudRiskScore || 0) > 40 && (c.fraudRiskScore || 0) <= 70).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0);
+  const lowRiskCost = claims.filter(c => (c.fraudRiskScore || 0) <= 40).reduce((sum: any, c) => sum + (c.estimatedCost || 0), 0);
   
   const costImpactData = [
     { category: "High Risk", amount: highRiskCost },

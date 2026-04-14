@@ -26,6 +26,7 @@ import {
   ArrowRight
 } from "lucide-react";
 import { format } from "date-fns";
+import { useTenantCurrency } from '@/hooks/useTenantCurrency';
 
 interface AiReanalysisPanelProps {
   claimId: number;
@@ -33,6 +34,7 @@ interface AiReanalysisPanelProps {
 
 export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
   const [reanalysisDialogOpen, setReanalysisDialogOpen] = useState(false);
+  const { fmt } = useTenantCurrency();
   const [comparisonDialogOpen, setComparisonDialogOpen] = useState(false);
   const [reanalysisReason, setReanalysisReason] = useState("");
   const [selectedVersions, setSelectedVersions] = useState<[number, number] | null>(null);
@@ -194,7 +196,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Estimated Cost</p>
-                    <p className="font-medium">${(originalVersion.estimatedCost || 0).toFixed(2)}</p>
+                    <p className="font-medium">{fmt((originalVersion.estimatedCost || 0) * 100)}</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Fraud Risk</p>
@@ -243,7 +245,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                       </div>
                       <div>
                         <p className="text-muted-foreground">Estimated Cost</p>
-                        <p className="font-medium">${(version.estimatedCost || 0).toFixed(2)}</p>
+                        <p className="font-medium">{fmt((version.estimatedCost || 0) * 100)}</p>
                       </div>
                       <div>
                         <p className="text-muted-foreground">Fraud Risk</p>
@@ -372,7 +374,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   <CardContent className="space-y-3 text-sm">
                     <div>
                       <p className="text-muted-foreground">Estimated Cost</p>
-                      <p className="font-medium">${(comparison.assessment1.estimatedCost || 0).toFixed(2)}</p>
+                      <p className="font-medium">{fmt((comparison.assessment1.estimatedCost || 0) * 100)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Confidence Score</p>
@@ -406,7 +408,7 @@ export function AiReanalysisPanel({ claimId }: AiReanalysisPanelProps) {
                   <CardContent className="space-y-3 text-sm">
                     <div>
                       <p className="text-muted-foreground">Estimated Cost</p>
-                      <p className="font-medium">${(comparison.assessment2.estimatedCost || 0).toFixed(2)}</p>
+                      <p className="font-medium">{fmt((comparison.assessment2.estimatedCost || 0) * 100)}</p>
                     </div>
                     <div>
                       <p className="text-muted-foreground">Confidence Score</p>

@@ -9,9 +9,11 @@ import { trpc } from "@/lib/trpc";
 import { generateDamageReportPDF } from "@/lib/pdfExport";
 import { toast } from "sonner";
 import { useLocation } from "wouter";
+import { useTenantCurrency } from '@/hooks/useTenantCurrency';
 
 export default function BatchExport() {
   const { user } = useAuth();
+  const { fmt } = useTenantCurrency();
   const [, setLocation] = useLocation();
   const [selectedClaims, setSelectedClaims] = useState<Set<number>>(new Set());
   const [isExporting, setIsExporting] = useState(false);
@@ -303,7 +305,7 @@ export default function BatchExport() {
                       {hasAssessment && (
                         <div className="text-right">
                           <p className="text-sm font-medium text-gray-700 dark:text-foreground/80">
-                            ${((aiAssessment.estimatedCost || 0) / 100).toFixed(2)}
+                            {fmt((aiAssessment.estimatedCost || 0) * 100)}
                           </p>
                           <p className="text-xs text-gray-700 dark:text-gray-400 dark:text-muted-foreground">Estimated Cost</p>
                         </div>

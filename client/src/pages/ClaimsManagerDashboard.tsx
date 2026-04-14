@@ -467,7 +467,7 @@ export default function ClaimsManagerDashboard() {
                           </div>
                           <div>
                             <span className="font-medium">Est. Cost:</span>{" "}
-                            {claim.estimatedCost ? fmt(claim.estimatedCost) : 
+                            {claim.estimatedCost ? fmt((claim.estimatedCost || 0) * 100) : 
                              claim.approvedAmount ? fmt(claim.approvedAmount) : "Pending"}
                           </div>
                           <div>

@@ -130,7 +130,7 @@ export function ReportPageHeader({
 
   const totalCost: number =
     aiAssessment?._normalised?.costs?.totalUsd ??
-    ((aiAssessment?.estimatedCost ?? 0) / 100);
+    (aiAssessment?.estimatedCost ?? 0);
 
   const consistencyScore: number =
     enforcement?.consistencyFlag?.score ??
@@ -329,7 +329,7 @@ export function ReportIntegritySeal({ claim, aiAssessment, enforcement }: Report
 
   const totalCost: number =
     aiAssessment?._normalised?.costs?.totalUsd ??
-    ((aiAssessment?.estimatedCost ?? 0) / 100);
+    (aiAssessment?.estimatedCost ?? 0);
 
   const consistencyScore: number =
     enforcement?.consistencyFlag?.score ??

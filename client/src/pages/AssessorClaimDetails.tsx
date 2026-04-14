@@ -233,13 +233,13 @@ export default function AssessorClaimDetails() {
                       <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
                         <p className="text-xs text-slate-600 dark:text-muted-foreground">AI Estimated Cost</p>
                         <p className="text-lg font-bold text-slate-900 dark:text-foreground">
-                          ${((aiAssessment.estimatedCost || 0) / 100).toLocaleString()}
+                          {fmt((aiAssessment.estimatedCost || 0) * 100)}
                         </p>
                       </div>
                       <div className="bg-slate-50 dark:bg-muted/50 rounded p-3">
                         <p className="text-xs text-slate-600 dark:text-muted-foreground">Market Average</p>
                         <p className="text-lg font-bold text-slate-900 dark:text-foreground">
-                          ${(((aiAssessment.estimatedCost || 0) * 1.1) / 100).toLocaleString()}
+                          {fmt(Math.round((aiAssessment.estimatedCost || 0) * 1.1) * 100)}
                         </p>
                         <p className="text-xs text-slate-700 dark:text-slate-400 dark:text-muted-foreground">±10% variance</p>
                       </div>
