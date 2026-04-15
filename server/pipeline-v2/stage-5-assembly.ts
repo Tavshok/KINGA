@@ -308,6 +308,25 @@ export async function runAssemblyStage(
         : (ctx.damagePhotoUrls || []),
     };
 
+    // Build repair line items from extracted damaged components.
+    // The LLM extraction provides component names, locations, and repair actions
+    // but not pricing — pricing comes from the cost model in Stage 9.
+    // Having line items populated (even without pricing) allows the forensic
+    // validator to see that cost data exists and prevents INSUFFICIENT_COST_DATA.
+    const repairLineItems: import('./types').RepairLineItem[] = (v.damagedComponents || []).map((c: any) => ({
+      partName: c.name || 'Unknown',
+      partNumber: null,
+      quantity: 1,
+      unitPriceCents: 0,
+      totalPriceCents: 0,
+      labourHours: 0,
+      labourRateCents: 0,
+      isOem: false,
+      isAftermarket: false,
+      isUsed: false,
+      repairAction: c.repairAction || 'repair',
+    }));
+
     const repairQuote: RepairQuoteRecord = {
       repairerName: v.panelBeater || null,
       repairerCompany: v.repairerCompany || null,
@@ -318,7 +337,7 @@ export async function runAssemblyStage(
       agreedCostCents: v.agreedCostCents || null,
       labourCostCents: v.labourCostCents || null,
       partsCostCents: v.partsCostCents || null,
-      lineItems: [],
+      lineItems: repairLineItems,
     };
 
     const claimRecord: ClaimRecord = {

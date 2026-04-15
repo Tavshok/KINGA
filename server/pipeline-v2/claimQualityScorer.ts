@@ -120,21 +120,29 @@ function scoreDataCompleteness(claimRecord: ClaimRecord): QualityDimension {
 
 function scoreImageConfidence(
   claimRecord: ClaimRecord,
-  damageAnalysis: Stage6Output | null
+  damageAnalysis: Stage6Output | null,
+  classifiedImages?: ClaimQualityScorerInput["classifiedImages"]
 ): QualityDimension {
   const issues: string[] = [];
   let score = 0;
 
-  const uploadedPhotos = claimRecord.damage.imageUrls?.length ?? 0;
+  // Use classified damage photo count if available, otherwise fall back to raw imageUrls
+  const classifiedDamagePhotos = classifiedImages?.summary?.damagePhotoCount ?? 0;
+  const totalExtracted = claimRecord.damage.imageUrls?.length ?? 0;
+  const uploadedPhotos = classifiedDamagePhotos > 0 ? classifiedDamagePhotos : totalExtracted;
   const processedPhotos = damageAnalysis?.photosProcessed ?? 0;
   const imageConfidence = damageAnalysis?.imageConfidenceScore ?? 0;
 
-  if (uploadedPhotos === 0) {
-    score = 10; // Some credit for having a claim at all
+  if (uploadedPhotos === 0 && totalExtracted === 0) {
+    score = 10;
     issues.push("No damage photos submitted — damage analysis based on text only");
+  } else if (uploadedPhotos === 0 && totalExtracted > 0) {
+    // Images were extracted from PDF but none classified as damage photos
+    score = 25;
+    issues.push(`${totalExtracted} image(s) extracted from document but none identified as damage photos — analysis based on document pages`);
   } else if (processedPhotos === 0) {
     score = 20;
-    issues.push(`${uploadedPhotos} photo(s) submitted but none were successfully processed`);
+    issues.push(`${uploadedPhotos} damage photo(s) identified but none were successfully processed by vision`);
   } else {
     // Base score from number of usable photos
     const photoScore = Math.min(60, processedPhotos * 15);
@@ -143,10 +151,17 @@ function scoreImageConfidence(
     score = photoScore + confidenceBonus;
 
     if (processedPhotos < 3) {
-      issues.push(`Only ${processedPhotos} photo(s) processed — more photos improve accuracy`);
+      issues.push(`Only ${processedPhotos} of ${uploadedPhotos} damage photo(s) processed — more photos improve accuracy`);
     }
     if (imageConfidence < 60) {
       issues.push(`Image quality is low (confidence: ${imageConfidence}%) — photos may be blurry or poorly lit`);
+    }
+    // Add classification context
+    if (classifiedImages?.summary) {
+      const s = classifiedImages.summary;
+      if (s.documentPageCount > 0 || s.quotationCount > 0) {
+        issues.push(`Image classifier separated ${s.totalInput} extracted images: ${s.damagePhotoCount} damage, ${s.documentPageCount} document, ${s.quotationCount} quotation, ${s.vehicleOverviewCount} overview`);
+      }
     }
   }
 
@@ -365,6 +380,17 @@ export interface ClaimQualityScorerInput {
   fraudAnalysis: Stage8Output | null;
   costAnalysis: Stage9Output | null;
   consistencyCheck?: ConsistencyCheckResult | null;
+  /** Image classification results from Stage 2.6 */
+  classifiedImages?: {
+    summary?: {
+      totalInput: number;
+      damagePhotoCount: number;
+      vehicleOverviewCount: number;
+      quotationCount: number;
+      documentPageCount: number;
+      fallbackCount: number;
+    };
+  } | null;
 }
 
 export function scoreClaimQuality(input: ClaimQualityScorerInput): ClaimQualityResult {
@@ -378,7 +404,7 @@ export function scoreClaimQuality(input: ClaimQualityScorerInput): ClaimQualityR
 
   const dimensions = {
     dataCompleteness: scoreDataCompleteness(claimRecord),
-    imageConfidence: scoreImageConfidence(claimRecord, damageAnalysis),
+    imageConfidence: scoreImageConfidence(claimRecord, damageAnalysis, input.classifiedImages),
     costSource: scoreCostSource(costAnalysis),
     classification: scoreClassification(claimRecord),
     physics: scorePhysics(physicsAnalysis, claimRecord),

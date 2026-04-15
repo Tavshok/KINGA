@@ -595,6 +595,7 @@ export async function runReportGenerationStage(
         fraudAnalysis: fraudAnalysis ?? null,
         costAnalysis: costAnalysis ?? null,
         consistencyCheck,
+        classifiedImages: ctx.classifiedImages ?? null,
       });
       // Surface quality score in fullReport for downstream consumers
       fullReport.sections.claimQuality = {

@@ -522,8 +522,14 @@ export async function runFraudAnalysisStage(
     }
 
     // 3c. Photo Forensics — EXIF, GPS, manipulation detection
+    // Use classified damage photos when available (from Stage 2.6 image classifier),
+    // otherwise fall back to raw imageUrls. This ensures we only run forensics on
+    // actual damage photos, not document pages or quotation scans.
     let photoForensicsResult: Stage8Output["photoForensics"] = null;
-    const photoUrlsForForensics = claimRecord.damage.imageUrls ?? [];
+    const classifiedDamagePhotos = ctx.classifiedImages?.damagePhotos?.map(p => p.url) ?? [];
+    const photoUrlsForForensics = classifiedDamagePhotos.length > 0
+      ? classifiedDamagePhotos
+      : (ctx.damagePhotoUrls ?? claimRecord.damage.imageUrls ?? []);
     if (photoUrlsForForensics.length > 0) {
       try {
         const forensics = await runPhotoForensics(photoUrlsForForensics);

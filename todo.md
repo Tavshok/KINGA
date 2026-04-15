@@ -177,7 +177,18 @@
 - [ ] Test complete workflow from submission to completion
 - [ ] Verify all user roles can access their respective features
 - [ ] Test document management system
-- [x] Create final checkpoint after testing
+- [ ] Create final checkpoint after testing
+
+## Image Subsystem Redesign (CRITICAL - Defines KINGA)
+- [ ] CRITICAL: Redesign image extraction, processing, and analysis subsystem
+- [ ] Audit current image pipeline: PDF extraction → classification → vision analysis → damage detection
+- [ ] Fix: Photos extracted from PDF being misclassified (page renders vs actual damage photos)
+- [ ] Fix: Vision analysis running on PDF page images instead of dedicated damage photos
+- [ ] Implement proper image classification: page renders vs damage photos vs documents
+- [ ] Fix: Forensic validator treating INVALID_EXTRACTION as missing field
+- [ ] Fix: Cost model not populating line items into assessment record
+- [ ] Fix: Report missing critical sections (assessor remarks, cost breakdown, evidence summary)
+- [ ] Re-run BMW 318i case study: target consistencyScore > 70, criticalFailures = 0
 
 ## Report Format Fix (Critical)
 - [x] Remove Phase3 sections from ClaimDecisionReport — Export PDF buttons now redirect to ForensicAuditReport verdict page

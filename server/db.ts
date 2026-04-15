@@ -514,6 +514,8 @@ export async function triggerAiAssessment(claimId: number) {
   // for damage analysis and fraud detection regardless of how the assessment was triggered.
   // Track photo ingestion quality for the forensic report
   let _dbPhotoIngestionLog: any = null;
+  // Preserve full ExtractedImage metadata for the image classifier
+  let _extractedImagesWithMetadata: any[] = [];
   if (pdfUrl && damagePhotos.length === 0) {
     const _photoIngestionStart = Date.now();
     let _extractionError: string | null = null;
@@ -549,9 +551,10 @@ export async function triggerAiAssessment(claimId: number) {
             ? Math.round(extractedImages.reduce((s: number, img: any) => s + (img.sharpnessScore ?? 80), 0) / extractedImages.length)
             : null,
         };
-        // Filter to images that are likely real photos (not tiny logos/icons)
-        const photoImages = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
-        damagePhotos = photoImages.map((img: any) => img.url);
+        // Preserve FULL metadata for the image classifier (confidence scoring, quality-based selection)
+        _extractedImagesWithMetadata = extractedImages.filter((img: any) => img.width >= 200 && img.height >= 200);
+        // Also keep flat URL array for backward compatibility
+        damagePhotos = _extractedImagesWithMetadata.map((img: any) => img.url);
         console.log(`[AI Assessment] Claim ${claimId}: Re-extracted ${damagePhotos.length} photo(s) from PDF (${extractedImages.length} total images found, scanned=${_isScannedPdf})`);
         // Persist extracted photos to claim record so future re-runs skip this step
         if (damagePhotos.length > 0) {
@@ -665,6 +668,8 @@ export async function triggerAiAssessment(claimId: number) {
     tenantRates,
     // Photo ingestion log from pre-pipeline PDF extraction (if applicable)
     photoIngestionLog: _dbPhotoIngestionLog,
+    // Full ExtractedImage metadata for the image classifier (confidence scoring, quality-based selection)
+    extractedImagesWithMetadata: _extractedImagesWithMetadata,
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled
@@ -943,6 +948,10 @@ export async function triggerAiAssessment(claimId: number) {
   }
 
   // Stage 36: Run Forensic Audit Validator on the completed pipeline result
+  // Inject classifiedImages into result so the validator can use accurate photo counts
+  if (pipelineCtx.classifiedImages) {
+    (result as any).classifiedImages = pipelineCtx.classifiedImages;
+  }
   let forensicAuditValidationResult: import('./pipeline-v2/forensicAuditValidator').ForensicAuditValidationReport | null = null;
   try {
     const { runForensicAuditValidation } = await import('./pipeline-v2/forensicAuditValidator');
@@ -1036,24 +1045,28 @@ export async function triggerAiAssessment(claimId: number) {
     // Image analysis monitoring — tracks vision success rate per assessment run
     // Derived from enrichedPhotosJson set by Stage 6 on ctx and passed through orchestrator return.
     // Used to detect systemic failures and alert the team when success rate drops below threshold.
-    imageAnalysisTotalCount: damagePhotos.length,
+    // Use classified damage photo count if available, otherwise fall back to raw damagePhotos count
+    imageAnalysisTotalCount: result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length,
     imageAnalysisSuccessCount: (() => {
-      if (damagePhotos.length === 0) return 0;
+      const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
+      if (total === 0) return 0;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
         return enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
       } catch { return 0; }
     })(),
     imageAnalysisFailedCount: (() => {
-      if (damagePhotos.length === 0) return 0;
+      const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
+      if (total === 0) return 0;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
         const successCount = enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
-        return Math.max(0, damagePhotos.length - successCount);
-      } catch { return damagePhotos.length; }
+        return Math.max(0, total - successCount);
+      } catch { return total; }
     })(),
     imageAnalysisSuccessRate: (() => {
-      if (damagePhotos.length === 0) return null;
+      const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
+      if (total === 0) return null;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
         const successCount = enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;

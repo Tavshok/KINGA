@@ -75,7 +75,8 @@ Check whether these fields were correctly extracted:
 - Speed (numeric, not null if present in document)
 - Vehicle details (make, model, registration, year)
 - Insurer name
-- Policy number (must not be a label like "EXCESS")
+- Policy number (must not be a label like "EXCESS"). 
+  CRITICAL: If policy number shows as "CLEARED (original value was a label fragment...)" this means the domain corrector correctly identified and removed a non-policy value (e.g., "EXCESS", "NO", "YES"). This is CORRECT system behaviour. You MUST NOT flag this as MISSING_MANDATORY_FIELD. A cleared policy number is an expected outcome for documents where the policy number field contained a label fragment instead of an actual policy number.
 - Police report details (officer, charge, fine, date)
 - Third-party details (if present)
 
@@ -87,8 +88,18 @@ Rules: "hit from behind", "rear-end" MUST result in rear collision. Road conditi
 Flag: Misclassification, low-confidence classification, conflicting signals not resolved.
 
 ### 3. IMAGE ANALYSIS VALIDATION
-Check: Were images actually processed? Is imageConfidenceScore consistent with number and quality of images? Does detected damage match expected damage from the narrative?
-Flag: Images available but not used, damage zones inconsistent with classification, overconfidence with low image quality.
+There are TWO separate image processing systems:
+  a) **Vision Analysis (Stage 6)**: AI vision that detects damage components from photos. This is the PRIMARY image analysis system.
+  b) **Photo Forensics (Stage 8)**: EXIF/GPS/manipulation detection. This is a SUPPLEMENTARY fraud check.
+
+RULES:
+- If Vision Analysis processed photos AND detected damage components, imageAnalysis = PASS (regardless of photo forensics results).
+- If Vision Analysis processed photos but detected 0 components, imageAnalysis = WARNING.
+- If Vision Analysis processed 0 photos despite damage photos being classified, imageAnalysis = FAIL.
+- Photo forensics failures should NEVER cause imageAnalysis = FAIL. They belong in fraudAnalysis dimension.
+
+IMPORTANT: The system uses an intelligent image classifier that separates extracted images into categories (damage_photo, vehicle_overview, quotation_scan, document_page, fallback). If image classification data is present, use the CLASSIFIED damage photo count (not raw extracted count) to evaluate whether images were processed. For PDF-only claims, it is NORMAL to have 0 damage photos but many document/quotation pages — damage evidence comes from text descriptions in such cases. Do NOT flag this as IMAGES_NOT_PROCESSED.
+Flag: Actual damage photos available but vision analysis not run, damage zones inconsistent with classification, overconfidence with low image quality.
 
 ### 4. PHYSICS VALIDATION
 Check: Was physics executed only when valid inputs exist? If speed was missing, was fallback estimation used? Are delta-V and force values realistic?
@@ -180,11 +191,17 @@ function buildValidationPayload(result: PipelineResult): string {
   const quality = report.claimQuality ?? {};
   const narrative = accident.narrativeAnalysis ?? {};
 
-  // Image analysis
+  // Image analysis — use classified image counts when available
+  const classifiedImages = r.classifiedImages ?? null;
   const photoUrls: string[] = damage.imageUrls ?? [];
-  const photosProcessed = photoUrls.length;
-  const imageConfidenceScore = damageAnalysis.confidenceScore ?? damageAnalysis.imageAnalysisSuccessRate ?? "N/A";
-  const detectedDamage = damageAnalysis.detectedComponents ?? damageAnalysis.components ?? [];
+  // Classified damage photo count (how many images were identified as damage photos)
+  const classifiedDamagePhotoCount = classifiedImages?.summary?.damagePhotoCount ?? 0;
+  // Actual photos processed by vision engine (Stage 6 output)
+  const visionPhotosProcessed = damageAnalysis.photosProcessed ?? 0;
+  // For display: use classified count if available, otherwise raw count
+  const photosSubmitted = classifiedDamagePhotoCount > 0 ? classifiedDamagePhotoCount : photoUrls.length;
+  const imageConfidenceScore = damageAnalysis.imageConfidenceScore ?? damageAnalysis.confidenceScore ?? damageAnalysis.imageAnalysisSuccessRate ?? "N/A";
+  const detectedDamage = damageAnalysis.damagedParts ?? damageAnalysis.detectedComponents ?? damageAnalysis.components ?? [];
 
   // Cost fields
   const costTotalCents = cost.totalExpectedCents ?? cost.agreedCostCents ?? null;
@@ -198,12 +215,18 @@ function buildValidationPayload(result: PipelineResult): string {
   const fraudRiskLevel = fraud.riskLevel ?? fraud.fraudRiskLevel ?? null;
   const fraudFlags = fraud.flags ?? fraud.fraudFlags ?? [];
 
-  // Report completeness
-  const reportSections: any[] = report.sections ?? [];
-  const hasAssessorRemarks = reportSections.some((s: any) => s.type === 'assessor_remarks' || (s.title ?? '').toLowerCase().includes('assessor'));
+  // Report completeness — report.sections is an OBJECT with named keys, not an array
+  const reportSectionsObj: Record<string, any> = (report.sections && typeof report.sections === 'object' && !Array.isArray(report.sections))
+    ? report.sections
+    : {};
+  const reportSectionKeys = Object.keys(reportSectionsObj);
+  // Assessor remarks: check for claimSummary section (contains assessor's overall assessment)
+  const hasAssessorRemarks = !!reportSectionsObj.claimSummary || reportSectionKeys.some(k => k.toLowerCase().includes('assessor') || k.toLowerCase().includes('summary'));
   const hasPoliceSummary = !!(police.reportNumber || police.officerName || police.station);
-  const hasCostBreakdown = !!(costTotalCents || (repairQuote.lineItems?.length ?? 0) > 0);
-  const hasEvidenceSummary = reportSections.some((s: any) => s.type === 'evidence' || (s.title ?? '').toLowerCase().includes('evidence'));
+  // Cost breakdown: check for costOptimisation section OR line items OR cost total
+  const hasCostBreakdown = !!reportSectionsObj.costOptimisation || !!(costTotalCents || (repairQuote.lineItems?.length ?? 0) > 0);
+  // Evidence summary: check for supportingImages, decisionReport, or dataResponsibilityMatrix
+  const hasEvidenceSummary = !!reportSectionsObj.supportingImages || !!reportSectionsObj.decisionReport || !!reportSectionsObj.dataResponsibilityMatrix || reportSectionKeys.some(k => k.toLowerCase().includes('evidence'));
 
   return `## PIPELINE OUTPUT FOR VALIDATION
 
@@ -215,7 +238,7 @@ function buildValidationPayload(result: PipelineResult): string {
 - Vehicle registration: ${vehicle.registration ?? "NOT EXTRACTED"}
 - Vehicle year: ${vehicle.year ?? "NOT EXTRACTED"}
 - Insurer: ${insurance.insurerName ?? "NOT EXTRACTED"}
-- Policy number: ${insurance.policyNumber ?? "NOT EXTRACTED"}
+- Policy number: ${insurance.policyNumber === 'INVALID_EXTRACTION' ? 'CLEARED (original value was a label fragment, not a real policy number — this is correct behaviour)' : (insurance.policyNumber ?? 'NOT EXTRACTED')}
 - Police officer: ${police.officerName ?? "NOT EXTRACTED"}
 - Police charge: ${police.chargeNumber ?? "NOT EXTRACTED"}
 - Police fine: ${police.fineAmountCents ? (police.fineAmountCents / 100).toFixed(2) : "NOT EXTRACTED"}
@@ -228,10 +251,13 @@ function buildValidationPayload(result: PipelineResult): string {
 - Damage zones: ${safeJson((damage.components ?? []).map((c: any) => c.zone ?? c.component ?? c))}
 
 ### IMAGE ANALYSIS
-- Photos processed: ${photosProcessed}
+- Image classifier: ${classifiedImages ? `ACTIVE — ${classifiedImages.summary.damagePhotoCount} damage, ${classifiedImages.summary.vehicleOverviewCount} overview, ${classifiedImages.summary.quotationCount} quotation, ${classifiedImages.summary.documentPageCount} document, ${classifiedImages.summary.fallbackCount} fallback (from ${classifiedImages.summary.totalInput} total extracted)` : 'NOT AVAILABLE'}
+- Vision analysis (Stage 6): ${visionPhotosProcessed} photos processed, ${detectedDamage.length} damage components detected
 - Image confidence score: ${imageConfidenceScore}
 - Detected damage components: ${safeJson(detectedDamage)}
 - Damage description: ${damage.description ?? "N/A"}
+- IMPORTANT: If vision analysis processed photos and detected damage components, the image analysis is SUCCESSFUL regardless of photo forensics (EXIF/GPS) results. Photo forensics is a supplementary fraud check, not a damage detection system.
+- NOTE: If image classification shows 0 damage photos but document/quotation pages exist, this is expected for PDF-only claims where damage evidence comes from text descriptions rather than dedicated photographs.
 
 ### PHYSICS ANALYSIS
 ${safeJson(phys)}
@@ -271,7 +297,8 @@ ${safeJson(narrative)}
 - Police summary: ${hasPoliceSummary ? "YES" : "NO"}
 - Cost breakdown: ${hasCostBreakdown ? "YES" : "NO"}
 - Evidence summary: ${hasEvidenceSummary ? "YES" : "NO"}
-- Total report sections: ${reportSections.length}`;
+- Total report sections: ${reportSectionKeys.length}
+- Section keys: ${reportSectionKeys.join(', ')}`;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

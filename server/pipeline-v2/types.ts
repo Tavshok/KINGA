@@ -1085,4 +1085,10 @@ export interface PipelineContext {
   evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
   /** Per-tenant cost rate overrides — loaded from tenants.configJson at pipeline start */
   tenantRates?: TenantRates | null;
+  /** Full ExtractedImage metadata from PDF extraction — used by the image classifier */
+  extractedImagesWithMetadata?: any[];
+  /** Photo ingestion log from pre-pipeline PDF extraction */
+  photoIngestionLog?: any;
+  /** Set by image classifier — classified images with confidence scores and quality rankings */
+  classifiedImages?: import('./imageClassifier').ClassificationResult | null;
 }
