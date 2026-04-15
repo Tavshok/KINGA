@@ -588,6 +588,32 @@ export async function triggerAiAssessment(claimId: number) {
     } catch { /* non-fatal */ }
   }
 
+  // ── CLAIM_DOCUMENTS PHOTO MERGE ──────────────────────────────────────────────
+  // Collect any photos uploaded separately via the document upload UI
+  // (documentCategory = 'damage_photo') and merge them into damagePhotos.
+  // This ensures photos uploaded after claim submission are included in the pipeline.
+  try {
+    const { claimDocuments } = await import('../drizzle/schema');
+    const uploadedPhotoDocs = await db.select({ fileUrl: claimDocuments.fileUrl })
+      .from(claimDocuments)
+      .where(and(
+        eq(claimDocuments.claimId, claimId),
+        eq(claimDocuments.documentCategory, 'damage_photo')
+      ));
+    const uploadedPhotoUrls = uploadedPhotoDocs
+      .map((d: any) => d.fileUrl)
+      .filter((u: any) => typeof u === 'string' && u.length > 0);
+    if (uploadedPhotoUrls.length > 0) {
+      const existing = new Set(damagePhotos);
+      const newUrls = uploadedPhotoUrls.filter((u: any) => !existing.has(u));
+      if (newUrls.length > 0) {
+        damagePhotos = [...damagePhotos, ...newUrls];
+        console.log(`[AI Assessment] Claim ${claimId}: Merged ${newUrls.length} uploaded damage photo(s) from claim_documents. Total: ${damagePhotos.length}`);
+      }
+    }
+  } catch (docPhotoErr: any) {
+    console.warn(`[AI Assessment] Claim ${claimId}: Failed to merge claim_documents photos (non-fatal): ${docPhotoErr.message}`);
+  }
   // If we have neither a PDF nor photos, create a placeholder and return
   if (!pdfUrl && damagePhotos.length === 0) {
     console.log(`[AI Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);

@@ -10732,3 +10732,17 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Button shown only when scanned PDF + avgSharpness < 60
 - [x] Report auto-refreshes after successful re-extraction (trpc cache invalidation)
 - [x] vitest: 10 tests passing for photo-reextraction router
+
+## Sprint 1 — Production Guardrails (Apr 15, 2026)
+- [x] Stage 26 — engineFallback.ts: defensive fallback contracts for all 5 engines (already built + wired)
+- [x] Stage 27 — apiResponseValidator.ts (server/services/): 45 tests, NaN clamping, contradiction detection, array normalisation
+- [x] Wire Stage 27 second-pass validator into aiAssessments.byClaim return path in routers.ts
+- [x] vehicleYear Zod .refine() guard added to submit and createOnBehalfOf procedures (1900–currentYear+1)
+- [x] Document Read Verification Engine — Stage 0 gate already built and wired into orchestrator
+- [x] 136/136 Sprint 1 tests pass
+
+## Sprint 2 — Core Accuracy (Apr 15, 2026)
+- [x] Cost Multiplier Removal — VEHICLE_CLASS_PART_MULTIPLIER already removed; confirmed no 1.45x inflation in pipeline
+- [x] Fix speed extraction regex — fieldValidationEngine.ts updated with comprehensive KM/HRS, KPH, kmh, km/hr variants
+- [x] damage_photos_json fix — triggerAiAssessment now merges claim_documents (documentCategory=damage_photo) into damagePhotoUrls
+- [x] 188/188 Sprint 1+2 tests pass

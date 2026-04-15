@@ -116,6 +116,7 @@ import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
 import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
+import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
 // import { eventIntegration } from "./events/event-integration"; // Temporarily disabled until Kafka is set up
 
@@ -1004,7 +1005,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         claimantPhone: z.string().optional(),
         vehicleMake: z.string(),
         vehicleModel: z.string(),
-        vehicleYear: z.number(),
+        vehicleYear: z.number().int().min(1900).max(new Date().getFullYear() + 1, { message: `Vehicle year cannot be in the future` }),
         vehicleRegistration: z.string(),
         incidentDate: z.string(),
         incidentDescription: z.string(),
@@ -1114,7 +1115,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({
         vehicleMake: z.string(),
         vehicleModel: z.string(),
-        vehicleYear: z.number(),
+        vehicleYear: z.number().int().min(1900).max(new Date().getFullYear() + 1, { message: `Vehicle year cannot be in the future` }),
         vehicleRegistration: z.string(),
         incidentDate: z.string(), // ISO date string
         incidentDescription: z.string(),
@@ -3606,7 +3607,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Extract photoForensics from the stored fraudScoreBreakdownJson
         const photoForensicsData = fraudScoreBreakdown?.photoForensics ?? null;
         const rawResponse = { ...result, costExtraction, weightedFraud, _phase2: phase2, claimId: input.claimId, _photoForensics: photoForensicsData };
-        return validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
+        // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
+        const contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
+        // Stage 27 pass 2: numeric integrity, contradiction detection, NaN/Infinity clamping
+        const integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`);
+        return (integrityResult.passed ? integrityResult.data : contractValidated) as typeof rawResponse;
       }),
 
     // Save an immutable Decision Snapshot — called once per decision render

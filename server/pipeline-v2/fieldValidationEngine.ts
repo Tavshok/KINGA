@@ -147,13 +147,24 @@ export function extractSpeedFromText(text: string | null | undefined): number | 
   if (!text) return null;
 
   const patterns = [
-    // Explicit km/h patterns
+    // Explicit km/h patterns — comprehensive unit variants (KM/HRS, km/h, KPH, kmh, km/hr, etc.)
+    // Pattern 1: Speed label followed by number + unit (e.g. "Speed: 90KM/HRS", "Speed: 90 km/h")
+    /speed[:\s]+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)/i,
+    // Pattern 2: Number immediately followed by unit, no space (e.g. "90KM/HRS", "90KPH", "90kmh")
+    /\b([1-9]\d{0,2})(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)\b/i,
+    // Pattern 3: Number with space before unit
     /(\d{1,3})\s*km\/h/i,
     /(\d{1,3})\s*kph/i,
     /(\d{1,3})\s*kmph/i,
+    /(\d{1,3})\s*kmh/i,
+    /(\d{1,3})\s*km\/hr/i,
+    /(\d{1,3})\s*km\/hrs/i,
     /(\d{1,3})\s*kilometers?\s*per\s*hour/i,
     /(\d{1,3})\s*kilometres?\s*per\s*hour/i,
     // Contextual speed patterns
+    /(?:travelling|traveling|driving|moving)\s+at\s+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)?/i,
+    /speed\s+(?:was|is|of)\s+([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)?/i,
+    /at\s+(?:a\s+speed\s+of\s+)?([1-9]\d{0,2})\s*(?:km\/h(?:rs?)?|km\/hr?s?|kph|kmh|KM\/HRS?|KPH)/i,
     /travelling\s+at\s+(\d{1,3})/i,
     /traveling\s+at\s+(\d{1,3})/i,
     /speed\s+of\s+(\d{1,3})/i,
