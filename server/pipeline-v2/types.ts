@@ -609,6 +609,14 @@ export interface Stage7Output {
   };
   /** Whether physics engine was actually run (false for non-collision) */
   physicsExecuted: boolean;
+  /**
+   * Detailed status of the physics execution:
+   * - 'EXECUTED'          — physics ran successfully with real speed input
+   * - 'SKIPPED_NO_SPEED'  — speed not present in document; force/energy calculations skipped
+   * - 'SKIPPED_NON_PHYSICAL' — incident type is non-physical (theft, fire, flood, vandalism)
+   * - 'ESTIMATED_FALLBACK'   — physics engine failed; simplified fallback used
+   */
+  physicsStatus: 'EXECUTED' | 'SKIPPED_NO_SPEED' | 'SKIPPED_NON_PHYSICAL' | 'ESTIMATED_FALLBACK';
   /** Animal strike physics result — populated when incident_type = animal_strike */
   animalStrikePhysics?: import('./animalStrikePhysicsEngine').AnimalStrikePhysicsOutput | null;
   /** Damage pattern validation result — populated by Stage 7 for all incident types */

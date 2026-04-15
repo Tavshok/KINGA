@@ -134,6 +134,7 @@ export function buildPhysicsFallback(reason = "insufficient_input"): PhysicsFall
       electrical: 0,
     },
     physicsExecuted: false,
+    physicsStatus: 'ESTIMATED_FALLBACK' as const,
     // Fallback metadata
     _fallback: fallbackMeta,
     _fallback_fields: ["deltaVKmh", "impactVector", "impactForceKn", "energyDistribution", "estimatedSpeedKmh"],
@@ -170,6 +171,7 @@ export function ensurePhysicsContract(
     damageConsistencyScore: partial.damageConsistencyScore ?? fallback.damageConsistencyScore,
     latentDamageProbability: partial.latentDamageProbability ?? fallback.latentDamageProbability,
     physicsExecuted: partial.physicsExecuted ?? false,
+    physicsStatus: (partial as any).physicsStatus ?? 'ESTIMATED_FALLBACK' as const,
     _fallback_fields: missing,
   };
 }

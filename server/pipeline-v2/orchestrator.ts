@@ -1746,6 +1746,50 @@ function buildResult(
   classifiedImages: import('./imageClassifier').ImageClassificationResult | null = null
 ) {
   const allSaved = Object.values(stages).every(s => s.savedToDb || s.status === "skipped");
+
+  // ── System Intervention Tracker ───────────────────────────────────────────
+  // Records every deterministic correction applied by the pipeline so auditors
+  // can distinguish "clean extraction" from "system-corrected output".
+  // This keeps the system honest: corrections are visible, not hidden.
+  const interventionSummary: string[] = [];
+
+  // 1. Classification fallback applied (incident_type was 'unknown', defaulted to 'collision')
+  const classificationFallbackApplied =
+    (claimRecord as any)?.accidentDetails?.incidentType === 'collision' &&
+    (claimRecord as any)?.accidentDetails?.incidentClassification?.confidence <= 30;
+  if (classificationFallbackApplied) {
+    interventionSummary.push('classification fallback applied (unknown → collision)');
+  }
+
+  // 2. Policy number cleared (domain corrector detected a label fragment)
+  const policyNumberCleared =
+    (claimRecord as any)?.insuranceContext?.policyNumber === 'INVALID_EXTRACTION';
+  if (policyNumberCleared) {
+    interventionSummary.push('policy number cleared (label fragment detected)');
+  }
+
+  // 3. Physics skipped due to missing speed
+  const physicsSkipped = physicsAnalysis?.physicsStatus === 'SKIPPED_NO_SPEED';
+  if (physicsSkipped) {
+    interventionSummary.push('physics skipped (speed not in document)');
+  }
+
+  // 4. Physics fallback (engine failed, simplified estimate used)
+  const physicsFallback = physicsAnalysis?.physicsStatus === 'ESTIMATED_FALLBACK';
+  if (physicsFallback) {
+    interventionSummary.push('physics estimated fallback (engine unavailable)');
+  }
+
+  // 5. Any stage ran in degraded mode
+  const degradedStages = Object.entries(stages)
+    .filter(([, s]) => s.degraded)
+    .map(([name]) => name);
+  if (degradedStages.length > 0) {
+    interventionSummary.push(`degraded stages: ${degradedStages.join(', ')}`);
+  }
+
+  const systemInterventionCount = interventionSummary.length;
+
   return {
     summary: {
       claimId,
@@ -1789,6 +1833,10 @@ function buildResult(
     enrichedPhotosJson,
     // Image classification results from Stage 2.6 — used by forensic validator and claim quality scorer
     classifiedImages,
+    // System intervention tracking — counts and describes every deterministic correction applied
+    // Allows auditors to distinguish clean extraction from system-corrected output
+    systemInterventionCount,
+    interventionSummary,
   };
 }
 

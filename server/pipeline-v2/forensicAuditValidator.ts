@@ -448,32 +448,73 @@ export async function runForensicAuditValidation(
       correctImageDimension = "WARNING";
     }
 
-    // ── Policy number CLEARED state: remove false MISSING_MANDATORY_FIELD flags ─────────────
+    // ── Policy number CLEARED state: reclassify (not suppress) MISSING_MANDATORY_FIELD flags ───
     // When the domain corrector (Stage 2.5) identifies that the policy number field contained
     // a label fragment (e.g., "EXCESS", "NO", "YES") rather than an actual policy number,
     // it sets policyNumber = 'INVALID_EXTRACTION'. This is CORRECT system behaviour.
     // The LLM may still flag this as MISSING_MANDATORY_FIELD despite the system prompt instruction.
-    // We deterministically remove such false positives.
+    // We do NOT suppress these flags — we reclassify them as INFO severity so they remain
+    // visible for audits, disputes, and regulator reviews, but do not drive FAIL/WARNING status.
     const r3 = result as any;
     const policyNumber: string | null = r3.claimRecord?.insuranceContext?.policyNumber ?? null;
     const policyIsCleared = policyNumber === 'INVALID_EXTRACTION' || policyNumber === null;
-    const POLICY_FALSE_POSITIVE_CODES = [
+    const POLICY_RECLASSIFY_CODES = [
       "MISSING_MANDATORY_FIELD",
       "POLICY_NUMBER_MISSING",
       "POLICY_NOT_EXTRACTED",
       "MISSING_POLICY",
     ];
-    const isPolicyFalsePositive = (issue: any) =>
+    const isPolicyReclassifiable = (issue: any) =>
       policyIsCleared &&
-      POLICY_FALSE_POSITIVE_CODES.some(code =>
+      POLICY_RECLASSIFY_CODES.some(code =>
         (issue.code ?? "").toUpperCase().includes(code.toUpperCase()) ||
         (issue.description ?? "").toLowerCase().includes("policy number")
       );
-    // Filter policy false positives from all severity levels
-    const filteredCritical = (parsed.criticalFailures ?? []).filter((i: any) => !isPolicyFalsePositive(i));
-    const filteredHigh = (parsed.highSeverityIssues ?? []).filter((i: any) => !isPolicyFalsePositive(i));
-    const filteredMedium = (parsed.mediumIssues ?? []).filter((i: any) => !isPolicyFalsePositive(i));
-    const filteredLow = (parsed.lowIssues ?? []).filter((i: any) => !isPolicyFalsePositive(i));
+    // Reclassify policy number issues: move from critical/high/medium to lowIssues with INFO marker
+    const policyReclassifiedIssues: any[] = [];
+    const filteredCritical = (parsed.criticalFailures ?? []).filter((i: any) => {
+      if (isPolicyReclassifiable(i)) {
+        policyReclassifiedIssues.push({
+          ...i,
+          dimension: i.dimension ?? 'dataExtraction',
+          code: 'POLICY_NUMBER_CLEARED',
+          description: `[INFO — system intervention] Policy number field contained a label fragment, not a real policy number. Domain corrector cleared this field. Original issue: ${i.description}`,
+          severity: 'INFO',
+        });
+        return false;
+      }
+      return true;
+    });
+    const filteredHigh = (parsed.highSeverityIssues ?? []).filter((i: any) => {
+      if (isPolicyReclassifiable(i)) {
+        policyReclassifiedIssues.push({
+          ...i,
+          dimension: i.dimension ?? 'dataExtraction',
+          code: 'POLICY_NUMBER_CLEARED',
+          description: `[INFO — system intervention] Policy number field contained a label fragment, not a real policy number. Domain corrector cleared this field. Original issue: ${i.description}`,
+          severity: 'INFO',
+        });
+        return false;
+      }
+      return true;
+    });
+    const filteredMedium = (parsed.mediumIssues ?? []).filter((i: any) => {
+      if (isPolicyReclassifiable(i)) {
+        policyReclassifiedIssues.push({
+          ...i,
+          dimension: i.dimension ?? 'dataExtraction',
+          code: 'POLICY_NUMBER_CLEARED',
+          description: `[INFO — system intervention] Policy number field contained a label fragment, not a real policy number. Domain corrector cleared this field. Original issue: ${i.description}`,
+          severity: 'INFO',
+        });
+        return false;
+      }
+      return true;
+    });
+    const filteredLow = [
+      ...(parsed.lowIssues ?? []),
+      ...policyReclassifiedIssues,
+    ];
 
     // ── Speed assumption contradiction: downgrade HIGH → MEDIUM when extracted speed exists
     // The LLM flags speed assumptions as HIGH severity when they contradict an extracted speed.

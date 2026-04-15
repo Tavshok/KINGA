@@ -124,10 +124,11 @@ function estimatePhysicsFromDamage(
       deltaVKmh: null as unknown as number,
       decelerationG: null as unknown as number,
       accidentSeverity: severity as AccidentSeverity,
-      accidentReconstructionSummary: `Physics unavailable: speed not recorded in claim documents. Damage severity assessed as ${severity} from visual inspection only.`,
+      accidentReconstructionSummary: `Physics analysis not executed due to missing speed input. Damage severity assessed as ${severity} from visual inspection only. Speed was not recorded in the claim documents.`,
       damageConsistencyScore: 50,
       latentDamageProbability: { engine: 0.1, transmission: 0.1, suspension: 0.2, frame: 0.15, electrical: 0.05 },
       physicsExecuted: false,
+      physicsStatus: 'SKIPPED_NO_SPEED' as const,
     };
   }
 
@@ -176,6 +177,7 @@ function estimatePhysicsFromDamage(
     damageConsistencyScore: 50,
     latentDamageProbability: { engine: 0.1, transmission: 0.1, suspension: 0.2, frame: 0.15, electrical: 0.05 },
     physicsExecuted: false,
+    physicsStatus: 'ESTIMATED_FALLBACK' as const,
   };
 }
 
@@ -485,6 +487,7 @@ export async function runPhysicsStage(
         engine: 0, transmission: 0, suspension: 0, frame: 0, electrical: 0,
       },
       physicsExecuted: true,
+      physicsStatus: 'EXECUTED' as const,
     };
 
     ctx.log("Stage 7", `Physics complete. Force: ${impactForceKn.toFixed(1)}kN, Speed: ${estimatedSpeedKmh.toFixed(0)}km/h, Energy: ${(energyDissipatedJ/1000).toFixed(1)}kJ, Severity: ${output.accidentSeverity}`);
@@ -557,7 +560,10 @@ export async function runPhysicsStage(
   }
 }
 
-function buildDefaultPhysicsOutput(executed: boolean): Stage7Output {
+function buildDefaultPhysicsOutput(
+  executed: boolean,
+  status: Stage7Output['physicsStatus'] = 'SKIPPED_NON_PHYSICAL'
+): Stage7Output {
   return {
     impactForceKn: 0,
     impactVector: { direction: "unknown", magnitude: 0, angle: 0 },
@@ -570,6 +576,7 @@ function buildDefaultPhysicsOutput(executed: boolean): Stage7Output {
     damageConsistencyScore: 50,
     latentDamageProbability: { engine: 0, transmission: 0, suspension: 0, frame: 0, electrical: 0 },
     physicsExecuted: executed,
+    physicsStatus: status,
   };
 }
 
