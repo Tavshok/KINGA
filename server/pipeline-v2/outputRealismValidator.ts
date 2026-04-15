@@ -130,6 +130,18 @@ export function validatePhysicsRealism(physics: Stage7Output): RealismResult {
 
   const { deltaVKmh, impactForceKn, energyDistribution, decelerationG } = physics;
 
+  // When speed was not available, physics values are null — skip quantitative checks
+  if (deltaVKmh === null || deltaVKmh === undefined) {
+    checks.push({
+      rule: "physics.speed_unavailable",
+      passed: true,
+      observed: "Speed not recorded in claim documents — quantitative physics checks skipped",
+      expected: "N/A",
+      penalty: 0,
+    });
+    return buildResult(checks);
+  }
+
   // ── Rule 1: delta-V ceiling ──────────────────────────────────────────────
   const deltaVCeilingPassed = deltaVKmh <= PHYSICS_MAX_DELTA_V_KMH;
   checks.push({
@@ -141,7 +153,7 @@ export function validatePhysicsRealism(physics: Stage7Output): RealismResult {
   });
 
   // ── Rule 2: force proportional to delta-V ───────────────────────────────
-  if (deltaVKmh >= PHYSICS_MIN_DELTA_V_FOR_FORCE_KMH) {
+  if (impactForceKn !== null && impactForceKn !== undefined && deltaVKmh >= PHYSICS_MIN_DELTA_V_FOR_FORCE_KMH) {
     const forcePerKmh = impactForceKn / deltaVKmh;
     const forceProportionalPassed =
       forcePerKmh >= PHYSICS_FORCE_PER_KMH_MIN &&
@@ -160,7 +172,7 @@ export function validatePhysicsRealism(physics: Stage7Output): RealismResult {
   const expectedKEJ = 0.5 * VEHICLE_MASS_KG_NOMINAL * deltaVMs * deltaVMs;
   const keMin = expectedKEJ * (1 - PHYSICS_ENERGY_BAND_FACTOR);
   const keMax = expectedKEJ * (1 + PHYSICS_ENERGY_BAND_FACTOR);
-  const actualKEJ = energyDistribution.kineticEnergyJ;
+  const actualKEJ = energyDistribution?.kineticEnergyJ ?? 0;
   const energyInRangePassed = actualKEJ >= keMin && actualKEJ <= keMax;
   checks.push({
     rule: "physics.kinetic_energy_range",
@@ -171,14 +183,16 @@ export function validatePhysicsRealism(physics: Stage7Output): RealismResult {
   });
 
   // ── Rule 4: deceleration ceiling ────────────────────────────────────────
-  const decelPassed = decelerationG <= PHYSICS_MAX_DECEL_G;
-  checks.push({
-    rule: "physics.deceleration_ceiling",
-    passed: decelPassed,
-    observed: `deceleration = ${decelerationG.toFixed(1)} g`,
-    expected: `≤ ${PHYSICS_MAX_DECEL_G} g`,
-    penalty: 0.10,
-  });
+  if (decelerationG !== null && decelerationG !== undefined) {
+    const decelPassed = decelerationG <= PHYSICS_MAX_DECEL_G;
+    checks.push({
+      rule: "physics.deceleration_ceiling",
+      passed: decelPassed,
+      observed: `deceleration = ${decelerationG.toFixed(1)} g`,
+      expected: `≤ ${PHYSICS_MAX_DECEL_G} g`,
+      penalty: 0.10,
+    });
+  }
 
   return buildResult(checks);
 }

@@ -178,6 +178,8 @@ export async function runAssemblyStage(
     if (incidentClassification.incident_type === "unknown") {
       // Final fallback — only if the engine found no evidence at all
       incidentType = "collision";
+      incidentClassification.incident_type = "collision"; // Update classification so Decision Readiness Engine sees the resolved type
+      incidentClassification.canonical_type = "collision";
       isDegraded = true;
       assumptions.push({
         field: "accidentDetails.incidentType",
@@ -227,45 +229,10 @@ export async function runAssemblyStage(
       }
     }
 
-    // Estimate speed if missing but we have damage indicators
-    let estimatedSpeed = v.estimatedSpeedKmh || null;
-    if (!estimatedSpeed && v.damagedComponents.length > 0) {
-      const hasSevere = v.damagedComponents.some(c => c.severity === "severe" || c.severity === "catastrophic");
-      const hasStructural = v.structuralDamage === true;
-      const hasAirbag = v.airbagDeployment === true;
-
-      if (hasAirbag || (hasSevere && hasStructural)) {
-        estimatedSpeed = 60;
-        assumptions.push({
-          field: "accidentDetails.estimatedSpeedKmh",
-          assumedValue: 60,
-          reason: "Speed not provided. Estimated at 60 km/h based on severe damage + airbag deployment / structural damage.",
-          strategy: "contextual_inference",
-          confidence: 45,
-          stage: "Stage 5",
-        });
-      } else if (hasSevere) {
-        estimatedSpeed = 45;
-        assumptions.push({
-          field: "accidentDetails.estimatedSpeedKmh",
-          assumedValue: 45,
-          reason: "Speed not provided. Estimated at 45 km/h based on severe component damage.",
-          strategy: "contextual_inference",
-          confidence: 40,
-          stage: "Stage 5",
-        });
-      } else {
-        estimatedSpeed = 30;
-        assumptions.push({
-          field: "accidentDetails.estimatedSpeedKmh",
-          assumedValue: 30,
-          reason: "Speed not provided. Estimated at 30 km/h based on minor/moderate damage pattern.",
-          strategy: "contextual_inference",
-          confidence: 35,
-          stage: "Stage 5",
-        });
-      }
-    }
+    // Speed: use extracted value only. Never assume/guess speed — a fabricated speed
+    // propagates errors through physics, cost modelling, and fraud scoring.
+    // If not in the document, leave as null and let downstream stages handle the gap.
+    const estimatedSpeed = v.estimatedSpeedKmh || null;
 
     const accidentDetails: AccidentDetails = {
       date: v.accidentDate || ctx.claim.accidentDate || null,

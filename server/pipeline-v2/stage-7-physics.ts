@@ -97,10 +97,40 @@ function estimatePhysicsFromDamage(
   assumptions: Assumption[]
 ): Stage7Output {
   const mass = claimRecord.vehicle.massKg;
-  // SAFEGUARD: Use extracted speed from claim form; only fall back to 30 km/h if truly missing
-  const speedKmh = claimRecord.accidentDetails.estimatedSpeedKmh && claimRecord.accidentDetails.estimatedSpeedKmh > 0
-    ? claimRecord.accidentDetails.estimatedSpeedKmh
-    : 30;
+  // Speed: use extracted value only. Never fabricate a speed — a guessed speed
+  // cascades errors through force, energy, cost, and fraud scoring.
+  const extractedSpeed = claimRecord.accidentDetails.estimatedSpeedKmh;
+  const speedKmh = extractedSpeed && extractedSpeed > 0 ? extractedSpeed : null;
+
+  const severity = damageAnalysis.overallSeverityScore > 70 ? "severe" :
+    damageAnalysis.overallSeverityScore > 40 ? "moderate" : "minor";
+
+  if (!speedKmh) {
+    // Speed not available — skip force/energy calculations entirely.
+    // Report physics as unavailable; downstream stages must handle null force/energy.
+    return {
+      impactForceKn: null as unknown as number,
+      impactVector: {
+        direction: claimRecord.accidentDetails.collisionDirection,
+        magnitude: null as unknown as number,
+        angle: 0,
+      },
+      energyDistribution: {
+        kineticEnergyJ: null as unknown as number,
+        energyDissipatedJ: null as unknown as number,
+        energyDissipatedKj: null as unknown as number,
+      },
+      estimatedSpeedKmh: null as unknown as number,
+      deltaVKmh: null as unknown as number,
+      decelerationG: null as unknown as number,
+      accidentSeverity: severity as AccidentSeverity,
+      accidentReconstructionSummary: `Physics unavailable: speed not recorded in claim documents. Damage severity assessed as ${severity} from visual inspection only.`,
+      damageConsistencyScore: 50,
+      latentDamageProbability: { engine: 0.1, transmission: 0.1, suspension: 0.2, frame: 0.15, electrical: 0.05 },
+      physicsExecuted: false,
+    };
+  }
+
   const speedMs = speedKmh / 3.6;
 
   // KE = 0.5 * m * v^2
@@ -125,9 +155,6 @@ function estimatePhysicsFromDamage(
     confidence: 35,
     stage: "Stage 7",
   });
-
-  const severity = damageAnalysis.overallSeverityScore > 70 ? "severe" :
-    damageAnalysis.overallSeverityScore > 40 ? "moderate" : "minor";
 
   return {
     impactForceKn: forceKn,
@@ -264,57 +291,14 @@ export async function runPhysicsStage(
   const assumptions: Assumption[] = [];
   const recoveryActions: RecoveryAction[] = [];
 
-  // ── SPEED EXTRACTION SAFEGUARD ──────────────────────────────────────────────
-  // SAFEGUARD: If the claim form contains a speed value, it MUST flow through
-  // to the physics engine. Log a warning if speed is missing so the extraction
-  // stage can be investigated.
+  // ── SPEED EXTRACTION ────────────────────────────────────────────────────────────────
+  // Use the speed extracted from the claim form (Stage 3). If speed is not
+  // present in the document, it remains null — we do NOT infer or fabricate
+  // speed values from damage severity. Physics calculations that require speed
+  // will be skipped gracefully when speed is null.
   const extractedSpeed = claimRecord.accidentDetails.estimatedSpeedKmh;
   if (!extractedSpeed || extractedSpeed <= 0) {
-    // ── DAMAGE-SEVERITY SPEED ESTIMATION ─────────────────────────────────────
-    // When speed is missing, estimate from damage severity and component count.
-    // Severity tiers (SA road conditions, urban/suburban context):
-    //   LOW    (1-2 components, minor severity)   → 20 km/h (parking lot / slow traffic)
-    //   MEDIUM (3-4 components, moderate severity) → 40 km/h (urban road)
-    //   HIGH   (5+ components OR severe/catastrophic) → 70 km/h (highway / high-speed)
-    const componentCount = damageAnalysis.damagedParts?.length ?? 0;
-    const avgSeverity = componentCount > 0
-      ? (damageAnalysis.damagedParts.reduce((sum, p) => {
-          const s = p.severity === "catastrophic" ? 4 : p.severity === "severe" ? 3 : p.severity === "moderate" ? 2 : 1;
-          return sum + s;
-        }, 0) / componentCount)
-      : 1;
-    const hasCatastrophicOrSevere = damageAnalysis.damagedParts.some(p => p.severity === "catastrophic" || p.severity === "severe");
-    let inferredSpeed: number;
-    let inferredConfidence: number;
-    if (componentCount >= 5 || hasCatastrophicOrSevere || avgSeverity >= 2.8) {
-      inferredSpeed = 70; // High-energy impact
-      inferredConfidence = 30;
-    } else if (componentCount >= 3 || avgSeverity >= 1.8) {
-      inferredSpeed = 40; // Moderate urban impact
-      inferredConfidence = 35;
-    } else if (componentCount >= 1) {
-      inferredSpeed = 20; // Low-speed / parking
-      inferredConfidence = 40;
-    } else {
-      inferredSpeed = 30; // No damage data — conservative default
-      inferredConfidence = 15;
-    }
-    ctx.log("Stage 7",
-      `⚠️ SPEED SAFEGUARD: No speed extracted from claim form. ` +
-      `Inferring from damage: ${componentCount} components, avgSeverity=${avgSeverity.toFixed(1)} → ${inferredSpeed} km/h (confidence ${inferredConfidence}%). ` +
-      `If the claim form contains a handwritten speed, OCR extraction (Stage 2/3) may have missed it.`);
-    assumptions.push({
-      field: "estimatedSpeedKmh",
-      assumedValue: `${inferredSpeed} km/h (inferred from ${componentCount} damaged components, avg severity ${avgSeverity.toFixed(1)}/4)`,
-      reason: `No speed was extracted from the claim form. Speed estimated from damage component count (${componentCount}) ` +
-              `and average severity (${avgSeverity.toFixed(1)}/4). This is a physics-informed estimate, not a measured value. ` +
-              `If the claimant stated a speed on the form, the OCR extraction stage may have missed it.`,
-      strategy: "inferred_from_damage_severity",
-      confidence: inferredConfidence,
-      stage: "Stage 7",
-    });
-    // Inject inferred speed into claimRecord so all downstream physics uses it
-    (claimRecord.accidentDetails as Record<string, unknown>).estimatedSpeedKmh = inferredSpeed;
+    ctx.log("Stage 7", "No speed value found in claim form — speed-dependent physics calculations will be skipped.");
   } else {
     ctx.log("Stage 7", `Speed from claim form: ${extractedSpeed} km/h — using as primary speed input`);
   }

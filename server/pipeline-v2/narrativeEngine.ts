@@ -303,12 +303,15 @@ export function buildPhysicsNarrative(physicsAnalysis: Stage7Output): NarrativeR
   ));
 
   // Impact force
+  const force = physicsAnalysis.impactForceKn;
   sentences.push(oec(
-    `Impact force calculated at ${fmt(physicsAnalysis.impactForceKn, "kN", 1)}`,
+    `Impact force calculated at ${fmt(force, "kN", 1)}`,
     `Stage 7 impulse-momentum computation using vehicle mass and ΔV`,
-    physicsAnalysis.impactForceKn > 100
+    force !== null && force > 100
       ? "force exceeds 100 kN — high-energy impact requiring full structural review"
-      : "force within expected range for reported severity"
+      : force !== null
+      ? "force within expected range for reported severity"
+      : "impact force not computed — speed not recorded in claim documents"
   ));
 
   // Damage consistency score
