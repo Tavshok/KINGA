@@ -331,7 +331,7 @@ export default function InsurerClaimsTriage() {
               <table className="w-full" style={{ borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)' }}>
-                    {['Claim #', 'Claimant', 'Vehicle', 'Date', 'Status', 'Policy', 'Risk', 'Actions'].map(h => (
+                    {['Claim #', 'Claimant', 'Vehicle', 'Date', 'Status', 'Policy', 'Quality', 'Risk', 'Actions'].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--muted-foreground)' }}>{h}</th>
                     ))}
                   </tr>
@@ -380,6 +380,31 @@ export default function InsurerClaimsTriage() {
                           <span className="flex items-center gap-1 text-xs font-medium" style={{ color: 'var(--chart-4)' }}>
                             <XCircle className="h-3 w-3" /> Rejected
                           </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        {(claim as any)._qualityGrade ? (
+                          <div className="flex flex-col gap-0.5">
+                            <span
+                              className="inline-flex items-center justify-center w-7 h-7 rounded font-black text-sm"
+                              style={{
+                                background: (claim as any)._qualityGrade.grade === 'A' || (claim as any)._qualityGrade.grade === 'B'
+                                  ? 'var(--fp-success-border)'
+                                  : (claim as any)._qualityGrade.grade === 'C'
+                                  ? 'var(--fp-warning-border)'
+                                  : 'var(--fp-critical-border)',
+                                color: 'white',
+                              }}
+                              title={`Quality Score: ${(claim as any)._qualityGrade.overallScore}/100${(claim as any)._qualityGrade.requiresManualReview ? ' — Manual Review Required' : ''}`}
+                            >
+                              {(claim as any)._qualityGrade.grade}
+                            </span>
+                            {(claim as any)._qualityGrade.requiresManualReview && (
+                              <span className="text-xs" style={{ color: 'var(--chart-4)' }}>Review</span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-xs" style={{ color: 'var(--muted-foreground)' }}>—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">

@@ -1462,6 +1462,11 @@ export default function ClaimDecisionReport() {
           return null;
         })()}
 
+        {/* ── Claim Quality Score ── */}
+        {(aiAssessment as any)?._claimQuality && (
+          <ClaimQualityPanel quality={(aiAssessment as any)._claimQuality} />
+        )}
+
         {/* ── Phase 5A: Decision Narrative View ── */}
         <ReportSectionDivider label="Decision Narrative" icon="🧠" />
         <div className="mb-6 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)', padding: '1.25rem' }}>
@@ -2052,6 +2057,148 @@ export default function ClaimDecisionReport() {
                 Confirm {reasonDialog.action}
               </Button>
             </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CLAIM QUALITY PANEL
+// Surfaces the 6-dimension quality score computed by claimQualityScorer.ts
+// ─────────────────────────────────────────────────────────────────────────────
+function ClaimQualityPanel({ quality }: { quality: any }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const gradeColors: Record<string, { bg: string; border: string; text: string }> = {
+    A: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "var(--success)" },
+    B: { bg: "var(--fp-success-bg)", border: "var(--fp-success-border)", text: "var(--success)" },
+    C: { bg: "var(--fp-warning-bg)", border: "var(--fp-warning-border)", text: "var(--chart-3)" },
+    D: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", text: "var(--chart-4)" },
+    F: { bg: "var(--fp-critical-bg)", border: "var(--fp-critical-border)", text: "var(--chart-4)" },
+  };
+
+  const grade = quality.grade ?? "C";
+  const colors = gradeColors[grade] ?? gradeColors.C;
+
+  const dimensionLabels: Record<string, string> = {
+    dataCompleteness: "Data Completeness",
+    imageConfidence: "Image Confidence",
+    costSource: "Cost Source",
+    classification: "Classification",
+    physics: "Physics Analysis",
+    consistency: "Cross-Stage Consistency",
+  };
+
+  const dimensionIcons: Record<string, string> = {
+    dataCompleteness: "📋",
+    imageConfidence: "📷",
+    costSource: "💰",
+    classification: "🏷️",
+    physics: "⚙️",
+    consistency: "🔗",
+  };
+
+  return (
+    <div className="mb-4 rounded-xl overflow-hidden" style={{ border: `1px solid ${colors.border}`, background: colors.bg }}>
+      {/* Header row */}
+      <button
+        className="w-full flex items-center justify-between px-4 py-3"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <div className="flex items-center gap-3">
+          {/* Grade badge */}
+          <div
+            className="flex items-center justify-center w-10 h-10 rounded-lg font-black text-xl"
+            style={{ background: colors.border, color: "white" }}
+          >
+            {grade}
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold" style={{ color: colors.text }}>
+              Claim Quality Score — {quality.overallScore}/100
+            </p>
+            <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+              {quality.adjusterGuidance}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          {quality.requiresManualReview && (
+            <span
+              className="text-xs font-semibold px-2 py-0.5 rounded-full"
+              style={{ background: "var(--fp-critical-border)", color: "white" }}
+            >
+              Manual Review Required
+            </span>
+          )}
+          {expanded ? <ChevronUp className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} /> : <ChevronDown className="h-4 w-4" style={{ color: "var(--muted-foreground)" }} />}
+        </div>
+      </button>
+
+      {/* Expanded content */}
+      {expanded && (
+        <div className="px-4 pb-4" style={{ borderTop: `1px solid ${colors.border}` }}>
+          {/* Mandatory actions */}
+          {quality.mandatoryActions?.length > 0 && (
+            <div className="mt-3 mb-4 rounded-lg p-3" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}>
+              <p className="text-xs font-bold mb-2" style={{ color: "var(--chart-4)" }}>⚠ Mandatory Actions</p>
+              <ul className="space-y-1">
+                {quality.mandatoryActions.map((action: string, i: number) => (
+                  <li key={i} className="text-xs flex gap-2" style={{ color: "var(--foreground)" }}>
+                    <span style={{ color: "var(--chart-4)" }}>•</span>
+                    {action}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Dimension grid */}
+          <div className="grid grid-cols-2 gap-2 mt-3">
+            {Object.entries(quality.dimensions ?? {}).map(([key, dim]: [string, any]) => {
+              const dimScore = dim.score ?? 0;
+              const dimGrade = dimScore >= 80 ? "A" : dimScore >= 65 ? "B" : dimScore >= 50 ? "C" : dimScore >= 35 ? "D" : "F";
+              const dimColors = gradeColors[dimGrade] ?? gradeColors.C;
+              return (
+                <div
+                  key={key}
+                  className="rounded-lg p-3"
+                  style={{ background: "var(--card)", border: "1px solid var(--border)" }}
+                >
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>
+                      {dimensionIcons[key] ?? "•"} {dimensionLabels[key] ?? key}
+                    </span>
+                    <span
+                      className="text-xs font-bold px-1.5 py-0.5 rounded"
+                      style={{ background: dimColors.border, color: "white" }}
+                    >
+                      {dimGrade}
+                    </span>
+                  </div>
+                  {/* Score bar */}
+                  <div className="h-1.5 rounded-full mb-1.5" style={{ background: "var(--muted)" }}>
+                    <div
+                      className="h-full rounded-full"
+                      style={{ width: `${dimScore}%`, background: dimColors.border }}
+                    />
+                  </div>
+                  <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{dim.label}</p>
+                  {dim.issues?.length > 0 && (
+                    <ul className="mt-1 space-y-0.5">
+                      {dim.issues.slice(0, 3).map((issue: string, i: number) => (
+                        <li key={i} className="text-xs" style={{ color: "var(--chart-4)" }}>↳ {issue}</li>
+                      ))}
+                      {dim.issues.length > 3 && (
+                        <li className="text-xs" style={{ color: "var(--muted-foreground)" }}>+{dim.issues.length - 3} more issues</li>
+                      )}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

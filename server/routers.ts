@@ -1288,7 +1288,7 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         const db = await getDb();
         if (!db) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
         // ctx.insurerTenantId guaranteed non-null by insurerDomainProcedure middleware
-        return await db
+        const rows = await db
           .select()
           .from(claims)
           .where(and(
@@ -1297,6 +1297,31 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           ))
           .orderBy(desc(claims.createdAt))
           .limit(200);
+        // Enrich with quality grade from ai_assessments for completed claims
+        if (rows.length === 0) return rows;
+        const completedIds = rows
+          .filter((r: any) => r.aiAssessmentCompleted === 1)
+          .map((r: any) => r.id);
+        if (completedIds.length === 0) return rows;
+        const { aiAssessments: aiAssessmentsTable } = await import("../drizzle/schema");
+        const { inArray: inArrayOp } = await import("drizzle-orm");
+        const qualityRows = await db
+          .select({ claimId: aiAssessmentsTable.claimId, claimQualityJson: aiAssessmentsTable.claimQualityJson })
+          .from(aiAssessmentsTable)
+          .where(inArrayOp(aiAssessmentsTable.claimId, completedIds));
+        const qualityMap = new Map<number, any>();
+        for (const qr of qualityRows) {
+          if (qr.claimId && qr.claimQualityJson) {
+            try {
+              const parsed = JSON.parse(qr.claimQualityJson as string);
+              qualityMap.set(qr.claimId, { grade: parsed.grade, overallScore: parsed.overallScore, requiresManualReview: parsed.requiresManualReview });
+            } catch { /* non-fatal */ }
+          }
+        }
+        return rows.map((r: any) => ({
+          ...r,
+          _qualityGrade: qualityMap.get(r.id) ?? null,
+        }));
       }),
 
     // Get single claim by ID
@@ -3225,6 +3250,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           _ifeResult: parsedIfeResult,
           _doeResult: parsedDoeResult,
           _felVersionSnapshot: parsedFelVersionSnapshot,
+          // Claim Quality Score — 6-dimension quality assessment with grade A-F
+          _claimQuality: (() => {
+            try {
+              if ((assessment as any).claimQualityJson) {
+                return JSON.parse((assessment as any).claimQualityJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
         };
       }),
     historicalBenchmarks: protectedProcedure
