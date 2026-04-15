@@ -10746,3 +10746,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix speed extraction regex — fieldValidationEngine.ts updated with comprehensive KM/HRS, KPH, kmh, km/hr variants
 - [x] damage_photos_json fix — triggerAiAssessment now merges claim_documents (documentCategory=damage_photo) into damagePhotoUrls
 - [x] 188/188 Sprint 1+2 tests pass
+
+## Sprint 3 — Trustworthy Results (Apr 15, 2026)
+- [x] narrativeAnalysisJson DB wiring — confirmed: column exists, persisted in db.ts, parsed as _narrativeAnalysis in byClaim, consumed in ForensicAuditReport
+- [x] FCDI persistence — confirmed: fcdiScore DB column written in db.ts, spread in byClaim return; added 4th FCDI tile to cover card KPI grid (Physics/Cost/Evidence/Pipeline)
+- [x] Stage 29 integration confirmed: consistencyFraudPenalty.ts wired into weighted-fraud-scoring.ts; 45 tests pass
+- [x] Stage 30 integration confirmed: consistencyConfidence.ts wired into damageConsistency.ts with high_severity_count and physics_available; 82 tests pass
+- [x] Stage 29+30 todo items marked complete; 127/127 tests pass for both stages

@@ -19,6 +19,18 @@
 // SELF-HEALING PRIMITIVES
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** Phase 2C — Classification of the assumption source type */
+export type AssumptionType =
+  | "SYSTEM_ESTIMATE"       // AI/model-generated estimate with no document basis
+  | "MARKET_DEFAULT"        // Industry average or market benchmark used as proxy
+  | "DOCUMENT_INFERENCE"    // Inferred from document context (not explicitly stated)
+  | "HISTORICAL_PROXY"      // Based on historical claim patterns
+  | "CLAIMANT_STATED"       // Taken from claimant narrative without independent verification
+  | "REGULATORY_DEFAULT";   // Regulatory or statutory default value applied
+
+/** Phase 2C — Impact level of this assumption on the final decision */
+export type AssumptionImpact = "HIGH" | "MEDIUM" | "LOW";
+
 export interface Assumption {
   field: string;
   assumedValue: any;
@@ -26,6 +38,10 @@ export interface Assumption {
   strategy: RecoveryStrategy;
   confidence: number;
   stage: string;
+  /** Phase 2C: Classification of the assumption source type */
+  assumptionType?: AssumptionType;
+  /** Phase 2C: Impact level of this assumption on the final decision */
+  impact?: AssumptionImpact;
 }
 
 export type RecoveryStrategy =

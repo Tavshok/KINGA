@@ -1062,24 +1062,30 @@ export async function triggerAiAssessment(claimId: number) {
         return fel ? JSON.stringify(fel) : null;
       } catch { return null; }
     })(),
-    // Phase 2C: Assumption Registry — queryable record of all assumptions
+    // Phase 2C: Assumption Registry — queryable record of all assumptions with type/impact classification
     assumptionRegistryJson: (() => {
       try {
-        const assumptions = forensicAnalysis?.assumptions;
-        if (!assumptions || !Array.isArray(assumptions) || assumptions.length === 0) return null;
+        const rawAssumptions = forensicAnalysis?.assumptions;
+        if (!rawAssumptions || !Array.isArray(rawAssumptions) || rawAssumptions.length === 0) return null;
+        const { classifyAssumptions } = require('./pipeline-v2/assumptionClassifier');
+        const classified = classifyAssumptions(rawAssumptions);
         return JSON.stringify({
-          version: '1.0.0',
+          version: '2.0.0',
           claimId: result.summary?.claimId,
-          totalCount: assumptions.length,
-          assumptions: assumptions.map((a: any, idx: number) => ({
+          totalCount: classified.length,
+          highImpactCount: classified.filter((a: any) => a.impact === 'HIGH').length,
+          mediumImpactCount: classified.filter((a: any) => a.impact === 'MEDIUM').length,
+          lowImpactCount: classified.filter((a: any) => a.impact === 'LOW').length,
+          assumptions: classified.map((a: any, idx: number) => ({
             id: idx + 1,
             field: a.field ?? null,
             assumedValue: a.assumedValue ?? null,
             reason: a.reason ?? null,
             strategy: a.strategy ?? null,
             confidence: a.confidence ?? null,
-            stageId: a.stageId ?? null,
-            impactLevel: (a.confidence ?? 50) < 40 ? 'HIGH' : (a.confidence ?? 50) < 70 ? 'MEDIUM' : 'LOW',
+            stage: a.stage ?? null,
+            assumptionType: a.assumptionType ?? null,
+            impact: a.impact ?? null,
           })),
         });
       } catch { return null; }

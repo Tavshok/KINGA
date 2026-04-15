@@ -401,6 +401,13 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const evidenceIcon = photoStatus === "ANALYSED" ? "✅" : photoStatus === "SYSTEM_FAILURE" ? "⚠️" : "❌";
   const evidenceLabel = photoStatus === "SYSTEM_FAILURE" ? "system error" : photoStatus === "ANALYSED" ? "analysed" : "not ingested";
 
+  // FCDI tile — use DB column (always present) with fallback to nested forensicAnalysis object
+  const fcdiRaw = (aiAssessment as any)?.fcdiScore ?? (aiAssessment as any)?._forensicAnalysis?.fcdi?.scorePercent ?? null;
+  const fcdiTileScore: number = typeof fcdiRaw === 'number' ? Math.round(fcdiRaw) : -1;
+  const fcdiTileLabel = fcdiTileScore < 0 ? "N/A" : fcdiTileScore <= 20 ? "RELIABLE" : fcdiTileScore <= 50 ? "DEGRADED" : "UNRELIABLE";
+  const fcdiTileIcon = fcdiTileScore < 0 ? "—" : fcdiTileScore <= 20 ? "✅" : fcdiTileScore <= 50 ? "⚠️" : "❌";
+  const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore <= 20 ? "var(--fp-success-text)" : fcdiTileScore <= 50 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+
   return (
     <div className="mb-6 rounded-xl overflow-hidden report-cover-card"
       style={{ border: `2px solid ${decisionColor}`, background: "var(--card)" }}>
@@ -455,7 +462,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
       </div>
 
       {/* ── 3 KPI tiles ── */}
-      <div className="grid grid-cols-3" style={{ borderBottom: "1px solid var(--border)" }}>
+      <div className="grid grid-cols-4" style={{ borderBottom: "1px solid var(--border)" }}>
         {/* Physics tile */}
         <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
           <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PHYSICS</p>
@@ -485,7 +492,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           <p className="text-xs mt-1.5" style={{ color: "var(--fp-success-text)" }}>{costIcon} within range</p>
         </div>
         {/* Evidence tile */}
-        <div className="px-4 py-3">
+        <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
           <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>EVIDENCE</p>
           <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
             {photosDetected > 0 ? `${photosDetected} photos` : "No photos"}
@@ -497,6 +504,21 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           </div>
           <p className="text-xs mt-1.5" style={{ color: photoStatus === "ANALYSED" ? "var(--fp-success-text)" : photoStatus === "SYSTEM_FAILURE" ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>
             {evidenceIcon} {photoStatus === "SYSTEM_FAILURE" ? "system error" : photoStatus === "ANALYSED" ? "processed" : "not ingested"}
+          </p>
+        </div>
+        {/* FCDI tile — Pipeline Confidence Degradation Index from DB column */}
+        <div className="px-4 py-3">
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PIPELINE</p>
+          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+            {fcdiTileScore >= 0 ? `FCDI ${fcdiTileScore}/100` : "FCDI N/A"}
+          </p>
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{fcdiTileLabel}</p>
+          {/* Mini bar */}
+          <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
+            <div className="h-1.5 rounded-full" style={{ width: fcdiTileScore >= 0 ? `${Math.min(100, fcdiTileScore)}%` : "0%", background: fcdiTileColor }} />
+          </div>
+          <p className="text-xs mt-1.5" style={{ color: fcdiTileColor }}>
+            {fcdiTileIcon} {fcdiTileLabel.toLowerCase()}
           </p>
         </div>
       </div>
