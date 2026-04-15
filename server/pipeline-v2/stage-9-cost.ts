@@ -163,13 +163,21 @@ export async function runCostOptimisationStage(
             .from(costLearningRecords)
             .where(drizzleSql`vehicle_descriptor LIKE ${`%${vehicleDesc}%`}`);
           const row = rows[0] as any;
-          if (row && Number(row.cnt) >= 3) {
+          const rowCount = row ? Number(row.cnt) : 0;
+          if (rowCount >= 3) {
+            // Full confidence: 3+ claims
             learningDbBenchmarkCents = row.avgCost ? Math.round(Number(row.avgCost)) : null;
-            learningDbSampleSize = Number(row.cnt);
+            learningDbSampleSize = rowCount;
             learningDbVehicleDescriptor = vehicleDesc;
             ctx.log("Stage 9", `Learning DB benchmark: ${learningDbSampleSize} historical claims for '${vehicleDesc}', avg=${learningDbBenchmarkCents} cents`);
-          } else if (row && Number(row.cnt) > 0) {
-            ctx.log("Stage 9", `Learning DB: only ${Number(row.cnt)} claim(s) for '${vehicleDesc}' — below minimum threshold of 3, not used`);
+          } else if (rowCount > 0 && row.avgCost) {
+            // Sparse DB: 1-2 claims — use as a partial signal (stored for blending below)
+            // Weight = rowCount / 3 (so 1 claim = 33%, 2 claims = 67% learning DB weight)
+            learningDbBenchmarkCents = Math.round(Number(row.avgCost));
+            learningDbSampleSize = rowCount;
+            learningDbVehicleDescriptor = vehicleDesc;
+            ctx.log("Stage 9",
+              `Learning DB: ${rowCount} claim(s) for '${vehicleDesc}' (sparse — will blend with index fallback at ${Math.round(rowCount / 3 * 100)}% weight)`);
           }
         }
       }
@@ -251,25 +259,61 @@ export async function runCostOptimisationStage(
           stage: "Stage 9",
         });
       } else {
-        // No learning DB data — use hardcoded component estimates as last resort
-        // These are clearly labelled as fallback estimates in the report
+        // No full-confidence learning DB data.
+        // Compute hardcoded index estimate first (always needed for blending or as sole fallback).
         const vehicleBodyType = claimRecord.vehicle?.bodyType || "sedan";
+        let indexPartsCents = 0, indexLabourCents = 0, indexPaintCents = 0;
         for (const comp of damageAnalysis.damagedParts) {
           const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType, paintCostPerPanelUsd);
-          totalPartsCents += cost.partsCents;
-          totalLabourCents += cost.labourCents;
-          totalPaintCents += cost.paintCents;
+          indexPartsCents += cost.partsCents;
+          indexLabourCents += cost.labourCents;
+          indexPaintCents += cost.paintCents;
         }
-        aiEstimateSource = "hardcoded_fallback";
-        ctx.log("Stage 9", `AI estimate from hardcoded component index (no learning DB data available): ${totalPartsCents + totalLabourCents + totalPaintCents} cents`);
-        assumptions.push({
-          field: "totalExpectedCents",
-          assumedValue: "Hardcoded component index estimate",
-          reason: "No learning DB benchmark available for this vehicle. AI estimate uses internal component index values. This estimate has low reliability and should not be used as a benchmark.",
-          strategy: "industry_average",
-          confidence: 20,
-          stage: "Stage 9",
-        });
+        const indexTotalCents = indexPartsCents + indexLabourCents + indexPaintCents;
+
+        if (learningDbBenchmarkCents && learningDbSampleSize > 0 && learningDbSampleSize < 3) {
+          // HYBRID BLEND: sparse learning DB (1-2 claims) + hardcoded index
+          // Weight = sampleSize / 3 for learning DB, remainder for index
+          // 1 claim: 33% learning + 67% index
+          // 2 claims: 67% learning + 33% index
+          const learningWeight = learningDbSampleSize / 3;
+          const indexWeight = 1 - learningWeight;
+          const blendedTotal = Math.round(
+            learningDbBenchmarkCents * learningWeight + indexTotalCents * indexWeight
+          );
+          totalPartsCents = Math.round(blendedTotal * 0.5);
+          totalLabourCents = Math.round(blendedTotal * 0.35);
+          totalPaintCents = Math.round(blendedTotal * 0.15);
+          aiEstimateSource = "hardcoded_fallback"; // Still labelled fallback — not enough data for full confidence
+          const blendPct = Math.round(learningWeight * 100);
+          ctx.log("Stage 9",
+            `AI estimate: hybrid blend (${blendPct}% learning DB [${learningDbSampleSize} claims] + ${100 - blendPct}% index): ${blendedTotal} cents`);
+          assumptions.push({
+            field: "totalExpectedCents",
+            assumedValue: `Hybrid estimate: ${blendPct}% learning DB (${learningDbSampleSize} claim${learningDbSampleSize > 1 ? "s" : ""}) + ${100 - blendPct}% component index`,
+            reason: `Sparse learning DB: only ${learningDbSampleSize} settled claim(s) for '${learningDbVehicleDescriptor}' (minimum 3 required for full confidence). ` +
+                    `Blended with component index at ${blendPct}%/${100 - blendPct}% weighting. Reliability improves as more claims are settled.`,
+            strategy: "industry_average",
+            confidence: 20 + Math.round(learningWeight * 35), // 33% → conf 32, 67% → conf 43
+            stage: "Stage 9",
+          });
+        } else {
+          // Pure hardcoded index — no learning DB data at all
+          totalPartsCents = indexPartsCents;
+          totalLabourCents = indexLabourCents;
+          totalPaintCents = indexPaintCents;
+          aiEstimateSource = "hardcoded_fallback";
+          ctx.log("Stage 9", `AI estimate from hardcoded component index (no learning DB data): ${indexTotalCents} cents`);
+          assumptions.push({
+            field: "totalExpectedCents",
+            assumedValue: "Component index estimate (no historical data)",
+            reason: "No learning DB benchmark available for this vehicle. AI estimate uses internal component index values. " +
+                    "This estimate has low reliability. Accuracy will improve as more claims of this vehicle type are settled.",
+            strategy: "industry_average",
+            confidence: 20,
+            stage: "Stage 9",
+          });
+        }
       }
     }
 

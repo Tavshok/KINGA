@@ -489,6 +489,10 @@ export interface IncidentClassificationInput {
   damage_components?: string[] | null;
   /** Optional: photo context summary from vision analysis */
   photo_context?: string | null;
+  /** Optional: damage zones from Stage 6 (e.g. ["rear", "general"]) — used for physical arbitration */
+  damage_zones?: string[] | null;
+  /** Optional: collision direction from Stage 7 physics (e.g. "rear", "frontal") — used for physical arbitration */
+  physics_direction?: string | null;
 }
 
 /**
@@ -541,18 +545,69 @@ export async function classifyIncident(
     const uniqueKeywordTypes = Array.from(new Set(keywordTypes));
     const conflictDetected = uniqueKeywordTypes.length > 1 && !uniqueKeywordTypes.every(t => t === llmResult!.incident_type);
 
+    // ── PHYSICAL ARBITRATION ──────────────────────────────────────────────────
+    // When physical evidence (damage zones + physics direction) strongly contradicts
+    // the LLM classification, override with the physically-evidenced type.
+    // This prevents narrative ambiguity from overriding hard physical evidence.
+    let finalType = llmResult.incident_type;
+    let finalCanonical = toCanonicalType(llmResult.incident_type);
+    let finalConfidence = llmResult.confidence;
+    let finalReasoning = llmResult.reasoning;
+    let arbitrationOverride = false;
+
+    const zones = (input.damage_zones ?? []).map(z => z.toLowerCase());
+    const physDir = (input.physics_direction ?? "").toLowerCase();
+
+    // Rule A: LLM says animal_strike but damage is exclusively rear → rear_end
+    if (
+      (finalType === "animal_strike" || finalType === "road_hazard") &&
+      (zones.includes("rear") || physDir === "rear") &&
+      !zones.some(z => ["front", "bonnet", "grille"].includes(z))
+    ) {
+      finalType = "rear_end_collision";
+      finalCanonical = "rear_end";
+      finalConfidence = Math.max(finalConfidence, 75);
+      finalReasoning = `Physical arbitration override: damage zones [${zones.join(", ")}] and physics direction "${physDir}" indicate rear-end collision, not ${llmResult.incident_type}. ${finalReasoning}`;
+      arbitrationOverride = true;
+    }
+
+    // Rule B: LLM says rear_end but damage is exclusively front → head_on or single_vehicle
+    if (
+      (finalType === "rear_end_collision" || finalType === "rear_end") &&
+      (zones.includes("front") || physDir === "frontal") &&
+      !zones.some(z => ["rear", "boot", "bumper_rear"].includes(z))
+    ) {
+      finalType = "head_on_collision";
+      finalCanonical = "head_on";
+      finalConfidence = Math.max(finalConfidence, 70);
+      finalReasoning = `Physical arbitration override: damage zones [${zones.join(", ")}] and physics direction "${physDir}" indicate frontal collision, not rear_end. ${finalReasoning}`;
+      arbitrationOverride = true;
+    }
+
+    // Rule C: LLM says theft/vandalism but physics shows impact force > 0 → vehicle_collision
+    if (
+      (finalType === "theft" || finalType === "vandalism") &&
+      physDir !== "" && physDir !== "unknown"
+    ) {
+      finalType = "vehicle_collision";
+      finalCanonical = "collision";
+      finalConfidence = 65;
+      finalReasoning = `Physical arbitration override: physics analysis found directional impact ("${physDir}") inconsistent with ${llmResult.incident_type}. ${finalReasoning}`;
+      arbitrationOverride = true;
+    }
+
     return {
-      incident_type: llmResult.incident_type,
-      sub_type: llmResult.sub_type,
-      confidence: llmResult.confidence,
+      incident_type: finalType,
+      sub_type: arbitrationOverride ? null : llmResult.sub_type,
+      confidence: finalConfidence,
       sources_used: sourcesUsed,
-      conflict_detected: conflictDetected,
-      reasoning: llmResult.reasoning,
+      conflict_detected: conflictDetected || arbitrationOverride,
+      reasoning: finalReasoning,
       source_detail: sourceDetail,
-      canonical_type: toCanonicalType(llmResult.incident_type),
-      method: "llm",
+      canonical_type: finalCanonical,
+      method: arbitrationOverride ? "physical_arbitration" : "llm",
       claim_form_stated: claimFormType,
-      claim_form_matches: llmResult.claim_form_matches,
+      claim_form_matches: arbitrationOverride ? false : llmResult.claim_form_matches,
     };
   }
 

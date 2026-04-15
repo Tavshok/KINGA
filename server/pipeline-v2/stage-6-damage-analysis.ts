@@ -720,12 +720,31 @@ export async function runDamageAnalysisStage(
         /frame|chassis|subframe|pillar|rail|structural|unibody/.test((p.name || "").toLowerCase())
       );
 
+    // ── Image confidence metrics ─────────────────────────────────────────────
+    const photosProcessed = visionParts.length > 0 ? visionSourceUrls.length : 0;
+    let imageConfidenceScore = 0;
+    if (visionParts.length > 0) {
+      try {
+        const enriched: Array<{ confidenceScore: number }> = JSON.parse((ctx as any).enrichedPhotosJson ?? "[]");
+        const scored = enriched.filter((e) => e.confidenceScore > 0);
+        imageConfidenceScore = scored.length > 0
+          ? Math.round(scored.reduce((s, e) => s + e.confidenceScore, 0) / scored.length)
+          : 40;
+      } catch {
+        imageConfidenceScore = 40;
+      }
+    }
+    const analysisFromPhotos = visionParts.length > 0;
+
     const rawOutput: Stage6Output = {
       damagedParts,
       damageZones,
       overallSeverityScore,
       structuralDamageDetected,
       totalDamageArea: claimRecord.accidentDetails.totalDamageAreaM2 || 0,
+      photosProcessed,
+      imageConfidenceScore,
+      analysisFromPhotos,
     };
     const output = ensureDamageContract(rawOutput, isDegraded ? "inferred_components" : "success");
 

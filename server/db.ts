@@ -1086,6 +1086,13 @@ export async function triggerAiAssessment(claimId: number) {
         return felVersion ? JSON.stringify(felVersion) : null;
       } catch { return null; }
     })(),
+    // Stage 10 output: multi-dimensional claim quality score
+    claimQualityJson: (() => {
+      try {
+        const cq = reportOutput?.claimQuality;
+        return cq ? JSON.stringify(cq) : null;
+      } catch { return null; }
+    })(),
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

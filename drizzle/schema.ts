@@ -164,6 +164,10 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Enables court-grade audit trails and deterministic replay readiness.
   // isReplayable flag indicates whether the decision can be reproduced exactly.
   felVersionSnapshotJson: text("fel_version_snapshot_json"),
+  // Stage 10 output: multi-dimensional claim quality score (JSON ClaimQualityResult)
+  // Includes overall score (0–100), letter grade (A–F), per-dimension breakdown,
+  // adjuster guidance, requiresManualReview flag, and mandatory actions list.
+  claimQualityJson: text("claim_quality_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),

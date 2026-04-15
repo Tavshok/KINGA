@@ -35,6 +35,8 @@ import {
 } from "./narrativeEngine";
 import { buildDataResponsibilityMatrix } from "./dataResponsibilityMatrix";
 import { buildDecisionTransparencyLayer } from "./decisionTransparencyLayer";
+import { runCrossStageConsistencyCheck } from "./crossStageConsistencyEngine";
+import { scoreClaimQuality } from "./claimQualityScorer";
 
 function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
@@ -557,6 +559,57 @@ export async function runReportGenerationStage(
       },
     };
 
+    // ── Cross-Stage Consistency Check ──────────────────────────────────────────
+    const consistencyCheck = runCrossStageConsistencyCheck({
+      claimRecord,
+      damageAnalysis: damageAnalysis ?? null,
+      physicsAnalysis: physicsAnalysis ?? null,
+      fraudAnalysis: fraudAnalysis ?? null,
+      costAnalysis: costAnalysis ?? null,
+    });
+
+    // Surface blocking consistency flags in fullReport sections
+    if (consistencyCheck.blockAutoApproval && consistencyCheck.flags.length > 0) {
+      fullReport.sections.consistencyFlags = {
+        blockAutoApproval: consistencyCheck.blockAutoApproval,
+        overallStatus: consistencyCheck.overallStatus,
+        flagCount: consistencyCheck.flags.length,
+        criticalCount: consistencyCheck.flags.filter(f => f.severity === 'CRITICAL').length,
+        flags: consistencyCheck.flags.map(f => ({
+          id: f.id,
+          severity: f.severity,
+          description: f.description,
+          recommendation: f.recommendation,
+          affectedStages: f.affectedStages,
+        })),
+      };
+    }
+
+    // ── Claim Quality Score ────────────────────────────────────────────────────
+    let claimQuality = null;
+    try {
+      claimQuality = scoreClaimQuality({
+        claimRecord,
+        damageAnalysis: damageAnalysis ?? null,
+        physicsAnalysis: physicsAnalysis ?? null,
+        fraudAnalysis: fraudAnalysis ?? null,
+        costAnalysis: costAnalysis ?? null,
+        consistencyCheck,
+      });
+      // Surface quality score in fullReport for downstream consumers
+      fullReport.sections.claimQuality = {
+        overallScore: claimQuality.overallScore,
+        grade: claimQuality.grade,
+        adjusterGuidance: claimQuality.adjusterGuidance,
+        requiresManualReview: claimQuality.requiresManualReview,
+        mandatoryActions: claimQuality.mandatoryActions,
+        dimensions: claimQuality.dimensions,
+      };
+      ctx.log("Stage 10", `Claim quality score: ${claimQuality.overallScore}/100 (Grade ${claimQuality.grade}), manual review: ${claimQuality.requiresManualReview}`);
+    } catch (qErr) {
+      ctx.log("Stage 10", `Claim quality scoring failed (non-fatal): ${String(qErr)}`);
+    }
+
     const output: Stage10Output = {
       claimSummary,
       damageAnalysis: damageSection,
@@ -574,6 +627,8 @@ export async function runReportGenerationStage(
       missingFields: claimRecord.dataQuality.missingFields,
       evidenceTrace: evidenceTrace ?? null,
       decisionReadiness,
+      consistencyCheck,
+      claimQuality,
     };
 
     ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);

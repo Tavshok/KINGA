@@ -543,6 +543,12 @@ export interface Stage6Output {
   overallSeverityScore: number;
   structuralDamageDetected: boolean;
   totalDamageArea: number;
+  /** Number of photos that were successfully processed by the vision engine */
+  photosProcessed: number;
+  /** Aggregate image quality/confidence score (0–100). 0 = no photos or all unusable. */
+  imageConfidenceScore: number;
+  /** Whether damage analysis was derived from photos (true) or text-only fallback (false) */
+  analysisFromPhotos: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -997,6 +1003,10 @@ export interface Stage10Output {
     }>;
     summary: string;
   } | null;
+  /** Cross-stage consistency check result — named contradiction flags between pipeline stages */
+  consistencyCheck?: import('./crossStageConsistencyEngine').ConsistencyCheckResult | null;
+  /** Multi-dimensional claim quality score for adjuster guidance */
+  claimQuality?: import('./claimQualityScorer').ClaimQualityResult | null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
