@@ -234,7 +234,7 @@ describe("computeConsensus — perfect agreement", () => {
     expect(result.conflict_present).toBe(false);
   });
 
-  it("returns 8 dimensions", () => {
+  it("returns 10 dimensions", () => {
     const result = computeConsensus(
       makeClaimRecord(),
       makeStage6(),
@@ -242,7 +242,7 @@ describe("computeConsensus — perfect agreement", () => {
       makeStage8(),
       null
     );
-    expect(result.dimensions).toHaveLength(8);
+    expect(result.dimensions).toHaveLength(10);
   });
 
   it("all dimensions have valid weighted_contribution", () => {
@@ -837,7 +837,7 @@ describe("all-null inputs", () => {
     expect(result.consensus_score).toBeLessThanOrEqual(100);
     expect(["STRONG", "MODERATE", "CONFLICTING"]).toContain(result.consensus_label);
     expect(typeof result.conflict_present).toBe("boolean");
-    expect(result.dimensions).toHaveLength(8);
+    expect(result.dimensions).toHaveLength(10);
   });
 
   it("returns CONFLICTING or MODERATE when all inputs are null (no evidence)", () => {

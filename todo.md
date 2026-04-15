@@ -10753,3 +10753,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Stage 29 integration confirmed: consistencyFraudPenalty.ts wired into weighted-fraud-scoring.ts; 45 tests pass
 - [x] Stage 30 integration confirmed: consistencyConfidence.ts wired into damageConsistency.ts with high_severity_count and physics_available; 82 tests pass
 - [x] Stage 29+30 todo items marked complete; 127/127 tests pass for both stages
+
+## Automotive Domain Corrector — Permanent OCR/Handwriting Fix (Apr 2026)
+- [ ] Build automotiveDomainCorrector.ts — fuzzy vehicle make/model matching (BMD→BMW, TOYATA→Toyota, NISAAN→Nissan, MERCEDEZ→Mercedes, HONDE→Honda, etc.)
+- [ ] Add vehicle registration pattern correction (common OCR misreads: O→0, I→1, B→8)
+- [ ] Add third-party vehicle detection from narrative text (keyword scan for vehicle references)
+- [ ] Add policy number validation guard (reject single common words: NO, YES, NA, NONE, NUMBER)
+- [ ] Wire corrector into Stage 2 post-extraction and Stage 3 field recovery
+- [ ] Write 40+ tests covering all correction categories
+- [ ] Run full regression suite and save checkpoint

@@ -33,6 +33,7 @@ import { runExtractionStage } from "./stage-2-extraction";
 import { runStructuredExtractionStage } from "./stage-3-structured-extraction";
 import { runValidationStage } from "./stage-4-validation";
 import { runAssemblyStage } from "./stage-5-assembly";
+import { applyAutomotiveDomainCorrections } from "./automotiveDomainCorrector";
 import { runDamageAnalysisStage } from "./stage-6-damage-analysis";
 import { runUnifiedStage7 } from "./stage-7-unified";
 import { scoreClaimComplexity, type ComplexityScore } from "./claimComplexityScorer";
@@ -556,6 +557,38 @@ export async function runPipelineV2(
       confidence: 10,
       stage: "Stage 5",
     });
+  }
+
+  // ── STAGE 2.5: Automotive Domain Corrector ─────────────────────────────
+  // Fixes OCR/handwriting misreads: BMD→BMW, TOYATA→Toyota, policy label fragments, etc.
+  if (claimRecord) {
+    try {
+      const domainCorrResult = applyAutomotiveDomainCorrections(claimRecord);
+      if (domainCorrResult.correctionCount > 0) {
+        claimRecord = domainCorrResult.claimRecord;
+        ctx.log("Stage 2.5", `Applied ${domainCorrResult.correctionCount} domain correction(s): ${domainCorrResult.corrections.map(c => `${c.field}: '${c.original}' → '${c.corrected}'`).join(', ')}`);
+        for (const corr of domainCorrResult.corrections) {
+          allAssumptions.push({
+            field: corr.field,
+            assumedValue: corr.corrected,
+            reason: `OCR/handwriting correction: '${corr.original}' → '${corr.corrected}' (rule: ${corr.rule})`,
+            strategy: 'domain_correction',
+            confidence: Math.round(corr.confidence * 100),
+            stage: 'Stage 2.5',
+          });
+        }
+      } else {
+        ctx.log("Stage 2.5", "No domain corrections needed — all extracted values passed validation");
+      }
+      if (domainCorrResult.policyNumberInvalid) {
+        ctx.log("Stage 2.5", "Policy number flagged as label fragment — cleared for re-extraction");
+      }
+      if (domainCorrResult.thirdPartyDetectedFromNarrative) {
+        ctx.log("Stage 2.5", "Third-party vehicle detected from narrative text");
+      }
+    } catch (domainCorrErr) {
+      ctx.log("Stage 2.5", `Domain corrector error (non-fatal): ${String(domainCorrErr)}`);
+    }
   }
 
   // ── COMPLEXITY GATE: Classify claim tier after assembly ─────────────────
