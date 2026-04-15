@@ -132,7 +132,23 @@ const VALID_INCIDENT_TYPES = new Set([
   "fire",
   "flood",
   "vandalism",
+  // Collision sub-types — all map to vehicle_collision for gate purposes
+  "collision",
+  "rear_end",
+  "head_on",
+  "side_impact",
+  "rollover",
+  "t_bone",
+  "sideswipe",
 ]);
+
+/** Normalise collision sub-types to the canonical label for gate evaluation. */
+function canonicaliseIncidentType(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const lower = raw.trim().toLowerCase();
+  const COLLISION_SUBTYPES = new Set(["rear_end", "head_on", "side_impact", "rollover", "t_bone", "sideswipe", "collision"]);
+  return COLLISION_SUBTYPES.has(lower) ? "vehicle_collision" : lower;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // CHECK IMPLEMENTATIONS
@@ -218,7 +234,9 @@ function checkPhotosProcessed(input: PhotosProcessedInput): ReadinessCheck {
  * FAIL  — incident_type is null, empty, or "unknown"
  */
 function checkIncidentConfirmed(input: IncidentConfirmedInput): ReadinessCheck {
-  const { incident_type, classification_confidence, conflict_detected } = input;
+  const { classification_confidence, conflict_detected } = input;
+  // Normalise collision sub-types (rear_end, head_on, etc.) to canonical vehicle_collision
+  const incident_type = canonicaliseIncidentType(input.incident_type);
 
   if (
     !incident_type ||

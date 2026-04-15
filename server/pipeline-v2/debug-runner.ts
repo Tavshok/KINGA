@@ -834,6 +834,7 @@ function buildEngineResults(
     durationMs: s7?.durationMs || 0,
     reason: s7?.error,
     outputData: stage7Data ? {
+      physics_status: stage7Data.physicsStatus ?? null,
       impact_force_kn: stage7Data.impactForceKn,
       impact_vector: stage7Data.impactVector,
       energy_distribution: stage7Data.energyDistribution,
