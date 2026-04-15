@@ -3260,6 +3260,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // Stage 36: Forensic Audit Validator — 10-dimension post-pipeline validation report
+          _forensicAuditValidation: (() => {
+            try {
+              if ((assessment as any).forensicAuditValidationJson) {
+                return JSON.parse((assessment as any).forensicAuditValidationJson as string);
+              }
+            } catch { /* non-fatal */ }
+            return null;
+          })(),
         };
       }),
     historicalBenchmarks: protectedProcedure

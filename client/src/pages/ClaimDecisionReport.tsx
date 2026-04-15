@@ -45,6 +45,7 @@ import {
   AdjusterSignOffPanel,
 } from "@/components/Batch3ReportComponents";
 import { DecisionNarrativeView } from "@/components/DecisionNarrativeView";
+import { ForensicAuditValidationPanel } from "@/components/ForensicAuditValidationPanel";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -1465,6 +1466,13 @@ export default function ClaimDecisionReport() {
         {/* ── Claim Quality Score ── */}
         {(aiAssessment as any)?._claimQuality && (
           <ClaimQualityPanel quality={(aiAssessment as any)._claimQuality} />
+        )}
+
+        {/* ── Stage 36: Forensic Audit Validation ── */}
+        {(aiAssessment as any)?._forensicAuditValidation && (
+          <div className="mb-4">
+            <ForensicAuditValidationPanel validation={(aiAssessment as any)._forensicAuditValidation} />
+          </div>
         )}
 
         {/* ── Phase 5A: Decision Narrative View ── */}

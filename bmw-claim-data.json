@@ -1,0 +1,95 @@
+{
+  "claimant": {
+    "name": "DIEFTRACK MARKETING",
+    "address": "12 GEORGE STREET, ARDBENNIE, HARARE",
+    "phone": "0772676296"
+  },
+  "vehicle": {
+    "make": "BMW",
+    "model": "318i",
+    "year": 2004,
+    "registration": "ADP6423",
+    "colour": "Silver",
+    "vin": "WBAAN92040NJ05535",
+    "odometer_km": 251388
+  },
+  "incident": {
+    "date": "2024-10-18",
+    "reported_date": "2024-10-30",
+    "time": "05:40",
+    "location": "25KM PEG, HARARE-MUKUMBURA ROAD",
+    "description": "Driver was driving downhill at Ghidamba area. Tens of meters at a time, was braking to avoid potholes and the insured rammed into the back of that BMW vehicle. The matter was reported to the police and the driver was charged.",
+    "road_surface": "TARRED WITH POTHOLES",
+    "weather": "DAY, VISIBILITY CLEAR",
+    "speed_kmh": 30,
+    "type": "REAR_END_COLLISION",
+    "fault": "INSURED_AT_FAULT"
+  },
+  "damage": {
+    "description": "Vehicle was hit from the back. Damages to the rear section including the boot and bumper. The rear screen was also damaged.",
+    "areas": ["rear_boot", "rear_bumper", "rear_screen", "rear_fender", "taillights", "number_plate"],
+    "consistent_with_circumstances": true
+  },
+  "third_party": {
+    "name": "RUNJARADZO NYAGOPE",
+    "address": "8995 GLEN NORAH C, HARARE",
+    "phone": "0772676296",
+    "vehicle_registration": "ADP6423"
+  },
+  "police_report": {
+    "station": "MAZOWE",
+    "officer": "MB OMANA",
+    "rank": "SGT",
+    "date": "2024-10-18",
+    "driver_charged": "SYDNEY DUBE",
+    "charge": "DRIVING WITHOUT DUE CARE AND ATTENTION",
+    "fine_paid": 50.00,
+    "policy_number_insured": "IC 2IM 24 R 6 21 061",
+    "policy_number_third_party": "CELL 2045-16045"
+  },
+  "insurer": "CELL INSURANCE",
+  "assessor": "TRIPPLE T MAND",
+  "repairer": "ROYAL AUTOBODY",
+  "quote": {
+    "repairer": "ROYALTY AUTOBODY HOUSE",
+    "estimate_no": "008",
+    "date": "2024-10-21",
+    "currency": "USD",
+    "line_items": [
+      {"description": "Bootlid", "amount": 100},
+      {"description": "Number Plate Light", "amount": 15},
+      {"description": "Bootlights x2", "amount": 100},
+      {"description": "Taillamps x2", "amount": 160},
+      {"description": "Rear Bumper Frame", "amount": 70},
+      {"description": "Rear Bumper", "amount": 120},
+      {"description": "LHS Rear Fender (cut & join)", "amount": 150},
+      {"description": "Bootshocks x2", "amount": 70},
+      {"description": "Rear Windscreen", "amount": 125},
+      {"description": "Rear Bumper Slides x2", "amount": 60},
+      {"description": "PAS Rear Fender", "amount": 50},
+      {"description": "Bootlid Rear Section (cut and join)", "amount": 150},
+      {"description": "Strip and Assemble", "amount": 140},
+      {"description": "Paint Damages", "amount": 400},
+      {"description": "Sundries", "amount": 50}
+    ],
+    "subtotal_usd": 1815,
+    "vat": 272,
+    "total_usd": 2087,
+    "agreed_cost_usd": 1922.80,
+    "savings_usd": 164.20
+  },
+  "assessment": {
+    "market_value_usd": 3500,
+    "repair_cost_usd": 2087,
+    "agreed_cost_usd": 1922.80,
+    "net_cost_usd": 1922.80,
+    "savings_usd": 164.20,
+    "date_inspected": "2024-11-06",
+    "assessor_signature": "Gmandalaza",
+    "review_comments": "Damages sustained are consistent with the circumstances reported. Cost agreed are within prevailing market rates.",
+    "risk_manager_comments": "Kindly authorise repairs to the vehicle, costs are damage consistent.",
+    "risk_manager_date": "2024-11-19",
+    "advice_completed_by": "RASHIIDA",
+    "advice_date": "2024-11-07"
+  }
+}

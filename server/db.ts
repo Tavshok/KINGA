@@ -942,6 +942,18 @@ export async function triggerAiAssessment(claimId: number) {
     console.log(`[AI Assessment] Claim ${claimId}: TOTAL LOSS indicated — repair $${estimatedCost} vs vehicle value $${vehicleMarketValueDollars?.toFixed(0)} (${repairToValueRatio}%)`);
   }
 
+  // Stage 36: Run Forensic Audit Validator on the completed pipeline result
+  let forensicAuditValidationResult: import('./pipeline-v2/forensicAuditValidator').ForensicAuditValidationReport | null = null;
+  try {
+    const { runForensicAuditValidation } = await import('./pipeline-v2/forensicAuditValidator');
+    forensicAuditValidationResult = await runForensicAuditValidation(result as any);
+    if (forensicAuditValidationResult) {
+      console.log(`[AI Assessment] Claim ${claimId}: Forensic audit validation complete — status=${forensicAuditValidationResult.overallStatus}, consistencyScore=${forensicAuditValidationResult.consistencyScore}, criticalFailures=${forensicAuditValidationResult.criticalFailures.length}`);
+    }
+  } catch (validatorErr: any) {
+    console.warn(`[AI Assessment] Claim ${claimId}: Forensic audit validator failed (non-fatal):`, validatorErr?.message ?? validatorErr);
+  }
+
   // Delete any previous assessment for this claim
   console.log(`[AI Assessment] Claim ${claimId}: Deleting previous assessment and inserting new one...`);
   await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch((delErr) => {
@@ -1121,10 +1133,12 @@ export async function triggerAiAssessment(claimId: number) {
     // Stage 10 output: multi-dimensional claim quality score
     claimQualityJson: (() => {
       try {
-        const cq = reportOutput?.claimQuality;
+        const cq = report?.claimQuality;
         return cq ? JSON.stringify(cq) : null;
       } catch { return null; }
     })(),
+    // Stage 36 output: Forensic Audit Validator — 10-dimension post-pipeline validation
+    forensicAuditValidationJson: forensicAuditValidationResult ? JSON.stringify(forensicAuditValidationResult) : null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction

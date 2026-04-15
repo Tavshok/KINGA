@@ -168,6 +168,11 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Includes overall score (0–100), letter grade (A–F), per-dimension breakdown,
   // adjuster guidance, requiresManualReview flag, and mandatory actions list.
   claimQualityJson: text("claim_quality_json"),
+  // Stage 36 (Validator): Forensic Audit Validator — 10-dimension post-pipeline validation
+  // Runs after Stage 10 to validate factual correctness, internal consistency, and defensibility.
+  // Schema: { overallStatus, criticalFailures, highSeverityIssues, mediumIssues, lowIssues,
+  //           consistencyScore, confidenceInAssessment, summary, validatedAt }
+  forensicAuditValidationJson: text("forensic_audit_validation_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
