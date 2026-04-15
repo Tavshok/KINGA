@@ -144,7 +144,8 @@ CRITICAL RULES:
 4. Head-on is NOT vehicle_collision — if oncoming/opposite direction is mentioned, use head_on
 5. The claim form field is often wrong — the narrative always takes precedence
 6. If the narrative says "collision" but also says "rolled over", classify as rollover
-7. animal_strike always overrides vehicle_collision when an animal is named
+7. animal_strike applies ONLY when the narrative explicitly describes the vehicle striking or being struck by an animal. Road conditions (potholes, gravel) do NOT make a claim animal_strike. If the narrative says the vehicle was hit from behind by another vehicle AND mentions road conditions, classify as rear_end — not animal_strike.
+8. PRIORITY ORDER when signals conflict: rollover > pedestrian_strike > rear_end > head_on > sideswipe > animal_strike > single_vehicle > vehicle_collision. Use the highest-priority type that has explicit narrative evidence.
 
 Respond ONLY with a JSON object in this exact format:
 {
@@ -190,6 +191,10 @@ const ROLLOVER_KEYWORDS: string[] = [
 const REAR_END_KEYWORDS: string[] = [
   "rear-ended", "rear ended", "struck from behind",
   "hit from behind", "hit the back of", "ran into the back",
+  "hit from the back", "hit from back", "struck from the back",
+  "struck the back", "came from behind", "came from the back",
+  "hit at the back", "hit at back", "struck at the back",
+  "vehicle hit from", "insured was hit",
   "tailgated", "shunted", "rear impact",
   "boot damage", "rear bumper struck",
   "was hit from behind", "vehicle behind",

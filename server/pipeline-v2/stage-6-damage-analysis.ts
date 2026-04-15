@@ -31,6 +31,7 @@
 
 import { ensureDamageContract } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
+import { normalisePartName, CANONICAL_PARTS_PROMPT_LIST } from "./canonicalPartsVocabulary";
 import type {
   PipelineContext,
   StageResult,
@@ -198,14 +199,19 @@ async function analyseOneImage(
           role: "system",
           content: `You are an expert vehicle damage assessor for insurance claims in South Africa.
 Analyse the provided vehicle damage photo and identify EVERY visibly damaged component.
-Use South African / Audatex ZA parts nomenclature:
-  - "Bonnet" (not "Hood"), "Boot Lid" (not "Trunk Lid"), "Windscreen" (not "Windshield")
+
+PART NAMING — CRITICAL: You MUST use ONLY the following authorised part names. Never invent, abbreviate, or misspell a part name. If the damaged part is not in this list, choose the CLOSEST match:
+${CANONICAL_PARTS_PROMPT_LIST}
+
+Side prefix rules:
   - "LH" for left-hand (driver) side, "RH" for right-hand (passenger) side
-  - "Sill Panel", "A-Pillar", "B-Pillar", "C-Pillar", "Quarter Panel"
+  - Example: "LH Front Door", "RH Tail Lamp Assembly", "LH A-Pillar"
+  - Use "Bonnet" (not Hood), "Boot Lid" (not Trunk), "Windscreen" (not Windshield)
+
 CRITICAL RULES:
   - If the image is blurry, dark, or partially obscured, STILL extract any visible damage
   - Do NOT return an empty components array unless absolutely no vehicle damage is visible
-  - If uncertain about a component name, use the most likely SA/Audatex ZA term
+  - If uncertain about a component name, choose the closest authorised name from the list above
   - Infer likely damage zones conservatively from visible evidence
   - Always return at least one component if any damage is visible
 Return ONLY a JSON object matching the schema — no prose, no markdown.`,
@@ -243,7 +249,8 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
 
     primaryResult = {
       components: rawComponents.map((c, i) => ({
-        name: c.name || "Unknown Component",
+        // normalisePartName maps LLM output to canonical vocabulary — prevents hallucinated names
+        name: normalisePartName(c.name || "Unknown Component"),
         location: c.location || "general",
         damageType: c.damageType || "impact",
         severity: normaliseSeverity(c.severity),
@@ -270,7 +277,8 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
               role: "system",
               content: `You are a vehicle damage assessor. Look at this vehicle photo and describe any damage you can see.
 Even if the image is unclear, identify any visible dents, scratches, broken parts, or deformation.
-Use South African / Audatex ZA parts nomenclature. Return JSON only.`,
+Use ONLY these authorised SA/Audatex ZA part names: ${CANONICAL_PARTS_PROMPT_LIST}
+Return JSON only.`,
             },
             {
               role: "user",
@@ -296,7 +304,8 @@ If the image shows no vehicle or no damage, return an empty components array.`,
       const parsedFb = JSON.parse(contentFb);
       const fbComponents: DamageAnalysisComponent[] = (parsedFb.components || []).map(
         (c: { name: string; location: string; damageType: string; severity: string; visible: boolean }, i: number) => ({
-          name: c.name || "Unknown Component",
+          // normalisePartName enforces SA canonical vocabulary on fallback results too
+          name: normalisePartName(c.name || "Unknown Component"),
           location: c.location || "general",
           damageType: c.damageType || "impact",
           severity: normaliseSeverity(c.severity),

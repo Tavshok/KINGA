@@ -170,6 +170,13 @@ function runDamagePatternValidation(
     // Map canonical incident type to ScenarioType
     const scenarioMap: Record<string, ScenarioType> = {
       collision: "vehicle_collision",
+      vehicle_collision: "vehicle_collision",
+      rear_end: "vehicle_collision",
+      head_on: "vehicle_collision",
+      sideswipe: "vehicle_collision",
+      single_vehicle: "vehicle_collision",
+      rollover: "vehicle_collision",
+      pedestrian_strike: "vehicle_collision",
       animal_strike: "animal_strike",
       theft: "theft",
       fire: "fire",
@@ -240,7 +247,20 @@ export async function runPhysicsStage(
   // Non-physical types (theft, fire, flood, vandalism) are explicitly excluded.
   const incidentType = claimRecord.accidentDetails.incidentType;
   const isAnimalStrike = incidentType === "animal_strike";
-  const isPhysicalDamage = incidentType === "collision" || incidentType === "unknown";
+  // All incident types that involve physical vehicle damage and should run the physics engine.
+  // NON-physical types (theft, fire, flood, vandalism) are explicitly excluded.
+  const PHYSICAL_DAMAGE_TYPES: string[] = [
+    "collision",
+    "rear_end",
+    "head_on",
+    "sideswipe",
+    "single_vehicle",
+    "rollover",
+    "pedestrian_strike",
+    "vehicle_collision",
+    "unknown",  // unknown often means classification failed but claim is still physical
+  ];
+  const isPhysicalDamage = PHYSICAL_DAMAGE_TYPES.includes(incidentType ?? "");
   const assumptions: Assumption[] = [];
   const recoveryActions: RecoveryAction[] = [];
 

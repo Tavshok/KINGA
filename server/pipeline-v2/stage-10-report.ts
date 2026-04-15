@@ -61,7 +61,15 @@ function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
         collisionDirection: claimRecord.accidentDetails.collisionDirection,
         description: claimRecord.accidentDetails.description,
       },
-      policeReport: claimRecord.policeReport,
+      policeReport: {
+        reportNumber: claimRecord.policeReport?.reportNumber ?? null,
+        station: claimRecord.policeReport?.station ?? null,
+        // Extended SA police report fields (populated by Stage 3 when present in documents)
+        officerName: (claimRecord.policeReport as any)?.officerName ?? null,
+        chargeNumber: (claimRecord.policeReport as any)?.chargeNumber ?? null,
+        fineAmount: (claimRecord.policeReport as any)?.fineAmount ?? null,
+        trafficReportDate: (claimRecord.policeReport as any)?.trafficReportDate ?? null,
+      },
       dataQuality: {
         completenessScore: claimRecord.dataQuality.completenessScore,
         missingFields: claimRecord.dataQuality.missingFields,
@@ -161,10 +169,15 @@ function buildCostSection(costAnalysis: Stage9Output | null, claimRecord: ClaimR
             formatted: `${costAnalysis.currency} ${(claimRecord.repairQuote.quoteTotalCents / 100).toFixed(2)}`,
           }
         : null,
+      // aiEstimateSource tells the adjuster what data underpins the AI benchmark
+      // Values: "learning_db" | "quote_proportional" | "insufficient_data"
+      aiEstimateSource: (costAnalysis as any).aiEstimateSource ?? "unknown",
+      aiEstimateNote: (costAnalysis as any).aiEstimateNote ?? null,
       quoteDeviationPct: costAnalysis.quoteDeviationPct,
       recommendedRange: {
         lowFormatted: `${costAnalysis.currency} ${(costAnalysis.recommendedCostRange.lowCents / 100).toFixed(2)}`,
         highFormatted: `${costAnalysis.currency} ${(costAnalysis.recommendedCostRange.highCents / 100).toFixed(2)}`,
+        basis: "AI benchmark ±20%",
       },
       savingsOpportunity: {
         cents: costAnalysis.savingsOpportunityCents,
@@ -238,12 +251,23 @@ function buildTurnaroundSection(turnaround: TurnaroundTimeOutput | null): Report
   };
 }
 
-function buildImageSection(claimRecord: ClaimRecord): ReportSection {
+function buildImageSection(claimRecord: ClaimRecord, pdfPageImageUrls?: string[]): ReportSection {
+  const uploadedPhotos = claimRecord.damage.imageUrls ?? [];
+  // Include PDF page renders as fallback when no uploaded photos exist
+  const pdfFallback = uploadedPhotos.length === 0 ? (pdfPageImageUrls ?? []) : [];
+  const allImages = [...uploadedPhotos, ...pdfFallback];
   return {
     title: "Supporting Images",
     content: {
-      imageCount: claimRecord.damage.imageUrls.length,
-      imageUrls: claimRecord.damage.imageUrls,
+      imageCount: allImages.length,
+      imageUrls: allImages,
+      uploadedPhotoCount: uploadedPhotos.length,
+      pdfPageRenderCount: pdfFallback.length,
+      note: allImages.length === 0
+        ? "No photos were submitted with this claim. Damage analysis is based on text descriptions only."
+        : uploadedPhotos.length === 0 && pdfFallback.length > 0
+          ? "No dedicated damage photos were submitted. The images below are PDF page renders from the submitted documents."
+          : null,
     },
   };
 }
@@ -423,7 +447,7 @@ export async function runReportGenerationStage(
     const costSection = buildCostSection(costAnalysis, claimRecord);
     const fraudSection = buildFraudSection(fraudAnalysis);
     const turnaroundSection = buildTurnaroundSection(turnaroundAnalysis);
-    const imageSection = buildImageSection(claimRecord);
+    const imageSection = buildImageSection(claimRecord, (ctx as any).pdfPageImageUrls);
     // Stage 39 — evidence-anchored narratives (no hedging, OEC structure)
     const damageNarrative = damageAnalysis
       ? buildDamageNarrative(damageAnalysis, claimRecord.damage.imageUrls ?? [], claimRecord.damage.description)

@@ -57,8 +57,12 @@ const EXTRACTION_SCHEMA = {
         accidentType: { type: ["string", "null"], description: "Collision direction: frontal, rear, side_driver, side_passenger, rollover, multi_impact" },
         impactPoint: { type: ["string", "null"], description: "Primary point of impact on the vehicle" },
         estimatedSpeedKmh: { type: ["number", "null"], description: "Speed at impact in km/h. SEARCH THE ENTIRE DOCUMENT for any of these patterns: (1) A form field labelled 'Speed', 'Speed at time of accident', 'What was your speed?', 'Speed of vehicle', 'Approximate speed' — the value may appear immediately after the label with no keyword prefix, e.g. 'Speed: 90KM/HRS' or just '90KM/HRS' after the label. (2) Any speed mentioned in the accident narrative or circumstances section, e.g. 'travelling at 90 KM/HRS', 'doing 60 km/h', 'speed of 80'. (3) Any speed in a police report or assessor notes. IMPORTANT: Extract the NUMERIC VALUE ONLY — strip ALL unit suffixes (KM/HRS, KM/H, KPH, MPH, km/h, kph, kmh). Examples: '90KM/HRS' → 90, '90 km/h' → 90, '120kph' → 120, '60' → 60. Return null ONLY if no speed value appears anywhere in the document." },
-        policeReportNumber: { type: ["string", "null"], description: "Police report/case number" },
-        policeStation: { type: ["string", "null"], description: "Police station name" },
+        policeReportNumber: { type: ["string", "null"], description: "Police report/case number. Look for 'Case No.', 'Report No.', 'CR No.', 'RB No.', 'CID No.' anywhere in the document." },
+        policeStation: { type: ["string", "null"], description: "Police station name. Look for 'Station:', 'Police Station:', 'Reported at:' anywhere in the document." },
+        policeOfficerName: { type: ["string", "null"], description: "Name of the attending police or traffic officer. Look for 'Officer:', 'Constable:', 'Sgt.', 'Traffic Officer:', 'Officer Name:', or any officer/constable name on a traffic report or police report page." },
+        policeChargeNumber: { type: ["string", "null"], description: "TAB number or traffic charge number issued at the scene. Look for 'TAB No.', 'TAB Number', 'Charge No.', 'Traffic Charge', 'Infringement No.', 'Ticket No.' anywhere in the document." },
+        policeFineAmountCents: { type: ["integer", "null"], description: "Traffic fine amount in cents. Look for 'Fine:', 'Fine Amount:', 'Penalty:', 'Traffic Fine' on a traffic report page. Convert to cents (multiply by 100)." },
+        policeReportDate: { type: ["string", "null"], description: "Date the police or traffic report was issued. Look for a date on the traffic report or police report page, separate from the accident date. Format as YYYY-MM-DD." },
         assessorName: { type: ["string", "null"], description: "Name of the assessor" },
         panelBeater: { type: ["string", "null"], description: "Name of panel beater/repairer" },
         repairerCompany: { type: ["string", "null"], description: "Repair company name" },
@@ -86,8 +90,11 @@ const EXTRACTION_SCHEMA = {
         airbagDeployment: { type: ["boolean", "null"], description: "Whether airbags deployed" },
         maxCrushDepthM: { type: ["number", "null"], description: "Maximum crush depth in metres" },
         totalDamageAreaM2: { type: ["number", "null"], description: "Total damage area in square metres" },
-        thirdPartyVehicle: { type: ["string", "null"], description: "Third party vehicle description" },
-        thirdPartyRegistration: { type: ["string", "null"], description: "Third party vehicle registration" },
+        thirdPartyVehicle: { type: ["string", "null"], description: "Third party vehicle description (make, model, colour)." },
+        thirdPartyRegistration: { type: ["string", "null"], description: "Third party vehicle registration number." },
+        thirdPartyName: { type: ["string", "null"], description: "Name of the third-party driver or owner. Look for 'Third Party Name:', 'Other Driver:', 'Other Party:', 'TP Name:' in the claim form or police report." },
+        thirdPartyInsurerName: { type: ["string", "null"], description: "Third party's insurance company name. Look for 'Third Party Insurer:', 'Other Party Insurance:', 'TP Insurer:'." },
+        thirdPartyPolicyNumber: { type: ["string", "null"], description: "Third party's insurance policy number. Look for 'Third Party Policy No.', 'TP Policy:', 'Other Party Policy Number:'." },
         // Insurance / Policy
         insurerName: { type: ["string", "null"], description: "Insurance company name (e.g. 'Cell Insurance Company', 'Old Mutual', 'Zimnat'). Look for 'Insurer:', 'Insurance Company:', 'Underwriter:', or the company name at the top of the claim form." },
         policyNumber: { type: ["string", "null"], description: "Insurance policy number. Look for 'Policy No.', 'Policy Number', 'Policy #'. IMPORTANT: If the value in the policy number field looks like a product type or coverage type (e.g. 'EXCESS', 'COMPREHENSIVE', 'THIRD PARTY', 'FIRE AND THEFT', 'MOTOR') rather than an alphanumeric policy number, set this to null and set productType instead. A valid policy number typically contains letters and numbers (e.g. 'POL-2024-001', 'CI-024NATPHARM', 'ZIM/2024/001')." },
@@ -121,6 +128,8 @@ const EXTRACTION_SCHEMA = {
         "damageDescription", "damagedComponents",
         "structuralDamage", "airbagDeployment", "maxCrushDepthM", "totalDamageAreaM2",
         "thirdPartyVehicle", "thirdPartyRegistration",
+        "thirdPartyName", "thirdPartyInsurerName", "thirdPartyPolicyNumber",
+        "policeOfficerName", "policeChargeNumber", "policeFineAmountCents", "policeReportDate",
         "insurerName", "policyNumber", "claimReference",
         "incidentTime", "animalType", "weatherConditions", "visibilityConditions", "roadSurface",
         "marketValueCents", "excessAmountCents", "bettermentCents",
@@ -176,6 +185,10 @@ CRITICAL POLICE REPORT EXTRACTION RULES:
   * Alphanumeric codes like "RB 123/2024", "CR/2024/001", "CID/123"
   * Numbers adjacent to "police", "station", "report" anywhere in the document
 - policeStation: Extract the name of the police station if mentioned anywhere.
+- policeOfficerName: Look for the name of the attending officer on any traffic report or police report page. Often appears as 'Officer: [Name]', 'Constable [Name]', 'Sgt [Name]', or just a name next to a badge/rank designation.
+- policeChargeNumber: Look for 'TAB No.', 'TAB Number', 'Charge No.', 'Traffic Charge No.', 'Infringement No.' on any traffic report page.
+- policeFineAmountCents: Look for 'Fine:', 'Fine Amount:', 'Penalty:' on a traffic report page. Convert to cents.
+- policeReportDate: The date the police/traffic report was issued — often different from the accident date. Look on the traffic report page for a date stamp or 'Date:' field.
 
 CRITICAL SPEED EXTRACTION RULES:
 - estimatedSpeedKmh: Extract the numeric value ONLY. Strip any unit suffix (KM/HRS, KM/H, KPH, MPH, km/h, kph).
@@ -367,6 +380,10 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     estimatedSpeedKmh: raw.estimatedSpeedKmh || null,
     policeReportNumber: raw.policeReportNumber || null,
     policeStation: raw.policeStation || null,
+    policeOfficerName: raw.policeOfficerName || null,
+    policeChargeNumber: raw.policeChargeNumber || null,
+    policeFineAmountCents: raw.policeFineAmountCents ?? null,
+    policeReportDate: raw.policeReportDate || null,
     assessorName: raw.assessorName || null,
     panelBeater: raw.panelBeater || null,
     repairerCompany: raw.repairerCompany || null,
@@ -388,6 +405,9 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     totalDamageAreaM2: raw.totalDamageAreaM2 ?? null,
     thirdPartyVehicle: raw.thirdPartyVehicle || null,
     thirdPartyRegistration: raw.thirdPartyRegistration || null,
+    thirdPartyName: raw.thirdPartyName || null,
+    thirdPartyInsurerName: raw.thirdPartyInsurerName || null,
+    thirdPartyPolicyNumber: raw.thirdPartyPolicyNumber || null,
     // Insurance / Policy
     insurerName: raw.insurerName || null,
     policyNumber: raw.policyNumber || null,

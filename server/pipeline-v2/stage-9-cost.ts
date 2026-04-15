@@ -14,6 +14,7 @@ import { computeIFE, type IFEReport } from "./inputFidelityEngine";
 import { buildDOECandidates, runDOE, type DOEResult } from "./decisionOptimisationEngine";
 import { extractCostLearningRecord } from "./costLearningRecorder";
 import { insertCostLearningRecord, getActiveCalibrationMultiplier } from "../db";
+import { sql as drizzleSql } from "drizzle-orm";
 import { optimiseRepairCost, type InputQuote } from "./quoteOptimisationEngine";
 import { runCostDecision } from "./costDecisionEngine";
 import { reconcileDamageComponents } from "./damageReconciliationEngine";
@@ -68,6 +69,8 @@ function estimateComponentCost(
   // NOTE: No vehicle class multiplier applied. The submitted repair quote is the
   // authoritative cost source. These internal estimates are only used when no
   // quote is available and should never override a submitted quotation.
+  // IMPORTANT: This function produces FALLBACK index estimates only.
+  // When a quote or learning DB benchmark is available, use those instead.
 
   const multiplier = SEVERITY_COST_MULTIPLIER[sev] || 1.0;
 
@@ -140,9 +143,46 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Tenant rate override: paint $${paintCostPerPanelUsd}/panel`);
     }
 
+    // ── Learning DB Benchmark Query ─────────────────────────────────────────
+    // Query historical settled costs for this vehicle make/model + region.
+    // This is the primary source for the AI benchmark when no quote is present.
+    // Priority: learning DB (sampleSize ≥ 3) > quote total > hardcoded fallback.
+    let learningDbBenchmarkCents: number | null = null;
+    let learningDbSampleSize = 0;
+    let learningDbVehicleDescriptor = "";
+    try {
+      const { costLearningRecords } = await import("../../drizzle/schema");
+      const dbConn = ctx.db;
+      if (dbConn && claimRecord.vehicle?.make) {
+        const vehicleDesc = `${(claimRecord.vehicle.make ?? "").toLowerCase()} ${(claimRecord.vehicle.model ?? "").toLowerCase()}`.trim();
+        if (vehicleDesc) {
+          const rows = await dbConn.select({
+            avgCost: drizzleSql`AVG(final_cost_usd_cents)`.as("avg_cost"),
+            cnt: drizzleSql`COUNT(*)`.as("cnt"),
+          })
+            .from(costLearningRecords)
+            .where(drizzleSql`vehicle_descriptor LIKE ${`%${vehicleDesc}%`}`);
+          const row = rows[0] as any;
+          if (row && Number(row.cnt) >= 3) {
+            learningDbBenchmarkCents = row.avgCost ? Math.round(Number(row.avgCost)) : null;
+            learningDbSampleSize = Number(row.cnt);
+            learningDbVehicleDescriptor = vehicleDesc;
+            ctx.log("Stage 9", `Learning DB benchmark: ${learningDbSampleSize} historical claims for '${vehicleDesc}', avg=${learningDbBenchmarkCents} cents`);
+          } else if (row && Number(row.cnt) > 0) {
+            ctx.log("Stage 9", `Learning DB: only ${Number(row.cnt)} claim(s) for '${vehicleDesc}' — below minimum threshold of 3, not used`);
+          }
+        }
+      }
+    } catch (learningErr) {
+      ctx.log("Stage 9", `Learning DB query failed (non-fatal): ${String(learningErr)}`);
+    }
+
     let totalPartsCents = 0;
     let totalLabourCents = 0;
     let totalPaintCents = 0;
+    // Track whether the AI benchmark is based on real data or a hardcoded fallback
+    let aiEstimateSource: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data" = "insufficient_data";
+    let aiEstimateNote: string | null = null;
 
     if (damageAnalysis.damagedParts.length === 0) {
       isDegraded = true;
@@ -151,6 +191,7 @@ export async function runCostOptimisationStage(
         totalPartsCents = Math.round(claimRecord.repairQuote.quoteTotalCents * 0.5);
         totalLabourCents = Math.round(claimRecord.repairQuote.quoteTotalCents * 0.35);
         totalPaintCents = Math.round(claimRecord.repairQuote.quoteTotalCents * 0.15);
+        aiEstimateSource = "quote_derived";
         assumptions.push({
           field: "costBreakdown",
           assumedValue: `parts=50%, labour=35%, paint=15% of quoted total`,
@@ -159,27 +200,76 @@ export async function runCostOptimisationStage(
           confidence: 30,
           stage: "Stage 9",
         });
-      } else {
-        // No components and no quote — use generic estimate
-        totalPartsCents = 200000; // $2000
-        totalLabourCents = 150000; // $1500
-        totalPaintCents = 50000; // $500
+      } else if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0) {
+        // Use learning DB benchmark with standard breakdown ratios
+        totalPartsCents = Math.round(learningDbBenchmarkCents * 0.5);
+        totalLabourCents = Math.round(learningDbBenchmarkCents * 0.35);
+        totalPaintCents = Math.round(learningDbBenchmarkCents * 0.15);
+        aiEstimateSource = "learning_db";
         assumptions.push({
           field: "costBreakdown",
-          assumedValue: "$3,500 total estimate",
-          reason: "No damage components and no repair quote available. Using generic moderate-damage estimate of $3,500.",
+          assumedValue: `Learning DB average: ${(learningDbBenchmarkCents / 100).toFixed(2)} (${learningDbSampleSize} claims)`,
+          reason: `No damage components available. Using learning DB average from ${learningDbSampleSize} historical claims for '${learningDbVehicleDescriptor}'.`,
           strategy: "industry_average",
-          confidence: 15,
+          confidence: 55,
+          stage: "Stage 9",
+        });
+      } else {
+        // No components, no quote, no learning DB — mark as insufficient
+        totalPartsCents = 0;
+        totalLabourCents = 0;
+        totalPaintCents = 0;
+        aiEstimateSource = "insufficient_data";
+        aiEstimateNote = "No repair quote, learning DB data, or damage components available. AI benchmark cannot be produced for this claim.";
+        isDegraded = true;
+        assumptions.push({
+          field: "costBreakdown",
+          assumedValue: "Insufficient data",
+          reason: "No damage components, no repair quote, and no learning DB benchmark available. AI cost estimate cannot be produced.",
+          strategy: "industry_average",
+          confidence: 0,
           stage: "Stage 9",
         });
       }
     } else {
-      const vehicleBodyType = claimRecord.vehicle?.bodyType || "sedan";
-      for (const comp of damageAnalysis.damagedParts) {
-        const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType, paintCostPerPanelUsd);
-        totalPartsCents += cost.partsCents;
-        totalLabourCents += cost.labourCents;
-        totalPaintCents += cost.paintCents;
+      // Damage components are available.
+      // Priority: learning DB > hardcoded fallback (for total AI estimate only).
+      // Per-component breakdown always uses proportional allocation from the best available total.
+      if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0) {
+        // Use learning DB benchmark distributed proportionally across components
+        totalPartsCents = Math.round(learningDbBenchmarkCents * 0.5);
+        totalLabourCents = Math.round(learningDbBenchmarkCents * 0.35);
+        totalPaintCents = Math.round(learningDbBenchmarkCents * 0.15);
+        aiEstimateSource = "learning_db";
+        ctx.log("Stage 9", `AI estimate from learning DB: ${learningDbBenchmarkCents} cents (${learningDbSampleSize} historical claims for '${learningDbVehicleDescriptor}')`);
+        assumptions.push({
+          field: "totalExpectedCents",
+          assumedValue: `Learning DB average: ${(learningDbBenchmarkCents / 100).toFixed(2)} (${learningDbSampleSize} claims)`,
+          reason: `AI benchmark derived from ${learningDbSampleSize} historical settled claims for '${learningDbVehicleDescriptor}'. Proportional breakdown: parts=50%, labour=35%, paint=15%.`,
+          strategy: "industry_average",
+          confidence: 70,
+          stage: "Stage 9",
+        });
+      } else {
+        // No learning DB data — use hardcoded component estimates as last resort
+        // These are clearly labelled as fallback estimates in the report
+        const vehicleBodyType = claimRecord.vehicle?.bodyType || "sedan";
+        for (const comp of damageAnalysis.damagedParts) {
+          const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType, paintCostPerPanelUsd);
+          totalPartsCents += cost.partsCents;
+          totalLabourCents += cost.labourCents;
+          totalPaintCents += cost.paintCents;
+        }
+        aiEstimateSource = "hardcoded_fallback";
+        ctx.log("Stage 9", `AI estimate from hardcoded component index (no learning DB data available): ${totalPartsCents + totalLabourCents + totalPaintCents} cents`);
+        assumptions.push({
+          field: "totalExpectedCents",
+          assumedValue: "Hardcoded component index estimate",
+          reason: "No learning DB benchmark available for this vehicle. AI estimate uses internal component index values. This estimate has low reliability and should not be used as a benchmark.",
+          strategy: "industry_average",
+          confidence: 20,
+          stage: "Stage 9",
+        });
       }
     }
 
@@ -283,8 +373,13 @@ export async function runCostOptimisationStage(
       }
     }
 
-    const lowCents = Math.round(totalExpectedCents * 0.8);
-    const highCents = Math.round(totalExpectedCents * 1.2);
+    // CRITICAL FIX: recommendedCostRange must always be based on the AI benchmark estimate,
+    // NOT on totalExpectedCents which has been overwritten to the submitted quote by QUOTE-FIRST.
+    // The range represents "what AI thinks is a fair cost" — independent of what was quoted.
+    // This prevents the paradox of the AI benchmark sitting outside its own "fair range".
+    const rangeBaseCents = aiEstimatedCents > 0 ? aiEstimatedCents : totalExpectedCents;
+    const lowCents = Math.round(rangeBaseCents * 0.8);
+    const highCents = Math.round(rangeBaseCents * 1.2);
 
     // Build per-component repair intelligence
     const repairIntelligence = damageAnalysis.damagedParts.map(comp => {
@@ -641,6 +736,10 @@ export async function runCostOptimisationStage(
       costDecision: costDecision ?? null,
       quoteDeviationPct,
       recommendedCostRange: { lowCents, highCents },
+      // Transparency fields — tell the adjuster what data underpins the AI benchmark
+      // Values: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data"
+      aiEstimateSource,
+      aiEstimateNote,
       savingsOpportunityCents,
       breakdown: {
         partsCostCents: totalPartsCents,

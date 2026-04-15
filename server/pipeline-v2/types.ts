@@ -226,6 +226,10 @@ export interface ExtractedClaimFields {
   // Police
   policeReportNumber: string | null;
   policeStation: string | null;
+  policeOfficerName: string | null;     // Name of attending officer
+  policeChargeNumber: string | null;    // TAB number / charge number
+  policeFineAmountCents: number | null; // Traffic fine in cents
+  policeReportDate: string | null;      // Date of police/traffic report (YYYY-MM-DD)
   // Repairer
   assessorName: string | null;
   panelBeater: string | null;
@@ -246,6 +250,9 @@ export interface ExtractedClaimFields {
   // Third party
   thirdPartyVehicle: string | null;
   thirdPartyRegistration: string | null;
+  thirdPartyName: string | null;          // Name of third-party driver/owner
+  thirdPartyInsurerName: string | null;   // Third party's insurer name
+  thirdPartyPolicyNumber: string | null;  // Third party's policy number
   // Insurance / Policy
   insurerName: string | null;
   policyNumber: string | null;
@@ -433,6 +440,14 @@ export interface AccidentDetails {
 export interface PoliceReportRecord {
   reportNumber: string | null;
   station: string | null;
+  /** Name of the attending police/traffic officer */
+  officerName: string | null;
+  /** TAB number or traffic charge number issued at the scene */
+  chargeNumber: string | null;
+  /** Traffic fine amount in cents (if issued at scene) */
+  fineAmountCents: number | null;
+  /** Date the police/traffic report was issued (YYYY-MM-DD) */
+  reportDate: string | null;
 }
 
 export interface DamageRecord {
