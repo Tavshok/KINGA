@@ -852,6 +852,8 @@ export const claims = mysqlTable("claims", {
 	// Source attribution for productType — which pipeline stage or user action set this value.
 	// Format: 'stage_3_llm' | 'stage_5_assembly' | 'manual_override' | 'claim_record_bridge'
 	productTypeSource: varchar("product_type_source", { length: 50 }),
+	// Pipeline backfill: estimated repair cost in cents (from Stage 9 cost optimisation)
+	estimatedCost: int("estimated_cost"),
 	// Pipeline backfill: estimated vehicle speed at time of incident (km/h), from Stage 7 physics
 	estimatedSpeedKmh: decimal("estimated_speed_kmh", { precision: 6, scale: 1 }),
 	// Pipeline backfill: data completeness score from Stage 3 IFE extraction (0–100)

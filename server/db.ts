@@ -1236,7 +1236,13 @@ export async function triggerAiAssessment(claimId: number) {
   // Mark success BEFORE the DB write so the finally safety-net does not
   // reset this claim even if there is a brief delay in the DB commit.
   pipelineSucceeded = true;
-  await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
+  console.log(`[AI Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
+  try {
+    await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
+  } catch (claimUpdateErr) {
+    console.error(`[AI Assessment] CLAIM UPDATE FAILED for claim ${claimId}:`, claimUpdateErr);
+    throw claimUpdateErr;
+  }
 
   console.log(`[AI Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 
