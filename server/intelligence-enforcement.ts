@@ -384,11 +384,11 @@ export function enforceImpactConsistency(params: {
 
 /** Maps impact direction to expected primary damage zones */
 const DIRECTION_ZONE_MAP: Record<string, string[]> = {
-  frontal:         ["front", "hood", "windshield", "engine"],
-  rear:            ["rear", "boot", "back", "tail"],
+  frontal:         ["front", "hood", "windshield", "windscreen", "engine", "bonnet", "bumper", "grille", "headlamp", "headlight", "fender", "wing", "radiator", "intercooler"],
+  rear:            ["rear", "boot", "back", "tail", "tailgate", "tow"],
   side_driver:     ["left", "driver", "door_left", "pillar_left"],
   side_passenger:  ["right", "passenger", "door_right", "pillar_right"],
-  rollover:        ["roof", "cabin", "pillar", "side"],
+  rollover:        ["roof", "cabin", "pillar", "side", "a-pillar", "b-pillar"],
   multi_impact:    [], // any zone valid
   unknown:         [], // skip validation
 };
@@ -397,10 +397,18 @@ export function enforceDirectionDamageConsistency(params: {
   impactDirection: string;
   damageZones: string[];
   damageComponents: string[];
+  /** Pass incidentType so animal_strike claims always use frontal zone map */
+  incidentType?: string;
 }): DirectionDamageFlag {
-  const { impactDirection, damageZones, damageComponents } = params;
+  const { impactDirection, damageZones, damageComponents, incidentType } = params;
 
-  const expectedZones = DIRECTION_ZONE_MAP[impactDirection] ?? [];
+  // Animal strikes always produce frontal impact regardless of vehicle trajectory.
+  // The vehicle may swerve/roll AFTER hitting the animal, but the primary damage
+  // is always frontal. Override the direction for zone-matching purposes only.
+  const effectiveDirection =
+    incidentType === "animal_strike" ? "frontal" : impactDirection;
+
+  const expectedZones = DIRECTION_ZONE_MAP[effectiveDirection] ?? [];
 
   // Skip if direction unknown or multi-impact
   if (expectedZones.length === 0) {
@@ -421,7 +429,9 @@ export function enforceDirectionDamageConsistency(params: {
       mismatch: false,
       impactDirection,
       damageZones,
-      explanation: `Damage zones are consistent with reported ${impactDirection.replace(/_/g, " ")} impact direction.`,
+      explanation: incidentType === "animal_strike"
+        ? "Damage zones are consistent with an animal strike (frontal impact pattern)."
+        : `Damage zones are consistent with reported ${effectiveDirection.replace(/_/g, " ")} impact direction.`,
       possibleExplanations: [],
     };
   }
@@ -430,7 +440,9 @@ export function enforceDirectionDamageConsistency(params: {
     mismatch: true,
     impactDirection,
     damageZones,
-    explanation: `Damage zones (${damageZones.join(", ") || "unspecified"}) do not match expected zones for a ${impactDirection.replace(/_/g, " ")} collision.`,
+    explanation: incidentType === "animal_strike"
+      ? `Damage zones (${damageZones.join(", ") || "unspecified"}) do not match expected frontal zones for an animal strike.`
+      : `Damage zones (${damageZones.join(", ") || "unspecified"}) do not match expected zones for a ${effectiveDirection.replace(/_/g, " ")} collision.`,
     possibleExplanations: [
       "Secondary impact may have caused damage to unexpected zones",
       "Accident direction may have been misreported in the claim form",
@@ -944,6 +956,8 @@ export interface EnforcementInput {
   fraudScoreBreakdownJson?: Array<{ indicator: string; score: number }> | null;
   /** Document extraction confidence from AI pipeline (0-100) */
   extractionConfidence?: number;
+  /** Incident type — used to apply correct direction-damage zone mapping */
+  incidentType?: string;
 }
 
 export function applyIntelligenceEnforcement(input: EnforcementInput): IntelligenceEnforcementResult {
@@ -983,6 +997,7 @@ export function applyIntelligenceEnforcement(input: EnforcementInput): Intellige
     impactDirection: input.impactDirection,
     damageZones: input.damageZones,
     damageComponents: input.damageComponents,
+    incidentType: input.incidentType,
   });
 
   // 5. Cost benchmark enforcement

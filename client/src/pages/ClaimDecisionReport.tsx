@@ -1305,14 +1305,16 @@ export default function ClaimDecisionReport() {
     if (!claim || !aiAssessment || !enforcement) return;
     const params = new URLSearchParams(window.location.search);
     if (params.get('print') === '1') {
-      // Small delay to let the report fully render before triggering print
+      // Delay to let the report fully render AND any toast notifications dismiss
+      // before triggering print. 1500ms was too short — toasts from the previous
+      // page ("Opening Decision Report...") were still visible in the PDF.
       const timer = setTimeout(() => {
         window.print();
         // Clean the URL so refreshing doesn't re-trigger print
         const url = new URL(window.location.href);
         url.searchParams.delete('print');
         window.history.replaceState({}, '', url.pathname);
-      }, 1500);
+      }, 3000);
       return () => clearTimeout(timer);
     }
   }, [claim, aiAssessment, enforcement]);

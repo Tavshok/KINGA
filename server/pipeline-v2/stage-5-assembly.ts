@@ -742,9 +742,10 @@ async function inferIncidentFromDescriptionLLM(description: string): Promise<{
    - "rear": rear of vehicle struck or was struck from behind
    - "side_driver": left side of vehicle (driver's side in right-hand-drive countries)
    - "side_passenger": right side of vehicle (passenger's side in right-hand-drive countries)
-   - "rollover": vehicle rolled over or overturned
+   - "rollover": vehicle rolled over or overturned (ONLY use when the vehicle physically rolled — NOT for swerving to avoid an animal)
    - "multi_impact": multiple distinct impact zones
    - "unknown": genuinely cannot determine from the description
+   CRITICAL RULE: When a driver swerves to AVOID an animal and then hits a tree/wall/hill/embankment, the incidentType is STILL "animal_strike" and collisionDirection is "frontal" (the animal caused the evasive action; the frontal impact with the secondary object is the primary damage event). Do NOT classify as "rollover" just because the vehicle lost control after avoiding an animal.
 3. isCollision: true if physics engine should run (any impact event), false for theft/vandalism/fire/flood
 4. reasoning: one sentence explaining your classification
 5. confidence: integer 0-100

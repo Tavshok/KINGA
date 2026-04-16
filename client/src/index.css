@@ -1011,7 +1011,19 @@
   .no-print,
   [data-radix-popper-content-wrapper],
   [role="dialog"],
-  [role="tooltip"] {
+  [role="tooltip"],
+  /* Sonner toast notifications — must be hidden during PDF export */
+  [data-sonner-toaster],
+  [data-sonner-toast],
+  ol[data-sonner-toaster],
+  li[data-sonner-toast],
+  /* Radix toast viewport */
+  [data-radix-toast-viewport],
+  /* Generic toast/notification overlays */
+  .toast,
+  .toaster,
+  .Toastify,
+  .Toastify__toast-container {
     display: none !important;
   }
 
