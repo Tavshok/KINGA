@@ -550,6 +550,23 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
         <StatusBadge status={evidenceStatus} label={`${evidenceIcon} Photos`} />
       </div>
 
+      {/* ── Provisional Adjuster Opinion ── */}
+      {(() => {
+        const adjOpinion: string | null | undefined =
+          (aiAssessment as any)?._normalised?.narrativeAnalysis?.stakeholder_analysis?.adjuster_opinion ??
+          (aiAssessment as any)?._claimRecord?.accidentDetails?.narrativeAnalysis?.stakeholder_analysis?.adjuster_opinion ??
+          null;
+        if (!adjOpinion) return null;
+        return (
+          <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
+            <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--muted-foreground)" }}>
+              Provisional Adjuster Opinion
+            </p>
+            <p className="text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>{adjOpinion}</p>
+          </div>
+        );
+      })()}
+
       {/* ── Timeline ── */}
       <div className="px-5 py-4">
         <div className="flex items-start">

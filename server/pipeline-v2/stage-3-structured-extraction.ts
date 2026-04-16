@@ -638,10 +638,15 @@ async function runInputRecovery(
   }
 
   // STEP 3 — Image presence detection
+  // IMPORTANT: We deliberately do NOT use text-keyword matching ("photo", "image",
+  // "photograph", etc.) to infer image presence. Claim forms routinely contain
+  // instructions like "Attach photographs of damage" or "Please provide photos"
+  // which would trigger false positives, incorrectly marking the claim as having
+  // photos that failed to ingest (SYSTEM_FAILURE) when no photos were submitted.
+  // We only trust structural signals from the PDF parser itself.
   const images_present =
     stage1.documents.some(d => d.containsImages || d.imageUrls.length > 0) ||
-    perDocumentExtractions.some(e => e.uploadedImageUrls.length > 0) ||
-    /(?:photo|image|picture|photograph|fig\.|figure)/i.test(allText);
+    perDocumentExtractions.some(e => e.uploadedImageUrls.length > 0);
 
   if (!images_present) {
     // images truly absent — no flag needed, absence is valid
