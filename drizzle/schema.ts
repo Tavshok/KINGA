@@ -852,6 +852,16 @@ export const claims = mysqlTable("claims", {
 	// Source attribution for productType — which pipeline stage or user action set this value.
 	// Format: 'stage_3_llm' | 'stage_5_assembly' | 'manual_override' | 'claim_record_bridge'
 	productTypeSource: varchar("product_type_source", { length: 50 }),
+	// Pipeline backfill: estimated vehicle speed at time of incident (km/h), from Stage 7 physics
+	estimatedSpeedKmh: decimal("estimated_speed_kmh", { precision: 6, scale: 1 }),
+	// Pipeline backfill: data completeness score from Stage 3 IFE extraction (0–100)
+	dataCompletenessScore: decimal("data_completeness_score", { precision: 5, scale: 2 }),
+	// Pipeline backfill: insurer name extracted from the claim document (Stage 3)
+	insurerName: varchar("insurer_name", { length: 255 }),
+	// Pipeline backfill: policy excess amount in cents, extracted from insurance context (Stage 3)
+	excessAmountCents: int("excess_amount_cents"),
+	// Pipeline backfill: claim reference number from the insurer's own system (Stage 3)
+	claimReference: varchar("claim_reference", { length: 100 }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
