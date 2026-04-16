@@ -245,6 +245,7 @@ export async function runAssemblyStage(
       collisionDirection,
       thirdPartyVehicle: v.thirdPartyVehicle || null,
       thirdPartyName: v.thirdPartyName || null,
+      policeReportNumber: v.policeReportNumber || null,
     });
     ctx.log("Stage 5", `Collision scenario: ${scenarioFlags.collisionScenario} | struckParty=${scenarioFlags.isStruckParty} | hitAndRun=${scenarioFlags.isHitAndRun} | parkingLot=${scenarioFlags.isParkingLotDamage} | 3rdPartyRequired=${scenarioFlags.thirdPartyClaimRequired}`);
 
@@ -280,11 +281,22 @@ export async function runAssemblyStage(
       thirdPartyClaimRequired: scenarioFlags.thirdPartyClaimRequired,
       isHitAndRun: scenarioFlags.isHitAndRun,
       isParkingLotDamage: scenarioFlags.isParkingLotDamage,
+      scenarioConfidence: scenarioFlags.scenarioConfidence,
+      thirdPartyConfidence: scenarioFlags.thirdPartyConfidence,
+      // scenarioDamageMismatch is set by Stage 7 after damage zones are available
     };
 
     const policeReport: PoliceReportRecord = {
       reportNumber: v.policeReportNumber || null,
       station: v.policeStation || null,
+      officerName: v.policeOfficerName || null,
+      chargeNumber: v.policeChargeNumber || null,
+      fineAmountCents: v.policeFineAmountCents ?? null,
+      reportDate: v.policeReportDate || null,
+      chargedParty: v.policeChargedParty || null,
+      investigationStatus: v.policeInvestigationStatus || null,
+      officerFindings: v.policeOfficerFindings || null,
+      thirdPartyAccountSummary: v.thirdPartyAccountSummary || null,
     };
 
     const damage: DamageRecord = {
@@ -497,12 +509,15 @@ function detectCollisionScenario(params: {
   collisionDirection: CollisionDirection;
   thirdPartyVehicle: string | null;
   thirdPartyName: string | null;
-}): {
+  policeReportNumber: string | null;
+}: {
   collisionScenario: CollisionScenario;
   isStruckParty: boolean;
   thirdPartyClaimRequired: boolean;
   isHitAndRun: boolean;
   isParkingLotDamage: boolean;
+  scenarioConfidence: number; // 0.0–1.0 — how many independent signals corroborate the scenario
+  thirdPartyConfidence: number; // 0.0–1.0 — how much third-party evidence is available
 } {
   const d = (params.description || "").toLowerCase();
   const dir = params.collisionDirection;
@@ -620,7 +635,62 @@ function detectCollisionScenario(params: {
     thirdPartyClaimRequired = hasKnownThirdParty;
   }
 
-  return { collisionScenario, isStruckParty, thirdPartyClaimRequired, isHitAndRun, isParkingLotDamage };
+  // ── Confidence scoring ───────────────────────────────────────────────────────
+  // Count how many independent signal sources corroborate the resolved scenario.
+  // Sources: (1) narrative keywords, (2) collisionDirection field,
+  //          (3) incidentType field, (4) third-party details present.
+  // Each source that agrees adds 0.25; minimum is 0.25 (narrative always contributes).
+  let corroborationCount = 1; // Narrative keywords always contribute (we resolved from them)
+
+  const directionCorroborates = (() => {
+    if (collisionScenario === 'rear_end_struck' || collisionScenario === 'rear_end_striking') return dir === 'rear';
+    if (collisionScenario === 'head_on') return dir === 'frontal';
+    if (collisionScenario === 'sideswipe') return dir === 'side_driver' || dir === 'side_passenger';
+    if (collisionScenario === 'rollover') return dir === 'rollover';
+    if (collisionScenario === 'hit_and_run') return true; // direction is irrelevant for hit-and-run
+    if (collisionScenario === 'parking_lot') return true; // direction is irrelevant for parking lot
+    return false;
+  })();
+  if (directionCorroborates) corroborationCount++;
+
+  const incidentTypeCorroborates = (() => {
+    if (params.incidentType === 'animal_strike') return collisionScenario === 'single_vehicle';
+    if (params.incidentType === 'vehicle_collision') return collisionScenario !== 'single_vehicle';
+    return false;
+  })();
+  if (incidentTypeCorroborates) corroborationCount++;
+
+  // Third-party details corroborate scenarios that require another party
+  const thirdPartyCorroborates = hasKnownThirdParty &&
+    ['rear_end_struck', 'rear_end_striking', 'sideswipe', 'head_on'].includes(collisionScenario);
+  if (thirdPartyCorroborates) corroborationCount++;
+
+  const scenarioConfidence = Math.min(1.0, corroborationCount * 0.25);
+
+  // ── Third-party evidence confidence ────────────────────────────────────────────────────────────
+  // Measures how much corroborating third-party evidence exists.
+  // Three binary signals, each contributing 0.33:
+  //   (1) Third-party name or vehicle present in the claim
+  //   (2) Police report present (establishes identity and charge status)
+  //   (3) Narrative explicitly names or describes the other party
+  // Score < 0.4 → suppress third-party corroboration request (nothing to corroborate)
+  // Score ≥ 0.4 → request third-party insurer claim reference before settlement
+  const hasThirdPartyName = !!(params.thirdPartyName && params.thirdPartyName.trim().length > 2);
+  const hasThirdPartyVehicle = !!(params.thirdPartyVehicle && params.thirdPartyVehicle.trim().length > 2);
+  const narrativeNamesOtherParty = [
+    'third party', 'other vehicle', 'other car', 'other driver', 'another vehicle',
+    'another car', 'another driver', 'the driver', 'the vehicle',
+  ].some(kw => d.includes(kw));
+  const hasPoliceReport = !!(params.policeReportNumber && params.policeReportNumber.trim().length > 2);
+  const thirdPartySignals = [
+    hasThirdPartyName || hasThirdPartyVehicle,
+    hasPoliceReport,
+    narrativeNamesOtherParty,
+  ].filter(Boolean).length;
+  // 3 signals × 0.33 each = max 1.0
+  const thirdPartyConfidence = Math.min(1.0, thirdPartySignals * 0.33);
+
+  return { collisionScenario, isStruckParty, thirdPartyClaimRequired, isHitAndRun, isParkingLotDamage, scenarioConfidence, thirdPartyConfidence };
 }
 
 function classifyCollisionDirection(raw: string): CollisionDirection {

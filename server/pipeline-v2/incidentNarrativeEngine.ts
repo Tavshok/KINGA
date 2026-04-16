@@ -110,6 +110,31 @@ export interface NarrativeAnalysis {
   reasoning_summary: string;
   /** Confidence in this analysis (0-100) */
   confidence: number;
+  /** Multi-stakeholder analysis: who said what, where accounts agree or contradict, liability posture */
+  stakeholder_analysis?: {
+    /** Summary of the claimant's account */
+    claimant_account: string;
+    /** Summary of the third party's account (null if not available) */
+    third_party_account: string | null;
+    /** Summary of the police officer's findings (null if not available) */
+    police_findings: string | null;
+    /** Whether the claimant was charged at the scene */
+    claimant_charged: boolean;
+    /** Whether the third party was charged at the scene */
+    third_party_charged: boolean;
+    /** Whether the matter is under investigation (no charge yet) */
+    under_investigation: boolean;
+    /** Points where all available accounts agree */
+    agreement_points: string[];
+    /** Points where accounts contradict each other */
+    contradiction_points: string[];
+    /** Provisional liability posture based on all available evidence */
+    liability_posture: "CLAIMANT_AT_FAULT" | "THIRD_PARTY_AT_FAULT" | "SHARED_FAULT" | "UNDETERMINED" | "UNDER_INVESTIGATION";
+    /** Professional adjuster opinion (2-4 sentences) */
+    adjuster_opinion: string;
+    /** Confidence in the liability posture (0-100) */
+    liability_confidence: number;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -141,6 +166,18 @@ export interface NarrativeEngineInput {
   vision_summary: string | null;
   /** Vehicle make/model for context */
   vehicle_make_model: string;
+  /** Who was charged at the scene (claimant name, third party name, or null) */
+  police_charged_party?: string | null;
+  /** Police investigation status: CHARGED | UNDER_INVESTIGATION | NO_CHARGE | CASE_WITHDRAWN | UNKNOWN */
+  police_investigation_status?: string | null;
+  /** Verbatim factual findings recorded by the attending officer */
+  police_officer_findings?: string | null;
+  /** Third party's own account of events, if present in the claim documents */
+  third_party_account?: string | null;
+  /** Collision scenario detected by Stage 5 */
+  collision_scenario?: string | null;
+  /** Whether the claimant is the struck party (not at fault) */
+  is_struck_party?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -215,7 +252,26 @@ async function runLLMReasoningPass(
     ? `Crush depth: ${input.crush_depth_m}m. Structural damage: ${input.structural_damage}. Airbag deployment: ${input.airbag_deployment}.`
     : `Structural damage: ${input.structural_damage}. Airbag deployment: ${input.airbag_deployment}.`;
 
-  const prompt = `You are a forensic insurance claims analyst specialising in motor vehicle incidents. Your task is to reason over an incident description from a claim form and produce a structured analysis.
+  // Build stakeholder context block
+  const policeChargeContext = input.police_charged_party
+    ? `Police charged: ${input.police_charged_party}`
+    : input.police_investigation_status === 'UNDER_INVESTIGATION'
+    ? 'Police status: Matter under investigation — no charge yet'
+    : 'Police charge status: not stated';
+
+  const policeOfficerContext = input.police_officer_findings
+    ? `Officer findings: ${input.police_officer_findings}`
+    : 'Officer findings: not recorded';
+
+  const thirdPartyAccountContext = input.third_party_account
+    ? `Third party account: ${input.third_party_account}`
+    : 'Third party account: not available';
+
+  const scenarioContext = input.collision_scenario
+    ? `Collision scenario: ${input.collision_scenario}${input.is_struck_party ? ' (claimant is the STRUCK party)' : ''}`
+    : '';
+
+  const prompt = `You are a senior loss adjuster and forensic insurance claims analyst specialising in motor vehicle incidents. You have superhuman analytical abilities — you read every stakeholder's voice, cross-reference all evidence, and form a professional opinion. Your task is to reason over an incident description and all available stakeholder accounts to produce a structured analysis.
 
 CRITICAL RULES — ANTI-FABRICATION CONTRACT
 -------------------------------------------
@@ -248,6 +304,13 @@ ${preCleanedNarrative}
 STRIPPED CONTENT (identified as post-incident by regex)
 -------------------------------------------------------
 ${strippedContent.length > 0 ? strippedContent.join("\n") : "None detected by regex."}
+
+STAKEHOLDER ACCOUNTS AND POLICE CONTEXT
+----------------------------------------
+${scenarioContext}
+${policeChargeContext}
+${policeOfficerContext}
+${thirdPartyAccountContext}
 
 YOUR TASKS
 ----------
@@ -282,7 +345,22 @@ YOUR TASKS
    - "NARRATIVE_CONTAMINATED_COST": post-incident cost justifications mixed into incident description
    - "NARRATIVE_MISSING_KEY_FACTS": critical facts (location, time, sequence) suspiciously absent
 
-5. PRODUCE a reasoning summary for the adjuster (2-4 sentences, professional tone, factual).
+5. ANALYSE STAKEHOLDER VOICES — reason like a senior loss adjuster:
+   - Summarise what the claimant says happened
+   - Summarise what the third party says (if available)
+   - Summarise what the police officer found (if available)
+   - Identify where accounts AGREE (corroboration strengthens credibility)
+   - Identify where accounts CONTRADICT (contradictions require investigation)
+   - Determine the LIABILITY POSTURE: who appears to be at fault based on all evidence?
+     * If the claimant was charged → CLAIMANT_AT_FAULT
+     * If the third party was charged → THIRD_PARTY_AT_FAULT
+     * If the matter is under investigation → UNDER_INVESTIGATION
+     * If accounts are contradictory with no charge → UNDETERMINED
+     * If both parties contributed → SHARED_FAULT
+   - Write a professional ADJUSTER OPINION (2-4 sentences) that a senior adjuster would be comfortable signing
+   - IMPORTANT: If only the claimant's account is available, say so explicitly and note that the liability posture is provisional
+
+6. PRODUCE a reasoning summary for the adjuster (2-4 sentences, professional tone, factual).
 
 Return ONLY valid JSON matching this exact schema:
 {
@@ -326,7 +404,20 @@ Return ONLY valid JSON matching this exact schema:
   ],
   "consistency_verdict": "CONSISTENT" | "MINOR_DISCREPANCY" | "INCONSISTENT" | "INSUFFICIENT_DATA" | "CONTAMINATED",
   "reasoning_summary": "string",
-  "confidence": number (0-100)
+  "confidence": number (0-100),
+  "stakeholder_analysis": {
+    "claimant_account": "string — what the claimant says happened",
+    "third_party_account": "string or null — third party's version if available",
+    "police_findings": "string or null — officer's factual findings if available",
+    "claimant_charged": true/false,
+    "third_party_charged": true/false,
+    "under_investigation": true/false,
+    "agreement_points": ["string"],
+    "contradiction_points": ["string"],
+    "liability_posture": "CLAIMANT_AT_FAULT" | "THIRD_PARTY_AT_FAULT" | "SHARED_FAULT" | "UNDETERMINED" | "UNDER_INVESTIGATION",
+    "adjuster_opinion": "string — 2-4 sentence professional adjuster opinion",
+    "liability_confidence": number (0-100)
+  }
 }`;
 
   let parsed: any = null;
@@ -418,12 +509,35 @@ Return ONLY valid JSON matching this exact schema:
               },
               consistency_verdict: { type: "string" },
               reasoning_summary: { type: "string" },
+              stakeholder_analysis: {
+                type: "object",
+                properties: {
+                  claimant_account: { type: "string" },
+                  third_party_account: { type: ["string", "null"] },
+                  police_findings: { type: ["string", "null"] },
+                  claimant_charged: { type: "boolean" },
+                  third_party_charged: { type: "boolean" },
+                  under_investigation: { type: "boolean" },
+                  agreement_points: { type: "array", items: { type: "string" } },
+                  contradiction_points: { type: "array", items: { type: "string" } },
+                  liability_posture: { type: "string" },
+                  adjuster_opinion: { type: "string" },
+                  liability_confidence: { type: "number" },
+                },
+                required: [
+                  "claimant_account", "third_party_account", "police_findings",
+                  "claimant_charged", "third_party_charged", "under_investigation",
+                  "agreement_points", "contradiction_points",
+                  "liability_posture", "adjuster_opinion", "liability_confidence",
+                ],
+                additionalProperties: false,
+              },
               confidence: { type: "number" },
             },
             required: [
               "cleaned_incident_narrative", "segments", "extracted_facts",
               "cross_validation", "fraud_signals", "consistency_verdict",
-              "reasoning_summary", "confidence",
+              "reasoning_summary", "confidence", "stakeholder_analysis",
             ],
             additionalProperties: false,
           },
@@ -453,6 +567,7 @@ Return ONLY valid JSON matching this exact schema:
     consistency_verdict: parsed.consistency_verdict ?? "INSUFFICIENT_DATA",
     reasoning_summary: parsed.reasoning_summary ?? "Narrative analysis could not be completed.",
     confidence: typeof parsed.confidence === "number" ? parsed.confidence : 50,
+    stakeholder_analysis: parsed.stakeholder_analysis ?? undefined,
   };
 }
 

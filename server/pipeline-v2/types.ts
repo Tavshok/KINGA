@@ -246,6 +246,10 @@ export interface ExtractedClaimFields {
   policeChargeNumber: string | null;    // TAB number / charge number
   policeFineAmountCents: number | null; // Traffic fine in cents
   policeReportDate: string | null;      // Date of police/traffic report (YYYY-MM-DD)
+  policeChargedParty: string | null;    // Name/identity of the party charged at the scene
+  policeInvestigationStatus: string | null; // CHARGED | UNDER_INVESTIGATION | NO_CHARGE | CASE_WITHDRAWN | UNKNOWN
+  policeOfficerFindings: string | null; // Verbatim factual findings recorded by the attending officer
+  thirdPartyAccountSummary: string | null; // Third party's own version of events (if present in documents)
   // Repairer
   assessorName: string | null;
   panelBeater: string | null;
@@ -491,6 +495,26 @@ export interface AccidentDetails {
    * Triggers low-speed physics cap and CCTV/witness evidence recommendation.
    */
   isParkingLotDamage: boolean;
+  /**
+   * Confidence score (0.0–1.0) for the detected collision scenario.
+   * Derived from the number of independent signal sources that corroborate the scenario:
+   * narrative keywords, collisionDirection field, incidentType field, third-party details.
+   * Below 0.50 = low confidence; pipeline applies conservative assumptions.
+   */
+  scenarioConfidence?: number;
+  /**
+   * True when the detected collision scenario contradicts the primary damage zone.
+   * E.g. scenario = rear_end_struck but primary damage is frontal.
+   * Triggers a HIGH forensic flag and conservative physics interpretation.
+   */
+  scenarioDamageMismatch?: boolean;
+  /**
+   * Confidence score (0.0–1.0) for the availability of third-party evidence.
+   * Derived from: third-party name/vehicle present, narrative names other party.
+   * Below 0.40 = insufficient third-party evidence to request corroboration.
+   * At or above 0.40 = request third-party insurer claim reference before settlement.
+   */
+  thirdPartyConfidence?: number;
 }
 
 export interface PoliceReportRecord {
@@ -504,6 +528,14 @@ export interface PoliceReportRecord {
   fineAmountCents: number | null;
   /** Date the police/traffic report was issued (YYYY-MM-DD) */
   reportDate: string | null;
+  /** Who was charged at the scene — may be the claimant, the third party, or 'unknown' */
+  chargedParty?: string | null;
+  /** Status of the police investigation: CHARGED | UNDER_INVESTIGATION | NO_CHARGE | CASE_WITHDRAWN | UNKNOWN */
+  investigationStatus?: string | null;
+  /** Verbatim factual findings recorded by the attending officer */
+  officerFindings?: string | null;
+  /** Third party's own account of events, if present in the claim documents */
+  thirdPartyAccountSummary?: string | null;
 }
 
 export interface DamageRecord {

@@ -516,13 +516,47 @@ export async function runPhysicsStage(
     const decelerationGComputed = Math.min(50, Math.max(0.1, decelMs2Computed / 9.81));
     const finalDecelerationG = decelerationG > 0 ? decelerationG : decelerationGComputed;
 
-    // ── Sideswipe lateral contact coefficient ─────────────────────────────────────────────────────
-    // In a sideswipe, contact is glancing rather than direct. The effective energy transfer is
-    // approximately 35–45% of a direct impact at the same speed. We apply a coefficient of 0.40
-    // to the computed force and energy values. Speed is unchanged (it is the vehicle's travel speed,
-    // not the impact speed). This correction is applied AFTER the numerical contract merge so the
-    // contract floor values are not artificially inflated.
-    const sideswipeCoefficient = (collisionScenario === 'sideswipe') ? 0.40 : 1.0;
+    // ── Sideswipe lateral contact coefficient (severity-variable) ───────────────────────────
+    // In a sideswipe, contact is glancing rather than direct. The effective energy transfer varies
+    // by severity:
+    //   minor   → 0.25  (light paint-to-paint contact, minimal structural loading)
+    //   moderate → 0.40  (door/panel deformation, some structural loading)
+    //   severe  → 0.60  (deep panel intrusion, possible structural damage)
+    // Speed is unchanged (it is the vehicle's travel speed, not the impact speed).
+    // This correction is applied AFTER the numerical contract merge so the contract floor values
+    // are not artificially inflated.
+    const baseSeverityForCoeff = mapSeverity(physicsResult.accidentSeverity || 'moderate');
+    const sideswipeCoefficient = (collisionScenario === 'sideswipe')
+      ? (baseSeverityForCoeff === 'minor' ? 0.25 : baseSeverityForCoeff === 'severe' ? 0.60 : 0.40)
+      : 1.0;
+
+    // ── Scenario-damage cross-check ────────────────────────────────────────────────────────────
+    // Verify that the primary damage zone is consistent with the claimed scenario.
+    // If a rear_end_struck claim has primary damage on the front, or a head_on claim
+    // has primary damage on the rear, this is a strong inconsistency signal.
+    // We set scenarioDamageMismatch on accidentDetails so the forensic validator
+    // and fraud engine can use it without re-running physics.
+    let scenarioDamageMismatch = false;
+    if (damageAnalysis.damageZones && damageAnalysis.damageZones.length > 0) {
+      const primaryZone = damageAnalysis.damageZones
+        .slice().sort((a: any, b: any) => (b.severity_score ?? 0) - (a.severity_score ?? 0))[0]?.zone?.toLowerCase() ?? '';
+      const expectedZoneMap: Record<string, string[]> = {
+        rear_end_struck: ['rear', 'back', 'trunk', 'bumper_rear'],
+        rear_end_striking: ['front', 'frontal', 'bumper_front', 'hood'],
+        head_on: ['front', 'frontal', 'bumper_front', 'hood'],
+        sideswipe: ['side', 'door', 'quarter', 'rocker', 'pillar'],
+        parking_lot: ['side', 'door', 'quarter', 'rear', 'front'],
+      };
+      const expectedZones = expectedZoneMap[collisionScenario ?? ''] ?? [];
+      if (expectedZones.length > 0 && !expectedZones.some(z => primaryZone.includes(z))) {
+        scenarioDamageMismatch = true;
+        ctx.log('Stage 7', `[SCENARIO_DAMAGE_MISMATCH] Scenario=${collisionScenario}, primary damage zone=${primaryZone}, expected one of [${expectedZones.join(', ')}]`);
+      }
+    }
+    // Write back to claimRecord so forensic validator and fraud engine can read it
+    if (claimRecord.accidentDetails) {
+      (claimRecord.accidentDetails as any).scenarioDamageMismatch = scenarioDamageMismatch;
+    }
     const finalForceKn = merged.impactForceKn * sideswipeCoefficient;
     const finalEnergyKj = (merged.energyDistribution.energyDissipatedKj ?? merged.energyDistribution.energyDissipatedJ / 1000) * sideswipeCoefficient;
     const finalEnergyJ = merged.energyDistribution.energyDissipatedJ * sideswipeCoefficient;
