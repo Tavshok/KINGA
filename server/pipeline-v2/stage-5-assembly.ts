@@ -510,7 +510,7 @@ function detectCollisionScenario(params: {
   thirdPartyVehicle: string | null;
   thirdPartyName: string | null;
   policeReportNumber: string | null;
-}: {
+}): {
   collisionScenario: CollisionScenario;
   isStruckParty: boolean;
   thirdPartyClaimRequired: boolean;
