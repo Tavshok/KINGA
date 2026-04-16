@@ -601,6 +601,83 @@ export async function runForensicAuditValidation(
       }
     }
 
+    // (D) Scenario-damage mismatch: inject HIGH forensic flag when Stage 7 detected inconsistency
+    // e.g. scenario = rear_end_struck but primary damage is frontal — contradicts the claimed scenario
+    const scenarioDamageMismatch: boolean = !!(r3.claimRecord?.accidentDetails?.scenarioDamageMismatch);
+    if (scenarioDamageMismatch) {
+      const alreadyFlagged = [...workingCritical, ...workingHigh].some((i: any) =>
+        (i.code ?? '').includes('SCENARIO_DAMAGE_MISMATCH') ||
+        (i.description ?? '').toLowerCase().includes('scenario') && (i.description ?? '').toLowerCase().includes('damage')
+      );
+      if (!alreadyFlagged) {
+        workingHigh = [...workingHigh, {
+          dimension: 'incidentClassification',
+          code: 'SCENARIO_DAMAGE_MISMATCH',
+          description: `[HIGH — physics] The claimed collision scenario (${collisionScenario}) is inconsistent with the primary damage zone identified by the physics engine. This contradiction requires adjuster review before settlement.`,
+          evidence: `collisionScenario=${collisionScenario}; scenarioDamageMismatch=true (Stage 7 flag)`,
+          severity: 'HIGH',
+        }];
+      }
+    }
+
+    // (E) Stakeholder contradiction: inject HIGH advisory when narrative engine detected contradictions
+    // between claimant, third party, and police accounts — these require adjuster investigation
+    const stakeholderAnalysis = r3.claimRecord?.accidentDetails?.narrativeAnalysis?.stakeholder_analysis;
+    if (stakeholderAnalysis) {
+      const contradictions: string[] = stakeholderAnalysis.contradiction_points ?? [];
+      const liabilityPosture: string = stakeholderAnalysis.liability_posture ?? 'UNDETERMINED';
+      const liabilityConfidence: number = stakeholderAnalysis.liability_confidence ?? 0;
+
+      // Inject HIGH advisory for each material contradiction between stakeholder accounts
+      if (contradictions.length > 0) {
+        const alreadyFlagged = [...workingCritical, ...workingHigh].some((i: any) =>
+          (i.code ?? '').includes('STAKEHOLDER_CONTRADICTION')
+        );
+        if (!alreadyFlagged) {
+          const contradictionSummary = contradictions.slice(0, 3).join('; ');
+          workingHigh = [...workingHigh, {
+            dimension: 'crossStageConsistency',
+            code: 'STAKEHOLDER_CONTRADICTION',
+            description: `[HIGH — multi-stakeholder] Contradictions detected between stakeholder accounts. Adjuster must resolve before settlement. Contradictions: ${contradictionSummary}`,
+            evidence: `liability_posture=${liabilityPosture}; liability_confidence=${liabilityConfidence}; contradiction_count=${contradictions.length}`,
+            severity: 'HIGH',
+          }];
+        }
+      }
+
+      // Inject INFO advisory when liability posture is UNDER_INVESTIGATION (police matter still open)
+      if (liabilityPosture === 'UNDER_INVESTIGATION') {
+        const alreadyFlagged = [...workingCritical, ...workingHigh, ...workingMedium].some((i: any) =>
+          (i.code ?? '').includes('LIABILITY_UNDER_INVESTIGATION')
+        );
+        if (!alreadyFlagged) {
+          workingMedium = [...workingMedium, {
+            dimension: 'incidentClassification',
+            code: 'LIABILITY_UNDER_INVESTIGATION',
+            description: '[MEDIUM — liability] Police investigation is ongoing. Liability posture is UNDER_INVESTIGATION. Settlement should be deferred until police close the matter or a charge is confirmed.',
+            evidence: `liability_posture=${liabilityPosture}; liability_confidence=${liabilityConfidence}`,
+            severity: 'MEDIUM',
+          }];
+        }
+      }
+
+      // Inject MEDIUM advisory when liability confidence is low (< 40) and posture is not UNDETERMINED
+      if (liabilityConfidence < 40 && liabilityPosture !== 'UNDETERMINED' && liabilityPosture !== 'UNDER_INVESTIGATION') {
+        const alreadyFlagged = [...workingMedium].some((i: any) =>
+          (i.code ?? '').includes('LOW_LIABILITY_CONFIDENCE')
+        );
+        if (!alreadyFlagged) {
+          workingMedium = [...workingMedium, {
+            dimension: 'incidentClassification',
+            code: 'LOW_LIABILITY_CONFIDENCE',
+            description: `[MEDIUM — liability] Liability posture is ${liabilityPosture} but confidence is low (${liabilityConfidence}/100). Insufficient corroborating evidence to confirm liability. Adjuster should obtain additional statements or police report.`,
+            evidence: `liability_posture=${liabilityPosture}; liability_confidence=${liabilityConfidence}`,
+            severity: 'MEDIUM',
+          }];
+        }
+      }
+    }
+
     // ── Speed assumption contradiction: downgrade HIGH → MEDIUM when extracted speed exists
     // The LLM flags speed assumptions as HIGH severity when they contradict an extracted speed.
     // This is correct behaviour, but the assumption is LOW_CONFIDENCE_OVERRIDE (informational),
