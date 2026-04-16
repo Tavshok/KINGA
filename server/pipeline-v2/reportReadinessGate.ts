@@ -153,7 +153,10 @@ export function checkReportReadiness(input: ReportReadinessInput): ReportReadine
   } else if (decisionReady.decision_basis === "insufficient_data") {
     gate1Detail = "Decision basis is 'insufficient_data' — the system could not produce a reliable recommendation due to missing inputs.";
     holdReasons.push("Decision basis is insufficient_data — too many inputs are missing to export reliably.");
-  } else if (decisionReady.has_blocking_factors) {
+  } else if (decisionReady.has_blocking_factors && decisionReady.recommendation !== "REVIEW") {
+    // Hard block only for non-REVIEW decisions with blocking factors.
+    // REVIEW decisions are intentionally exported with a pending-review flag so
+    // assessors can act on them — blocking export defeats the purpose of REVIEW.
     gate1Detail = "Decision has unresolved blocking factors. These must be addressed before the claim can be exported.";
     holdReasons.push("Decision has unresolved blocking factors.");
   } else {
