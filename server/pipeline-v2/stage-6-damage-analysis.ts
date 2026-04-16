@@ -32,6 +32,7 @@
 import { ensureDamageContract } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
 import { normalisePartName, CANONICAL_PARTS_PROMPT_LIST } from "./canonicalPartsVocabulary";
+import { selectDamagePhotoPages } from "./imageIntelligence";
 import type {
   PipelineContext,
   StageResult,
@@ -44,7 +45,7 @@ import type {
   RecoveryAction,
 } from "./types";
 
-const MAX_VISION_PHOTOS = 6;   // Process up to 6 images independently
+const MAX_VISION_PHOTOS = 10;  // Process up to 10 images independently
 const VISION_TIMEOUT_MS = 45_000; // 45s per image call
 const VISION_RETRIES = 2;      // Retry each image up to 2 times
 const MIN_SUCCESS_THRESHOLD = 0.5; // ≥50% images must succeed for non-degraded status
@@ -148,17 +149,28 @@ const VISION_RESPONSE_SCHEMA = {
           items: {
             type: "object",
             properties: {
-              name: { type: "string" },
-              location: { type: "string" },
-              damageType: { type: "string" },
+              name:          { type: "string" },
+              location:      { type: "string" },
+              damageType:    { type: "string" },
               severity: {
                 type: "string",
                 enum: ["cosmetic", "minor", "moderate", "severe", "catastrophic"],
               },
-              visible: { type: "boolean" },
-              notes: { type: "string" },
+              visible:       { type: "boolean" },
+              notes:         { type: "string" },
+              // ── Depth inference fields (new) ──────────────────────────────
+              estimatedDepth: {
+                type: "string",
+                enum: ["superficial", "moderate", "severe"],
+              },
+              panelDeformation:    { type: "boolean" },
+              structuralInvolvement: {
+                type: "string",
+                enum: ["unlikely", "possible", "likely"],
+              },
             },
-            required: ["name", "location", "damageType", "severity", "visible"],
+            required: ["name", "location", "damageType", "severity", "visible",
+                       "estimatedDepth", "panelDeformation", "structuralInvolvement"],
             additionalProperties: false,
           },
         },
@@ -208,12 +220,18 @@ Side prefix rules:
   - Example: "LH Front Door", "RH Tail Lamp Assembly", "LH A-Pillar"
   - Use "Bonnet" (not Hood), "Boot Lid" (not Trunk), "Windscreen" (not Windshield)
 
+DEPTH INFERENCE — for each component also assess:
+  - estimatedDepth: "superficial" (paint/surface only), "moderate" (panel dented but not bent), "severe" (panel crushed, crumpled, or missing)
+  - panelDeformation: true if the panel shape is visibly distorted beyond a dent
+  - structuralInvolvement: "unlikely" (cosmetic only), "possible" (deep crumple near structural member), "likely" (visible frame/chassis/pillar damage)
+
 CRITICAL RULES:
   - If the image is blurry, dark, or partially obscured, STILL extract any visible damage
   - Do NOT return an empty components array unless absolutely no vehicle damage is visible
   - If uncertain about a component name, choose the closest authorised name from the list above
   - Infer likely damage zones conservatively from visible evidence
   - Always return at least one component if any damage is visible
+  - Always populate estimatedDepth, panelDeformation, and structuralInvolvement for every component
 Return ONLY a JSON object matching the schema — no prose, no markdown.`,
         },
         {
@@ -625,6 +643,8 @@ function mergeComponents(
   return [...structured, ...newFromVision];
 }
 
+// Image Intelligence Layer is imported at the top of this file
+
 export async function runDamageAnalysisStage(
   ctx: PipelineContext,
   claimRecord: ClaimRecord
@@ -656,7 +676,24 @@ export async function runDamageAnalysisStage(
     // Fallback: use PDF page images (claim form pages rendered as images) for visual evidence
     const photoUrls = ctx.damagePhotoUrls ?? [];
     const pdfPageUrls: string[] = (ctx as any).pdfPageImageUrls ?? [];
-    const visionSourceUrls = photoUrls.length > 0 ? photoUrls : pdfPageUrls;
+    // Image Intelligence Layer: when using PDF pages as fallback, run the full
+    // scoring pipeline (feature extraction → classification → dedup → quality rank)
+    // to identify which pages are actual damage photos regardless of page position.
+    let visionSourceUrls: string[];
+    if (photoUrls.length > 0) {
+      visionSourceUrls = photoUrls;
+    } else if (pdfPageUrls.length > 0) {
+      const scoredPages = await selectDamagePhotoPages(pdfPageUrls, ctx);
+      visionSourceUrls = scoredPages.map(p => p.url);
+      if (scoredPages.length > 0) {
+        ctx.log("Stage 6",
+          `Image Intelligence: selected pages [${scoredPages.map(p => p.pageNumber).join(", ")}] ` +
+          `(scores: ${scoredPages.map(p => p.damageLikelihoodScore.toFixed(2)).join(", ")})`
+        );
+      }
+    } else {
+      visionSourceUrls = [];
+    }
     let visionParts: DamageAnalysisComponent[] = [];
 
     if (visionSourceUrls.length > 0) {
