@@ -196,8 +196,12 @@ function buildValidationPayload(result: PipelineResult): string {
   const photoUrls: string[] = damage.imageUrls ?? [];
   // Classified damage photo count (how many images were identified as damage photos)
   const classifiedDamagePhotoCount = classifiedImages?.summary?.damagePhotoCount ?? 0;
-  // Actual photos processed by vision engine (Stage 6 output)
+  // Honest photo accounting from Stage 6 (see docs/image-processing-architecture.md)
+  const visionPhotosAvailable = damageAnalysis.photosAvailable ?? damageAnalysis.photosProcessed ?? 0;
   const visionPhotosProcessed = damageAnalysis.photosProcessed ?? 0;
+  const visionPhotosDeferred = damageAnalysis.photosDeferred ?? 0;
+  const visionPhotosFailed = damageAnalysis.photosFailed ?? 0;
+  const visionCoverageRatio = visionPhotosAvailable > 0 ? (visionPhotosProcessed / visionPhotosAvailable) : 0;
   // For display: use classified count if available, otherwise raw count
   const photosSubmitted = classifiedDamagePhotoCount > 0 ? classifiedDamagePhotoCount : photoUrls.length;
   const imageConfidenceScore = damageAnalysis.imageConfidenceScore ?? damageAnalysis.confidenceScore ?? damageAnalysis.imageAnalysisSuccessRate ?? "N/A";
@@ -252,11 +256,12 @@ function buildValidationPayload(result: PipelineResult): string {
 
 ### IMAGE ANALYSIS
 - Image classifier: ${classifiedImages ? `ACTIVE — ${classifiedImages.summary.damagePhotoCount} damage, ${classifiedImages.summary.vehicleOverviewCount} overview, ${classifiedImages.summary.quotationCount} quotation, ${classifiedImages.summary.documentPageCount} document, ${classifiedImages.summary.fallbackCount} fallback (from ${classifiedImages.summary.totalInput} total extracted)` : 'NOT AVAILABLE'}
-- Vision analysis (Stage 6): ${visionPhotosProcessed} photos processed, ${detectedDamage.length} damage components detected
+- Vision analysis (Stage 6): ${visionPhotosAvailable} available, ${visionPhotosProcessed} processed (${(visionCoverageRatio * 100).toFixed(0)}% coverage), ${visionPhotosDeferred} deferred, ${visionPhotosFailed} failed, ${detectedDamage.length} damage components detected
 - Image confidence score: ${imageConfidenceScore}
 - Detected damage components: ${safeJson(detectedDamage)}
 - Damage description: ${damage.description ?? "N/A"}
 - IMPORTANT: If vision analysis processed photos and detected damage components, the image analysis is SUCCESSFUL regardless of photo forensics (EXIF/GPS) results. Photo forensics is a supplementary fraud check, not a damage detection system.
+- NOTE: 'deferred' photos are photos that were available but not processed in this run due to processing budget. This is NOT a failure — it means the highest-priority photos were processed first.
 - NOTE: If image classification shows 0 damage photos but document/quotation pages exist, this is expected for PDF-only claims where damage evidence comes from text descriptions rather than dedicated photographs.
 
 ### PHYSICS ANALYSIS
@@ -427,24 +432,33 @@ export async function runForensicAuditValidation(
     // We override the imageAnalysis dimension with facts from the actual pipeline output.
     const r2 = result as any;
     const da = r2.damageAnalysis ?? {};
-    const visionProcessed: number = da.photosProcessed ?? 0;
+    // Honest photo accounting fields from Stage 6 (see docs/image-processing-architecture.md)
+    const photosAvailable: number = da.photosAvailable ?? da.photosProcessed ?? 0;
+    const photosProcessed: number = da.photosProcessed ?? 0;
+    const photosDeferred: number = da.photosDeferred ?? 0;
+    const photosFailed: number = da.photosFailed ?? 0;
     const visionComponents: number = (da.damagedParts ?? da.detectedComponents ?? []).length;
-    const classifiedImgs = r2.classifiedImages ?? null;
-    const classifiedDamageCount: number = classifiedImgs?.summary?.damagePhotoCount ?? 0;
+    // Coverage ratio: how much of the available evidence was actually examined
+    const coverageRatio = photosAvailable > 0 ? photosProcessed / photosAvailable : 0;
 
-    // Compute correct imageAnalysis dimension:
-    //   PASS  — vision processed photos AND found components
-    //   WARNING — vision processed photos but found 0 components, OR classifier found damage photos but vision ran 0
-    //   FAIL  — classifier found damage photos but vision was never run (not just photo forensics failure)
+    // Compute correct imageAnalysis dimension using honest accounting:
+    //   PASS    — processed ≥50% of available photos AND found components
+    //   WARNING — processed some photos but coverage <50%, OR processed all but found 0 components
+    //   FAIL    — photos were available but NONE were processed (complete vision failure)
     let correctImageDimension: "PASS" | "WARNING" | "FAIL";
-    if (visionProcessed > 0 && visionComponents > 0) {
-      correctImageDimension = "PASS";
-    } else if (visionProcessed > 0 && visionComponents === 0) {
-      correctImageDimension = "WARNING";
-    } else if (classifiedDamageCount > 0 && visionProcessed === 0) {
+    if (photosAvailable === 0) {
+      // No photos available — PDF-only claim, not a vision failure
+      correctImageDimension = visionComponents > 0 ? "PASS" : "WARNING";
+    } else if (photosProcessed === 0) {
+      // Photos were available but vision was never run — genuine failure
       correctImageDimension = "FAIL";
+    } else if (coverageRatio >= 0.5 && visionComponents > 0) {
+      correctImageDimension = "PASS";
+    } else if (photosProcessed > 0 && visionComponents > 0) {
+      // Processed some photos (coverage <50%) but still found components — acceptable
+      correctImageDimension = "WARNING";
     } else {
-      // No damage photos classified — PDF-only claim, not a failure
+      // Processed photos but found 0 components
       correctImageDimension = "WARNING";
     }
 
@@ -698,7 +712,7 @@ export async function runForensicAuditValidation(
       "IMAGE_ANALYSIS_VALIDATION",
     ];
     const isImageFalsePositive = (issue: any) =>
-      visionProcessed > 0 &&
+      photosProcessed > 0 &&
       FALSE_IMAGE_CODES.some(code =>
         (issue.code ?? "").includes(code) ||
         (issue.dimension ?? "").includes("IMAGE_ANALYSIS")

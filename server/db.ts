@@ -498,6 +498,16 @@ export async function triggerAiAssessment(claimId: number) {
     damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
   }
 
+  // Third fallback: if externalAssessmentUrl looks like a PDF URL, use it directly as pdfUrl.
+  // This allows test/debug claims to be submitted without going through the full ingestion pipeline.
+  if (!pdfUrl && damagePhotos.length === 0 && claim.externalAssessmentUrl) {
+    const extUrl = claim.externalAssessmentUrl;
+    if (extUrl.endsWith('.pdf') || extUrl.includes('.pdf?') || extUrl.includes('application/pdf')) {
+      pdfUrl = extUrl.replace(/ /g, '%20');
+      console.log(`[AI Assessment] Claim ${claimId}: Using externalAssessmentUrl as PDF source: ${pdfUrl.substring(0, 100)}`);
+    }
+  }
+
   // NOTE: Pre-flight HEAD check removed — Manus storage proxy URLs return non-200
   // for HEAD requests even when the LLM can access them via GET (file_url).
   // The HEAD check was a false negative that set pdfUrl=null and caused the pipeline
@@ -617,6 +627,32 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (docPhotoErr: any) {
     console.warn(`[AI Assessment] Claim ${claimId}: Failed to merge claim_documents photos (non-fatal): ${docPhotoErr.message}`);
   }
+  // ── IMAGE NORMALISATION LAYER ────────────────────────────────────────────
+  // Guarantees a consistent image state before Stage 2.6 and Stage 6.
+  //
+  // Two scenarios:
+  //   A) fresh_extraction — PDF was re-extracted this run; _extractedImagesWithMetadata
+  //      is populated with real quality metadata. Stage 2.6 classifier runs normally.
+  //   B) cache_rehydration — damagePhotos were loaded from DB cache; PDF extraction
+  //      was skipped. These photos are ALREADY TRUSTED (they passed the classifier
+  //      in a previous run). We bypass the classifier and set damagePhotoUrls directly.
+  //
+  // This replaces the old "synthetic metadata" patch which caused the classifier to
+  // re-run on cached photos with fake quality scores, sometimes producing worse
+  // selections than the original trusted set.
+  let _imageNormSource: 'fresh_extraction' | 'cache_rehydration' | null = null;
+  if (_extractedImagesWithMetadata.length > 0) {
+    // Case A: fresh extraction — classifier will run on real metadata
+    _imageNormSource = 'fresh_extraction';
+    console.log(`[AI Assessment] Claim ${claimId}: Image normalisation — fresh_extraction (${_extractedImagesWithMetadata.length} images with real metadata)`);
+  } else if (damagePhotos.length > 0) {
+    // Case B: cache rehydration — bypass classifier, use trusted cached photos directly
+    _imageNormSource = 'cache_rehydration';
+    // Do NOT populate _extractedImagesWithMetadata — the orchestrator Stage 2.6 checks
+    // imageNormSource and skips the classifier when source === 'cache_rehydration'.
+    console.log(`[AI Assessment] Claim ${claimId}: Image normalisation — cache_rehydration (${damagePhotos.length} trusted cached photos, classifier bypassed)`);
+  }
+
   // If we have neither a PDF nor photos, create a placeholder and return
   if (!pdfUrl && damagePhotos.length === 0) {
     console.log(`[AI Assessment] Claim ${claimId}: No PDF and no damage photos. Creating placeholder.`);
@@ -670,6 +706,10 @@ export async function triggerAiAssessment(claimId: number) {
     photoIngestionLog: _dbPhotoIngestionLog,
     // Full ExtractedImage metadata for the image classifier (confidence scoring, quality-based selection)
     extractedImagesWithMetadata: _extractedImagesWithMetadata,
+    // Normalisation layer outputs — tells Stage 2.6 whether to run or bypass the classifier
+    imageNormSource: _imageNormSource,
+    // Explicit photo availability count for forensic validator tracking
+    photosAvailable: damagePhotos.length,
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled
@@ -2583,6 +2623,8 @@ export async function getActiveCalibrationMultiplier(
   try {
     const { calibrationOverrides } = await import("../drizzle/schema");
     const { eq, and, or, isNull, desc } = await import("drizzle-orm");
+    const db = await getDb();
+    if (!db) return 1.0;
 
     // Try jurisdiction-specific first, then fall back to 'global'
     const jurisdictions = jurisdiction !== "global"

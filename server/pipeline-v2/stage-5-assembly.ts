@@ -269,7 +269,11 @@ export async function runAssemblyStage(
       totalDamageAreaM2: v.totalDamageAreaM2 || null,
       structuralDamage: v.structuralDamage ?? false,
       airbagDeployment: v.airbagDeployment ?? false,
-      animalType: v.animalType || null,
+      // Only preserve animalType when the incident is actually an animal strike.
+      // For non-animal incidents, the LLM sometimes picks up OCR artifacts from
+      // phrases like "HIT FROM THE BACK" and misreads them as animal names.
+      // Clear animalType if incidentType is not animal_strike to prevent false positives.
+      animalType: (incidentType === 'animal_strike' && v.animalType) ? v.animalType : null,
       weatherConditions: v.weatherConditions || null,
       visibilityConditions: v.visibilityConditions || null,
       roadSurface: v.roadSurface || null,

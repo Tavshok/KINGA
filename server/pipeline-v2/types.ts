@@ -625,18 +625,57 @@ export interface DamageZone {
   maxSeverity: AccidentSeverity;
 }
 
+/** Per-photo audit record — one entry per photo URL in damagePhotoUrls */
+export interface PerPhotoResult {
+  url: string;
+  /** PROCESSED = sent to vision LLM and result received (success or failure).
+   *  SKIPPED_INACCESSIBLE = URL returned HTTP 4xx/5xx before LLM call.
+   *  SKIPPED_BUDGET = not processed in this run due to cost/time budget. */
+  status: 'PROCESSED' | 'SKIPPED_INACCESSIBLE' | 'SKIPPED_BUDGET';
+  components: DamageAnalysisComponent[];
+  confidence: 'high' | 'medium' | 'low';
+  succeeded: boolean;
+  usedFallback: boolean;
+  httpStatus?: number;       // for SKIPPED_INACCESSIBLE
+  deferralReason?: string;   // for SKIPPED_BUDGET
+  damageLikelihoodScore?: number; // from Image Intelligence Layer
+}
+
+/** A component excluded by the direction-aware filter — kept for audit trail */
+export interface ExcludedComponent {
+  name: string;
+  zone: string;
+  reason: string;
+  sourcePhotoUrl?: string;
+}
+
 export interface Stage6Output {
   damagedParts: DamageAnalysisComponent[];
   damageZones: DamageZone[];
   overallSeverityScore: number;
   structuralDamageDetected: boolean;
   totalDamageArea: number;
-  /** Number of photos that were successfully processed by the vision engine */
+
+  // ── Honest photo accounting (see docs/image-processing-architecture.md) ──
+  /** Total photos available in damagePhotoUrls */
+  photosAvailable: number;
+  /** Photos actually sent to the vision LLM (PROCESSED status) */
   photosProcessed: number;
+  /** Photos available but not processed due to budget constraints */
+  photosDeferred: number;
+  /** Photos sent to LLM but failed (error/timeout/inaccessible) */
+  photosFailed: number;
+
   /** Aggregate image quality/confidence score (0–100). 0 = no photos or all unusable. */
   imageConfidenceScore: number;
   /** Whether damage analysis was derived from photos (true) or text-only fallback (false) */
   analysisFromPhotos: boolean;
+
+  // ── Audit trails ──────────────────────────────────────────────────────────
+  /** One entry per photo in damagePhotoUrls — no photo may be silently omitted */
+  perPhotoResults?: PerPhotoResult[];
+  /** Components excluded by the direction-aware filter — visible for human review */
+  excludedComponents?: ExcludedComponent[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1171,4 +1210,15 @@ export interface PipelineContext {
   photoIngestionLog?: any;
   /** Set by image classifier — classified images with confidence scores and quality rankings */
   classifiedImages?: import('./imageClassifier').ClassificationResult | null;
+  /**
+   * Source of image normalisation.
+   * 'fresh_extraction'   — photos were extracted from PDF in this run
+   * 'cache_rehydration'  — photos were loaded from DB cache; metadata is synthetic
+   */
+  imageNormSource?: 'fresh_extraction' | 'cache_rehydration' | null;
+  /**
+   * Number of damage photos available at the start of Stage 6.
+   * Used by the forensic validator for explicit photosAvailable/photosProcessed tracking.
+   */
+  photosAvailable?: number;
 }

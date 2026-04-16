@@ -644,7 +644,22 @@ export async function runPipelineV2(
   // Classifies extracted images into damage_photo, vehicle_overview, quotation_scan,
   // document_page, or fallback. Uses 3-tier system: heuristic scoring → LLM classification
   // → quality-based selection. No images are ever discarded — low-confidence go to fallbackPool.
-  if (ctx.extractedImagesWithMetadata && ctx.extractedImagesWithMetadata.length > 0) {
+  //
+  // NORMALISATION GATE: When imageNormSource === 'cache_rehydration', the photos were
+  // already classified and trusted in a previous pipeline run. Bypass the classifier
+  // entirely — re-classifying with synthetic metadata produces worse selections.
+  if (ctx.imageNormSource === 'cache_rehydration' && ctx.damagePhotoUrls.length > 0) {
+    ctx.log('Stage 2.6', `Bypassing classifier — cache_rehydration: ${ctx.damagePhotoUrls.length} trusted cached photo(s) used directly (no re-classification needed)`);
+    // Record as assumption so the forensic report knows the source
+    allAssumptions.push({
+      field: 'imageClassification',
+      assumedValue: JSON.stringify({ source: 'cache_rehydration', count: ctx.damagePhotoUrls.length }),
+      reason: `Image classifier bypassed — photos were already classified and trusted in a previous run (cache_rehydration). Using ${ctx.damagePhotoUrls.length} cached damage photo(s) directly.`,
+      strategy: 'domain_correction',
+      confidence: 90,
+      stage: 'Stage 2.6',
+    });
+  } else if (ctx.extractedImagesWithMetadata && ctx.extractedImagesWithMetadata.length > 0) {
     try {
       const { classifyExtractedImages, selectBestImagesForVision } = await import('./imageClassifier');
       const classified = await classifyExtractedImages(

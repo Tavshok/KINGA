@@ -91,7 +91,10 @@ function analyseDamageConsistency(
     }
   }
 
-  if (damageAnalysis.damagedParts.length > 15) {
+  // Threshold raised to >20: severe rear-end collisions routinely produce 15-20 components
+  // (bumper, boot lid, tail lamps, quarter panels, chassis, wiring harness, etc.).
+  // Flagging at >15 generates false positives for legitimate high-severity claims.
+  if (damageAnalysis.damagedParts.length > 20) {
     indicators.push({
       indicator: "excessive_damage_count",
       category: "pattern",
@@ -108,30 +111,20 @@ function analyseDamageConsistency(
   };
 }
 
-function analyseQuoteDeviation(claimRecord: ClaimRecord): {
+function analyseQuoteDeviation(
+  claimRecord: ClaimRecord,
+  _damageAnalysis?: Stage6Output  // reserved for future benchmark-backed deviation checks
+): {
   deviation: number | null;
   indicators: FraudIndicator[];
 } {
-  const indicators: FraudIndicator[] = [];
-  const quotedCents = claimRecord.repairQuote.quoteTotalCents;
-
-  if (!quotedCents) {
-    return { deviation: null, indicators };
-  }
-
-  const componentCount = claimRecord.damage.components.length;
-  const avgCostPerComponent = quotedCents / Math.max(1, componentCount);
-
-  if (avgCostPerComponent > 50000) {
-    indicators.push({
-      indicator: "high_cost_per_component",
-      category: "financial",
-      score: 15,
-      description: `Average cost per damaged component (${(avgCostPerComponent/100).toFixed(2)}) exceeds typical range.`,
-    });
-  }
-
-  return { deviation: null, indicators };
+  // PERMANENT RULE (2026-04): Do NOT generate fraud indicators from total-cost ÷ component-count.
+  // A total repair quote divided by the number of damaged parts is a meaningless ratio —
+  // it produces false positives on every multi-component claim and has no grounding in
+  // actual part-level pricing data. The ONLY valid cost fraud signal is a deviation from
+  // a market benchmark for a SPECIFIC part (e.g., from the learning DB or industry catalogue).
+  // Until per-part benchmarks are available, this function returns no indicators.
+  return { deviation: null, indicators: [] };
 }
 
 function analyseDocumentation(
@@ -362,7 +355,7 @@ export async function runFraudAnalysisStage(
 
     // 2. Quote deviation
     try {
-      const quoteAnalysis = analyseQuoteDeviation(claimRecord);
+      const quoteAnalysis = analyseQuoteDeviation(claimRecord, damageAnalysis);
       allIndicators.push(...quoteAnalysis.indicators);
     } catch (e) {
       isDegraded = true;
@@ -499,23 +492,43 @@ export async function runFraudAnalysisStage(
     // 3b. Narrative Reasoning fraud signals (Stage 7e)
     // If the incident narrative engine detected inconsistencies, inject them
     // as FraudIndicator entries so they contribute to the overall risk score.
+    //
+    // PHYSICS vs FRAUD SEPARATION (per architecture spec):
+    //   NARRATIVE_PHYSICS_MISMATCH — speed/force inconsistency is a PHYSICS FINDING,
+    //   not a fraud signal. It should be noted but must NOT contribute to the fraud
+    //   score unless corroborated by additional fraud indicators (e.g. staged collision
+    //   pattern, witness contradiction, or photo manipulation). Escalating speed
+    //   inconsistency directly to fraud produces false positives for legitimate claims
+    //   where the claimant underestimates impact speed (very common in rear-end events).
+    const PHYSICS_ONLY_SIGNALS = new Set(["NARRATIVE_PHYSICS_MISMATCH"]);
     const narrativeAnalysis = claimRecord.accidentDetails.narrativeAnalysis;
     if (narrativeAnalysis && narrativeAnalysis.fraud_signals.length > 0) {
+      let injected = 0;
+      let physicsOnly = 0;
       for (const sig of narrativeAnalysis.fraud_signals) {
         const alreadyPresent = allIndicators.some(i => i.indicator === sig.code);
-        if (!alreadyPresent) {
-          allIndicators.push({
-            indicator: sig.code,
-            category: "narrative",
-            score: Math.min(25, Math.max(0, sig.score_contribution)),
-            description: sig.description,
-            evidence: sig.evidence,
-          } as any);
+        if (alreadyPresent) continue;
+        if (PHYSICS_ONLY_SIGNALS.has(sig.code)) {
+          // Log as physics finding — zero fraud score contribution
+          physicsOnly++;
+          ctx.log(
+            "Stage 8 (narrative)",
+            `Physics finding (not fraud): [${sig.code}] ${sig.description}`
+          );
+          continue;
         }
+        allIndicators.push({
+          indicator: sig.code,
+          category: "narrative",
+          score: Math.min(25, Math.max(0, sig.score_contribution)),
+          description: sig.description,
+          evidence: sig.evidence,
+        } as any);
+        injected++;
       }
       ctx.log(
         "Stage 8 (narrative)",
-        `Injected ${narrativeAnalysis.fraud_signals.length} narrative fraud signal(s). ` +
+        `Injected ${injected} narrative fraud signal(s), ${physicsOnly} physics-only signal(s) excluded from score. ` +
         `Narrative verdict: ${narrativeAnalysis.consistency_verdict}. ` +
         `Contaminated: ${narrativeAnalysis.was_contaminated}.`
       );

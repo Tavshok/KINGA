@@ -239,6 +239,15 @@ export function ensureDamageContract(
     overallSeverityScore: partial.overallSeverityScore ?? 0,
     structuralDamageDetected: partial.structuralDamageDetected ?? false,
     totalDamageArea: partial.totalDamageArea ?? 0,
+    // Honest photo accounting — pass through from Stage 6
+    photosAvailable: partial.photosAvailable ?? 0,
+    photosProcessed: partial.photosProcessed ?? 0,
+    photosDeferred: partial.photosDeferred ?? 0,
+    photosFailed: partial.photosFailed ?? 0,
+    perPhotoResults: partial.perPhotoResults,
+    excludedComponents: partial.excludedComponents,
+    imageConfidenceScore: partial.imageConfidenceScore ?? 0,
+    analysisFromPhotos: partial.analysisFromPhotos ?? false,
     no_damage_detected: zones.length === 0,
     _fallback_fields: missing,
   };

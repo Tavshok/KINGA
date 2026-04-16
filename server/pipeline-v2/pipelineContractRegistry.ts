@@ -82,6 +82,7 @@ export interface ContractCheckResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TIMEOUT_LLM_MS = 60_000;        // 60 s for LLM stages
+export const TIMEOUT_VISION_MS = 120_000;     // 120 s for Stage 6 — vision processes up to PER_RUN_VISION_BUDGET photos sequentially (~8s each)
 export const TIMEOUT_DETERMINISTIC_MS = 10_000; // 10 s for deterministic stages
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -178,7 +179,7 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     id: "6_damage_analysis",
     label: "Stage 6 — Damage Analysis",
     type: "llm",
-    timeoutMs: TIMEOUT_LLM_MS,
+    timeoutMs: TIMEOUT_VISION_MS, // Extended budget: processes up to PER_RUN_VISION_BUDGET photos sequentially
     required: ["claimRecord"],
     optional: ["stage1Data"],  // Photos improve damage analysis
     outputGuarantees: ["stage6Data"],

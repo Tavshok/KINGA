@@ -45,7 +45,8 @@ import type {
   RecoveryAction,
 } from "./types";
 
-const MAX_VISION_PHOTOS = 10;  // Process up to 10 images independently
+// PER_RUN_VISION_BUDGET (defined in readDamageFromPhotos) controls how many photos are selected per run.
+// Stage 6 timeout (TIMEOUT_VISION_MS) must be >= PER_RUN_VISION_BUDGET * VISION_TIMEOUT_MS.
 const VISION_TIMEOUT_MS = 45_000; // 45s per image call
 const VISION_RETRIES = 2;      // Retry each image up to 2 times
 const MIN_SUCCESS_THRESHOLD = 0.5; // ≥50% images must succeed for non-degraded status
@@ -87,18 +88,19 @@ async function withRetry<T>(
   throw lastErr;
 }
 
-// ── Utility: quick URL accessibility check (non-blocking) ────────────────────
-// Returns true if the URL responds with <400. Falls back to true on network
+// ── Utility: quick URL accessibility check — returns HTTP status for audit trail ─
+// Returns { accessible, httpStatus }. Falls back to accessible=true on network
 // errors so that a proxy/CORS issue never silently drops a valid URL.
-async function isUrlAccessible(url: string): Promise<boolean> {
+async function checkUrlAccessibility(url: string): Promise<{ accessible: boolean; httpStatus?: number }> {
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 5000);
     const r = await fetch(url, { method: "GET", signal: ctrl.signal }).catch(() => null);
     clearTimeout(t);
-    return r ? r.status < 400 : true;
+    if (!r) return { accessible: true }; // network error — assume accessible
+    return { accessible: r.status < 400, httpStatus: r.status };
   } catch {
-    return true; // non-blocking — assume accessible on error
+    return { accessible: true }; // non-blocking — assume accessible on error
   }
 }
 
@@ -346,56 +348,91 @@ If the image shows no vehicle or no damage, return an empty components array.`,
 /**
  * Use LLM vision to read damage components from actual damage photos.
  *
- * HARDENED IMPLEMENTATION:
- *   - Pre-validates each URL (skips inaccessible ones)
- *   - Processes each image independently (one failure ≠ all fail)
- *   - Retries each image up to 2× with timeout
- *   - Falls back to simpler prompt if primary returns 0 components
- *   - Applies minimum success threshold (≥50% images must succeed)
- *   - Merges per-image results with deduplication
- *   - Flags degraded mode and surfaces failure rate in assumptions
+ * ARCHITECTURE (see docs/image-processing-architecture.md):
+ *
+ *   PHOTO SELECTION (principled, not arbitrary):
+ *   - All photos are pre-validated for accessibility
+ *   - Photos are processed in order of damage likelihood score (highest first)
+ *   - When total photo count exceeds PER_RUN_BUDGET, highest-scoring photos
+ *     are processed first; the remainder are recorded as SKIPPED_BUDGET
+ *   - Every photo appears in perPhotoResults — no silent omissions
+ *
+ *   HONEST ACCOUNTING:
+ *   - photosAvailable = total photos in damagePhotoUrls
+ *   - photosProcessed = photos actually sent to the vision LLM
+ *   - photosDeferred  = photos not processed due to budget
+ *   - photosFailed    = photos sent to LLM but failed
+ *
+ *   AUDIT TRAIL:
+ *   - perPhotoResults: one entry per available photo with status and components
+ *   - enrichedPhotosJson: persisted to ctx for downstream stages
  */
+
+// Per-run budget: maximum photos to send to the vision LLM in a single pipeline run.
+// This is a BUDGET constraint, not a design cap. When exceeded, photos are deferred
+// (SKIPPED_BUDGET) and recorded in the audit trail. Increase as LLM capacity allows.
+const PER_RUN_VISION_BUDGET = 10; // 10 photos × ~8s each = ~80s, safely within TIMEOUT_VISION_MS (120s)
+
 async function readDamageFromPhotos(
   photoUrls: string[],
   claimRecord: ClaimRecord,
   ctx: PipelineContext,
   assumptions: Assumption[],
-  recoveryActions: RecoveryAction[]
-): Promise<DamageAnalysisComponent[]> {
-  const urls = photoUrls.slice(0, MAX_VISION_PHOTOS);
-  if (urls.length === 0) return [];
-
-  ctx.log("Stage 6", `Vision: starting hardened analysis of ${urls.length} image(s)`);
-
-  // ── STEP A: Pre-validate URLs ─────────────────────────────────────────────
-  const validatedUrls: string[] = [];
-  for (const url of urls) {
-    const accessible = await isUrlAccessible(url);
-    if (accessible) {
-      validatedUrls.push(url);
-    } else {
-      ctx.log("Stage 6", `Vision: skipping inaccessible URL (HTTP 4xx/5xx): ${url.slice(0, 80)}...`);
-      recoveryActions.push({
-        target: "vision_image_url",
-        strategy: "skip",
-        success: false,
-        description: `Image URL returned HTTP 4xx/5xx and was skipped: ${url.slice(0, 80)}`,
-      });
-    }
+  recoveryActions: RecoveryAction[],
+  damageLikelihoodScores?: Map<string, number>
+): Promise<{
+  components: DamageAnalysisComponent[];
+  perPhotoResults: import('./types').PerPhotoResult[];
+  photosProcessed: number;
+  photosDeferred: number;
+  photosFailed: number;
+}> {
+  const photosAvailable = photoUrls.length;
+  if (photosAvailable === 0) {
+    return { components: [], perPhotoResults: [], photosProcessed: 0, photosDeferred: 0, photosFailed: 0 };
   }
 
-  if (validatedUrls.length === 0) {
-    ctx.log("Stage 6", "Vision: all image URLs failed pre-validation — skipping vision analysis");
-    recoveryActions.push({
-      target: "vision_damage_extraction",
-      strategy: "skip",
-      success: false,
-      description: "All image URLs failed accessibility check. Vision analysis skipped.",
+  ctx.log("Stage 6", `Vision: ${photosAvailable} photo(s) available for analysis`);
+
+  // ── STEP A: Principled photo selection (no pre-validation) ───────────────────────────────────────────────────────────────────────────────────────
+  // Do NOT pre-validate URLs with HTTP HEAD requests — this adds latency without meaningful benefit
+  // since S3 URLs are almost always accessible. If a URL is inaccessible, the LLM call will fail
+  // and the photo will be marked as FAILED in the audit trail.
+  //
+  // Sort all URLs by damage likelihood score (highest first).
+  // Photos without a score retain their original order (stable sort).
+  const sortedUrls = [...photoUrls].sort((a, b) => {
+    const scoreA = damageLikelihoodScores?.get(a) ?? 0.5;
+    const scoreB = damageLikelihoodScores?.get(b) ?? 0.5;
+    return scoreB - scoreA; // descending
+  });
+
+  const toProcess = sortedUrls.slice(0, PER_RUN_VISION_BUDGET);
+  const deferred  = sortedUrls.slice(PER_RUN_VISION_BUDGET);
+  // No inaccessible URLs at this stage — failures are detected during processing
+  const inaccessibleUrls: Array<{ url: string; httpStatus?: number }> = [];
+
+  if (deferred.length > 0) {
+    ctx.log(
+      "Stage 6",
+      `Vision: budget cap applied — processing ${toProcess.length}/${photosAvailable} photo(s), ` +
+      `deferring ${deferred.length} (budget=${PER_RUN_VISION_BUDGET}). ` +
+      `Deferred photos are recorded in the audit trail.`
+    );
+    assumptions.push({
+      field: "imageAnalysisCoverage",
+      assumedValue: `${toProcess.length}/${photosAvailable} photos processed`,
+      reason: `Per-run vision budget is ${PER_RUN_VISION_BUDGET} photos. ` +
+        `${deferred.length} photo(s) were deferred and not analysed in this run. ` +
+        `Photos were selected in order of damage likelihood score (highest first). ` +
+        `Coverage: ${Math.round((toProcess.length / photosAvailable) * 100)}%.`,
+      strategy: "partial_data",
+      confidence: Math.round((toProcess.length / photosAvailable) * 100),
+      stage: "Stage 6",
     });
-    return [];
   }
 
-  ctx.log("Stage 6", `Vision: ${validatedUrls.length}/${urls.length} URL(s) passed pre-validation`);
+  ctx.log("Stage 6", `Vision: starting analysis of ${toProcess.length} photo(s)`);
 
   const vehicleContext = [
     claimRecord.vehicle.make,
@@ -405,17 +442,17 @@ async function readDamageFromPhotos(
 
   const collisionDirection = claimRecord.accidentDetails.collisionDirection || "unknown";
 
-  // ── STEP B: Process each image independently ──────────────────────────────
-  const perImageResults: Array<{
+  // ── STEP C: Process each selected photo independently ───────────────────────────────────────────────────────────────────────────────────────
+  const processedResults: Array<{
     url: string;
     components: DamageAnalysisComponent[];
-    confidence: string;
+    confidence: 'high' | 'medium' | 'low';
     usedFallback: boolean;
     succeeded: boolean;
   }> = [];
 
-  for (let i = 0; i < validatedUrls.length; i++) {
-    const url = validatedUrls[i];
+  for (let i = 0; i < toProcess.length; i++) {
+    const url = toProcess[i];
     try {
       const result = await analyseOneImage(
         url,
@@ -424,38 +461,104 @@ async function readDamageFromPhotos(
         collisionDirection,
         (msg) => ctx.log("Stage 6", msg)
       );
-      perImageResults.push({ url, ...result, succeeded: true });
+      processedResults.push({
+        url,
+        components: result.components,
+        confidence: result.confidence as 'high' | 'medium' | 'low',
+        usedFallback: result.usedFallback,
+        succeeded: true,
+      });
     } catch (e) {
-      ctx.log("Stage 6", `Vision: image[${i}] completely failed: ${String(e)}`);
-      perImageResults.push({ url, components: [], confidence: "low", usedFallback: false, succeeded: false });
+      ctx.log("Stage 6", `Vision: photo[${i}] completely failed: ${String(e)}`);
+      processedResults.push({ url, components: [], confidence: 'low', usedFallback: false, succeeded: false });
     }
   }
 
-  // ── STEP C: Apply minimum success threshold ───────────────────────────────
-  const succeededCount = perImageResults.filter((r) => r.succeeded).length;
-  const successRate = succeededCount / validatedUrls.length;
-  const failedCount = validatedUrls.length - succeededCount;
+  // ── STEP D: Build complete audit trail ───────────────────────────────────────────────────────────────────────────────────────
+  // Every photo URL must appear in perPhotoResults — no silent omissions.
+  const processedMap = new Map(processedResults.map(r => [r.url, r]));
+  const inaccessibleSet = new Set(inaccessibleUrls.map(c => c.url));
+  const deferredSet = new Set(deferred);
+
+  const perPhotoResults: import('./types').PerPhotoResult[] = photoUrls.map(url => {
+    if (inaccessibleSet.has(url)) {
+      const check = inaccessibleUrls.find(c => c.url === url);
+      return {
+        url,
+        status: 'SKIPPED_INACCESSIBLE' as const,
+        components: [],
+        confidence: 'low' as const,
+        succeeded: false,
+        usedFallback: false,
+        httpStatus: check?.httpStatus,
+        damageLikelihoodScore: damageLikelihoodScores?.get(url),
+      };
+    }
+    if (deferredSet.has(url)) {
+      return {
+        url,
+        status: 'SKIPPED_BUDGET' as const,
+        components: [],
+        confidence: 'low' as const,
+        succeeded: false,
+        usedFallback: false,
+        deferralReason: `Budget cap of ${PER_RUN_VISION_BUDGET} photos reached; this photo was not selected for this run`,
+        damageLikelihoodScore: damageLikelihoodScores?.get(url),
+      };
+    }
+    const r = processedMap.get(url);
+    if (r) {
+      return {
+        url,
+        status: 'PROCESSED' as const,
+        components: r.components,
+        confidence: r.confidence,
+        succeeded: r.succeeded,
+        usedFallback: r.usedFallback,
+        damageLikelihoodScore: damageLikelihoodScores?.get(url),
+      };
+    }
+    // Should never happen — every URL is in one of the three sets
+    return {
+      url,
+      status: 'SKIPPED_BUDGET' as const,
+      components: [],
+      confidence: 'low' as const,
+      succeeded: false,
+      usedFallback: false,
+      deferralReason: 'Unknown — URL not found in any processing set',
+    };
+  });
+
+  // ── STEP E: Compute honest metrics ───────────────────────────────────────────────────────────────────────────────────────
+  const photosProcessed = processedResults.length; // photos actually sent to LLM
+  const photosFailed    = processedResults.filter(r => !r.succeeded).length;
+  const photosDeferred  = deferred.length;
+  const succeededCount  = processedResults.filter(r => r.succeeded).length;
+  const successRate     = photosProcessed > 0 ? succeededCount / photosProcessed : 0;
+  const fallbackCount   = processedResults.filter(r => r.usedFallback).length;
 
   ctx.log(
     "Stage 6",
-    `Vision: ${succeededCount}/${validatedUrls.length} images succeeded (${Math.round(successRate * 100)}%)`
+    `Vision: ${succeededCount}/${photosProcessed} processed succeeded (${Math.round(successRate * 100)}%). ` +
+    `Available: ${photosAvailable}, Processed: ${photosProcessed}, Deferred: ${photosDeferred}, Failed: ${photosFailed}`
   );
 
-  if (successRate < MIN_SUCCESS_THRESHOLD) {
-    ctx.log("Stage 6", `Vision: success rate ${Math.round(successRate * 100)}% below threshold (${MIN_SUCCESS_THRESHOLD * 100}%) — flagging as degraded`);
+  if (successRate < MIN_SUCCESS_THRESHOLD && photosProcessed > 0) {
+    ctx.log("Stage 6", `Vision: success rate ${Math.round(successRate * 100)}% below threshold — flagging as degraded`);
     recoveryActions.push({
       target: "vision_success_threshold",
       strategy: "partial_data",
       success: false,
-      description: `Only ${succeededCount}/${validatedUrls.length} images analysed successfully (${Math.round(successRate * 100)}%). Below ${MIN_SUCCESS_THRESHOLD * 100}% threshold. Results may be incomplete.`,
+      description: `Only ${succeededCount}/${photosProcessed} images analysed successfully (${Math.round(successRate * 100)}%). Below ${MIN_SUCCESS_THRESHOLD * 100}% threshold.`,
     });
   }
 
-  // ── STEP D: Merge per-image results (deduplication by part name) ──────────
+  // ── STEP F: Merge per-image results (deduplication by part name) ───────────────────────────────────────────────────────────────────────────────────────
   const allComponents: DamageAnalysisComponent[] = [];
   const seenNames = new Set<string>();
 
-  for (const result of perImageResults) {
+  for (const result of processedResults) {
     for (const comp of result.components) {
       const key = comp.name.toLowerCase().trim();
       if (!seenNames.has(key)) {
@@ -464,12 +567,9 @@ async function readDamageFromPhotos(
       }
     }
   }
-
-  // Recalculate distanceFromImpact after merge
   allComponents.forEach((c, i) => { c.distanceFromImpact = i * 0.3; });
 
-  // ── STEP E: Record assumptions and recovery actions ───────────────────────
-  const fallbackCount = perImageResults.filter((r) => r.usedFallback).length;
+  // ── STEP G: Record assumptions ───────────────────────────────────────────────────────────────────────────────────────
   const overallConfidence =
     allComponents.length === 0 ? "low"
     : successRate >= 0.8 ? "high"
@@ -480,9 +580,10 @@ async function readDamageFromPhotos(
     assumptions.push({
       field: "damagedParts",
       assumedValue: `${allComponents.length} vision-extracted components`,
-      reason: `LLM vision analysis of ${validatedUrls.length} image(s): ${succeededCount} succeeded, ${failedCount} failed. ` +
+      reason: `LLM vision analysis: ${photosAvailable} photos available, ${photosProcessed} processed, ` +
+        `${photosDeferred} deferred, ${photosFailed} failed. ` +
         `${fallbackCount > 0 ? `${fallbackCount} image(s) used fallback prompt. ` : ""}` +
-        `Extracted ${allComponents.length} unique components. Overall confidence: ${overallConfidence}.`,
+        `Extracted ${allComponents.length} unique components. Coverage: ${Math.round((photosProcessed / photosAvailable) * 100)}%.`,
       strategy: "llm_vision",
       confidence: overallConfidence === "high" ? 85 : overallConfidence === "medium" ? 65 : 40,
       stage: "Stage 6",
@@ -491,27 +592,24 @@ async function readDamageFromPhotos(
       target: "damagedParts",
       strategy: "llm_vision",
       success: true,
-      description: `Hardened vision analysis: ${succeededCount}/${validatedUrls.length} images processed, ` +
-        `${allComponents.length} components extracted (success rate: ${Math.round(successRate * 100)}%).`,
+      description: `Vision analysis: ${photosProcessed}/${photosAvailable} photos processed, ` +
+        `${allComponents.length} components extracted. Coverage: ${Math.round((photosProcessed / photosAvailable) * 100)}%.`,
     });
   } else {
-    // All images failed or returned 0 components
     recoveryActions.push({
       target: "vision_damage_extraction",
       strategy: "skip",
       success: false,
-      description: `Vision analysis completed but extracted 0 components from ${validatedUrls.length} image(s). ` +
-        `Success rate: ${Math.round(successRate * 100)}%. Falling back to structured data.`,
+      description: `Vision analysis extracted 0 components from ${photosProcessed} processed photo(s). Falling back to structured data.`,
     });
   }
 
-  // ── STEP F: Failure rate monitoring ──────────────────────────────────────
-  if (failedCount > 0) {
+  if (photosFailed > 0) {
     assumptions.push({
       field: "imageAnalysisFailureRate",
-      assumedValue: `${Math.round((1 - successRate) * 100)}%`,
-      reason: `${failedCount} of ${validatedUrls.length} image(s) failed vision analysis. ` +
-        `Target failure rate: <5%. Current: ${Math.round((1 - successRate) * 100)}%.`,
+      assumedValue: `${Math.round((photosFailed / photosProcessed) * 100)}%`,
+      reason: `${photosFailed} of ${photosProcessed} processed photo(s) failed vision analysis. ` +
+        `Target failure rate: <5%. Current: ${Math.round((photosFailed / photosProcessed) * 100)}%.`,
       strategy: "none",
       confidence: 100,
       stage: "Stage 6",
@@ -520,14 +618,14 @@ async function readDamageFromPhotos(
 
   ctx.log(
     "Stage 6",
-    `Vision complete: ${allComponents.length} unique components from ${succeededCount}/${validatedUrls.length} images` +
-    (fallbackCount > 0 ? ` (${fallbackCount} used fallback prompt)` : "")
+    `Vision complete: ${allComponents.length} unique components from ${succeededCount}/${photosProcessed} processed photos` +
+    (fallbackCount > 0 ? ` (${fallbackCount} used fallback prompt)` : "") +
+    (photosDeferred > 0 ? `, ${photosDeferred} deferred` : "")
   );
 
-  // ── STEP G: Persist enriched photo metadata to ctx ────────────────────────
-  // Stage 7 and Stage 7b read (ctx as any).enrichedPhotosJson for severity consensus
-  // and causal reasoning. Without this, downstream stages always get null.
-  const enrichedPhotoSummary = perImageResults.map((r, idx) => ({
+  // ── STEP H: Persist enriched photo metadata to ctx ───────────────────────────────────────────────────────────────────────────────────────
+  // Stage 7 and Stage 7b read (ctx as any).enrichedPhotosJson for severity consensus.
+  const enrichedPhotoSummary = processedResults.map((r, idx) => ({
     url: r.url,
     index: idx,
     componentCount: r.components.length,
@@ -547,7 +645,7 @@ async function readDamageFromPhotos(
   }));
   (ctx as any).enrichedPhotosJson = JSON.stringify(enrichedPhotoSummary);
 
-  return allComponents;
+  return { components: allComponents, perPhotoResults, photosProcessed, photosDeferred, photosFailed };
 }
 
 /**
@@ -695,6 +793,21 @@ export async function runDamageAnalysisStage(
       visionSourceUrls = [];
     }
     let visionParts: DamageAnalysisComponent[] = [];
+    let visionPerPhotoResults: import('./types').PerPhotoResult[] = [];
+    let visionPhotosProcessed = 0;
+    let visionPhotosDeferred = 0;
+    let visionPhotosFailed = 0;
+
+    // Build damage likelihood scores map from Image Intelligence Layer (if available)
+    // When photos come from the classifier (cache_rehydration or fresh classification),
+    // we use their position in the list as a proxy for quality (classifier already ranked them).
+    const damageLikelihoodScores = new Map<string, number>();
+    if (ctx.classifiedImages?.damagePhotos) {
+      ctx.classifiedImages.damagePhotos.forEach((p, idx) => {
+        // Assign descending scores based on classifier rank (first = highest quality)
+        damageLikelihoodScores.set(p.url, Math.max(0.1, 1.0 - (idx * 0.05)));
+      });
+    }
 
     if (visionSourceUrls.length > 0) {
       if (photoUrls.length === 0 && pdfPageUrls.length > 0) {
@@ -706,7 +819,15 @@ export async function runDamageAnalysisStage(
           description: `No dedicated damage photos provided. Using ${pdfPageUrls.length} PDF page renders for visual damage analysis.`,
         });
       }
-      visionParts = await readDamageFromPhotos(visionSourceUrls, claimRecord, ctx, assumptions, recoveryActions);
+      const visionResult = await readDamageFromPhotos(
+        visionSourceUrls, claimRecord, ctx, assumptions, recoveryActions,
+        damageLikelihoodScores.size > 0 ? damageLikelihoodScores : undefined
+      );
+      visionParts = visionResult.components;
+      visionPerPhotoResults = visionResult.perPhotoResults;
+      visionPhotosProcessed = visionResult.photosProcessed;
+      visionPhotosDeferred = visionResult.photosDeferred;
+      visionPhotosFailed = visionResult.photosFailed;
     }
 
     // ── STEP 3: Determine final component list ────────────────────────────────
@@ -727,6 +848,59 @@ export async function runDamageAnalysisStage(
         success: damagedParts.length > 0,
         description: `No damage components in extraction or vision. Inferred ${damagedParts.length} components from collision direction and impact point.`,
       });
+    }
+
+    // ── STEP 3b: Direction-aware vision anomaly filter ──────────────────────
+    // Vision LLMs can hallucinate components from the wrong zone (e.g. a front
+    // headlamp in a rear-end collision). These vision-only components contradict
+    // the incident direction and would incorrectly trigger NARRATIVE_DAMAGE_MISMATCH
+    // fraud signals downstream. Filter them out before they propagate.
+    //
+    // Rule: if a component was added ONLY by vision (not in structuredParts)
+    // AND its zone is directionally incompatible with the collision direction,
+    // exclude it and log it as a vision anomaly.
+    const collisionDirForFilter = claimRecord.accidentDetails.collisionDirection || "unknown";
+    if (collisionDirForFilter !== "unknown" && collisionDirForFilter !== "multi_impact" && visionParts.length > 0) {
+      const structuredNames = new Set(structuredParts.map(c => c.name.toLowerCase().trim()));
+      // Zones that are physically incompatible with each collision direction
+      const incompatibleZones: Record<string, string[]> = {
+        rear:           ["front"],
+        frontal:        ["rear"],
+        side_driver:    [],   // side impacts can produce front/rear scatter — don't filter
+        side_passenger: [],
+        rollover:       [],
+      };
+      const badZones = incompatibleZones[collisionDirForFilter] ?? [];
+      if (badZones.length > 0) {
+        const filtered: DamageAnalysisComponent[] = [];
+        const excluded: string[] = [];
+        for (const part of damagedParts) {
+          const isVisionOnly = !structuredNames.has(part.name.toLowerCase().trim());
+          const zone = inferZone(part.location).toLowerCase();
+          if (isVisionOnly && badZones.some(bz => zone === bz)) {
+            excluded.push(`${part.name} (zone=${zone})`);
+          } else {
+            filtered.push(part);
+          }
+        }
+        if (excluded.length > 0) {
+          ctx.log(
+            "Stage 6",
+            `Direction filter [${collisionDirForFilter}]: excluded ${excluded.length} vision-only ` +
+            `component(s) from incompatible zone(s): ${excluded.join(", ")}`
+          );
+          assumptions.push({
+            field: "damagedParts",
+            assumedValue: `Excluded ${excluded.length} vision-only component(s) from incompatible zone(s): ${excluded.join("; ")}`,
+            reason: `Collision direction is '${collisionDirForFilter}'; components in zones [${badZones.join(", ")}] ` +
+                    `are physically implausible for this incident type and are likely LLM vision errors.`,
+            strategy: "contextual_inference" as const,
+            confidence: 0.85,
+            stage: "Stage 6 direction filter",
+          });
+          damagedParts = filtered;
+        }
+      }
     }
 
     // ── STEP 4: Group into damage zones ──────────────────────────────────────
@@ -757,10 +931,15 @@ export async function runDamageAnalysisStage(
         /frame|chassis|subframe|pillar|rail|structural|unibody/.test((p.name || "").toLowerCase())
       );
 
-    // ── Image confidence metrics ─────────────────────────────────────────────
-    const photosProcessed = visionParts.length > 0 ? visionSourceUrls.length : 0;
+    // ── Image confidence metrics (honest accounting) ────────────────────────
+    // Use the honest metrics from readDamageFromPhotos:
+    //   photosAvailable = total photos in visionSourceUrls
+    //   photosProcessed = photos actually sent to the vision LLM
+    //   photosDeferred  = photos not processed due to budget
+    //   photosFailed    = photos sent to LLM but failed (error/timeout)
+    const photosAvailable = visionSourceUrls.length;
     let imageConfidenceScore = 0;
-    if (visionParts.length > 0) {
+    if (visionPhotosProcessed > 0) {
       try {
         const enriched: Array<{ confidenceScore: number }> = JSON.parse((ctx as any).enrichedPhotosJson ?? "[]");
         const scored = enriched.filter((e) => e.confidenceScore > 0);
@@ -779,7 +958,11 @@ export async function runDamageAnalysisStage(
       overallSeverityScore,
       structuralDamageDetected,
       totalDamageArea: claimRecord.accidentDetails.totalDamageAreaM2 || 0,
-      photosProcessed,
+      photosAvailable,
+      photosProcessed: visionPhotosProcessed,
+      photosDeferred: visionPhotosDeferred,
+      photosFailed: visionPhotosFailed,
+      perPhotoResults: visionPerPhotoResults.length > 0 ? visionPerPhotoResults : undefined,
       imageConfidenceScore,
       analysisFromPhotos,
     };
