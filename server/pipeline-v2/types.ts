@@ -422,6 +422,21 @@ export interface DriverRecord {
   licenseNumber: string | null;
 }
 
+/**
+ * Collision scenario classification — determined in Stage 5 from narrative + collisionDirection.
+ * Drives physics routing, evidence requirements, and forensic validator checks.
+ */
+export type CollisionScenario =
+  | "rear_end_struck"     // Claimant was hit from behind by another vehicle
+  | "rear_end_striking"   // Claimant drove into the back of another vehicle
+  | "sideswipe"           // Lateral glancing contact with another vehicle
+  | "hit_and_run"         // Third party fled the scene; no third-party details available
+  | "parking_lot"         // Low-speed stationary/parking damage; no moving collision
+  | "head_on"             // Frontal collision with oncoming vehicle
+  | "single_vehicle"      // No other vehicle involved (e.g. hit a wall, pothole, rollover)
+  | "rollover"            // Vehicle rolled; may or may not involve another party
+  | "unknown";            // Could not be determined from available evidence
+
 export interface AccidentDetails {
   date: string | null;
   time: string | null;          // Time of accident (HH:MM)
@@ -451,6 +466,31 @@ export interface AccidentDetails {
   roadSurface: string | null;
   /** Reasoned narrative analysis — produced by incidentNarrativeEngine after Stage 7 */
   narrativeAnalysis: import('./incidentNarrativeEngine').NarrativeAnalysis | null;
+  /**
+   * Granular collision scenario — set by Stage 5 from narrative + collisionDirection.
+   * More specific than incidentType; drives physics routing and evidence requirements.
+   */
+  collisionScenario: CollisionScenario;
+  /**
+   * True when the claimant was the struck (non-at-fault) party.
+   * Affects physics: the energy input came from the other vehicle, not the claimant's speed.
+   */
+  isStruckParty: boolean;
+  /**
+   * True when the third-party claim/statement should be requested as corroborating evidence.
+   * Set for rear_end_struck, sideswipe, and head_on where a third party is known to exist.
+   */
+  thirdPartyClaimRequired: boolean;
+  /**
+   * True when narrative indicates the third party fled without leaving details.
+   * Triggers mandatory police report requirement in Evidence Registry.
+   */
+  isHitAndRun: boolean;
+  /**
+   * True when damage occurred while vehicle was stationary/parked.
+   * Triggers low-speed physics cap and CCTV/witness evidence recommendation.
+   */
+  isParkingLotDamage: boolean;
 }
 
 export interface PoliceReportRecord {

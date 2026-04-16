@@ -22,6 +22,7 @@ import type {
   RepairQuoteRecord,
   CanonicalIncidentType,
   CollisionDirection,
+  CollisionScenario,
   Assumption,
   RecoveryAction,
 } from "./types";
@@ -234,6 +235,19 @@ export async function runAssemblyStage(
     // If not in the document, leave as null and let downstream stages handle the gap.
     const estimatedSpeed = v.estimatedSpeedKmh || null;
 
+    // ── Collision scenario detection ────────────────────────────────────────────
+    // Determines the granular scenario (rear_end_struck, sideswipe, hit_and_run, etc.)
+    // from the narrative + collisionDirection. Used by Stage 7 physics routing,
+    // Evidence Registry, and the forensic validator.
+    const scenarioFlags = detectCollisionScenario({
+      description: v.accidentDescription || ctx.claim.incidentDescription || null,
+      incidentType,
+      collisionDirection,
+      thirdPartyVehicle: v.thirdPartyVehicle || null,
+      thirdPartyName: v.thirdPartyName || null,
+    });
+    ctx.log("Stage 5", `Collision scenario: ${scenarioFlags.collisionScenario} | struckParty=${scenarioFlags.isStruckParty} | hitAndRun=${scenarioFlags.isHitAndRun} | parkingLot=${scenarioFlags.isParkingLotDamage} | 3rdPartyRequired=${scenarioFlags.thirdPartyClaimRequired}`);
+
     const accidentDetails: AccidentDetails = {
       date: v.accidentDate || ctx.claim.accidentDate || null,
       location: v.accidentLocation || ctx.claim.accidentLocation || null,
@@ -260,6 +274,12 @@ export async function runAssemblyStage(
       roadSurface: v.roadSurface || null,
       time: v.incidentTime || null,
       narrativeAnalysis: null, // Populated by incidentNarrativeEngine in orchestrator after Stage 7
+      // Scenario-awareness fields — set by detectCollisionScenario above
+      collisionScenario: scenarioFlags.collisionScenario,
+      isStruckParty: scenarioFlags.isStruckParty,
+      thirdPartyClaimRequired: scenarioFlags.thirdPartyClaimRequired,
+      isHitAndRun: scenarioFlags.isHitAndRun,
+      isParkingLotDamage: scenarioFlags.isParkingLotDamage,
     };
 
     const policeReport: PoliceReportRecord = {
@@ -403,6 +423,8 @@ export async function runAssemblyStage(
         structuralDamage: false, airbagDeployment: false,
         animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
         narrativeAnalysis: null,
+        collisionScenario: "unknown" as const, isStruckParty: false,
+        thirdPartyClaimRequired: false, isHitAndRun: false, isParkingLotDamage: false,
       },
       policeReport: { reportNumber: null, station: null },
       damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
@@ -454,6 +476,151 @@ export async function runAssemblyStage(
       degraded: true,
     };
   }
+}
+
+/**
+ * Detect the granular collision scenario from narrative text, incidentType, and collisionDirection.
+ * Returns a CollisionScenario value plus derived boolean flags used throughout the pipeline.
+ *
+ * Detection priority:
+ * 1. Hit-and-run keywords (highest priority — overrides direction-based logic)
+ * 2. Parking lot / stationary damage keywords
+ * 3. Single-vehicle / rollover (no other party)
+ * 4. Sideswipe (lateral contact)
+ * 5. Rear-end (struck vs striking determined from narrative)
+ * 6. Head-on
+ * 7. Fallback to collisionDirection + incidentType
+ */
+function detectCollisionScenario(params: {
+  description: string | null;
+  incidentType: CanonicalIncidentType;
+  collisionDirection: CollisionDirection;
+  thirdPartyVehicle: string | null;
+  thirdPartyName: string | null;
+}): {
+  collisionScenario: CollisionScenario;
+  isStruckParty: boolean;
+  thirdPartyClaimRequired: boolean;
+  isHitAndRun: boolean;
+  isParkingLotDamage: boolean;
+} {
+  const d = (params.description || "").toLowerCase();
+  const dir = params.collisionDirection;
+  const hasKnownThirdParty = !!(params.thirdPartyVehicle || params.thirdPartyName);
+
+  // ── 1. Hit-and-run detection ────────────────────────────────────────────────
+  const hitAndRunKeywords = [
+    "hit and run", "hit-and-run", "fled", "drove off", "drove away", "sped off",
+    "sped away", "drove off without", "no details", "untraced", "unknown vehicle",
+    "did not stop", "didn't stop", "failed to stop", "left the scene",
+    "left scene", "ran away", "ran off", "no registration", "no reg",
+    "no contact details", "could not get details", "unable to get details",
+  ];
+  const isHitAndRun = hitAndRunKeywords.some(kw => d.includes(kw));
+
+  // ── 2. Parking lot / stationary damage ──────────────────────────────────────
+  const parkingKeywords = [
+    "parked", "parking", "parking lot", "parking bay", "car park",
+    "stationary", "unattended", "was parked", "while parked",
+    "in the parking", "shopping centre", "shopping center", "mall",
+    "found damage", "discovered damage", "came back to", "returned to",
+  ];
+  const isParkingLotDamage = parkingKeywords.some(kw => d.includes(kw));
+
+  // ── 3. Single-vehicle / rollover ─────────────────────────────────────────────
+  const singleVehicleKeywords = [
+    "lost control", "swerved", "rolled", "overturned", "flipped",
+    "hit a wall", "hit a pole", "hit a tree", "hit a fence",
+    "hit a pothole", "hit the curb", "hit the kerb", "ran off the road",
+    "went off the road", "into a ditch", "into the ditch", "no other vehicle",
+    "no third party", "single vehicle",
+  ];
+  const isSingleVehicle = singleVehicleKeywords.some(kw => d.includes(kw))
+    || dir === "rollover"
+    || params.incidentType === "animal_strike";
+
+  // ── 4. Sideswipe ─────────────────────────────────────────────────────────────
+  const sideswipeKeywords = [
+    "sideswiped", "sideswipe", "side swipe", "scraped", "scratched",
+    "glancing blow", "glanced off", "clipped", "brushed",
+    "lane change", "changed lanes", "merging",
+  ];
+  const isSideswipe = sideswipeKeywords.some(kw => d.includes(kw))
+    || (dir === "side_driver" || dir === "side_passenger");
+
+  // ── 5. Rear-end: struck vs striking ─────────────────────────────────────────
+  const rearEndKeywords = [
+    "rear", "rear-end", "rear end", "from behind", "hit from behind",
+    "struck from behind", "rammed from behind", "bumped from behind",
+    "back of my vehicle", "back of the vehicle", "boot", "tailgate",
+  ];
+  const isRearEnd = rearEndKeywords.some(kw => d.includes(kw)) || dir === "rear";
+
+  // Struck-party indicators: passive voice, "was hit", "was struck", "was rammed"
+  const struckPartyKeywords = [
+    "was hit", "was struck", "was rammed", "was bumped", "was rear-ended",
+    "was rear ended", "hit from behind", "struck from behind", "rammed from behind",
+    "bumped from behind", "another vehicle hit", "another car hit",
+    "third party hit", "third party struck", "other vehicle hit",
+    "other car hit", "came from behind", "came into the back",
+    "drove into the back", "drove into my", "collided into the back",
+  ];
+  const isStruckByNarrative = struckPartyKeywords.some(kw => d.includes(kw));
+
+  // ── 6. Head-on ───────────────────────────────────────────────────────────────
+  const headOnKeywords = [
+    "head-on", "head on", "oncoming", "oncoming vehicle", "oncoming car",
+    "wrong side", "wrong lane", "overtaking", "head to head",
+  ];
+  const isHeadOn = headOnKeywords.some(kw => d.includes(kw)) || dir === "frontal";
+
+  // ── Resolve scenario ─────────────────────────────────────────────────────────
+  let collisionScenario: CollisionScenario;
+  let isStruckParty = false;
+  let thirdPartyClaimRequired = false;
+
+  if (isHitAndRun) {
+    collisionScenario = "hit_and_run";
+    isStruckParty = true; // By definition — the other party caused the damage
+    thirdPartyClaimRequired = false; // No third-party details to corroborate
+  } else if (isParkingLotDamage) {
+    collisionScenario = "parking_lot";
+    isStruckParty = true;
+    thirdPartyClaimRequired = hasKnownThirdParty; // Only if third party is identified
+  } else if (isSingleVehicle) {
+    collisionScenario = params.incidentType === "animal_strike" ? "single_vehicle" : "single_vehicle";
+    isStruckParty = false;
+    thirdPartyClaimRequired = false;
+  } else if (isSideswipe && !isRearEnd) {
+    collisionScenario = "sideswipe";
+    isStruckParty = isStruckByNarrative;
+    thirdPartyClaimRequired = hasKnownThirdParty || isStruckByNarrative;
+  } else if (isRearEnd) {
+    // Rear-end: determine if claimant was struck or striking
+    if (isStruckByNarrative || dir === "rear") {
+      collisionScenario = "rear_end_struck";
+      isStruckParty = true;
+      thirdPartyClaimRequired = true; // Always request third-party claim for rear-end struck
+    } else {
+      collisionScenario = "rear_end_striking";
+      isStruckParty = false;
+      thirdPartyClaimRequired = hasKnownThirdParty;
+    }
+  } else if (isHeadOn) {
+    collisionScenario = "head_on";
+    isStruckParty = isStruckByNarrative;
+    thirdPartyClaimRequired = true; // Head-on always involves another party
+  } else if (dir === "rollover") {
+    collisionScenario = "rollover";
+    isStruckParty = false;
+    thirdPartyClaimRequired = false;
+  } else {
+    collisionScenario = "unknown";
+    isStruckParty = isStruckByNarrative;
+    thirdPartyClaimRequired = hasKnownThirdParty;
+  }
+
+  return { collisionScenario, isStruckParty, thirdPartyClaimRequired, isHitAndRun, isParkingLotDamage };
 }
 
 function classifyCollisionDirection(raw: string): CollisionDirection {

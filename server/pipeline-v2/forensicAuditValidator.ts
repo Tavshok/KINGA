@@ -516,6 +516,91 @@ export async function runForensicAuditValidation(
       ...policyReclassifiedIssues,
     ];
 
+    // ── SCENARIO-AWARE POST-PROCESSING ──────────────────────────────────────────────────────────
+    // Each collision scenario has distinct evidence requirements. We apply deterministic corrections
+    // AFTER the LLM has run, so the LLM still sees and flags everything — we only adjust severity.
+    // Order: (A) hit-and-run escalation → (B) parking lot suppression → (C) head-on advisory
+    // These run before the image/speed filters so all arrays are consistent downstream.
+    const collisionScenario: string = r3.claimRecord?.accidentDetails?.collisionScenario ?? 'unknown';
+    const isHitAndRun: boolean = !!(r3.claimRecord?.accidentDetails?.isHitAndRun);
+    const isParkingLot: boolean = !!(r3.claimRecord?.accidentDetails?.isParkingLotDamage);
+    const hasPoliceSummaryForScenario: boolean = !!(r3.claimRecord?.policeReport?.reportNumber ||
+      r3.claimRecord?.policeReport?.officerName ||
+      r3.claimRecord?.policeReport?.station ||
+      r3.claimRecord?.policeReport?.chargeNumber);
+    const POLICE_REPORT_CODES = [
+      'POLICE_REPORT_MISSING', 'POLICE_REPORT_NOT_PROVIDED', 'MISSING_POLICE_REPORT',
+      'NO_POLICE_REPORT', 'POLICE_REPORT_ABSENT', 'POLICE_REPORT_REQUIRED',
+    ];
+    const isPoliceReportIssue = (issue: any) =>
+      POLICE_REPORT_CODES.some(code =>
+        (issue.code ?? '').toUpperCase().includes(code.toUpperCase()) ||
+        (issue.description ?? '').toLowerCase().includes('police report')
+      );
+
+    // (A) Hit-and-run: missing police report → CRITICAL ─────────────────────────────────────────
+    // Without a police report, a hit-and-run claim has no independent verification whatsoever.
+    const scenarioEscalatedCritical: any[] = [];
+    const scenarioEscalatedHigh: any[] = [];
+    let workingCritical = filteredCritical;
+    let workingHigh = filteredHigh;
+    let workingMedium = filteredMedium;
+    let workingLow = filteredLow;
+
+    if (isHitAndRun && !hasPoliceSummaryForScenario) {
+      const escalated: any[] = [];
+      workingHigh = workingHigh.filter((i: any) => { if (isPoliceReportIssue(i)) { escalated.push(i); return false; } return true; });
+      workingMedium = workingMedium.filter((i: any) => { if (isPoliceReportIssue(i)) { escalated.push(i); return false; } return true; });
+      workingLow = workingLow.filter((i: any) => { if (isPoliceReportIssue(i)) { escalated.push(i); return false; } return true; });
+      const escalatedAsCritical = escalated.map((i: any) => ({
+        ...i,
+        code: 'POLICE_REPORT_MANDATORY_HIT_AND_RUN',
+        description: `[ESCALATED TO CRITICAL — hit-and-run] A police report is mandatory for hit-and-run claims. Without it the claim has no independent verification. Original: ${i.description}`,
+        severity: 'CRITICAL',
+      }));
+      // If LLM did not flag it at all, inject a new critical failure
+      const alreadyInCritical = workingCritical.some(isPoliceReportIssue);
+      if (escalatedAsCritical.length === 0 && !alreadyInCritical) {
+        escalatedAsCritical.push({
+          dimension: 'dataExtraction',
+          code: 'POLICE_REPORT_MANDATORY_HIT_AND_RUN',
+          description: '[CRITICAL — hit-and-run] Police report is mandatory for hit-and-run claims. No police report details were found. This claim cannot proceed without a police report number or officer details.',
+          evidence: `collisionScenario=${collisionScenario}; policeReport fields are empty`,
+          severity: 'CRITICAL',
+        });
+      }
+      workingCritical = [...workingCritical, ...escalatedAsCritical];
+    }
+
+    // (B) Parking lot: police report gap → INFO (not expected for parking lot damage) ──────────
+    if (isParkingLot) {
+      const reclassified: any[] = [];
+      const reclassify = (i: any) => ({
+        ...i,
+        code: 'POLICE_REPORT_NOT_REQUIRED_PARKING_LOT',
+        description: `[INFO — parking lot] Police attendance is not standard for parking lot damage. Original: ${i.description}`,
+        severity: 'INFO',
+      });
+      workingCritical = workingCritical.filter((i: any) => { if (isPoliceReportIssue(i)) { reclassified.push(reclassify(i)); return false; } return true; });
+      workingHigh = workingHigh.filter((i: any) => { if (isPoliceReportIssue(i)) { reclassified.push(reclassify(i)); return false; } return true; });
+      workingMedium = workingMedium.filter((i: any) => { if (isPoliceReportIssue(i)) { reclassified.push(reclassify(i)); return false; } return true; });
+      workingLow = [...workingLow, ...reclassified];
+    }
+
+    // (C) Head-on: missing police report → inject HIGH advisory if LLM missed it ──────────────
+    if (collisionScenario === 'head_on' && !hasPoliceSummaryForScenario) {
+      const alreadyFlagged = [...workingCritical, ...workingHigh].some(isPoliceReportIssue);
+      if (!alreadyFlagged) {
+        workingHigh = [...workingHigh, {
+          dimension: 'dataExtraction',
+          code: 'POLICE_REPORT_EXPECTED_HEAD_ON',
+          description: '[HIGH — head-on] Police attendance is expected for head-on collisions. No police report details found. Recommend requesting police report before settlement.',
+          evidence: `collisionScenario=${collisionScenario}; policeReport fields are empty`,
+          severity: 'HIGH',
+        }];
+      }
+    }
+
     // ── Speed assumption contradiction: downgrade HIGH → MEDIUM when extracted speed exists
     // The LLM flags speed assumptions as HIGH severity when they contradict an extracted speed.
     // This is correct behaviour, but the assumption is LOW_CONFIDENCE_OVERRIDE (informational),
@@ -542,11 +627,11 @@ export async function runForensicAuditValidation(
         (issue.dimension ?? "").includes("IMAGE_ANALYSIS")
       );
 
-    // ── Step 2: Apply all filters in sequence (image false positives + policy false positives)
-    const cleanedCritical = filteredCritical.filter((i: any) => !isImageFalsePositive(i));
-    const cleanedHigh = filteredHigh.filter((i: any) => !isImageFalsePositive(i));
-    const cleanedMedium = filteredMedium.filter((i: any) => !isImageFalsePositive(i));
-    const cleanedLow = filteredLow.filter((i: any) => !isImageFalsePositive(i));
+    // ── Step 2: Apply image false-positive filter to the scenario-corrected arrays
+    const cleanedCritical = workingCritical.filter((i: any) => !isImageFalsePositive(i));
+    const cleanedHigh = workingHigh.filter((i: any) => !isImageFalsePositive(i));
+    const cleanedMedium = workingMedium.filter((i: any) => !isImageFalsePositive(i));
+    const cleanedLow = workingLow.filter((i: any) => !isImageFalsePositive(i));
 
     // ── Step 3: Move speed contradictions from highSeverityIssues to mediumIssues
     const speedContradictions = cleanedHigh.filter(isSpeedContradiction);

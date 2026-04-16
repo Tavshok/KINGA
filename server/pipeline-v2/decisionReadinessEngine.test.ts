@@ -132,10 +132,13 @@ describe("Check 2 — Incident confirmed", () => {
   });
 
   it("FAIL when incident_type is an unrecognised value", () => {
-    const result = evaluateDecisionReadiness(makeInput({ incident: { incident_type: "collision" } }));
+    // "collision" and its sub-types (rear_end, head_on, sideswipe, etc.) are now valid canonical
+    // types — canonicaliseIncidentType maps them to vehicle_collision. Use a genuinely unknown
+    // string that has no mapping to verify the FAIL path still works.
+    const result = evaluateDecisionReadiness(makeInput({ incident: { incident_type: "fender_bender" } }));
     const check = result.checks.find(c => c.check_id === "INCIDENT_CONFIRMED")!;
     expect(check.status).toBe("FAIL");
-    expect(check.detail).toContain('"collision"');
+    expect(check.detail).toContain('"fender_bender"');
   });
 
   it("WARN when conflict_detected = true", () => {

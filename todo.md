@@ -10773,3 +10773,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Wire corrector into Stage 2 post-extraction and Stage 3 field recovery
 - [ ] Write 40+ tests covering all correction categories
 - [ ] Run full regression suite and save checkpoint
+
+## Scenario-Aware Collision Handling (Pipeline v2)
+
+- [ ] Add `collisionScenario` field to `AccidentDetails` type in types.ts: `rear_end_struck | sideswipe | hit_and_run | parking_lot | head_on | single_vehicle | rollover | unknown`
+- [ ] Add `isStruckParty` boolean and `thirdPartyClaimRequired` boolean to `AccidentDetails` type
+- [ ] Stage 3: add `hitAndRun` boolean field extraction; add `parkingLotDamage` boolean field extraction
+- [ ] Stage 5: detect struck-party status from narrative + collisionDirection + incidentType; populate `isStruckParty` and `collisionScenario`
+- [ ] Stage 5: detect hit-and-run from narrative keywords (fled, drove off, no details, untraced, unknown vehicle)
+- [ ] Stage 5: detect parking lot damage from narrative keywords (parked, parking, stationary, unattended)
+- [ ] Stage 7: rear-end struck-party path — use rear damage components as primary physics input; skip claimant speed; flag `THIRD_PARTY_SPEED_UNAVAILABLE` if third-party speed absent
+- [ ] Stage 7: sideswipe path — use lateral crush depth; lower energy transfer coefficient; flag cosmetic-only vs structural
+- [ ] Stage 7: hit-and-run path — physics runs on damage only (no speed, no third-party corroboration); flag `HIT_AND_RUN_UNVERIFIABLE` in physics output
+- [ ] Stage 7: parking lot path — cap speed at 15 km/h; flag `PARKING_LOT_LOW_SPEED`; skip causal reasoning LLM call
+- [ ] Evidence Registry: rear-end struck → require third-party claim/statement as RECOMMENDED document
+- [ ] Evidence Registry: sideswipe with known third party → require third-party registration/insurer details
+- [ ] Evidence Registry: hit-and-run → require police report as MANDATORY; flag if absent
+- [ ] Evidence Registry: parking lot → require CCTV/witness statement as RECOMMENDED
+- [ ] Forensic validator: add `THIRD_PARTY_CLAIM_MISSING` check for rear-end and sideswipe with known third party
+- [ ] Forensic validator: add `HIT_AND_RUN_POLICE_REPORT_MISSING` critical check
+- [ ] Forensic validator: add `PARKING_LOT_NO_WITNESS` advisory check (INFO severity)

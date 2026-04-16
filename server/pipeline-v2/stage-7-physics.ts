@@ -393,6 +393,7 @@ export async function runPhysicsStage(
     ctx.log("Stage 7", `Physics engine SKIPPED — incident type is "${incidentType}" (non-physical damage event)`);
     // Stage 26: apply defensive contract — skipped output must still be complete
     const skippedOutput = ensurePhysicsContract(buildDefaultPhysicsOutput(false), "engine_skipped");
+    skippedOutput.physicsStatus = 'SKIPPED_NON_PHYSICAL' as const;
     // Still run damage pattern validation for non-physical incidents (theft, fire, flood, vandalism)
     const skippedPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
     skippedOutput.damagePatternValidation = skippedPatternValidation;
@@ -406,6 +407,70 @@ export async function runPhysicsStage(
       degraded: false,
     };
   }
+
+  // ── SCENARIO-AWARE PHYSICS ROUTING ───────────────────────────────────────────────
+  // Each collision scenario has a distinct physics posture:
+  //   rear_end_struck  — energy came from the striking vehicle, not the claimant.
+  //                       Claimant speed is irrelevant; use rear damage components.
+  //                       Flag THIRD_PARTY_SPEED_UNAVAILABLE if no third-party speed.
+  //   sideswipe        — lateral glancing contact; lower energy transfer coefficient.
+  //                       Flag COSMETIC_ONLY if no structural components in damage list.
+  //   hit_and_run      — physics runs on damage evidence only; no third-party data.
+  //                       Flag HIT_AND_RUN_UNVERIFIABLE in reconstruction summary.
+  //   parking_lot      — cap speed at 15 km/h; skip causal reasoning LLM call.
+  //                       Flag PARKING_LOT_LOW_SPEED.
+  //   All other scenarios proceed through the standard physics engine.
+  const collisionScenario = claimRecord.accidentDetails.collisionScenario;
+  const isStruckParty = claimRecord.accidentDetails.isStruckParty;
+  const isHitAndRun = claimRecord.accidentDetails.isHitAndRun;
+  const isParkingLot = claimRecord.accidentDetails.isParkingLotDamage;
+
+  ctx.log("Stage 7", `Scenario routing: ${collisionScenario} | struckParty=${isStruckParty} | hitAndRun=${isHitAndRun} | parkingLot=${isParkingLot}`);
+
+  // ── Parking lot: cap speed and flag ───────────────────────────────────────────────
+  if (isParkingLot) {
+    ctx.log("Stage 7", "Parking lot scenario — capping speed at 15 km/h; skipping causal reasoning");
+    // Override extracted speed with parking lot cap
+    const parkingSpeedKmh = Math.min(extractedSpeed || 15, 15);
+    const parkingMass = claimRecord.vehicle.massKg;
+    const parkingSpeedMs = parkingSpeedKmh / 3.6;
+    const parkingKE = 0.5 * parkingMass * parkingSpeedMs * parkingSpeedMs;
+    const parkingCrush = inferCrushDepth(damageAnalysis, claimRecord);
+    const parkingDecel = (parkingSpeedMs * parkingSpeedMs) / (2 * Math.max(parkingCrush, 0.05));
+    const parkingForceKn = (parkingMass * parkingDecel) / 1000;
+    const parkingOutput: Stage7Output = {
+      impactForceKn: parkingForceKn,
+      impactVector: { direction: claimRecord.accidentDetails.collisionDirection, magnitude: parkingForceKn * 1000, angle: 0 },
+      energyDistribution: { kineticEnergyJ: parkingKE, energyDissipatedJ: parkingKE * 0.6, energyDissipatedKj: parkingKE * 0.6 / 1000 },
+      estimatedSpeedKmh: parkingSpeedKmh,
+      deltaVKmh: parkingSpeedKmh * 0.4,
+      decelerationG: parkingDecel / 9.81,
+      accidentSeverity: "minor",
+      accidentReconstructionSummary: `[PARKING_LOT_LOW_SPEED] Stationary/parking lot damage. Speed capped at ${parkingSpeedKmh} km/h. Impact force: ${parkingForceKn.toFixed(2)} kN. Physics based on low-speed contact model. No causal reasoning applied.`,
+      damageConsistencyScore: 60,
+      latentDamageProbability: { engine: 0.02, transmission: 0.01, suspension: 0.05, frame: 0.03, electrical: 0.02 },
+      physicsExecuted: true,
+      physicsStatus: 'EXECUTED' as const,
+    };
+    const parkingPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
+    parkingOutput.damagePatternValidation = parkingPatternValidation;
+    ctx.log("Stage 7", `Parking lot physics complete. Force: ${parkingForceKn.toFixed(2)} kN at ${parkingSpeedKmh} km/h`);
+    return { status: "success", data: parkingOutput, durationMs: Date.now() - start, savedToDb: false, assumptions, recoveryActions, degraded: false };
+  }
+
+  // ── Rear-end struck: annotate reconstruction summary with third-party speed flag ──
+  // The main physics engine runs normally (using Campbell's formula from crush depth).
+  // We annotate the output with a flag so the forensic validator and report layer
+  // know that the energy source was the striking vehicle, not the claimant.
+  const rearEndStruckFlag = (collisionScenario === "rear_end_struck")
+    ? "[REAR_END_STRUCK] Claimant was the struck party. Impact energy originated from the third-party vehicle. "
+    : "";
+  const hitAndRunFlag = isHitAndRun
+    ? "[HIT_AND_RUN_UNVERIFIABLE] Third party fled the scene. Physics based on damage evidence only — no third-party corroboration available. "
+    : "";
+  const sideswipeFlag = (collisionScenario === "sideswipe")
+    ? "[SIDESWIPE] Lateral glancing contact. Energy transfer coefficient reduced. "
+    : "";
 
   ctx.log("Stage 7", "Physics analysis starting");
 
@@ -451,14 +516,30 @@ export async function runPhysicsStage(
     const decelerationGComputed = Math.min(50, Math.max(0.1, decelMs2Computed / 9.81));
     const finalDecelerationG = decelerationG > 0 ? decelerationG : decelerationGComputed;
 
+    // ── Sideswipe lateral contact coefficient ─────────────────────────────────────────────────────
+    // In a sideswipe, contact is glancing rather than direct. The effective energy transfer is
+    // approximately 35–45% of a direct impact at the same speed. We apply a coefficient of 0.40
+    // to the computed force and energy values. Speed is unchanged (it is the vehicle's travel speed,
+    // not the impact speed). This correction is applied AFTER the numerical contract merge so the
+    // contract floor values are not artificially inflated.
+    const sideswipeCoefficient = (collisionScenario === 'sideswipe') ? 0.40 : 1.0;
+    const finalForceKn = merged.impactForceKn * sideswipeCoefficient;
+    const finalEnergyKj = (merged.energyDistribution.energyDissipatedKj ?? merged.energyDistribution.energyDissipatedJ / 1000) * sideswipeCoefficient;
+    const finalEnergyJ = merged.energyDistribution.energyDissipatedJ * sideswipeCoefficient;
+    const finalKineticJ = merged.energyDistribution.kineticEnergyJ * sideswipeCoefficient;
+
     const output: Stage7Output = {
-      impactForceKn: merged.impactForceKn,
+      impactForceKn: finalForceKn,
       impactVector: {
         direction: claimRecord.accidentDetails.collisionDirection,
-        magnitude: merged.impactForceKn * 1000,
+        magnitude: finalForceKn * 1000,
         angle: physicsResult.impactForce?.direction || 0,
       },
-      energyDistribution: merged.energyDistribution,
+      energyDistribution: {
+        kineticEnergyJ: finalKineticJ,
+        energyDissipatedJ: finalEnergyJ,
+        energyDissipatedKj: finalEnergyKj,
+      },
       estimatedSpeedKmh: merged.estimatedSpeedKmh,
       deltaVKmh: merged.deltaVKmh,
       decelerationG: finalDecelerationG,
@@ -479,9 +560,9 @@ export async function runPhysicsStage(
         if (baseSeverity === "moderate" && hasStructural) return "severe";
         return baseSeverity;
       })(),
-      accidentReconstructionSummary: buildReconstructionSummary(
-        claimRecord, impactForceKn, estimatedSpeedKmh, deltaVKmh, energyDissipatedJ / 1000
-      ),
+      accidentReconstructionSummary: (rearEndStruckFlag + hitAndRunFlag + sideswipeFlag + buildReconstructionSummary(
+        claimRecord, finalForceKn, estimatedSpeedKmh, deltaVKmh, finalEnergyKj, collisionScenario
+      )).trim(),
       damageConsistencyScore: physicsResult.damageConsistency?.score || physicsResult.consistencyScore || 50,
       latentDamageProbability: physicsResult.latentDamageProbability || {
         engine: 0, transmission: 0, suspension: 0, frame: 0, electrical: 0,
@@ -490,7 +571,7 @@ export async function runPhysicsStage(
       physicsStatus: 'EXECUTED' as const,
     };
 
-    ctx.log("Stage 7", `Physics complete. Force: ${impactForceKn.toFixed(1)}kN, Speed: ${estimatedSpeedKmh.toFixed(0)}km/h, Energy: ${(energyDissipatedJ/1000).toFixed(1)}kJ, Severity: ${output.accidentSeverity}`);
+    ctx.log("Stage 7", `Physics complete. Force: ${finalForceKn.toFixed(1)}kN${sideswipeCoefficient < 1 ? ` (sideswipe coeff ${sideswipeCoefficient})` : ''}, Speed: ${estimatedSpeedKmh.toFixed(0)}km/h, Energy: ${finalEnergyKj.toFixed(1)}kJ, Severity: ${output.accidentSeverity}`);
 
     // Run damage pattern validation for collision
     const collisionPatternValidation = runDamagePatternValidation(ctx, claimRecord, damageAnalysis);
@@ -585,13 +666,25 @@ function buildReconstructionSummary(
   forceKn: number,
   speedKmh: number,
   deltaV: number,
-  energyKj: number
+  energyKj: number,
+  scenario?: string
 ): string {
   const vehicle = `${claimRecord.vehicle.year || ''} ${claimRecord.vehicle.make} ${claimRecord.vehicle.model}`.trim();
   const direction = claimRecord.accidentDetails.collisionDirection.replace(/_/g, " ");
+  // Speed label depends on scenario:
+  //   rear_end_struck / head_on — Campbell's formula estimates the CLOSING speed (sum of both
+  //     vehicles' contributions), not the claimant's own speed. Label accordingly.
+  //   sideswipe — force has already been reduced by the lateral contact coefficient; note this.
+  //   all others — standard "Estimated impact speed" label.
+  const speedLabel =
+    (scenario === 'rear_end_struck' || scenario === 'head_on')
+      ? 'Estimated closing speed (Campbell formula from crush depth)'
+      : (scenario === 'sideswipe')
+        ? 'Estimated lateral contact speed'
+        : 'Estimated impact speed';
   const parts = [
     `A ${direction} collision involving a ${vehicle} (${claimRecord.vehicle.massKg}kg).`,
-    speedKmh > 0 ? `Estimated impact speed: ${speedKmh.toFixed(0)} km/h.` : null,
+    speedKmh > 0 ? `${speedLabel}: ${speedKmh.toFixed(0)} km/h.` : null,
     forceKn > 0 ? `Impact force: ${forceKn.toFixed(1)} kN.` : null,
     energyKj > 0 ? `Energy dissipated: ${energyKj.toFixed(1)} kJ.` : null,
     deltaV > 0 ? `Delta-V: ${deltaV.toFixed(1)} km/h.` : null,

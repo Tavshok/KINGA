@@ -558,9 +558,57 @@ export async function runPipelineV2(
       confidence: 10,
       stage: "Stage 5",
     });
+   } // end if (!claimRecord)
+
+  // ── STAGE 0.5: Scenario-Conditional Evidence Notes ──────────────────────────
+  // Now that claimRecord is available, enrich the Evidence Registry with
+  // scenario-specific notes about missing third-party claims, hit-and-run
+  // flags, and parking lot damage. These notes are advisory — they do not
+  // block the pipeline but surface as recommendations in the forensic report.
+  if (evidenceRegistryData && claimRecord) {
+    const scenario = claimRecord.accidentDetails.collisionScenario;
+    const thirdPartyRequired = claimRecord.accidentDetails.thirdPartyClaimRequired;
+    const hitAndRun = claimRecord.accidentDetails.isHitAndRun;
+    const parkingLot = claimRecord.accidentDetails.isParkingLotDamage;
+    const isStruckParty = claimRecord.accidentDetails.isStruckParty;
+    const hasThirdPartyInfo = !!claimRecord.accidentDetails.description?.toLowerCase().includes("third party") ||
+      !!(claimRecord as any).thirdParty?.vehicleRegistration;
+
+    if (isStruckParty && thirdPartyRequired && !hasThirdPartyInfo) {
+      evidenceRegistryData.notes.push(
+        `[SCENARIO: ${scenario.toUpperCase()}] Claimant was the struck party. ` +
+        "A third-party claim or statement from the at-fault driver is required to corroborate " +
+        "the physics reconstruction and confirm liability. " +
+        "Request: third-party claim form, third-party insurer details, and police report."
+      );
+    }
+    if (hitAndRun) {
+      evidenceRegistryData.notes.push(
+        "[SCENARIO: HIT_AND_RUN] The at-fault vehicle fled the scene. " +
+        "A police report is mandatory for hit-and-run claims. " +
+        "Request: police report number, CCTV or witness statements, and any available third-party vehicle description."
+      );
+    }
+    if (parkingLot) {
+      evidenceRegistryData.notes.push(
+        "[SCENARIO: PARKING_LOT] Damage occurred in a stationary/parking context. " +
+        "Speed assumptions are capped at 15 km/h. " +
+        "If another vehicle was involved, request parking lot CCTV footage or a witness statement."
+      );
+    }
+    if (scenario === "sideswipe") {
+      evidenceRegistryData.notes.push(
+        "[SCENARIO: SIDESWIPE] Lateral glancing contact. " +
+        "Verify that damage components are consistent with a side-impact pattern (door panels, mirrors, sills). " +
+        "If another vehicle was involved, request third-party registration and insurer details."
+      );
+    }
+    if (evidenceRegistryData.notes.some(n => n.startsWith("[SCENARIO:"))) {
+      ctx.log("Stage 0.5", `Scenario evidence notes added: scenario=${scenario}, struckParty=${isStruckParty}, hitAndRun=${hitAndRun}, parkingLot=${parkingLot}`);
+    }
   }
 
-  // ── STAGE 2.5: Automotive Domain Corrector ─────────────────────────────
+  // ── STAGE 2.5: Automotive Domain Corrector ──────────────────────────────────────
   // Fixes OCR/handwriting misreads: BMD→BMW, TOYATA→Toyota, policy label fragments, etc.
   if (claimRecord) {
     try {
@@ -1941,6 +1989,8 @@ function buildMinimalClaimRecord(ctx: PipelineContext): ClaimRecord {
       structuralDamage: false, airbagDeployment: false,
       time: null, animalType: null, weatherConditions: null, visibilityConditions: null, roadSurface: null,
       narrativeAnalysis: null,
+      collisionScenario: "unknown" as const, isStruckParty: false,
+      thirdPartyClaimRequired: false, isHitAndRun: false, isParkingLotDamage: false,
     },
     policeReport: { reportNumber: null, station: null },
     damage: { description: null, components: [], imageUrls: ctx.damagePhotoUrls || [] },
