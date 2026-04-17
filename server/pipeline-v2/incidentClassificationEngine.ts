@@ -504,22 +504,34 @@ const MULTI_EVENT_SYSTEM_PROMPT = `You are an expert motor insurance claims anal
 Your task is to identify whether an incident narrative describes a SINGLE event or a SEQUENCE of MULTIPLE distinct physical events.
 
 A multi-event incident involves two or more physically distinct events that occurred in sequence, such as:
-- Collision with another vehicle, THEN veering off the road
+- A flying object / debris striking the vehicle, THEN the driver swerving off the road
+- Collision with another vehicle, THEN veering off the road or into a ditch
 - Losing control, THEN striking a barrier, THEN rolling over
 - Being rear-ended, THEN spinning and hitting a wall
 - Multiple separate collisions (e.g. hit vehicle A, then hit vehicle B)
+- Tyre blowout or mechanical failure, THEN loss of control and collision
 
 Do NOT split a single event into multiple events just because the description is detailed.
 Do NOT treat pre-incident conditions (speeding, wet road) as separate events.
 
 For each event in the sequence, identify:
 1. event_order: 1-based position in the sequence
-2. event_type: one of: animal_strike, rollover, rear_end, head_on, sideswipe, single_vehicle, pedestrian_strike, vehicle_collision, theft, fire, flood, vandalism, unknown
-3. event_sub_type: optional sub-type (e.g. "run_off_road", "overturned", "struck_barrier", "struck_ditch")
+2. event_type: one of: animal_strike, rollover, rear_end, head_on, sideswipe, single_vehicle, pedestrian_strike, vehicle_collision, object_strike, theft, fire, flood, vandalism, unknown
+   - Use "object_strike" for flying debris, kicked-up objects, or falling objects that strike the vehicle
+   - Use "vehicle_collision" for any contact with another moving or stationary vehicle
+   - Use "single_vehicle" for loss of control, run-off-road, ditch entry, rollover without another vehicle
+3. event_sub_type: optional sub-type (e.g. "run_off_road", "overturned", "struck_barrier", "struck_ditch", "flying_debris", "kicked_up_object")
 4. description: what happened in this specific event (1-2 sentences)
 5. causal_link: how this event caused or led to the NEXT event (null for the last event)
 6. damage_contribution: list of vehicle zones this event likely damaged (e.g. ["front", "driver_side"])
-7. involves_third_party: true if another vehicle or person was involved in THIS event
+7. involves_third_party: true if another vehicle, person, or object from another vehicle was involved in THIS event
+
+For the "confidence" field (0-100):
+- 90-100: Narrative explicitly states multiple distinct events with clear causal links
+- 70-89: Narrative implies multiple events with reasonable certainty
+- 50-69: Narrative is ambiguous but multi-event interpretation is plausible
+- 30-49: Single event is more likely but multi-event cannot be ruled out
+- 0-29: Almost certainly a single event
 
 Respond with JSON only.`;
 
@@ -584,7 +596,8 @@ export async function detectMultiEventSequence(
 
     const VALID_EVENT_TYPES: CanonicalIncidentType[] = [
       "animal_strike", "rollover", "rear_end", "head_on", "sideswipe",
-      "single_vehicle", "pedestrian_strike", "collision", "theft", "fire", "flood", "vandalism", "unknown",
+      "single_vehicle", "pedestrian_strike", "vehicle_collision", "object_strike",
+      "collision", "theft", "fire", "flood", "vandalism", "unknown",
     ];
 
     const events: IncidentEvent[] = (parsed.events ?? []).map((e: any, idx: number) => ({

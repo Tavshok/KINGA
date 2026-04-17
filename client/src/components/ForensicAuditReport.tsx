@@ -690,8 +690,18 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                         </span>
                       )}
                       {classifiedConflict && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}>
-                          ⚠ CONFLICT DETECTED
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}
+                          title={
+                            multiEventSequence?.is_multi_event
+                              ? `Multi-event incident: ${multiEventSequence.events?.map((e: any) => (e.event_type ?? "").replace(/_/g, " ")).join(" → ")}`
+                              : "Conflict between driver narrative, claim form, and/or damage evidence"
+                          }
+                        >
+                          {multiEventSequence?.is_multi_event
+                            ? `⚡ MULTI-EVENT INCIDENT (${multiEventSequence.events?.length ?? 2})`
+                            : "⚠ CONFLICT DETECTED"}
                         </span>
                       )}
                       {!isClassifiedByLLM && incidentType !== "N/A" && (

@@ -85,7 +85,12 @@ Flag: Missing fields clearly present in source, incorrect mappings (label vs val
 ### 2. INCIDENT CLASSIFICATION VALIDATION
 Check whether the classification matches the narrative.
 Rules: "hit from behind", "rear-end" MUST result in rear collision. Road condition mentions (e.g. pothole) must NOT override explicit collision.
-Flag: Misclassification, low-confidence classification, conflicting signals not resolved.
+
+CRITICAL MULTI-EVENT RULE: If the pipeline has detected a multi-event sequence (is_multi_event = true in multiEventSequence), then the incident classification represents the PRIMARY event only. The classification may differ from secondary events in the sequence — this is CORRECT and EXPECTED. Do NOT flag a classification as inconsistent with the narrative if the narrative describes a multi-event sequence and the classification correctly identifies the first/primary event. For example:
+- Narrative: "A tyre struck my vehicle (Event 1: object_strike), causing me to swerve into a ditch (Event 2: single_vehicle)" → classification "vehicle_collision" or "object_strike" is CORRECT. Do NOT flag this as inconsistent with "single_vehicle" elements.
+- Narrative: "I was hit by another vehicle (Event 1: vehicle_collision), then rolled over (Event 2: rollover)" → classification "vehicle_collision" is CORRECT even though rollover is also mentioned.
+
+Flag: Misclassification, low-confidence classification, conflicting signals not resolved. Do NOT flag multi-event sequences as inconsistent.
 
 ### 3. IMAGE ANALYSIS VALIDATION
 There are TWO separate image processing systems:
@@ -133,8 +138,12 @@ Flag: High score with poor data, low score despite strong evidence.
 
 FINAL RULE:
 - If ANY critical inconsistency or contradiction exists → overallStatus MUST be "FAIL"
-- If minor issues exist but core logic is sound → overallStatus = "WARNING"
+- If high-severity issues exist BUT no critical failures → overallStatus = "WARNING" (NOT FAIL)
+- If only minor/medium issues exist but core logic is sound → overallStatus = "WARNING"
 - If all dimensions are consistent and supported → overallStatus = "PASS"
+
+IMPORTANT: A consistencyScore >= 75 with 0 critical failures MUST result in "WARNING" or "PASS", never "FAIL".
+Do NOT use "FAIL" for missing optional data (policy number, police report number) when the claim has been correctly classified, damage has been analysed, and the cost model has been applied.
 
 ---
 
@@ -253,6 +262,20 @@ function buildValidationPayload(result: PipelineResult): string {
 - Sub-type: ${accident.incidentSubType ?? "N/A"}
 - Collision direction: ${accident.collisionDirection ?? "N/A"}
 - Damage zones: ${safeJson((damage.components ?? []).map((c: any) => c.zone ?? c.component ?? c))}
+
+### MULTI-EVENT INCIDENT DETECTION
+${(() => {
+  const mes = accident.multiEventSequence;
+  if (!mes) return '- Multi-event detection: NOT RUN (claim predates feature or detection failed)';
+  return [
+    `- is_multi_event: ${mes.is_multi_event}`,
+    `- event_count: ${mes.events?.length ?? 0}`,
+    `- confidence: ${mes.confidence}%`,
+    `- causal_chain: ${mes.causal_chain}`,
+    `- sequence_summary: ${mes.sequence_summary}`,
+    `- events: ${safeJson(mes.events ?? [])}`,
+  ].join('\n');
+})()}
 
 ### IMAGE ANALYSIS
 - Image classifier: ${classifiedImages ? `ACTIVE — ${classifiedImages.summary.damagePhotoCount} damage, ${classifiedImages.summary.vehicleOverviewCount} overview, ${classifiedImages.summary.quotationCount} quotation, ${classifiedImages.summary.documentPageCount} document, ${classifiedImages.summary.fallbackCount} fallback (from ${classifiedImages.summary.totalInput} total extracted)` : 'NOT AVAILABLE'}
@@ -741,10 +764,17 @@ export async function runForensicAuditValidation(
       imageAnalysis: correctImageDimension,
     };
     const dimValues = Object.values(correctedDimensions) as string[];
+    const consistencyScore: number = typeof parsed.consistencyScore === 'number' ? parsed.consistencyScore : 0;
     let finalStatus: "PASS" | "WARNING" | "FAIL";
-    if (cleanedCritical.length > 0 || dimValues.includes("FAIL")) {
+    if (cleanedCritical.length > 0) {
+      // Only FAIL when there are actual critical failures
       finalStatus = "FAIL";
-    } else if (remainingHigh.length > 0 || dimValues.includes("WARNING")) {
+    } else if (dimValues.includes("FAIL") && consistencyScore < 75) {
+      // A dimension-level FAIL is only an overall FAIL when consistency is also low
+      // High consistency (>=75) with no critical failures means the claim is sound despite gaps
+      finalStatus = "FAIL";
+    } else if (remainingHigh.length > 0 || dimValues.includes("WARNING") || dimValues.includes("FAIL")) {
+      // High-severity issues or any dimension warnings/fails (with no critical failures) → WARNING
       finalStatus = "WARNING";
     } else {
       finalStatus = "PASS";

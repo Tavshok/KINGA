@@ -95,6 +95,8 @@ export type CanonicalIncidentType =
   | "sideswipe"
   | "single_vehicle"
   | "pedestrian_strike"
+  | "vehicle_collision"
+  | "object_strike"
   | "theft"
   | "vandalism"
   | "flood"
