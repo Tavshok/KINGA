@@ -748,6 +748,38 @@ export default function InsurerComparisonView() {
         </div>
       </header>
 
+      {/* ── Pipeline Reliability Guard: Extraction Failure Banner ─────────── */}
+      {(claim as any).documentProcessingStatus === 'extraction_failed' && (
+        <div className="container mx-auto px-4 pt-4">
+          <div className="rounded-lg border px-4 py-3 flex items-start gap-3"
+            style={{ background: 'rgba(239,68,68,0.10)', borderColor: 'rgba(239,68,68,0.35)' }}>
+            <AlertTriangle className="h-5 w-5 mt-0.5 flex-shrink-0" style={{ color: '#ef4444' }} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: '#ef4444' }}>DOCUMENT EXTRACTION FAILURE</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                The source document produced insufficient OCR text (Stage 2 hard failure). The AI assessment may be incomplete or based on database fields only.
+                {(claim as any).extractionRetryCount > 1 && ` This is retry attempt ${(claim as any).extractionRetryCount}.`}
+                {' '}Re-upload a higher-quality scan or use the force re-extract option to retry.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* ── Pipeline Reliability Guard: Extraction Pending Banner ─────────── */}
+      {(claim as any).documentProcessingStatus === 'extraction_pending' && (
+        <div className="container mx-auto px-4 pt-4">
+          <div className="rounded-lg border px-4 py-3 flex items-start gap-3"
+            style={{ background: 'rgba(234,179,8,0.10)', borderColor: 'rgba(234,179,8,0.35)' }}>
+            <Loader2 className="h-5 w-5 mt-0.5 flex-shrink-0 animate-spin" style={{ color: '#eab308' }} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold" style={{ color: '#eab308' }}>DOCUMENT EXTRACTION IN PROGRESS</p>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+                The source document is still being processed by the ingestion pipeline. The AI assessment pipeline was blocked until extraction completes. Please wait and refresh.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Main Content — 8-section KINGA Claim Report Display Engine */}
       <main className="container mx-auto px-4 py-8 space-y-5">
 

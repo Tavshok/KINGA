@@ -431,6 +431,32 @@ export async function triggerAiAssessment(claimId: number, options?: { forceReex
   const claim = await getClaimById(claimId);
   if (!claim) throw new Error("Claim not found");
 
+  // ── PIPELINE RELIABILITY GUARD: Pre-Flight Document Readiness Check ────────
+  // Block pipeline trigger if the source document is still being processed by the
+  // ingestion pipeline (extractionStatus = 'pending' or 'processing').
+  // This prevents the pipeline from running on an empty/incomplete document.
+  if (claim.sourceDocumentId && !forceReextract) {
+    try {
+      const [sourceDoc] = await db.select({ extractionStatus: ingestionDocuments.extractionStatus })
+        .from(ingestionDocuments)
+        .where(eq(ingestionDocuments.id, claim.sourceDocumentId))
+        .limit(1);
+      if (sourceDoc && (sourceDoc.extractionStatus === 'pending' || sourceDoc.extractionStatus === 'processing')) {
+        console.warn(`[AI Assessment] Claim ${claimId}: Pre-flight guard blocked — document extraction status=${sourceDoc.extractionStatus}. Pipeline will not run until document is ready.`);
+        // Update claim to reflect the blocked state
+        await db.update(claims).set({
+          documentProcessingStatus: 'extraction_pending',
+          updatedAt: new Date().toISOString(),
+        }).where(eq(claims.id, claimId));
+        return; // Do not proceed with pipeline
+      }
+    } catch (preFlightErr) {
+      // Non-fatal: if we can't check, proceed with pipeline anyway
+      console.warn(`[AI Assessment] Claim ${claimId}: Pre-flight check failed (non-fatal):`, preFlightErr);
+    }
+  }
+  // ── END PRE-FLIGHT GUARD ────────────────────────────────────────────────────
+
   // CLEAN SLATE: Delete all existing aiAssessments records for this claim before
   // running the pipeline. This ensures the report always reflects the latest run.
   // Without this, stale records accumulate and byClaim may return an old result
@@ -799,6 +825,30 @@ export async function triggerAiAssessment(claimId: number, options?: { forceReex
     `stage2RawOcrText=${stage2RawOcrText ? `${stage2RawOcrText.length} chars` : 'NULL'}, ` +
     `totalDuration=${summary?.totalDurationMs ?? 'N/A'}ms`
   );
+
+  // ── PIPELINE RELIABILITY GUARD: Stage 2 Hard Failure Detection ─────────────
+  // If Stage 2 produced zero OCR text AND the claim has a source document, this
+  // is a hard extraction failure. Record it so the UI can surface a clear error
+  // banner and the retry queue can re-attempt with a different strategy.
+  const stage2TextLength = stage2RawOcrText ? stage2RawOcrText.trim().length : 0;
+  const hasSourceDocument = !!(claim.sourceDocumentId);
+  const MIN_VIABLE_OCR_LENGTH = 100; // chars — below this, extraction has effectively failed
+  if (hasSourceDocument && stage2TextLength < MIN_VIABLE_OCR_LENGTH) {
+    console.warn(`[AI Assessment] Claim ${claimId}: Stage 2 hard failure — OCR text length=${stage2TextLength} chars (< ${MIN_VIABLE_OCR_LENGTH}). Marking extraction_failed.`);
+    try {
+      await db.update(claims).set({
+        documentProcessingStatus: 'extraction_failed',
+        extractionRetryCount: (claim.extractionRetryCount ?? 0) + 1,
+        extractionFailedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }).where(eq(claims.id, claimId));
+    } catch (markErr) {
+      console.warn(`[AI Assessment] Claim ${claimId}: Could not mark extraction_failed (non-fatal):`, markErr);
+    }
+    // Do NOT abort — the pipeline may still produce a partial result using claim DB fields.
+    // The extraction_failed status is informational; the report will show degraded quality.
+  }
+  // ── END PIPELINE RELIABILITY GUARD ──────────────────────────────────────────
 
   // Extract narrativeAnalysis from claimRecord for dedicated column storage
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;

@@ -715,6 +715,53 @@ export async function runForensicAuditValidation(
       }
     }
 
+    // ── Scenario-Aware: THIRD_PARTY_CLAIM_MISSING ─────────────────────────────
+    // When the collision scenario requires a third-party claim (rear-end, sideswipe,
+    // head-on) but thirdPartyClaimRequired=true and no third-party vehicle record
+    // exists, flag as HIGH severity.
+    {
+      const scenario = r3.claimRecord?.accidentDetails?.collisionScenario;
+      const thirdPartyRequired = r3.claimRecord?.accidentDetails?.thirdPartyClaimRequired;
+      const thirdPartyScenarios = ['rear_end', 'rear_end_struck', 'sideswipe', 'head_on', 'intersection'];
+      if (thirdPartyRequired && thirdPartyScenarios.includes(scenario ?? '')) {
+        const alreadyFlagged = [...workingCritical, ...workingHigh].some((i: any) =>
+          (i.code ?? '').includes('THIRD_PARTY_CLAIM_MISSING')
+        );
+        if (!alreadyFlagged) {
+          workingHigh = [...workingHigh, {
+            dimension: 'thirdPartyClaim',
+            code: 'THIRD_PARTY_CLAIM_MISSING',
+            description: `[HIGH — scenario] Collision scenario (${scenario}) requires a third-party claim but no third-party vehicle record was found. Adjuster should obtain third-party details and liability statement.`,
+            evidence: `collisionScenario=${scenario}; thirdPartyClaimRequired=${thirdPartyRequired}`,
+            severity: 'HIGH',
+          }];
+        }
+      }
+    }
+
+    // ── Scenario-Aware: PARKING_LOT_NO_WITNESS ───────────────────────────────
+    // Parking lot damage without a witness statement or CCTV evidence is high risk
+    // for staged/fabricated damage. Flag as MEDIUM advisory.
+    {
+      const isParkingLot = r3.claimRecord?.accidentDetails?.isParkingLotDamage;
+      const hasWitness = (r3.evidenceBundle as any)?.reconstruction?.present === true;
+      const hasCctv = (r3.evidenceBundle as any)?.composite?.present === true;
+      if (isParkingLot && !hasWitness && !hasCctv) {
+        const alreadyFlagged = [...workingMedium].some((i: any) =>
+          (i.code ?? '').includes('PARKING_LOT_NO_WITNESS')
+        );
+        if (!alreadyFlagged) {
+          workingMedium = [...workingMedium, {
+            dimension: 'parkingLotEvidence',
+            code: 'PARKING_LOT_NO_WITNESS',
+            description: '[MEDIUM — scenario] Parking lot damage claim has no witness statement or CCTV evidence. Staged damage risk is elevated. Adjuster should request CCTV footage from the parking facility.',
+            evidence: `isParkingLotDamage=true; witness=${hasWitness}; cctv=${hasCctv}`,
+            severity: 'MEDIUM',
+          }];
+        }
+      }
+    }
+
     // ── Speed assumption contradiction: downgrade HIGH → MEDIUM when extracted speed exists
     // The LLM flags speed assumptions as HIGH severity when they contradict an extracted speed.
     // This is correct behaviour, but the assumption is LOW_CONFIDENCE_OVERRIDE (informational),

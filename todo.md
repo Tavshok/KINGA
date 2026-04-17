@@ -10832,3 +10832,16 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix PDF rendering: [object Object] bugs — damagedComponents, costBreakdown, fraudIndicators, assumptions
 - [x] Fix PDF rendering: forensicAnalysisJson → forensicAnalysis field name fix in exportPdf procedure
 - [x] Fix PDF rendering: cost breakdown TOTAL row rendering
+
+## Phase 4 — Pipeline Reliability Guard + Scenario-Aware Collision Handling
+
+- [x] Pipeline Reliability Guard: Pre-flight document readiness check in triggerAiAssessment (blocks pipeline if ingestion doc still pending/processing)
+- [x] Pipeline Reliability Guard: Stage 2 hard failure detection (marks extraction_failed when OCR text < 100 chars)
+- [x] Pipeline Reliability Guard: extractionRetryCount and extractionFailedAt fields added to claims schema
+- [x] UI: Extraction failure banner (red) shown when documentProcessingStatus = extraction_failed
+- [x] UI: Extraction pending banner (amber) shown when documentProcessingStatus = extraction_pending
+- [x] Forensic Validator: THIRD_PARTY_CLAIM_MISSING check for rear-end/sideswipe/head-on scenarios
+- [x] Forensic Validator: PARKING_LOT_NO_WITNESS check for parking lot damage without CCTV/witness
+- [x] Evidence Registry: Stage 0.5 scenario-conditional notes already implemented (verified existing)
+- [x] Stage 7 physics: Scenario-specific paths already implemented (parking lot cap, hit-and-run, rear-end struck) - verified existing
+- [x] Automotive Domain Corrector: Already fully implemented (556 lines, 77 tests passing) - verified existing
