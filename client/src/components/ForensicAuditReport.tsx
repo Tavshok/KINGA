@@ -3015,7 +3015,8 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const missingFields: string[] = dataQuality?.missingFields ?? dataQuality?.missing ?? [];
   const assumptions: any[] = fa.assumptions ?? [];
 
-  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0;
+  const domainPenalties: any[] = fcdi?.breakdown?.domainPenalties ?? [];
+  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0 || domainPenalties.length > 0;
   if (!hasPipelineIssues && fcdiScore <= 20 && completenessScore >= 80) return null;
 
   return (
@@ -3090,6 +3091,24 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
             Missing fields (verify manually):{" "}
             <span className="font-medium" style={{ color: "var(--foreground)" }}>{missingFields.join(", ")}</span>
           </p>
+        )}
+        {domainPenalties.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-danger)" }}>
+              Domain integrity failures ({domainPenalties.length}):
+            </p>
+            <div className="space-y-1">
+              {domainPenalties.map((dp: any, i: number) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="font-mono text-xs px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "var(--fp-danger)20", color: "var(--fp-danger)", fontSize: "10px", letterSpacing: "0.05em" }}>
+                    {dp.code?.replace(/_/g, ' ')}
+                  </span>
+                  <span style={{ color: "var(--muted-foreground)" }}>{dp.reason}</span>
+                  <span className="ml-auto flex-shrink-0 font-semibold" style={{ color: "var(--fp-danger)", fontSize: "11px" }}>−{Math.round((dp.weight ?? 0) * 100)} pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
         {assumptions.length > 0 && (
           <div>

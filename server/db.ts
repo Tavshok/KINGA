@@ -420,7 +420,8 @@ export async function updateClaimPolicyVerification(claimId: number, verified: b
  *   9. Cost Optimisation Engine
  *  10. Report Generation
  */
-export async function triggerAiAssessment(claimId: number) {
+export async function triggerAiAssessment(claimId: number, options?: { forceReextract?: boolean }) {
+  const forceReextract = options?.forceReextract ?? false;
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
@@ -493,9 +494,20 @@ export async function triggerAiAssessment(claimId: number) {
     }
   }
 
-  // If no PDF URL, fall back to user-uploaded damage photos
+  // If no PDF URL, fall back to user-uploaded damage photos.
+  // CACHE INVALIDATION INVARIANT: When a PDF is present, damagePhotos MUST start empty
+  // and be freshly extracted from the PDF. Never load cached damagePhotos when pdfUrl is set.
+  // This prevents stale cached photos from being used when the PDF has been replaced.
+  // The forceReextract flag explicitly clears any cached photos for manual re-runs.
   if (!pdfUrl) {
     damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
+    if (forceReextract && damagePhotos.length > 0) {
+      console.log(`[AI Assessment] Claim ${claimId}: forceReextract=true — clearing ${damagePhotos.length} cached photo(s) to force fresh extraction.`);
+      damagePhotos = [];
+    }
+  } else if (forceReextract) {
+    // PDF present + forceReextract: damagePhotos is already [] but log for audit trail
+    console.log(`[AI Assessment] Claim ${claimId}: forceReextract=true — PDF present, fresh extraction will run (cache bypass confirmed).`);
   }
 
   // Third fallback: if externalAssessmentUrl looks like a PDF URL, use it directly as pdfUrl.
@@ -710,6 +722,9 @@ export async function triggerAiAssessment(claimId: number) {
     imageNormSource: _imageNormSource,
     // Explicit photo availability count for forensic validator tracking
     photosAvailable: damagePhotos.length,
+    // Live stage state map — updated by the orchestrator after each stage completes.
+    // Downstream stages check this to enforce hard dependencies (BLOCKED state).
+    stageStates: {} as Record<string, import('./pipeline-v2/types').PipelineStageStatus>,
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled

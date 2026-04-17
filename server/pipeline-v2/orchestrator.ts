@@ -131,7 +131,7 @@ import {
   runAnomalySentinels,
   CRITICAL_STAGES,
 } from "./pipelineStateMachine";
-import { computeFCDI, type FCDIResult } from "./forensicCDI";
+import { computeFCDI, type FCDIResult, type DomainPenalty } from "./forensicCDI";
 import {
   buildForensicExecutionLedger,
   buildStageRecord,
@@ -316,6 +316,8 @@ export async function runPipelineV2(
       assumptionCount: result.assumptions?.length || 0,
       recoveryActionCount: result.recoveryActions?.length || 0,
     };
+    // Update live stage state map for dependency enforcement
+    ctx.stageStates[key] = result.status as any;
     // Advance state machine based on completed stage
     psm.markStageCompleted(key);
     if (result.status === "success" || result.status === "degraded") {
@@ -713,15 +715,46 @@ export async function runPipelineV2(
       `Skip 7b Pass 2: ${complexityScore.skipStage7bPass2}. ` +
       `Reasons: ${complexityScore.reasons.join("; ")}`
     );
-  }
+  } // end if (claimRecord) complexity gate
 
-  // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
+  // ── STAGE 6: Damage Analysis ───────────────────────────────────────────────────
+  // DEPENDENCY GATE: Stage 6 (vision) requires Stage 2 (extraction) to have succeeded
+  // or degraded. If Stage 2 FAILED entirely (no text, no images extracted), Stage 6
+  // cannot produce reliable damage analysis and is BLOCKED.
+  const stage2Status = ctx.stageStates['2_extraction'];
+  const stage6Blocked = stage2Status === 'failed';
+  if (stage6Blocked) {
+    ctx.log('Stage 6', 'BLOCKED — Stage 2 (extraction) failed. Vision analysis cannot run without extracted document data. Producing sentinel zone.');
+    const s6Blocked = {
+      status: 'blocked' as const,
+      data: ensureDamageContract({}, 'Stage 6 blocked: Stage 2 extraction failed'),
+      error: 'BLOCKED: Stage 2 (text extraction) failed. Vision analysis requires extracted document data.',
+      durationMs: 0,
+      savedToDb: false,
+      assumptions: [{
+        field: 'damageAnalysis',
+        assumedValue: 'sentinel_zone',
+        reason: 'Stage 6 blocked because Stage 2 (extraction) failed. No document data available for vision analysis.',
+        strategy: 'default_value' as const,
+        confidence: 0,
+        stage: 'Stage 6',
+      }],
+      recoveryActions: [{
+        target: 'damage_analysis_recovery',
+        strategy: 'default_value' as const,
+        success: false,
+        description: 'IMAGE PIPELINE FAILURE: Stage 6 blocked. Stage 2 extraction failed — no document images available for damage vision analysis.',
+      }],
+      degraded: true,
+    };
+    recordStage('6_damage_analysis', s6Blocked);
+    stage6Data = s6Blocked.data;
+  } else {
   // claimRecord is guaranteed non-null here: Stage 5 (assembly) either
   // produced a valid ClaimRecord or the pipeline would have flagged an exception.
   // The non-null assertion is intentional — if claimRecord is null, Stage 5 failed
   // and the pipeline state machine will have already flagged FLAGGED_EXCEPTION.
-  const s6 = await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord!)).catch((err) => {
-    const isTimeout = err instanceof StageTimeoutError;
+  const s6 = await runWithTimeout("6_damage_analysis", () => runDamageAnalysisStage(ctx, claimRecord!)).catch((err) => {const isTimeout = err instanceof StageTimeoutError;
     const reason = isTimeout
       ? `stage_timeout: exceeded ${err.budgetMs}ms budget`
       : `engine_failure: ${String(err)}`;
@@ -754,6 +787,7 @@ export async function runPipelineV2(
   });
   recordStage("6_damage_analysis", s6);
   stage6Data = s6.data; // Always has data (self-healing)
+  } // end else (stage6Blocked)
 
   // ── SOURCE TRUTH RESOLUTION (Stage 6 → Stage 7) ─────────────────────
   // Resolve direction/zone/severity conflicts across photo and document sources.
@@ -1675,6 +1709,58 @@ export async function runPipelineV2(
     // ── FCDI: Forensic Confidence Degradation Index ──────────────────────────────────────────
     // Compute how far this pipeline run is from being fully reliable.
     // Penalises fallbacks, timeouts, assumptions, low-confidence stages, and skipped critical stages.
+    // ── Domain Penalty Engine ─────────────────────────────────────────────────────────────────────
+    // Compute named domain penalties from pipeline state. These are applied on top of generic
+    // stage-level penalties and represent specific failure modes with quantified FCDI impact.
+    const domainPenalties: DomainPenalty[] = [];
+    // IMAGE_PIPELINE_FAILURE: Stage 6 was BLOCKED or Stage 2 failed entirely
+    const s2Status = ctx.stageStates['2_extraction'];
+    const s6Status = ctx.stageStates['6_damage_analysis'];
+    if (s6Status === 'blocked' || s2Status === 'failed') {
+      domainPenalties.push({
+        code: 'IMAGE_PIPELINE_FAILURE',
+        reason: s6Status === 'blocked'
+          ? 'IMAGE PIPELINE FAILURE: Stage 6 (damage vision analysis) was blocked because Stage 2 (text extraction) failed. No visual damage analysis was performed.'
+          : 'IMAGE PIPELINE FAILURE: Stage 2 (text extraction) failed. Document images could not be extracted for damage analysis.',
+      });
+    }
+    // BLOCKED_STAGE: Any stage was explicitly blocked by dependency enforcement
+    const blockedStages = Object.entries(ctx.stageStates).filter(([, status]) => status === 'blocked');
+    for (const [stageId] of blockedStages) {
+      if (stageId !== '6_damage_analysis') { // Already counted above
+        domainPenalties.push({
+          code: 'BLOCKED_STAGE',
+          reason: `Stage ${stageId} was blocked due to a failed upstream dependency.`,
+        });
+      }
+    }
+    // MISSING_POLICY_NUMBER: Policy number absent from all extracted documents
+    const assembledClaim = claimRecord;
+    if (assembledClaim && !assembledClaim.policyNumber) {
+      domainPenalties.push({
+        code: 'MISSING_POLICY_NUMBER',
+        reason: 'Policy number could not be extracted from any submitted document. Coverage verification is not possible without a policy reference.',
+      });
+    }
+    // PHYSICS_INCONSISTENCY: Stage 7 physics analysis flagged a speed/delta-V mismatch
+    const physicsInconsistent = stage7Data && (stage7Data as any).physicsInconsistency === true;
+    if (physicsInconsistent) {
+      domainPenalties.push({
+        code: 'PHYSICS_INCONSISTENCY',
+        reason: 'Stage 7 physics analysis detected a mismatch between the claimed impact speed and the delta-V implied by the observed damage pattern.',
+      });
+    }
+    // MULTI_EVENT_UNRESOLVED: Multi-event sequence detected but causal chain unconfirmed
+    const multiEventData = (claimRecord as any)?.accidentDetails?.multiEventSequence;
+    if (multiEventData && multiEventData.is_multi_event === true && multiEventData.causal_chain_confirmed === false) {
+      domainPenalties.push({
+        code: 'MULTI_EVENT_UNRESOLVED',
+        reason: 'A multi-event incident sequence was detected but the causal chain between events could not be confirmed. The damage apportionment between events is uncertain.',
+      });
+    }
+    if (domainPenalties.length > 0) {
+      ctx.log('Stage13', `Domain penalties applied: ${domainPenalties.map(dp => `${dp.code}`).join(', ')}`);
+    }
     const fcdiInput = {
       stages: Object.fromEntries(
         Object.entries(stages).map(([id, s]) => [
@@ -1689,6 +1775,7 @@ export async function runPipelineV2(
         ])
       ),
       totalAssumptionCount: allAssumptions.length,
+      domainPenalties,
     };
     const fcdiResult = computeFCDI(fcdiInput);
     forensicAnalysisResult.fcdi = fcdiResult;

@@ -10809,3 +10809,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Run detectMultiEventSequence in parallel with classifyIncident in stage-5-assembly.ts
 - [x] Wire multiEventSequence into AccidentDetails
 - [x] Add multi-event timeline UI to Section 1.1b of ForensicAuditReport
+
+## Phase 1 — Pipeline Integrity (State Machine Upgrade)
+- [ ] Add BLOCKED to PipelineStageStatus type in types.ts
+- [ ] Add stageStates map to PipelineContext to track per-stage status
+- [ ] Enforce hard dependencies: vision BLOCKED if extraction FAILED/BLOCKED
+- [ ] Enforce hard dependencies: physics WARNING if vision BLOCKED
+- [ ] Cache invalidation fix: force re-extract images when detected but not extracted
+- [ ] Build ConfidencePenaltyEngine with named penalties (-30 image failure, -20 missing policy, -15 physics mismatch)
+- [ ] Wire penalty engine into FCDI calculation in stage-10-fcdi.ts
+- [ ] Replace vague failure messages with explicit IMAGE PIPELINE FAILURE labels
+- [ ] Add pipeline integrity validator gate before final report assembly
+- [ ] Run full end-to-end pipeline test to verify all fixes
