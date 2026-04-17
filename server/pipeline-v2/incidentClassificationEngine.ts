@@ -543,7 +543,40 @@ export async function classifyIncident(
 
     const keywordTypes = sourceDetail.map(s => s.classified_as).filter(t => t !== "unknown");
     const uniqueKeywordTypes = Array.from(new Set(keywordTypes));
-    const conflictDetected = uniqueKeywordTypes.length > 1 && !uniqueKeywordTypes.every(t => t === llmResult!.incident_type);
+
+    // ── Perspective-normalisation: same-event descriptions from different viewpoints
+    // should NOT be flagged as conflicts. Apply the same EXPECTED_OVERRIDES exemption
+    // used by the keyword fallback path.
+    //
+    // A "conflict" requires that keyword sources disagree AND the disagreement is NOT
+    // explained by:
+    //   (a) a specific sub-type overriding the generic "vehicle_collision" catch-all, OR
+    //   (b) the LLM's high-confidence verdict (≥ 85%) already resolving the ambiguity.
+    //
+    // Example: driver says "hit from the back" (→ rear_end) and damage description says
+    // "vehicle collision" (→ vehicle_collision). These describe the same event from
+    // different perspectives — NOT a genuine conflict.
+    const LLM_EXPECTED_OVERRIDES: Partial<Record<ClassifiedIncidentType, ClassifiedIncidentType[]>> = {
+      animal_strike:       ["vehicle_collision"],
+      rollover:            ["vehicle_collision"],
+      rear_end:            ["vehicle_collision"],
+      rear_end_collision:  ["vehicle_collision"],
+      head_on:             ["vehicle_collision"],
+      head_on_collision:   ["vehicle_collision"],
+      sideswipe:           ["vehicle_collision"],
+      single_vehicle:      ["vehicle_collision"],
+      pedestrian_strike:   ["vehicle_collision"],
+    };
+    const llmFinalType = llmResult!.incident_type;
+    const isExpectedLLMOverride = uniqueKeywordTypes.length === 2 &&
+      (LLM_EXPECTED_OVERRIDES[llmFinalType] ?? []).some(overridden => uniqueKeywordTypes.includes(overridden));
+    // Also suppress when LLM is highly confident (≥ 85%) — the LLM has reasoned over the
+    // full narrative and its verdict supersedes keyword-level disagreements.
+    const llmHighConfidence = (llmResult!.confidence ?? 0) >= 85;
+    const conflictDetected = uniqueKeywordTypes.length > 1
+      && !uniqueKeywordTypes.every(t => t === llmFinalType)
+      && !isExpectedLLMOverride
+      && !llmHighConfidence;
 
     // ── PHYSICAL ARBITRATION ──────────────────────────────────────────────────
     // When physical evidence (damage zones + physics direction) strongly contradicts

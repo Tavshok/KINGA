@@ -82,7 +82,7 @@ export interface ContractCheckResult {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const TIMEOUT_LLM_MS = 60_000;        // 60 s for LLM stages
-export const TIMEOUT_VISION_MS = 120_000;     // 120 s for Stage 6 — vision processes up to PER_RUN_VISION_BUDGET photos sequentially (~8s each)
+export const TIMEOUT_VISION_MS = 200_000;     // 200 s for Stage 6 — vision processes up to PER_RUN_VISION_BUDGET photos sequentially (~8s each, budget=20)
 export const TIMEOUT_DETERMINISTIC_MS = 10_000; // 10 s for deterministic stages
 
 // ─────────────────────────────────────────────────────────────────────────────

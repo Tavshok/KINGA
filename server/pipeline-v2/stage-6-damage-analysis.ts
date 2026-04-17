@@ -371,7 +371,7 @@ If the image shows no vehicle or no damage, return an empty components array.`,
 // Per-run budget: maximum photos to send to the vision LLM in a single pipeline run.
 // This is a BUDGET constraint, not a design cap. When exceeded, photos are deferred
 // (SKIPPED_BUDGET) and recorded in the audit trail. Increase as LLM capacity allows.
-const PER_RUN_VISION_BUDGET = 10; // 10 photos × ~8s each = ~80s, safely within TIMEOUT_VISION_MS (120s)
+const PER_RUN_VISION_BUDGET = 20; // 20 photos × ~8s each = ~160s, safely within TIMEOUT_VISION_MS (200s)
 
 async function readDamageFromPhotos(
   photoUrls: string[],
