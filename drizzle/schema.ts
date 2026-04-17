@@ -33,10 +33,10 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	id: int().autoincrement().notNull(),
 	claimId: int("claim_id").notNull(),
 	estimatedCost: int("estimated_cost"),
-	damageDescription: text("damage_description"),
-	detectedDamageTypes: text("detected_damage_types"),
+	damageDescription: longtext("damage_description"),
+	detectedDamageTypes: longtext("detected_damage_types"),
 	confidenceScore: int("confidence_score"),
-	fraudIndicators: text("fraud_indicators"),
+	fraudIndicators: longtext("fraud_indicators"),
 	fraudRiskLevel: mysqlEnum("fraud_risk_level", ['low','medium','high','critical','elevated']),
 	// Numeric fraud score 0-100 (derived from fraudScoreBreakdownJson.overallScore at pipeline save)
 	// Stored as a first-class column so all downstream queries can filter/sort without JSON parsing.
@@ -45,7 +45,7 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	// Populated from costIntelligenceJson.costDecision.recommendation at pipeline save.
 	recommendation: varchar("recommendation", { length: 50 }),
 	// Stage 7 output: 10-indicator fraud score breakdown (JSON FraudScoreBreakdown)
-	fraudScoreBreakdownJson: text("fraud_score_breakdown_json"),
+	fraudScoreBreakdownJson: longtext("fraud_score_breakdown_json"),
 	modelVersion: varchar("model_version", { length: 50 }),
 	processingTime: int("processing_time"),
 	createdAt: timestamp("created_at", { mode: 'string' }).default('CURRENT_TIMESTAMP').notNull(),
@@ -54,79 +54,79 @@ export const aiAssessments = mysqlTable("ai_assessments", {
 	structuralDamageSeverity: mysqlEnum("structural_damage_severity", ['none','minor','moderate','severe','catastrophic']).default('none'),
 	estimatedVehicleValue: int("estimated_vehicle_value"),
 	repairToValueRatio: int("repair_to_value_ratio"),
-	totalLossReasoning: text("total_loss_reasoning"),
-	damagedComponentsJson: text("damaged_components_json"),
-	physicsAnalysis: text("physics_analysis"),
-	graphUrls: text("graph_urls"),
+	totalLossReasoning: longtext("total_loss_reasoning"),
+	damagedComponentsJson: longtext("damaged_components_json"),
+	physicsAnalysis: longtext("physics_analysis"),
+	graphUrls: longtext("graph_urls"),
 	tenantId: varchar("tenant_id", { length: 255 }),
 	isReanalysis: tinyint("is_reanalysis").default(0).notNull(),
 	triggeredBy: int("triggered_by"),
 	triggeredRole: varchar("triggered_role", { length: 50 }),
 	previousAssessmentId: int("previous_assessment_id"),
-	reanalysisReason: text("reanalysis_reason"),
+	reanalysisReason: longtext("reanalysis_reason"),
 	versionNumber: int("version_number").default(1).notNull(),
 	physicsDeviationScore: int("physics_deviation_score"),
-	forensicAnalysis: text("forensic_analysis"),
+	forensicAnalysis: longtext("forensic_analysis"),
 	estimatedPartsCost: int("estimated_parts_cost"),
 	estimatedLaborCost: int("estimated_labor_cost"),
 	// Currency inherited from the parent claim (ISO 4217). Defaults to USD for Zimbabwe deployment.
 	currencyCode: varchar("currency_code", { length: 10 }).default('USD'),
 	// Stage 5 output: inferred hidden damages (JSON array of InferredHiddenDamage)
-	inferredHiddenDamagesJson: text("inferred_hidden_damages_json"),
+	inferredHiddenDamagesJson: longtext("inferred_hidden_damages_json"),
 	// Stage 8 output: repair intelligence (JSON array of RepairAction per component)
-	repairIntelligenceJson: text("repair_intelligence_json"),
+	repairIntelligenceJson: longtext("repair_intelligence_json"),
 	// Stage 9 output: parts reconciliation (JSON array of ReconciliationItem)
-	partsReconciliationJson: text("parts_reconciliation_json"),
+	partsReconciliationJson: longtext("parts_reconciliation_json"),
 	// Stage 10 output: cost intelligence summary (JSON object)
-	costIntelligenceJson: text("cost_intelligence_json"),
+	costIntelligenceJson: longtext("cost_intelligence_json"),
   // Damage photos extracted from PDF or uploaded (JSON array of DamagePhoto objects)
-  damagePhotosJson: text("damage_photos_json"),
-  confidenceScoreBreakdownJson: text("confidence_score_breakdown_json"),
+  damagePhotosJson: longtext("damage_photos_json"),
+  confidenceScoreBreakdownJson: longtext("confidence_score_breakdown_json"),
   // Pipeline run health: JSON array of PipelineStageHealth objects (status, duration, error per stage)
-  pipelineRunSummary: text("pipeline_run_summary"),
+  pipelineRunSummary: longtext("pipeline_run_summary"),
   // Stage 11 output: per-image vision enrichment (JSON array of EnrichedPhoto objects)
-  enrichedPhotosJson: text("enriched_photos_json"),
+  enrichedPhotosJson: longtext("enriched_photos_json"),
   // Stage 11 output: cross-check inconsistencies between photo findings and reported damage
-  photoInconsistenciesJson: text("photo_inconsistencies_json"),
+  photoInconsistenciesJson: longtext("photo_inconsistencies_json"),
   // Stage 12 output: three-source damage consistency check (JSON ConsistencyCheckResult)
-  consistencyCheckJson: text("consistency_check_json"),
+  consistencyCheckJson: longtext("consistency_check_json"),
   // Stage 35 output: damage-physics coherence validation (JSON DamagePhysicsCoherenceResult)
-  coherenceResultJson: text("coherence_result_json"),
+  coherenceResultJson: longtext("coherence_result_json"),
   // Stage 36 output: cost realism validation (JSON CostValidationResult)
-  costRealismJson: text("cost_realism_json"),
+  costRealismJson: longtext("cost_realism_json"),
   // Stage 37 output: causal chain (JSON CausalChainOutput)
-  causalChainJson: text("causal_chain_json"),
+  causalChainJson: longtext("causal_chain_json"),
   // Stage 38 output: evidence bundle (JSON EvidenceBundle)
-  evidenceBundleJson: text("evidence_bundle_json"),
+  evidenceBundleJson: longtext("evidence_bundle_json"),
   // Stage 40 output: realism bundle (JSON RealismBundle)
-  realismBundleJson: text("realism_bundle_json"),
+  realismBundleJson: longtext("realism_bundle_json"),
   // Stage 41 output: benchmark bundle (JSON BenchmarkBundle)
-  benchmarkBundleJson: text("benchmark_bundle_json"),
+  benchmarkBundleJson: longtext("benchmark_bundle_json"),
   // Stage 42 output: cross-engine consensus (JSON ConsensusResult)
-  consensusResultJson: text("consensus_result_json"),
+  consensusResultJson: longtext("consensus_result_json"),
   // Stage 7b output: causal reasoning verdict (JSON CausalVerdict)
-  causalVerdictJson: text("causal_verdict_json"),
+  causalVerdictJson: longtext("causal_verdict_json"),
   // Adjuster constraint overrides: JSON map of constraintId → { accepted: boolean, explanation: string, overriddenBy: number, overriddenAt: string }
-  constraintOverridesJson: text("constraint_overrides_json"),
+  constraintOverridesJson: longtext("constraint_overrides_json"),
   // Stage 11 output: validated outcome recorder (learning gate) — JSON ValidatedOutcomeResult
-  validatedOutcomeJson: text("validated_outcome_json"),
-  caseSignatureJson: text("case_signature_json"),
+  validatedOutcomeJson: longtext("validated_outcome_json"),
+  caseSignatureJson: longtext("case_signature_json"),
   // Phase 4 decision layer outputs (cached for instant panel loads)
-  decisionAuthorityJson: text("decision_authority_json"),
-  contradictionGateJson: text("contradiction_gate_json"),
-  reportReadinessJson: text("report_readiness_json"),
-  explanationJson: text("explanation_json"),
-  escalationRouteJson: text("escalation_route_json"),
-  decisionTraceJson: text("decision_trace_json"),
+  decisionAuthorityJson: longtext("decision_authority_json"),
+  contradictionGateJson: longtext("contradiction_gate_json"),
+  reportReadinessJson: longtext("report_readiness_json"),
+  explanationJson: longtext("explanation_json"),
+  escalationRouteJson: longtext("escalation_route_json"),
+  decisionTraceJson: longtext("decision_trace_json"),
   // Stage 2 output: raw OCR text extracted from the claim PDF (stored for audit and re-extraction)
-  stage2RawOcrText: text("stage2_raw_ocr_text"),
+  stage2RawOcrText: longtext("stage2_raw_ocr_text"),
   // Stage 5 output: full ClaimRecord JSON — the canonical structured extraction result
   // Stores all extracted fields including insurer, policy, excess, market value, driver licence, etc.
-  claimRecordJson: text("claim_record_json"),
+  claimRecordJson: longtext("claim_record_json"),
   // Stage 7e output: incident narrative reasoning engine result (JSON NarrativeAnalysis)
   // Persisted so the ForensicAuditReport renders correctly for historical assessments
   // without requiring a live pipeline re-run.
-  narrativeAnalysisJson: text("narrative_analysis_json"),
+  narrativeAnalysisJson: longtext("narrative_analysis_json"),
   // Image analysis monitoring — tracks vision success rate per assessment run
   // Used to detect systemic failures and alert the team when success rate drops below threshold.
   imageAnalysisTotalCount: int("image_analysis_total_count").default(0),
@@ -141,38 +141,38 @@ export const aiAssessments = mysqlTable("ai_assessments", {
   // Phase 2A: Forensic Execution Ledger (FEL)
   // Court-grade per-stage audit record: input hash, output snapshot, fallback used,
   // assumptions introduced, confidence score, model/prompt/contract versions.
-  forensicExecutionLedgerJson: text("forensic_execution_ledger_json"),
+  forensicExecutionLedgerJson: longtext("forensic_execution_ledger_json"),
   // Phase 2C: Assumption Registry
   // Queryable record of all assumptions introduced during the pipeline run,
   // classified by type and impact level.
-  assumptionRegistryJson: text("assumption_registry_json"),
+  assumptionRegistryJson: longtext("assumption_registry_json"),
   // Phase 2B: Economic Context Engine output
   // Policy-based currency, PPP factor, parts sourcing profile, NCI, exchange rate source.
-  economicContextJson: text("economic_context_json"),
+  economicContextJson: longtext("economic_context_json"),
   // Phase 4A: Input Fidelity Engine (IFE) result
   // 4-class Data Attribution Layer: INSURER_DATA_GAP, DOCUMENT_LIMITATION,
   // SYSTEM_EXTRACTION_FAILURE, CLAIMANT_DEFICIENCY. Includes completeness score,
   // attributed gaps, FCDI system-failure penalty reduction, and DOE eligibility gate.
-  ifeResultJson: text("ife_result_json"),
+  ifeResultJson: longtext("ife_result_json"),
   // Phase 4A: Decision Optimisation Engine (DOE) result
   // Multi-objective scoring (cost 30%, quality 25%, reliability 20%, turnaround 15%, fraud 10%).
   // Fraud-aware disqualification with full audit trail. FCDI + completeness hard gates.
   // Schema: { status, selectedDecision, rejectedOptions, scoringMatrix, gatingConditions, rationale }
-  doeResultJson: text("doe_result_json"),
+  doeResultJson: longtext("doe_result_json"),
   // Phase 4B: FEL Version Snapshot
   // Per-stage: prompt hash, model ID, input hash, output hash, contract version.
   // Enables court-grade audit trails and deterministic replay readiness.
   // isReplayable flag indicates whether the decision can be reproduced exactly.
-  felVersionSnapshotJson: text("fel_version_snapshot_json"),
+  felVersionSnapshotJson: longtext("fel_version_snapshot_json"),
   // Stage 10 output: multi-dimensional claim quality score (JSON ClaimQualityResult)
   // Includes overall score (0–100), letter grade (A–F), per-dimension breakdown,
   // adjuster guidance, requiresManualReview flag, and mandatory actions list.
-  claimQualityJson: text("claim_quality_json"),
+  claimQualityJson: longtext("claim_quality_json"),
   // Stage 36 (Validator): Forensic Audit Validator — 10-dimension post-pipeline validation
   // Runs after Stage 10 to validate factual correctness, internal consistency, and defensibility.
   // Schema: { overallStatus, criticalFailures, highSeverityIssues, mediumIssues, lowIssues,
   //           consistencyScore, confidenceInAssessment, summary, validatedAt }
-  forensicAuditValidationJson: text("forensic_audit_validation_json"),
+  forensicAuditValidationJson: longtext("forensic_audit_validation_json"),
 },
 (table) => [
 	index("idx_ai_assessments_claim_id").on(table.claimId),
@@ -2953,7 +2953,7 @@ export const thirdPartyVehicles = mysqlTable("third_party_vehicles", {
 	driverLicense: varchar("driver_license", { length: 100 }),
 	insuranceCompany: varchar("insurance_company", { length: 200 }),
 	policyNumber: varchar("policy_number", { length: 100 }),
-	damageDescription: text("damage_description"),
+	damageDescription: longtext("damage_description"),
 	damagePhotos: text("damage_photos"),
 	estimatedRepairCost: int("estimated_repair_cost"),
 	marketValue: int("market_value"),
@@ -3805,7 +3805,7 @@ export const vehicleDamageHistory = mysqlTable("vehicle_damage_history", {
   damageZone: mysqlEnum("damage_zone", ['front','rear','left','right','roof','undercarriage','multiple','unknown']).default('unknown').notNull(),
   // Full list of damaged components as extracted by the AI vision engine.
   // JSON: [{ name, severity, zone, estimatedCost }]
-  damagedComponentsJson: text("damaged_components_json"),
+  damagedComponentsJson: longtext("damaged_components_json"),
   // All zones affected (may be more than one). JSON array: ["front","left"]
   affectedZonesJson: text("affected_zones_json"),
 

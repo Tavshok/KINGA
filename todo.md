@@ -10793,3 +10793,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Forensic validator: add `THIRD_PARTY_CLAIM_MISSING` check for rear-end and sideswipe with known third party
 - [ ] Forensic validator: add `HIT_AND_RUN_POLICE_REPORT_MISSING` critical check
 - [ ] Forensic validator: add `PARKING_LOT_NO_WITNESS` advisory check (INFO severity)
+
+## Pipeline Reliability Guard (Critical - Never Allow Silent Failures)
+- [ ] Pre-flight document readiness guard: block pipeline trigger until ingestion_documents.extraction_status = 'completed'
+- [ ] Stage 2 hard failure → set claim status to 'extraction_failed', never silently complete with blank report
+- [ ] Retry queue: if Stage 2 degrades with 0 OCR text, re-queue claim for re-extraction after 60s delay (max 3 retries)
+- [ ] UI error state: show clear "Document extraction failed - retry in progress" banner instead of blank report
+- [ ] Alert owner via notifyOwner when any claim pipeline produces 0 OCR text (Stage 2 degraded)
+- [ ] Add document pre-validation: verify PDF is readable (non-zero pages) before triggering pipeline
