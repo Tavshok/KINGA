@@ -162,6 +162,40 @@ export default function InsurerComparisonView() {
   // Incident type override dialog state
   const [overrideDialogOpen, setOverrideDialogOpen] = useState(false);
 
+  // PDF export state
+  const [pdfExporting, setPdfExporting] = useState(false);
+  const exportPdfQuery = trpc.aiAssessments.exportPdf.useQuery(
+    { claimId },
+    { enabled: false }
+  );
+  const utils2 = trpc.useUtils();
+
+  const handleExportForensicPdf = async () => {
+    if (!claimId) return;
+    setPdfExporting(true);
+    try {
+      const result = await utils2.aiAssessments.exportPdf.fetch({ claimId });
+      if (!result) throw new Error("No PDF data returned");
+      const byteChars = atob(result.base64);
+      const byteNums = new Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) byteNums[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([new Uint8Array(byteNums)], { type: result.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = result.filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast.success("Forensic report downloaded", { description: result.filename });
+    } catch (err: any) {
+      toast.error("PDF export failed", { description: err.message ?? "Unknown error" });
+    } finally {
+      setPdfExporting(false);
+    }
+  };
+
   // Re-run AI assessment mutation (used in Claim Summary card)
   const reRunMutation = trpc.claims.triggerAiAssessment.useMutation({
     onSuccess: () => {
@@ -680,14 +714,16 @@ export default function InsurerComparisonView() {
                     })(),
                   };
                   
-                  // Navigate to the Decision Report (ForensicAuditReport) for PDF export
-                  setLocation(`/insurer/claims/${claimId}/verdict?print=1`);
-                  toast.success("Opening Decision Report for PDF export...");
-                }}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export PDF
-              </Button>
+                  handleExportForensicPdf();
+                 }}
+                 disabled={pdfExporting || !aiAssessment}
+               >
+                 {pdfExporting ? (
+                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Generating PDF...</>
+                 ) : (
+                   <><Download className="mr-2 h-4 w-4" />Export Forensic PDF</>
+                 )}
+               </Button>
               <ThemeToggle />
               <Button
                 variant="default"
