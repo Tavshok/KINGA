@@ -101,6 +101,33 @@ export type CanonicalIncidentType =
   | "fire"
   | "unknown";
 
+/**
+ * A single discrete event within a multi-event incident sequence.
+ * E.g. Event 1: vehicle_collision → Event 2: run_off_road → Event 3: rollover
+ */
+export interface IncidentEvent {
+  event_order: number;                     // 1-based sequence position
+  event_type: CanonicalIncidentType;       // Primary event classification
+  event_sub_type?: string;                 // Optional sub-type (e.g. 'rear_end_struck')
+  description: string;                     // What happened in this event
+  causal_link?: string;                    // How this event caused the next one
+  damage_contribution: string[];           // Damage zones this event explains
+  involves_third_party: boolean;           // Whether a third party was involved
+}
+
+/**
+ * Full multi-event incident sequence produced by detectMultiEventSequence().
+ * Populated when the narrative describes two or more distinct physical events.
+ */
+export interface MultiEventSequence {
+  is_multi_event: boolean;                 // True when 2+ distinct events detected
+  events: IncidentEvent[];                 // Ordered list of events
+  causal_chain: boolean;                   // True when events are causally linked
+  sequence_summary: string;               // Human-readable summary of the sequence
+  confidence: number;                      // 0-100 confidence in the sequence
+  reasoning: string;                       // LLM reasoning for the sequence
+}
+
 export type CollisionDirection =
   | "frontal"
   | "rear"
@@ -515,6 +542,12 @@ export interface AccidentDetails {
    * At or above 0.40 = request third-party insurer claim reference before settlement.
    */
   thirdPartyConfidence?: number;
+  /**
+   * Multi-event incident sequence — populated when the narrative describes 2+ distinct
+   * physical events (e.g. collision → run-off-road → rollover).
+   * Null for single-event incidents.
+   */
+  multiEventSequence: MultiEventSequence | null;
 }
 
 export interface PoliceReportRecord {

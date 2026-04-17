@@ -36,7 +36,9 @@
  */
 
 import { invokeLLM } from "../_core/llm";
-import type { CanonicalIncidentType } from "./types";
+import type { CanonicalIncidentType, MultiEventSequence, IncidentEvent } from "./types";
+
+export type { MultiEventSequence, IncidentEvent };
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUBLIC TYPES
@@ -487,6 +489,124 @@ async function llmClassify(
     };
   } catch (err) {
     console.warn("[IncidentClassification] LLM call failed, using keyword fallback:", String(err));
+    return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MULTI-EVENT DETECTION
+// Detects whether the incident narrative describes 2+ distinct physical events
+// (e.g. collision → run-off-road → rollover, or multiple collisions)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const MULTI_EVENT_SYSTEM_PROMPT = `You are an expert motor insurance claims analyst specialising in accident reconstruction.
+
+Your task is to identify whether an incident narrative describes a SINGLE event or a SEQUENCE of MULTIPLE distinct physical events.
+
+A multi-event incident involves two or more physically distinct events that occurred in sequence, such as:
+- Collision with another vehicle, THEN veering off the road
+- Losing control, THEN striking a barrier, THEN rolling over
+- Being rear-ended, THEN spinning and hitting a wall
+- Multiple separate collisions (e.g. hit vehicle A, then hit vehicle B)
+
+Do NOT split a single event into multiple events just because the description is detailed.
+Do NOT treat pre-incident conditions (speeding, wet road) as separate events.
+
+For each event in the sequence, identify:
+1. event_order: 1-based position in the sequence
+2. event_type: one of: animal_strike, rollover, rear_end, head_on, sideswipe, single_vehicle, pedestrian_strike, vehicle_collision, theft, fire, flood, vandalism, unknown
+3. event_sub_type: optional sub-type (e.g. "run_off_road", "overturned", "struck_barrier", "struck_ditch")
+4. description: what happened in this specific event (1-2 sentences)
+5. causal_link: how this event caused or led to the NEXT event (null for the last event)
+6. damage_contribution: list of vehicle zones this event likely damaged (e.g. ["front", "driver_side"])
+7. involves_third_party: true if another vehicle or person was involved in THIS event
+
+Respond with JSON only.`;
+
+/**
+ * Detects whether the incident narrative describes a multi-event sequence.
+ * Runs in parallel with the main classification LLM call.
+ * Returns null on failure (non-blocking — single-event classification still proceeds).
+ */
+export async function detectMultiEventSequence(
+  narrative: string | null | undefined,
+  damageDescription: string | null | undefined,
+): Promise<MultiEventSequence | null> {
+  const text = [narrative ?? "", damageDescription ?? ""].filter(Boolean).join("\n\n").trim();
+  if (text.length < 80) return null;
+
+  try {
+    const response = await invokeLLM({
+      messages: [
+        { role: "system", content: MULTI_EVENT_SYSTEM_PROMPT },
+        { role: "user", content: `Analyse this incident narrative for multi-event sequences:\n\n${text}` },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "multi_event_sequence",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              is_multi_event: { type: "boolean" },
+              events: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    event_order: { type: "number" },
+                    event_type: { type: "string" },
+                    event_sub_type: { type: ["string", "null"] },
+                    description: { type: "string" },
+                    causal_link: { type: ["string", "null"] },
+                    damage_contribution: { type: "array", items: { type: "string" } },
+                    involves_third_party: { type: "boolean" },
+                  },
+                  required: ["event_order", "event_type", "description", "damage_contribution", "involves_third_party"],
+                  additionalProperties: false,
+                },
+              },
+              causal_chain: { type: "boolean" },
+              sequence_summary: { type: "string" },
+              confidence: { type: "number" },
+              reasoning: { type: "string" },
+            },
+            required: ["is_multi_event", "events", "causal_chain", "sequence_summary", "confidence", "reasoning"],
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    const raw = response.choices?.[0]?.message?.content;
+    const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+
+    const VALID_EVENT_TYPES: CanonicalIncidentType[] = [
+      "animal_strike", "rollover", "rear_end", "head_on", "sideswipe",
+      "single_vehicle", "pedestrian_strike", "collision", "theft", "fire", "flood", "vandalism", "unknown",
+    ];
+
+    const events: IncidentEvent[] = (parsed.events ?? []).map((e: any, idx: number) => ({
+      event_order: typeof e.event_order === "number" ? e.event_order : idx + 1,
+      event_type: VALID_EVENT_TYPES.includes(e.event_type) ? e.event_type as CanonicalIncidentType : "unknown" as CanonicalIncidentType,
+      event_sub_type: e.event_sub_type ?? undefined,
+      description: String(e.description ?? ""),
+      causal_link: e.causal_link ?? undefined,
+      damage_contribution: Array.isArray(e.damage_contribution) ? e.damage_contribution : [],
+      involves_third_party: Boolean(e.involves_third_party),
+    }));
+
+    return {
+      is_multi_event: Boolean(parsed.is_multi_event),
+      events,
+      causal_chain: Boolean(parsed.causal_chain),
+      sequence_summary: String(parsed.sequence_summary ?? ""),
+      confidence: Math.max(0, Math.min(100, Math.round(parsed.confidence ?? 50))),
+      reasoning: String(parsed.reasoning ?? ""),
+    };
+  } catch (err) {
+    console.warn("[MultiEventDetection] LLM call failed:", String(err));
     return null;
   }
 }

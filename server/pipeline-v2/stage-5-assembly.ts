@@ -33,7 +33,7 @@ import {
   inferVehicleBodyType,
   inferPowertrainType,
 } from "../pipeline/types";
-import { classifyIncident } from "./incidentClassificationEngine";
+import { classifyIncident, detectMultiEventSequence } from "./incidentClassificationEngine";
 import { selectScenarioEngine } from "./scenarioEngineSelector";
 import { markFallback } from "./engineFallback";
 import { invokeLLM } from "../_core/llm";
@@ -163,12 +163,16 @@ export async function runAssemblyStage(
     const damageDesc = v.damageDescription || null;
     const damageComponentNames = (v.damagedComponents || []).map((c: { name: string }) => c.name);
 
-    const incidentClassification = await classifyIncident({
-      driver_narrative: driverNarrative,
-      claim_form_incident_type: claimFormField,
-      damage_description: damageDesc,
-      damage_components: damageComponentNames,
-    });
+    // Run incident classification and multi-event detection in parallel
+    const [incidentClassification, multiEventSequence] = await Promise.all([
+      classifyIncident({
+        driver_narrative: driverNarrative,
+        claim_form_incident_type: claimFormField,
+        damage_description: damageDesc,
+        damage_components: damageComponentNames,
+      }),
+      detectMultiEventSequence(driverNarrative, damageDesc),
+    ]);
 
     let incidentType: CanonicalIncidentType = incidentClassification.canonical_type;
     const incidentSubType: string | null =
@@ -288,6 +292,8 @@ export async function runAssemblyStage(
       scenarioConfidence: scenarioFlags.scenarioConfidence,
       thirdPartyConfidence: scenarioFlags.thirdPartyConfidence,
       // scenarioDamageMismatch is set by Stage 7 after damage zones are available
+      // Multi-event sequence detected in parallel with incident classification
+      multiEventSequence: multiEventSequence ?? null,
     };
 
     const policeReport: PoliceReportRecord = {

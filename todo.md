@@ -10801,3 +10801,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] UI error state: show clear "Document extraction failed - retry in progress" banner instead of blank report
 - [ ] Alert owner via notifyOwner when any claim pipeline produces 0 OCR text (Stage 2 degraded)
 - [ ] Add document pre-validation: verify PDF is readable (non-zero pages) before triggering pipeline
+
+## Multi-Event Incident Detection
+
+- [x] Add IncidentEvent and MultiEventSequence types to types.ts
+- [x] Implement detectMultiEventSequence() LLM function in incidentClassificationEngine.ts
+- [x] Run detectMultiEventSequence in parallel with classifyIncident in stage-5-assembly.ts
+- [x] Wire multiEventSequence into AccidentDetails
+- [x] Add multi-event timeline UI to Section 1.1b of ForensicAuditReport

@@ -643,6 +643,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   // Pull new ClaimRecord fields from the aiAssessment claimRecord (stored in DB)
   const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
+  const multiEventSequence = claimRecord?.accidentDetails?.multiEventSequence ?? null;
   const accidentTime = claimRecord?.accidentDetails?.time ?? null;
   const animalType = claimRecord?.accidentDetails?.animalType ?? null;
   const weatherConditions = claimRecord?.accidentDetails?.weatherConditions ?? null;
@@ -851,6 +852,77 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           )}
         </div>
       </div>
+
+      {/* 1.1b Multi-Event Incident Sequence */}
+      {multiEventSequence?.is_multi_event && multiEventSequence.events?.length > 1 && (
+        <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+          <div className="px-4 py-3 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+            <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.1b Multi-Event Incident Sequence</p>
+            <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "var(--fp-warning-bg)", color: "var(--fp-warning-text)" }}>
+              {multiEventSequence.events.length} events detected
+            </span>
+            <span className="text-xs ml-auto" style={{ color: "var(--muted-foreground)" }}>
+              Confidence: {multiEventSequence.confidence}%
+            </span>
+          </div>
+          <div className="p-4">
+            {/* Sequence summary */}
+            <p className="text-xs mb-4" style={{ color: "var(--muted-foreground)" }}>
+              <span className="font-semibold" style={{ color: "var(--foreground)" }}>Sequence summary: </span>
+              {multiEventSequence.sequence_summary}
+            </p>
+            {/* Event timeline */}
+            <div className="relative">
+              {multiEventSequence.events.map((event: any, idx: number) => (
+                <div key={idx} className="flex gap-3 mb-3">
+                  {/* Timeline spine */}
+                  <div className="flex flex-col items-center">
+                    <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}>
+                      {event.event_order}
+                    </div>
+                    {idx < multiEventSequence.events.length - 1 && (
+                      <div className="w-0.5 flex-1 mt-1" style={{ background: "var(--border)", minHeight: "16px" }} />
+                    )}
+                  </div>
+                  {/* Event card */}
+                  <div className="flex-1 pb-2">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-xs font-semibold capitalize" style={{ color: "var(--foreground)" }}>
+                        {(event.event_type ?? "unknown").replace(/_/g, " ")}
+                        {event.event_sub_type ? ` — ${event.event_sub_type.replace(/_/g, " ")}` : ""}
+                      </span>
+                      {event.involves_third_party && (
+                        <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--fp-info-bg, var(--muted))", color: "var(--fp-info-text, var(--muted-foreground))" }}>
+                          3rd party
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{event.description}</p>
+                    {event.damage_contribution?.length > 0 && (
+                      <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+                        <span className="font-semibold" style={{ color: "var(--foreground)" }}>Damage zones: </span>
+                        {event.damage_contribution.join(", ")}
+                      </p>
+                    )}
+                    {event.causal_link && (
+                      <p className="text-xs mt-1 italic" style={{ color: "var(--muted-foreground)" }}>
+                        → {event.causal_link}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Reasoning */}
+            {multiEventSequence.reasoning && (
+              <div className="mt-2 p-3 rounded-lg text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                <span className="font-semibold" style={{ color: "var(--foreground)" }}>Analyst reasoning: </span>
+                {multiEventSequence.reasoning}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 1.2 Insurance & Policy Context */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
