@@ -81,7 +81,8 @@ export interface ContractCheckResult {
 // TIMEOUT BUDGETS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const TIMEOUT_LLM_MS = 60_000;        // 60 s for LLM stages
+export const TIMEOUT_LLM_MS = 60_000;        // 60 s for LLM stages (default)
+export const TIMEOUT_LLM_EXTRACTION_MS = 180_000; // 180 s for Stage 2 — large PDF extraction with up to 3 retries
 export const TIMEOUT_VISION_MS = 200_000;     // 200 s for Stage 6 — vision processes up to PER_RUN_VISION_BUDGET photos sequentially (~8s each, budget=20)
 export const TIMEOUT_DETERMINISTIC_MS = 10_000; // 10 s for deterministic stages
 
@@ -107,7 +108,7 @@ export const STAGE_CONTRACTS: Record<string, StageContract> = {
     id: "2_extraction",
     label: "Stage 2 — Raw OCR Text Extraction",
     type: "llm",
-    timeoutMs: TIMEOUT_LLM_MS,
+    timeoutMs: TIMEOUT_LLM_EXTRACTION_MS, // 180s — allows 3 retry attempts on large PDFs
     required: ["stage1Data"],
     optional: [],
     outputGuarantees: ["stage2Data"],

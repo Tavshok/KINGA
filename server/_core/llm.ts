@@ -66,6 +66,8 @@ export type InvokeParams = {
   output_schema?: OutputSchema;
   responseFormat?: ResponseFormat;
   response_format?: ResponseFormat;
+  /** Override the default 45-second hard timeout. Use for large PDF extraction calls. */
+  timeoutMs?: number;
 };
 
 export type ToolCall = {
@@ -315,14 +317,14 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  // 45-second hard timeout per LLM call — prevents the fire-and-forget AI
-  // pipeline from hanging indefinitely when the API is unresponsive.
+  // Hard timeout per LLM call — prevents the pipeline from hanging indefinitely.
+  // Default: 45s for short structured calls.
+  // Callers can override via params.timeoutMs for large PDF extraction calls (90s).
   // With thinking disabled (budget_tokens=0) and max_tokens capped at 8192,
-  // a real extraction of a multi-page PDF completes in 8-20s under normal load.
-  // The 45s guard only fires when the API hangs entirely (e.g. dead PDF URL,
-  // network issue) — NOT during legitimate slow extractions.
+  // a real extraction of a multi-page PDF completes in 8-60s under normal load.
+  const callTimeoutMs = params.timeoutMs ?? 45_000;
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 45 * 1000);
+  const timeoutId = setTimeout(() => controller.abort(), callTimeoutMs);
 
   let response: Response;
   try {
@@ -338,7 +340,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } catch (fetchErr: any) {
     clearTimeout(timeoutId);
     if (fetchErr.name === "AbortError") {
-      throw new Error("LLM invoke timed out after 45 seconds");
+      throw new Error(`LLM invoke timed out after ${callTimeoutMs / 1000} seconds`);
     }
     throw fetchErr;
   }
@@ -352,4 +354,64 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   }
 
   return (await response.json()) as InvokeResult;
+}
+
+// ────────────────────────────────────────────────────────────────────────────────
+// withRetry — exponential backoff retry for transient LLM errors
+// ────────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Determines whether an error is transient and worth retrying.
+ * Retries on: timeout, network failure, HTTP 429 (rate limit), HTTP 503 (overload).
+ * Does NOT retry on: JSON parse errors, schema validation errors, 4xx client errors.
+ */
+function isTransientError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  // Timeout errors from invokeLLM
+  if (msg.includes('timed out')) return true;
+  // Network-level failures
+  if (msg.includes('fetch failed') || msg.includes('network') || msg.includes('econnreset') || msg.includes('econnrefused')) return true;
+  // HTTP 429 rate limit or 503 service unavailable
+  if (msg.includes('429') || msg.includes('503') || msg.includes('rate limit') || msg.includes('overloaded')) return true;
+  // Truncated/empty API responses — the LLM returned a partial or empty body.
+  // These are transient API failures, not permanent schema errors.
+  if (msg.includes('unexpected end of json') || msg.includes('unexpected token') || msg.includes('empty response')) return true;
+  // SyntaxError with empty string — JSON.parse('') or JSON.parse('{}')
+  if (err instanceof SyntaxError && (msg.includes('json') || msg.includes('unexpected'))) return true;
+  return false;
+}
+
+/**
+ * Wraps an async function with exponential backoff retry.
+ *
+ * @param fn          The async function to retry.
+ * @param maxAttempts Maximum number of attempts (default 3).
+ * @param backoffMs   Array of delay durations in ms for each retry gap.
+ *                    Length must be maxAttempts - 1.
+ *                    Default: [2000, 4000, 8000] (2s → 4s → 8s).
+ * @param onRetry     Optional callback called before each retry with the attempt number and error.
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  maxAttempts = 3,
+  backoffMs: number[] = [2000, 4000, 8000],
+  onRetry?: (attempt: number, err: unknown) => void,
+): Promise<T> {
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastErr = err;
+      const isLast = attempt === maxAttempts;
+      if (isLast || !isTransientError(err)) {
+        throw err;
+      }
+      const delay = backoffMs[attempt - 1] ?? backoffMs[backoffMs.length - 1];
+      if (onRetry) onRetry(attempt, err);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  throw lastErr;
 }

@@ -26,11 +26,25 @@ import type {
   Assumption,
   RecoveryAction,
 } from "./types";
-import { invokeLLM } from "../_core/llm";
+import { invokeLLM, withRetry } from "../_core/llm";
 import { preprocessDocument } from "./documentPreprocessor";
 
+// Default LLM call — used for short structured calls (45s timeout, no retry needed)
 function llmCall(params: any): Promise<any> {
   return invokeLLM(params);
+}
+
+// Retrying LLM call for large PDF extraction — 90s timeout, 3 attempts with exponential backoff
+// Handles transient API timeouts that cause Stage 2 to degrade unnecessarily.
+function llmCallWithRetry(params: any, ctx: PipelineContext, label: string): Promise<any> {
+  return withRetry(
+    () => invokeLLM({ ...params, timeoutMs: 90_000 }),
+    3,
+    [2000, 4000, 8000],
+    (attempt, err) => {
+      ctx.log('Stage 2', `[${label}] Attempt ${attempt} failed (${(err as Error)?.message ?? err}). Retrying in ${[2, 4, 8][attempt - 1]}s...`);
+    },
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -101,7 +115,11 @@ async function extractTextFromPdf(
   pdfUrl: string,
   ctx: PipelineContext
 ): Promise<PrimaryExtractionResult> {
-  const response = await llmCall({
+  // Wrap the entire LLM call + JSON.parse in withRetry so truncated responses are retried.
+  const parsed = await withRetry(
+    async () => {
+      const response = await invokeLLM({
+        timeoutMs: 90_000,
     messages: [
       {
         role: "system",
@@ -239,10 +257,19 @@ After extracting, rate your confidence per field in fieldConfidence (0-100).`,
         },
       },
     },
-  });
-
-  const content = response.choices?.[0]?.message?.content || "{}";
-  const parsed = JSON.parse(content);
+      });
+      const content = response.choices?.[0]?.message?.content;
+      if (!content || content.trim() === '' || content.trim() === '{}') {
+        throw new Error('Empty or truncated LLM response');
+      }
+      return JSON.parse(content);
+    },
+    3,
+    [2000, 4000, 8000],
+    (attempt, err) => {
+      ctx.log('Stage 2', `[extractTextFromPdf] Attempt ${attempt} failed: ${(err as Error)?.message ?? err}. Retrying...`);
+    },
+  );
 
   const rawText: string = parsed.rawText || "";
   const ocrConfidence: number = parsed.ocrConfidence || 50;
@@ -309,6 +336,153 @@ After extracting, rate your confidence per field in fieldConfidence (0-100).`,
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// CHUNKED EXTRACTION — for large PDFs (>8 pages) that exceed LLM output limits
+// Splits page images into chunks of 6, extracts in parallel, merges results.
+// This prevents the "Unterminated string in JSON" truncation error on 18+ page PDFs.
+// ─────────────────────────────────────────────────────────────────────────────
+const CHUNK_SIZE = 6; // pages per chunk — keeps JSON output well under LLM token limit
+
+async function extractChunk(
+  pageImageUrls: string[],
+  chunkIndex: number,
+  ctx: PipelineContext
+): Promise<{ rawText: string; tables: ExtractedTable[]; ocrConfidence: number }> {
+  const parsed = await withRetry(
+    async () => {
+      const imageContent = pageImageUrls.map(url => ({
+        type: "image_url" as const,
+        image_url: { url, detail: "high" as const },
+      }));
+      const response = await invokeLLM({
+        timeoutMs: 90_000,
+        messages: [
+          {
+            role: "system",
+            content: `You are a specialist insurance document OCR system.
+Extract ALL text from the provided page images verbatim. Return JSON with:
+- rawText: full verbatim text from all pages
+- tables: array of tables found (headers, rows, context)
+- ocrConfidence: overall quality 0-100
+
+Rules:
+1. Extract form fields as "Label: Value" pairs
+2. Extract all table rows including totals
+3. Extract all handwritten text and stamps
+4. Do NOT paraphrase or summarise`,
+          },
+          {
+            role: "user",
+            content: [
+              { type: "text" as const, text: `Extract ALL text from these ${pageImageUrls.length} document page(s). Return as JSON.` },
+              ...imageContent,
+            ],
+          },
+        ],
+        response_format: {
+          type: "json_schema",
+          json_schema: {
+            name: "chunk_extraction",
+            strict: true,
+            schema: {
+              type: "object",
+              properties: {
+                rawText: { type: "string" },
+                tables: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      headers: { type: "array", items: { type: "string" } },
+                      rows: { type: "array", items: { type: "array", items: { type: "string" } } },
+                      context: { type: "string" },
+                    },
+                    required: ["headers", "rows", "context"],
+                    additionalProperties: false,
+                  },
+                },
+                ocrConfidence: { type: "integer" },
+              },
+              required: ["rawText", "tables", "ocrConfidence"],
+              additionalProperties: false,
+            },
+          },
+        },
+      });
+      const content = response.choices?.[0]?.message?.content;
+      if (!content || content.trim() === '' || content.trim() === '{}') {
+        throw new Error('Empty or truncated LLM response');
+      }
+      return JSON.parse(content);
+    },
+    3,
+    [2000, 4000, 8000],
+    (attempt, err) => {
+      ctx.log('Stage 2', `[chunk ${chunkIndex}] Attempt ${attempt} failed: ${(err as Error)?.message ?? err}. Retrying...`);
+    },
+  );
+  return {
+    rawText: parsed.rawText || '',
+    tables: (parsed.tables || []).map((t: any) => ({ headers: t.headers || [], rows: t.rows || [], context: t.context || '' })),
+    ocrConfidence: parsed.ocrConfidence || 50,
+  };
+}
+
+async function extractTextFromPdfChunked(
+  pdfUrl: string,
+  pageImageUrls: string[],
+  ctx: PipelineContext
+): Promise<PrimaryExtractionResult> {
+  // For small documents (<= 8 pages), use the standard single-call approach
+  if (pageImageUrls.length <= CHUNK_SIZE || pageImageUrls.length === 0) {
+    return extractTextFromPdf(pdfUrl, ctx);
+  }
+
+  // Split pages into chunks of CHUNK_SIZE
+  const chunks: string[][] = [];
+  for (let i = 0; i < pageImageUrls.length; i += CHUNK_SIZE) {
+    chunks.push(pageImageUrls.slice(i, i + CHUNK_SIZE));
+  }
+  ctx.log('Stage 2', `[chunked] Splitting ${pageImageUrls.length} pages into ${chunks.length} chunks of ${CHUNK_SIZE}`);
+
+  // Extract all chunks in parallel
+  const chunkResults = await Promise.all(
+    chunks.map((chunk, i) => extractChunk(chunk, i, ctx))
+  );
+
+  // Merge chunk results
+  const mergedText = chunkResults.map((r, i) => `[CHUNK ${i + 1}/${chunks.length}]\n${r.rawText}`).join('\n\n');
+  const mergedTables = chunkResults.flatMap(r => r.tables);
+  const avgConfidence = Math.round(chunkResults.reduce((sum, r) => sum + r.ocrConfidence, 0) / chunkResults.length);
+
+  ctx.log('Stage 2', `[chunked] Merged ${chunks.length} chunks: ${mergedText.length} chars total, confidence=${avgConfidence}%`);
+
+  // Build flags from merged text
+  const criticalFieldsMissing = 0; // chunks don't have per-field confidence — use 0 to skip secondary pass
+  const flags = {
+    agreedCostHintFound: hasAgreedCostHint(mergedText),
+    repairQuoteDetected: mergedTables.length > 0 || /total\s*\(incl/i.test(mergedText) || /grand\s*total/i.test(mergedText),
+    quoteTotalInconsistent: false,
+    textTooShort: mergedText.length < MIN_TEXT_LENGTH_CHARS,
+    criticalFieldsMissing,
+  };
+
+  // Build a neutral fieldConfidence (50 = unknown) since chunks don't produce per-field scores
+  const fieldConfidence: FieldConfidence = {
+    claimId: 50, vehicleRegistration: 50, accidentDate: 50,
+    incidentType: 50, estimatedSpeed: 50, policeReportNumber: 50,
+    repairQuoteTotal: 50, agreedCost: 50, damageDescription: 50,
+  };
+
+  return {
+    rawText: mergedText,
+    tables: mergedTables,
+    ocrConfidence: avgConfidence,
+    fieldConfidence,
+    flags,
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // HANDWRITING SPECIALIST PASS
 // Triggered only when: agreedCost confidence is low AND semantic hint found in text
 // ─────────────────────────────────────────────────────────────────────────────
@@ -318,7 +492,7 @@ async function handwritingOcrPass(
   ctx: PipelineContext
 ): Promise<{ rawText: string; ocrConfidence: number }> {
   ctx.log("Stage 2", "Running targeted handwriting OCR pass (trigger: agreedCost missing + semantic hint)");
-  const response = await llmCall({
+  const response = await llmCallWithRetry({
     messages: [
       {
         role: "system",
@@ -364,7 +538,7 @@ Known handwritten sections hint: ${handwrittenPageHints.substring(0, 500)}`,
         },
       },
     },
-  });
+  }, ctx, 'handwritingOcrPass');
   const content = response.choices?.[0]?.message?.content || "{}";
   const parsed = JSON.parse(content);
   return {
@@ -373,7 +547,7 @@ Known handwritten sections hint: ${handwrittenPageHints.substring(0, 500)}`,
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // TABLE SPECIALIST PASS
 // Triggered only when: repairQuoteTotal confidence is low OR total is inconsistent
 // ─────────────────────────────────────────────────────────────────────────────
@@ -383,7 +557,7 @@ async function tableOcrPass(
   ctx: PipelineContext
 ): Promise<{ rawText: string; ocrConfidence: number }> {
   ctx.log("Stage 2", "Running targeted table OCR pass (trigger: quote total missing or inconsistent)");
-  const response = await llmCall({
+  const response = await llmCallWithRetry({
     messages: [
       {
         role: "system",
@@ -427,7 +601,7 @@ Table hint: ${tableHint.substring(0, 300)}`,
         },
       },
     },
-  });
+  }, ctx, 'tableOcrPass');
   const content = response.choices?.[0]?.message?.content || "{}";
   const parsed = JSON.parse(content);
   return {
@@ -436,7 +610,7 @@ Table hint: ${tableHint.substring(0, 300)}`,
   };
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────────────────────────────
 // SECONDARY OCR PASS
 // Triggered only when: document text is very short AND many critical fields missing
 // (i.e. the primary pass barely read the document at all)
@@ -447,7 +621,7 @@ async function secondaryOcrPass(
   ctx: PipelineContext
 ): Promise<{ rawText: string; ocrConfidence: number }> {
   ctx.log("Stage 2", "Running secondary OCR pass (trigger: document barely read + many missing fields)");
-  const response = await llmCall({
+  const response = await llmCallWithRetry({
     messages: [
       {
         role: "system",
@@ -492,7 +666,7 @@ Return JSON: { "rawText": "...", "ocrConfidence": 75 }`,
         },
       },
     },
-  });
+  }, ctx, 'secondaryOcrPass');
   const content = response.choices?.[0]?.message?.content || "{}";
   const parsed = JSON.parse(content);
   return {
@@ -602,7 +776,12 @@ export async function runExtractionStage(
           ctx.log("Stage 2", `[doc ${doc.documentIndex}] Extracting text from PDF: ${doc.fileName}`);
 
           // ── STEP 1: Single strong primary pass ─────────────────────────────
-          const primary = await extractTextFromPdf(doc.sourceUrl, ctx);
+          // Use chunked extraction for large PDFs (>6 pages) to avoid LLM output truncation.
+          const primary = await extractTextFromPdfChunked(
+            doc.sourceUrl,
+            doc.imageUrls || [],
+            ctx
+          );
           let result = {
             rawText: primary.rawText,
             tables: primary.tables,
