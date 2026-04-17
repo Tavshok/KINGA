@@ -10821,3 +10821,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Replace vague failure messages with explicit IMAGE PIPELINE FAILURE labels
 - [ ] Add pipeline integrity validator gate before final report assembly
 - [ ] Run full end-to-end pipeline test to verify all fixes
+
+## Phase 3 UI Polish — Pipeline Stage Tracker & Evidence Bundle (Apr 2026)
+- [x] Add PipelineStageTracker component with colored status dots (green/amber/red/purple per stage status)
+- [x] Add BLOCKED badge (purple) for blocked pipeline stages
+- [x] Add IMAGE PIPELINE FAILURE explicit label for stage 6 (damage analysis) and stage 2 (extraction) failures
+- [x] Add EvidenceBundleStrengthPanel — visual strength bars for damage/physics/fraud/cost/reconstruction/composite evidence
+- [x] Wire _pipelineRunSummary into byClaim return object in routers.ts
+- [x] Fix PDF rendering: blank pages eliminated (drawPageFooter bottom margin fix)
+- [x] Fix PDF rendering: [object Object] bugs — damagedComponents, costBreakdown, fraudIndicators, assumptions
+- [x] Fix PDF rendering: forensicAnalysisJson → forensicAnalysis field name fix in exportPdf procedure
+- [x] Fix PDF rendering: cost breakdown TOTAL row rendering

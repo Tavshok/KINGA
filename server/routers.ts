@@ -3247,6 +3247,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // Pipeline Run Summary — exposes per-stage status/durationMs for UI status dots
+          _pipelineRunSummary: prs,
           // Phase 4 — Decision Narrative View data
           _ifeResult: parsedIfeResult,
           _doeResult: parsedDoeResult,

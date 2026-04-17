@@ -2993,6 +2993,195 @@ function CongruencyPanel({ aiAssessment }: { aiAssessment: any }) {
 // ─── Pipeline Confidence Panel (FCDI) ────────────────────────────────────────
 // Surfaces the Forensic Confidence Degradation Index, pipeline stage health,
 // and anomaly sentinel violations. Shown above Section 1 in the report.
+
+// ─── Stage Status Dot ────────────────────────────────────────────────────────
+function StageDot({ status }: { status: string }) {
+  const cfg: Record<string, { bg: string; label: string }> = {
+    success:  { bg: "var(--fp-success-text)",  label: "OK" },
+    degraded: { bg: "var(--fp-warning-text)",  label: "DEGRADED" },
+    partial:  { bg: "var(--fp-warning-text)",  label: "PARTIAL" },
+    blocked:  { bg: "#a855f7",                 label: "BLOCKED" },
+    failed:   { bg: "var(--fp-danger)",        label: "FAILED" },
+    error:    { bg: "var(--fp-danger)",        label: "ERROR" },
+    skipped:  { bg: "var(--muted-foreground)", label: "SKIPPED" },
+  };
+  const c = cfg[status] ?? { bg: "var(--muted-foreground)", label: status.toUpperCase() };
+  return (
+    <span
+      title={c.label}
+      style={{
+        display: "inline-block",
+        width: 8, height: 8,
+        borderRadius: "50%",
+        background: c.bg,
+        flexShrink: 0,
+        marginTop: 2,
+      }}
+    />
+  );
+}
+
+// ─── Pipeline Stage Tracker ──────────────────────────────────────────────────
+const STAGE_LABELS: Record<string, string> = {
+  "1_ingestion":             "Ingestion",
+  "2_extraction":            "Extraction",
+  "3_structured_extraction": "Structured Extraction",
+  "4_validation":            "Validation",
+  "5_assembly":              "Assembly",
+  "6_damage_analysis":       "Damage Analysis",
+  "7_unified":               "Unified Physics",
+  "8_fraud":                 "Fraud Scoring",
+  "9_cost":                  "Cost Intelligence",
+  "9b_turnaround":           "Turnaround",
+  "10_report":               "Report Assembly",
+};
+
+function PipelineStageTracker({ prs }: { prs: any }) {
+  if (!prs?.stages || typeof prs.stages !== "object" || Array.isArray(prs.stages)) return null;
+  const stageEntries = Object.entries(prs.stages as Record<string, any>);
+  if (stageEntries.length === 0) return null;
+
+  const hasIssues = stageEntries.some(([, s]) =>
+    s.status !== "success" && s.status !== "skipped"
+  );
+
+  return (
+    <div className="rounded-xl overflow-hidden mb-2" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+      <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Pipeline Stage Health</p>
+        <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          {stageEntries.filter(([, s]) => s.status === "success").length}/{stageEntries.length} stages OK
+        </span>
+      </div>
+      <div className="p-3">
+        <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))" }}>
+          {stageEntries.map(([key, stage]) => {
+            const status: string = stage.status ?? "unknown";
+            const label = STAGE_LABELS[key] ?? key.replace(/_/g, " ");
+            const durationMs: number = stage.durationMs ?? 0;
+            const durationLabel = durationMs >= 1000 ? `${(durationMs / 1000).toFixed(1)}s` : `${durationMs}ms`;
+            // Explicit failure label for image pipeline failure
+            const isImageStage = key === "6_damage_analysis" || key === "2_extraction";
+            const isFailureOrDegraded = status === "failed" || status === "error" || status === "degraded";
+            const failureLabel = isImageStage && isFailureOrDegraded ? "IMAGE PIPELINE FAILURE" : null;
+            // BLOCKED badge
+            const isBlocked = status === "blocked";
+            return (
+              <div
+                key={key}
+                className="flex items-start gap-2 px-2 py-1.5 rounded"
+                style={{
+                  background: isBlocked
+                    ? "rgba(168,85,247,0.08)"
+                    : isFailureOrDegraded
+                    ? "var(--fp-critical-bg)"
+                    : "var(--muted)",
+                  border: isBlocked
+                    ? "1px solid rgba(168,85,247,0.3)"
+                    : isFailureOrDegraded
+                    ? "1px solid var(--fp-critical-border)"
+                    : "1px solid transparent",
+                }}
+              >
+                <StageDot status={status} />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium truncate" style={{ color: "var(--foreground)", fontSize: "11px" }}>{label}</p>
+                  <div className="flex items-center gap-1 flex-wrap">
+                    {isBlocked && (
+                      <span className="font-bold uppercase" style={{ fontSize: "9px", color: "#a855f7", letterSpacing: "0.06em" }}>BLOCKED</span>
+                    )}
+                    {failureLabel && (
+                      <span className="font-bold uppercase" style={{ fontSize: "9px", color: "var(--fp-danger)", letterSpacing: "0.06em" }}>{failureLabel}</span>
+                    )}
+                    {!isBlocked && !failureLabel && (
+                      <span style={{ fontSize: "9px", color: "var(--muted-foreground)" }}>{durationLabel}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {hasIssues && (
+          <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
+            Stages with issues may produce partial or estimated results. Review flagged sections carefully.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Evidence Bundle Strength Panel ─────────────────────────────────────────
+function EvidenceBundleStrengthPanel({ aiAssessment }: { aiAssessment: any }) {
+  const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
+  const eb = fa?.evidenceBundle ?? null;
+  if (!eb) return null;
+
+  const EVIDENCE_KEYS = [
+    { key: "damage",         label: "Damage Evidence" },
+    { key: "physics",        label: "Physics Validation" },
+    { key: "fraud",          label: "Fraud Signals" },
+    { key: "cost",           label: "Cost Intelligence" },
+    { key: "reconstruction", label: "Incident Reconstruction" },
+    { key: "composite",      label: "Composite Score" },
+  ] as const;
+
+  const strengthColor = (label: string) => {
+    if (label === "HIGH")   return "var(--fp-success-text)";
+    if (label === "MEDIUM") return "var(--fp-warning-text)";
+    return "var(--fp-danger)";
+  };
+  const strengthBarColor = (label: string) => {
+    if (label === "HIGH")   return "var(--fp-success-text)";
+    if (label === "MEDIUM") return "var(--fp-warning-text)";
+    return "var(--fp-danger)";
+  };
+
+  return (
+    <div className="rounded-xl overflow-hidden mb-2" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+      <div className="px-4 py-2.5 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Evidence Bundle Strength</p>
+        {eb.composite && (
+          <span className="text-xs font-semibold" style={{ color: strengthColor(eb.composite.evidence_label ?? "") }}>
+            Composite: {eb.composite.evidence_label ?? "N/A"} ({Math.round((eb.composite.evidence_strength ?? 0) * 100)}%)
+          </span>
+        )}
+      </div>
+      <div className="p-3 space-y-2">
+        {EVIDENCE_KEYS.filter(({ key }) => eb[key] && key !== "composite").map(({ key, label }) => {
+          const item = eb[key];
+          const strength: number = Math.round((item.evidence_strength ?? 0) * 100);
+          const evidenceLabel: string = item.evidence_label ?? "LOW";
+          const rationale: string = typeof item.rationale === "string" ? item.rationale : "";
+          return (
+            <div key={key}>
+              <div className="flex items-center justify-between mb-0.5">
+                <span className="text-xs font-medium" style={{ color: "var(--foreground)", fontSize: "11px" }}>{label}</span>
+                <span className="text-xs font-bold" style={{ color: strengthColor(evidenceLabel), fontSize: "10px" }}>{evidenceLabel} — {strength}%</span>
+              </div>
+              <div className="rounded-full overflow-hidden" style={{ height: 4, background: "var(--muted)" }}>
+                <div
+                  style={{
+                    height: "100%",
+                    width: `${strength}%`,
+                    background: strengthBarColor(evidenceLabel),
+                    borderRadius: "9999px",
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+              {rationale && (
+                <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)", fontSize: "10px" }}>{rationale}</p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
   if (!fa) return null;
@@ -3008,15 +3197,20 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const fcdiBg = fcdiScore <= 20 ? "var(--status-approve-bg)" : fcdiScore <= 50 ? "var(--status-review-bg)" : "var(--status-reject-bg)";
   const fcdiBorder = fcdiScore <= 20 ? "var(--fp-success-border)" : fcdiScore <= 50 ? "var(--fp-warning-border)" : "var(--fp-critical-border)";
 
-  const stageHealth: any[] = psm?.stages ?? [];
-  const failedStages = stageHealth.filter((s: any) => s.status === "failed" || s.status === "error");
-  const degradedStages = stageHealth.filter((s: any) => s.status === "degraded" || s.status === "partial");
+  // Use _pipelineRunSummary.stages (object) for per-stage status — NOT psm.stages (array, unused)
+  const prs = (aiAssessment as any)?._pipelineRunSummary ?? null;
+  const prsStages = prs?.stages ?? {};
+  const stageEntries = Object.entries(prsStages as Record<string, any>);
+  const failedStageKeys = stageEntries.filter(([, s]) => s.status === "failed" || s.status === "error").map(([k]) => k);
+  const degradedStageKeys = stageEntries.filter(([, s]) => s.status === "degraded" || s.status === "partial").map(([k]) => k);
+  const blockedStageKeys = stageEntries.filter(([, s]) => s.status === "blocked").map(([k]) => k);
+
   const completenessScore: number = dataQuality?.completenessScore ?? dataQuality?.completeness ?? 0;
   const missingFields: string[] = dataQuality?.missingFields ?? dataQuality?.missing ?? [];
   const assumptions: any[] = fa.assumptions ?? [];
 
   const domainPenalties: any[] = fcdi?.breakdown?.domainPenalties ?? [];
-  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0 || domainPenalties.length > 0;
+  const hasPipelineIssues = failedStageKeys.length > 0 || degradedStageKeys.length > 0 || blockedStageKeys.length > 0 || sentinels.length > 0 || domainPenalties.length > 0;
   if (!hasPipelineIssues && fcdiScore <= 20 && completenessScore >= 80) return null;
 
   return (
@@ -3041,33 +3235,65 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
         {fcdi?.explanation && (
           <p style={{ color: "var(--foreground)" }}>{fcdi.explanation}</p>
         )}
-        {failedStages.length > 0 && (
+        {failedStageKeys.length > 0 && (
           <div>
             <p className="font-semibold mb-1" style={{ color: "var(--fp-danger)" }}>
-              Pipeline stages with errors ({failedStages.length}):
+              Pipeline stages with errors ({failedStageKeys.length}):
             </p>
             <div className="space-y-0.5">
-              {failedStages.map((s: any, i: number) => (
-                <p key={i} style={{ color: "var(--fp-danger)" }}>
-                  &bull; <span className="font-mono">{s.name ?? s.stage}</span>
-                  {s.error && <span className="ml-1" style={{ color: "var(--muted-foreground)" }}>— {s.error}</span>}
-                </p>
-              ))}
+              {failedStageKeys.map((k: string, i: number) => {
+                const s = prsStages[k];
+                const isImageStage = k === "6_damage_analysis" || k === "2_extraction";
+                return (
+                  <p key={i} style={{ color: "var(--fp-danger)" }}>
+                    <StageDot status="failed" />{" "}
+                    <span className="font-mono ml-1">{STAGE_LABELS[k] ?? k}</span>
+                    {isImageStage && <span className="ml-2 font-bold uppercase" style={{ fontSize: "9px", letterSpacing: "0.06em" }}>IMAGE PIPELINE FAILURE</span>}
+                    {s?.error && <span className="ml-1" style={{ color: "var(--muted-foreground)" }}>— {s.error}</span>}
+                  </p>
+                );
+              })}
             </div>
           </div>
         )}
-        {degradedStages.length > 0 && (
+        {blockedStageKeys.length > 0 && (
           <div>
-            <p className="font-semibold mb-1" style={{ color: "var(--fp-warn)" }}>
-              Degraded stages — partial results ({degradedStages.length}):
+            <p className="font-semibold mb-1" style={{ color: "#a855f7" }}>
+              Blocked stages ({blockedStageKeys.length}):
             </p>
             <div className="space-y-0.5">
-              {degradedStages.map((s: any, i: number) => (
-                <p key={i} style={{ color: "var(--muted-foreground)" }}>
-                  &bull; <span className="font-mono">{s.name ?? s.stage}</span>
-                  {s.reason && <span className="ml-1">— {s.reason}</span>}
-                </p>
-              ))}
+              {blockedStageKeys.map((k: string, i: number) => {
+                const s = prsStages[k];
+                return (
+                  <p key={i} style={{ color: "#a855f7" }}>
+                    <StageDot status="blocked" />{" "}
+                    <span className="font-mono ml-1">{STAGE_LABELS[k] ?? k}</span>
+                    <span className="ml-2 px-1 py-0.5 rounded font-bold uppercase" style={{ background: "rgba(168,85,247,0.15)", fontSize: "9px", letterSpacing: "0.06em" }}>BLOCKED</span>
+                    {s?.reason && <span className="ml-1" style={{ color: "var(--muted-foreground)" }}>— {s.reason}</span>}
+                  </p>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        {degradedStageKeys.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-warn)" }}>
+              Degraded stages — partial results ({degradedStageKeys.length}):
+            </p>
+            <div className="space-y-0.5">
+              {degradedStageKeys.map((k: string, i: number) => {
+                const s = prsStages[k];
+                const isImageStage = k === "6_damage_analysis" || k === "2_extraction";
+                return (
+                  <p key={i} style={{ color: "var(--muted-foreground)" }}>
+                    <StageDot status="degraded" />{" "}
+                    <span className="font-mono ml-1">{STAGE_LABELS[k] ?? k}</span>
+                    {isImageStage && <span className="ml-2 font-bold uppercase" style={{ fontSize: "9px", color: "var(--fp-warning-text)", letterSpacing: "0.06em" }}>IMAGE PIPELINE FAILURE</span>}
+                    {s?.reason && <span className="ml-1">— {s.reason}</span>}
+                  </p>
+                );
+              })}
             </div>
           </div>
         )}
@@ -3183,6 +3409,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
         </div>
       )}
       <CongruencyPanel aiAssessment={aiAssessment} />
+      <PipelineStageTracker prs={(aiAssessment as any)?._pipelineRunSummary} />
       <PipelineConfidencePanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
@@ -3198,6 +3425,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
       <SectionDivider number="4" title="Evidence Inventory" />
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
+      <EvidenceBundleStrengthPanel aiAssessment={aiAssessment} />
 
       <SectionDivider number="5" title="Risk & Fraud Assessment" />
       <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} />
