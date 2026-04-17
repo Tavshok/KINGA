@@ -3269,6 +3269,11 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             } catch { /* non-fatal */ }
             return null;
           })(),
+          // Photo counts — ForensicAuditReport expects these as NUMBERS (not booleans).
+          // imageAnalysisTotalCount = all photos linked to the claim (including deferred by vision budget)
+          // imageAnalysisSuccessCount = photos successfully processed by the vision LLM
+          photosDetected: Number((assessment as any).imageAnalysisTotalCount ?? 0),
+          photosProcessedCount: Number((assessment as any).imageAnalysisSuccessCount ?? 0),
         };
       }),
     historicalBenchmarks: protectedProcedure
@@ -3616,7 +3621,25 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Include claimId so the AI_ASSESSMENT_CONTRACT critical field check passes
         // Extract photoForensics from the stored fraudScoreBreakdownJson
         const photoForensicsData = fraudScoreBreakdown?.photoForensics ?? null;
-        const rawResponse = { ...result, costExtraction, weightedFraud, _phase2: phase2, claimId: input.claimId, _photoForensics: photoForensicsData };
+        // Derive photosDetected (count) and photosProcessedCount from imageAnalysis DB columns.
+        // The ForensicAuditReport expects these as NUMBERS (not booleans) for count display.
+        // imageAnalysisTotalCount = all photos linked to the claim (including deferred)
+        // imageAnalysisSuccessCount = photos successfully analysed by the vision LLM
+        // NOTE: Read from `assessment` (DB row), NOT `result` (IntelligenceEnforcementResult which has no photo columns)
+        const photosDetectedCount = Number((assessment as any).imageAnalysisTotalCount ?? 0);
+        const photosProcessedCount = Number((assessment as any).imageAnalysisSuccessCount ?? 0);
+        console.log('[DEBUG byClaim] photosDetectedCount:', photosDetectedCount, 'photosProcessedCount:', photosProcessedCount, 'imageAnalysisTotalCount raw:', (assessment as any).imageAnalysisTotalCount, 'imageAnalysisSuccessCount raw:', (assessment as any).imageAnalysisSuccessCount);
+        const rawResponse = {
+          ...result,
+          costExtraction,
+          weightedFraud,
+          _phase2: phase2,
+          claimId: input.claimId,
+          _photoForensics: photoForensicsData,
+          // Override photosDetected with numeric count so ForensicAuditReport renders correctly
+          photosDetected: photosDetectedCount > 0 ? photosDetectedCount : (bridge.photosDetected ? phase2PhotoUrls.length : 0),
+          photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
+        };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
         const contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
         // Stage 27 pass 2: numeric integrity, contradiction detection, NaN/Infinity clamping

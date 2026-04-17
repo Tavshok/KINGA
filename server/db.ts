@@ -1192,6 +1192,9 @@ export async function triggerAiAssessment(claimId: number) {
     })(),
     // Stage 36 output: Forensic Audit Validator — 10-dimension post-pipeline validation
     forensicAuditValidationJson: forensicAuditValidationResult ? JSON.stringify(forensicAuditValidationResult) : null,
+    // Stage 6 enriched photo metadata — persisted so the UI can show per-photo vision analysis results
+    // Previously this was computed but never written to the DB column, causing enriched_photos_json to always be NULL.
+    enrichedPhotosJson: result.enrichedPhotosJson ?? null,
   });
 
   // Update claim status to complete + backfill vehicle info from extraction
