@@ -121,9 +121,9 @@ INCIDENT TYPE TAXONOMY:
 - rear_end: Vehicle was struck from behind, OR the insured vehicle struck another from behind. Evidence: "rear-ended", "hit from behind", "struck the back of", rear bumper/boot damage.
 - head_on: Frontal collision between two vehicles travelling in opposite directions. Evidence: "head-on", "oncoming vehicle", "wrong side of road", "opposite direction", heavy frontal damage + airbag deployment.
 - sideswipe: Lateral contact between two vehicles. Evidence: "sideswiped", "scraped the side", "clipped", lane-change contact, door panel / side panel damage only.
-- single_vehicle: Vehicle left the road or struck a fixed object with no other vehicle involved. Evidence: "left the road", "struck a wall/pole/tree/barrier/ditch", "lost control", "skidded off", no other vehicle mentioned.
+- single_vehicle: Vehicle left the road or struck a fixed object with NO other vehicle involved. Evidence: "left the road", "struck a wall/pole/tree/barrier/ditch", "lost control", "skidded off", no other vehicle mentioned. CRITICAL: If ANY other vehicle is mentioned (third party, another vehicle, truck, bus, car, etc.) this is NOT single_vehicle.
 - pedestrian_strike: Vehicle struck a pedestrian or cyclist. Evidence: "pedestrian", "cyclist", "knocked down a person", "person crossing".
-- vehicle_collision: Multi-vehicle collision that cannot be sub-typed from available evidence. Use this ONLY when the collision type is genuinely ambiguous.
+- vehicle_collision: Multi-vehicle collision that cannot be sub-typed from available evidence. Use this when another vehicle is explicitly mentioned but the collision sub-type cannot be determined. NOTE: Most real-world accidents involve another vehicle — if the narrative mentions "Third Party Vehicle", "another vehicle", "a truck", "a bus", "a car", "rammed into", "collided with" another vehicle, this is vehicle_collision (or a more specific sub-type), NOT single_vehicle.
 - theft: Vehicle stolen, hijacked, or parts removed. Evidence: "stolen", "hijacked", "broke in", missing vehicle or parts.
 - fire: Vehicle fire. Evidence: "fire", "burnt", "smoke", "engine fire".
 - flood: Flood, hail, or weather damage. Evidence: "flood", "hail", "submerged", "water damage".
@@ -146,6 +146,8 @@ CRITICAL RULES:
 6. If the narrative says "collision" but also says "rolled over", classify as rollover
 7. animal_strike applies ONLY when the narrative explicitly describes the vehicle striking or being struck by an animal. Road conditions (potholes, gravel) do NOT make a claim animal_strike. If the narrative says the vehicle was hit from behind by another vehicle AND mentions road conditions, classify as rear_end — not animal_strike.
 8. PRIORITY ORDER when signals conflict: rollover > pedestrian_strike > rear_end > head_on > sideswipe > animal_strike > single_vehicle > vehicle_collision. Use the highest-priority type that has explicit narrative evidence.
+9. THIRD-PARTY OVERRIDE: If the narrative explicitly mentions a "Third Party Vehicle", "third party", "another vehicle", "a truck/bus/car" that was involved in the collision, you MUST classify as vehicle_collision (or a more specific sub-type like rear_end/head_on/sideswipe) — NEVER as single_vehicle. The presence of another vehicle is the strongest possible signal and overrides all damage-pattern inferences.
+10. SKID + THIRD PARTY: A vehicle that skidded and then hit a third party vehicle is vehicle_collision (or head_on/rear_end), not single_vehicle. The skid is the mechanism, not the incident type.
 
 Respond ONLY with a JSON object in this exact format:
 {
@@ -258,6 +260,14 @@ const VANDALISM_KEYWORDS: string[] = [
   "broken windows", "graffiti", "tyres slashed",
 ];
 
+// Third-party explicit mentions — checked BEFORE single_vehicle in priority order
+const THIRD_PARTY_VEHICLE_KEYWORDS: string[] = [
+  "third party vehicle", "third party", "third-party vehicle", "third-party",
+  "another vehicle", "other vehicle", "rammed into", "rammed a",
+  "collided with a", "hit a vehicle", "struck a vehicle",
+  "hit another car", "struck another car",
+];
+
 const VEHICLE_COLLISION_KEYWORDS: string[] = [
   "collision", "collided", "crash", "crashed",
   "hit another vehicle", "struck another vehicle",
@@ -330,6 +340,13 @@ function keywordClassifyText(text: string | null | undefined): {
   const sideswipeSignals = matchKeywords(norm, SIDESWIPE_KEYWORDS);
   if (sideswipeSignals.length > 0) {
     return { type: "sideswipe", sub_type: null, confidence: Math.min(60 + sideswipeSignals.length * 8, 88), signals: sideswipeSignals };
+  }
+
+  // Third-party vehicle check — must run BEFORE single_vehicle to prevent misclassification
+  // when a narrative mentions skid/ditch AND a third party vehicle
+  const thirdPartySignals = matchKeywords(norm, THIRD_PARTY_VEHICLE_KEYWORDS);
+  if (thirdPartySignals.length > 0) {
+    return { type: "vehicle_collision", sub_type: null, confidence: Math.min(65 + thirdPartySignals.length * 8, 88), signals: thirdPartySignals };
   }
 
   const singleVehicleSignals = matchKeywords(norm, SINGLE_VEHICLE_KEYWORDS);
@@ -578,21 +595,54 @@ export async function classifyIncident(
       && !isExpectedLLMOverride
       && !llmHighConfidence;
 
-    // ── PHYSICAL ARBITRATION ──────────────────────────────────────────────────
-    // When physical evidence (damage zones + physics direction) strongly contradicts
-    // the LLM classification, override with the physically-evidenced type.
-    // This prevents narrative ambiguity from overriding hard physical evidence.
+    // ── THIRD-PARTY NARRATIVE GUARD ──────────────────────────────────────────
+    // If the driver narrative explicitly mentions a third-party vehicle, the incident
+    // CANNOT be single_vehicle regardless of the damage pattern or skid/ditch language.
+    // This guard runs BEFORE physical arbitration so it cannot be overridden downstream.
+    const THIRD_PARTY_PATTERNS = [
+      /third[\s-]party\s+vehicle/i,
+      /third[\s-]party/i,
+      /another\s+vehicle/i,
+      /other\s+vehicle/i,
+      /rammed\s+into\s+a/i,
+      /collided\s+with\s+a/i,
+      /hit\s+a\s+vehicle/i,
+      /struck\s+a\s+vehicle/i,
+      /hit\s+another\s+car/i,
+      /struck\s+another\s+car/i,
+    ];
+    const narrativeHasThirdParty = THIRD_PARTY_PATTERNS.some(p => p.test(input.driver_narrative ?? ""));
+
     let finalType = llmResult.incident_type;
     let finalCanonical = toCanonicalType(llmResult.incident_type);
     let finalConfidence = llmResult.confidence;
     let finalReasoning = llmResult.reasoning;
     let arbitrationOverride = false;
 
+    // Override: LLM says single_vehicle but narrative explicitly mentions a third party
+    if (finalType === "single_vehicle" && narrativeHasThirdParty) {
+      finalType = "vehicle_collision";
+      finalCanonical = "collision";
+      finalConfidence = Math.max(finalConfidence, 80);
+      finalReasoning = `Third-party narrative override: the driver narrative explicitly mentions a third-party vehicle, which is incompatible with single_vehicle classification. ${finalReasoning}`;
+      arbitrationOverride = true;
+    }
+
+    // ── PHYSICAL ARBITRATION ──────────────────────────────────────────────────
+    // When physical evidence (damage zones + physics direction) strongly contradicts
+    // the LLM classification, override with the physically-evidenced type.
+    // This prevents narrative ambiguity from overriding hard physical evidence.
+    // NOTE: Physical arbitration must NOT override vehicle_collision when the narrative
+    // has already confirmed a third party — physical damage patterns alone cannot
+    // determine whether another vehicle was involved.
+    const physicalArbitrationAllowed = !narrativeHasThirdParty;
+
     const zones = (input.damage_zones ?? []).map(z => z.toLowerCase());
     const physDir = (input.physics_direction ?? "").toLowerCase();
 
     // Rule A: LLM says animal_strike but damage is exclusively rear → rear_end
     if (
+      physicalArbitrationAllowed &&
       (finalType === "animal_strike" || finalType === "road_hazard") &&
       (zones.includes("rear") || physDir === "rear") &&
       !zones.some(z => ["front", "bonnet", "grille"].includes(z))
@@ -606,6 +656,7 @@ export async function classifyIncident(
 
     // Rule B: LLM says rear_end but damage is exclusively front → head_on or single_vehicle
     if (
+      physicalArbitrationAllowed &&
       (finalType === "rear_end_collision" || finalType === "rear_end") &&
       (zones.includes("front") || physDir === "frontal") &&
       !zones.some(z => ["rear", "boot", "bumper_rear"].includes(z))
@@ -619,6 +670,7 @@ export async function classifyIncident(
 
     // Rule C: LLM says theft/vandalism but physics shows impact force > 0 → vehicle_collision
     if (
+      physicalArbitrationAllowed &&
       (finalType === "theft" || finalType === "vandalism") &&
       physDir !== "" && physDir !== "unknown"
     ) {
