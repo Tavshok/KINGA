@@ -1177,6 +1177,8 @@ export interface Stage10Output {
   consistencyCheck?: import('./crossStageConsistencyEngine').ConsistencyCheckResult | null;
   /** Multi-dimensional claim quality score for adjuster guidance */
   claimQuality?: import('./claimQualityScorer').ClaimQualityResult | null;
+  /** MONTH 3 FIX: Structured degradation reasons for UI surfacing */
+  degradationReasons?: Array<{ code: string; section: string; description: string; severity: 'critical' | 'warning' | 'info' }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

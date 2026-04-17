@@ -611,6 +611,35 @@ export async function runReportGenerationStage(
       ctx.log("Stage 10", `Claim quality scoring failed (non-fatal): ${String(qErr)}`);
     }
 
+    // ── MONTH 3 FIX: Structured degradation reasons for UI surfacing ───────────────
+    const degradationReasons: Array<{ code: string; section: string; description: string; severity: 'critical' | 'warning' | 'info' }> = [];
+    if (unavailableSections.length > 0) {
+      unavailableSections.forEach(section => {
+        degradationReasons.push({
+          code: `SECTION_UNAVAILABLE_${section.toUpperCase().replace(/\s+/g, '_')}`,
+          section,
+          description: `${section} data was not available for this report. The section is shown with placeholder content.`,
+          severity: section === 'Damage Analysis' ? 'critical' : 'warning',
+        });
+      });
+    }
+    if (consistencyCheck.blockAutoApproval) {
+      degradationReasons.push({
+        code: 'CONSISTENCY_CHECK_FAILED',
+        section: 'Cross-Stage Consistency',
+        description: `${consistencyCheck.flags.filter(f => f.severity === 'CRITICAL').length} critical consistency flag(s) detected. Auto-approval blocked.`,
+        severity: 'critical',
+      });
+    }
+    if (claimQuality && claimQuality.requiresManualReview) {
+      degradationReasons.push({
+        code: 'MANUAL_REVIEW_REQUIRED',
+        section: 'Claim Quality',
+        description: `Claim quality score ${claimQuality.overallScore}/100 (Grade ${claimQuality.grade}) requires manual adjuster review.`,
+        severity: 'warning',
+      });
+    }
+
     const output: Stage10Output = {
       claimSummary,
       damageAnalysis: damageSection,
@@ -630,6 +659,8 @@ export async function runReportGenerationStage(
       decisionReadiness,
       consistencyCheck,
       claimQuality,
+      // MONTH 3 FIX: Structured degradation reasons
+      degradationReasons,
     };
 
     ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);

@@ -3182,6 +3182,50 @@ function EvidenceBundleStrengthPanel({ aiAssessment }: { aiAssessment: any }) {
   );
 }
 
+/** MONTH 3 FIX: Surfaces Stage 10 degradationReasons as actionable UI alerts */
+function DegradationReasonsPanel({ aiAssessment }: { aiAssessment: any }) {
+  const fa = (aiAssessment as any)?._forensicAnalysis;
+  const degradationReasons: Array<{ code: string; section: string; description: string; severity: string }> =
+    fa?.reportOutput?.degradationReasons ?? [];
+
+
+  const criticalCount = degradationReasons.filter((r: any) => r.severity === 'critical').length;
+  const warningCount = degradationReasons.filter((r: any) => r.severity === 'warning').length;
+
+  return (
+    <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <span className="text-red-600 font-bold text-sm">⚠ REPORT DEGRADATION NOTICE</span>
+        <span className="ml-auto text-xs text-red-500">
+          {criticalCount > 0 && <span className="mr-2">{criticalCount} CRITICAL</span>}
+          {warningCount > 0 && <span>{warningCount} WARNING</span>}
+        </span>
+      </div>
+      <div className="space-y-2">
+        {degradationReasons.map((reason: any, idx: number) => (
+          <div
+            key={idx}
+            className={[
+              'flex items-start gap-2 rounded p-2 text-xs',
+              reason.severity === 'critical'
+                ? 'bg-red-100 border border-red-300 text-red-800'
+                : reason.severity === 'warning'
+                ? 'bg-amber-50 border border-amber-200 text-amber-800'
+                : 'bg-blue-50 border border-blue-200 text-blue-800'
+            ].join(' ')}
+          >
+            <span className="font-mono font-bold shrink-0">[{reason.code}]</span>
+            <div>
+              <span className="font-semibold">{reason.section}: </span>
+              <span>{reason.description}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
   if (!fa) return null;
@@ -3411,6 +3455,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       <CongruencyPanel aiAssessment={aiAssessment} />
       <PipelineStageTracker prs={(aiAssessment as any)?._pipelineRunSummary} />
       <PipelineConfidencePanel aiAssessment={aiAssessment} />
+      <DegradationReasonsPanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 

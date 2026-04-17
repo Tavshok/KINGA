@@ -1,34 +1,18 @@
 /**
  * pdfToImages.ts
  *
- * WI-2: PDF page rendering engine.
+ * PDF → PNG image extraction with multi-pathway resilience:
  *
- * Renders each page of a PDF document to a PNG image using pdftoppm
- * (poppler-utils, pre-installed on the server), then uploads each image
- * to S3 and returns the public URLs.
+ *   PRIMARY:  MuPDF (npm `mupdf` package — self-contained, no system binary)
+ *   FALLBACK: pdftoppm (poppler-utils system binary)
+ *   TERTIARY: pdfimages (embedded image extraction — handled in stage-1)
  *
- * This is the fix for the "24 photos not ingested" gap — previously
- * stage-1 set imageUrls: [] for all PDF documents, meaning the vision
- * model never saw the damage photographs embedded in the claim bundle.
- *
- * DESIGN DECISIONS
- * ─────────────────
- * 1. Uses pdftoppm (not pdfjs-dist canvas rendering) because pdftoppm
- *    is a native binary with no canvas/browser dependencies, produces
- *    high-quality rasterisation, and is already installed.
- *
- * 2. Resolution: 150 DPI — sufficient for LLM vision analysis, keeps
- *    file sizes manageable (~200–400 KB per page).
- *
- * 3. Page limit: configurable, default 20 pages. Claim bundles are
- *    typically 10–25 pages; this prevents runaway processing on large
- *    documents.
- *
- * 4. Uploads each page to S3 under a deterministic key so re-processing
- *    the same PDF does not create duplicate uploads.
- *
- * 5. Graceful degradation: if pdftoppm fails for any page, that page is
- *    skipped and the rest are still returned.
+ * RELIABILITY IMPROVEMENTS (Month 2):
+ *   - MuPDF is a pure Node.js library — no system binary dependency
+ *   - pdftoppm now THROWS on failure instead of silently returning empty array
+ *   - isScannedPdf detection triggers 200 DPI re-render for better OCR quality
+ *   - Startup health check exported for server boot validation
+ *   - renderEngine field in result for audit trail
  */
 
 import { execFile } from "child_process";
@@ -66,6 +50,90 @@ export interface PdfToImagesResult {
   totalPagesInDocument: number;
   truncated: boolean;
   errors: string[];
+  /** Which rendering engine was used */
+  renderEngine: "mupdf" | "pdftoppm" | "none";
+  /** Whether the PDF was detected as a scanned document */
+  isScannedPdf: boolean;
+  /** Effective DPI used (may be higher than requested for scanned PDFs) */
+  effectiveDpi: number;
+}
+
+// ── Startup health check ──────────────────────────────────────────────────────
+/**
+ * Verifies that at least one PDF rendering engine is available.
+ * Called at server boot — logs a WARNING if pdftoppm is missing (MuPDF is always available).
+ */
+export async function checkPdfRenderingEngines(): Promise<void> {
+  // MuPDF is always available (npm package) — primary engine
+  try {
+    const { Document } = await import("mupdf");
+    void Document;
+    console.log("[PDF Health] MuPDF (primary): ✅ available");
+  } catch (err) {
+    console.error("[PDF Health] MuPDF (primary): ❌ FAILED —", String(err));
+    console.error("[PDF Health] CRITICAL: PDF rendering unavailable. Image analysis will be disabled.");
+  }
+  // pdftoppm availability check (fallback only)
+  try {
+    await execFileAsync("pdftoppm", ["-v"]);
+    console.log("[PDF Health] pdftoppm (fallback): ✅ available");
+  } catch {
+    console.warn("[PDF Health] pdftoppm (fallback): ⚠️  not available — MuPDF will be used exclusively");
+  }
+}
+
+// ── Scanned PDF detection ─────────────────────────────────────────────────────
+/**
+ * Detects whether a PDF is a scanned document (raster image pages with no
+ * native text objects). Scanned PDFs require higher DPI for quality OCR.
+ */
+async function detectScannedPdf(pdfPath: string): Promise<boolean> {
+  try {
+    const { stdout: infoOut } = await execFileAsync("pdfinfo", [pdfPath]).catch(() => ({ stdout: "" }));
+    const pageMatch = infoOut.match(/Pages:\s+(\d+)/);
+    const pages = pageMatch ? parseInt(pageMatch[1], 10) : 1;
+    try {
+      const { stdout: text } = await execFileAsync("pdftotext", [pdfPath, "-"]);
+      const charsPerPage = text.replace(/\s/g, "").length / Math.max(pages, 1);
+      // Scanned PDFs typically have < 50 non-whitespace chars per page
+      return charsPerPage < 50;
+    } catch {
+      return false;
+    }
+  } catch {
+    return false;
+  }
+}
+
+// ── MuPDF rendering (primary) ─────────────────────────────────────────────────
+async function renderWithMuPdf(
+  pdfPath: string,
+  dpi: number,
+  maxPages: number,
+  tempDir: string,
+  log: (msg: string) => void
+): Promise<{ files: string[]; totalPages: number; truncated: boolean }> {
+  const { Document } = await import("mupdf");
+  const { readFile: fsReadFile, writeFile: fsWriteFile } = await import("fs/promises");
+  const pdfBuffer = await fsReadFile(pdfPath);
+  const doc = Document.openDocument(pdfBuffer, "application/pdf");
+  const totalPages = doc.countPages();
+  const pagesToRender = Math.min(totalPages, maxPages);
+  const truncated = totalPages > maxPages;
+  log(`MuPDF: rendering ${pagesToRender}/${totalPages} pages at ${dpi} DPI`);
+  const files: string[] = [];
+  const scale = dpi / 72;
+  for (let i = 0; i < pagesToRender; i++) {
+    const page = doc.loadPage(i);
+    const pixmap = page.toPixmap([scale, 0, 0, scale, 0, 0], "DeviceRGB", false);
+    const pngBytes = pixmap.asPNG();
+    const pageNum = i + 1;
+    const filePath = join(tempDir, `page-${String(pageNum).padStart(3, "0")}.png`);
+    await fsWriteFile(filePath, Buffer.from(pngBytes));
+    files.push(filePath);
+  }
+  log(`MuPDF: rendered ${files.length} pages`);
+  return { files, totalPages, truncated };
 }
 
 /**
@@ -79,6 +147,41 @@ async function downloadPdf(url: string, destPath: string): Promise<void> {
   const buffer = Buffer.from(await response.arrayBuffer());
   const { writeFile } = await import("fs/promises");
   await writeFile(destPath, buffer);
+}
+
+// ── pdftoppm rendering (fallback) — now THROWS on failure ────────────────────
+async function renderWithPdftoppm(
+  pdfPath: string,
+  dpi: number,
+  maxPages: number,
+  tempDir: string,
+  log: (msg: string) => void
+): Promise<{ files: string[]; totalPages: number; truncated: boolean }> {
+  const totalPages = await getPdfPageCount(pdfPath);
+  const pagesToRender = Math.min(totalPages || maxPages, maxPages);
+  const truncated = totalPages > maxPages;
+  const outputPrefix = join(tempDir, "page");
+  log(`pdftoppm: rendering ${pagesToRender} pages at ${dpi} DPI`);
+  // FIXED: now throws on failure instead of silently returning empty array
+  await execFileAsync("pdftoppm", [
+    "-r", String(dpi),
+    "-png",
+    "-l", String(pagesToRender),
+    pdfPath,
+    outputPrefix,
+  ]).catch((err) => {
+    throw new Error(`pdftoppm failed: ${String(err)}`);
+  });
+  const allFiles = await readdir(tempDir);
+  const files = allFiles
+    .filter((f) => f.startsWith("page-") && f.endsWith(".png"))
+    .sort()
+    .map((f) => join(tempDir, f));
+  if (files.length === 0) {
+    throw new Error(`pdftoppm produced 0 pages (dpi=${dpi}, maxPages=${maxPages})`);
+  }
+  log(`pdftoppm: rendered ${files.length} pages`);
+  return { files, totalPages, truncated };
 }
 
 /**
@@ -106,7 +209,7 @@ export async function renderPdfToImages(
   options: PdfToImagesOptions = {}
 ): Promise<PdfToImagesResult> {
   const {
-    dpi = 150,
+    dpi: requestedDpi = 150,
     maxPages = 20,
     keyPrefix = "pdf-pages",
     log = () => {},
@@ -115,86 +218,90 @@ export async function renderPdfToImages(
   const errors: string[] = [];
   const pages: PdfPageImage[] = [];
   let tempDir: string | null = null;
+  let renderEngine: "mupdf" | "pdftoppm" | "none" = "none";
+  let isScannedPdf = false;
+  let effectiveDpi = requestedDpi;
 
   try {
-    // Create a temporary directory for this rendering job
     tempDir = await mkdtemp(join(tmpdir(), "kinga-pdf-"));
     const pdfPath = join(tempDir, "document.pdf");
 
     log(`Downloading PDF from ${pdfUrl}`);
     await downloadPdf(pdfUrl, pdfPath);
 
-    // Get total page count
-    const totalPages = await getPdfPageCount(pdfPath);
-    log(`PDF has ${totalPages} pages`);
+    // ── Scanned PDF detection — upgrade DPI for better quality ───────────
+    isScannedPdf = await detectScannedPdf(pdfPath);
+    if (isScannedPdf) {
+      effectiveDpi = Math.max(requestedDpi, 200);
+      log(`Scanned PDF detected — upgrading DPI from ${requestedDpi} to ${effectiveDpi} for better OCR quality`);
+    } else {
+      effectiveDpi = requestedDpi;
+    }
 
-    const pagesToRender = Math.min(totalPages || maxPages, maxPages);
-    const truncated = totalPages > maxPages;
+    const urlHash = createHash("md5").update(pdfUrl).digest("hex").slice(0, 8);
+
+    // ── Try MuPDF first (primary — pure Node.js, no system binary) ───────
+    let renderFiles: string[] = [];
+    let totalPages = 0;
+    let truncated = false;
+
+    try {
+      const result = await renderWithMuPdf(pdfPath, effectiveDpi, maxPages, tempDir, log);
+      renderFiles = result.files;
+      totalPages = result.totalPages;
+      truncated = result.truncated;
+      renderEngine = "mupdf";
+      log(`MuPDF: successfully rendered ${renderFiles.length} pages`);
+    } catch (mupdfErr) {
+      const msg = `MuPDF rendering failed: ${String(mupdfErr)}`;
+      errors.push(msg);
+      log(`WARNING: ${msg} — trying pdftoppm fallback`);
+
+      // ── Fallback to pdftoppm ────────────────────────────────────────────
+      try {
+        const result = await renderWithPdftoppm(pdfPath, effectiveDpi, maxPages, tempDir, log);
+        renderFiles = result.files;
+        totalPages = result.totalPages;
+        truncated = result.truncated;
+        renderEngine = "pdftoppm";
+        log(`pdftoppm fallback: successfully rendered ${renderFiles.length} pages`);
+      } catch (pdftoppmErr) {
+        const msg2 = `pdftoppm fallback also failed: ${String(pdftoppmErr)}`;
+        errors.push(msg2);
+        log(`ERROR: ${msg2} — no page images available`);
+        return {
+          pages: [],
+          totalPagesRendered: 0,
+          totalPagesInDocument: 0,
+          truncated: false,
+          errors,
+          renderEngine: "none",
+          isScannedPdf,
+          effectiveDpi,
+        };
+      }
+    }
 
     if (truncated) {
-      log(`WARNING: PDF has ${totalPages} pages, rendering first ${maxPages} only`);
+      log(`WARNING: PDF has ${totalPages} pages, rendered first ${maxPages} only`);
     }
 
-    // Generate a deterministic prefix based on the PDF URL hash
-    // so re-processing the same PDF reuses the same S3 keys
-    const urlHash = createHash("md5").update(pdfUrl).digest("hex").slice(0, 8);
-    const outputPrefix = join(tempDir, "page");
-
-    // Render pages using pdftoppm
-    log(`Rendering ${pagesToRender} pages at ${dpi} DPI`);
-    try {
-      await execFileAsync("pdftoppm", [
-        "-r", String(dpi),
-        "-png",
-        "-l", String(pagesToRender),
-        pdfPath,
-        outputPrefix,
-      ]);
-    } catch (err) {
-      errors.push(`pdftoppm rendering error: ${String(err)}`);
-      log(`ERROR: pdftoppm failed: ${String(err)}`);
-      // Return empty result — do not throw
-      return {
-        pages: [],
-        totalPagesRendered: 0,
-        totalPagesInDocument: totalPages,
-        truncated,
-        errors,
-      };
-    }
-
-    // Collect rendered PNG files
-    const files = (await readdir(tempDir))
-      .filter((f) => f.startsWith("page-") && f.endsWith(".png"))
-      .sort();
-
-    log(`Rendered ${files.length} page image(s)`);
-
-    // Upload each page to S3
-    for (const file of files) {
-      const pageMatch = file.match(/page-(\d+)\.png/);
+    // ── Upload rendered pages to S3 ───────────────────────────────────────
+    for (const filePath of renderFiles) {
+      const fileName = filePath.split("/").pop() || "";
+      const pageMatch = fileName.match(/page-(\d+)\.png/);
       const pageNumber = pageMatch ? parseInt(pageMatch[1], 10) : 0;
-      const filePath = join(tempDir, file);
 
       try {
         const buffer = await readFile(filePath);
         const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNumber).padStart(3, "0")}.png`;
-
         const { url, key } = await storagePut(s3Key, buffer, "image/png");
-
-        pages.push({
-          pageNumber,
-          url,
-          key,
-          fileSizeBytes: buffer.length,
-        });
-
+        pages.push({ pageNumber, url, key, fileSizeBytes: buffer.length });
         log(`Uploaded page ${pageNumber} → ${url}`);
       } catch (uploadErr) {
         const msg = `Failed to upload page ${pageNumber}: ${String(uploadErr)}`;
         errors.push(msg);
         log(`ERROR: ${msg}`);
-        // Continue with remaining pages
       }
     }
 
@@ -204,9 +311,11 @@ export async function renderPdfToImages(
       totalPagesInDocument: totalPages,
       truncated,
       errors,
+      renderEngine,
+      isScannedPdf,
+      effectiveDpi,
     };
   } finally {
-    // Always clean up the temp directory
     if (tempDir) {
       try {
         await rm(tempDir, { recursive: true, force: true });

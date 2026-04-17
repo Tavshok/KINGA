@@ -16,6 +16,8 @@ import { uploadAssessmentRouter } from "../upload-assessment";
 import { setupWebSocketServer } from "../websocket";
 import { startIntakeEscalationJob } from "../intake-escalation-job";
 import { startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
+import { checkPdfRenderingEngines } from "../pipeline-v2/pdfToImages";
+import { startExtractionRetryQueue } from "../extraction-retry-queue";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise(resolve => {
@@ -148,10 +150,14 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
     
+    // PDF rendering engine health check
+    checkPdfRenderingEngines().catch((err) => console.error("[PDF Health] Health check failed:", err));
     // Start intake escalation cron job
     startIntakeEscalationJob();
     // Start stuck assessment recovery job (clears claims stuck in assessment_in_progress)
     startStuckAssessmentRecoveryJob();
+    // Start extraction retry queue (auto-retries claims with extraction_failed status)
+    startExtractionRetryQueue();
   });
 
   // Start WebSocket server on port 8080 for real-time analytics

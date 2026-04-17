@@ -10845,3 +10845,40 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Evidence Registry: Stage 0.5 scenario-conditional notes already implemented (verified existing)
 - [x] Stage 7 physics: Scenario-specific paths already implemented (parking lot cap, hit-and-run, rear-end struck) - verified existing
 - [x] Automotive Domain Corrector: Already fully implemented (556 lines, 77 tests passing) - verified existing
+
+## Image Analysis Fixes (from diagnosis)
+
+### Week 1 — Critical
+- [ ] pdftoppm startup health check (runs pdftoppm -v on boot, fails loudly if missing)
+- [ ] Wrap execFileAsync("pdftoppm") in try/catch that logs stderr and throws
+- [ ] Stage 6 BLOCKED state when photoCount === 0 (not "success text-only")
+- [ ] Pre-flight gate: halt pipeline if Photos = 0, return VISION_BLOCKED error to adjuster
+- [ ] Stage 10 degradationReasons: string[] field
+
+### Month 1
+- [ ] Separate photo upload API endpoint (/claims/:id/photos)
+- [ ] isScannedPdf detection + 200 DPI re-render for scanned PDFs
+- [ ] Image quality pre-validation: reject blurScore < 0.2 and textDensity document pages before LLM
+
+### Month 2
+- [ ] Replace pdftoppm with MuPDF (mupdf npm bindings)
+- [ ] Vision model fallback: simplified prompt retry + alternate model on 3 retries exhausted
+- [ ] Stage 6 parallelisation: 5 concurrent image batches with shared AbortController
+
+## Image Analysis Fixes (All Phases)
+
+- [x] pdftoppm startup health check (logs MuPDF/pdftoppm availability on server start)
+- [x] MuPDF primary PDF renderer (mupdf npm package, replaces pdftoppm as primary)
+- [x] pdftoppm fallback path (retained as secondary renderer)
+- [x] isScannedPdf detection + 200 DPI re-render for scanned documents
+- [x] Stage 6 BLOCKED state when zero photos available after all fallback paths
+- [x] Stage 6 parallel photo processing (5 concurrent batches via Promise.all)
+- [x] Vision model fallback — simplified prompt retry on 0-component primary result (already existed)
+- [x] Stage 10 degradationReasons field added to Stage10Output type
+- [x] Stage 10 degradationReasons populated in report compilation
+- [x] DegradationReasonsPanel UI component in ForensicAuditReport
+- [x] Extraction retry queue background job (30s interval, exponential backoff, max 3 retries)
+- [x] Pre-flight document readiness guard in triggerAiAssessment
+- [x] Stage 2 hard failure path (sets extraction_failed when OCR text < 100 chars)
+- [x] Extraction failure UI banner in InsurerComparisonView
+- [x] Extraction pending UI banner in InsurerComparisonView
