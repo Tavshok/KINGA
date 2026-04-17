@@ -298,6 +298,23 @@ export async function selectDamagePhotoPages(
       continue;
     }
 
+    // ── Hard rejection gate ──────────────────────────────────────────────────
+    // Images that are too blurry (blurScore < 0.15) or are clearly text/form
+    // documents (textDensity > 0.6) cannot yield reliable damage evidence.
+    // Classify them as documents immediately without entering the LLM pool.
+    if (features.blurScore < 0.15 || features.textDensity > 0.6) {
+      scored.push({
+        url, pageNumber: index + 1, source: "page_render",
+        damageLikelihoodScore: 0,
+        qualityScore: 0,
+        confidence: "LOW",
+        classification: features.textDensity > 0.6 ? "document" : "document",
+        features,
+      });
+      ctx.log("ImageIntelligence", `Hard-rejected page ${index + 1}: blurScore=${features.blurScore.toFixed(2)}, textDensity=${features.textDensity.toFixed(2)}`);
+      continue;
+    }
+
     const damageLikelihoodScore = scoreDamageLikelihood(features);
     const qualityScore = damageLikelihoodScore * features.blurScore;
 

@@ -3112,6 +3112,119 @@ function PipelineStageTracker({ prs }: { prs: any }) {
   );
 }
 
+// ─── Scenario-Specific Evidence Checklist ───────────────────────────────────
+const SCENARIO_CHECKLISTS: Record<string, { label: string; required: string[] }> = {
+  rear_end:       { label: "Rear-End Collision",      required: ["police_report", "damage_photos", "witness_statement", "repair_quote"] },
+  side_impact:    { label: "Side Impact",             required: ["police_report", "damage_photos", "third_party_details", "repair_quote"] },
+  head_on:        { label: "Head-On Collision",       required: ["police_report", "damage_photos", "witness_statement", "third_party_details", "repair_quote"] },
+  parking_lot:    { label: "Parking Lot Incident",    required: ["damage_photos", "repair_quote", "cctv_or_witness"] },
+  single_vehicle: { label: "Single-Vehicle Accident", required: ["police_report", "damage_photos", "repair_quote"] },
+  theft:          { label: "Theft / Attempted Theft", required: ["police_report", "affidavit", "vehicle_tracking_report"] },
+  hail:           { label: "Hail / Weather Damage",   required: ["damage_photos", "weather_report", "repair_quote"] },
+  flood:          { label: "Flood Damage",            required: ["damage_photos", "weather_report", "repair_quote"] },
+  fire:           { label: "Fire Damage",             required: ["police_report", "fire_brigade_report", "damage_photos", "repair_quote"] },
+};
+
+const EVIDENCE_LABEL_MAP: Record<string, string> = {
+  police_report:           "Police Report",
+  damage_photos:           "Damage Photographs",
+  witness_statement:       "Witness Statement",
+  repair_quote:            "Repair Quotation",
+  third_party_details:     "Third-Party Details",
+  cctv_or_witness:         "CCTV Footage or Witness",
+  affidavit:               "Affidavit / Sworn Statement",
+  vehicle_tracking_report: "Vehicle Tracking Report",
+  weather_report:          "Weather / Meteorological Report",
+  fire_brigade_report:     "Fire Brigade Report",
+};
+
+function ScenarioEvidenceChecklist({ aiAssessment }: { aiAssessment: any }) {
+  const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
+  if (!fa) return null;
+
+  const rawScenario: string = (
+    fa?.accidentDetails?.collisionScenario ??
+    fa?.accidentDetails?.incidentType ??
+    ""
+  ).toLowerCase().replace(/[\s-]/g, "_");
+
+  const scenarioKey = Object.keys(SCENARIO_CHECKLISTS).find(k =>
+    rawScenario.includes(k) || k.split("_").some((w: string) => rawScenario.includes(w))
+  ) ?? null;
+
+  const checklist = scenarioKey ? SCENARIO_CHECKLISTS[scenarioKey] : null;
+
+  const registry = fa?.evidenceRegistry?.evidence_registry ?? {};
+  const presentKeys = new Set<string>(
+    Object.entries(registry)
+      .filter(([, v]: [string, any]) => v?.present === true || v?.status === "present" || v?.found === true)
+      .map(([k]: [string, any]) => k)
+  );
+
+  if (fa?.policeReport || fa?.accidentDetails?.policeReportNumber) presentKeys.add("police_report");
+  if ((fa?.damagedComponents?.length ?? 0) > 0 || (fa?.evidenceBundle?.damage?.score ?? 0) > 0.3) presentKeys.add("damage_photos");
+  if (fa?.repairQuote || fa?.costBreakdown) presentKeys.add("repair_quote");
+
+  if (!checklist) {
+    return (
+      <div className="rounded-lg border p-4 mt-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+        <p className="text-sm font-semibold mb-1" style={{ color: "var(--foreground)" }}>Scenario Evidence Checklist</p>
+        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          No specific collision scenario detected — generic checklist not available.
+        </p>
+      </div>
+    );
+  }
+
+  const required = checklist.required;
+  const present = required.filter((k: string) => presentKeys.has(k));
+  const missing = required.filter((k: string) => !presentKeys.has(k));
+  const completeness = Math.round((present.length / required.length) * 100);
+
+  return (
+    <div className="rounded-lg border p-4 mt-4" style={{ borderColor: "var(--border)", background: "var(--card)" }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
+          Evidence Checklist — {checklist.label}
+        </p>
+        <span
+          className="text-xs font-bold px-2 py-0.5 rounded"
+          style={{
+            background: completeness === 100 ? "#16a34a22" : completeness >= 60 ? "#ca8a0422" : "#dc262622",
+            color:      completeness === 100 ? "#16a34a"   : completeness >= 60 ? "#ca8a04"   : "#dc2626",
+          }}
+        >
+          {completeness}% complete
+        </span>
+      </div>
+      <div className="grid grid-cols-1 gap-1">
+        {required.map((key: string) => {
+          const isPresent = presentKeys.has(key);
+          return (
+            <div key={key} className="flex items-center gap-2 text-xs py-0.5">
+              <span style={{ color: isPresent ? "#16a34a" : "#dc2626", fontSize: 14 }}>
+                {isPresent ? "✓" : "✗"}
+              </span>
+              <span style={{ color: isPresent ? "var(--foreground)" : "var(--muted-foreground)" }}>
+                {EVIDENCE_LABEL_MAP[key] ?? key}
+              </span>
+              {!isPresent && (
+                <span className="ml-auto text-xs font-medium" style={{ color: "#dc2626" }}>Missing</span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {missing.length > 0 && (
+        <p className="text-xs mt-3 pt-2" style={{ borderTop: "1px solid var(--border)", color: "var(--muted-foreground)" }}>
+          <strong style={{ color: "var(--foreground)" }}>{missing.length} item{missing.length > 1 ? "s" : ""} outstanding.</strong>{" "}
+          Obtain missing evidence before finalising the claim decision.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── Evidence Bundle Strength Panel ─────────────────────────────────────────
 function EvidenceBundleStrengthPanel({ aiAssessment }: { aiAssessment: any }) {
   const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
@@ -3470,6 +3583,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
       <SectionDivider number="4" title="Evidence Inventory" />
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
+      <ScenarioEvidenceChecklist aiAssessment={aiAssessment} />
       <EvidenceBundleStrengthPanel aiAssessment={aiAssessment} />
 
       <SectionDivider number="5" title="Risk & Fraud Assessment" />
@@ -3477,6 +3591,197 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
       <SectionDivider number="6" title="Decision Authority & Audit Trail" />
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+      <SectionDivider number="7" title="Adjuster Workflow" />
+      <AdjusterWorkflowPanel claimId={claim?.id} aiAssessment={aiAssessment} />
+    </div>
+  );
+}
+
+// ─── Adjuster Workflow Integration Panel ─────────────────────────────────────
+
+const PRIORITY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  critical: { bg: "#dc262622", text: "#dc2626", label: "Critical" },
+  high:     { bg: "#ea580c22", text: "#ea580c", label: "High" },
+  medium:   { bg: "#ca8a0422", text: "#ca8a04", label: "Medium" },
+  low:      { bg: "#16a34a22", text: "#16a34a", label: "Low" },
+};
+
+const TASK_TYPE_LABELS: Record<string, string> = {
+  integrity_blocker:    "Integrity Blocker",
+  integrity_warning:    "Integrity Warning",
+  fraud_escalation:     "Fraud Escalation",
+  missing_evidence:     "Missing Evidence",
+  physics_violation:    "Physics Inconsistency",
+  cost_review:          "Cost Review",
+  manual_review_required: "Manual Review",
+  manual:               "Manual Task",
+};
+
+function AdjusterWorkflowPanel({ claimId, aiAssessment }: { claimId: number | undefined; aiAssessment: any }) {
+  const [resolvingId, setResolvingId] = React.useState<number | null>(null);
+  const [noteMap, setNoteMap] = React.useState<Record<number, string>>({});
+  const utils = trpc.useUtils();
+
+  const fa = (aiAssessment as any)?._forensicAnalysis ?? null;
+
+  // Auto-sync tasks from pipeline on mount
+  const syncMutation = trpc.adjusterTasks.syncFromPipeline.useMutation({
+    onSuccess: () => { utils.adjusterTasks.getByClaim.invalidate({ claimId: claimId! }); },
+  });
+
+  React.useEffect(() => {
+    if (claimId && fa) {
+      syncMutation.mutate({ claimId, forensicAnalysis: fa });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claimId]);
+
+  const { data: tasks, isLoading } = trpc.adjusterTasks.getByClaim.useQuery(
+    { claimId: claimId! },
+    { enabled: !!claimId }
+  );
+
+  const resolveMutation = trpc.adjusterTasks.resolve.useMutation({
+    onSuccess: () => {
+      setResolvingId(null);
+      utils.adjusterTasks.getByClaim.invalidate({ claimId: claimId! });
+    },
+  });
+
+  if (!claimId) return null;
+
+  const openTasks    = (tasks ?? []).filter(t => t.status === "open" || t.status === "in_progress");
+  const closedTasks  = (tasks ?? []).filter(t => t.status === "resolved" || t.status === "dismissed");
+
+  return (
+    <div className="mt-4 space-y-3">
+      {isLoading && (
+        <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>Loading adjuster tasks…</p>
+      )}
+
+      {!isLoading && openTasks.length === 0 && (
+        <div
+          className="rounded-lg border p-4 text-center"
+          style={{ borderColor: "var(--border)", background: "var(--card)" }}
+        >
+          <p className="text-sm font-semibold" style={{ color: "#16a34a" }}>✓ No open adjuster tasks</p>
+          <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>
+            All workflow items have been addressed for this claim.
+          </p>
+        </div>
+      )}
+
+      {openTasks.map(task => {
+        const ps = PRIORITY_STYLES[task.priority] ?? PRIORITY_STYLES.medium;
+        const isResolving = resolvingId === task.id;
+        return (
+          <div
+            key={task.id}
+            className="rounded-lg border p-4"
+            style={{ borderColor: "var(--border)", background: "var(--card)" }}
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span
+                    className="text-xs font-bold px-2 py-0.5 rounded"
+                    style={{ background: ps.bg, color: ps.text }}
+                  >
+                    {ps.label}
+                  </span>
+                  <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    {TASK_TYPE_LABELS[task.taskType] ?? task.taskType}
+                  </span>
+                </div>
+                <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{task.title}</p>
+                {task.description && (
+                  <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>{task.description}</p>
+                )}
+              </div>
+              {!isResolving && (
+                <button
+                  className="shrink-0 text-xs px-3 py-1 rounded border font-medium"
+                  style={{
+                    borderColor: "var(--border)",
+                    color: "var(--foreground)",
+                    background: "transparent",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => setResolvingId(task.id)}
+                >
+                  Resolve
+                </button>
+              )}
+            </div>
+
+            {isResolving && (
+              <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+                <textarea
+                  className="w-full text-xs rounded border p-2 mb-2"
+                  style={{
+                    borderColor: "var(--border)",
+                    background: "var(--background)",
+                    color: "var(--foreground)",
+                    resize: "vertical",
+                    minHeight: 56,
+                  }}
+                  placeholder="Resolution note (optional)…"
+                  value={noteMap[task.id] ?? ""}
+                  onChange={e => setNoteMap(prev => ({ ...prev, [task.id]: e.target.value }))}
+                />
+                <div className="flex gap-2">
+                  <button
+                    className="text-xs px-3 py-1 rounded font-medium"
+                    style={{ background: "#16a34a", color: "#fff", cursor: "pointer", border: "none" }}
+                    disabled={resolveMutation.isPending}
+                    onClick={() => resolveMutation.mutate({ taskId: task.id, status: "resolved", resolutionNote: noteMap[task.id] })}
+                  >
+                    Mark Resolved
+                  </button>
+                  <button
+                    className="text-xs px-3 py-1 rounded font-medium"
+                    style={{ background: "var(--muted)", color: "var(--muted-foreground)", cursor: "pointer", border: "none" }}
+                    disabled={resolveMutation.isPending}
+                    onClick={() => resolveMutation.mutate({ taskId: task.id, status: "dismissed", resolutionNote: noteMap[task.id] })}
+                  >
+                    Dismiss
+                  </button>
+                  <button
+                    className="text-xs px-3 py-1 rounded font-medium"
+                    style={{ background: "transparent", color: "var(--muted-foreground)", cursor: "pointer", border: "1px solid var(--border)" }}
+                    onClick={() => setResolvingId(null)}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+
+      {closedTasks.length > 0 && (
+        <details className="text-xs" style={{ color: "var(--muted-foreground)" }}>
+          <summary className="cursor-pointer select-none py-1">
+            {closedTasks.length} resolved / dismissed task{closedTasks.length > 1 ? "s" : ""}
+          </summary>
+          <div className="mt-2 space-y-2">
+            {closedTasks.map(task => (
+              <div
+                key={task.id}
+                className="rounded border p-3 opacity-60"
+                style={{ borderColor: "var(--border)", background: "var(--card)" }}
+              >
+                <p className="font-medium" style={{ color: "var(--foreground)" }}>{task.title}</p>
+                <p className="mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+                  {task.status === "resolved" ? "✓ Resolved" : "✗ Dismissed"}
+                  {task.resolutionNote ? ` — ${task.resolutionNote}` : ""}
+                </p>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

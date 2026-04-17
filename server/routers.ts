@@ -115,6 +115,7 @@ import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
 import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
+import { adjusterTasksRouter } from './routers/adjuster-tasks';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
@@ -268,6 +269,7 @@ export const integrityRouter = router({
 });
 
 export const appRouter = router({
+  adjusterTasks: adjusterTasksRouter,
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
   vehicleDamageHistory: vehicleDamageHistoryRouter,
