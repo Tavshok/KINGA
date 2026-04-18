@@ -227,6 +227,11 @@
 - [x] Implement claim approval workflow in comparison view
 - [x] Add panel beater selection for repair assignment
 - [ ] Build analytics dashboard with charts and trends
+
+## Pipeline Processing Bug Fix
+- [ ] BUG: Claims stuck in 'AI Processing...' status — pipeline not completing analysis
+- [ ] Verify image processing pipeline works end-to-end after hard rejection gate changes
+- [ ] Check for unhandled exceptions or timeouts in pipeline orchestrator
 - [ ] Add fraud detection statistics visualization
 - [ ] Implement real-time notifications system
 - [ ] Test all new features
@@ -10882,3 +10887,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Stage 2 hard failure path (sets extraction_failed when OCR text < 100 chars)
 - [x] Extraction failure UI banner in InsurerComparisonView
 - [x] Extraction pending UI banner in InsurerComparisonView
+
+## Pipeline Processing Bug Fix (Apr 18 2026)
+- [x] BUG: Claims stuck in "AI Processing..." status — pre-flight guard deadlock fixed in db.ts
+- [x] Verify image processing pipeline works end-to-end (DOC-20260418-818D666D processed successfully)
+- [x] Hard rejection gate added to imageIntelligence.ts (blurScore < 0.15 || textDensity > 0.6)
+- [x] ScenarioEvidenceChecklist component added to ForensicAuditReport (Section 4)
+- [x] AdjusterWorkflowPanel added to ForensicAuditReport (Section 7) with adjuster_tasks DB table
+- [x] evidenceRegistry added to forensicAnalysisResult in orchestrator.ts

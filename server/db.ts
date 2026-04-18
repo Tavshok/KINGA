@@ -442,13 +442,16 @@ export async function triggerAiAssessment(claimId: number, options?: { forceReex
         .where(eq(ingestionDocuments.id, claim.sourceDocumentId))
         .limit(1);
       if (sourceDoc && (sourceDoc.extractionStatus === 'pending' || sourceDoc.extractionStatus === 'processing')) {
-        console.warn(`[AI Assessment] Claim ${claimId}: Pre-flight guard blocked — document extraction status=${sourceDoc.extractionStatus}. Pipeline will not run until document is ready.`);
-        // Update claim to reflect the blocked state
-        await db.update(claims).set({
-          documentProcessingStatus: 'extraction_pending',
-          updatedAt: new Date().toISOString(),
-        }).where(eq(claims.id, claimId));
-        return; // Do not proceed with pipeline
+        // Pipeline V2 handles PDF extraction internally via Stage 2 (text extraction)
+        // and Stage 3 (structured extraction). The document does NOT need a separate
+        // extraction worker — the pipeline reads the raw S3 URL directly.
+        // Mark the document as 'processing' so subsequent checks know it's in-flight,
+        // then PROCEED with the pipeline instead of blocking.
+        console.log(`[AI Assessment] Claim ${claimId}: Source document extraction_status=${sourceDoc.extractionStatus}. Pipeline V2 handles extraction internally — proceeding.`);
+        await db.update(ingestionDocuments).set({
+          extractionStatus: 'processing',
+        }).where(eq(ingestionDocuments.id, claim.sourceDocumentId));
+        // Do NOT return — fall through to pipeline execution
       }
     } catch (preFlightErr) {
       // Non-fatal: if we can't check, proceed with pipeline anyway
@@ -1353,6 +1356,18 @@ export async function triggerAiAssessment(claimId: number, options?: { forceReex
   }
 
   console.log(`[AI Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
+
+  // Mark the source document extraction as completed now that Pipeline V2 has
+  // successfully processed it. This keeps the ingestion_documents table in sync.
+  if (claim.sourceDocumentId) {
+    try {
+      await db.update(ingestionDocuments).set({
+        extractionStatus: 'completed',
+      }).where(eq(ingestionDocuments.id, claim.sourceDocumentId));
+    } catch (extStatusErr) {
+      console.warn(`[AI Assessment] Claim ${claimId}: Could not update source document extraction status (non-fatal):`, extStatusErr);
+    }
+  }
 
   // END TOP-LEVEL TRY
   } catch (topLevelError) {
