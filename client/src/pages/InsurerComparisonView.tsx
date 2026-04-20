@@ -146,12 +146,14 @@ export default function InsurerComparisonView() {
   const quotes = quotesWithItems;
 
   // Get enforcement data for the ForensicAuditReport
-  const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
+  // retry: 1 — only retry once to avoid long waits on validation failures
+  const { data: enforcement, isLoading: enforcementLoading, isError: enforcementError } = trpc.aiAssessments.getEnforcement.useQuery(
     { claimId },
-    { enabled: !!claimId }
+    { enabled: !!claimId, retry: 1 }
   );
 
-  const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading || enforcementLoading;
+  // isLoading excludes enforcement — enforcement failure should not block the report from rendering
+  const isLoading = claimLoading || aiLoading || assessorLoading || quotesLoading;
 
   // Utils for cache invalidation
   const utils = trpc.useUtils();
@@ -786,20 +788,26 @@ export default function InsurerComparisonView() {
         {/* ═══════════════════════════════════════════════════════════════
              FORENSIC AUDIT REPORT — replaces old Sections 1–7
         ═══════════════════════════════════════════════════════════════ */}
-        {aiAssessment && enforcement ? (
-          <ForensicAuditReport
-            claim={claim}
-            aiAssessment={aiAssessment}
-            enforcement={enforcement}
-            quotes={quotes}
-          />
-        ) : aiAssessment && !enforcement ? (
-          <div className="comparison-section">
-            <div className="comparison-section-body text-center py-12">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" style={{ color: 'var(--primary)' }} />
-              <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Loading enforcement analysis...</p>
+        {aiAssessment ? (
+          // Render ForensicAuditReport as soon as aiAssessment is available.
+          // enforcement may be null/undefined if getEnforcement is still loading or errored —
+          // ForensicAuditReport handles null enforcement gracefully.
+          // Show a subtle loading indicator while enforcement is still fetching (not an error).
+          enforcementLoading && !enforcementError ? (
+            <div className="comparison-section">
+              <div className="comparison-section-body text-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" style={{ color: 'var(--primary)' }} />
+                <p className="text-sm" style={{ color: 'var(--muted-foreground)' }}>Loading enforcement analysis…</p>
+              </div>
             </div>
-          </div>
+          ) : (
+            <ForensicAuditReport
+              claim={claim}
+              aiAssessment={aiAssessment}
+              enforcement={enforcement ?? null}
+              quotes={quotes}
+            />
+          )
         ) : (
           <div className="comparison-section">
             <div className="comparison-section-body text-center py-12">

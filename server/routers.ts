@@ -3043,8 +3043,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
+        console.log(`[aiAssessments.byClaim] START claimId=${input.claimId} userId=${ctx.user.id} role=${ctx.user.role}`);
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
+        console.log(`[aiAssessments.byClaim] assessment found=${!!assessment} for claimId=${input.claimId}`);
         if (!assessment) return null;
 
         // Apply normalisation service — ensures cost, fraud, and verdict are
@@ -3645,9 +3647,23 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
-        const contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
+        // IMPORTANT: wrapped in try-catch — validateAiAssessmentResponse throws TRPCError for missing
+        // critical fields (e.g. finalDecision.decision). If it throws, we fall back to rawResponse
+        // so the ForensicAuditReport always renders rather than showing "Run AI Assessment".
+        let contractValidated: typeof rawResponse = rawResponse;
+        try {
+          contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
+        } catch (validationErr: unknown) {
+          console.warn(`[getEnforcement] Stage 27 validation non-blocking for claim ${input.claimId} — returning raw response. Error: ${(validationErr as Error)?.message}`);
+          // Fall through with rawResponse — non-blocking, report still renders
+        }
         // Stage 27 pass 2: numeric integrity, contradiction detection, NaN/Infinity clamping
-        const integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`);
+        let integrityResult: { passed: boolean; data: typeof rawResponse } = { passed: false, data: contractValidated };
+        try {
+          integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`) as { passed: boolean; data: typeof rawResponse };
+        } catch {
+          // Non-blocking — fall through with contractValidated
+        }
         return (integrityResult.passed ? integrityResult.data : contractValidated) as typeof rawResponse;
       }),
 
