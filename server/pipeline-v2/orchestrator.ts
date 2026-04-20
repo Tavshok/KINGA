@@ -131,7 +131,7 @@ import {
   runAnomalySentinels,
   CRITICAL_STAGES,
 } from "./pipelineStateMachine";
-import { computeFCDI, type FCDIResult } from "./forensicCDI";
+import { computeFCDI, type FCDIResult, type DomainPenalty } from "./forensicCDI";
 import {
   buildForensicExecutionLedger,
   buildStageRecord,
@@ -1674,7 +1674,51 @@ export async function runPipelineV2(
     };
     // ── FCDI: Forensic Confidence Degradation Index ──────────────────────────────────────────
     // Compute how far this pipeline run is from being fully reliable.
-    // Penalises fallbacks, timeouts, assumptions, low-confidence stages, and skipped critical stages.
+    // Penalises fallbacks, timeouts, assumptions, low-confidence stages, skipped critical stages,
+    // and named domain penalties (IMAGE_PIPELINE_FAILURE, MISSING_POLICY_NUMBER, etc.).
+
+    // Domain Penalty Engine — compute named penalties from pipeline state
+    const domainPenalties: DomainPenalty[] = [];
+    // IMAGE_PIPELINE_FAILURE: no photos extracted or Stage 6 degraded
+    const _s2Status = stages['2_extraction']?.status;
+    const _s6Status = stages['6_damage_analysis']?.status;
+    const _photosAvailable = (ctx.damagePhotoUrls ?? []).length > 0;
+    if (!_photosAvailable || _s6Status === 'degraded' || _s2Status === 'failed') {
+      domainPenalties.push({
+        code: 'IMAGE_PIPELINE_FAILURE',
+        reason: !_photosAvailable
+          ? 'No damage photos were extracted from the submitted documents. Visual damage analysis could not be performed.'
+          : _s6Status === 'degraded'
+          ? 'Stage 6 (damage vision analysis) ran on fallback output. Visual damage analysis is unreliable.'
+          : 'Stage 2 (text extraction) failed. Document images could not be extracted for damage analysis.',
+      });
+    }
+    // MISSING_POLICY_NUMBER: policy number absent from all extracted documents
+    if (claimRecord && !claimRecord.policyNumber) {
+      domainPenalties.push({
+        code: 'MISSING_POLICY_NUMBER',
+        reason: 'Policy number could not be extracted from any submitted document. Coverage verification is not possible without a policy reference.',
+      });
+    }
+    // PHYSICS_INCONSISTENCY: Stage 7 physics analysis flagged a speed/delta-V mismatch
+    if (stage7Data && (stage7Data as any).physicsInconsistency === true) {
+      domainPenalties.push({
+        code: 'PHYSICS_INCONSISTENCY',
+        reason: 'Stage 7 physics analysis detected a mismatch between the claimed impact speed and the delta-V implied by the observed damage pattern.',
+      });
+    }
+    // MULTI_EVENT_UNRESOLVED: multi-event sequence detected but causal chain unconfirmed
+    const _multiEventData = (claimRecord as any)?.accidentDetails?.multiEventSequence;
+    if (_multiEventData && _multiEventData.is_multi_event === true && _multiEventData.causal_chain_confirmed === false) {
+      domainPenalties.push({
+        code: 'MULTI_EVENT_UNRESOLVED',
+        reason: 'A multi-event incident sequence was detected but the causal chain between events could not be confirmed. The damage apportionment between events is uncertain.',
+      });
+    }
+    if (domainPenalties.length > 0) {
+      ctx.log('Stage13', `Domain penalties applied: ${domainPenalties.map(dp => dp.code).join(', ')}`);
+    }
+
     const fcdiInput = {
       stages: Object.fromEntries(
         Object.entries(stages).map(([id, s]) => [
@@ -1689,6 +1733,7 @@ export async function runPipelineV2(
         ])
       ),
       totalAssumptionCount: allAssumptions.length,
+      domainPenalties,
     };
     const fcdiResult = computeFCDI(fcdiInput);
     forensicAnalysisResult.fcdi = fcdiResult;

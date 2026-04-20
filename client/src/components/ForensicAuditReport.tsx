@@ -404,9 +404,10 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   // FCDI tile — use DB column (always present) with fallback to nested forensicAnalysis object
   const fcdiRaw = (aiAssessment as any)?.fcdiScore ?? (aiAssessment as any)?._forensicAnalysis?.fcdi?.scorePercent ?? null;
   const fcdiTileScore: number = typeof fcdiRaw === 'number' ? Math.round(fcdiRaw) : -1;
-  const fcdiTileLabel = fcdiTileScore < 0 ? "N/A" : fcdiTileScore <= 20 ? "RELIABLE" : fcdiTileScore <= 50 ? "DEGRADED" : "UNRELIABLE";
-  const fcdiTileIcon = fcdiTileScore < 0 ? "—" : fcdiTileScore <= 20 ? "✅" : fcdiTileScore <= 50 ? "⚠️" : "❌";
-  const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore <= 20 ? "var(--fp-success-text)" : fcdiTileScore <= 50 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+  // fcdiTileScore is 0–100 where 100 = fully reliable, 0 = fully degraded
+  const fcdiTileLabel = fcdiTileScore < 0 ? "N/A" : fcdiTileScore >= 80 ? "HIGH" : fcdiTileScore >= 55 ? "MEDIUM" : fcdiTileScore >= 30 ? "LOW" : "CRITICAL";
+  const fcdiTileIcon = fcdiTileScore < 0 ? "—" : fcdiTileScore >= 80 ? "✅" : fcdiTileScore >= 55 ? "⚠️" : "❌";
+  const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore >= 80 ? "var(--fp-success-text)" : fcdiTileScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
 
   return (
     <div className="mb-6 rounded-xl overflow-hidden report-cover-card"
@@ -1129,6 +1130,30 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
       expected: ["Bumper deformation", "Bonnet damage", "Frame misalignment", "Airbag deployment (if >25 km/h)", "Seatbelt pre-tensioners"],
       notes: "Vehicle collisions produce bilateral or frontal damage with structural deformation proportional to Delta-V.",
     },
+    COLLISION: {
+      expected: ["Bumper deformation", "Bonnet damage", "Frame misalignment", "Airbag deployment (if >25 km/h)", "Seatbelt pre-tensioners"],
+      notes: "Vehicle collisions produce bilateral or frontal damage with structural deformation proportional to Delta-V.",
+    },
+    REAR_END: {
+      expected: ["Rear bumper deformation", "Boot/tailgate damage", "Rear panel damage", "Seatbelt pre-tensioners", "Whiplash indicators"],
+      notes: "Rear-end impacts produce damage concentrated at the rear zone. Front damage is inconsistent with this incident type and is a fraud indicator.",
+    },
+    HEAD_ON: {
+      expected: ["Frontal bumper deformation", "Bonnet/radiator damage", "Airbag deployment", "Seatbelt pre-tensioners", "Engine bay intrusion (high speed)"],
+      notes: "Head-on collisions produce severe frontal damage with high energy dissipation. Airbag deployment is expected above 25 km/h.",
+    },
+    SIDESWIPE: {
+      expected: ["Door panel damage", "Mirror damage", "Sill/rocker panel scraping", "Minimal structural deformation"],
+      notes: "Sideswipe impacts produce lateral surface damage. Deep structural deformation is inconsistent with this incident type.",
+    },
+    SINGLE_VEHICLE: {
+      expected: ["Frontal or lateral damage (depending on obstacle)", "Possible rollover indicators", "No third-party contact evidence"],
+      notes: "Single-vehicle incidents involve no other vehicle. Third-party damage claims are inconsistent with this classification.",
+    },
+    PEDESTRIAN_STRIKE: {
+      expected: ["Bonnet deformation", "Windscreen damage", "Bumper deformation", "Airbag deployment"],
+      notes: "Pedestrian strikes produce frontal zone damage at bumper and bonnet height. Airbag deployment is expected above 25 km/h.",
+    },
     ROLLOVER: {
       expected: ["Roof deformation", "Door frame damage", "Window breakage", "Airbag deployment", "Seatbelt pre-tensioners"],
       notes: "Rollovers produce roof and door frame damage. Airbag deployment is expected above 25 km/h lateral velocity.",
@@ -1141,12 +1166,43 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
       expected: ["Ignition damage", "Door lock damage", "Window breakage (forced entry)"],
       notes: "Theft claims require evidence of forced entry. Absence of entry damage is a key fraud indicator.",
     },
+    FLOOD: {
+      expected: ["Water ingress marks", "Electrical system damage", "Interior waterline", "Engine hydro-lock indicators"],
+      notes: "Flood damage is characterised by uniform water ingress across lower panels and interior. Isolated damage is inconsistent.",
+    },
+    FIRE: {
+      expected: ["Burn marks (engine bay or interior)", "Melted wiring", "Smoke damage", "Extinguisher residue"],
+      notes: "Fire damage should show consistent burn patterns. Isolated or localised burns without spread are suspicious.",
+    },
+    VANDALISM: {
+      expected: ["Panel scratches", "Window breakage", "Tyre slashing", "Mirror damage"],
+      notes: "Vandalism damage is typically surface-level and distributed. Deep structural damage is inconsistent with this type.",
+    },
+    HIJACKING: {
+      expected: ["Forced entry evidence", "Ignition damage", "Window breakage", "Possible collision damage (if rammed)"],
+      notes: "Hijacking claims should show evidence of forced entry or coercion. Absence of any physical evidence is a fraud indicator.",
+    },
+    MECHANICAL_FAILURE: {
+      expected: ["Engine/drivetrain damage", "No external impact marks", "Consistent with mechanical failure mode"],
+      notes: "Mechanical failure claims should show damage consistent with the failure mode. External collision damage is inconsistent.",
+    },
   };
 
+  // Normalise: map granular sub-types to their display key
   const normalised = incidentType.toUpperCase().replace(/ /g, "_");
-  const pattern = incidentPatterns[normalised] ?? {
+  // Map sub-types that have their own pattern entries
+  const patternKey = incidentPatterns[normalised] ? normalised
+    : normalised === "VEHICLE_COLLISION" ? "VEHICLE_COLLISION"
+    : normalised === "REAR_END" ? "REAR_END"
+    : normalised === "HEAD_ON" ? "HEAD_ON"
+    : normalised === "SIDESWIPE" ? "SIDESWIPE"
+    : normalised === "SINGLE_VEHICLE" ? "SINGLE_VEHICLE"
+    : normalised === "PEDESTRIAN_STRIKE" ? "PEDESTRIAN_STRIKE"
+    : normalised === "ANIMAL_STRIKE" ? "ANIMAL_STRIKE"
+    : normalised;
+  const pattern = incidentPatterns[patternKey] ?? {
     expected: ["Damage consistent with stated incident type"],
-    notes: `Pattern analysis for ${incidentType.replace(/_/g, " ")} not available.`,
+    notes: `Review damage components against incident narrative for ${incidentType.replace(/_/g, " ")} claim type.`,
   };
 
   return (
@@ -3002,11 +3058,12 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const dataQuality = fa.dataQuality ?? null;
   if (!fcdi && !psm && sentinels.length === 0 && !dataQuality) return null;
 
-  const fcdiScore: number = fcdi?.score ?? 0;
-  const fcdiLabel: string = fcdi?.label ?? (fcdiScore <= 20 ? "RELIABLE" : fcdiScore <= 50 ? "DEGRADED" : "UNRELIABLE");
-  const fcdiColor = fcdiScore <= 20 ? "var(--fp-success-text)" : fcdiScore <= 50 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
-  const fcdiBg = fcdiScore <= 20 ? "var(--status-approve-bg)" : fcdiScore <= 50 ? "var(--status-review-bg)" : "var(--status-reject-bg)";
-  const fcdiBorder = fcdiScore <= 20 ? "var(--fp-success-border)" : fcdiScore <= 50 ? "var(--fp-warning-border)" : "var(--fp-critical-border)";
+  // fcdi.score is 0.0 (fully degraded) → 1.0 (fully reliable); scorePercent is 0–100
+  const fcdiScore: number = fcdi?.scorePercent ?? Math.round((fcdi?.score ?? 0) * 100);
+  const fcdiLabel: string = fcdi?.label ?? (fcdiScore >= 80 ? "HIGH" : fcdiScore >= 55 ? "MEDIUM" : fcdiScore >= 30 ? "LOW" : "CRITICAL");
+  const fcdiColor = fcdiScore >= 80 ? "var(--fp-success-text)" : fcdiScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
+  const fcdiBg = fcdiScore >= 80 ? "var(--status-approve-bg)" : fcdiScore >= 55 ? "var(--status-review-bg)" : "var(--status-reject-bg)";
+  const fcdiBorder = fcdiScore >= 80 ? "var(--fp-success-border)" : fcdiScore >= 55 ? "var(--fp-warning-border)" : "var(--fp-critical-border)";
 
   const stageHealth: any[] = psm?.stages ?? [];
   const failedStages = stageHealth.filter((s: any) => s.status === "failed" || s.status === "error");
@@ -3014,16 +3071,18 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   const completenessScore: number = dataQuality?.completenessScore ?? dataQuality?.completeness ?? 0;
   const missingFields: string[] = dataQuality?.missingFields ?? dataQuality?.missing ?? [];
   const assumptions: any[] = fa.assumptions ?? [];
+  // Domain penalties from the FCDI breakdown (populated by Domain Penalty Engine in orchestrator)
+  const domainPenalties: Array<{ code: string; reason: string; weight: number }> = fcdi?.breakdown?.domainPenalties ?? [];
 
-  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0;
-  if (!hasPipelineIssues && fcdiScore <= 20 && completenessScore >= 80) return null;
+  const hasPipelineIssues = failedStages.length > 0 || degradedStages.length > 0 || sentinels.length > 0 || domainPenalties.length > 0;
+  if (!hasPipelineIssues && fcdiScore >= 80 && completenessScore >= 80) return null;
 
   return (
     <div className="rounded-xl overflow-hidden mb-2 no-print" style={{ border: `1.5px solid ${fcdiBorder}`, background: fcdiBg }}>
       <div className="px-5 py-2 flex items-center justify-between" style={{ borderBottom: `1px solid ${fcdiBorder}40` }}>
         <div className="flex items-center gap-3">
           <span className="text-sm font-bold" style={{ color: fcdiColor }}>
-            {fcdiScore <= 20 ? "✓ PIPELINE RELIABLE" : fcdiScore <= 50 ? "⚠️ PIPELINE DEGRADED" : "⛔ PIPELINE UNRELIABLE"}
+            {fcdiScore >= 80 ? "✓ PIPELINE RELIABLE" : fcdiScore >= 55 ? "⚠️ PIPELINE DEGRADED" : "⛔ PIPELINE UNRELIABLE"}
           </span>
           <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: `${fcdiColor}20`, color: fcdiColor }}>
             FCDI {fcdiScore}/100 — {fcdiLabel}
@@ -3090,6 +3149,24 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
             Missing fields (verify manually):{" "}
             <span className="font-medium" style={{ color: "var(--foreground)" }}>{missingFields.join(", ")}</span>
           </p>
+        )}
+        {domainPenalties.length > 0 && (
+          <div>
+            <p className="font-semibold mb-1" style={{ color: "var(--fp-danger)" }}>
+              Domain penalties applied ({domainPenalties.length}):
+            </p>
+            <div className="space-y-1.5">
+              {domainPenalties.map((dp: any, i: number) => (
+                <div key={i} className="flex items-start gap-2">
+                  <span className="font-mono text-xs px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: "rgba(220,38,38,0.1)", color: "var(--fp-danger)" }}>
+                    {dp.code.replace(/_/g, ' ')}
+                  </span>
+                  <span className="flex-1" style={{ color: "var(--muted-foreground)" }}>{dp.reason}</span>
+                  <span className="flex-shrink-0 font-semibold" style={{ color: "var(--fp-danger)" }}>−{Math.round((dp.weight ?? 0) * 100)}pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
         {assumptions.length > 0 && (
           <div>

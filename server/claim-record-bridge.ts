@@ -41,6 +41,13 @@ export type CanonicalIncidentType =
   | "rollover"
   | "mechanical_failure"
   | "hijacking"
+  // Granular collision sub-types from incidentClassificationEngine
+  | "rear_end"
+  | "vehicle_collision"
+  | "head_on"
+  | "sideswipe"
+  | "single_vehicle"
+  | "pedestrian_strike"
   | "unknown";
 
 export interface ResolvedClaimRecord {
@@ -112,10 +119,13 @@ export interface ResolvedClaimRecord {
 
 const VALID_INCIDENT_TYPES = new Set<CanonicalIncidentType>([
   "collision", "animal_strike", "theft", "vandalism",
-  "flood", "fire", "hail", "rollover", "mechanical_failure", "hijacking", "unknown",
+  "flood", "fire", "hail", "rollover", "mechanical_failure", "hijacking",
+  // Granular collision sub-types
+  "rear_end", "vehicle_collision", "head_on", "sideswipe", "single_vehicle", "pedestrian_strike",
+  "unknown",
 ]);
 
-/** Map legacy DB enum values to canonical types */
+/** Map legacy DB enum values and aliases to canonical types */
 const DB_INCIDENT_TYPE_MAP: Record<string, CanonicalIncidentType> = {
   collision: "collision",
   theft: "theft",
@@ -127,6 +137,18 @@ const DB_INCIDENT_TYPE_MAP: Record<string, CanonicalIncidentType> = {
   hail: "hail",
   rollover: "rollover",
   mechanical_failure: "mechanical_failure",
+  // Granular collision sub-types from incidentClassificationEngine
+  rear_end: "rear_end",
+  vehicle_collision: "vehicle_collision",
+  head_on: "head_on",
+  sideswipe: "sideswipe",
+  single_vehicle: "single_vehicle",
+  pedestrian_strike: "pedestrian_strike",
+  // Legacy / user-submitted aliases
+  other: "collision",
+  accident: "collision",
+  storm: "collision",  // storm is not a canonical type; map to collision
+  weather: "flood",
 };
 
 function toCanonical(raw: string | null | undefined): CanonicalIncidentType {
@@ -333,6 +355,13 @@ export function buildClaimSyncUpdate(resolved: ResolvedClaimRecord): Record<stri
     rollover: "rollover",
     mechanical_failure: "mechanical_failure",
     hijacking: "hijacking",
+    // Granular sub-types → map to "collision" in DB (DB enum doesn't have sub-types)
+    rear_end: "collision",
+    vehicle_collision: "collision",
+    head_on: "collision",
+    sideswipe: "collision",
+    single_vehicle: "collision",
+    pedestrian_strike: "collision",
     unknown: null,
   };
 

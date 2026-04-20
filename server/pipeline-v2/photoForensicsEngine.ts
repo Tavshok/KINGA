@@ -3,9 +3,9 @@
  *
  * PHOTO FORENSICS ENGINE
  *
- * Downloads each damage photo URL, runs the Python image_forensics.py
- * script on it, and returns per-photo EXIF / manipulation results plus
- * aggregated FraudIndicator entries ready for Stage 8.
+ * Downloads each damage photo URL, runs pure Node.js EXIF extraction
+ * (using exifr) and basic manipulation heuristics, then returns per-photo
+ * results plus aggregated FraudIndicator entries ready for Stage 8.
  *
  * Design principles:
  *  - Non-blocking: individual photo failures are captured, not thrown.
@@ -13,25 +13,17 @@
  *  - Self-cleaning: temp files are always deleted even on error.
  *  - Capped: at most MAX_PHOTOS_TO_ANALYSE photos are processed to keep
  *    pipeline latency bounded.
+ *  - Zero system binaries: uses exifr (pure JS) instead of python3/exiftool.
  */
 
 import path from "path";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import os from "os";
 import fs from "fs/promises";
-import { exec } from "child_process";
-import { promisify } from "util";
+import crypto from "crypto";
 import type { FraudIndicator } from "./types";
 
-const execAsync = promisify(exec);
-
-const __filename_esm = fileURLToPath(import.meta.url);
-const __dirname_esm = dirname(__filename_esm);
-const PYTHON_DIR = path.join(__dirname_esm, "../../python");
 const MAX_PHOTOS_TO_ANALYSE = 3;   // Cap at 3 to keep pipeline latency bounded
 const DOWNLOAD_TIMEOUT_MS = 10_000; // 10s download timeout per photo
-const ANALYSIS_TIMEOUT_MS = 20_000; // 20s Python analysis timeout per photo
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -40,7 +32,7 @@ const ANALYSIS_TIMEOUT_MS = 20_000; // 20s Python analysis timeout per photo
 export interface PhotoForensicsResult {
   url: string;
   /** null when the download or analysis failed */
-  analysisResult: RawPythonResult | null;
+  analysisResult: RawAnalysisResult | null;
   error?: string;
 }
 
@@ -59,7 +51,7 @@ export interface PhotoForensicsSummary {
   anySuspicious: boolean;
 }
 
-interface RawPythonResult {
+interface RawAnalysisResult {
   is_suspicious: boolean;
   confidence: number;
   flags: string[];
@@ -101,27 +93,130 @@ async function downloadToTemp(url: string): Promise<string> {
 }
 
 /**
- * Run image_forensics.py on a local file.
- * Returns the parsed JSON result.
+ * Run pure Node.js EXIF analysis on a local image file.
+ * Uses exifr for EXIF extraction and crypto for image hashing.
  */
-async function runPythonForensics(localPath: string): Promise<RawPythonResult> {
-  const scriptPath = path.join(PYTHON_DIR, "image_forensics.py");
-  const { stdout } = await execAsync(
-    `python3 "${scriptPath}" "${localPath}"`,
-    { timeout: ANALYSIS_TIMEOUT_MS }
-  );
-  return JSON.parse(stdout) as RawPythonResult;
+async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
+  const flags: string[] = [];
+  const recommendations: string[] = [];
+  let exifData: Record<string, string> = {};
+  let gpsCoordinates: { latitude: number; longitude: number } | null = null;
+  let captureDateTime: string | null = null;
+  let manipulationScore = 0;
+
+  // Read file buffer for hashing
+  const buffer = await fs.readFile(localPath);
+  const imageHash = crypto.createHash("sha256").update(buffer).digest("hex");
+
+  // EXIF extraction via exifr (pure JS, no native binaries)
+  try {
+    // Dynamic import to handle ESM/CJS compatibility
+    const exifr = await import("exifr");
+    const parse = exifr.default?.parse ?? exifr.parse;
+    const exif = await parse(buffer, {
+      tiff: true,
+      exif: true,
+      gps: true,
+      iptc: false,
+      xmp: true,
+      icc: false,
+      jfif: false,
+      ihdr: false,
+      translateKeys: true,
+      translateValues: true,
+      reviveValues: true,
+    });
+
+    if (exif && typeof exif === "object") {
+      // Flatten EXIF to string map
+      for (const [k, v] of Object.entries(exif)) {
+        if (v !== null && v !== undefined) {
+          exifData[k] = String(v);
+        }
+      }
+
+      // GPS coordinates
+      if (exif.latitude != null && exif.longitude != null) {
+        gpsCoordinates = { latitude: Number(exif.latitude), longitude: Number(exif.longitude) };
+      } else {
+        flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
+      }
+
+      // Capture datetime
+      const dt = exif.DateTimeOriginal ?? exif.CreateDate ?? exif.DateTime;
+      if (dt) {
+        captureDateTime = dt instanceof Date ? dt.toISOString() : String(dt);
+      }
+
+      // Editing software detection
+      const software = exif.Software ?? exif.ProcessingSoftware ?? exif.CreatorTool;
+      if (software) {
+        const sw = String(software).toLowerCase();
+        const EDITING_TOOLS = ["photoshop", "lightroom", "gimp", "snapseed", "facetune", "picsart", "pixelmator", "affinity", "canva", "vsco"];
+        if (EDITING_TOOLS.some(t => sw.includes(t))) {
+          flags.push(`MANIPULATION: Image edited with ${software}`);
+          manipulationScore += 0.6;
+          recommendations.push(`Photo metadata indicates editing software (${software}). Manual review of image authenticity recommended.`);
+        }
+      }
+
+      // Check for stripped EXIF (very few fields = likely stripped)
+      const fieldCount = Object.keys(exifData).length;
+      if (fieldCount < 3) {
+        flags.push("SUSPICIOUS: No EXIF metadata — image may have been stripped or is a screenshot");
+        manipulationScore += 0.3;
+        recommendations.push("Photo has minimal/no EXIF metadata. This is common after editing or screenshot capture.");
+      }
+
+      // Check for future dates (impossible capture time)
+      if (captureDateTime) {
+        const captureDate = new Date(captureDateTime);
+        const now = new Date();
+        if (captureDate > now) {
+          flags.push("SUSPICIOUS: Photo capture date is in the future — metadata may be manipulated");
+          manipulationScore += 0.5;
+        }
+      }
+
+    } else {
+      // No EXIF at all
+      flags.push("SUSPICIOUS: No EXIF metadata — image may have been stripped or is a screenshot");
+      flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
+      manipulationScore += 0.3;
+      recommendations.push("Photo has no EXIF metadata. This is common after editing or screenshot capture.");
+    }
+  } catch (exifErr) {
+    // EXIF extraction failed — treat as missing EXIF
+    flags.push("SUSPICIOUS: No EXIF metadata — EXIF extraction failed");
+    flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
+    manipulationScore += 0.2;
+  }
+
+  const isSuspicious = manipulationScore > 0.4;
+  const confidence = Math.min(1.0, 0.5 + manipulationScore * 0.5);
+
+  return {
+    is_suspicious: isSuspicious,
+    confidence,
+    flags,
+    exif_data: exifData,
+    gps_coordinates: gpsCoordinates,
+    capture_datetime: captureDateTime,
+    manipulation_indicators: { manipulation_score: manipulationScore },
+    image_hash: imageHash,
+    recommendations,
+  };
 }
 
 /**
  * Analyse a single photo URL.
- * Downloads to temp, runs Python, cleans up temp file.
+ * Downloads to temp, runs Node.js forensics, cleans up temp file.
  */
 async function analysePhoto(url: string): Promise<PhotoForensicsResult> {
   let tmpPath: string | null = null;
   try {
     tmpPath = await downloadToTemp(url);
-    const result = await runPythonForensics(tmpPath);
+    const result = await runNodeForensics(tmpPath);
     return { url, analysisResult: result };
   } catch (err: any) {
     return { url, analysisResult: null, error: String(err?.message ?? err) };
