@@ -226,9 +226,19 @@ async function classifyAmbiguousPool(
       if (candidate) result.set(candidate.index, item.class as ImageClass);
     }
   } catch (e) {
-    ctx.log("ImageIntelligence", `LLM batch classifier failed: ${String(e)} — treating all as damage_photo`);
-    // Conservative fallback: include all ambiguous pages
-    for (const c of candidates) result.set(c.index, "damage_photo");
+    const isTimeout = String(e).includes("timeout");
+    if (isTimeout) {
+      // Tighter fallback on timeout: reject ambiguous images rather than accepting all.
+      // Accepting all on timeout is a fraud risk — a claimant could embed many irrelevant
+      // images to flood Stage 6 with noise when the classifier is slow.
+      ctx.log("ImageIntelligence", `LLM batch classifier timed out — rejecting ${candidates.length} ambiguous image(s) (reject-by-default policy)`);
+      for (const c of candidates) result.set(c.index, "irrelevant");
+    } else {
+      // Non-timeout failure (parse error, API error) — conservative accept to avoid
+      // silently dropping potentially valid photos.
+      ctx.log("ImageIntelligence", `LLM batch classifier failed (non-timeout): ${String(e)} — conservatively treating ${candidates.length} ambiguous image(s) as damage_photo`);
+      for (const c of candidates) result.set(c.index, "damage_photo");
+    }
   }
 
   return result;

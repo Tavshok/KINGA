@@ -14,6 +14,7 @@ import { createContext } from "./context";
 import { serveStatic, setupVite } from "./vite";
 import { uploadAssessmentRouter } from "../upload-assessment";
 import { setupWebSocketServer } from "../websocket";
+import { execSync } from "child_process";
 import { startIntakeEscalationJob } from "../intake-escalation-job";
 import { startStuckAssessmentRecoveryJob } from "../stuck-assessment-recovery-job";
 
@@ -147,6 +148,22 @@ async function startServer() {
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+
+    // ── Startup health check: pdftoppm (poppler-utils) ──────────────────────
+    // Required for PDF image extraction in the vision pipeline (Stage 6).
+    // If missing in production, the extractor silently returns [] and Stage 6
+    // receives zero photos — causing silent vision degradation on every claim.
+    // Fix: ensure poppler-utils is installed in the production Dockerfile.
+    try {
+      const pdftoppmVersion = execSync('pdftoppm -v 2>&1', { timeout: 5000 }).toString().trim();
+      console.log(`[Startup] ✅ pdftoppm available: ${pdftoppmVersion.split('\n')[0]}`);
+    } catch (err: any) {
+      console.error(
+        `[Startup] ❌ CRITICAL: pdftoppm not found or failed — PDF image extraction will produce ZERO photos.\n` +
+        `  Fix: add 'RUN apt-get install -y poppler-utils' to the production Dockerfile.\n` +
+        `  Error: ${err?.message ?? String(err)}`
+      );
+    }
     
     // Start intake escalation cron job
     startIntakeEscalationJob();

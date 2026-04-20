@@ -1177,6 +1177,15 @@ export interface Stage10Output {
   consistencyCheck?: import('./crossStageConsistencyEngine').ConsistencyCheckResult | null;
   /** Multi-dimensional claim quality score for adjuster guidance */
   claimQuality?: import('./claimQualityScorer').ClaimQualityResult | null;
+  /**
+   * Actionable reasons why this report is degraded, surfaced to adjusters.
+   * Empty array when report is not degraded.
+   * Examples:
+   *   - "No damage photos extracted from PDF — pdftoppm may be unavailable in production"
+   *   - "Stage 6 (Damage Analysis) produced no components from 3 photos"
+   *   - "Physics Reconstruction unavailable — speed not extracted from claim form"
+   */
+  degradationReasons: string[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

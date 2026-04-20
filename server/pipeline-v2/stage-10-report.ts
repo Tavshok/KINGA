@@ -484,6 +484,49 @@ export async function runReportGenerationStage(
       });
     }
 
+    // ── Build actionable degradation reasons for adjusters ─────────────────────
+    // These are surfaced in the UI so adjusters understand WHY a report is partial.
+    const degradationReasons: string[] = [];
+    const photoCount = claimRecord.damage.imageUrls?.length ?? 0;
+    if (photoCount === 0) {
+      degradationReasons.push(
+        "No damage photos were available for vision analysis. " +
+        "If photos were embedded in the claim PDF, the image extraction step may have failed " +
+        "(pdftoppm/poppler-utils unavailable in production). " +
+        "Upload photos separately via the Evidence Upload button to enable full vision analysis."
+      );
+    } else if (!damageAnalysis) {
+      degradationReasons.push(
+        `Stage 6 (Damage Analysis) did not produce usable output from ${photoCount} photo(s). ` +
+        "The photos may be too low-resolution, heavily compressed, or classified as non-damage images by the scoring filter."
+      );
+    } else if (damageAnalysis.damagedParts.length === 0) {
+      degradationReasons.push(
+        `Stage 6 (Damage Analysis) processed ${photoCount} photo(s) but identified no damaged components. ` +
+        "The images may show undamaged areas, or the damage may be too subtle for automated detection."
+      );
+    }
+    if (!physicsAnalysis) {
+      const speedMissing = !claimRecord.accidentDetails.estimatedSpeedKmh || claimRecord.accidentDetails.estimatedSpeedKmh <= 0;
+      degradationReasons.push(
+        speedMissing
+          ? "Physics Reconstruction is unavailable because vehicle speed was not extracted from the claim form. " +
+            "If the form contains a handwritten speed value, the OCR may have missed it."
+          : "Physics Reconstruction did not complete successfully."
+      );
+    }
+    if (!fraudAnalysis) {
+      degradationReasons.push("Fraud Risk Indicators section is unavailable — fraud analysis did not run or failed.");
+    }
+    if (!costAnalysis) {
+      degradationReasons.push("Cost Optimisation section is unavailable — cost analysis did not run or failed.");
+    }
+    if (!decisionReadiness?.decision_ready && decisionReadiness?.blocking_issues?.length) {
+      degradationReasons.push(
+        `Decision Readiness blocked by: ${decisionReadiness.blocking_issues.map((i: any) => i.description).join("; ")}`
+      );
+    }
+
     // Compute overall confidence
     const overallConfidence = computeOverallConfidence(
       allAssumptions,
@@ -630,6 +673,7 @@ export async function runReportGenerationStage(
       decisionReadiness,
       consistencyCheck,
       claimQuality,
+      degradationReasons,
     };
 
     ctx.log("Stage 10", `Report generation complete. ${Object.keys(fullReport.sections).length} sections, confidence: ${overallConfidence}%, assumptions: ${allAssumptions.length}, missing docs: ${missingDocuments.length}`);
@@ -677,6 +721,7 @@ export async function runReportGenerationStage(
       missingFields: claimRecord.dataQuality.missingFields,
       evidenceTrace: null,
       decisionReadiness: null,
+      degradationReasons: [`Report generation failed: ${String(err)}. Only claim summary and images are available.`],
     };
 
     return {

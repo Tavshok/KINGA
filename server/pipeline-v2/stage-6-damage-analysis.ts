@@ -290,24 +290,35 @@ Even if the image quality is imperfect, extract whatever damage evidence is visi
   if (!primaryResult || primaryResult.components.length === 0) {
     log(`Image[${imageIndex}] primary returned 0 components — trying fallback prompt`);
     try {
+      // Zone-based fallback: anchors the model to specific body zones rather than asking
+      // open-ended "describe what you see". This produces partial structured output
+      // even when the primary prompt fails due to image quality or model refusal.
       const fallbackCall = () => withTimeout(
         () => invokeLLM({
           messages: [
             {
               role: "system",
-              content: `You are a vehicle damage assessor. Look at this vehicle photo and describe any damage you can see.
-Even if the image is unclear, identify any visible dents, scratches, broken parts, or deformation.
+              content: `You are a vehicle damage assessor. Your task is to identify damage by body zone.
+For each zone that shows ANY damage, list the affected components.
 Use ONLY these authorised SA/Audatex ZA part names: ${CANONICAL_PARTS_PROMPT_LIST}
-Return JSON only.`,
+Return JSON only. If a zone shows no damage, omit it from the components array.`,
             },
             {
               role: "user",
               content: [
                 {
                   type: "text" as const,
-                  text: `Vehicle: ${vehicleContext || "Unknown vehicle"}.
-Describe any vehicle damage visible in this image. If you can see any damage at all, list the affected components.
-If the image shows no vehicle or no damage, return an empty components array.`,
+                  text: `Vehicle: ${vehicleContext || "Unknown vehicle"}. Collision direction: ${collisionDirection || "unknown"}.
+Examine this image and identify which of the following body zones shows any damage:
+- FRONT (bumper, bonnet, grille, headlights, front wings)
+- REAR (boot lid, rear bumper, tail lights, rear wings)
+- LEFT SIDE (left doors, left sill, left mirror, left A/B/C pillars)
+- RIGHT SIDE (right doors, right sill, right mirror, right A/B/C pillars)
+- ROOF (roof panel, sunroof, roof rails)
+- UNDERBODY (floor pan, suspension, exhaust)
+
+For each damaged zone, list the specific components affected with their damage type and severity.
+If the image is unclear or shows no vehicle damage, return an empty components array.`,
                 },
                 imagePart,
               ],
@@ -783,10 +794,29 @@ export async function runDamageAnalysisStage(
     } else if (pdfPageUrls.length > 0) {
       const scoredPages = await selectDamagePhotoPages(pdfPageUrls, ctx);
       visionSourceUrls = scoredPages.map(p => p.url);
+      // ── Stage 6 → imageIntelligence feedback log ─────────────────────────────────
+      // Log a structured summary so operators can tune scoring thresholds.
+      const totalPages = pdfPageUrls.length;
+      const selectedCount = scoredPages.length;
+      const rejectedCount = totalPages - selectedCount;
+      if (totalPages > 0) {
+        ctx.log("Stage 6",
+          `[ImageIntelligence Feedback] ` +
+          `total_pages=${totalPages} selected=${selectedCount} rejected=${rejectedCount} ` +
+          `selection_rate=${(selectedCount / totalPages * 100).toFixed(0)}%`
+        );
+      }
       if (scoredPages.length > 0) {
         ctx.log("Stage 6",
           `Image Intelligence: selected pages [${scoredPages.map(p => p.pageNumber).join(", ")}] ` +
-          `(scores: ${scoredPages.map(p => p.damageLikelihoodScore.toFixed(2)).join(", ")})`
+          `(scores: ${scoredPages.map(p => p.damageLikelihoodScore.toFixed(2)).join(", ")}) ` +
+          `(confidence: ${scoredPages.map(p => p.confidence).join(", ")})`
+        );
+      } else if (totalPages > 0) {
+        ctx.log("Stage 6",
+          `[ImageIntelligence Feedback] WARNING: all ${totalPages} PDF page(s) were rejected by the classifier. ` +
+          `This may indicate the scoring thresholds are too aggressive for this document type. ` +
+          `Top rejected scores: ${pdfPageUrls.slice(0, 3).map((_, i) => `page${i+1}`).join(", ")}`
         );
       }
     } else {
