@@ -18,6 +18,9 @@ export default function AdminSeedData() {
   const [seedReport, setSeedReport] = useState<any>(null);
   const [isGeneratingAi, setIsGeneratingAi] = useState(false);
   const [aiGenReport, setAiGenReport] = useState<any>(null);
+  const [diagResult, setDiagResult] = useState<any>(null);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const diagQuery = trpc.admin.serverDiagnostics.useQuery(undefined, { enabled: false });
 
   const bulkSeedMutation = trpc.admin.bulkSeedClaims.useMutation({
     onSuccess: (data) => {
@@ -319,6 +322,62 @@ export default function AdminSeedData() {
           </CardContent>
         </Card>
       )}
+      {/* Server Environment Diagnostics */}
+      <Card className="mb-6 border-yellow-500/40">
+        <CardHeader>
+          <CardTitle className="text-yellow-500">Server Environment Diagnostics</CardTitle>
+          <CardDescription>
+            Check if the production server has the required binaries (pdftoppm, pdfimages) for PDF photo extraction.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              setDiagLoading(true);
+              try {
+                const result = await diagQuery.refetch();
+                setDiagResult(result.data ?? null);
+              } catch (e: any) {
+                setDiagResult({ error: e.message });
+              } finally {
+                setDiagLoading(false);
+              }
+            }}
+            disabled={diagLoading}
+          >
+            {diagLoading ? (
+              <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Checking...</>
+            ) : (
+              'Run Diagnostics'
+            )}
+          </Button>
+          {diagResult && (
+            <div className="bg-black/40 rounded p-4 text-sm font-mono space-y-1">
+              {diagResult.error ? (
+                <div className="text-red-400">Error: {diagResult.error}</div>
+              ) : (
+                <>
+                  <div className={diagResult.pdftoppm?.includes('NOT FOUND') ? 'text-red-400' : 'text-green-400'}>
+                    pdftoppm: {diagResult.pdftoppm}
+                  </div>
+                  <div className={diagResult.pdfimages?.includes('NOT FOUND') ? 'text-red-400' : 'text-green-400'}>
+                    pdfimages: {diagResult.pdfimages}
+                  </div>
+                  <div className="text-gray-300">poppler-utils: {diagResult.popplerUtils}</div>
+                  <div className="text-gray-300">Node: {diagResult.nodeVersion} | {diagResult.platform}/{diagResult.arch}</div>
+                  <div className={diagResult.tmpWritable?.includes('writable') ? 'text-green-400' : 'text-red-400'}>
+                    /tmp writable: {diagResult.tmpWritable}
+                  </div>
+                  <div className="text-gray-300">
+                    Forge API Key: {diagResult.env?.hasForgeApiKey ? '✅' : '❌'} | Forge URL: {diagResult.env?.hasForgeApiUrl ? '✅' : '❌'} | DB: {diagResult.env?.hasDatabaseUrl ? '✅' : '❌'}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -735,6 +735,32 @@ export const adminRouter = router({
    * Collect and store observability metrics
    * Manually trigger metrics collection
    */
+  /**
+   * Server environment diagnostics — checks binary availability for PDF extraction
+   */
+  serverDiagnostics: superAdminProcedure
+    .query(async () => {
+      const { execSync } = await import('child_process');
+      const check = (cmd: string): string => {
+        try { return execSync(cmd, { timeout: 5000 }).toString().trim(); }
+        catch (e: any) { return `NOT FOUND: ${(e.message ?? '').split('\n')[0]}`; }
+      };
+      return {
+        pdftoppm: check('which pdftoppm 2>/dev/null && pdftoppm -v 2>&1 | head -1 || echo "NOT FOUND"'),
+        pdfimages: check('which pdfimages 2>/dev/null && pdfimages -v 2>&1 | head -1 || echo "NOT FOUND"'),
+        popplerUtils: check('dpkg -l poppler-utils 2>/dev/null | grep -E "^ii.*poppler" | head -1 || echo "not via dpkg"'),
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        tmpWritable: check('touch /tmp/diag-test-kinga && echo writable && rm /tmp/diag-test-kinga'),
+        env: {
+          hasForgeApiKey: !!process.env.BUILT_IN_FORGE_API_KEY,
+          hasForgeApiUrl: !!process.env.BUILT_IN_FORGE_API_URL,
+          hasDatabaseUrl: !!process.env.DATABASE_URL,
+        },
+      };
+    }),
+
   collectObservabilityMetrics: superAdminProcedure
     .mutation(async ({ ctx }) => {
       try {
