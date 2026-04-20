@@ -493,10 +493,13 @@ export async function triggerAiAssessment(claimId: number) {
     }
   }
 
-  // If no PDF URL, fall back to user-uploaded damage photos
-  if (!pdfUrl) {
-    damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
-  }
+  // Always load cached damage photos from the DB.
+  // Previously this was gated on !pdfUrl, which meant that when a claim had both a
+  // PDF and separately-uploaded damage photos, the photos were silently dropped.
+  // Now we load them unconditionally. The PDF re-extraction block below will only
+  // run when damagePhotos is still empty after this load, preserving the intended
+  // "extract from PDF when no photos exist" behaviour.
+  damagePhotos = claim.damagePhotos ? JSON.parse(claim.damagePhotos) : [];
 
   // Third fallback: if externalAssessmentUrl looks like a PDF URL, use it directly as pdfUrl.
   // This allows test/debug claims to be submitted without going through the full ingestion pipeline.
