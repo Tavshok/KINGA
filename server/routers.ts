@@ -3641,7 +3641,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
-        const contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
+        // Wrapped in try-catch: validation warnings are logged server-side but never block the UI.
+        // A TRPCError here causes the frontend to show "Run AI Assessment" for completed claims.
+        let contractValidated: typeof rawResponse;
+        try {
+          contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
+        } catch (validationErr: any) {
+          console.warn(`[getEnforcement] Stage 27 validation warning for claim ${input.claimId} (non-fatal): ${validationErr?.message ?? validationErr}`);
+          contractValidated = rawResponse as typeof rawResponse;
+        }
         // Stage 27 pass 2: numeric integrity, contradiction detection, NaN/Infinity clamping
         const integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`);
         return (integrityResult.passed ? integrityResult.data : contractValidated) as typeof rawResponse;
