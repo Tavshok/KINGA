@@ -692,6 +692,24 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (rateErr) {
     console.warn(`[AI Assessment] Claim ${claimId}: Failed to load tenant rates (non-fatal):`, rateErr);
   }
+  // ── PDF PAGE IMAGE URLS FOR STAGE 6 ──────────────────────────────────────
+  // Stage 1 (ingestion pipeline) normally renders PDF pages and stores them in
+  // ctx.pdfPageImageUrls for Stage 6 vision analysis. But when triggerAiAssessment
+  // runs directly (re-assessment, reset, or first-time assessment), Stage 1 never
+  // runs — so ctx.pdfPageImageUrls is empty and Stage 6 has no images to analyse.
+  //
+  // Fix: inject the page render URLs from the pre-pipeline extraction step above
+  // (extractImagesFromPDFBuffer) into pipelineCtx so Stage 6 can find them.
+  // Only page renders (source === 'page_render') are used — embedded images are
+  // already in damagePhotoUrls and would be double-counted.
+  const _pdfPageImageUrls: string[] = _extractedImagesWithMetadata
+    .filter((img: any) => img.source === 'page_render')
+    .sort((a: any, b: any) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0))
+    .map((img: any) => img.url);
+  if (_pdfPageImageUrls.length > 0) {
+    console.log(`[AI Assessment] Claim ${claimId}: Injecting ${_pdfPageImageUrls.length} PDF page render(s) into pipeline context for Stage 6 vision analysis`);
+  }
+
   const pipelineCtx = {
     claimId,
     tenantId: claim.tenantId ? Number(claim.tenantId) : null,
@@ -710,6 +728,10 @@ export async function triggerAiAssessment(claimId: number) {
     imageNormSource: _imageNormSource,
     // Explicit photo availability count for forensic validator tracking
     photosAvailable: damagePhotos.length,
+    // PDF page render URLs for Stage 6 vision analysis.
+    // Populated from pre-pipeline extraction when Stage 1 has not run.
+    // Stage 6 reads this as (ctx as any).pdfPageImageUrls.
+    pdfPageImageUrls: _pdfPageImageUrls,
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled
