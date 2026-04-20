@@ -3643,23 +3643,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
-        // Wrapped in try-catch — validation errors must NEVER block the UI from rendering.
-        // The ForensicAuditReport must always receive a response with whatever data is available.
-        let contractValidated: typeof rawResponse;
-        try {
-          contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
-        } catch (validationErr) {
-          console.warn('[getEnforcement] Stage 27 validation warning (non-blocking):', validationErr);
-          contractValidated = rawResponse;
-        }
+        const contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
         // Stage 27 pass 2: numeric integrity, contradiction detection, NaN/Infinity clamping
-        let integrityResult: { passed: boolean; data: typeof rawResponse };
-        try {
-          integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`) as { passed: boolean; data: typeof rawResponse };
-        } catch (integrityErr) {
-          console.warn('[getEnforcement] Stage 27 integrity check warning (non-blocking):', integrityErr);
-          integrityResult = { passed: false, data: contractValidated };
-        }
+        const integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`);
         return (integrityResult.passed ? integrityResult.data : contractValidated) as typeof rawResponse;
       }),
 
