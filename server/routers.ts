@@ -115,7 +115,6 @@ import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
 import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
-import { adjusterTasksRouter } from './routers/adjuster-tasks';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
@@ -269,7 +268,6 @@ export const integrityRouter = router({
 });
 
 export const appRouter = router({
-  adjusterTasks: adjusterTasksRouter,
   truthSynthesis: truthSynthesisRouter,
   vehicleRegistry: vehicleRegistryRouter,
   vehicleDamageHistory: vehicleDamageHistoryRouter,
@@ -3043,10 +3041,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
       .input(z.object({ claimId: z.number() }))
       .query(async ({ ctx, input }) => {
         if (!ctx.user) throw new Error("Not authenticated");
-        console.log(`[aiAssessments.byClaim] START claimId=${input.claimId} userId=${ctx.user.id} role=${ctx.user.role}`);
         const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
         const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
-        console.log(`[aiAssessments.byClaim] assessment found=${!!assessment} for claimId=${input.claimId}`);
         if (!assessment) return null;
 
         // Apply normalisation service — ensures cost, fraud, and verdict are
@@ -3647,23 +3643,9 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,
         };
         // Stage 27 pass 1: field contract validation (critical fields, alias mapping, fallbacks)
-        // IMPORTANT: wrapped in try-catch — validateAiAssessmentResponse throws TRPCError for missing
-        // critical fields (e.g. finalDecision.decision). If it throws, we fall back to rawResponse
-        // so the ForensicAuditReport always renders rather than showing "Run AI Assessment".
-        let contractValidated: typeof rawResponse = rawResponse;
-        try {
-          contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
-        } catch (validationErr: unknown) {
-          console.warn(`[getEnforcement] Stage 27 validation non-blocking for claim ${input.claimId} — returning raw response. Error: ${(validationErr as Error)?.message}`);
-          // Fall through with rawResponse — non-blocking, report still renders
-        }
+        const contractValidated = validateAiAssessmentResponse(rawResponse as Record<string, unknown>, input.claimId) as typeof rawResponse;
         // Stage 27 pass 2: numeric integrity, contradiction detection, NaN/Infinity clamping
-        let integrityResult: { passed: boolean; data: typeof rawResponse } = { passed: false, data: contractValidated };
-        try {
-          integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`) as { passed: boolean; data: typeof rawResponse };
-        } catch {
-          // Non-blocking — fall through with contractValidated
-        }
+        const integrityResult = validateClaimAnalysisResponse(contractValidated, `aiAssessments.byClaim(${input.claimId})`);
         return (integrityResult.passed ? integrityResult.data : contractValidated) as typeof rawResponse;
       }),
 

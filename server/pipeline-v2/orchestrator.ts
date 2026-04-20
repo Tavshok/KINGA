@@ -1678,8 +1678,6 @@ export async function runPipelineV2(
       causalChain: causalChain ?? null,
       // Evidence
       evidenceBundle: evidenceBundle ?? null,
-      // Evidence Registry — per-document completeness check and evidence presence map
-      evidenceRegistry: evidenceRegistryData ?? null,
       // Consistency
       preGenerationCheck: preGenCheck ?? null,
       consensusResult: consensusResult ?? null,
