@@ -441,8 +441,12 @@ export async function triggerAiAssessment(claimId: number, options?: { forceReex
         .from(ingestionDocuments)
         .where(eq(ingestionDocuments.id, claim.sourceDocumentId))
         .limit(1);
-      if (sourceDoc && (sourceDoc.extractionStatus === 'pending' || sourceDoc.extractionStatus === 'processing')) {
-        console.warn(`[AI Assessment] Claim ${claimId}: Pre-flight guard blocked — document extraction status=${sourceDoc.extractionStatus}. Pipeline will not run until document is ready.`);
+      // Only block if the document is ACTIVELY being processed by the old ingestion pipeline.
+      // 'pending' = document created but not yet processed — Pipeline V2 handles extraction
+      // internally in Stage 2/3, so 'pending' must NOT block (it would deadlock forever
+      // since Pipeline V2 never updates ingestionDocuments.extractionStatus).
+      if (sourceDoc && sourceDoc.extractionStatus === 'processing') {
+        console.warn(`[AI Assessment] Claim ${claimId}: Pre-flight guard blocked — document extraction status=${sourceDoc.extractionStatus} (actively processing by old pipeline). Pipeline will not run until document is ready.`);
         // Update claim to reflect the blocked state
         await db.update(claims).set({
           documentProcessingStatus: 'extraction_pending',

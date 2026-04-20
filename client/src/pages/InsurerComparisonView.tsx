@@ -146,7 +146,7 @@ export default function InsurerComparisonView() {
   const quotes = quotesWithItems;
 
   // Get enforcement data for the ForensicAuditReport
-  const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
+  const { data: enforcement, isLoading: enforcementLoading, isError: enforcementError } = trpc.aiAssessments.getEnforcement.useQuery(
     { claimId },
     { enabled: !!claimId }
   );
@@ -786,14 +786,14 @@ export default function InsurerComparisonView() {
         {/* ═══════════════════════════════════════════════════════════════
              FORENSIC AUDIT REPORT — replaces old Sections 1–7
         ═══════════════════════════════════════════════════════════════ */}
-        {aiAssessment && enforcement ? (
+        {aiAssessment && (enforcement || enforcementError) ? (
           <ForensicAuditReport
             claim={claim}
             aiAssessment={aiAssessment}
-            enforcement={enforcement}
+            enforcement={enforcement ?? null}
             quotes={quotes}
           />
-        ) : aiAssessment && !enforcement ? (
+        ) : aiAssessment && enforcementLoading ? (
           <div className="comparison-section">
             <div className="comparison-section-body text-center py-12">
               <Loader2 className="h-8 w-8 animate-spin mx-auto mb-3" style={{ color: 'var(--primary)' }} />
