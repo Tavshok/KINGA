@@ -4,15 +4,16 @@
  * PHOTO FORENSICS ENGINE
  *
  * Downloads each damage photo URL, runs pure Node.js EXIF extraction
- * (using exifr) and basic manipulation heuristics, then returns per-photo
- * results plus aggregated FraudIndicator entries ready for Stage 8.
+ * (using exifr) and basic manipulation heuristics, then optionally runs
+ * AI vision analysis on each photo for damage description and authenticity.
  *
  * Design principles:
  *  - Non-blocking: individual photo failures are captured, not thrown.
- *  - Parallel: all photos are analysed concurrently (Promise.allSettled).
+ *  - Sequential: photos are processed one at a time to avoid S3 rate limits
+ *    and to keep memory usage bounded.
  *  - Self-cleaning: temp files are always deleted even on error.
- *  - Capped: at most MAX_PHOTOS_TO_ANALYSE photos are processed to keep
- *    pipeline latency bounded.
+ *  - Capped: at most MAX_PHOTOS_TO_ANALYSE photos are processed.
+ *  - Abort-safe: the download timeout covers BOTH connection AND body read.
  *  - Zero system binaries: uses exifr (pure JS) instead of python3/exiftool.
  */
 
@@ -22,8 +23,8 @@ import fs from "fs/promises";
 import crypto from "crypto";
 import type { FraudIndicator } from "./types";
 
-const MAX_PHOTOS_TO_ANALYSE = 3;   // Cap at 3 to keep pipeline latency bounded
-const DOWNLOAD_TIMEOUT_MS = 10_000; // 10s download timeout per photo
+const MAX_PHOTOS_TO_ANALYSE = 10;   // Analyse up to 10 photos per claim
+const DOWNLOAD_TIMEOUT_MS = 30_000; // 30s covers large S3 photos (3-8MB)
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -61,6 +62,8 @@ interface RawAnalysisResult {
   manipulation_indicators: { manipulation_score?: number };
   image_hash: string;
   recommendations: string[];
+  /** AI vision description of the damage visible in this photo */
+  ai_vision_description?: string;
   error?: string;
 }
 
@@ -70,33 +73,57 @@ interface RawAnalysisResult {
 
 /**
  * Download a remote image to a temp file.
- * Returns the local path on success, throws on failure.
+ * The AbortController covers BOTH the connection AND the body read —
+ * this prevents "This operation was aborted" errors when S3 is slow.
  */
-async function downloadToTemp(url: string): Promise<string> {
+async function downloadToTemp(url: string): Promise<{ tmpPath: string; buffer: Buffer }> {
   const ext = path.extname(url.split("?")[0]) || ".jpg";
-  const tmpPath = path.join(os.tmpdir(), `kinga-photo-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`);
+  const tmpPath = path.join(
+    os.tmpdir(),
+    `kinga-photo-${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`
+  );
 
   const controller = new AbortController();
+  // Keep the timer active through BOTH fetch() and arrayBuffer() reads.
+  // Do NOT clear it until after the body is fully read.
   const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
 
+  let buffer: Buffer;
   try {
     const response = await fetch(url, { signal: controller.signal });
     if (!response.ok) {
+      clearTimeout(timer);
       throw new Error(`HTTP ${response.status} downloading photo`);
     }
-    const buffer = Buffer.from(await response.arrayBuffer());
-    await fs.writeFile(tmpPath, buffer);
-    return tmpPath;
-  } finally {
+    // Body read — abort controller still active here
+    let arrayBuf: ArrayBuffer;
+    try {
+      arrayBuf = await response.arrayBuffer();
+    } catch (bodyErr: any) {
+      clearTimeout(timer);
+      if (bodyErr.name === "AbortError") {
+        throw new Error(`Photo download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s (body stalled)`);
+      }
+      throw bodyErr;
+    }
     clearTimeout(timer);
+    buffer = Buffer.from(arrayBuf);
+    await fs.writeFile(tmpPath, buffer);
+    return { tmpPath, buffer };
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err.name === "AbortError") {
+      throw new Error(`Photo download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s (connection)`);
+    }
+    throw err;
   }
 }
 
 /**
- * Run pure Node.js EXIF analysis on a local image file.
+ * Run pure Node.js EXIF analysis on a buffer.
  * Uses exifr for EXIF extraction and crypto for image hashing.
  */
-async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
+async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
   const flags: string[] = [];
   const recommendations: string[] = [];
   let exifData: Record<string, string> = {};
@@ -104,13 +131,11 @@ async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
   let captureDateTime: string | null = null;
   let manipulationScore = 0;
 
-  // Read file buffer for hashing
-  const buffer = await fs.readFile(localPath);
+  // Image hash
   const imageHash = crypto.createHash("sha256").update(buffer).digest("hex");
 
   // EXIF extraction via exifr (pure JS, no native binaries)
   try {
-    // Dynamic import to handle ESM/CJS compatibility
     const exifr = await import("exifr");
     const parse = exifr.default?.parse ?? exifr.parse;
     const exif = await parse(buffer, {
@@ -148,19 +173,31 @@ async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
         captureDateTime = dt instanceof Date ? dt.toISOString() : String(dt);
       }
 
+      // Camera make/model — useful for authenticity
+      const make = exif.Make ?? exif.CameraMake;
+      const model = exif.Model ?? exif.CameraModel;
+      if (make) exifData["_camera_make"] = String(make);
+      if (model) exifData["_camera_model"] = String(model);
+
       // Editing software detection
       const software = exif.Software ?? exif.ProcessingSoftware ?? exif.CreatorTool;
       if (software) {
         const sw = String(software).toLowerCase();
-        const EDITING_TOOLS = ["photoshop", "lightroom", "gimp", "snapseed", "facetune", "picsart", "pixelmator", "affinity", "canva", "vsco"];
+        const EDITING_TOOLS = [
+          "photoshop", "lightroom", "gimp", "snapseed", "facetune",
+          "picsart", "pixelmator", "affinity", "canva", "vsco",
+          "adobe", "capture one", "darktable", "rawtherapee",
+        ];
         if (EDITING_TOOLS.some(t => sw.includes(t))) {
           flags.push(`MANIPULATION: Image edited with ${software}`);
           manipulationScore += 0.6;
-          recommendations.push(`Photo metadata indicates editing software (${software}). Manual review of image authenticity recommended.`);
+          recommendations.push(
+            `Photo metadata indicates editing software (${software}). Manual review of image authenticity recommended.`
+          );
         }
       }
 
-      // Check for stripped EXIF (very few fields = likely stripped)
+      // Stripped EXIF detection
       const fieldCount = Object.keys(exifData).length;
       if (fieldCount < 3) {
         flags.push("SUSPICIOUS: No EXIF metadata — image may have been stripped or is a screenshot");
@@ -168,13 +205,23 @@ async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
         recommendations.push("Photo has minimal/no EXIF metadata. This is common after editing or screenshot capture.");
       }
 
-      // Check for future dates (impossible capture time)
+      // Future date detection
       if (captureDateTime) {
         const captureDate = new Date(captureDateTime);
         const now = new Date();
         if (captureDate > now) {
           flags.push("SUSPICIOUS: Photo capture date is in the future — metadata may be manipulated");
           manipulationScore += 0.5;
+        }
+      }
+
+      // Thumbnail mismatch heuristic — if thumbnail exists but main image is very different size
+      if (exif.ThumbnailLength && buffer.length > 0) {
+        const thumbRatio = Number(exif.ThumbnailLength) / buffer.length;
+        if (thumbRatio > 0.8) {
+          // Thumbnail is suspiciously large relative to main image — possible splice
+          flags.push("SUSPICIOUS: Thumbnail-to-image size ratio is abnormal — possible image splice");
+          manipulationScore += 0.25;
         }
       }
 
@@ -186,7 +233,6 @@ async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
       recommendations.push("Photo has no EXIF metadata. This is common after editing or screenshot capture.");
     }
   } catch (exifErr) {
-    // EXIF extraction failed — treat as missing EXIF
     flags.push("SUSPICIOUS: No EXIF metadata — EXIF extraction failed");
     flags.push("WARNING: No GPS data in photo EXIF — location cannot be verified");
     manipulationScore += 0.2;
@@ -209,14 +255,72 @@ async function runNodeForensics(localPath: string): Promise<RawAnalysisResult> {
 }
 
 /**
- * Analyse a single photo URL.
- * Downloads to temp, runs Node.js forensics, cleans up temp file.
+ * Run AI vision analysis on a photo URL.
+ * Asks the LLM to describe visible damage, assess authenticity, and flag anomalies.
+ * Returns null on failure (non-blocking).
  */
-async function analysePhoto(url: string): Promise<PhotoForensicsResult> {
+async function runAiVisionAnalysis(photoUrl: string): Promise<string | null> {
+  try {
+    const { invokeLLM } = await import("../_core/llm");
+    const result = await invokeLLM({
+      messages: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: { url: photoUrl, detail: "high" },
+            },
+            {
+              type: "text",
+              text: `You are a motor vehicle insurance claims photo analyst. Analyse this damage photo and provide:
+1. DAMAGE DESCRIPTION: Describe all visible damage in detail (location on vehicle, severity, type of damage).
+2. DAMAGE CONSISTENCY: Does the damage pattern appear consistent with a real collision/incident? Note any anomalies (e.g. rust under fresh damage, mismatched paint, pre-existing damage).
+3. PHOTO AUTHENTICITY: Any signs the photo is staged, digitally altered, or taken at a different time/location than claimed?
+4. DAMAGE SEVERITY: Estimate severity (minor/moderate/severe/total loss).
+5. AFFECTED PARTS: List specific vehicle parts affected.
+
+Be concise but thorough. Flag any fraud indicators clearly.`,
+            },
+          ],
+        },
+      ],
+      timeoutMs: 45_000,
+    });
+    const content = result?.choices?.[0]?.message?.content;
+    if (typeof content === "string" && content.trim().length > 10) {
+      return content.trim();
+    }
+    return null;
+  } catch (err: any) {
+    // Non-blocking — vision analysis failure does not fail the photo
+    console.warn(`[PhotoForensics] AI vision analysis failed for photo: ${err?.message ?? err}`);
+    return null;
+  }
+}
+
+/**
+ * Analyse a single photo URL.
+ * Downloads to temp, runs EXIF forensics + AI vision analysis, cleans up.
+ */
+async function analysePhoto(
+  url: string,
+  runVision: boolean
+): Promise<PhotoForensicsResult> {
   let tmpPath: string | null = null;
   try {
-    tmpPath = await downloadToTemp(url);
-    const result = await runNodeForensics(tmpPath);
+    const { tmpPath: tp, buffer } = await downloadToTemp(url);
+    tmpPath = tp;
+    const result = await runNodeForensics(buffer);
+
+    // AI vision analysis — runs in parallel with cleanup, non-blocking
+    if (runVision) {
+      const visionDesc = await runAiVisionAnalysis(url);
+      if (visionDesc) {
+        result.ai_vision_description = visionDesc;
+      }
+    }
+
     return { url, analysisResult: result };
   } catch (err: any) {
     return { url, analysisResult: null, error: String(err?.message ?? err) };
@@ -233,10 +337,15 @@ async function analysePhoto(url: string): Promise<PhotoForensicsResult> {
 
 /**
  * Run photo forensics on up to MAX_PHOTOS_TO_ANALYSE damage photo URLs.
- * Returns a summary with per-photo results and aggregated fraud indicators.
+ * Photos are processed sequentially to avoid S3 rate limits and memory spikes.
+ *
+ * @param photoUrls   List of photo URLs to analyse.
+ * @param runVision   Whether to run AI vision analysis per photo (default: true).
+ *                    Set to false in tests or when LLM budget is constrained.
  */
 export async function runPhotoForensics(
-  photoUrls: string[]
+  photoUrls: string[],
+  runVision = true
 ): Promise<PhotoForensicsSummary> {
   if (photoUrls.length === 0) {
     return {
@@ -249,17 +358,14 @@ export async function runPhotoForensics(
     };
   }
 
-  // Cap to avoid pipeline latency blow-up
   const urlsToProcess = photoUrls.slice(0, MAX_PHOTOS_TO_ANALYSE);
+  const photos: PhotoForensicsResult[] = [];
 
-  // Analyse all photos concurrently
-  const settled = await Promise.allSettled(urlsToProcess.map(analysePhoto));
-
-  const photos: PhotoForensicsResult[] = settled.map((s) =>
-    s.status === "fulfilled"
-      ? s.value
-      : { url: "unknown", analysisResult: null, error: String((s as any).reason) }
-  );
+  // Sequential processing — avoids concurrent S3 downloads overwhelming the pipeline
+  for (const url of urlsToProcess) {
+    const result = await analysePhoto(url, runVision);
+    photos.push(result);
+  }
 
   // ── Aggregate indicators ──────────────────────────────────────────────────
   const indicators: FraudIndicator[] = [];
@@ -270,7 +376,9 @@ export async function runPhotoForensics(
   let manipulationCount = 0;
   let noExifCount = 0;
   let noGpsCount = 0;
-  let editingSoftwareFlags: string[] = [];
+  const editingSoftwareFlags: string[] = [];
+  let futureDateCount = 0;
+  let thumbnailAnomalyCount = 0;
 
   for (const photo of photos) {
     if (!photo.analysisResult || photo.error) {
@@ -286,11 +394,10 @@ export async function runPhotoForensics(
     const manScore = r.manipulation_indicators?.manipulation_score ?? 0;
     if (manScore > 0.5) manipulationCount++;
 
-    const hasNoExif = r.flags.some(f => f.startsWith("SUSPICIOUS: No EXIF"));
-    if (hasNoExif) noExifCount++;
-
-    const hasNoGps = r.flags.some(f => f.startsWith("WARNING: No GPS"));
-    if (hasNoGps) noGpsCount++;
+    if (r.flags.some(f => f.startsWith("SUSPICIOUS: No EXIF"))) noExifCount++;
+    if (r.flags.some(f => f.startsWith("WARNING: No GPS"))) noGpsCount++;
+    if (r.flags.some(f => f.includes("future"))) futureDateCount++;
+    if (r.flags.some(f => f.includes("Thumbnail"))) thumbnailAnomalyCount++;
 
     const editFlags = r.flags.filter(f => f.startsWith("MANIPULATION: Image edited"));
     editingSoftwareFlags.push(...editFlags);
@@ -299,17 +406,15 @@ export async function runPhotoForensics(
   // ── Build FraudIndicator entries ──────────────────────────────────────────
 
   if (analysedCount > 0) {
-    // 1. Manipulation detected in photos
     if (manipulationCount > 0) {
       indicators.push({
         indicator: "photo_manipulation_detected",
         category: "photo_forensics",
         score: Math.min(25, manipulationCount * 12),
-        description: `${manipulationCount} of ${analysedCount} analysed photo(s) show signs of digital manipulation (cloning, splicing, or abnormal entropy).`,
+        description: `${manipulationCount} of ${analysedCount} analysed photo(s) show signs of digital manipulation.`,
       });
     }
 
-    // 2. Editing software in EXIF
     if (editingSoftwareFlags.length > 0) {
       const unique = [...new Set(editingSoftwareFlags)];
       indicators.push({
@@ -320,7 +425,24 @@ export async function runPhotoForensics(
       });
     }
 
-    // 3. No EXIF data (stripped — common after editing)
+    if (futureDateCount > 0) {
+      indicators.push({
+        indicator: "photo_future_capture_date",
+        category: "photo_forensics",
+        score: 20,
+        description: `${futureDateCount} photo(s) have capture dates in the future — metadata may be manipulated.`,
+      });
+    }
+
+    if (thumbnailAnomalyCount > 0) {
+      indicators.push({
+        indicator: "photo_thumbnail_anomaly",
+        category: "photo_forensics",
+        score: 10,
+        description: `${thumbnailAnomalyCount} photo(s) have abnormal thumbnail-to-image size ratios — possible image splice.`,
+      });
+    }
+
     if (noExifCount === analysedCount) {
       indicators.push({
         indicator: "photos_no_exif_data",
@@ -337,7 +459,6 @@ export async function runPhotoForensics(
       });
     }
 
-    // 4. No GPS data
     if (!anyGpsPresent && noGpsCount > 0) {
       indicators.push({
         indicator: "photos_no_gps_data",
@@ -348,7 +469,6 @@ export async function runPhotoForensics(
     }
   }
 
-  // 5. Photo analysis errors (partial data)
   if (errorCount > 0 && analysedCount === 0) {
     indicators.push({
       indicator: "photo_forensics_failed",

@@ -2132,6 +2132,12 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                             <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{Math.round((r.manipulation_indicators.manipulation_score ?? 0) * 100)}%</span>
                           </div>
                         )}
+                        {r.ai_vision_description && (
+                          <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
+                            <p className="text-xs font-semibold mb-1" style={{ color: "var(--muted-foreground)" }}>AI DAMAGE ANALYSIS</p>
+                            <p className="text-xs whitespace-pre-wrap" style={{ color: "var(--foreground)", lineHeight: 1.5 }}>{r.ai_vision_description}</p>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

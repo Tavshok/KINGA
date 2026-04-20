@@ -563,6 +563,7 @@ export async function runFraudAnalysisStage(
               manipulation_indicators: p.analysisResult.manipulation_indicators,
               image_hash: p.analysisResult.image_hash,
               recommendations: p.analysisResult.recommendations,
+              ai_vision_description: p.analysisResult.ai_vision_description,
             } : null,
           })),
         };
