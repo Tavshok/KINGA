@@ -1218,15 +1218,19 @@ export async function triggerAiAssessment(claimId: number) {
     estimatedCost,
     updatedAt: new Date().toISOString(),
   };
+  // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors
+  const trunc = (val: string | null | undefined, maxLen: number): string | null =>
+    val ? val.substring(0, maxLen) : null;
+
   // Backfill vehicle info from pipeline extraction (only if not already set)
   if (claimRecord?.vehicle) {
     const v = claimRecord.vehicle;
-    if (v.make) claimUpdate.vehicleMake = v.make;
-    if (v.model) claimUpdate.vehicleModel = v.model;
+    if (v.make) claimUpdate.vehicleMake = trunc(v.make, 100);
+    if (v.model) claimUpdate.vehicleModel = trunc(v.model, 100);
     if (v.year) claimUpdate.vehicleYear = Number(v.year) || null;
-    if (v.registration) claimUpdate.vehicleRegistration = v.registration;
-    if (v.vin) claimUpdate.vehicleVin = v.vin;
-    if (v.color) claimUpdate.vehicleColor = v.color;
+    if (v.registration) claimUpdate.vehicleRegistration = trunc(v.registration, 50);
+    if (v.vin) claimUpdate.vehicleVin = trunc(v.vin, 50);
+    if (v.color) claimUpdate.vehicleColor = trunc(v.color, 50);
   }
   // Backfill incident info from pipeline extraction
   if (claimRecord?.damage) {
@@ -1238,18 +1242,18 @@ export async function triggerAiAssessment(claimId: number) {
     const ins = claimRecord.insuranceContext;
     // Only write policyNumber if it looks like a real policy number (not a product type)
     if (ins.policyNumber && !/^(EXCESS|COMPREHENSIVE|THIRD.PARTY|FIRE|MOTOR|THEFT)$/i.test(ins.policyNumber.trim())) {
-      claimUpdate.policyNumber = ins.policyNumber;
+      claimUpdate.policyNumber = trunc(ins.policyNumber, 100);
     }
     if (ins.excessAmountCents != null) claimUpdate.excessAmountCents = ins.excessAmountCents;
-    if (ins.claimReference) claimUpdate.claimReference = ins.claimReference;
-    if (ins.insurerName) claimUpdate.insurerName = ins.insurerName;
+    if (ins.claimReference) claimUpdate.claimReference = trunc(ins.claimReference, 100);
+    if (ins.insurerName) claimUpdate.insurerName = trunc(ins.insurerName, 255);
     // productType — write the insurance product type (e.g. 'EXCESS', 'COMPREHENSIVE') separately from policyNumber
     if (ins.productType) {
-      (claimUpdate as any).productType = ins.productType;
+      (claimUpdate as any).productType = trunc(ins.productType, 100);
       (claimUpdate as any).productTypeSource = 'stage_3_llm';
     } else if (ins.policyNumber && /^(EXCESS|COMPREHENSIVE|THIRD.PARTY|FIRE|MOTOR|THEFT)$/i.test(ins.policyNumber.trim())) {
       // Fallback: if policyNumber looks like a product type, rescue it here
-      (claimUpdate as any).productType = ins.policyNumber.trim().toUpperCase();
+      (claimUpdate as any).productType = trunc(ins.policyNumber.trim().toUpperCase(), 100);
       (claimUpdate as any).productTypeSource = 'stage_3_llm_rescue';
     }
   }
@@ -1286,12 +1290,14 @@ export async function triggerAiAssessment(claimId: number) {
       if (mapped) claimUpdate.incidentType = mapped;
     }
   }
-  // Mark success BEFORE the DB write so the finally safety-net does not
-  // reset this claim even if there is a brief delay in the DB commit.
-  pipelineSucceeded = true;
+  // Mark success AFTER the DB write so that if the write fails the safety-net
+  // can correctly reset the claim to intake_pending for retry.
   console.log(`[AI Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
   try {
     await db.update(claims).set(claimUpdate).where(eq(claims.id, claimId));
+    // Only mark success once the DB write has committed — prevents the claim
+    // from being stuck in assessment_in_progress if the write fails.
+    pipelineSucceeded = true;
   } catch (claimUpdateErr) {
     console.error(`[AI Assessment] CLAIM UPDATE FAILED for claim ${claimId}:`, claimUpdateErr);
     throw claimUpdateErr;

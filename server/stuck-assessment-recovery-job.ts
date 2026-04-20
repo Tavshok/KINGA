@@ -35,6 +35,18 @@
  *     otherwise re-trigger.
  *     Action: Set status='assessment_complete' or re-trigger.
  *
+ *   CASE 6 — assessment_in_progress, documentProcessingStatus='extracting'|'analysing', >10 min
+ *     Pipeline set dps to an active transient state but then died (DB error, OOM, unhandled
+ *     promise rejection) without triggering the safety net in db.ts. The startup cleanup
+ *     handles this on server restart, but if the server stays up the claim is stuck forever.
+ *     Action: Reset to pending and re-trigger.
+ *
+ *   CASE 7 — assessment_in_progress, any dps, >30 min
+ *     Hard wall-clock guard. No matter what state the claim is in, if it has been in
+ *     assessment_in_progress for more than 30 minutes without completing, something is
+ *     fundamentally wrong. Reset and re-trigger.
+ *     Action: Reset to pending and re-trigger.
+ *
  * NOTE: The infinite loop that previously occurred when PipelineIncompleteError was thrown
  * is now fixed at the source in db.ts — the error handler now correctly sets
  * documentProcessingStatus='failed' and status='intake_pending', so claims no longer
@@ -48,6 +60,7 @@ import { eq, and, lt, ne, or, notInArray, inArray } from "drizzle-orm";
 const FIVE_MINUTES_MS   =  5 * 60 * 1000;
 const TEN_MINUTES_MS    = 10 * 60 * 1000;
 const TWENTY_MINUTES_MS = 20 * 60 * 1000;
+const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 /**
  * Startup cleanup — runs ONCE on server start.
