@@ -355,6 +355,102 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
+    // ── CASE 6: assessment_in_progress + dps='extracting'|'analysing' + >10 min ──────────────
+    // Pipeline set dps to an active transient state but then died (DB error, OOM, unhandled
+    // promise rejection) without triggering the safety net. Startup cleanup handles this on
+    // server restart, but if the server stays up the claim is stuck forever.
+    const thirtyMinutesAgo = new Date(now.getTime() - THIRTY_MINUTES_MS).toISOString();
+    const stuckInActiveTransient = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.status, "assessment_in_progress"),
+            inArray(claims.documentProcessingStatus, ["extracting", "analysing"]),
+            lt(claims.updatedAt, tenMinutesAgo)
+          )
+        )
+        .limit(20);
+    }, 3, 2000, 'StuckRecovery case-6 query');
+
+    if (stuckInActiveTransient.length > 0) {
+      console.log(
+        `[StuckRecovery] Found ${stuckInActiveTransient.length} claim(s) stuck in active transient state ` +
+        `(extracting/analysing) >10min — resetting and re-triggering`
+      );
+      for (const claim of stuckInActiveTransient) {
+        try {
+          await withDbRetry(async () => {
+            const db = await getDb();
+            if (!db) return;
+            return db.update(claims).set({
+              aiAssessmentTriggered: 0,
+              aiAssessmentCompleted: 0,
+              documentProcessingStatus: "pending",
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, claim.id));
+          }, 3, 2000, `StuckRecovery case-6 reset claim ${claim.id}`);
+          triggerAiAssessment(claim.id).catch((err: unknown) => {
+            console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
+          });
+          console.log(`[StuckRecovery] Re-triggered claim ${claim.claimNumber} (id=${claim.id}) [stuck in ${claim.documentProcessingStatus} >10min]`);
+          totalFixed++;
+        } catch (err) {
+          console.error(`[StuckRecovery] Failed to reset/re-trigger claim ${claim.id}:`, err);
+        }
+      }
+    }
+
+    // ── CASE 7: assessment_in_progress + any dps + >30 min (hard wall-clock guard) ──────────
+    // No matter what state the claim is in, if it has been in assessment_in_progress for
+    // more than 30 minutes without completing, something is fundamentally wrong.
+    // This is the last-resort safety net that catches any edge case not covered above.
+    const hardWallClock = await withDbRetry(async () => {
+      const db = await getDb();
+      if (!db) return [];
+      return db
+        .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
+        .from(claims)
+        .where(
+          and(
+            eq(claims.status, "assessment_in_progress"),
+            eq(claims.aiAssessmentCompleted, 0),
+            lt(claims.updatedAt, thirtyMinutesAgo)
+          )
+        )
+        .limit(20);
+    }, 3, 2000, 'StuckRecovery case-7 query');
+
+    if (hardWallClock.length > 0) {
+      console.log(
+        `[StuckRecovery] CASE 7: Found ${hardWallClock.length} claim(s) stuck in assessment_in_progress ` +
+        `for >30 minutes — hard reset and re-trigger`
+      );
+      for (const claim of hardWallClock) {
+        try {
+          await withDbRetry(async () => {
+            const db = await getDb();
+            if (!db) return;
+            return db.update(claims).set({
+              status: "intake_pending",
+              workflowState: "intake_queue",
+              documentProcessingStatus: "failed",
+              aiAssessmentTriggered: 0,
+              aiAssessmentCompleted: 0,
+              updatedAt: new Date().toISOString(),
+            }).where(eq(claims.id, claim.id));
+          }, 3, 2000, `StuckRecovery case-7 reset claim ${claim.id}`);
+          console.log(`[StuckRecovery] CASE 7: Hard-reset claim ${claim.claimNumber} (id=${claim.id}) [stuck >30min in ${claim.documentProcessingStatus}] → intake_pending`);
+          totalFixed++;
+        } catch (err) {
+          console.error(`[StuckRecovery] Failed to hard-reset claim ${claim.id}:`, err);
+        }
+      }
+    }
+
     if (totalFixed === 0) {
       console.log("[StuckRecovery] No stuck claims found.");
     } else {

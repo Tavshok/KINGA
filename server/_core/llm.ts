@@ -340,20 +340,34 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   } catch (fetchErr: any) {
     clearTimeout(timeoutId);
     if (fetchErr.name === "AbortError") {
-      throw new Error(`LLM invoke timed out after ${callTimeoutMs / 1000} seconds`);
+      throw new Error(`LLM invoke timed out after ${callTimeoutMs / 1000} seconds (connection)`);
     }
     throw fetchErr;
   }
-  clearTimeout(timeoutId);
 
+  // NOTE: Do NOT clearTimeout here. Keep the AbortController active through
+  // response.json() so a stalled response body (headers received but body
+  // never completes) is also aborted by the same timeout.
   if (!response.ok) {
+    clearTimeout(timeoutId);
     const errorText = await response.text();
     throw new Error(
       `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
     );
   }
 
-  return (await response.json()) as InvokeResult;
+  let result: InvokeResult;
+  try {
+    result = (await response.json()) as InvokeResult;
+  } catch (bodyErr: any) {
+    clearTimeout(timeoutId);
+    if (bodyErr.name === "AbortError") {
+      throw new Error(`LLM invoke timed out after ${callTimeoutMs / 1000} seconds (response body stalled)`);
+    }
+    throw bodyErr;
+  }
+  clearTimeout(timeoutId);
+  return result;
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

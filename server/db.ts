@@ -1259,19 +1259,41 @@ export async function triggerAiAssessment(claimId: number) {
   }
   // Backfill data quality score from claimRecord
   if (claimRecord?.dataQuality?.completenessScore != null) {
-    claimUpdate.dataCompletenessScore = claimRecord.dataQuality.completenessScore;
+    // decimal(5,2) max = 999.99 — clamp to avoid truncation
+    claimUpdate.dataCompletenessScore = Math.min(Number(claimRecord.dataQuality.completenessScore), 999.99);
   }
   // Backfill speed from accidentDetails or narrativeAnalysis
   const resolvedSpeed = claimRecord?.accidentDetails?.estimatedSpeedKmh
     ?? (claimRecord as any)?._narrativeSpeed
     ?? null;
   if (resolvedSpeed != null && resolvedSpeed > 0) {
-    claimUpdate.estimatedSpeedKmh = resolvedSpeed;
+    // decimal(6,1) max = 99999.9 — clamp to avoid truncation
+    claimUpdate.estimatedSpeedKmh = Math.min(Number(resolvedSpeed), 99999.9);
   }
   // incidentType lives in accidentDetails (DamageRecord has no incidentType field)
   if (claimRecord?.accidentDetails) {
     const a = claimRecord.accidentDetails;
-    if (a.date) claimUpdate.incidentDate = a.date;
+    if (a.date) {
+      // The claims.incident_date column is a MySQL TIMESTAMP — it requires a
+      // full datetime string. The LLM often returns date-only strings like
+      // "2026-04-15" which MySQL rejects with "Data truncated". Normalize here.
+      const rawDate = String(a.date).trim();
+      // Accept YYYY-MM-DD, YYYY/MM/DD, or full ISO datetime
+      const dateOnlyMatch = rawDate.match(/^(\d{4}[-\/]\d{2}[-\/]\d{2})$/);
+      if (dateOnlyMatch) {
+        claimUpdate.incidentDate = `${dateOnlyMatch[1].replace(/\//g, '-')} 00:00:00`;
+      } else if (/^\d{4}-\d{2}-\d{2}T/.test(rawDate)) {
+        // ISO 8601 — convert to MySQL datetime format
+        const d = new Date(rawDate);
+        if (!isNaN(d.getTime())) {
+          claimUpdate.incidentDate = d.toISOString().slice(0, 19).replace('T', ' ');
+        }
+      } else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}/.test(rawDate)) {
+        // Already a MySQL datetime string
+        claimUpdate.incidentDate = rawDate.slice(0, 19);
+      }
+      // If none of the patterns match, skip writing incidentDate to avoid truncation
+    }
     if (a.incidentType && a.incidentType !== 'unknown') {
       // Map CanonicalIncidentType → DB enum (all canonical types supported)
       const typeMap: Record<string, string> = {
