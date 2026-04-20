@@ -134,7 +134,9 @@ export interface FCDIResult {
 // ─── Main function ────────────────────────────────────────────────────────────
 
 export function computeFCDI(input: FCDIInput): FCDIResult {
-  const { stages, totalAssumptionCount, domainPenalties = [] } = input;
+  const { totalAssumptionCount, domainPenalties = [] } = input;
+  // Guard: stages may be null/undefined if pipeline crashed before recording any stage results
+  const stages: FCDIInput['stages'] = input.stages ?? {};
 
   let fallbackCount = 0;
   let timeoutCount = 0;

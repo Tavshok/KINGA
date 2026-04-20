@@ -34,15 +34,60 @@
  *     set to assessment_complete. Treat as Case 3 if ai_assessment_completed=1,
  *     otherwise re-trigger.
  *     Action: Set status='assessment_complete' or re-trigger.
+ *
+ * NOTE: The infinite loop that previously occurred when PipelineIncompleteError was thrown
+ * is now fixed at the source in db.ts — the error handler now correctly sets
+ * documentProcessingStatus='failed' and status='intake_pending', so claims no longer
+ * get stuck in 'parsing' state indefinitely.
  */
 
 import { getDb, withDbRetry, triggerAiAssessment } from "./db";
 import { claims } from "../drizzle/schema";
-import { eq, and, lt, ne, or } from "drizzle-orm";
+import { eq, and, lt, ne, or, notInArray, inArray } from "drizzle-orm";
 
 const FIVE_MINUTES_MS   =  5 * 60 * 1000;
 const TEN_MINUTES_MS    = 10 * 60 * 1000;
 const TWENTY_MINUTES_MS = 20 * 60 * 1000;
+
+/**
+ * Startup cleanup — runs ONCE on server start.
+ * Any claim still in an active transient state (extracting/analysing/parsing)
+ * from a previous server run is guaranteed dead. Reset them immediately so
+ * the recovery job can re-trigger them on its first cycle.
+ */
+export async function runStartupCleanup(): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const orphaned = await db
+      .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
+      .from(claims)
+      .where(
+        and(
+          eq(claims.status, "assessment_in_progress" as any),
+          inArray(claims.documentProcessingStatus, ["extracting", "analysing", "parsing"]),
+          lt(claims.updatedAt, fiveMinutesAgo)
+        )
+      )
+      .limit(50);
+    if (orphaned.length === 0) {
+      console.log("[StartupCleanup] No orphaned pipeline claims found.");
+      return;
+    }
+    console.log(`[StartupCleanup] Found ${orphaned.length} orphaned claim(s) in active transient state — resetting to pending.`);
+    for (const claim of orphaned) {
+      await db.update(claims).set({
+        documentProcessingStatus: "pending",
+        aiAssessmentTriggered: 0,
+        updatedAt: new Date().toISOString(),
+      }).where(eq(claims.id, claim.id));
+      console.log(`[StartupCleanup] Reset claim ${claim.claimNumber} (id=${claim.id}) from '${claim.documentProcessingStatus}' → 'pending'`);
+    }
+  } catch (err) {
+    console.error("[StartupCleanup] Failed:", err);
+  }
+}
 
 export async function runStuckAssessmentRecoveryJob(): Promise<void> {
   const now = new Date();
@@ -96,9 +141,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 5B: assessment_in_progress + triggered=1 + completed=0 + dps≠'parsing' + >10 min ──
+    // ── CASE 5B: assessment_in_progress + triggered=1 + completed=0 + dps in terminal state + >10 min ──
     // Pipeline ran (dps was updated away from 'parsing') but never completed.
-    // Re-trigger the pipeline.
+    // IMPORTANT: Only re-trigger if dps is in a terminal/idle state.
+    // 'extracting' and 'analysing' mean the pipeline is still actively running — do NOT interrupt.
     const ranButIncomplete = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -110,7 +156,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             eq(claims.status, "assessment_in_progress"),
             eq(claims.aiAssessmentTriggered, 1),
             eq(claims.aiAssessmentCompleted, 0),
-            ne(claims.documentProcessingStatus, "parsing"),
+            // Exclude transient active states — pipeline is still running in these states
+            notInArray(claims.documentProcessingStatus, ["parsing", "extracting", "analysing", "pending"]),
             lt(claims.updatedAt, tenMinutesAgo)
           )
         )
@@ -186,6 +233,8 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
 
     // ── CASE 2: assessment_in_progress + triggered=1 + completed=0 + dps='parsing' + >20 min ──
     // Pipeline started but timed out or crashed. Re-trigger.
+    // NOTE: With the PipelineIncompleteError fix in db.ts, this case should now be rare —
+    // pipeline failures correctly set dps='failed' instead of leaving it as 'parsing'.
     const timedOut = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -237,7 +286,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 4: intake_pending + triggered=1 + dps='failed' + >5 min ─────────
+    // ── CASE 4: intake_pending + triggered=1 + dps='failed'|'parsing' + >5 min ─────────
     // Safety net reset the claim to intake_pending after a crash but left
     // ai_assessment_triggered=1. Re-trigger the pipeline.
     const crashedAndReset = await withDbRetry(async () => {
@@ -306,12 +355,15 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
 /**
  * Start the stuck assessment recovery background job.
  * Runs every 10 minutes, with an immediate run on startup.
+ * Also runs a one-time startup cleanup to reset orphaned pipeline claims.
  */
 export function startStuckAssessmentRecoveryJob(): void {
   console.log("[StuckRecovery] Initializing stuck assessment recovery job (every 10 minutes)...");
-
-  // Run once immediately on startup to clear any claims stuck before restart
-  runStuckAssessmentRecoveryJob().catch(err => {
+  // Run startup cleanup FIRST to reset any orphaned claims from previous server run
+  runStartupCleanup().then(() => {
+    // Then run the full recovery job immediately
+    return runStuckAssessmentRecoveryJob();
+  }).catch(err => {
     console.error("[StuckRecovery] Initial run failed:", err);
   });
 

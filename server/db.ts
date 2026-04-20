@@ -733,10 +733,17 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (pipelineErr) {
     if (pipelineTimeoutId) clearTimeout(pipelineTimeoutId);
     if (pipelineErr instanceof PipelineIncompleteError) {
-      // Route to PIPELINE_INCOMPLETE state — do not write a report
+      // Route to PIPELINE_INCOMPLETE state — do not write a report.
+      // CRITICAL: Must update documentProcessingStatus, status, and workflowState
+      // to exit the transient 'parsing' state. Without this, the stuck recovery
+      // job re-triggers the pipeline every 20 minutes (infinite loop).
       console.error(`[AI Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
       await db.update(claims).set({
         aiAssessmentStatus: "failed",
+        documentProcessingStatus: "failed",
+        status: "intake_pending",
+        workflowState: "intake_queue",
+        aiAssessmentTriggered: 0,
         updatedAt: new Date(),
       }).where(eq(claims.id, claimId));
       // Upsert a minimal ai_assessment record so the exception queue can surface it
