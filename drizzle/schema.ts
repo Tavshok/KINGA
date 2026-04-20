@@ -864,10 +864,6 @@ export const claims = mysqlTable("claims", {
 	excessAmountCents: int("excess_amount_cents"),
 	// Pipeline backfill: claim reference number from the insurer's own system (Stage 3)
 	claimReference: varchar("claim_reference", { length: 100 }),
-	// Pipeline Reliability Guard: number of times Stage 2 extraction has been retried after hard failure
-	extractionRetryCount: int("extraction_retry_count").default(0).notNull(),
-	// Pipeline Reliability Guard: timestamp of the last Stage 2 hard failure (0 OCR text / empty extraction)
-	extractionFailedAt: timestamp("extraction_failed_at", { mode: 'string' }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),

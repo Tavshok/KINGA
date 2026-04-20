@@ -3183,8 +3183,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
         // Parse forensicAnalysis JSON to extract preGenerationCheck contradictions (C-5 fix)
         let parsedPreGenerationCheck: any = null;
         try {
-          if ((assessment as any).forensicAnalysis) {
-            const fa = JSON.parse((assessment as any).forensicAnalysis as string);
+          if ((assessment as any).forensicAnalysisJson) {
+            const fa = JSON.parse((assessment as any).forensicAnalysisJson as string);
             parsedPreGenerationCheck = fa?.preGenerationCheck ?? null;
           }
         } catch { /* non-fatal */ }
@@ -3241,14 +3241,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           // to the CongruencyPanel in ForensicAuditReport
           _forensicAnalysis: (() => {
             try {
-              if ((assessment as any).forensicAnalysis) {
-                return JSON.parse((assessment as any).forensicAnalysis as string);
+              if ((assessment as any).forensicAnalysisJson) {
+                return JSON.parse((assessment as any).forensicAnalysisJson as string);
               }
             } catch { /* non-fatal */ }
             return null;
           })(),
-          // Pipeline Run Summary — exposes per-stage status/durationMs for UI status dots
-          _pipelineRunSummary: prs,
           // Phase 4 — Decision Narrative View data
           _ifeResult: parsedIfeResult,
           _doeResult: parsedDoeResult,
@@ -4206,57 +4204,6 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             extractionConfidence: s.extractionConfidence,
           },
         }));
-      }),
-
-    // ── PDF Report Export ────────────────────────────────────────────────────
-    // Generates a structured multi-page forensic PDF from the latest assessment.
-    // Each section starts on a clean page. Returns base64-encoded PDF buffer.
-    exportPdf: protectedProcedure
-      .input(z.object({ claimId: z.number() }))
-      .query(async ({ ctx, input }) => {
-        if (!ctx.user) throw new TRPCError({ code: "UNAUTHORIZED" });
-        const tenantId = ctx.user.role === "admin" ? undefined : (ctx.user.tenantId || "default");
-        const claim = await getClaimById(input.claimId, tenantId);
-        if (!claim) throw new TRPCError({ code: "NOT_FOUND", message: "Claim not found" });
-        const assessment = await getAiAssessmentByClaimId(input.claimId, tenantId);
-        if (!assessment) throw new TRPCError({ code: "NOT_FOUND", message: "No AI assessment found for this claim" });
-
-        let forensicAnalysis: Record<string, unknown> = {};
-        let pipelineRunSummary: Record<string, unknown> = {};
-        try {
-          if ((assessment as any).forensicAnalysis) {
-            forensicAnalysis = typeof (assessment as any).forensicAnalysis === "string"
-              ? JSON.parse((assessment as any).forensicAnalysis)
-              : (assessment as any).forensicAnalysis;
-          }
-        } catch { /* non-fatal */ }
-        try {
-          if (assessment.pipelineRunSummary) {
-            pipelineRunSummary = typeof assessment.pipelineRunSummary === "string"
-              ? JSON.parse(assessment.pipelineRunSummary as string)
-              : (assessment.pipelineRunSummary as Record<string, unknown>);
-          }
-        } catch { /* non-fatal */ }
-
-        const { generateForensicPdf } = await import("./pdfReportGenerator");
-        const pdfBuffer = await generateForensicPdf({
-          claimId: String(input.claimId),
-          claimNumber: (claim as any).claimNumber ?? String(input.claimId),
-          vehicleMake: (claim as any).vehicleMake ?? "",
-          vehicleModel: (claim as any).vehicleModel ?? "",
-          vehicleYear: (claim as any).vehicleYear ?? "",
-          vehicleRegistration: (claim as any).vehicleRegistration ?? (claim as any).registrationNumber ?? "",
-          insuredName: (claim as any).insuredName ?? (claim as any).claimantName ?? "",
-          generatedAt: new Date().toISOString(),
-          forensicAnalysis,
-          pipelineRunSummary,
-        });
-
-        return {
-          base64: pdfBuffer.toString("base64"),
-          filename: `KINGA-Forensic-Report-${(claim as any).claimNumber ?? input.claimId}.pdf`,
-          mimeType: "application/pdf",
-        };
       }),
   }),
   // Storage operationss

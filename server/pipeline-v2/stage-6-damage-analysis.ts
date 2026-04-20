@@ -442,41 +442,7 @@ async function readDamageFromPhotos(
 
   const collisionDirection = claimRecord.accidentDetails.collisionDirection || "unknown";
 
-  // ── STEP C: Process photos in parallel batches (MONTH 2 FIX) ────────────────
-  // Process up to PARALLEL_BATCH_SIZE photos concurrently to reduce total
-  // Stage 6 latency from O(n * 45s) to O(ceil(n/5) * 45s).
-  const PARALLEL_BATCH_SIZE = 5;
-
-  async function processOneBatch(
-    batch: string[],
-    batchOffset: number
-  ): Promise<Array<{ url: string; components: DamageAnalysisComponent[]; confidence: 'high' | 'medium' | 'low'; usedFallback: boolean; succeeded: boolean }>> {
-    return Promise.all(
-      batch.map(async (url, idx) => {
-        const imageIndex = batchOffset + idx;
-        try {
-          const result = await analyseOneImage(
-            url,
-            imageIndex,
-            vehicleContext,
-            collisionDirection,
-            (msg) => ctx.log("Stage 6", msg)
-          );
-          return {
-            url,
-            components: result.components,
-            confidence: result.confidence as 'high' | 'medium' | 'low',
-            usedFallback: result.usedFallback,
-            succeeded: true,
-          };
-        } catch (e) {
-          ctx.log("Stage 6", `Vision: photo[${imageIndex}] completely failed: ${String(e)}`);
-          return { url, components: [], confidence: 'low' as const, usedFallback: false, succeeded: false };
-        }
-      })
-    );
-  }
-
+  // ── STEP C: Process each selected photo independently ───────────────────────────────────────────────────────────────────────────────────────
   const processedResults: Array<{
     url: string;
     components: DamageAnalysisComponent[];
@@ -485,11 +451,27 @@ async function readDamageFromPhotos(
     succeeded: boolean;
   }> = [];
 
-  for (let batchStart = 0; batchStart < toProcess.length; batchStart += PARALLEL_BATCH_SIZE) {
-    const batch = toProcess.slice(batchStart, batchStart + PARALLEL_BATCH_SIZE);
-    ctx.log("Stage 6", `Vision: processing batch ${Math.floor(batchStart / PARALLEL_BATCH_SIZE) + 1}/${Math.ceil(toProcess.length / PARALLEL_BATCH_SIZE)} (${batch.length} photos in parallel)`);
-    const batchResults = await processOneBatch(batch, batchStart);
-    processedResults.push(...batchResults);
+  for (let i = 0; i < toProcess.length; i++) {
+    const url = toProcess[i];
+    try {
+      const result = await analyseOneImage(
+        url,
+        i,
+        vehicleContext,
+        collisionDirection,
+        (msg) => ctx.log("Stage 6", msg)
+      );
+      processedResults.push({
+        url,
+        components: result.components,
+        confidence: result.confidence as 'high' | 'medium' | 'low',
+        usedFallback: result.usedFallback,
+        succeeded: true,
+      });
+    } catch (e) {
+      ctx.log("Stage 6", `Vision: photo[${i}] completely failed: ${String(e)}`);
+      processedResults.push({ url, components: [], confidence: 'low', usedFallback: false, succeeded: false });
+    }
   }
 
   // ── STEP D: Build complete audit trail ───────────────────────────────────────────────────────────────────────────────────────
@@ -810,37 +792,6 @@ export async function runDamageAnalysisStage(
     } else {
       visionSourceUrls = [];
     }
-
-    // ── WEEK 1 FIX: BLOCKED state when zero visual evidence available ─────────
-    // If no photos AND no PDF pages AND no structured parts, Stage 6 should BLOCK.
-    // A forensic report derived from OCR text alone is unreliable and misleading.
-    if (visionSourceUrls.length === 0 && structuredParts.length === 0) {
-      ctx.log("Stage 6", "BLOCKED: No visual evidence available (0 photos, 0 PDF pages, 0 structured parts). Cannot produce reliable damage assessment.");
-      return {
-        status: "blocked",
-        data: ensureDamageContract({}, "no_visual_evidence"),
-        error: "VISION_BLOCKED: No photos or PDF page images available for damage analysis. Upload damage photos to enable visual assessment.",
-        durationMs: Date.now() - start,
-        savedToDb: false,
-        assumptions: [{
-          field: "damageAnalysis",
-          assumedValue: "BLOCKED",
-          reason: "No visual evidence available. Both damagePhotoUrls and pdfPageImageUrls are empty, and no structured damage components were extracted from the claim record. A forensic damage assessment requires at least one image.",
-          strategy: "default_value" as const,
-          confidence: 0,
-          stage: "Stage 6 vision block",
-        }],
-        recoveryActions: [{
-          target: "damagePhotoUrls",
-          strategy: "manual_review",
-          success: false,
-          description: "Upload damage photos to the claim to enable visual damage analysis.",
-        }],
-        degraded: false,
-        blocked: true,
-      };
-    }
-
     let visionParts: DamageAnalysisComponent[] = [];
     let visionPerPhotoResults: import('./types').PerPhotoResult[] = [];
     let visionPhotosProcessed = 0;

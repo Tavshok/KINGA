@@ -1177,44 +1177,14 @@ export interface Stage10Output {
   consistencyCheck?: import('./crossStageConsistencyEngine').ConsistencyCheckResult | null;
   /** Multi-dimensional claim quality score for adjuster guidance */
   claimQuality?: import('./claimQualityScorer').ClaimQualityResult | null;
-  /** MONTH 3 FIX: Structured degradation reasons for UI surfacing */
-  degradationReasons?: Array<{ code: string; section: string; description: string; severity: 'critical' | 'warning' | 'info' }>;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PIPELINE ORCHESTRATION
 // ─────────────────────────────────────────────────────────────────────────────
 
-/**
- * Canonical set of pipeline stage execution states.
- * - success:  stage completed with full confidence
- * - degraded: stage completed but used a fallback path
- * - failed:   stage threw an unrecoverable error
- * - skipped:  stage was intentionally not run (no input data)
- * - blocked:  stage was prevented from running because a hard dependency failed or was blocked
- */
-export type PipelineStageStatus = "success" | "failed" | "skipped" | "degraded" | "blocked";
-
-/**
- * Named domain-level integrity flags produced by the pipeline integrity validator.
- * These are distinct from stage-level status — they describe business-level failures
- * that have a direct impact on decision confidence.
- */
-export interface PipelineIntegrityFlags {
-  /** Photos were detected in source documents but were not extracted for analysis */
-  imagePipelineFailure: boolean;
-  /** Policy number, insured value, or excess is missing from all documents */
-  missingPolicyData: boolean;
-  /** Claimed speed does not align with calculated delta-V */
-  physicsInconsistency: boolean;
-  /** One or more critical documents (police report, repair quote) are absent */
-  missingCriticalDocument: boolean;
-  /** Human-readable labels for each active flag — used in the report */
-  activeFailureLabels: string[];
-}
-
 export interface StageResult<T> {
-  status: PipelineStageStatus;
+  status: "success" | "failed" | "skipped" | "degraded";
   data: T | null;
   error?: string;
   durationMs: number;
@@ -1225,7 +1195,7 @@ export interface StageResult<T> {
 }
 
 export interface PipelineStageSummary {
-  status: PipelineStageStatus;
+  status: "success" | "failed" | "skipped" | "degraded";
   durationMs: number;
   savedToDb: boolean;
   error?: string;
@@ -1286,15 +1256,4 @@ export interface PipelineContext {
    * Used by the forensic validator for explicit photosAvailable/photosProcessed tracking.
    */
   photosAvailable?: number;
-  /**
-   * Live stage state map — updated after each stage completes.
-   * Downstream stages MUST check this before running to enforce hard dependencies.
-   * Key: stage ID (e.g. '2_extraction'), Value: PipelineStageStatus
-   */
-  stageStates: Record<string, PipelineStageStatus>;
-  /**
-   * Domain-level integrity flags set by the pipeline integrity validator (Stage 9b).
-   * Available to Stage 10 (report assembly) and the FCDI penalty engine.
-   */
-  integrityFlags?: PipelineIntegrityFlags | null;
 }

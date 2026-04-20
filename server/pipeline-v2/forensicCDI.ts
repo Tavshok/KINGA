@@ -16,7 +16,6 @@
  *           + (assumption_count × W_ASSUMPTION)
  *           + (low_confidence_stage_count × W_LOW_CONF)
  *           + (skipped_stage_count × W_SKIPPED)
- *           + sum(domain_penalty.weight for each named domain penalty)
  *   FCDI = max(0, 1 - penalty)
  *
  * Classification:
@@ -52,36 +51,6 @@ const CRITICAL_STAGE_IDS = new Set([
   "10_report",
 ]);
 
-// ─── Named Domain Penalties ───────────────────────────────────────────────────
-// Domain-specific penalties applied on top of generic stage-level penalties.
-// These represent known failure modes with quantified impact on report reliability.
-// Weights are expressed as fractions of 1.0 (e.g., 0.30 = −30 FCDI points).
-
-export type DomainPenaltyCode =
-  | "IMAGE_PIPELINE_FAILURE"      // Stage 6 BLOCKED or Stage 2 failed — no visual damage analysis
-  | "MISSING_POLICY_NUMBER"       // Policy number absent — cannot verify coverage
-  | "PHYSICS_INCONSISTENCY"       // Stage 7 speed/delta-V mismatch exceeds threshold
-  | "BLOCKED_STAGE"               // Any stage was explicitly BLOCKED by dependency enforcement
-  | "DATA_INTEGRITY_FAILURE"      // Stage 3/4 validation found critical field contradictions
-  | "MULTI_EVENT_UNRESOLVED";     // Multi-event sequence detected but causal chain unconfirmed
-
-export const DOMAIN_PENALTY_WEIGHTS: Record<DomainPenaltyCode, number> = {
-  IMAGE_PIPELINE_FAILURE:   0.30,  // −30 FCDI points — vision analysis is a core capability
-  MISSING_POLICY_NUMBER:    0.20,  // −20 FCDI points — cannot verify coverage without policy ref
-  PHYSICS_INCONSISTENCY:    0.15,  // −15 FCDI points — claimed speed contradicts damage physics
-  BLOCKED_STAGE:            0.12,  // −12 FCDI points — per blocked stage (dependency failure)
-  DATA_INTEGRITY_FAILURE:   0.18,  // −18 FCDI points — contradictory data in critical fields
-  MULTI_EVENT_UNRESOLVED:   0.08,  // −8 FCDI points — event sequence ambiguous
-};
-
-export interface DomainPenalty {
-  code: DomainPenaltyCode;
-  /** Human-readable reason for this penalty (shown in the forensic report) */
-  reason: string;
-  /** Penalty weight (0.0–1.0 fraction of FCDI) — defaults to DOMAIN_PENALTY_WEIGHTS[code] */
-  weight?: number;
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type FCDILabel = "HIGH" | "MEDIUM" | "LOW" | "CRITICAL";
@@ -97,12 +66,6 @@ export interface FCDIInput {
   }>;
   /** Total assumptions collected across the entire pipeline run */
   totalAssumptionCount: number;
-  /**
-   * Named domain penalties applied on top of generic stage penalties.
-   * These represent specific failure modes with quantified impact.
-   * The orchestrator computes these from pipeline state before calling computeFCDI.
-   */
-  domainPenalties?: DomainPenalty[];
 }
 
 export interface FCDIResult {
@@ -123,8 +86,6 @@ export interface FCDIResult {
     assumptionPenalty: number;
     lowConfPenalty: number;
     skippedPenalty: number;
-    domainPenaltyTotal: number;
-    domainPenalties: Array<{ code: string; reason: string; weight: number }>;
     totalPenalty: number;
   };
   /** Human-readable explanation for the report */
@@ -134,7 +95,7 @@ export interface FCDIResult {
 // ─── Main function ────────────────────────────────────────────────────────────
 
 export function computeFCDI(input: FCDIInput): FCDIResult {
-  const { stages, totalAssumptionCount, domainPenalties = [] } = input;
+  const { stages, totalAssumptionCount } = input;
 
   let fallbackCount = 0;
   let timeoutCount = 0;
@@ -170,17 +131,9 @@ export function computeFCDI(input: FCDIInput): FCDIResult {
   const lowConfPenalty    = lowConfidenceStageCount  * W_LOW_CONF;
   const skippedPenalty    = skippedCriticalStageCount * W_SKIPPED;
 
-  // Compute named domain penalties
-  const resolvedDomainPenalties = domainPenalties.map(dp => ({
-    code: dp.code,
-    reason: dp.reason,
-    weight: dp.weight ?? DOMAIN_PENALTY_WEIGHTS[dp.code] ?? 0,
-  }));
-  const domainPenaltyTotal = resolvedDomainPenalties.reduce((sum, dp) => sum + dp.weight, 0);
-
   const totalPenalty = Math.min(
     1.0,
-    fallbackPenalty + timeoutPenalty + assumptionPenalty + lowConfPenalty + skippedPenalty + domainPenaltyTotal
+    fallbackPenalty + timeoutPenalty + assumptionPenalty + lowConfPenalty + skippedPenalty
   );
 
   const score = Math.max(0, 1 - totalPenalty);
@@ -195,7 +148,6 @@ export function computeFCDI(input: FCDIInput): FCDIResult {
   const explanation = buildExplanation(label, {
     fallbackCount, timeoutCount, totalAssumptionCount,
     lowConfidenceStageCount, skippedCriticalStageCount,
-    domainPenalties: resolvedDomainPenalties,
   });
 
   return {
@@ -213,8 +165,6 @@ export function computeFCDI(input: FCDIInput): FCDIResult {
       assumptionPenalty: round2(assumptionPenalty),
       lowConfPenalty: round2(lowConfPenalty),
       skippedPenalty: round2(skippedPenalty),
-      domainPenaltyTotal: round2(domainPenaltyTotal),
-      domainPenalties: resolvedDomainPenalties,
       totalPenalty: round2(totalPenalty),
     },
     explanation,
@@ -235,7 +185,6 @@ function buildExplanation(
     totalAssumptionCount: number;
     lowConfidenceStageCount: number;
     skippedCriticalStageCount: number;
-    domainPenalties: Array<{ code: string; reason: string; weight: number }>;
   }
 ): string {
   const parts: string[] = [];
@@ -254,10 +203,6 @@ function buildExplanation(
   }
   if (counts.skippedCriticalStageCount > 0) {
     parts.push(`${counts.skippedCriticalStageCount} critical stage${counts.skippedCriticalStageCount > 1 ? "s" : ""} were skipped entirely`);
-  }
-  // Named domain penalties — each gets an explicit mention
-  for (const dp of counts.domainPenalties) {
-    parts.push(`${dp.code.replace(/_/g, ' ')}: ${dp.reason} (−${Math.round(dp.weight * 100)} FCDI points)`);
   }
 
   if (parts.length === 0) {
