@@ -742,7 +742,6 @@ export async function triggerAiAssessment(claimId: number) {
       // job re-triggers the pipeline every 20 minutes (infinite loop).
       console.error(`[AI Assessment] Claim ${claimId}: Pipeline incomplete — ${pipelineErr.message}`);
       await db.update(claims).set({
-        aiAssessmentStatus: "failed",
         documentProcessingStatus: "failed",
         status: "intake_pending",
         workflowState: "intake_queue",

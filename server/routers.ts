@@ -1675,7 +1675,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             console.error(`[AI] Background assessment FAILED for claim ${input.claimId}:`, errMsg);
             console.error(`[AI] Full stack trace:`, errStack);
             // CRITICAL: Update claim status to 'failed' so it doesn't stay stuck at 'extracting' forever
-            // Also store the error message in notes for debugging
+            // NOTE: The claims table does NOT have a 'notes' or 'aiAssessmentStatus' column.
+            // Store error info in the audit trail instead.
             try {
               const dbFail = await getDb();
               if (dbFail) {
@@ -1684,11 +1685,18 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   status: "intake_pending",
                   workflowState: "intake_queue",
                   aiAssessmentTriggered: 0,
-                  notes: `AI Pipeline Error (${new Date().toISOString()}): ${errMsg.slice(0, 500)}`,
                   updatedAt: new Date().toISOString(),
                 }).where(eq(claims.id, input.claimId));
                 console.log(`[AI] Claim ${input.claimId} marked as failed. Error: ${errMsg.slice(0, 200)}`);
               }
+              // Store error details in audit trail for debugging
+              await createAuditEntry({
+                claimId: input.claimId,
+                userId: ctx.user.id,
+                action: "ai_assessment_failed",
+                entityType: "ai_assessment",
+                changeDescription: `AI Pipeline Error: ${errMsg.slice(0, 500)}`,
+              }).catch(() => {});
             } catch (failUpdateErr) {
               console.error(`[AI] CRITICAL: Could not mark claim ${input.claimId} as failed:`, failUpdateErr);
             }

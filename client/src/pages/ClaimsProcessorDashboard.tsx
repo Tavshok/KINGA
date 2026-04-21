@@ -48,6 +48,7 @@ export default function ClaimsProcessorDashboard() {
   const [assessorSearchQuery, setAssessorSearchQuery] = useState("");
   const [selectedAssessorId, setSelectedAssessorId] = useState<number | null>(null);
   const [aiProcessingClaimIds, setAiProcessingClaimIds] = useState<Set<number>>(new Set());
+  const [triggeringClaimId, setTriggeringClaimId] = useState<number | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   // Role validation — allow admin users to bypass for testing
@@ -175,6 +176,7 @@ export default function ClaimsProcessorDashboard() {
   const triggerAiMutation = trpc.claims.triggerAiAssessment.useMutation({ // eslint-disable-line react-hooks/rules-of-hooks
     onSuccess: (_data, variables) => {
       setAiProcessingClaimIds(prev => new Set(prev).add(variables.claimId));
+      setTriggeringClaimId(null);
       toast.info("AI Assessment Started", {
         description: "The AI is analyzing this claim. You'll be notified when it's complete. The claim has moved to 'In Review'.",
         duration: 6000,
@@ -182,6 +184,7 @@ export default function ClaimsProcessorDashboard() {
       refetchAll();
     },
     onError: (error: any) => {
+      setTriggeringClaimId(null);
       toast.error("AI Assessment Failed", {
         description: error.message || "Could not trigger AI assessment. Please try again.",
       });
@@ -297,6 +300,7 @@ export default function ClaimsProcessorDashboard() {
   };
 
   const handleTriggerAI = (claimId: number) => {
+    setTriggeringClaimId(claimId);
     triggerAiMutation.mutate({ 
       claimId, 
       reason: "Manually triggered from Claims Processor Dashboard" 
@@ -365,6 +369,7 @@ export default function ClaimsProcessorDashboard() {
   // Claim Card component inline for better control
   const ClaimCardInline = ({ claim, section }: { claim: any; section: "pending" | "in_review" | "ai_flagged" | "completed" }) => {
     const isProcessing = aiProcessingClaimIds.has(claim.id);
+    const isTriggering = triggeringClaimId === claim.id;
     
     const getStatusBadge = () => {
       if (isProcessing) {
@@ -524,10 +529,10 @@ export default function ClaimsProcessorDashboard() {
                     size="sm" 
                     variant="default"
                     onClick={() => handleTriggerAI(claim.id)}
-                    disabled={triggerAiMutation.isPending || isProcessing}
+                    disabled={isTriggering || isProcessing || triggeringClaimId !== null}
                     className="w-full justify-start bg-purple-600 hover:bg-purple-700"
                   >
-                    {triggerAiMutation.isPending ? (
+                    {isTriggering ? (
                       <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                     ) : (
                       <Brain className="h-4 w-4 mr-2" />

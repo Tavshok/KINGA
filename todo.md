@@ -10840,3 +10840,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 ## Critical Bug: Run AI Assessment triggers ALL claims (Apr 21 2026)
 - [ ] Clicking Run AI Assessment on one claim triggers all pending claims simultaneously
 - [ ] AI assessment fails immediately on the published server
+
+## Bug Fixes - April 21, 2026
+- [x] Fix error handler crash in routers.ts catch block (was writing to non-existent 'notes' column, causing claims to stay permanently stuck)
+- [x] Fix error handler crash in db.ts PipelineIncompleteError handler (was writing to non-existent 'aiAssessmentStatus' column)
+- [x] Fix 'all claims start processing simultaneously' visual bug - spinner and disabled state was global (triggerAiMutation.isPending) instead of per-claim
+- [x] Add per-claim triggeringClaimId state to track which specific claim is being triggered
+- [x] Error details now stored in audit_trail instead of non-existent columns
