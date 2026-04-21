@@ -760,14 +760,14 @@ export async function triggerAiAssessment(claimId: number) {
       });
       if (existingAssessment.length > 0) {
         await db.update(aiAssessments).set({
-          pipelineExecutionSummaryJson: pipelineIncompleteJson,
+          pipelineRunSummary: pipelineIncompleteJson,
           updatedAt: new Date(),
         }).where(eq(aiAssessments.claimId, claimId));
       } else {
         await db.insert(aiAssessments).values({
           claimId,
           tenantId: claim.tenantId ? Number(claim.tenantId) : null,
-          pipelineExecutionSummaryJson: pipelineIncompleteJson,
+          pipelineRunSummary: pipelineIncompleteJson,
           createdAt: new Date(),
           updatedAt: new Date(),
         });

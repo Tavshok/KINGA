@@ -17,6 +17,24 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
 import { CheckCircle, XCircle, AlertTriangle, Printer } from "lucide-react";
+import {
+  CostBenchmarkDeviation,
+  CostBenchmarkData,
+  FraudRadarChart,
+  FraudRadarData,
+  PhotoExifForensicsPanel,
+  PhotoExifForensicsData,
+  PhotoExifResult,
+  DamagePatternTable,
+  DamagePatternData,
+  DamagePatternRow,
+  GapAttributionTable,
+  GapAttributionData,
+  GapEntry,
+  DecisionLifecycleTracker,
+  DecisionLifecycleData,
+  LifecycleState,
+} from "./ReportComponents";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -1058,6 +1076,36 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
         </div>
       )}
 
+      {/* 1.4 Gap Attribution Table — data quality gaps with attribution */}
+      {(() => {
+        const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+        const gapEntries: GapEntry[] = [];
+        // Derive gaps from missing critical fields
+        if (!policeReportNumber) gapEntries.push({ field: "Police Report Number", explanation: "Police report number not provided in claim documents.", attribution: "CLAIMANT_DEFICIENCY" });
+        if (!vehicleVin) gapEntries.push({ field: "Vehicle VIN", explanation: "VIN not extracted from claim documents.", attribution: "DOCUMENT_LIMITATION" });
+        if (!driverLicenseNumber) gapEntries.push({ field: "Driver Licence Number", explanation: "Driver licence number not found in submitted documents.", attribution: "CLAIMANT_DEFICIENCY" });
+        if (!marketValueUsd) gapEntries.push({ field: "Market Value", explanation: "Vehicle market value not provided by insurer or claimant.", attribution: "INSURER_DATA_GAP" });
+        if (!excessAmountUsd) gapEntries.push({ field: "Policy Excess", explanation: "Policy excess amount not found in claim record.", attribution: "INSURER_DATA_GAP" });
+        if (!policyNumber) gapEntries.push({ field: "Policy Number", explanation: "Policy number not extracted from submitted documents.", attribution: "DOCUMENT_LIMITATION" });
+        // Add system-level gaps from phase2
+        const phase2 = (enforcement as any)?._phase2 as any;
+        if (phase2?.dataCompleteness != null && phase2.dataCompleteness < 60) {
+          gapEntries.push({ field: "Data Completeness", explanation: `Overall data completeness is ${Math.round(phase2.dataCompleteness)}%, below the 60% threshold for reliable automated assessment.`, attribution: "SYSTEM_EXTRACTION_FAILURE" });
+        }
+        if (gapEntries.length === 0) return null;
+        const gapData: GapAttributionData = { entries: gapEntries };
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.4 Data Gap Attribution</p>
+            </div>
+            <div className="p-4">
+              <GapAttributionTable data={gapData} />
+            </div>
+          </div>
+        );
+      })()}
+
       {gates.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -1402,6 +1450,37 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
           <p className="text-xs mt-3 p-2 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
             {pattern.notes}
           </p>
+
+          {/* 2.4 Damage Pattern Matching Table */}
+          {(() => {
+            if (!pattern.expected || pattern.expected.length === 0) return null;
+            const rows: DamagePatternRow[] = pattern.expected.map((item: string) => {
+              const zoneMatch = damageZones.some((z: string) =>
+                item.toLowerCase().includes(z.toLowerCase()) ||
+                z.toLowerCase().includes(item.split(" ")[0].toLowerCase())
+              );
+              const matchedZone = damageZones.find((z: string) =>
+                item.toLowerCase().includes(z.toLowerCase()) ||
+                z.toLowerCase().includes(item.split(" ")[0].toLowerCase())
+              );
+              const observed = damageZones.length > 0
+                ? (zoneMatch ? (matchedZone ?? item) : "Not reported")
+                : "N/A";
+              const matchStatus: DamagePatternRow["matchStatus"] =
+                damageZones.length === 0 ? "unknown" : zoneMatch ? "match" : "mismatch";
+              return { expected: item, observed: String(observed), matchStatus };
+            });
+            const damagePatternData: DamagePatternData = {
+              incidentType: incidentType.replace(/_/g, " "),
+              rows,
+            };
+            return (
+              <div className="mt-4">
+                <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>2.4 Damage Pattern Matching</p>
+                <DamagePatternTable data={damagePatternData} />
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>
@@ -1731,6 +1810,39 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           </div>
         </div>
       )}
+
+      {/* 3.3 Cost Benchmark Deviation — horizontal bar chart */}
+      {(() => {
+        const ce = enforcement?.costExtraction;
+        const normalised = (aiAssessment as any)?._normalised as any;
+        const benchmarkUsd = normalised?.costs?.totalUsd ?? ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
+        const fairMin = ce?.fair_range?.min ?? enforcement?.costBenchmark?.estimatedFairMin ?? 0;
+        const fairMax = ce?.fair_range?.max ?? enforcement?.costBenchmark?.estimatedFairMax ?? 0;
+        const pbQuotes = (quotes ?? []).map((q: any) => (q.quotedAmount ?? 0) / 100);
+        const reconciledUsd = pbQuotes[0] ?? benchmarkUsd;
+        // Only render if we have meaningful data
+        if (benchmarkUsd <= 0 && reconciledUsd <= 0) return null;
+        const currencyCode = (aiAssessment as any)?.currencyCode ?? 'USD';
+        const SYMBOL_MAP: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', ZAR: 'R', ZMW: 'ZMW', ZIG: 'ZiG', KES: 'KSh', NGN: '₦', GHS: 'GH₵', BWP: 'P', MWK: 'MK', TZS: 'TSh', UGX: 'USh', MZN: 'MT', NAD: 'N$', SZL: 'L', LSL: 'L', AOA: 'Kz' };
+        const currencySymbol = SYMBOL_MAP[currencyCode.toUpperCase()] ?? currencyCode;
+        const benchmarkData: CostBenchmarkData = {
+          benchmarkUsd,
+          reconciledUsd,
+          fairRangeMinUsd: fairMin > 0 ? fairMin : benchmarkUsd * 0.85,
+          fairRangeMaxUsd: fairMax > 0 ? fairMax : benchmarkUsd * 1.15,
+          currencySymbol,
+        };
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.3 Cost Benchmark Deviation</p>
+            </div>
+            <div className="p-4">
+              <CostBenchmarkDeviation data={benchmarkData} />
+            </div>
+          </div>
+        );
+      })()}
 
       {/* 3.2 Vehicle Valuation — populated from extracted data */}
       <ValuationSubsection aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
@@ -2062,10 +2174,25 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
       {/* 4.3 Photo Forensics — EXIF, GPS & manipulation analysis */}
       {(() => {
         const pf = (enforcement as any)?._photoForensics as any;
-        if (!pf) return null;
-        const suspiciousPhotos = (pf.photos ?? []).filter((p: any) => p.analysisResult?.is_suspicious);
-        const gpsPhotos = (pf.photos ?? []).filter((p: any) => p.analysisResult?.gps_coordinates);
+        if (!pf || (pf.photos ?? []).length === 0) return null;
         const overallStatus = pf.anySuspicious ? "warn" : "pass";
+        // Map raw photo forensics data to PhotoExifForensicsPanel prop shape
+        const exifResults: PhotoExifResult[] = (pf.photos as any[]).map((photo: any, i: number) => {
+          const r = photo.analysisResult ?? {};
+          const manipScore = r.manipulation_indicators?.manipulation_score ?? 0;
+          return {
+            photoIndex: i + 1,
+            isSuspicious: r.is_suspicious ?? false,
+            exifPresent: !!(r.capture_datetime || r.camera_make || r.camera_model),
+            gpsPresent: !!(r.gps_coordinates),
+            manipulationScore: Math.round(manipScore * 100),
+            flags: r.flags ?? (photo.error ? [photo.error] : []),
+            isNonVehicle: r.is_non_vehicle ?? false,
+            captureDate: r.capture_datetime ?? null,
+            aiVisionDescription: r.ai_vision_description ?? null,
+          } satisfies PhotoExifResult;
+        });
+        const exifData: PhotoExifForensicsData = { results: exifResults };
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -2073,76 +2200,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               <StatusBadge status={overallStatus} label={pf.anySuspicious ? "SUSPICIOUS" : "CLEAN"} />
             </div>
             <div className="p-4">
-              <div className="grid grid-cols-4 gap-3 mb-4">
-                {[
-                  { label: "Analysed", value: pf.analysedCount ?? 0 },
-                  { label: "Suspicious", value: suspiciousPhotos.length },
-                  { label: "GPS Present", value: gpsPhotos.length },
-                  { label: "Errors", value: pf.errorCount ?? 0 },
-                ].map((m, i) => (
-                  <div key={i} className="text-center p-2 rounded" style={{ background: "var(--muted)" }}>
-                    <p className="text-lg font-bold" style={{ color: m.label === "Suspicious" && m.value > 0 ? "var(--fp-critical-text)" : "var(--foreground)" }}>{m.value}</p>
-                    <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{m.label}</p>
-                  </div>
-                ))}
-              </div>
-              {(pf.photos ?? []).length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Per-Photo Results</p>
-                  {(pf.photos as any[]).map((photo: any, i: number) => {
-                    const r = photo.analysisResult;
-                    if (!r) return (
-                      <div key={i} className="p-2 rounded text-xs" style={{ background: "var(--muted)", border: "1px solid var(--border)" }}>
-                        <span className="font-medium" style={{ color: "var(--foreground)" }}>Photo {i + 1}</span>
-                        <span className="ml-2" style={{ color: "var(--fp-warning-text)" }}>{photo.error ?? "Analysis unavailable"}</span>
-                      </div>
-                    );
-                    const flagColor = r.is_suspicious ? "var(--fp-critical-text)" : "var(--fp-success-text)";
-                    const bgColor = r.is_suspicious ? "var(--status-review-bg)" : "var(--status-approve-bg)";
-                    const borderColor = r.is_suspicious ? "var(--fp-warning-border)" : "var(--fp-success-border)";
-                    return (
-                      <div key={i} className="p-3 rounded" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>Photo {i + 1}</span>
-                          <div className="flex items-center gap-2">
-                            {r.gps_coordinates && (
-                              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-                                GPS: {r.gps_coordinates.latitude.toFixed(4)}, {r.gps_coordinates.longitude.toFixed(4)}
-                              </span>
-                            )}
-                            {r.capture_datetime && (
-                              <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>{r.capture_datetime.slice(0, 10)}</span>
-                            )}
-                            <span className="text-xs font-bold" style={{ color: flagColor }}>{r.is_suspicious ? "SUSPICIOUS" : "CLEAN"}</span>
-                          </div>
-                        </div>
-                        {r.flags && r.flags.length > 0 && (
-                          <ul className="mt-1 space-y-0.5">
-                            {r.flags.map((flag: string, fi: number) => (
-                              <li key={fi} className="text-xs" style={{ color: "var(--foreground)" }}>• {flag}</li>
-                            ))}
-                          </ul>
-                        )}
-                        {r.manipulation_indicators?.manipulation_score !== undefined && (
-                          <div className="mt-1.5 flex items-center gap-2">
-                            <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>Manipulation score:</span>
-                            <div className="flex-1 h-1.5 rounded-full" style={{ background: "var(--muted)", maxWidth: 120 }}>
-                              <div className="h-1.5 rounded-full" style={{ width: `${Math.round((r.manipulation_indicators.manipulation_score ?? 0) * 100)}%`, background: r.manipulation_indicators.manipulation_score > 0.5 ? "var(--fp-critical-text)" : "var(--fp-warning-text)" }} />
-                            </div>
-                            <span className="text-xs font-semibold" style={{ color: "var(--muted-foreground)" }}>{Math.round((r.manipulation_indicators.manipulation_score ?? 0) * 100)}%</span>
-                          </div>
-                        )}
-                        {r.ai_vision_description && (
-                          <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-                            <p className="text-xs font-semibold mb-1" style={{ color: "var(--muted-foreground)" }}>AI DAMAGE ANALYSIS</p>
-                            <p className="text-xs whitespace-pre-wrap" style={{ color: "var(--foreground)", lineHeight: 1.5 }}>{r.ai_vision_description}</p>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <PhotoExifForensicsPanel data={exifData} />
             </div>
           </div>
         );
@@ -2328,6 +2386,40 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
           </div>
         </div>
       </div>
+
+      {/* 5.0 Fraud Radar Chart — 6-axis visual breakdown */}
+      {(() => {
+        // Map contributions to the 6 radar axes
+        const getScore = (key: string) => {
+          const c = contributions.find((c: any) => c.factor?.toLowerCase().includes(key));
+          return c ? Math.min(20, c.value ?? 0) : 0;
+        };
+        const costDev = getScore("cost");
+        const physicsVal = Math.max(0, 20 - Math.round((physicsScore / 100) * 20));
+        const dirMismatch = getScore("direction") || (e?.directionFlag?.mismatch ? 12 : 0);
+        const repeatClaim = getScore("repeat") || getScore("prior");
+        const missingData = getScore("missing") || getScore("photo") || getScore("police");
+        const damageIncon = getScore("damage") || getScore("pattern");
+        const radarData: FraudRadarData = {
+          damageInconsistency: damageIncon,
+          costDeviation: costDev,
+          directionMismatch: dirMismatch,
+          repeatClaim,
+          missingData,
+          severityVsPhysics: physicsVal,
+          overallFraudScore: fraudScore,
+        };
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>5.0 Fraud Risk Radar</p>
+            </div>
+            <div className="p-4">
+              <FraudRadarChart data={radarData} />
+            </div>
+          </div>
+        );
+      })()}
 
       {contributions.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
@@ -2689,6 +2781,33 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
           </div>
         </div>
       )}
+
+      {/* 6.4 Decision Lifecycle Tracker */}
+      {(() => {
+        // Derive lifecycle state from claim and assessment status
+        const claimStatus = claim?.status ?? "submitted";
+        const isDraft = claimStatus === "submitted" || claimStatus === "intake_queue" || claimStatus === "processing";
+        const isReviewed = claimStatus === "review" || claimStatus === "under_review" || claimStatus === "pending_review";
+        const isFinalised = claimStatus === "approved" || claimStatus === "rejected" || claimStatus === "finalised" || claimStatus === "settled";
+        const isLocked = claimStatus === "closed" || claimStatus === "archived";
+        const lifecycleStates: LifecycleState[] = [
+          { state: "draft", completed: true, isCurrent: isDraft, adjusterName: "KINGA Engine", timestamp: aiAssessment?.createdAt ?? null },
+          { state: "reviewed", completed: isReviewed || isFinalised || isLocked, isCurrent: isReviewed, adjusterName: isReviewed ? "Pending adjuster" : null, timestamp: null },
+          { state: "finalised", completed: isFinalised || isLocked, isCurrent: isFinalised, adjusterName: null, timestamp: null },
+          { state: "locked", completed: isLocked, isCurrent: isLocked, adjusterName: null, timestamp: null },
+        ];
+        const lifecycleData: DecisionLifecycleData = { states: lifecycleStates, auditLogEnabled: true };
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>6.4 Decision Lifecycle</p>
+            </div>
+            <div className="p-4">
+              <DecisionLifecycleTracker data={lifecycleData} />
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -3247,7 +3366,6 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
         </div>
       )}
       <CongruencyPanel aiAssessment={aiAssessment} />
-      <PipelineConfidencePanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
