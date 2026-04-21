@@ -4672,3 +4672,36 @@ export const photoReextractionJobs = mysqlTable("photo_reextraction_jobs", {
 ]);
 export type PhotoReextractionJobRow = typeof photoReextractionJobs.$inferSelect;
 export type InsertPhotoReextractionJob = typeof photoReextractionJobs.$inferInsert;
+
+
+// Component Repair Outcomes (Repair-vs-Replace Learning DB)
+// Stores adjuster-confirmed repair/replace decisions per component after claim
+// settlement. Used by repairReplaceEngine.ts to compute evidence-based
+// repairProbability scores for future claims.
+export const componentRepairOutcomes = mysqlTable("component_repair_outcomes", {
+  id: int().autoincrement().notNull().primaryKey(),
+  claimId: int("claim_id").notNull(),
+  assessmentId: int("assessment_id").notNull(),
+  componentName: varchar("component_name", { length: 120 }).notNull(),
+  componentCategory: varchar("component_category", { length: 60 }),
+  severityAtDecision: varchar("severity_at_decision", { length: 30 }),
+  vehicleMake: varchar("vehicle_make", { length: 80 }),
+  vehicleModel: varchar("vehicle_model", { length: 80 }),
+  vehicleYear: int("vehicle_year"),
+  vehicleAgeYears: int("vehicle_age_years"),
+  outcome: mysqlEnum("outcome", ["repair", "replace", "write_off"]).notNull(),
+  aiSuggestion: mysqlEnum("ai_suggestion", ["repair", "replace", "uncertain"]),
+  wasOverride: tinyint("was_override").default(0).notNull(),
+  adjusterUserId: int("adjuster_user_id"),
+  repairCostUsd: decimal("repair_cost_usd", { precision: 10, scale: 2 }),
+  replaceCostUsd: decimal("replace_cost_usd", { precision: 10, scale: 2 }),
+  decidedAt: varchar("decided_at", { length: 50 }).notNull(),
+  createdAt: varchar("created_at", { length: 50 }).notNull(),
+}, (table) => [
+  index("idx_cro_claim_id").on(table.claimId),
+  index("idx_cro_component_severity").on(table.componentName, table.severityAtDecision),
+  index("idx_cro_make_model").on(table.vehicleMake, table.vehicleModel),
+  index("idx_cro_outcome").on(table.outcome),
+]);
+export type ComponentRepairOutcomeRow = typeof componentRepairOutcomes.$inferSelect;
+export type InsertComponentRepairOutcome = typeof componentRepairOutcomes.$inferInsert;

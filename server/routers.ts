@@ -114,6 +114,7 @@ import { panelBeaterAnalyticsRouter } from './routers/panel-beater-analytics';
 import { reportsRouter } from './routers/reports';
 import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
+import { repairReplaceRouter } from './repair-intelligence/repair-replace-router';
 import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
@@ -316,6 +317,7 @@ export const appRouter = router({
   platformUserRoles: platformUserRolesRouter,
   platform: platformRouter,
   quoteIntelligence: quoteIntelligenceRouter,
+  repairReplace: repairReplaceRouter,
   exceptionIntelligence: exceptionIntelligenceRouter,
   integrity: integrityRouter,
   photoReextraction: photoReextractionRouter,

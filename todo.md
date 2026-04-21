@@ -10847,3 +10847,14 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix 'all claims start processing simultaneously' visual bug - spinner and disabled state was global (triggerAiMutation.isPending) instead of per-claim
 - [x] Add per-claim triggeringClaimId state to track which specific claim is being triggered
 - [x] Error details now stored in audit_trail instead of non-existent columns
+
+## Feature: Quote Sufficiency Badge + Repair-vs-Replace Probability Engine (Apr 21 2026)
+- [x] Stage 3 quoteExtractionEngine already has labour_cost/parts_cost fields (confirmed in checkpoint 8000109b)
+- [ ] Add Quote Sufficiency badge to claim hero strip in InsurerComparisonView
+- [ ] Build repairReplaceEngine.ts — probabilistic Repair-vs-Replace scoring per component using severity, component type, make/model, and learning DB history
+- [ ] Add component_repair_outcomes table to schema for capturing adjuster override decisions
+- [ ] Wire repairReplaceEngine into stage-9-cost repairIntelligence output
+- [ ] Add repairReplaceProbability field to each component in repairIntelligenceJson
+- [ ] Render Repair-vs-Replace probability bar in AiIntelligenceSummaryCard component list
+- [ ] Add subtle override capture (adjuster confirm/override — feeds learning DB silently)
+- [ ] Write vitest tests for repairReplaceEngine

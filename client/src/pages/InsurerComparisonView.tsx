@@ -19,6 +19,7 @@ import PhysicsConfidenceDashboard from "@/components/PhysicsConfidenceDashboard"
 import VehicleDamageVisualization from "@/components/VehicleDamageVisualization";
 import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
+import { RepairReplacePanel } from "@/components/RepairReplacePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
 import { MultiQuoteComparisonPanel } from "@/components/MultiQuoteComparisonPanel";
@@ -145,6 +146,13 @@ export default function InsurerComparisonView() {
   
   // Also get basic quotes for backward compatibility
   const quotes = quotesWithItems;
+
+  // Parse costIntelligenceJson once for hero strip badge
+  const costIntelligence = (() => {
+    try { return JSON.parse((aiAssessment as any)?.costIntelligenceJson ?? 'null'); } catch { return null; }
+  })();
+  const quoteCount: number = costIntelligence?.quoteCount ?? quotes.length ?? 0;
+  const aiEstimateSource: string | null = costIntelligence?.aiEstimateSource ?? null;
 
   // Get enforcement data for the ForensicAuditReport
   const { data: enforcement, isLoading: enforcementLoading } = trpc.aiAssessments.getEnforcement.useQuery(
@@ -501,6 +509,34 @@ export default function InsurerComparisonView() {
                   <p className="text-lg font-bold tabular-nums" style={{ color: 'var(--warning)' }}>{confidenceScore}%</p>
                 </div>
               )}
+              {/* Quote Sufficiency badge — subtle colour-coded indicator of quote coverage quality */}
+              {aiAssessment && (() => {
+                if (aiEstimateSource === 'insufficient_data') return (
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: 'rgb(252,165,165)' }}>Awaiting Quote</p>
+                  </div>
+                );
+                if (quoteCount === 1) return (
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.35)' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: 'rgb(253,230,138)' }}>1 Quote</p>
+                  </div>
+                );
+                if (quoteCount === 2) return (
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: 'rgb(147,197,253)' }}>2 Quotes</p>
+                  </div>
+                );
+                if (quoteCount >= 3) return (
+                  <div className="text-center px-4 py-2 rounded-lg" style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)' }}>
+                    <p className="kpi-card-label" style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.6)' }}>Quote Coverage</p>
+                    <p className="text-xs font-semibold" style={{ color: 'rgb(110,231,183)' }}>Optimised ({quoteCount})</p>
+                  </div>
+                );
+                return null;
+              })()}
             </div>
           </div>
 
@@ -755,6 +791,19 @@ export default function InsurerComparisonView() {
             <div className="space-y-4">
               <PanelBeaterChoicesCard claimId={claimId} />
               <RepairIntelligencePanel claimId={claimId} />
+              {/* Repair-vs-Replace probability engine */}
+              <div className="p-4 bg-card rounded-lg border border-border">
+                <div className="mb-3">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--foreground)' }}>Repair vs. Replace Analysis</p>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>Probability-based suggestion per component — confirm or annotate to improve future accuracy</p>
+                </div>
+                <RepairReplacePanel
+                  claimId={claimId}
+                  vehicleMake={claim?.vehicleMake ?? undefined}
+                  vehicleModel={claim?.vehicleModel ?? undefined}
+                  vehicleYear={claim?.vehicleYear ?? undefined}
+                />
+              </div>
               {/* Quote Optimisation — QUOTE-FIRST architecture results */}
               {aiAssessment && (
                 <div className="p-4 bg-card rounded-lg border border-border">
