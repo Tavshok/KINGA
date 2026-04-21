@@ -10836,3 +10836,7 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix: Claims with no documents create placeholder assessment and mark as assessment_complete (already handled in db.ts line 660-680)
 - [x] Verify: Pipeline completes end-to-end for claims with valid documents (claim 4530003 completed all 11 stages in 132s)
 - [x] Verify: Failed claims show correct status and can be retried (reset claims 4530002 and 4530004 to pending)
+
+## Critical Bug: Run AI Assessment triggers ALL claims (Apr 21 2026)
+- [ ] Clicking Run AI Assessment on one claim triggers all pending claims simultaneously
+- [ ] AI assessment fails immediately on the published server

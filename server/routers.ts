@@ -1670,8 +1670,12 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             }
           })
           .catch(async (err: unknown) => {
-            console.error(`[AI] Background assessment failed for claim ${input.claimId}:`, err);
+            const errMsg = err instanceof Error ? err.message : String(err);
+            const errStack = err instanceof Error ? err.stack : '';
+            console.error(`[AI] Background assessment FAILED for claim ${input.claimId}:`, errMsg);
+            console.error(`[AI] Full stack trace:`, errStack);
             // CRITICAL: Update claim status to 'failed' so it doesn't stay stuck at 'extracting' forever
+            // Also store the error message in notes for debugging
             try {
               const dbFail = await getDb();
               if (dbFail) {
@@ -1680,9 +1684,10 @@ If any value is not found, use 0 for numbers and empty string for text.`;
                   status: "intake_pending",
                   workflowState: "intake_queue",
                   aiAssessmentTriggered: 0,
+                  notes: `AI Pipeline Error (${new Date().toISOString()}): ${errMsg.slice(0, 500)}`,
                   updatedAt: new Date().toISOString(),
                 }).where(eq(claims.id, input.claimId));
-                console.log(`[AI] Claim ${input.claimId} marked as failed after background assessment error.`);
+                console.log(`[AI] Claim ${input.claimId} marked as failed. Error: ${errMsg.slice(0, 200)}`);
               }
             } catch (failUpdateErr) {
               console.error(`[AI] CRITICAL: Could not mark claim ${input.claimId} as failed:`, failUpdateErr);
