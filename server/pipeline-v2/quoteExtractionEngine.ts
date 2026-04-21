@@ -21,6 +21,8 @@
  *     components:      string[],
  *     labour_defined:  boolean,
  *     parts_defined:   boolean,
+ *     labour_cost:     number | null,
+ *     parts_cost:      number | null,
  *     confidence:      "high" | "medium" | "low",
  *     extraction_warnings: string[]
  *   }
@@ -37,6 +39,10 @@ export interface ExtractedQuote {
   components: string[];
   labour_defined: boolean;
   parts_defined: boolean;
+  /** Actual labour cost extracted from the quote (same currency as total_cost). Null if not itemised. */
+  labour_cost: number | null;
+  /** Actual parts cost extracted from the quote (same currency as total_cost). Null if not itemised. */
+  parts_cost: number | null;
   confidence: "high" | "medium" | "low";
   extraction_warnings: string[];
 }
@@ -65,6 +71,11 @@ RULES — follow these exactly:
    - "medium" → total cost found but < 3 components, or panel beater missing
    - "low"    → total cost missing or no components found
 9. List any extraction issues in extraction_warnings (e.g. "total cost not found", "currency ambiguous").
+10. Extract labour_cost and parts_cost as plain numbers when they appear as separate line items:
+    - "Labour: $1,500" → labour_cost = 1500, labour_defined = true
+    - "Parts: $3,200" → parts_cost = 3200, parts_defined = true
+    - If only a total is given with no breakdown, set both to null.
+    - IMPORTANT: labour_cost + parts_cost must not exceed total_cost by more than 5%.
 
 OUTPUT — return ONLY valid JSON matching this schema exactly:
 {
@@ -74,6 +85,8 @@ OUTPUT — return ONLY valid JSON matching this schema exactly:
   "components": string[],
   "labour_defined": boolean,
   "parts_defined": boolean,
+  "labour_cost": number | null,
+  "parts_cost": number | null,
   "confidence": "high" | "medium" | "low",
   "extraction_warnings": string[]
 }`;
@@ -122,6 +135,8 @@ export async function extractQuoteFromText(
               },
               labour_defined: { type: "boolean", description: "True if labour cost is explicitly stated" },
               parts_defined: { type: "boolean", description: "True if parts cost is explicitly stated" },
+              labour_cost: { type: ["number", "null"], description: "Actual labour cost as a plain number (same currency as total_cost). Null if not itemised." },
+              parts_cost: { type: ["number", "null"], description: "Actual parts cost as a plain number (same currency as total_cost). Null if not itemised." },
               confidence: {
                 type: "string",
                 enum: ["high", "medium", "low"],
@@ -140,6 +155,8 @@ export async function extractQuoteFromText(
               "components",
               "labour_defined",
               "parts_defined",
+              "labour_cost",
+              "parts_cost",
               "confidence",
               "extraction_warnings"
             ],
@@ -261,6 +278,31 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     warnings.push("confidence was recomputed from extracted data");
   }
 
+  // Coerce labour_cost and parts_cost
+  let labourCost: number | null = null;
+  if (typeof raw.labour_cost === "number" && raw.labour_cost > 0) {
+    labourCost = raw.labour_cost;
+  } else if (typeof raw.labour_cost === "string") {
+    const p = parseFloat((raw.labour_cost as string).replace(/[^0-9.]/g, ""));
+    if (!isNaN(p) && p > 0) labourCost = p;
+  }
+  let partsCost: number | null = null;
+  if (typeof raw.parts_cost === "number" && raw.parts_cost > 0) {
+    partsCost = raw.parts_cost;
+  } else if (typeof raw.parts_cost === "string") {
+    const p = parseFloat((raw.parts_cost as string).replace(/[^0-9.]/g, ""));
+    if (!isNaN(p) && p > 0) partsCost = p;
+  }
+
+  // Cross-validate: if both labour and parts are present, their sum should be ≤ total_cost
+  if (labourCost !== null && partsCost !== null && totalCost !== null) {
+    if (labourCost + partsCost > totalCost * 1.05) {
+      warnings.push(`labour_cost (${labourCost}) + parts_cost (${partsCost}) exceeds total_cost (${totalCost}) by >5% — discarding breakdown`);
+      labourCost = null;
+      partsCost = null;
+    }
+  }
+
   return {
     panel_beater: typeof raw.panel_beater === "string" ? raw.panel_beater : null,
     total_cost: totalCost,
@@ -268,6 +310,8 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     components,
     labour_defined: raw.labour_defined === true,
     parts_defined: raw.parts_defined === true,
+    labour_cost: labourCost,
+    parts_cost: partsCost,
     confidence,
     extraction_warnings: warnings,
   };
@@ -319,6 +363,8 @@ function buildFallback(warning: string): ExtractedQuote {
     components: [],
     labour_defined: false,
     parts_defined: false,
+    labour_cost: null,
+    parts_cost: null,
     confidence: "low",
     extraction_warnings: [warning],
   };
