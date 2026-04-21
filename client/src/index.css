@@ -93,25 +93,25 @@
   --info: oklch(0.40 0.16 230);             /* Dark blue — 7.1:1 on white ✓ */
   --info-foreground: oklch(0.99 0 0);
 
-  /* Status badge system — WCAG AA verified (≥4.5:1 on each bg) */
-  /* APPROVE: green-900 (#14532D) on green-100 (#DCFCE7) = 7.2:1 ✓ */
-  --status-approve-bg: #DCFCE7;
-  --status-approve-text: #14532D;
-  --status-approve-border: #86EFAC;
-  /* REVIEW: amber-900 (#78350F) on amber-100 (#FEF3C7) = 7.8:1 ✓ */
-  --status-review-bg: #FEF3C7;
-  --status-review-text: #78350F;
-  --status-review-border: #FCD34D;
-  /* REJECT: red-900 (#7F1D1D) on red-100 (#FEE2E2) = 8.1:1 ✓ */
-  --status-reject-bg: #FEE2E2;
-  --status-reject-text: #7F1D1D;
-  --status-reject-border: #FCA5A5;
-  /* FRAUD: violet-950 (#2E1065 approx) on violet-100 (#EDE9FE) = 9.2:1 ✓ */
-  --status-fraud-bg: #EDE9FE;
-  --status-fraud-text: #3B0764;
-  --status-fraud-border: #C4B5FD;
+  /* Status badge system — KINGA Design Prompt v2 exact hex */
+  /* APPROVE = Pass green */
+  --status-approve-bg: #e6f4e6;
+  --status-approve-text: #2a7a2a;
+  --status-approve-border: #2a7a2a;
+  /* REVIEW = Warn amber */
+  --status-review-bg: #fef3e2;
+  --status-review-text: #8a5c00;
+  --status-review-border: #8a5c00;
+  /* REJECT = Fail red */
+  --status-reject-bg: #fce8e8;
+  --status-reject-text: #a32d2d;
+  --status-reject-border: #a32d2d;
+  /* FRAUD = Decision amber (escalation) */
+  --status-fraud-bg: #fff4e0;
+  --status-fraud-text: #7a4e00;
+  --status-fraud-border: #7a4e00;
   
-  --border: #E2E8F0;                         /* Slate-200 border */
+  --border: #e8e8e8;                         /* KINGA prompt border light */
   --input: #F1F5F9;                          /* Slate-100 input bg */
   --ring: oklch(0.42 0.12 185);             /* Deep teal focus ring — visible ✓ */
 
@@ -176,33 +176,33 @@
   --bi-alert-info-accent: oklch(0.45 0.15 220);
   --bi-divider: oklch(0.85 0.015 185);
 
-  /* Forensic Panel tokens — light mode */
-  --fp-subtle-bg: oklch(0.96 0.005 250);         /* subtle panel backgrounds */
-  --fp-subtle-border: oklch(0.88 0.015 250);     /* subtle panel borders */
-  --fp-critical-bg: oklch(0.96 0.02 25);         /* critical alert bg */
-  --fp-critical-border: oklch(0.80 0.10 25);     /* critical alert border */
-  --fp-critical-text: oklch(0.45 0.22 25);       /* critical alert text */
-  --fp-warning-bg: oklch(0.96 0.02 60);          /* warning alert bg */
-  --fp-warning-border: oklch(0.80 0.10 60);      /* warning alert border */
-  --fp-warning-text: oklch(0.45 0.18 60);        /* warning alert text */
-  --fp-info-bg: oklch(0.96 0.02 250);            /* info bg */
-  --fp-info-border: oklch(0.80 0.08 250);        /* info border */
-  --fp-info-text: oklch(0.40 0.12 250);          /* info text */
-  --fp-success-bg: oklch(0.96 0.02 155);         /* success bg */
-  --fp-success-border: oklch(0.70 0.10 155);     /* success border */
-  --fp-success-text: oklch(0.35 0.14 155);       /* success text */
-  --fp-warn-bg: oklch(0.96 0.02 60);             /* warn bg alias */
-  --fp-warn-border: oklch(0.80 0.10 60);         /* warn border alias */
-  --fp-warn-text: oklch(0.45 0.18 60);           /* warn text alias */
-  --fp-mismatch-bg: oklch(0.96 0.02 60);         /* mismatch bg */
-  --fp-mismatch-border: oklch(0.80 0.10 60);     /* mismatch border */
-  --fp-match-bg: oklch(0.96 0.02 155);           /* match bg */
-  --fp-match-border: oklch(0.70 0.10 155);       /* match border */
-  --fp-locked-bg: oklch(0.96 0.02 30);           /* locked state bg */
-  --fp-locked-border: oklch(0.65 0.15 30);       /* locked state border */
-  --fp-locked-text: oklch(0.50 0.20 30);         /* locked state text */
-  --fp-finalised-bg: oklch(0.96 0.02 155);       /* finalised state bg */
-  --fp-finalised-border: oklch(0.70 0.12 155);   /* finalised border */
+  /* Forensic Panel tokens — light mode — KINGA Design Prompt v2 exact hex */
+  --fp-subtle-bg: #f5f5f5;                       /* neutral grey bg */
+  --fp-subtle-border: #e8e8e8;                   /* border light */
+  --fp-critical-bg: #fce8e8;                     /* fail red bg */
+  --fp-critical-border: #a32d2d;                 /* fail red border */
+  --fp-critical-text: #a32d2d;                   /* fail red text */
+  --fp-warning-bg: #fef3e2;                      /* warn amber bg */
+  --fp-warning-border: #8a5c00;                  /* warn amber border */
+  --fp-warning-text: #8a5c00;                    /* warn amber text */
+  --fp-info-bg: #f5f5f5;                         /* neutral info bg */
+  --fp-info-border: #e8e8e8;                     /* neutral info border */
+  --fp-info-text: #888888;                       /* neutral info text */
+  --fp-success-bg: #e6f4e6;                      /* pass green bg */
+  --fp-success-border: #2a7a2a;                  /* pass green border */
+  --fp-success-text: #2a7a2a;                    /* pass green text */
+  --fp-warn-bg: #fef3e2;                         /* warn bg alias */
+  --fp-warn-border: #8a5c00;                     /* warn border alias */
+  --fp-warn-text: #8a5c00;                       /* warn text alias */
+  --fp-mismatch-bg: #fef3e2;                     /* mismatch bg */
+  --fp-mismatch-border: #8a5c00;                 /* mismatch border */
+  --fp-match-bg: #e6f4e6;                        /* match bg */
+  --fp-match-border: #2a7a2a;                    /* match border */
+  --fp-locked-bg: #fff4e0;                       /* decision amber bg */
+  --fp-locked-border: #7a4e00;                   /* decision amber border */
+  --fp-locked-text: #7a4e00;                     /* decision amber text */
+  --fp-finalised-bg: #e6f4e6;                    /* finalised = pass green */
+  --fp-finalised-border: #2a7a2a;                /* finalised border */
   --fp-vehicle-body: oklch(0.92 0.01 250);       /* vehicle diagram body */
   --fp-vehicle-stroke: oklch(0.70 0.02 250);     /* vehicle diagram stroke */
   --fp-vehicle-wheel: oklch(0.50 0.02 250);      /* vehicle diagram wheels */
@@ -249,23 +249,23 @@
   --info: oklch(0.70 0.18 230);             /* Bright blue */
   --info-foreground: oklch(0.08 0.015 250);
 
-  /* Status badges — dark mode: bright text on very dark bg */
-  /* APPROVE: green-200 (#A7F3D0) on green-950 (#052E16) = 8.4:1 ✓ */
-  --status-approve-bg: #052E16;
-  --status-approve-text: #A7F3D0;
-  --status-approve-border: #166534;
-  /* REVIEW: amber-200 (#FDE68A) on amber-950 (#451A03) = 9.1:1 ✓ */
-  --status-review-bg: #451A03;
-  --status-review-text: #FDE68A;
-  --status-review-border: #92400E;
-  /* REJECT: red-200 (#FECACA) on red-950 (#450A0A) = 9.8:1 ✓ */
-  --status-reject-bg: #450A0A;
-  --status-reject-text: #FECACA;
-  --status-reject-border: #991B1B;
-  /* FRAUD: violet-200 (#DDD6FE) on violet-950 (#2E1065) = 8.7:1 ✓ */
-  --status-fraud-bg: #2E1065;
-  --status-fraud-text: #DDD6FE;
-  --status-fraud-border: #5B21B6;
+  /* Status badges — dark mode — KINGA engine palette */
+  /* APPROVE = engine pass */
+  --status-approve-bg: #238636;
+  --status-approve-text: #3fb950;
+  --status-approve-border: #3fb950;
+  /* REVIEW = engine warn */
+  --status-review-bg: #9e6a03;
+  --status-review-text: #e3b341;
+  --status-review-border: #e3b341;
+  /* REJECT = engine fail */
+  --status-reject-bg: #8b0000;
+  --status-reject-text: #f85149;
+  --status-reject-border: #f85149;
+  /* FRAUD = engine fail (escalation) */
+  --status-fraud-bg: #8b0000;
+  --status-fraud-text: #f85149;
+  --status-fraud-border: #f85149;
   
   --border: #3F3F3F;                         /* Neutral dark border */
   --input: #333333;                          /* Dark input bg */
@@ -349,33 +349,34 @@
   --bi-alert-info-accent: oklch(0.60 0.15 220);
   --bi-divider: oklch(0.30 0.02 250);
 
-  /* Forensic Panel tokens — dark mode */
-  --fp-subtle-bg: oklch(0.18 0.015 250);         /* subtle panel backgrounds */
-  --fp-subtle-border: oklch(0.28 0.02 250);      /* subtle panel borders */
-  --fp-critical-bg: oklch(0.18 0.06 25 / 0.5);   /* critical alert bg */
-  --fp-critical-border: oklch(0.50 0.18 25);     /* critical alert border */
-  --fp-critical-text: oklch(0.72 0.18 25);       /* critical alert text */
-  --fp-warning-bg: oklch(0.18 0.05 60 / 0.4);    /* warning alert bg */
-  --fp-warning-border: oklch(0.55 0.15 60);      /* warning alert border */
-  --fp-warning-text: oklch(0.80 0.15 60);        /* warning alert text */
-  --fp-info-bg: oklch(0.18 0.04 250 / 0.4);      /* info bg */
-  --fp-info-border: oklch(0.45 0.10 250);        /* info border */
-  --fp-info-text: oklch(0.70 0.15 250);          /* info text */
-  --fp-success-bg: oklch(0.18 0.04 155 / 0.4);   /* success bg */
-  --fp-success-border: oklch(0.45 0.12 155);     /* success border */
-  --fp-success-text: oklch(0.72 0.14 155);       /* success text */
-  --fp-warn-bg: oklch(0.18 0.05 60 / 0.4);       /* warn bg alias */
-  --fp-warn-border: oklch(0.55 0.15 60);         /* warn border alias */
-  --fp-warn-text: oklch(0.80 0.15 60);           /* warn text alias */
-  --fp-mismatch-bg: oklch(0.18 0.05 60 / 0.3);   /* mismatch bg */
-  --fp-mismatch-border: oklch(0.55 0.15 60);     /* mismatch border */
-  --fp-match-bg: oklch(0.18 0.04 155 / 0.3);     /* match bg */
-  --fp-match-border: oklch(0.45 0.12 155);       /* match border */
-  --fp-locked-bg: oklch(0.22 0.06 30);           /* locked state bg */
-  --fp-locked-border: oklch(0.55 0.15 30);       /* locked state border */
-  --fp-locked-text: oklch(0.78 0.15 30);         /* locked state text */
-  --fp-finalised-bg: oklch(0.18 0.05 155);       /* finalised state bg */
-  --fp-finalised-border: oklch(0.45 0.12 155);   /* finalised border */
+  /* Forensic Panel tokens — dark mode — KINGA Design Prompt v2 exact hex */
+  /* Dark mode: same semantic colours, slightly brightened for dark bg legibility */
+  --fp-subtle-bg: #1e1e1e;                       /* dark subtle bg */
+  --fp-subtle-border: #3a3a3a;                   /* dark subtle border */
+  --fp-critical-bg: #3a1010;                     /* dark fail red bg */
+  --fp-critical-border: #f85149;                 /* engine fail text as border */
+  --fp-critical-text: #f85149;                   /* engine fail text */
+  --fp-warning-bg: #2e1f00;                      /* dark warn amber bg */
+  --fp-warning-border: #e3b341;                  /* engine warn text as border */
+  --fp-warning-text: #e3b341;                    /* engine warn text */
+  --fp-info-bg: #1e1e1e;                         /* dark neutral bg */
+  --fp-info-border: #3a3a3a;                     /* dark neutral border */
+  --fp-info-text: #9ca3af;                       /* muted grey */
+  --fp-success-bg: #0d2010;                      /* dark pass green bg */
+  --fp-success-border: #3fb950;                  /* engine pass text as border */
+  --fp-success-text: #3fb950;                    /* engine pass text */
+  --fp-warn-bg: #2e1f00;                         /* warn bg alias */
+  --fp-warn-border: #e3b341;                     /* warn border alias */
+  --fp-warn-text: #e3b341;                       /* warn text alias */
+  --fp-mismatch-bg: #2e1f00;                     /* mismatch bg */
+  --fp-mismatch-border: #e3b341;                 /* mismatch border */
+  --fp-match-bg: #0d2010;                        /* match bg */
+  --fp-match-border: #3fb950;                    /* match border */
+  --fp-locked-bg: #2a1a00;                       /* decision amber dark bg */
+  --fp-locked-border: #e3b341;                   /* decision amber border */
+  --fp-locked-text: #e3b341;                     /* decision amber text */
+  --fp-finalised-bg: #0d2010;                    /* finalised = pass green dark */
+  --fp-finalised-border: #3fb950;                /* finalised border */
   --fp-vehicle-body: oklch(0.25 0.03 250);       /* vehicle diagram body */
   --fp-vehicle-stroke: oklch(0.45 0.05 250);     /* vehicle diagram stroke */
   --fp-vehicle-wheel: oklch(0.20 0.02 250);      /* vehicle diagram wheels */
@@ -1060,32 +1061,32 @@
    Use these exclusively in ClaimDecisionReport and print views.
    ============================================================ */
 :root {
-  /* R2 — Approved report palette */
-  --rpt-bg-primary:      #FFFFFF;
-  --rpt-bg-secondary:    #F8FAFC;
-  --rpt-text-primary:    #0F172A;   /* 21:1 on white ✓ */
-  --rpt-text-secondary:  #475569;   /* 7:1 on white ✓ */
-  --rpt-accent-danger:   #DC2626;   /* ESCALATE / fraud / critical */
-  --rpt-accent-warning:  #D97706;   /* REVIEW / inconsistency */
-  --rpt-accent-success:  #059669;   /* APPROVE / resolved */
-  --rpt-accent-info:     #0369A1;   /* neutral info / charts */
-  --rpt-border:          #E2E8F0;
+  /* R2 — KINGA Design Prompt v2 exact palette */
+  --rpt-bg-primary:      #ffffff;
+  --rpt-bg-secondary:    #f5f5f5;   /* neutral grey bg */
+  --rpt-text-primary:    #1a1a1a;   /* near-black body text */
+  --rpt-text-secondary:  #888888;   /* neutral grey label text */
+  --rpt-accent-danger:   #a32d2d;   /* fail red */
+  --rpt-accent-warning:  #8a5c00;   /* warn amber */
+  --rpt-accent-success:  #2a7a2a;   /* pass green */
+  --rpt-accent-info:     #888888;   /* neutral grey */
+  --rpt-border:          #e8e8e8;   /* border light */
 
-  /* Decision box colours mapped to decision word */
-  --rpt-decision-approve:  var(--rpt-accent-success);
-  --rpt-decision-review:   var(--rpt-accent-warning);
-  --rpt-decision-escalate: var(--rpt-accent-danger);
-  --rpt-decision-reject:   var(--rpt-text-primary);
+  /* Decision box colours — KINGA prompt */
+  --rpt-decision-approve:  #2a7a2a;   /* pass green */
+  --rpt-decision-review:   #7a4e00;   /* decision amber */
+  --rpt-decision-escalate: #a32d2d;   /* fail red */
+  --rpt-decision-reject:   #1a1a1a;   /* near-black */
 
-  /* Heatmap severity overlays */
-  --rpt-heatmap-severe:   rgba(220, 38, 38, 0.40);   /* #DC2626 40% */
-  --rpt-heatmap-moderate: rgba(217, 119, 6, 0.40);   /* #D97706 40% */
-  --rpt-heatmap-minor:    rgba(5, 150, 105, 0.40);   /* #059669 40% */
+  /* Heatmap severity overlays — KINGA prompt damage colours */
+  --rpt-heatmap-severe:   rgba(192, 57, 43, 0.40);   /* #c0392b 40% */
+  --rpt-heatmap-moderate: rgba(230, 126, 34, 0.40);  /* #e67e22 40% */
+  --rpt-heatmap-minor:    rgba(39, 174, 96, 0.40);   /* #27ae60 40% */
 
-  /* Physics gauge segments */
-  --rpt-gauge-low:    #DC2626;   /* 0–30% */
-  --rpt-gauge-mid:    #D97706;   /* 30–70% */
-  --rpt-gauge-high:   #059669;   /* 70–100% */
+  /* Physics gauge segments — KINGA prompt */
+  --rpt-gauge-low:    #a32d2d;   /* 0–30% fail red */
+  --rpt-gauge-mid:    #8a5c00;   /* 30–70% warn amber */
+  --rpt-gauge-high:   #2a7a2a;   /* 70–100% pass green */
 }
 
 /* Report-specific utility classes */
@@ -1155,34 +1156,34 @@
     --border: #E2E8F0 !important;
     --fp-subtle-bg: #F8FAFC !important;
     --fp-subtle-border: #E2E8F0 !important;
-    --fp-critical-bg: #FEF2F2 !important;
-    --fp-critical-border: #FCA5A5 !important;
-    --fp-critical-text: #991B1B !important;
-    --fp-warning-bg: #FFFBEB !important;
-    --fp-warning-border: #FCD34D !important;
-    --fp-warning-text: #92400E !important;
-    --fp-info-bg: #EFF6FF !important;
-    --fp-info-border: #BFDBFE !important;
-    --fp-info-text: #1E40AF !important;
-    --fp-success-bg: #F0FDF4 !important;
-    --fp-success-border: #86EFAC !important;
-    --fp-success-text: #14532D !important;
-    --status-approve-bg: #DCFCE7 !important;
-    --status-approve-text: #14532D !important;
-    --status-approve-border: #86EFAC !important;
-    --status-review-bg: #FEF3C7 !important;
-    --status-review-text: #78350F !important;
-    --status-review-border: #FCD34D !important;
-    --status-reject-bg: #FEE2E2 !important;
-    --status-reject-text: #7F1D1D !important;
-    --status-reject-border: #FCA5A5 !important;
-    --fp-locked-bg: #FFF7ED !important;
-    --fp-locked-border: #FB923C !important;
-    --fp-locked-text: #9A3412 !important;
-    --fp-finalised-bg: #F0FDF4 !important;
-    --fp-finalised-border: #86EFAC !important;
-    --fp-badge-bg: #F1F5F9 !important;
-    --fp-badge-text: #1E293B !important;
+    --fp-critical-bg: #fce8e8 !important;
+    --fp-critical-border: #a32d2d !important;
+    --fp-critical-text: #a32d2d !important;
+    --fp-warning-bg: #fef3e2 !important;
+    --fp-warning-border: #8a5c00 !important;
+    --fp-warning-text: #8a5c00 !important;
+    --fp-info-bg: #f5f5f5 !important;
+    --fp-info-border: #e8e8e8 !important;
+    --fp-info-text: #888888 !important;
+    --fp-success-bg: #e6f4e6 !important;
+    --fp-success-border: #2a7a2a !important;
+    --fp-success-text: #2a7a2a !important;
+    --status-approve-bg: #e6f4e6 !important;
+    --status-approve-text: #2a7a2a !important;
+    --status-approve-border: #2a7a2a !important;
+    --status-review-bg: #fef3e2 !important;
+    --status-review-text: #8a5c00 !important;
+    --status-review-border: #8a5c00 !important;
+    --status-reject-bg: #fce8e8 !important;
+    --status-reject-text: #a32d2d !important;
+    --status-reject-border: #a32d2d !important;
+    --fp-locked-bg: #fff4e0 !important;
+    --fp-locked-border: #7a4e00 !important;
+    --fp-locked-text: #7a4e00 !important;
+    --fp-finalised-bg: #e6f4e6 !important;
+    --fp-finalised-border: #2a7a2a !important;
+    --fp-badge-bg: #f5f5f5 !important;
+    --fp-badge-text: #1a1a1a !important;
     --rpt-header-bg: #1E293B !important;
     --rpt-header-text: #F1F5F9 !important;
     --rpt-header-border: #334155 !important;
@@ -1301,8 +1302,9 @@
    All currency, percentage, and numeric values in report tables
    use tabular-nums + monospace font for vertical alignment
    ============================================================ */
+/* KINGA Design Prompt v2: Courier New for all monospace/numeric elements */
 .num {
-  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-family: 'Courier New', Courier, monospace;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
 }
@@ -1310,20 +1312,20 @@
 /* Auto-apply to table cells that contain only numeric content */
 .report-table td:not(:first-child),
 .report-table th:not(:first-child) {
-  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-family: 'Courier New', Courier, monospace;
   font-variant-numeric: tabular-nums;
 }
 
 /* Currency values */
 .currency {
-  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-family: 'Courier New', Courier, monospace;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 /* Percentage values */
 .pct {
-  font-family: "JetBrains Mono", "Fira Code", "Roboto Mono", ui-monospace, monospace;
+  font-family: 'Courier New', Courier, monospace;
   font-variant-numeric: tabular-nums;
 }
 

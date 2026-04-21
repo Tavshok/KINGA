@@ -45,20 +45,23 @@ ChartJS.register(
 
 // ─── Theme helper ────────────────────────────────────────────────────────────
 function getThemeColors() {
-  const s = getComputedStyle(document.documentElement);
-  const get = (v: string) => s.getPropertyValue(v).trim();
   const isDark = document.documentElement.classList.contains("dark");
+  // KINGA Design Prompt v2 exact hex values
+  // Light mode: exact prompt hex | Dark mode: KINGA engine palette
   return {
-    text: get("--foreground") || (isDark ? "#e5e7eb" : "#111827"),
-    muted: get("--muted-foreground") || (isDark ? "#9ca3af" : "#6b7280"),
+    text: isDark ? "#e5e7eb" : "#1a1a1a",
+    muted: isDark ? "#9ca3af" : "#888888",
     grid: isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)",
-    // Hardcoded hex only inside Chart.js callbacks where CSS vars can't be read
-    green: isDark ? "#4ade80" : "#16a34a",
-    amber: isDark ? "#fbbf24" : "#d97706",
-    red: isDark ? "#f87171" : "#dc2626",
-    greenFill: isDark ? "rgba(74,222,128,0.12)" : "rgba(22,163,74,0.12)",
-    amberFill: isDark ? "rgba(251,191,36,0.12)" : "rgba(217,119,6,0.12)",
-    redFill: isDark ? "rgba(248,113,113,0.12)" : "rgba(220,38,38,0.12)",
+    // Pass green: #2a7a2a (light) / #3fb950 engine pass (dark)
+    green: isDark ? "#3fb950" : "#2a7a2a",
+    // Warn amber: #8a5c00 (light) / #e3b341 engine warn (dark)
+    amber: isDark ? "#e3b341" : "#8a5c00",
+    // Fail red: #a32d2d (light) / #f85149 engine fail (dark)
+    red: isDark ? "#f85149" : "#a32d2d",
+    // Fill colours: bg tints from prompt
+    greenFill: isDark ? "rgba(63,185,80,0.12)" : "rgba(42,122,42,0.10)",
+    amberFill: isDark ? "rgba(227,179,65,0.12)" : "rgba(138,92,0,0.10)",
+    redFill: isDark ? "rgba(248,81,73,0.12)" : "rgba(163,45,45,0.10)",
   };
 }
 

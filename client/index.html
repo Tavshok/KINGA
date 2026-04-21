@@ -14,11 +14,23 @@
     <link rel="manifest" href="/site.webmanifest" />
     <meta name="theme-color" content="#10b981" />
     
-    <!-- THIS IS THE START OF A COMMENT BLOCK, BLOCK TO BE DELETED: Google Fonts here, example:
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    THIS IS THE END OF A COMMENT BLOCK, BLOCK TO BE DELETED -->
+    <!-- KINGA Design Prompt v2: Helvetica / system-ui for body; Courier New for monospace -->
+    <style>
+      /* Apply Helvetica/system-ui globally as per KINGA Design Prompt v2 */
+      :root {
+        --font-sans: Helvetica, Arial, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        --font-mono: 'Courier New', Courier, monospace;
+      }
+      body {
+        font-family: var(--font-sans);
+        font-weight: 400;
+      }
+      /* Monospace: SHA-256 hash, document identity strip, run IDs */
+      .font-mono, code, pre, .mono,
+      .report-hash, .report-run-id, .report-identity {
+        font-family: var(--font-mono) !important;
+      }
+    </style>
   </head>
 
   <body>

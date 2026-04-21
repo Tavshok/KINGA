@@ -80,35 +80,36 @@ const ALERT_CONFIG = {
   critical: {
     bg: "var(--fp-critical-bg)",
     border: "var(--fp-critical-border)",
-    iconColor: "#f87171",
-    labelColor: "#f87171",
+    iconColor: "var(--fp-critical-text)",
+    labelColor: "var(--fp-critical-text)",
     Icon: AlertTriangle,
     label: "CRITICAL",
   },
   warning: {
     bg: "var(--fp-warning-bg)",
     border: "var(--fp-warning-border)",
-    iconColor: "#fbbf24",
-    labelColor: "#fbbf24",
+    iconColor: "var(--fp-warning-text)",
+    labelColor: "var(--fp-warning-text)",
     Icon: AlertTriangle,
     label: "WARNING",
   },
   info: {
     bg: "var(--fp-info-bg)",
     border: "var(--fp-info-border)",
-    iconColor: "#60a5fa",
-    labelColor: "#60a5fa",
+    iconColor: "var(--fp-info-text)",
+    labelColor: "var(--fp-info-text)",
     Icon: Info,
     label: "INFO",
   },
 };
 
+// KINGA Design Prompt v2 fraud level colours
 const FRAUD_LEVEL_COLORS: Record<string, string> = {
-  minimal:  "#10b981",
-  low:      "#22c55e",
-  moderate: "#f59e0b",
-  high:     "#f97316",
-  critical: "#dc2626",
+  minimal:  "#2a7a2a",   /* pass green */
+  low:      "#2a7a2a",   /* pass green */
+  moderate: "#8a5c00",   /* warn amber */
+  high:     "#a32d2d",   /* fail red */
+  critical: "#a32d2d",   /* fail red */
 };
 
 const CONFIDENCE_LABELS: Record<string, string> = {
@@ -287,13 +288,13 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
         >
           <div className="flex items-center gap-2 mb-1">
             {e.consistencyFlag.flagged
-              ? <AlertTriangle className="h-4 w-4" style={{ color: e.consistencyFlag.anomalyLevel === "high" ? "#f87171" : "#fbbf24" }} />
-              : <CheckCircle className="h-4 w-4 text-emerald-500" />
+              ? <AlertTriangle className="h-4 w-4" style={{ color: e.consistencyFlag.anomalyLevel === "high" ? "var(--fp-critical-text)" : "var(--fp-warning-text)" }} />
+              : <CheckCircle className="h-4 w-4" style={{ color: "var(--fp-success-text)" }} />
             }
             <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
               Consistency Score: {e.consistencyFlag.score}%
               {e.consistencyFlag.flagged && (
-                <span className="ml-2 text-xs font-bold uppercase" style={{ color: e.consistencyFlag.anomalyLevel === "high" ? "#f87171" : "#fbbf24" }}>
+                <span className="ml-2 text-xs font-bold uppercase" style={{ color: e.consistencyFlag.anomalyLevel === "high" ? "var(--fp-critical-text)" : "var(--fp-warning-text)" }}>
                   {e.consistencyFlag.anomalyLevel.toUpperCase()} ANOMALY
                 </span>
               )}
@@ -303,7 +304,7 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
             {e.consistencyFlag.explanation}
           </p>
           {e.consistencyFlag.fraudWeightIncrease > 0 && (
-            <p className="text-xs mt-1 font-semibold" style={{ color: "#fbbf24" }}>
+            <p className="text-xs mt-1 font-semibold" style={{ color: "var(--fp-warning-text)" }}>
               ⚠ Fraud score adjusted +{e.consistencyFlag.fraudWeightIncrease} points due to consistency anomaly.
             </p>
           )}
@@ -326,8 +327,8 @@ export default function IntelligenceEnforcementPanel({ claimId }: Props) {
         >
           <div className="flex items-center gap-2 mb-1">
             {e.directionFlag.mismatch
-              ? <AlertTriangle className="h-4 w-4" style={{ color: "#fbbf24" }} />
-              : <CheckCircle className="h-4 w-4 text-emerald-500" />
+              ? <AlertTriangle className="h-4 w-4" style={{ color: "var(--fp-warning-text)" }} />
+              : <CheckCircle className="h-4 w-4" style={{ color: "var(--fp-success-text)" }} />
             }
             <span className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
               {e.directionFlag.mismatch ? "Direction-Damage Mismatch Detected" : "Direction-Damage Consistent"}
