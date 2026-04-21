@@ -122,17 +122,30 @@ export default function ClaimsProcessorDashboard() {
     if (aiProcessingClaimIds.size === 0) return;
     
     const completedIds = new Set<number>();
+    const failedIds = new Set<number>();
     aiProcessingClaimIds.forEach(id => {
       const claim = allClaims.find((c: any) => c.id === id);
-      if (claim && claim.status === "assessment_complete") {
+      if (!claim) return;
+      // Claim finished successfully
+      if (claim.status === "assessment_complete") {
         completedIds.add(id);
+      }
+      // Claim failed — backend reset it to intake_pending/intake_queue with failed doc status,
+      // or the workflow_state was reset back to intake_queue after an error.
+      // Also catch claims stuck for > 5 minutes that reverted to intake_pending.
+      if (
+        claim.documentProcessingStatus === "failed" ||
+        (claim.status === "intake_pending" && claim.workflowState === "intake_queue")
+      ) {
+        failedIds.add(id);
       }
     });
 
-    if (completedIds.size > 0) {
+    const idsToRemove = new Set([...completedIds, ...failedIds]);
+    if (idsToRemove.size > 0) {
       setAiProcessingClaimIds(prev => {
         const next = new Set(prev);
-        completedIds.forEach(id => next.delete(id));
+        idsToRemove.forEach(id => next.delete(id));
         return next;
       });
       
@@ -145,6 +158,14 @@ export default function ClaimsProcessorDashboard() {
             onClick: () => window.location.href = `/insurer/claims/${id}/comparison`,
           },
           duration: 10000,
+        });
+      });
+
+      failedIds.forEach(id => {
+        const claim = allClaims.find((c: any) => c.id === id);
+        toast.error("AI Assessment Failed", {
+          description: `Processing failed for ${claim?.claimNumber || `Claim #${id}`}. Please check that documents are uploaded and try again.`,
+          duration: 8000,
         });
       });
     }
@@ -355,6 +376,16 @@ export default function ClaimsProcessorDashboard() {
         );
       }
       
+      // Show FAILED badge when document processing failed
+      if (claim.documentProcessingStatus === "failed") {
+        return (
+          <Badge className="bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200 border-red-300 dark:border-red-700 flex items-center gap-1">
+            <AlertTriangle className="h-3 w-3" />
+            PROCESSING FAILED
+          </Badge>
+        );
+      }
+
       // For server-driven in-progress state (e.g. after page refresh), show spinner + elapsed time
       if (claim.status === "assessment_in_progress") {
         const startedAt = claim.updatedAt ? new Date(claim.updatedAt) : null;

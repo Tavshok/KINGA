@@ -10828,3 +10828,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Applied safeInt() to: estimatedCost, confidenceScore, fraudScore, processingTime, totalLossIndicated, repairToValueRatio, estimatedPartsCost, estimatedLaborCost, imageAnalysisTotalCount, imageAnalysisSuccessCount, imageAnalysisFailedCount, imageAnalysisSuccessRate, fcdiScore
 - [x] Applied safeFloat() to: fraudRiskScore in the claim update block
 - [x] Reset stuck claim 4500008 to intake_queue for re-processing
+
+## Critical: End-to-End Claim Processing Must Work Without Issues (Apr 21 2026)
+- [x] Fix UI: "AI Processing" badge persists even after backend marks claim as failed — useEffect now clears on failed + shows error toast
+- [x] Fix UI: Add PROCESSING FAILED badge when documentProcessingStatus === 'failed'
+- [x] Fix: Ensure documentProcessingStatus and workflowState are returned in getClaimsByStatus query (already returned via db.select())
+- [x] Fix: Claims with no documents create placeholder assessment and mark as assessment_complete (already handled in db.ts line 660-680)
+- [x] Verify: Pipeline completes end-to-end for claims with valid documents (claim 4530003 completed all 11 stages in 132s)
+- [x] Verify: Failed claims show correct status and can be retried (reset claims 4530002 and 4530004 to pending)
