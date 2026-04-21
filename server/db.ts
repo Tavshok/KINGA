@@ -1013,6 +1013,22 @@ export async function triggerAiAssessment(claimId: number) {
     console.warn(`[AI Assessment] Claim ${claimId}: Forensic audit validator failed (non-fatal):`, validatorErr?.message ?? validatorErr);
   }
 
+  // ── NaN SANITIZER ──────────────────────────────────────────────────────────
+  // mysql2's query() method (non-prepared) formats NaN as the literal string 'nan'
+  // without quotes, which MySQL interprets as a column name →
+  // ER_BAD_FIELD_ERROR: Unknown column 'nan' in 'field list'.
+  // Guard every numeric column that could receive NaN from math operations.
+  const safeInt = (v: number | null | undefined): number | null => {
+    if (v === null || v === undefined) return null;
+    if (!Number.isFinite(v)) return null; // catches NaN, Infinity, -Infinity
+    return Math.round(v);
+  };
+  const safeFloat = (v: number | null | undefined): number | null => {
+    if (v === null || v === undefined) return null;
+    if (!Number.isFinite(v)) return null;
+    return v;
+  };
+
   // Delete any previous assessment for this claim
   console.log(`[AI Assessment] Claim ${claimId}: Deleting previous assessment and inserting new one...`);
   await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch((delErr) => {
@@ -1023,7 +1039,7 @@ export async function triggerAiAssessment(claimId: number) {
   await db.insert(aiAssessments).values({
     claimId,
     tenantId: claim.tenantId ?? null,
-    estimatedCost,
+    estimatedCost: safeInt(estimatedCost),
     damageDescription: damageDesc,
     detectedDamageTypes: damageAnalysis
       ? JSON.stringify([...new Set(damageAnalysis.damagedParts.map(p => p.damageType))])
@@ -1031,26 +1047,26 @@ export async function triggerAiAssessment(claimId: number) {
     // PERMANENT FIX: Always clamp confidenceScore to 0-100 before storing.
     // Prevents downstream display bugs (e.g. gauge showing "8200%") if completenessScore
     // is miscalculated or an upstream engine returns an out-of-range value.
-    confidenceScore: claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : 50,
+    confidenceScore: safeInt(claimRecord ? Math.max(0, Math.min(100, claimRecord.dataQuality.completenessScore)) : 50) ?? 50,
     fraudIndicators: fraudIndicatorsJson,
     fraudRiskLevel: dbFraudLevel,
     // SYSTEMIC FIX: Persist fraud score and recommendation as first-class columns.
     // Previously these were only buried in JSON blobs, causing the router to always
     // read undefined (→ fraudScore=0, recommendation=null) and produce wrong verdicts.
-    fraudScore: fraudAnalysis ? Math.round(fraudAnalysis.fraudRiskScore) : null,
+    fraudScore: safeInt(fraudAnalysis ? Math.round(fraudAnalysis.fraudRiskScore) : null),
     // Use Decision Authority recommendation (Stage 12) as the single source of truth.
     // Falls back to cost engine recommendation if Decision Authority didn't run.
     recommendation: decisionAuthority?.recommendation ?? costAnalysis?.costDecision?.recommendation ?? null,
     fraudScoreBreakdownJson,
     modelVersion: 'pipeline-v2',
-    processingTime: summary.totalDurationMs,
-    totalLossIndicated,
-    repairToValueRatio,
+    processingTime: safeInt(summary.totalDurationMs),
+    totalLossIndicated: safeInt(totalLossIndicated) ?? 0,
+    repairToValueRatio: safeInt(repairToValueRatio),
     structuralDamageSeverity: dbStructuralSeverity,
     damagedComponentsJson,
     physicsAnalysis: physicsJson,
-    estimatedPartsCost,
-    estimatedLaborCost,
+    estimatedPartsCost: safeInt(estimatedPartsCost),
+    estimatedLaborCost: safeInt(estimatedLaborCost),
     currencyCode: costAnalysis?.currency || 'USD',
     inferredHiddenDamagesJson: hiddenDamagesJson,
     costIntelligenceJson,
@@ -1096,13 +1112,13 @@ export async function triggerAiAssessment(claimId: number) {
     // Derived from enrichedPhotosJson set by Stage 6 on ctx and passed through orchestrator return.
     // Used to detect systemic failures and alert the team when success rate drops below threshold.
     // Use classified damage photo count if available, otherwise fall back to raw damagePhotos count
-    imageAnalysisTotalCount: result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length,
+    imageAnalysisTotalCount: safeInt(result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length),
     imageAnalysisSuccessCount: (() => {
       const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
       if (total === 0) return 0;
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
-        return enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
+        return safeInt(enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length) ?? 0;
       } catch { return 0; }
     })(),
     imageAnalysisFailedCount: (() => {
@@ -1111,8 +1127,8 @@ export async function triggerAiAssessment(claimId: number) {
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
         const successCount = enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
-        return Math.max(0, total - successCount);
-      } catch { return total; }
+        return safeInt(Math.max(0, total - successCount)) ?? 0;
+      } catch { return safeInt(total) ?? 0; }
     })(),
     imageAnalysisSuccessRate: (() => {
       const total = result.classifiedImages?.summary?.damagePhotoCount ?? damagePhotos.length;
@@ -1120,14 +1136,14 @@ export async function triggerAiAssessment(claimId: number) {
       try {
         const enriched = result.enrichedPhotosJson ? JSON.parse(result.enrichedPhotosJson) : [];
         const successCount = enriched.filter((p: any) => (p.confidenceScore ?? 0) > 0).length;
-        return enriched.length > 0 ? Math.round((successCount / enriched.length) * 100) : 0;
+        return safeInt(enriched.length > 0 ? Math.round((successCount / enriched.length) * 100) : 0);
       } catch { return 0; }
     })(),
     // Phase 2A: FCDI — Forensic Confidence Degradation Index (0–100)
     fcdiScore: (() => {
       try {
         const fcdi = forensicAnalysis?.fcdi;
-        return typeof fcdi?.scorePercent === 'number' ? fcdi.scorePercent : null;
+        return safeInt(typeof fcdi?.scorePercent === 'number' ? fcdi.scorePercent : null);
       } catch { return null; }
     })(),
     // Phase 2A: FEL — Forensic Execution Ledger (per-stage audit record)
@@ -1208,14 +1224,14 @@ export async function triggerAiAssessment(claimId: number) {
   });
 
   // Update claim status to complete + backfill vehicle info from extraction
-  const finalFraudScore = fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0;
+  const finalFraudScore = safeFloat(fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0) ?? 0;
   const claimUpdate: Record<string, any> = {
     aiAssessmentCompleted: 1,
     status: "assessment_complete",
     documentProcessingStatus: "extracted",
     fraudRiskScore: finalFraudScore,
     fraudFlags: fraudIndicatorsJson,
-    estimatedCost,
+    estimatedCost: safeInt(estimatedCost) ?? 0,
     updatedAt: new Date().toISOString(),
   };
   // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors

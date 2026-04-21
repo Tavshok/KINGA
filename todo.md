@@ -10821,3 +10821,10 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Remove PipelineConfidencePanel render call from main ForensicAuditReport export (hides pipeline execution summary)
 - [x] Verified: zero TypeScript errors in client/src after all changes
 - [x] Verified: Vite production build completes successfully (ForensicAuditReport-*.js ~488 kB)
+
+## Bug Fix: Claim Processing Stuck at AI Processing / Extracting (Apr 21 2026)
+- [x] Root cause: mysql2 query() method formats JavaScript NaN as the literal string 'nan' without quotes; MySQL interprets this as a column name → ER_BAD_FIELD_ERROR: Unknown column 'nan' in 'field list'
+- [x] Fix: Added safeInt() and safeFloat() sanitizer helpers before the main ai_assessments insert in db.ts
+- [x] Applied safeInt() to: estimatedCost, confidenceScore, fraudScore, processingTime, totalLossIndicated, repairToValueRatio, estimatedPartsCost, estimatedLaborCost, imageAnalysisTotalCount, imageAnalysisSuccessCount, imageAnalysisFailedCount, imageAnalysisSuccessRate, fcdiScore
+- [x] Applied safeFloat() to: fraudRiskScore in the claim update block
+- [x] Reset stuck claim 4500008 to intake_queue for re-processing
