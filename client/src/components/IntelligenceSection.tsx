@@ -4,7 +4,7 @@ import { LucideIcon } from "lucide-react";
 interface IntelligenceSectionProps {
   title: string;
   icon: LucideIcon;
-  insight?: string;
+  insight?: string | null;
   children: React.ReactNode;
 }
 
@@ -38,7 +38,7 @@ export function IntelligenceSection({
         />
       </div>
 
-      {/* Insight Banner */}
+      {/* Insight Banner — only shown when there is real data */}
       {insight && (
         <div
           className="px-4 py-3 rounded-lg text-sm"

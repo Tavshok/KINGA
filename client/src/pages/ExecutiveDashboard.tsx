@@ -206,20 +206,20 @@ export default function ExecutiveDashboard() {
   const [reviewNotes, setReviewNotes] = useState("");
 
   // Fetch data (reusing existing endpoints - NO NEW QUERIES)
-  const { data: kpisResponse, isLoading: kpisLoading } = trpc.analytics.getKPIs.useQuery({});
-  const { data: alertsResponse, isLoading: alertsLoading } = trpc.analytics.getCriticalAlerts.useQuery();
-  const { data: assessorPerfResponse, isLoading: assessorLoading } = trpc.analytics.getAssessorPerformance.useQuery();
-  const { data: panelBeaterAnalyticsResponse, isLoading: panelBeaterLoading } = trpc.analytics.getPanelBeaterAnalytics.useQuery();
-  const { data: savingsTrendsResponse, isLoading: savingsLoading } = trpc.analytics.getCostSavingsTrends.useQuery();
-  const { data: bottlenecksResponse, isLoading: bottlenecksLoading } = trpc.analytics.getWorkflowBottlenecks.useQuery();
-  const { data: financialsResponse, isLoading: financialsLoading } = trpc.analytics.getFinancialOverview.useQuery();
+  const { data: kpisResponse, isLoading: kpisLoading, isError: kpisError } = trpc.analytics.getKPIs.useQuery({}, { retry: 0 });
+  const { data: alertsResponse, isLoading: alertsLoading } = trpc.analytics.getCriticalAlerts.useQuery(undefined, { retry: 0 });
+  const { data: assessorPerfResponse, isLoading: assessorLoading } = trpc.analytics.getAssessorPerformance.useQuery(undefined, { retry: 0 });
+  const { data: panelBeaterAnalyticsResponse, isLoading: panelBeaterLoading } = trpc.analytics.getPanelBeaterAnalytics.useQuery(undefined, { retry: 0 });
+  const { data: savingsTrendsResponse, isLoading: savingsLoading } = trpc.analytics.getCostSavingsTrends.useQuery(undefined, { retry: 0 });
+  const { data: bottlenecksResponse, isLoading: bottlenecksLoading } = trpc.analytics.getWorkflowBottlenecks.useQuery(undefined, { retry: 0 });
+  const { data: financialsResponse, isLoading: financialsLoading } = trpc.analytics.getFinancialOverview.useQuery(undefined, { retry: 0 });
   
   // Governance metrics
-  const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery();
-  const { data: overrideTrendResponse } = trpc.governance.getOverrideFrequencyTrend.useQuery();
-  const { data: segregationHeatmapResponse } = trpc.governance.getSegregationViolationHeatmap.useQuery();
-  const { data: roleChangeTrendResponse } = trpc.governance.getRoleChangeTrend.useQuery();
-  const { data: conflictDistributionResponse } = trpc.governance.getInvolvementConflictDistribution.useQuery();
+  const { data: governanceResponse, isLoading: governanceLoading } = trpc.governance.getGovernanceSummary.useQuery(undefined, { retry: 0 });
+  const { data: overrideTrendResponse } = trpc.governance.getOverrideFrequencyTrend.useQuery(undefined, { retry: 0 });
+  const { data: segregationHeatmapResponse } = trpc.governance.getSegregationViolationHeatmap.useQuery(undefined, { retry: 0 });
+  const { data: roleChangeTrendResponse } = trpc.governance.getRoleChangeTrend.useQuery(undefined, { retry: 0 });
+  const { data: conflictDistributionResponse } = trpc.governance.getInvolvementConflictDistribution.useQuery(undefined, { retry: 0 });
   const { data: overrideHistoryResponse } = trpc.governance.getOverrideHistory.useQuery({ limit: 10, offset: 0 });
   
   const governanceMetrics = governanceResponse?.data;
@@ -348,7 +348,7 @@ export default function ExecutiveDashboard() {
     setReviewNotes("");
   };
 
-  if (kpisLoading) {
+  if (kpisLoading && !kpisError) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: 'var(--background)' }}>
         <div className="text-center space-y-4">

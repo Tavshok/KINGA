@@ -16,8 +16,8 @@ interface KPIData {
   slaComplianceRate?: number;
 }
 
-export function calculateOperationalInsight(kpis: KPIData | undefined): string {
-  if (!kpis) return "Loading operational metrics...";
+export function calculateOperationalInsight(kpis: KPIData | undefined): string | null {
+  if (!kpis) return null;
   
   const processingTime = kpis.avgProcessingHours || 0;
   const fastTrackRate = kpis.fastTrackPercentage || 0;
@@ -33,8 +33,8 @@ export function calculateOperationalInsight(kpis: KPIData | undefined): string {
   return "Operational metrics tracking within normal range";
 }
 
-export function calculateFinancialInsight(kpis: KPIData | undefined, financials: any): string {
-  if (!kpis || !financials) return "Loading financial metrics...";
+export function calculateFinancialInsight(kpis: KPIData | undefined, financials: any): string | null {
+  if (!kpis || !financials) return null;
   
   const highValueClaims = kpis.highRiskClaimsCount || 0;
   
@@ -45,8 +45,8 @@ export function calculateFinancialInsight(kpis: KPIData | undefined, financials:
   return "Financial performance tracking within targets";
 }
 
-export function calculateFraudInsight(kpis: KPIData | undefined): string {
-  if (!kpis) return "Loading fraud metrics...";
+export function calculateFraudInsight(kpis: KPIData | undefined): string | null {
+  if (!kpis) return null;
   
   const fraudRisk = kpis.fraudRiskAmount || 0;
   const highRiskCount = kpis.highRiskClaimsCount || 0;
@@ -62,8 +62,8 @@ export function calculateFraudInsight(kpis: KPIData | undefined): string {
   return "Fraud risk exposure within acceptable limits";
 }
 
-export function calculateGovernanceInsight(kpis: KPIData | undefined): string {
-  if (!kpis) return "Loading governance metrics...";
+export function calculateGovernanceInsight(kpis: KPIData | undefined): string | null {
+  if (!kpis) return null;
   
   const overrides = kpis.totalExecutiveOverrides || 0;
   const violations = kpis.segregationViolations || 0;
@@ -81,8 +81,8 @@ export function calculateGovernanceInsight(kpis: KPIData | undefined): string {
   return "Governance controls operating within policy limits";
 }
 
-export function calculateAIInsight(kpis: KPIData | undefined): string {
-  if (!kpis) return "Loading AI performance metrics...";
+export function calculateAIInsight(kpis: KPIData | undefined): string | null {
+  if (!kpis) return null;
   
   const confidenceScore = kpis.avgConfidenceScore || 0;
   const fastTrackRate = kpis.fastTrackPercentage || 0;
@@ -98,8 +98,8 @@ export function calculateAIInsight(kpis: KPIData | undefined): string {
   return "AI performance metrics within expected range";
 }
 
-export function calculateWorkflowInsight(kpis: KPIData | undefined, bottlenecks: any): string {
-  if (!kpis) return "Loading workflow metrics...";
+export function calculateWorkflowInsight(kpis: KPIData | undefined, bottlenecks: any): string | null {
+  if (!kpis) return null;
   
   const slaCompliance = kpis.slaComplianceRate || 100;
   const bottleneckStage = bottlenecks?.[0]?.state || "None";

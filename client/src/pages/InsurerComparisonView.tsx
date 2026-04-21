@@ -21,6 +21,7 @@ import { QuoteOptimisationPanel } from "@/components/QuoteOptimisationPanel";
 import { RepairIntelligencePanel } from "@/components/RepairIntelligencePanel";
 import PanelBeaterChoicesCard from "@/components/PanelBeaterChoicesCard";
 import { AiIntelligenceSummaryCard } from "@/components/AiIntelligenceSummaryCard";
+import { MultiQuoteComparisonPanel } from "@/components/MultiQuoteComparisonPanel";
 import { AiStatusBadge } from "@/components/AiStatusBadge";
 import FraudScorePanel from "@/components/FraudScorePanel";
 import IntelligenceEnforcementPanel from "@/components/IntelligenceEnforcementPanel";
@@ -282,8 +283,8 @@ export default function InsurerComparisonView() {
       structuralDamage: aiAssessment.structuralDamageSeverity ? aiAssessment.structuralDamageSeverity !== 'none' : false,
       airbagDeployment: aiAssessment.damageDescription?.toLowerCase().includes('airbag') || false,
       estimatedCost: aiAssessment.estimatedCost || 0,
-      partsCost: aiAssessment.estimatedPartsCost || (aiAssessment.estimatedCost || 0) * 0.6,
-      laborCost: aiAssessment.estimatedLaborCost || (aiAssessment.estimatedCost || 0) * 0.4,
+      partsCost: aiAssessment.estimatedPartsCost || 0,
+      laborCost: aiAssessment.estimatedLaborCost || 0,
       damageDescription: aiAssessment.damageDescription || "",
       // Physics analysis from AI assessment
       physicsAnalysis: (() => {
@@ -754,6 +755,12 @@ export default function InsurerComparisonView() {
             <div className="space-y-4">
               <PanelBeaterChoicesCard claimId={claimId} />
               <RepairIntelligencePanel claimId={claimId} />
+              {/* Quote Optimisation — QUOTE-FIRST architecture results */}
+              {aiAssessment && (
+                <div className="p-4 bg-card rounded-lg border border-border">
+                  <MultiQuoteComparisonPanel costIntelligenceJson={(aiAssessment as any).costIntelligenceJson} />
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1178,8 +1185,9 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
   // Cost breakdown by category (estimated) — use correct schema fields
   // All cost values are stored in cents — divide by 100 for display
   const estimatedCostDollars = aiAssessment.estimatedCost || 0;
-  const partsCostDollars = aiAssessment.estimatedPartsCost || estimatedCostDollars * 0.6;
-  const laborCostDollars = aiAssessment.estimatedLaborCost || estimatedCostDollars * 0.4;
+  // Only use real breakdown data — never fabricate parts/labour ratios
+  const partsCostDollars: number | null = aiAssessment.estimatedPartsCost || null;
+  const laborCostDollars: number | null = aiAssessment.estimatedLaborCost || null;
   const estimatedCost = estimatedCostDollars;
   const partsCost = partsCostDollars;
   const laborCost = laborCostDollars;
@@ -1210,11 +1218,11 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
           </div>
           <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Parts Cost</p>
-            <p className="text-2xl font-bold text-primary">US${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold text-primary">{partsCost != null ? `US$${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
           </div>
           <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Labor Cost</p>
-            <p className="text-2xl font-bold text-green-600">US${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold text-green-600">{laborCost != null ? `US$${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
           </div>
           <div className="p-4 bg-card rounded-lg border border-border">
             <p className="text-sm text-muted-foreground">Total Estimated</p>
@@ -1336,11 +1344,11 @@ function DamageComponentBreakdown({ aiAssessment, claim, section = 'all' }: { ai
         </div>
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Parts Cost</p>
-          <p className="text-2xl font-bold text-primary">US${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-2xl font-bold text-primary">{partsCost != null ? `US$${partsCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
         </div>
         <div className="p-4 bg-card rounded-lg border border-border">
           <p className="text-sm text-muted-foreground">Labor Cost</p>
-          <p className="text-2xl font-bold text-green-600">US${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+          <p className="text-2xl font-bold text-green-600">{laborCost != null ? `US$${laborCost.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
         </div>
       </div>
 
