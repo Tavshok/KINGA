@@ -63,6 +63,32 @@ const TWENTY_MINUTES_MS = 20 * 60 * 1000;
 const THIRTY_MINUTES_MS = 30 * 60 * 1000;
 
 /**
+ * In-memory retry cap — prevents infinite re-trigger loops.
+ * Tracks how many times each claim (by id) has been re-triggered by the
+ * recovery job in the current server session. Capped at MAX_RECOVERY_RETRIES.
+ * Resets on server restart (which is fine — a fresh server run is a clean slate).
+ */
+const MAX_RECOVERY_RETRIES = 3;
+const recoveryRetryMap = new Map<number, number>();
+
+function canRetrigger(claimId: number): boolean {
+  const count = recoveryRetryMap.get(claimId) ?? 0;
+  return count < MAX_RECOVERY_RETRIES;
+}
+
+function recordRetrigger(claimId: number): void {
+  const count = recoveryRetryMap.get(claimId) ?? 0;
+  recoveryRetryMap.set(claimId, count + 1);
+  if (count + 1 >= MAX_RECOVERY_RETRIES) {
+    console.warn(
+      `[StuckRecovery] Claim ${claimId} has been re-triggered ${count + 1} times — ` +
+      `reached max retries (${MAX_RECOVERY_RETRIES}). Will not re-trigger again this session. ` +
+      `Use 'Reset if Stuck' in the UI to manually re-queue after investigating.`
+    );
+  }
+}
+
+/**
  * Startup cleanup — runs ONCE on server start.
  * Any claim still in an active transient state (extracting/analysing/parsing)
  * from a previous server run is guaranteed dead. Reset them immediately so
@@ -183,6 +209,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with pipeline ran but incomplete — re-triggering`
       );
       for (const claim of ranButIncomplete) {
+        if (!canRetrigger(claim.id)) {
+          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          continue;
+        }
         try {
           // Reset to allow re-trigger
           await withDbRetry(async () => {
@@ -196,6 +226,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery reset-for-retrigger claim ${claim.id}`);
           // Re-trigger the pipeline (fire-and-forget)
+          recordRetrigger(claim.id);
           triggerAiAssessment(claim.id).catch((err: unknown) => {
             console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
           });
@@ -231,8 +262,13 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with ai_assessment_triggered=0 — re-triggering pipeline`
       );
       for (const claim of neverStarted) {
+        if (!canRetrigger(claim.id)) {
+          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          continue;
+        }
         try {
           // Fire-and-forget pipeline trigger
+          recordRetrigger(claim.id);
           triggerAiAssessment(claim.id).catch((err: unknown) => {
             console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
           });
@@ -272,6 +308,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `after 20min — re-triggering`
       );
       for (const claim of timedOut) {
+        if (!canRetrigger(claim.id)) {
+          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          continue;
+        }
         try {
           // Reset flags to allow clean re-trigger
           await withDbRetry(async () => {
@@ -285,6 +325,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery timeout-reset claim ${claim.id}`);
           // Re-trigger the pipeline
+          recordRetrigger(claim.id);
           triggerAiAssessment(claim.id).catch((err: unknown) => {
             console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
           });
@@ -329,6 +370,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `with ai_assessment_triggered=1 and dps=failed — re-triggering pipeline`
       );
       for (const claim of crashedAndReset) {
+        if (!canRetrigger(claim.id)) {
+          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          continue;
+        }
         try {
           // Reset to clean state before re-trigger
           await withDbRetry(async () => {
@@ -344,6 +389,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-4 reset claim ${claim.id}`);
           // Re-trigger the pipeline
+          recordRetrigger(claim.id);
           triggerAiAssessment(claim.id).catch((err: unknown) => {
             console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
           });
@@ -382,6 +428,10 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
         `(extracting/analysing) >10min — resetting and re-triggering`
       );
       for (const claim of stuckInActiveTransient) {
+        if (!canRetrigger(claim.id)) {
+          console.warn(`[StuckRecovery] Skipping claim ${claim.id} — max retries reached`);
+          continue;
+        }
         try {
           await withDbRetry(async () => {
             const db = await getDb();
@@ -393,6 +443,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               updatedAt: new Date().toISOString(),
             }).where(eq(claims.id, claim.id));
           }, 3, 2000, `StuckRecovery case-6 reset claim ${claim.id}`);
+          recordRetrigger(claim.id);
           triggerAiAssessment(claim.id).catch((err: unknown) => {
             console.error(`[StuckRecovery] Re-trigger failed for claim ${claim.id}:`, err);
           });
