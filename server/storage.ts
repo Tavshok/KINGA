@@ -6,6 +6,32 @@ import { ENV } from './_core/env';
 
 type StorageConfig = { baseUrl: string; apiKey: string };
 
+/** Hard timeout for all storage API calls — prevents pipeline hangs if S3/proxy is slow */
+const STORAGE_TIMEOUT_MS = 30_000;
+
+/**
+ * Wrapper around fetch() that aborts after STORAGE_TIMEOUT_MS.
+ * Covers both the connection and the full response body read.
+ */
+async function fetchWithTimeout(
+  url: URL | string,
+  init: RequestInit = {}
+): Promise<Response> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), STORAGE_TIMEOUT_MS);
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    return response;
+  } catch (err: any) {
+    if (err?.name === "AbortError" || controller.signal.aborted) {
+      throw new Error(`Storage request timed out after ${STORAGE_TIMEOUT_MS / 1000}s — ${url}`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function getStorageConfig(): StorageConfig {
   const baseUrl = ENV.forgeApiUrl;
   const apiKey = ENV.forgeApiKey;
@@ -39,7 +65,7 @@ async function buildDownloadUrl(
   if (expiresInSeconds) {
     downloadApiUrl.searchParams.set("expiresIn", String(expiresInSeconds));
   }
-  const response = await fetch(downloadApiUrl, {
+  const response = await fetchWithTimeout(downloadApiUrl, {
     method: "GET",
     headers: buildAuthHeaders(apiKey),
   });
@@ -81,7 +107,7 @@ export async function storagePut(
   const key = normalizeKey(relKey);
   const uploadUrl = buildUploadUrl(baseUrl, key);
   const formData = toFormData(data, contentType, key.split("/").pop() ?? key);
-  const response = await fetch(uploadUrl, {
+  const response = await fetchWithTimeout(uploadUrl, {
     method: "POST",
     headers: buildAuthHeaders(apiKey),
     body: formData,

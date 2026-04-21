@@ -7,10 +7,6 @@
  * (poppler-utils, pre-installed on the server), then uploads each image
  * to S3 and returns the public URLs.
  *
- * This is the fix for the "24 photos not ingested" gap — previously
- * stage-1 set imageUrls: [] for all PDF documents, meaning the vision
- * model never saw the damage photographs embedded in the claim bundle.
- *
  * DESIGN DECISIONS
  * ─────────────────
  * 1. Uses pdftoppm (not pdfjs-dist canvas rendering) because pdftoppm
@@ -29,6 +25,12 @@
  *
  * 5. Graceful degradation: if pdftoppm fails for any page, that page is
  *    skipped and the rest are still returned.
+ *
+ * TIMEOUT GUARDS (critical — prevents pipeline from hanging forever)
+ * ─────────────────────────────────────────────────────────────────
+ * - PDF download: 60s hard timeout (AbortController covers both headers AND body read)
+ * - pdftoppm rendering: 120s hard timeout (kills the child process)
+ * - pdfinfo page count: 15s hard timeout
  */
 
 import { execFile } from "child_process";
@@ -70,23 +72,56 @@ export interface PdfToImagesResult {
 
 /**
  * Download a PDF from a URL to a temp file.
+ * Hard 60-second timeout covers both the connection and the full body read.
+ * If either stalls, the AbortController fires and we throw — preventing
+ * the pipeline from hanging indefinitely.
  */
 async function downloadPdf(url: string, destPath: string): Promise<void> {
-  const response = await fetch(url);
+  const DOWNLOAD_TIMEOUT_MS = 60_000;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), DOWNLOAD_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(url, { signal: controller.signal });
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err?.name === "AbortError" || controller.signal.aborted) {
+      throw new Error(`PDF download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s — ${url}`);
+    }
+    throw err;
+  }
+
   if (!response.ok) {
+    clearTimeout(timer);
     throw new Error(`Failed to download PDF: HTTP ${response.status} — ${url}`);
   }
-  const buffer = Buffer.from(await response.arrayBuffer());
+
+  // Keep the AbortController active through the body read.
+  // If the server sends headers but stalls on the body, this will abort.
+  let buffer: Buffer;
+  try {
+    buffer = Buffer.from(await response.arrayBuffer());
+  } catch (err: any) {
+    clearTimeout(timer);
+    if (err?.name === "AbortError" || controller.signal.aborted) {
+      throw new Error(`PDF body download timed out after ${DOWNLOAD_TIMEOUT_MS / 1000}s — ${url}`);
+    }
+    throw err;
+  }
+  clearTimeout(timer);
+
   const { writeFile } = await import("fs/promises");
   await writeFile(destPath, buffer);
 }
 
 /**
  * Get the total page count of a PDF using pdfinfo.
+ * Hard 15-second timeout to prevent hanging on corrupt PDFs.
  */
 async function getPdfPageCount(pdfPath: string): Promise<number> {
   try {
-    const { stdout } = await execFileAsync("pdfinfo", [pdfPath]);
+    const { stdout } = await execFileAsync("pdfinfo", [pdfPath], { timeout: 15_000 });
     const match = stdout.match(/Pages:\s+(\d+)/);
     return match ? parseInt(match[1], 10) : 0;
   } catch {
@@ -140,7 +175,8 @@ export async function renderPdfToImages(
     const urlHash = createHash("md5").update(pdfUrl).digest("hex").slice(0, 8);
     const outputPrefix = join(tempDir, "page");
 
-    // Render pages using pdftoppm
+    // Render pages using pdftoppm — hard 120s timeout to prevent hanging on
+    // corrupt or very large PDFs. execFileAsync timeout kills the child process.
     log(`Rendering ${pagesToRender} pages at ${dpi} DPI`);
     try {
       await execFileAsync("pdftoppm", [
@@ -149,11 +185,11 @@ export async function renderPdfToImages(
         "-l", String(pagesToRender),
         pdfPath,
         outputPrefix,
-      ]);
+      ], { timeout: 120_000 });
     } catch (err) {
       errors.push(`pdftoppm rendering error: ${String(err)}`);
       log(`ERROR: pdftoppm failed: ${String(err)}`);
-      // Return empty result — do not throw
+      // Return empty result — do not throw, allow pipeline to continue
       return {
         pages: [],
         totalPagesRendered: 0,
