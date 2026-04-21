@@ -913,6 +913,12 @@ export async function triggerAiAssessment(claimId: number) {
     quoteOptimisation: costAnalysis.quoteOptimisation ?? null,
     alignmentResult: costAnalysis.alignmentResult ?? null,
     reconciliationSummary: costAnalysis.reconciliationSummary ?? null,
+    // Transparency fields — tell the UI what data underpins the AI benchmark
+    aiEstimateSource: (costAnalysis as any).aiEstimateSource ?? null,
+    aiEstimateNote: (costAnalysis as any).aiEstimateNote ?? null,
+    // Multi-quote comparison — highest-weighted selected quote
+    bestSelectedQuote: (costAnalysis as any).bestSelectedQuote ?? null,
+    quoteCount: (costAnalysis as any).quoteCount ?? 0,
   }) : (
     // Even if costAnalysis is null, still persist the documented quote values
     // so the UI can display the panel beater quote from the extracted document.
@@ -968,8 +974,16 @@ export async function triggerAiAssessment(claimId: number) {
     : documentedOriginalQuoteUsd && documentedOriginalQuoteUsd > 0
       ? Math.round(documentedOriginalQuoteUsd)
       : Math.round(aiEstimateCents / 100);
-  const estimatedPartsCost = costAnalysis ? Math.round(costAnalysis.breakdown.partsCostCents / 100) : 0;
-  const estimatedLaborCost = costAnalysis ? Math.round(costAnalysis.breakdown.labourCostCents / 100) : 0;
+  // Only write parts/labour breakdown when the data comes from a real source
+  // (submitted quote line items or learning DB). Never write hardcoded index estimates.
+  const aiEstimateSource = (costAnalysis as any)?.aiEstimateSource as string | undefined;
+  const hasRealBreakdown = aiEstimateSource === 'quote_derived' || aiEstimateSource === 'learning_db';
+  const estimatedPartsCost = (costAnalysis && hasRealBreakdown)
+    ? Math.round(costAnalysis.breakdown.partsCostCents / 100)
+    : 0;
+  const estimatedLaborCost = (costAnalysis && hasRealBreakdown)
+    ? Math.round(costAnalysis.breakdown.labourCostCents / 100)
+    : 0;
 
   // ── TOTAL LOSS DETECTION ─────────────────────────────────────────────────
   // Fetch the vehicle market value from the valuations table (stored in cents).

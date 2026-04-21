@@ -297,6 +297,7 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                   </>
                 );
               })()}
+              {/* Parts/labour breakdown — only shown when real data exists (quote line items or learning DB) */}
               {partsCost != null && partsCost > 0 && (
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Parts</span>
@@ -309,6 +310,36 @@ export function AiIntelligenceSummaryCard({ aiAssessment, quotes }: Props) {
                   <span className="font-medium">{formatAmount(laborCost)}</span>
                 </div>
               )}
+              {/* AI estimate source badge */}
+              {(() => {
+                const ci2 = (() => { try { return aiAssessment.costIntelligenceJson ? JSON.parse(aiAssessment.costIntelligenceJson) : null; } catch { return null; } })();
+                const src = ci2?.aiEstimateSource as string | undefined;
+                if (src === "insufficient_data") {
+                  return (
+                    <div className="flex justify-between pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground text-xs">AI benchmark</span>
+                      <span className="text-xs text-muted-foreground italic">Awaiting itemised quote</span>
+                    </div>
+                  );
+                }
+                if (src === "learning_db") {
+                  return (
+                    <div className="flex justify-between pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground text-xs">AI benchmark</span>
+                      <span className="text-xs text-blue-500">Learning DB</span>
+                    </div>
+                  );
+                }
+                if (src === "quote_derived") {
+                  return (
+                    <div className="flex justify-between pt-1 border-t border-border/50">
+                      <span className="text-muted-foreground text-xs">AI benchmark</span>
+                      <span className="text-xs text-green-500">Quote-derived</span>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               {quoteAmounts.length > 0 ? (
                 <>
                   <div className="flex justify-between pt-1 border-t border-border/50">

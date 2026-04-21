@@ -57,6 +57,10 @@ export interface InputQuote {
   labour_defined?: boolean;
   /** Whether parts were explicitly defined */
   parts_defined?: boolean;
+  /** Actual labour cost from the quote document (USD). Null if not itemised. */
+  labour_cost?: number | null;
+  /** Actual parts cost from the quote document (USD). Null if not itemised. */
+  parts_cost?: number | null;
   /** Extraction confidence */
   confidence: "high" | "medium" | "low";
 }
@@ -68,6 +72,10 @@ export interface QuoteValidationResult {
   panel_beater: string;
   /** Total cost USD */
   total_cost: number;
+  /** Actual labour cost from the quote document (USD). Null if not itemised. */
+  labour_cost: number | null;
+  /** Actual parts cost from the quote document (USD). Null if not itemised. */
+  parts_cost: number | null;
   /** Component coverage ratio (0–1): matched_components / damage_components */
   coverage_ratio: number;
   /** Whether all structural damage components are present in this quote */
@@ -407,6 +415,8 @@ function validateQuote(
       quote_index: index,
       panel_beater: panelBeater,
       total_cost: cost,
+      labour_cost: quote.labour_cost ?? null,
+      parts_cost: quote.parts_cost ?? null,
       coverage_ratio: coverageRatio,
       structurally_complete: structurallyComplete,
       structural_gaps: structuralGaps,

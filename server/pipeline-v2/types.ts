@@ -366,6 +366,10 @@ export interface ExtractedQuoteRecord {
   components: string[];
   labour_defined: boolean;
   parts_defined: boolean;
+  /** Actual labour cost extracted from the quote document (USD). Null if not itemised. */
+  labour_cost: number | null;
+  /** Actual parts cost extracted from the quote document (USD). Null if not itemised. */
+  parts_cost: number | null;
   confidence: "high" | "medium" | "low";
   extraction_warnings: string[];
 }

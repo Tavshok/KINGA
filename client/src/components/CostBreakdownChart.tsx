@@ -25,6 +25,8 @@ interface CostBreakdownChartProps {
   itemizedCosts?: ItemizedCost[];
   currency?: string;
   isEstimated?: boolean;
+  /** Source of the AI cost estimate — controls the badge label shown */
+  aiEstimateSource?: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data" | null;
 }
 
 const categoryIcons: Record<string, any> = {
@@ -45,7 +47,7 @@ const categoryColors: Record<string, string> = {
   other: '#f59e0b',
 };
 
-export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", isEstimated = false }: CostBreakdownChartProps) {
+export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", isEstimated = false, aiEstimateSource }: CostBreakdownChartProps) {
   // Stage 28: Defensive rendering guard — ai_estimate + fair_range required
   const costGuard = useCostGraphGuard({
     aiEstimate: breakdown.total > 0 ? breakdown.total : null,
@@ -95,7 +97,13 @@ export function CostBreakdownChart({ breakdown, itemizedCosts, currency = "$", i
           <DollarSign className="w-5 h-5 text-green-600" />
         </div>
         <h2 className="text-xl font-semibold">Cost Breakdown</h2>
-        {isEstimated && (
+        {aiEstimateSource === "insufficient_data" && (
+          <Badge variant="outline" className="border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900/30">Awaiting itemised quote</Badge>
+        )}
+        {aiEstimateSource === "learning_db" && (
+          <Badge variant="outline" className="border-blue-300 dark:border-blue-700 text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/30">Learning DB estimate</Badge>
+        )}
+        {(isEstimated && !aiEstimateSource) && (
           <Badge variant="outline" className="border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30">Estimated from industry averages</Badge>
         )}
         {itemizedCosts && itemizedCosts.length > 0 && (

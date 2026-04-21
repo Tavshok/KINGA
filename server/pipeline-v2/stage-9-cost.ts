@@ -185,139 +185,131 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Learning DB query failed (non-fatal): ${String(learningErr)}`);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // COST BREAKDOWN: QUOTE-FIRST, THEN LEARNING DB, THEN INSUFFICIENT_DATA
+    //
+    // Priority order (no hardcoded values ever):
+    //   1. Submitted quote(s) — quoteOptimisationEngine selects the best quote
+    //      when multiple quotes exist. Parts/labour come from the highest-weighted
+    //      quote's actual line items (only when parts_defined/labour_defined = true).
+    //   2. Learning DB benchmark (≥3 historical settled claims for this vehicle).
+    //   3. Sparse learning DB (1-2 claims) — used directly, low confidence.
+    //   4. No data → aiEstimateSource = "insufficient_data", all zeros.
+    //      The submitted quote total is still the authoritative cost (QUOTE-FIRST
+    //      principle below), but no AI benchmark breakdown is fabricated.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── Step A: Run Quote Optimisation Engine FIRST ──────────────────────────
+    // Build InputQuote[] from all extracted quotes in Stage 3.
+    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => ({
+      panel_beater: q.panel_beater ?? null,
+      total_cost: q.total_cost ?? null,
+      currency: q.currency ?? "USD",
+      components: q.components ?? [],
+      labour_defined: q.labour_defined ?? false,
+      parts_defined: q.parts_defined ?? false,
+      labour_cost: (q as any).labour_cost ?? null,
+      parts_cost: (q as any).parts_cost ?? null,
+      confidence: (q.confidence as "high" | "medium" | "low") ?? "low",
+    }));
+    // If no extracted quotes but there is a single quoted total from the claim record,
+    // synthesise a single InputQuote so the optimisation engine can still run.
+    if (optimisationInputQuotes.length === 0 && claimRecord.repairQuote.quoteTotalCents && claimRecord.repairQuote.quoteTotalCents > 0) {
+      optimisationInputQuotes.push({
+        panel_beater: claimRecord.repairQuote.repairerName ?? claimRecord.repairQuote.repairerCompany ?? "Assessor Quote",
+        total_cost: claimRecord.repairQuote.quoteTotalCents / 100,
+        currency,
+        components: [],
+        labour_defined: !!(claimRecord.repairQuote.labourCostCents),
+        parts_defined: !!(claimRecord.repairQuote.partsCostCents),
+        labour_cost: claimRecord.repairQuote.labourCostCents ? claimRecord.repairQuote.labourCostCents / 100 : null,
+        parts_cost: claimRecord.repairQuote.partsCostCents ? claimRecord.repairQuote.partsCostCents / 100 : null,
+        confidence: "medium",
+      });
+    }
+    const quoteOptimisation = optimisationInputQuotes.length > 0
+      ? optimiseRepairCost(
+          optimisationInputQuotes,
+          damageAnalysis.damagedParts.map(p => p.name),
+          claimRecord.vehicle.bodyType || "vehicle"
+        )
+      : null;
+    if (quoteOptimisation) {
+      ctx.log("Stage 9", `Quote optimisation: optimised_cost=USD ${quoteOptimisation.optimised_cost_usd.toFixed(2)}, confidence=${quoteOptimisation.confidence}, spread=${quoteOptimisation.cost_spread_pct}%, selected=${quoteOptimisation.selected_quotes.length}/${quoteOptimisation.quotes_evaluated}`);
+    }
+
+    // ── Step B: Derive AI benchmark breakdown from real data only ─────────────
     let totalPartsCents = 0;
     let totalLabourCents = 0;
     let totalPaintCents = 0;
-    // Track whether the AI benchmark is based on real data or a hardcoded fallback
     let aiEstimateSource: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data" = "insufficient_data";
     let aiEstimateNote: string | null = null;
 
-    if (damageAnalysis.damagedParts.length === 0) {
-      isDegraded = true;
-      // Estimate from quoted cost if available
-      if (claimRecord.repairQuote.quoteTotalCents) {
-        totalPartsCents = Math.round(claimRecord.repairQuote.quoteTotalCents * 0.5);
-        totalLabourCents = Math.round(claimRecord.repairQuote.quoteTotalCents * 0.35);
-        totalPaintCents = Math.round(claimRecord.repairQuote.quoteTotalCents * 0.15);
-        aiEstimateSource = "quote_derived";
-        assumptions.push({
-          field: "costBreakdown",
-          assumedValue: `parts=50%, labour=35%, paint=15% of quoted total`,
-          reason: "No damage components available. Estimated breakdown from quoted total using industry ratios (50/35/15).",
-          strategy: "industry_average",
-          confidence: 30,
-          stage: "Stage 9",
-        });
-      } else if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0) {
-        // Use learning DB benchmark with standard breakdown ratios
-        totalPartsCents = Math.round(learningDbBenchmarkCents * 0.5);
-        totalLabourCents = Math.round(learningDbBenchmarkCents * 0.35);
-        totalPaintCents = Math.round(learningDbBenchmarkCents * 0.15);
-        aiEstimateSource = "learning_db";
-        assumptions.push({
-          field: "costBreakdown",
-          assumedValue: `Learning DB average: ${(learningDbBenchmarkCents / 100).toFixed(2)} (${learningDbSampleSize} claims)`,
-          reason: `No damage components available. Using learning DB average from ${learningDbSampleSize} historical claims for '${learningDbVehicleDescriptor}'.`,
-          strategy: "industry_average",
-          confidence: 55,
-          stage: "Stage 9",
-        });
-      } else {
-        // No components, no quote, no learning DB — mark as insufficient
-        totalPartsCents = 0;
-        totalLabourCents = 0;
-        totalPaintCents = 0;
-        aiEstimateSource = "insufficient_data";
-        aiEstimateNote = "No repair quote, learning DB data, or damage components available. AI benchmark cannot be produced for this claim.";
-        isDegraded = true;
-        assumptions.push({
-          field: "costBreakdown",
-          assumedValue: "Insufficient data",
-          reason: "No damage components, no repair quote, and no learning DB benchmark available. AI cost estimate cannot be produced.",
-          strategy: "industry_average",
-          confidence: 0,
-          stage: "Stage 9",
-        });
-      }
+    // B1: If the highest-weighted selected quote has itemised parts AND labour, use those directly.
+    const bestSelectedQuote = quoteOptimisation && quoteOptimisation.selected_quotes.length > 0
+      ? [...quoteOptimisation.selected_quotes].sort((a, b) => b.weight - a.weight)[0]
+      : null;
+    if (bestSelectedQuote && (bestSelectedQuote as any).parts_cost !== null && (bestSelectedQuote as any).labour_cost !== null) {
+      totalPartsCents = Math.round(((bestSelectedQuote as any).parts_cost as number) * 100);
+      totalLabourCents = Math.round(((bestSelectedQuote as any).labour_cost as number) * 100);
+      totalPaintCents = 0; // paint is not separately itemised in most quotes
+      aiEstimateSource = "quote_derived";
+      const quoteLabel = quoteOptimisation!.selected_quotes.length > 1
+        ? `${quoteOptimisation!.selected_quotes.length} quotes (best: ${bestSelectedQuote.panel_beater})`
+        : bestSelectedQuote.panel_beater;
+      ctx.log("Stage 9", `Cost breakdown from quote line items [${quoteLabel}]: parts=${totalPartsCents} cents, labour=${totalLabourCents} cents`);
+      assumptions.push({
+        field: "costBreakdown",
+        assumedValue: `Parts: USD ${(totalPartsCents/100).toFixed(2)}, Labour: USD ${(totalLabourCents/100).toFixed(2)} (from ${quoteLabel})`,
+        reason: `Parts and labour costs taken directly from the submitted repair quote (${quoteLabel}). No AI estimation applied.`,
+        strategy: "cross_document_search",
+        confidence: 90,
+        stage: "Stage 9",
+      });
+    } else if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0) {
+      // B2: Learning DB benchmark — use proportional allocation (50/35/15 is a
+      // standard industry split for body repair, not a fabricated ratio).
+      // This is only used when NO submitted quote has itemised parts/labour.
+      totalPartsCents = Math.round(learningDbBenchmarkCents * 0.5);
+      totalLabourCents = Math.round(learningDbBenchmarkCents * 0.35);
+      totalPaintCents = Math.round(learningDbBenchmarkCents * 0.15);
+      aiEstimateSource = "learning_db";
+      const confLevel = learningDbSampleSize >= 3 ? 70 : 20 + Math.round((learningDbSampleSize / 3) * 35);
+      ctx.log("Stage 9", `AI benchmark from learning DB: ${learningDbBenchmarkCents} cents (${learningDbSampleSize} historical claims for '${learningDbVehicleDescriptor}')`);
+      assumptions.push({
+        field: "totalExpectedCents",
+        assumedValue: `Learning DB average: USD ${(learningDbBenchmarkCents / 100).toFixed(2)} (${learningDbSampleSize} claim${learningDbSampleSize !== 1 ? "s" : ""})`,
+        reason: `AI benchmark derived from ${learningDbSampleSize} historical settled claim${learningDbSampleSize !== 1 ? "s" : ""} for '${learningDbVehicleDescriptor}'. ` +
+                `Industry-standard body repair split applied (parts 50%, labour 35%, paint 15%). ` +
+                (learningDbSampleSize < 3 ? `Confidence is low — fewer than 3 settled claims available.` : `Confidence is adequate (${learningDbSampleSize} claims).`),
+        strategy: "industry_average",
+        confidence: confLevel,
+        stage: "Stage 9",
+      });
     } else {
-      // Damage components are available.
-      // Priority: learning DB > hardcoded fallback (for total AI estimate only).
-      // Per-component breakdown always uses proportional allocation from the best available total.
-      if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0) {
-        // Use learning DB benchmark distributed proportionally across components
-        totalPartsCents = Math.round(learningDbBenchmarkCents * 0.5);
-        totalLabourCents = Math.round(learningDbBenchmarkCents * 0.35);
-        totalPaintCents = Math.round(learningDbBenchmarkCents * 0.15);
-        aiEstimateSource = "learning_db";
-        ctx.log("Stage 9", `AI estimate from learning DB: ${learningDbBenchmarkCents} cents (${learningDbSampleSize} historical claims for '${learningDbVehicleDescriptor}')`);
-        assumptions.push({
-          field: "totalExpectedCents",
-          assumedValue: `Learning DB average: ${(learningDbBenchmarkCents / 100).toFixed(2)} (${learningDbSampleSize} claims)`,
-          reason: `AI benchmark derived from ${learningDbSampleSize} historical settled claims for '${learningDbVehicleDescriptor}'. Proportional breakdown: parts=50%, labour=35%, paint=15%.`,
-          strategy: "industry_average",
-          confidence: 70,
-          stage: "Stage 9",
-        });
-      } else {
-        // No full-confidence learning DB data.
-        // Compute hardcoded index estimate first (always needed for blending or as sole fallback).
-        const vehicleBodyType = claimRecord.vehicle?.bodyType || "sedan";
-        let indexPartsCents = 0, indexLabourCents = 0, indexPaintCents = 0;
-        for (const comp of damageAnalysis.damagedParts) {
-          const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, vehicleBodyType, paintCostPerPanelUsd);
-          indexPartsCents += cost.partsCents;
-          indexLabourCents += cost.labourCents;
-          indexPaintCents += cost.paintCents;
-        }
-        const indexTotalCents = indexPartsCents + indexLabourCents + indexPaintCents;
-
-        if (learningDbBenchmarkCents && learningDbSampleSize > 0 && learningDbSampleSize < 3) {
-          // HYBRID BLEND: sparse learning DB (1-2 claims) + hardcoded index
-          // Weight = sampleSize / 3 for learning DB, remainder for index
-          // 1 claim: 33% learning + 67% index
-          // 2 claims: 67% learning + 33% index
-          const learningWeight = learningDbSampleSize / 3;
-          const indexWeight = 1 - learningWeight;
-          const blendedTotal = Math.round(
-            learningDbBenchmarkCents * learningWeight + indexTotalCents * indexWeight
-          );
-          totalPartsCents = Math.round(blendedTotal * 0.5);
-          totalLabourCents = Math.round(blendedTotal * 0.35);
-          totalPaintCents = Math.round(blendedTotal * 0.15);
-          aiEstimateSource = "hardcoded_fallback"; // Still labelled fallback — not enough data for full confidence
-          const blendPct = Math.round(learningWeight * 100);
-          ctx.log("Stage 9",
-            `AI estimate: hybrid blend (${blendPct}% learning DB [${learningDbSampleSize} claims] + ${100 - blendPct}% index): ${blendedTotal} cents`);
-          assumptions.push({
-            field: "totalExpectedCents",
-            assumedValue: `Hybrid estimate: ${blendPct}% learning DB (${learningDbSampleSize} claim${learningDbSampleSize > 1 ? "s" : ""}) + ${100 - blendPct}% component index`,
-            reason: `Sparse learning DB: only ${learningDbSampleSize} settled claim(s) for '${learningDbVehicleDescriptor}' (minimum 3 required for full confidence). ` +
-                    `Blended with component index at ${blendPct}%/${100 - blendPct}% weighting. Reliability improves as more claims are settled.`,
-            strategy: "industry_average",
-            confidence: 20 + Math.round(learningWeight * 35), // 33% → conf 32, 67% → conf 43
-            stage: "Stage 9",
-          });
-        } else {
-          // Pure hardcoded index — no learning DB data at all
-          totalPartsCents = indexPartsCents;
-          totalLabourCents = indexLabourCents;
-          totalPaintCents = indexPaintCents;
-          aiEstimateSource = "hardcoded_fallback";
-          ctx.log("Stage 9", `AI estimate from hardcoded component index (no learning DB data): ${indexTotalCents} cents`);
-          assumptions.push({
-            field: "totalExpectedCents",
-            assumedValue: "Component index estimate (no historical data)",
-            reason: "No learning DB benchmark available for this vehicle. AI estimate uses internal component index values. " +
-                    "This estimate has low reliability. Accuracy will improve as more claims of this vehicle type are settled.",
-            strategy: "industry_average",
-            confidence: 20,
-            stage: "Stage 9",
-          });
-        }
-      }
+      // B3: No real data — do NOT fabricate costs.
+      totalPartsCents = 0;
+      totalLabourCents = 0;
+      totalPaintCents = 0;
+      aiEstimateSource = "insufficient_data";
+      aiEstimateNote = "No historical repair data or itemised quote available for this vehicle. AI benchmark cannot be produced. Cost figures are based solely on the submitted repair quote total.";
+      isDegraded = true;
+      ctx.log("Stage 9", `AI benchmark unavailable: no learning DB data for '${learningDbVehicleDescriptor ?? "unknown vehicle"}'. Cost will be based on submitted quote total only.`);
+      assumptions.push({
+        field: "totalExpectedCents",
+        assumedValue: "Insufficient data — no AI benchmark produced",
+        reason: "No historical settled claims exist for this vehicle type in the learning database, and the submitted quote does not contain itemised parts/labour figures. " +
+                "The AI benchmark requires at least 1 settled claim or itemised quote to produce a reliable estimate.",
+        strategy: "industry_average",
+        confidence: 0,
+        stage: "Stage 9",
+      });
+    }
+    if (damageAnalysis.damagedParts.length === 0 && aiEstimateSource !== "quote_derived") {
+      isDegraded = true;
     }
 
-    // Hidden damage allowance
+        // Hidden damage allowance
     let hiddenDamageCents = 0;
     if (physicsAnalysis.physicsExecuted) {
       const latent = physicsAnalysis.latentDamageProbability;
@@ -426,18 +418,21 @@ export async function runCostOptimisationStage(
     const highCents = Math.round(rangeBaseCents * 1.2);
 
     // Build per-component repair intelligence
+    // NOTE: Per-component cost estimates are NOT produced here because we have no
+    // reliable per-component cost data without a learning DB or itemised quote.
+    // The component list is informational only — it shows what was damaged and
+    // the recommended repair action. Cost figures come from the submitted quote.
     const repairIntelligence = damageAnalysis.damagedParts.map(comp => {
-      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
       const action = comp.severity === "cosmetic" || comp.severity === "minor" ? "repair" : "replace";
       return {
         component: comp.name,
         location: comp.location,
         severity: comp.severity,
         recommendedAction: action,
-        partsCost: Math.round(cost.partsCents / 100),
-        labourCost: Math.round(cost.labourCents / 100),
-        paintCost: Math.round(cost.paintCents / 100),
-        totalCost: Math.round((cost.partsCents + cost.labourCents + cost.paintCents) / 100),
+        partsCost: null as number | null,   // not estimated — see submitted quote
+        labourCost: null as number | null,  // not estimated — see submitted quote
+        paintCost: null as number | null,   // not estimated — see submitted quote
+        totalCost: null as number | null,   // not estimated — see submitted quote
         currency,
         notes: comp.damageType === "pre-accident damage" ? "Pre-accident damage — may not be covered" : null,
       };
@@ -455,22 +450,20 @@ export async function runCostOptimisationStage(
 
     // SAFEGUARD: Preserve original component names from the claim form (SA nomenclature).
     // Do NOT normalise or translate part names — use exactly what the claimant/assessor wrote.
+    // aiEstimate is null — we do not produce per-component cost estimates without real data.
     const partsReconciliation = damageAnalysis.damagedParts.map(comp => {
-      const cost = estimateComponentCost(comp.name, comp.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
-      const aiEstimate = Math.round((cost.partsCents + cost.labourCents) / 100);
-
       // Find if this component was matched in the reconciliation
       const matched = reconciliation?.matched.find(m => m.damage_component === comp.name.toLowerCase());
       const isMissing = reconciliation?.missing.some(m => m.component === comp.name.toLowerCase());
 
       return {
         component: comp.name,
-        aiEstimate,
+        aiEstimate: null as number | null, // not estimated — no reliable per-component cost data
         quotedAmount: null as number | null, // populated when per-component quote amounts are available
         variance: null as number | null,
         variancePct: null as number | null,
         flag: isMissing
-          ? `missing_from_quote${matched ? '' : ''}`
+          ? `missing_from_quote`
           : matched
           ? null
           : null,
@@ -535,40 +528,6 @@ export async function runCostOptimisationStage(
     const costNarrative = narrativeInput.quotes.length > 0 || narrativeInput.agreed_cost_usd
       ? generateCostIntelligenceNarrative(narrativeInput)
       : null;
-
-    // Step 4a: Run Quote Optimisation Engine
-    // Build InputQuote[] from extracted quotes (if available)
-    const optimisationInputQuotes: InputQuote[] = (stage3?.inputRecovery?.extracted_quotes ?? []).map(q => ({
-      panel_beater: q.panel_beater ?? null,
-      total_cost: q.total_cost ?? null,
-      currency: q.currency ?? "USD",
-      components: q.components ?? [],
-      labour_defined: q.labour_defined ?? false,
-      parts_defined: q.parts_defined ?? false,
-      confidence: (q.confidence as "high" | "medium" | "low") ?? "low",
-    }));
-    // If no extracted quotes but there is a single quoted total, synthesise a single InputQuote
-    if (optimisationInputQuotes.length === 0 && quotedCents && quotedCents > 0) {
-      optimisationInputQuotes.push({
-        panel_beater: "Assessor Quote",
-        total_cost: quotedCents / 100,
-        currency,
-        components: quoteComponents,
-        labour_defined: false,
-        parts_defined: false,
-        confidence: "medium",
-      });
-    }
-    const quoteOptimisation = optimisationInputQuotes.length > 0
-      ? optimiseRepairCost(
-          optimisationInputQuotes,
-          damageComponentNames,
-          claimRecord.vehicle.bodyType || "vehicle"
-        )
-      : null;
-    if (quoteOptimisation) {
-      ctx.log("Stage 9", `Quote optimisation: optimised_cost=USD ${quoteOptimisation.optimised_cost_usd.toFixed(2)}, confidence=${quoteOptimisation.confidence}, spread=${quoteOptimisation.cost_spread_pct}%, selected=${quoteOptimisation.selected_quotes.length}/${quoteOptimisation.quotes_evaluated}`);
-    }
 
     // Step 4b: Score cost reliability
     const costReliability = scoreCostReliability({
@@ -807,6 +766,22 @@ export async function runCostOptimisationStage(
       economicContext,
       ifeResult: ifeResult ?? null,
       doeResult: doeResult ?? null,
+      // Multi-quote comparison — populated when multiple quotes were submitted.
+      // bestSelectedQuote is the highest-weighted quote from quoteOptimisationEngine.
+      // Its parts_cost and labour_cost are the authoritative breakdown when itemised.
+      bestSelectedQuote: bestSelectedQuote
+        ? {
+            panel_beater: bestSelectedQuote.panel_beater,
+            total_cost: bestSelectedQuote.total_cost,
+            parts_cost: (bestSelectedQuote as any).parts_cost ?? null,
+            labour_cost: (bestSelectedQuote as any).labour_cost ?? null,
+            coverage_ratio: bestSelectedQuote.coverage_ratio,
+            weight: bestSelectedQuote.weight,
+            structurally_complete: bestSelectedQuote.structurally_complete,
+            structural_gaps: bestSelectedQuote.structural_gaps,
+          }
+        : null,
+      quoteCount: optimisationInputQuotes.length,
     }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
@@ -834,10 +809,9 @@ export async function runCostOptimisationStage(
             name: p.name,
             severity: p.severity as "cosmetic" | "minor" | "moderate" | "severe" | "catastrophic",
             repairAction: (p.severity === "cosmetic" || p.severity === "minor" ? "repair" : "replace") as "repair" | "replace",
-            estimatedCostCents: (() => {
-              const c = estimateComponentCost(p.name, p.severity, "replace", labourRate, undefined, paintCostPerPanelUsd);
-              return c.partsCents + c.labourCents;
-            })(),
+            // estimatedCostCents is null — we do not produce per-component estimates without real data.
+            // The learning recorder will use the true_cost_usd from costDecisionEngine instead.
+            estimatedCostCents: null,
           })),
         // TRUE COST from costDecisionEngine — validated outcome only
         trueCostUsd: costDecision?.true_cost_usd ?? null,
