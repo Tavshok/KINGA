@@ -45,22 +45,33 @@
  *     Hard wall-clock guard. No matter what state the claim is in, if it has been in
  *     assessment_in_progress for more than 30 minutes without completing, something is
  *     fundamentally wrong. Reset and re-trigger.
- *     Action: Reset to pending and re-trigger.
+ *     Action: Reset to intake_pending.
  *
  * NOTE: The infinite loop that previously occurred when PipelineIncompleteError was thrown
  * is now fixed at the source in db.ts — the error handler now correctly sets
  * documentProcessingStatus='failed' and status='intake_pending', so claims no longer
  * get stuck in 'parsing' state indefinitely.
+ *
+ * TIMEZONE FIX: All time comparisons use DB-side SQL expressions (DATE_SUB(NOW(), INTERVAL N MINUTE))
+ * instead of JavaScript's new Date(). This is critical because the DB server clock may be in a
+ * different timezone than the Node.js process, causing JS-computed ISO strings to be hours off
+ * from the stored timestamp values. Using DB-side NOW() ensures both sides of the comparison
+ * use the same clock reference.
  */
 
 import { getDb, withDbRetry, triggerAiAssessment } from "./db";
 import { claims } from "../drizzle/schema";
-import { eq, and, lt, ne, or, notInArray, inArray } from "drizzle-orm";
+import { eq, and, or, notInArray, inArray, sql } from "drizzle-orm";
 
-const FIVE_MINUTES_MS   =  5 * 60 * 1000;
 const TEN_MINUTES_MS    = 10 * 60 * 1000;
-const TWENTY_MINUTES_MS = 20 * 60 * 1000;
-const THIRTY_MINUTES_MS = 30 * 60 * 1000;
+
+/**
+ * Build a DB-side "older than N minutes" condition using NOW() from the database.
+ * This avoids the timezone mismatch between Node.js (UTC) and the DB server (may be UTC+N).
+ */
+function olderThanMinutes(column: typeof claims.updatedAt, minutes: number) {
+  return sql`${column} < DATE_SUB(NOW(), INTERVAL ${minutes} MINUTE)`;
+}
 
 /**
  * In-memory retry cap — prevents infinite re-trigger loops.
@@ -93,12 +104,12 @@ function recordRetrigger(claimId: number): void {
  * Any claim still in an active transient state (extracting/analysing/parsing)
  * from a previous server run is guaranteed dead. Reset them immediately so
  * the recovery job can re-trigger them on its first cycle.
+ * Uses DB-side time comparison to avoid timezone issues.
  */
 export async function runStartupCleanup(): Promise<void> {
   try {
     const db = await getDb();
     if (!db) return;
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
     const orphaned = await db
       .select({ id: claims.id, claimNumber: claims.claimNumber, documentProcessingStatus: claims.documentProcessingStatus })
       .from(claims)
@@ -106,7 +117,7 @@ export async function runStartupCleanup(): Promise<void> {
         and(
           eq(claims.status, "assessment_in_progress" as any),
           inArray(claims.documentProcessingStatus, ["extracting", "analysing", "parsing"]),
-          lt(claims.updatedAt, fiveMinutesAgo)
+          olderThanMinutes(claims.updatedAt, 5)
         )
       )
       .limit(50);
@@ -129,11 +140,6 @@ export async function runStartupCleanup(): Promise<void> {
 }
 
 export async function runStuckAssessmentRecoveryJob(): Promise<void> {
-  const now = new Date();
-  const fiveMinutesAgo    = new Date(now.getTime() - FIVE_MINUTES_MS).toISOString();
-  const tenMinutesAgo     = new Date(now.getTime() - TEN_MINUTES_MS).toISOString();
-  const twentyMinutesAgo  = new Date(now.getTime() - TWENTY_MINUTES_MS).toISOString();
-
   let totalFixed = 0;
 
   try {
@@ -197,7 +203,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             eq(claims.aiAssessmentCompleted, 0),
             // Exclude transient active states — pipeline is still running in these states
             notInArray(claims.documentProcessingStatus, ["parsing", "extracting", "analysing", "pending"]),
-            lt(claims.updatedAt, tenMinutesAgo)
+            olderThanMinutes(claims.updatedAt, 10)
           )
         )
         .limit(20);
@@ -250,7 +256,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           and(
             eq(claims.status, "assessment_in_progress"),
             eq(claims.aiAssessmentTriggered, 0),
-            lt(claims.updatedAt, tenMinutesAgo)
+            olderThanMinutes(claims.updatedAt, 10)
           )
         )
         .limit(20);
@@ -296,7 +302,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
             eq(claims.aiAssessmentTriggered, 1),
             eq(claims.aiAssessmentCompleted, 0),
             eq(claims.documentProcessingStatus, "parsing"),
-            lt(claims.updatedAt, twentyMinutesAgo)
+            olderThanMinutes(claims.updatedAt, 20)
           )
         )
         .limit(20);
@@ -358,7 +364,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
               eq(claims.documentProcessingStatus, "failed"),
               eq(claims.documentProcessingStatus, "parsing"),
             ),
-            lt(claims.updatedAt, fiveMinutesAgo)
+            olderThanMinutes(claims.updatedAt, 5)
           )
         )
         .limit(20);
@@ -405,7 +411,6 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
     // Pipeline set dps to an active transient state but then died (DB error, OOM, unhandled
     // promise rejection) without triggering the safety net. Startup cleanup handles this on
     // server restart, but if the server stays up the claim is stuck forever.
-    const thirtyMinutesAgo = new Date(now.getTime() - THIRTY_MINUTES_MS).toISOString();
     const stuckInActiveTransient = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -416,7 +421,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           and(
             eq(claims.status, "assessment_in_progress"),
             inArray(claims.documentProcessingStatus, ["extracting", "analysing"]),
-            lt(claims.updatedAt, tenMinutesAgo)
+            olderThanMinutes(claims.updatedAt, 10)
           )
         )
         .limit(20);
@@ -469,7 +474,7 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           and(
             eq(claims.status, "assessment_in_progress"),
             eq(claims.aiAssessmentCompleted, 0),
-            lt(claims.updatedAt, thirtyMinutesAgo)
+            olderThanMinutes(claims.updatedAt, 30)
           )
         )
         .limit(20);

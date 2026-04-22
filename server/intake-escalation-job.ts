@@ -155,7 +155,11 @@ async function processTenantEscalation(tenant: any) {
     return;
   }
   
-  const thresholdDate = new Date(Date.now() - thresholdHours * 60 * 60 * 1000);
+  // Use DB-side time comparison to avoid UTC offset mismatch between Node.js and DB server.
+  // The DB server may be in a different timezone than the Node.js process, so computing
+  // thresholdDate with new Date() produces an ISO string in UTC that may be hours off
+  // from the stored timestamp values. Using DATE_SUB(NOW(), INTERVAL N HOUR) ensures
+  // both sides of the comparison use the same clock reference.
   const staleClaims = await db
     .select()
     .from(claims)
@@ -163,7 +167,7 @@ async function processTenantEscalation(tenant: any) {
       and(
         eq(claims.tenantId, tenantId),
         eq(claims.workflowState, "intake_queue"),
-        lt(claims.createdAt, thresholdDate)
+        sql`${claims.createdAt} < DATE_SUB(NOW(), INTERVAL ${thresholdHours} HOUR)`
       )
     );
 

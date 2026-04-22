@@ -114,11 +114,7 @@ async function processTenantEscalation(tenant: {
   if (!db) return 0;
 
   const escalationHours = tenant.intakeEscalationHours || 24;
-  const thresholdDate = new Date(Date.now() - escalationHours * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 19)
-    .replace("T", " ");
-
+  // Use DB-side time comparison to avoid UTC offset mismatch between Node.js and DB server
   const staleClaims = await db
     .select({
       id: claims.id,
@@ -130,7 +126,7 @@ async function processTenantEscalation(tenant: {
       and(
         eq(claims.tenantId, tenant.id),
         eq(claims.workflowState, "intake_queue"),
-        lt(claims.createdAt, thresholdDate)
+        sql`${claims.createdAt} < DATE_SUB(NOW(), INTERVAL ${escalationHours} HOUR)`
       )
     );
 

@@ -10995,3 +10995,11 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Added valuationMethod and verdictReason display in Section 3.2
 - [x] esbuild check passes cleanly (Server bundle OK)
 - [x] Vite build passes cleanly (built in ~24s)
+
+## UTC Timezone Fix (Critical)
+- [x] Diagnose root cause: DB server clock is UTC+4, Node.js is UTC+0 — JS new Date() comparisons fail
+- [x] Fix stuck-assessment-recovery-job.ts: replace all lt(claims.updatedAt, jsIsoString) with sql DATE_SUB(NOW(), INTERVAL N MINUTE)
+- [x] Fix server/intake-escalation-job.ts: replace lt(claims.createdAt, thresholdDate) with DB-side comparison
+- [x] Fix server/jobs/intake-escalation-job.ts: same DB-side comparison fix
+- [x] Manually reset stuck claim DOC-20260422-B6229FB7 to intake_pending so it can be re-processed
+- [x] Verified server bundle builds cleanly after all fixes
