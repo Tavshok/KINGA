@@ -481,6 +481,32 @@ export async function triggerAiAssessment(claimId: number) {
   // DB read could reset a successfully-completed claim back to intake_pending.
   let pipelineSucceeded = false;
 
+  // ── WATCHDOG TIMER ───────────────────────────────────────────────────────────
+  // If the entire triggerAiAssessment function hangs for more than 8 minutes
+  // (e.g. PDF extractor stuck, LLM call hung), reset the claim to intake_pending
+  // so the recovery job can re-trigger it. The PDF extractor timeout is 3 minutes,
+  // so 8 minutes gives the full pipeline enough headroom while preventing infinite hangs.
+  const WATCHDOG_TIMEOUT_MS = 8 * 60 * 1000;
+  let watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+  watchdogTimer = setTimeout(async () => {
+    if (!pipelineSucceeded) {
+      console.error(`[AI Assessment] Claim ${claimId}: WATCHDOG TIMEOUT — pipeline hung for ${WATCHDOG_TIMEOUT_MS / 1000}s. Resetting to intake_pending.`);
+      try {
+        const dbInner = await getDb();
+        if (dbInner) {
+          await dbInner.update(claims).set({
+            aiAssessmentTriggered: 0,
+            documentProcessingStatus: 'failed',
+            pipelineCurrentStage: null,
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId));
+        }
+      } catch (wdErr: any) {
+        console.error(`[AI Assessment] Claim ${claimId}: Watchdog reset failed: ${wdErr.message}`);
+      }
+    }
+  }, WATCHDOG_TIMEOUT_MS);
+
   // -----------------------------------------------------------------------
   // TOP-LEVEL FAILURE GUARD
   // -----------------------------------------------------------------------
@@ -1378,6 +1404,8 @@ export async function triggerAiAssessment(claimId: number) {
   // varchar truncation), we must NOT reset to intake_pending because that destroys
   // the valid assessment. Instead, we try a minimal fallback update.
   pipelineSucceeded = true;
+  // Clear the watchdog timer — pipeline completed successfully.
+  if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
 
   console.log(`[AI Assessment] Claim ${claimId}: claimUpdate keys = ${Object.keys(claimUpdate).join(', ')}`);
   try {
@@ -1508,6 +1536,8 @@ export async function triggerAiAssessment(claimId: number) {
   } catch (topLevelError) {
     // LLM call, JSON parse, or other unhandled failure
     console.error(`[AI Assessment] Fatal error for claim ${claimId}:`, topLevelError);
+    // Clear watchdog timer on error path
+    if (watchdogTimer) { clearTimeout(watchdogTimer); watchdogTimer = null; }
     // CRITICAL FIX: If pipelineSucceeded is already true, the success path already
     // wrote assessment_complete to the DB. Do NOT reset to intake_pending — that
     // is the claim-cycling bug. Only reset when the pipeline genuinely failed.

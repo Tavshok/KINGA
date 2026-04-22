@@ -13,7 +13,7 @@ import * as napiCanvas from '@napi-rs/canvas';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 const BATCH_SIZE = 5;
-const GLOBAL_TIMEOUT_MS = 12 * 60 * 1000;
+const GLOBAL_TIMEOUT_MS = 3 * 60 * 1000; // Reduced from 12min to 3min — long PDFs fall back to LLM-only extraction
 const DOWNLOAD_TIMEOUT_MS = 45_000;
 const DOWNLOAD_RETRIES = 3;
 const S3_UPLOAD_RETRIES = 3;
