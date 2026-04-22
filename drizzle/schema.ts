@@ -761,6 +761,10 @@ export const claims = mysqlTable("claims", {
 	panelBeaterChoice3: varchar("panel_beater_choice_3", { length: 36 }),
 	aiAssessmentTriggered: tinyint("ai_assessment_triggered").default(0),
 	aiAssessmentCompleted: tinyint("ai_assessment_completed").default(0),
+	// Timestamp when AI pipeline was triggered (set at pre-flight, used for accurate elapsed timer)
+	aiAssessmentStartedAt: timestamp("ai_assessment_started_at", { mode: 'string' }),
+	// Timestamp when AI pipeline completed successfully (set at final DB write)
+	aiAssessmentCompletedAt: timestamp("ai_assessment_completed_at", { mode: 'string' }),
 	fraudRiskScore: int("fraud_risk_score"),
 	fraudFlags: text("fraud_flags"),
 	complexityScore: mysqlEnum("complexity_score", ['simple','moderate','complex','exceptional']),

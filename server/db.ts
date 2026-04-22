@@ -1245,6 +1245,7 @@ export async function triggerAiAssessment(claimId: number) {
     fraudRiskScore: finalFraudScore,
     fraudFlags: fraudIndicatorsJson,
     estimatedCost: safeInt(estimatedCost) ?? 0,
+    aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
     updatedAt: new Date().toISOString(),
   };
   // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors

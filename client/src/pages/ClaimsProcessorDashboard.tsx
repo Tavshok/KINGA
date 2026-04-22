@@ -188,6 +188,8 @@ export default function ClaimsProcessorDashboard() {
       toast.error("AI Assessment Failed", {
         description: error.message || "Could not trigger AI assessment. Please try again.",
       });
+      // Refetch so the UI reflects the server's corrected claim state (safety-net resets to intake_pending)
+      setTimeout(() => refetchAll(), 1500);
     },
   });
 
@@ -393,8 +395,11 @@ export default function ClaimsProcessorDashboard() {
 
       // For server-driven in-progress state (e.g. after page refresh), show spinner + elapsed time
       if (claim.status === "assessment_in_progress") {
-        const startedAt = claim.updatedAt ? new Date(claim.updatedAt) : null;
-        const elapsedMs = startedAt ? Date.now() - startedAt.getTime() : 0;
+        // Use aiAssessmentStartedAt for accurate elapsed time; fall back to updatedAt only if absent
+        const startedAt = (claim as any).aiAssessmentStartedAt
+          ? new Date((claim as any).aiAssessmentStartedAt)
+          : claim.updatedAt ? new Date(claim.updatedAt) : null;
+        const elapsedMs = startedAt ? Math.max(0, Date.now() - startedAt.getTime()) : 0;
         const elapsedMin = Math.floor(elapsedMs / 60000);
         const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);
         const elapsedLabel = elapsedMin > 0 ? `${elapsedMin}m ${elapsedSec}s` : `${elapsedSec}s`;
@@ -503,6 +508,14 @@ export default function ClaimsProcessorDashboard() {
                       : "N/A"}
                   </p>
                 </div>
+                {(claim as any).aiAssessmentCompletedAt && (
+                  <div>
+                    <span className="font-medium text-slate-600 dark:text-muted-foreground">AI Assessed:</span>
+                    <p className="text-slate-900 dark:text-foreground text-xs">
+                      {new Date((claim as any).aiAssessmentCompletedAt).toLocaleString()}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 

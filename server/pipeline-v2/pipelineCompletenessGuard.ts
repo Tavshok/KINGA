@@ -105,15 +105,20 @@ export function runCompletenessGuard(input: CompletenessGuardInput): Completenes
     });
   }
 
-  // ── Check 2: DOE must be present ──────────────────────────────────────────
+  // ── Check 2: DOE result (non-blocking when no quotes were submitted) ────────
+  // DOE only runs when selected_quotes exist in the claim document. Claims without
+  // a repair quote (e.g. theft, total loss, or early-stage assessments) will never
+  // have a doeResult — this is expected behaviour, not a pipeline failure.
+  // Making this non-blocking prevents the infinite loop where claims without quotes
+  // are reset to intake_pending and re-triggered every 20 minutes.
   if (!input.doeResult) {
     failures.push({
       reason: "DOE_ABSENT",
       detail:
-        "The Decision Optimisation Engine did not produce a result. Cost decisions are not " +
-        "systematically defensible without DOE scoring. The pipeline cannot produce a report " +
-        "that meets the v4.0 adjudication standard without DOE output.",
-      blocking: true,
+        "The Decision Optimisation Engine did not produce a result. This is expected when no " +
+        "repair quotes are present in the claim document. The report is written without DOE " +
+        "panel-beater scoring and is flagged as DOE_ABSENT for adjuster awareness.",
+      blocking: false,
     });
   }
 

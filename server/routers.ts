@@ -1598,6 +1598,8 @@ If any value is not found, use 0 for numbers and empty string for text.`;
             await dbPreflight.update(claims).set({
               aiAssessmentTriggered: 1,
               documentProcessingStatus: "parsing",
+              aiAssessmentStartedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
+              aiAssessmentCompletedAt: null,
               updatedAt: new Date().toISOString(),
             }).where(eq(claims.id, input.claimId));
           }
