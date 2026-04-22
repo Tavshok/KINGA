@@ -93,7 +93,7 @@ export const reportingRouter = router({
         reportKey: input.reportKey,
         requestedByUserId: ctx.user.id,
         requestedByUserName: ctx.user.name ?? ctx.user.email ?? "Unknown",
-        tenantId: input.tenantId ?? ctx.user.tenantId,
+        tenantId: input.tenantId ?? ctx.user.tenantId ?? undefined,
         parameters: params,
         outputFormat: input.outputFormat,
       });
@@ -112,7 +112,7 @@ export const reportingRouter = router({
 
   // ── Get user's recent jobs ─────────────────────────────────────────────────
   getMyJobs: protectedProcedure.query(async ({ ctx }) => {
-    return getUserJobs(ctx.user.id, ctx.user.tenantId);
+    return getUserJobs(ctx.user.id, ctx.user.tenantId ?? undefined);
   }),
 
   // ── Record a download ─────────────────────────────────────────────────────
@@ -177,7 +177,7 @@ export const reportingRouter = router({
       scheduleLabel:  z.string(),
       scheduleCron:   z.string(),
       deliveryEmails: z.array(z.string().email()),
-      parameters:     z.record(z.unknown()).optional(),
+      parameters:     z.record(z.string(), z.unknown()).optional(),
     }))
     .mutation(async ({ ctx, input }) => {
       const role = ctx.user.role ?? "claims_processor";
