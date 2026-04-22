@@ -465,6 +465,7 @@ export function ensureCostContract(
     economicContext: partial.economicContext ?? null,  // Phase 2B: ECE
     ifeResult: partial.ifeResult ?? null,              // Phase 4A: IFE
     doeResult: partial.doeResult ?? null,              // Phase 4A: DOE
+    marketValueUsd: partial.marketValueUsd ?? null,    // Vehicle market value for total-loss threshold
   };
 
   return {

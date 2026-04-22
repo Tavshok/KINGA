@@ -1106,6 +1106,8 @@ export interface Stage9Output {
   ifeResult: import('./inputFidelityEngine').IFEReport | null;
   /** Phase 4A: Decision Optimisation Engine result — multi-objective scoring, fraud-aware disqualification */
   doeResult: import('./decisionOptimisationEngine').DOEResult | null;
+  /** Vehicle market/retail value in USD — sourced from claimRecord.valuation or ctx.claim.vehicleMarketValue */
+  marketValueUsd: number | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

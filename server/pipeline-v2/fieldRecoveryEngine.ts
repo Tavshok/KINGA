@@ -102,10 +102,12 @@ const REGEX_PATTERNS: Partial<Record<keyof ExtractedClaimFields, RegExp[]>> = {
     /(\d{1,2}[:\s]\d{2}\s*(?:am|pm|hrs?))/i,
   ],
   policeReportNumber: [
-    /(?:police\s+report|report\s+no|case\s+no|RB\s+no|CR\s+no|ref)[:\s#.]+([A-Z0-9\/\-]+)/i,
+    // All patterns require at least one digit in the captured group to avoid matching plain English words
+    /(?:police\s+report|report\s+no|case\s+no|RB\s+no|CR\s+no|ref)[:\s#.]+([A-Z0-9\/\-]*\d[A-Z0-9\/\-]*)/i,
     /RB\s*[:\s]?\s*([0-9]+\/[0-9]+)/i,
-    /CR[:\s\/]+([0-9A-Z\/\-]+)/i,
-    /(?:report|case)\s*#?\s*([A-Z0-9\/\-]{4,})/i,
+    /CR[:\s\/]+([0-9][0-9A-Z\/\-]*)/i,
+    // Only match "report/case" when followed by "no", "number", or "#" to avoid matching "reported"
+    /(?:report|case)\s+(?:no\.?|number|#)\s*([A-Z0-9\/\-]*\d[A-Z0-9\/\-]{2,})/i,
   ],
   vehicleRegistration: [
     /(?:reg(?:istration)?|licence\s+plate|number\s+plate)[:\s]+([A-Z0-9\s\-]{3,12})/i,

@@ -983,6 +983,9 @@ export async function triggerAiAssessment(claimId: number) {
     // Multi-quote comparison — highest-weighted selected quote
     bestSelectedQuote: (costAnalysis as any).bestSelectedQuote ?? null,
     quoteCount: (costAnalysis as any).quoteCount ?? 0,
+    // Market value — for total-loss threshold display in Section 3
+    marketValueUsd: costAnalysis.marketValueUsd ?? null,
+    totalEstimatedCost: costAnalysis.expectedRepairCostCents ? costAnalysis.expectedRepairCostCents / 100 : null,
   }) : (
     // Even if costAnalysis is null, still persist the documented quote values
     // so the UI can display the panel beater quote from the extracted document.
@@ -2943,6 +2946,8 @@ export async function getTenantRates(tenantId: number | string | null): Promise<
 } | null> {
   if (!tenantId) return null;
   try {
+    const db = await getDb();
+    if (!db) return null;
     const tenantIdStr = String(tenantId);
     const rows = await db
       .select({

@@ -57,7 +57,7 @@ const EXTRACTION_SCHEMA = {
         accidentType: { type: ["string", "null"], description: "Collision direction: frontal, rear, side_driver, side_passenger, rollover, multi_impact" },
         impactPoint: { type: ["string", "null"], description: "Primary point of impact on the vehicle" },
         estimatedSpeedKmh: { type: ["number", "null"], description: "Speed at impact in km/h. SEARCH THE ENTIRE DOCUMENT for any of these patterns: (1) A form field labelled 'Speed', 'Speed at time of accident', 'What was your speed?', 'Speed of vehicle', 'Approximate speed' — the value may appear immediately after the label with no keyword prefix, e.g. 'Speed: 90KM/HRS' or just '90KM/HRS' after the label. (2) Any speed mentioned in the accident narrative or circumstances section, e.g. 'travelling at 90 KM/HRS', 'doing 60 km/h', 'speed of 80'. (3) Any speed in a police report or assessor notes. IMPORTANT: Extract the NUMERIC VALUE ONLY — strip ALL unit suffixes (KM/HRS, KM/H, KPH, MPH, km/h, kph, kmh). Examples: '90KM/HRS' → 90, '90 km/h' → 90, '120kph' → 120, '60' → 60. Return null ONLY if no speed value appears anywhere in the document." },
-        policeReportNumber: { type: ["string", "null"], description: "Police report/case number. Look for 'Case No.', 'Report No.', 'CR No.', 'RB No.', 'CID No.' anywhere in the document." },
+        policeReportNumber: { type: ["string", "null"], description: "Police report/case number. MUST be an alphanumeric code containing at least one digit — NOT a plain English word. Look for: (1) 'Case No.', 'Report No.', 'CR No.', 'RB No.', 'CID No.', 'AR No.', 'Docket No.' followed by an alphanumeric code like 'RB 123/2024', 'CR/2024/001', 'CID/123', 'AR 456'. (2) A standalone alphanumeric code on a police report page (e.g. 'P123/2024'). (3) In Zimbabwe: look for 'RB' (Recorded Book) numbers like 'RB 45/2024'. DO NOT return plain words like 'reported', 'yes', 'no', 'none', 'N/A'. Return null if no alphanumeric case number is found." },
         policeStation: { type: ["string", "null"], description: "Police station name. Look for 'Station:', 'Police Station:', 'Reported at:' anywhere in the document." },
         policeOfficerName: { type: ["string", "null"], description: "Name of the attending police or traffic officer. Look for 'Officer:', 'Constable:', 'Sgt.', 'Traffic Officer:', 'Officer Name:', or any officer/constable name on a traffic report or police report page." },
         policeChargeNumber: { type: ["string", "null"], description: "TAB number or traffic charge number issued at the scene. Look for 'TAB No.', 'TAB Number', 'Charge No.', 'Traffic Charge', 'Infringement No.', 'Ticket No.' anywhere in the document." },
@@ -383,7 +383,17 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     accidentType: raw.accidentType || null,
     impactPoint: raw.impactPoint || null,
     estimatedSpeedKmh: raw.estimatedSpeedKmh || null,
-    policeReportNumber: raw.policeReportNumber || null,
+    policeReportNumber: (() => {
+      const v = raw.policeReportNumber ? String(raw.policeReportNumber).trim() : null;
+      if (!v) return null;
+      // Reject values that are common English words, not actual case/report numbers.
+      // A valid police report number MUST contain at least one digit.
+      if (!/\d/.test(v)) return null;
+      // Reject single-word values that look like dictionary words (no digits)
+      const INVALID_WORDS = /^(reported|yes|no|none|na|n\/a|not|unknown|nil|provided|available|present|incident|case|report|police|station|officer|number|ref|reference|accident|claim|form|document|submitted|attached|enclosed|included|see|above|below|page|section|details|information|data|record|file|docket|charge|tab|traffic|fine|penalty|infringement|ticket|issued|given|assigned|registered|lodged|opened|closed|withdrawn|completed|processed|pending|under|investigation|charged|uncharged)$/i;
+      if (INVALID_WORDS.test(v)) return null;
+      return v;
+    })(),
     policeStation: raw.policeStation || null,
     policeOfficerName: raw.policeOfficerName || null,
     policeChargeNumber: raw.policeChargeNumber || null,

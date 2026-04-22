@@ -542,7 +542,8 @@ export async function runCostOptimisationStage(
       selected_quote_id: extractedQuotes.length > 0 ? "q1" : "",
       agreed_cost_usd: quotedCents ? quotedCents / 100 : null,
       ai_estimate_usd: totalExpectedCents / 100,
-      market_value_usd: claimRecord.valuation?.marketValueUsd ?? null,
+      market_value_usd: claimRecord.valuation?.marketValueUsd
+        ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
       median_cost: extractedQuotes.length > 1
         ? [...extractedQuotes].sort((a, b) => (a.total_cost ?? 0) - (b.total_cost ?? 0))[Math.floor(extractedQuotes.length / 2)]?.total_cost ?? null
         : null,
@@ -815,6 +816,9 @@ export async function runCostOptimisationStage(
           }
         : null,
       quoteCount: optimisationInputQuotes.length,
+      // Market value — used by costIntelligenceJson for total-loss threshold display
+      marketValueUsd: claimRecord.valuation?.marketValueUsd
+        ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
     }, isDegraded ? "degraded_estimate" : "success");
 
     ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
