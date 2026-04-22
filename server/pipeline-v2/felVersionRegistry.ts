@@ -207,7 +207,10 @@ export function buildFELVersionSnapshot(
     s => LLM_STAGES.has(s.stageId) && s.promptHash != null
   );
   const llmStagesTotal = stageVersions.filter(s => LLM_STAGES.has(s.stageId)).length;
-  const replaySupported = llmStagesWithHashes.length === llmStagesTotal && llmStagesTotal > 0;
+  // replaySupported: true when all LLM stages have hashes, OR when no LLM stages were tracked
+  // (llmStagesTotal === 0 means no stages to check — nothing is missing).
+  const missingCount = llmStagesTotal - llmStagesWithHashes.length;
+  const replaySupported = missingCount === 0;
 
   return {
     pipelineRunId,
@@ -215,8 +218,8 @@ export function buildFELVersionSnapshot(
     stages: stageVersions,
     replaySupported,
     replayLimitation: replaySupported
-      ? "NOTE: Replay uses the current model version, not the exact model version that produced this result. Full deterministic replay is a Phase 4 capability."
-      : `${llmStagesTotal - llmStagesWithHashes.length} LLM stage(s) are missing prompt hash records.`,
+      ? null
+      : `${missingCount} LLM stage(s) are missing prompt hash records — full audit replay is not available for this assessment.`,
     snapshotAt: new Date().toISOString(),
   };
 }

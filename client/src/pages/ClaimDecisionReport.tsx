@@ -1452,34 +1452,37 @@ export default function ClaimDecisionReport() {
           return null;
         })()}
 
-        {/* ── REPLAY_INCOMPLETE warning ── */}
-        {(() => {
-          const felSnap = (aiAssessment as any)?._felVersionSnapshot;
-          if (felSnap && felSnap.replaySupported === false) {
-            return (
-              <div className="mb-4 rounded-xl border border-amber-400 bg-amber-50 dark:bg-amber-950/30 p-3 flex gap-3">
-                <div className="text-amber-600 text-lg mt-0.5">⚠️</div>
-                <div>
-                  <div className="font-semibold text-amber-700 dark:text-amber-400 text-sm mb-0.5">Audit Replay Incomplete</div>
-                  <div className="text-amber-600 dark:text-amber-300 text-xs">{felSnap.replayLimitation ?? 'This assessment cannot be fully replayed for audit purposes because one or more pipeline stages are missing prompt version hashes.'}</div>
+        {/* ── Pre-report panels: forced light theme for visual consistency with the white forensic report ── */}
+        <div className="light" data-theme="light">
+          {/* Audit Replay Incomplete — only shown when there are genuinely missing hash records */}
+          {(() => {
+            const felSnap = (aiAssessment as any)?._felVersionSnapshot;
+            if (felSnap && felSnap.replaySupported === false && felSnap.replayLimitation) {
+              return (
+                <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 flex gap-3">
+                  <div className="text-amber-600 text-lg mt-0.5">⚠️</div>
+                  <div>
+                    <div className="font-semibold text-amber-700 text-sm mb-0.5">Audit Replay Incomplete</div>
+                    <div className="text-amber-600 text-xs">{felSnap.replayLimitation}</div>
+                  </div>
                 </div>
-              </div>
-            );
-          }
-          return null;
-        })()}
+              );
+            }
+            return null;
+          })()}
 
-        {/* ── Claim Quality Score ── */}
-        {(aiAssessment as any)?._claimQuality && (
-          <ClaimQualityPanel quality={(aiAssessment as any)._claimQuality} />
-        )}
+          {/* Claim Quality Score */}
+          {(aiAssessment as any)?._claimQuality && (
+            <ClaimQualityPanel quality={(aiAssessment as any)._claimQuality} />
+          )}
 
-        {/* ── Stage 36: Forensic Audit Validation ── */}
-        {(aiAssessment as any)?._forensicAuditValidation && (
-          <div className="mb-4">
-            <ForensicAuditValidationPanel validation={(aiAssessment as any)._forensicAuditValidation} />
-          </div>
-        )}
+          {/* Stage 36: Forensic Audit Validation */}
+          {(aiAssessment as any)?._forensicAuditValidation && (
+            <div className="mb-4">
+              <ForensicAuditValidationPanel validation={(aiAssessment as any)._forensicAuditValidation} />
+            </div>
+          )}
+        </div>
 
         {/* ── Phase 5A: Decision Narrative View ── */}
         <ReportSectionDivider label="Decision Narrative" icon="🧠" />

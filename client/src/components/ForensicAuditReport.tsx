@@ -1114,9 +1114,10 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Reporting officer", claimRecord?.policeReport?.officerName ?? "Not provided"],
                 ["Report date", claimRecord?.policeReport?.reportDate ?? "Not provided"],
                 ["Charge number", claimRecord?.policeReport?.chargeNumber ?? "Not provided"],
+                ["Charged party", claimRecord?.policeReport?.chargedParty ?? "Not stated"],
                 ["Investigation status", claimRecord?.policeReport?.investigationStatus ?? "Not stated"],
                 ["Officer findings", claimRecord?.policeReport?.officerFindings ?? "Not stated"],
-                ["Breathalyser / sobriety", claimRecord?.policeReport?.breathalyser ?? "Not stated"],
+                ["Third-party account", claimRecord?.policeReport?.thirdPartyAccountSummary ?? "Not provided"],
               ] as [string, string][]).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-1.5 pr-3 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k}</td>
@@ -1628,6 +1629,17 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const fairMin = ce?.fair_range?.min ?? e?.costBenchmark?.estimatedFairMin ?? 0;
   const fairMax = ce?.fair_range?.max ?? e?.costBenchmark?.estimatedFairMax ?? 0;
   const itemisedParts: any[] = ce?.itemised_parts ?? [];
+  // Parse partsReconciliationJson from Stage 9 — used to show quote status per component
+  const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
+  const partsRecon: any[] = (() => {
+    if (!partsReconRaw) return [];
+    try { return typeof partsReconRaw === 'string' ? JSON.parse(partsReconRaw) : (Array.isArray(partsReconRaw) ? partsReconRaw : []); } catch { return []; }
+  })();
+  // Build a lookup: component name (lower) → reconciliation_status from Stage 9
+  const reconStatusMap: Record<string, string> = {};
+  for (const r of partsRecon) {
+    if (r.component) reconStatusMap[r.component.toLowerCase()] = r.reconciliation_status ?? 'no_quote_available';
+  }
 
   const pbQuotes = (quotes ?? []).map((q: any) => ({
     name: q.panelBeaterName ?? "Panel Beater",
@@ -1791,7 +1803,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
             <table className="w-full text-xs report-table">
               <thead>
                 <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                  {["Component", "Benchmark", "Quoted", "Variance", "Source"].map(h => (
+                  {["Component", "Benchmark", "Quote Status", "Variance", "Source"].map(h => (
                     <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
                   ))}
                 </tr>
@@ -1813,7 +1825,20 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                       <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>
                         {hasBenchmark ? fmtMoney(part.total) : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Insufficient data</span>}
                       </td>
-                      <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{quotedPartCost != null ? fmtMoney(quotedPartCost) : "—"}</td>
+                      <td className="px-3 py-2">
+                        {(() => {
+                          const rs = reconStatusMap[(part.component ?? '').toLowerCase()] ?? 'no_quote_available';
+                          const statusMap: Record<string, { status: 'pass' | 'warn' | 'fail' | 'na'; label: string }> = {
+                            matched: { status: 'pass', label: '✓ Matched' },
+                            missing_from_quote: { status: 'fail', label: '✗ Missing' },
+                            quoted_not_detected: { status: 'warn', label: '⚠ Extra' },
+                            unmatched: { status: 'warn', label: '? Unmatched' },
+                            no_quote_available: { status: 'na', label: 'No quote' },
+                          };
+                          const s = statusMap[rs] ?? { status: 'na' as const, label: rs };
+                          return <StatusBadge status={s.status} label={s.label} />;
+                        })()}
+                      </td>
                       <td className="px-3 py-2">
                         {v != null ? <StatusBadge status={Math.abs(v) <= 20 ? "pass" : Math.abs(v) <= 40 ? "warn" : "fail"} label={`${v > 0 ? "+" : ""}${Math.round(v)}%`} /> : <span style={{ color: "var(--muted-foreground)" }}>—</span>}
                       </td>
@@ -1828,7 +1853,11 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                 <tr style={{ borderTop: "2px solid var(--border)", background: "var(--muted)" }}>
                   <td className="px-3 py-2 font-bold" style={{ color: "var(--foreground)" }}>TOTAL</td>
                   <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtMoney(itemisedParts.reduce((s: number, p: any) => s + (p.total ?? 0), 0))}</td>
-                  <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : "—"}</td>
+                  <td className="px-3 py-2 text-xs" style={{ color: "var(--muted-foreground)" }}>
+                    {partsRecon.length > 0
+                      ? `${partsRecon.filter(r => r.reconciliation_status === 'matched').length}/${partsRecon.length} matched`
+                      : quotedTotal > 0 ? fmtMoney(quotedTotal) : "—"}
+                  </td>
                   <td colSpan={2} />
                 </tr>
               </tfoot>
@@ -1929,8 +1958,30 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               <p className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{costNarrative}</p>
             )}
             {reconciliationSummary && (
-              <div className="p-2 rounded text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-                <span className="font-semibold">Reconciliation: </span>{reconciliationSummary}
+              <div className="space-y-2">
+                <div className="p-2 rounded text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
+                  <span className="font-semibold">Reconciliation: </span>
+                  {typeof reconciliationSummary === 'string'
+                    ? reconciliationSummary
+                    : typeof (reconciliationSummary as any)?.summary === 'string'
+                      ? (reconciliationSummary as any).summary
+                      : `${(reconciliationSummary as any)?.matched_count ?? 0} matched · ${(reconciliationSummary as any)?.missing_count ?? 0} missing from quote · ${(reconciliationSummary as any)?.extra_count ?? 0} extra in quote`
+                  }
+                </div>
+                {/* Missing from quote — damage detected but not quoted */}
+                {Array.isArray((reconciliationSummary as any)?.missing) && (reconciliationSummary as any).missing.length > 0 && (
+                  <div className="p-2 rounded text-xs" style={{ background: "var(--status-reject-bg)", border: "1px solid var(--status-reject-border)", color: "var(--status-reject-text)" }}>
+                    <span className="font-semibold">Missing from quote: </span>
+                    {(reconciliationSummary as any).missing.map((m: any) => m.component ?? m).join(" · ")}
+                  </div>
+                )}
+                {/* Extra in quote — quoted but not in damage analysis */}
+                {Array.isArray((reconciliationSummary as any)?.extra) && (reconciliationSummary as any).extra.length > 0 && (
+                  <div className="p-2 rounded text-xs" style={{ background: "var(--status-review-bg)", border: "1px solid var(--status-review-border)", color: "var(--status-review-text)" }}>
+                    <span className="font-semibold">Extra in quote (not in damage analysis): </span>
+                    {(reconciliationSummary as any).extra.map((e: any) => e.component ?? e).join(" · ")}
+                  </div>
+                )}
               </div>
             )}
           </div>

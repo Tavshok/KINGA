@@ -507,9 +507,7 @@ export async function runCostOptimisationStage(
       selected_quote_id: extractedQuotes.length > 0 ? "q1" : "",
       agreed_cost_usd: quotedCents ? quotedCents / 100 : null,
       ai_estimate_usd: totalExpectedCents / 100,
-      market_value_usd: (claimRecord as unknown as Record<string, unknown>).marketValueCents
-        ? ((claimRecord as unknown as Record<string, number>).marketValueCents) / 100
-        : null,
+      market_value_usd: claimRecord.valuation?.marketValueUsd ?? null,
       median_cost: extractedQuotes.length > 1
         ? [...extractedQuotes].sort((a, b) => (a.total_cost ?? 0) - (b.total_cost ?? 0))[Math.floor(extractedQuotes.length / 2)]?.total_cost ?? null
         : null,
