@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { trpc } from "@/lib/trpc";
+import { parseUtcTimestamp } from "@/lib/parseUtcTimestamp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -396,9 +397,9 @@ export default function ClaimsProcessorDashboard() {
       // For server-driven in-progress state (e.g. after page refresh), show spinner + elapsed time
       if (claim.status === "assessment_in_progress") {
         // Use aiAssessmentStartedAt for accurate elapsed time; fall back to updatedAt only if absent
-        const startedAt = (claim as any).aiAssessmentStartedAt
-          ? new Date((claim as any).aiAssessmentStartedAt)
-          : claim.updatedAt ? new Date(claim.updatedAt) : null;
+        // Uses parseUtcTimestamp to correctly handle MySQL UTC timestamps (see lib/parseUtcTimestamp.ts)
+        const startedAt = parseUtcTimestamp((claim as any).aiAssessmentStartedAt)
+          ?? parseUtcTimestamp(claim.updatedAt as any);
         const elapsedMs = startedAt ? Math.max(0, Date.now() - startedAt.getTime()) : 0;
         const elapsedMin = Math.floor(elapsedMs / 60000);
         const elapsedSec = Math.floor((elapsedMs % 60000) / 1000);

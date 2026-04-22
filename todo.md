@@ -10958,3 +10958,8 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Report Scheduler UI: frequency selector, email delivery config
 - [ ] Report Scheduler DB procedures in reporting router
 - [ ] Scheduler management table in ReportsCentre UI
+
+## Pipeline Hang Fix (Critical - DOC-20260422-11E9D304)
+- [x] Fix AI assessment timer showing 120m at start (UTC timezone parsing bug in ClaimsProcessorDashboard)
+- [x] Add parseUtcTimestamp utility to correctly parse MySQL UTC timestamps in browser
+- [ ] Investigate false 'AI Assessment Failed' toast (pipeline actually completes but stuck-recovery-job may reset mid-run)
