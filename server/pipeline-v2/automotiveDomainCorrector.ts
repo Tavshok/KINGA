@@ -123,7 +123,6 @@ const VEHICLE_MODEL_CORRECTIONS: Record<string, Record<string, string>> = {
   VOLKSWAGEN: {
     'POLO VIVO': 'Polo Vivo',
     'POLO VIBO': 'Polo Vivo',
-    'POLO VIBO': 'Polo Vivo',
     'GOLF 7': 'Golf 7',
     'GOLF VII': 'Golf 7',
     'TIGUAN': 'Tiguan',
@@ -144,7 +143,6 @@ const VEHICLE_MODEL_CORRECTIONS: Record<string, Record<string, string>> = {
     'NP 200': 'NP200',
     'NP300': 'NP300',
     'NP 300': 'NP300',
-    'TIIDA': 'Tiida',
     'TIIDA': 'Tiida',
     'ALMERA': 'Almera',
     'ALMEERA': 'Almera',
@@ -215,7 +213,6 @@ const COLOUR_CORRECTIONS: Record<string, string> = {
   'MARRON': 'MAROON',
   'CHAMPAIGN': 'CHAMPAGNE',
   'CHAMPANE': 'CHAMPAGNE',
-  'BEIGE': 'BEIGE',
   'BEIGE': 'BEIGE',
   'BURGANDY': 'BURGUNDY',
   'BURGUNDY': 'BURGUNDY',
