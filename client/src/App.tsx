@@ -133,6 +133,7 @@ const AnalyticsHub = lazy(() => import("./pages/analytics/AnalyticsHub"));
 const RoleSetup = lazy(() => import("./pages/RoleSetup"));
 const UserDiagnostic = lazy(() => import("./pages/UserDiagnostic"));
 const RelationshipIntelligence = lazy(() => import("./pages/RelationshipIntelligence"));
+const ReportsCentre = lazy(() => import("./pages/ReportsCentre"));
 
 function Router() {
   return (
@@ -161,6 +162,9 @@ function Router() {
         <Route path="/admin/operational-health">
           <ProtectedRoute allowedRoles={["admin"]}>
             <OperationalHealthDashboard />
+          </ProtectedRoute>
+        </Route>
+
         <Route path="/insurer-portal/exception-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <ExceptionIntelligenceHub />
@@ -173,6 +177,11 @@ function Router() {
             <RelationshipIntelligence />
           </ProtectedRoute>
         </Route>
+
+        {/* Reports Centre — report catalogue, job tracker, admin regeneration */}
+        <Route path="/insurer-portal/reports-centre">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <ReportsCentre />
           </ProtectedRoute>
         </Route>
         

@@ -10914,3 +10914,27 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Relationship Intelligence dashboard page (client/src/pages/RelationshipIntelligence.tsx)
 - [x] Navigation link added to DashboardLayout sidebar
 - [x] Route registered in App.tsx at /insurer-portal/relationship-intelligence
+
+## Phase 2 — Reporting Framework
+- [ ] Report Engine DB tables: report_jobs, report_definitions, report_schedules, report_audit_log
+- [ ] Report definition registry (server/reporting/reportDefinitions.ts)
+- [ ] Report job queue and async runner (server/reporting/reportQueue.ts)
+- [ ] PDF/Excel renderer with S3 archival (server/reporting/reportRenderer.ts)
+- [ ] Phase 2a: Individual claim reports (Assessment, Forensic, Audit Trail, Cost Comparison, Repair Decision)
+- [ ] Phase 2b: Portfolio reports (Claims Summary, Fraud Summary, Assessor/PB Performance, Dwell Time)
+- [ ] Phase 2c: Admin regeneration console with state-based restrictions and audit logging
+- [ ] Phase 2d: Executive/governance reports (Platform Dashboard, Cross-Insurer Intelligence, ML Performance, SAR, Regulatory Compliance)
+- [ ] Report scheduler (configurable frequency, email delivery via notification system)
+- [ ] Reports UI: catalogue browser, job status tracker, download centre, admin regeneration console
+- [ ] Role-based access enforcement at tRPC procedure level for all report types
+
+## Phase 2 Reporting Framework (Completed)
+- [x] Reporting DB tables: report_jobs, report_schedules, report_access_log, report_archive, admin_pipeline_regenerations, report_audit_log
+- [x] 12 performance indexes on reporting tables
+- [x] Report Generation Engine: pdfRenderer.ts, reportQueue.ts, reportDefinitions.ts
+- [x] Base HTML report template with KINGA logo top-right, black/white/grey palette
+- [x] Reporting tRPC router: generate, getMyJobs, getJobStatus, recordDownload, getCatalogue, adminRegeneratePipeline
+- [x] ReportsCentre UI page: catalogue browser, job tracker, download centre, admin regeneration console
+- [x] Reports Centre route: /insurer-portal/reports-centre
+- [x] Reports Centre nav item in DashboardLayout sidebar
+- [x] Fixed malformed JSX in App.tsx (OperationalHealth route missing closing tags)

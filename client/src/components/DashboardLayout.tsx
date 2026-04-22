@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { getLoginUrl } from "@/const";
 import { useIsMobile } from "@/hooks/useMobile";
-import { LayoutDashboard, LogOut, PanelLeft, Users, AlertCircle, Network } from "lucide-react";
+import { LayoutDashboard, LogOut, PanelLeft, Users, AlertCircle, Network, FileBarChart } from "lucide-react";
 import { CSSProperties, useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { DashboardLayoutSkeleton } from './DashboardLayoutSkeleton';
@@ -32,6 +32,7 @@ const menuItems = [
   { icon: Users, label: "Page 2", path: "/some-path" },
   { icon: AlertCircle, label: "Exception Hub", path: "/insurer-portal/exception-intelligence" },
   { icon: Network, label: "Relationship Intelligence", path: "/insurer-portal/relationship-intelligence" },
+  { icon: FileBarChart, label: "Reports Centre", path: "/insurer-portal/reports-centre" },
 ];
 
 const SIDEBAR_WIDTH_KEY = "sidebar-width";
