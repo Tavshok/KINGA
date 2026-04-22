@@ -321,7 +321,181 @@ function JobRow({ job, onPoll }: { job: ReportJob; onPoll: (jobId: string) => vo
   );
 }
 
-// ─── Main Page ────────────────────────────────────────────────────────────────
+// ─── Schedule Report Dialog ────────────────────────────────────────────────────────────────────────────────
+const CRON_PRESETS = [
+  { label: "Daily at 06:00",       value: "0 6 * * *" },
+  { label: "Weekly (Mon 06:00)",   value: "0 6 * * 1" },
+  { label: "Monthly (1st 06:00)",  value: "0 6 1 * *" },
+  { label: "Quarterly (1st Jan/Apr/Jul/Oct)", value: "0 6 1 1,4,7,10 *" },
+  { label: "Custom",               value: "custom" },
+];
+
+const SCHEDULABLE_REPORTS = [
+  "portfolio.claims_summary",
+  "portfolio.fraud_summary",
+  "portfolio.assessor_performance",
+  "portfolio.panel_beater_performance",
+  "portfolio.dwell_time",
+  "executive.platform_dashboard",
+  "governance.regulatory_compliance",
+];
+
+interface ScheduleEntry {
+  id: number;
+  report_key: string;
+  schedule_cron: string;
+  schedule_label: string;
+  is_active: number;
+  tenant_id: string | null;
+  delivery_emails: string;
+  last_run_at?: number;
+  next_run_at?: number;
+  created_at: number;
+}
+
+function ScheduleDialog({
+  catalogue,
+  onClose,
+  onCreated,
+}: {
+  catalogue: CatalogueEntry[];
+  onClose: () => void;
+  onCreated: () => void;
+}) {
+  const { toast } = useToast();
+  const [reportKey, setReportKey] = useState(SCHEDULABLE_REPORTS[0]);
+  const [label, setLabel] = useState("");
+  const [cronPreset, setCronPreset] = useState(CRON_PRESETS[1].value);
+  const [customCron, setCustomCron] = useState("");
+  const [emailInput, setEmailInput] = useState("");
+  const [emails, setEmails] = useState<string[]>([]);
+
+  const create = trpc.reportingEngine.createSchedule.useMutation({
+    onSuccess: () => {
+      toast({ title: "Schedule created", description: `Report will be delivered on the configured schedule.` });
+      onCreated();
+      onClose();
+    },
+    onError: (e) => toast({ title: "Failed to create schedule", description: e.message, variant: "destructive" }),
+  });
+
+  const addEmail = () => {
+    const e = emailInput.trim();
+    if (e && /^[^@]+@[^@]+\.[^@]+$/.test(e) && !emails.includes(e)) {
+      setEmails([...emails, e]);
+      setEmailInput("");
+    }
+  };
+
+  const cronValue = cronPreset === "custom" ? customCron : cronPreset;
+
+  return (
+    <DialogContent className="max-w-lg bg-white">
+      <DialogHeader>
+        <DialogTitle className="text-base font-semibold text-gray-900">Create Scheduled Report</DialogTitle>
+        <p className="text-xs text-gray-500 mt-1">Reports will be generated automatically and emailed to the specified recipients.</p>
+      </DialogHeader>
+
+      <div className="space-y-4 py-2">
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Report Type *</label>
+          <Select value={reportKey} onValueChange={setReportKey}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SCHEDULABLE_REPORTS.map((key) => {
+                const entry = catalogue.find((c) => c.key === key);
+                return (
+                  <SelectItem key={key} value={key}>
+                    {entry?.name ?? key}
+                  </SelectItem>
+                );
+              })}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Schedule Label *</label>
+          <Input
+            placeholder="e.g. Monthly Fraud Summary — Finance Team"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            className="h-8 text-sm"
+          />
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Frequency *</label>
+          <Select value={cronPreset} onValueChange={setCronPreset}>
+            <SelectTrigger className="h-8 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {CRON_PRESETS.map((p) => (
+                <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {cronPreset === "custom" && (
+            <Input
+              placeholder="Cron expression e.g. 0 8 * * 1"
+              value={customCron}
+              onChange={(e) => setCustomCron(e.target.value)}
+              className="h-8 text-sm mt-2 font-mono"
+            />
+          )}
+          {cronValue && cronPreset !== "custom" && (
+            <p className="text-xs text-gray-400 mt-1 font-mono">{cronValue}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs font-medium text-gray-700 block mb-1">Delivery Email Addresses *</label>
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="email@insurer.com"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addEmail())}
+              className="h-8 text-sm flex-1"
+            />
+            <Button type="button" size="sm" variant="outline" className="h-8 text-xs" onClick={addEmail}>
+              Add
+            </Button>
+          </div>
+          {emails.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {emails.map((e) => (
+                <span key={e} className="inline-flex items-center gap-1 bg-gray-100 text-gray-700 text-xs px-2 py-0.5 rounded">
+                  {e}
+                  <button onClick={() => setEmails(emails.filter((x) => x !== e))} className="text-gray-400 hover:text-gray-700">×</button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <DialogFooter>
+        <Button variant="outline" size="sm" onClick={onClose} className="text-xs">Cancel</Button>
+        <Button
+          size="sm"
+          onClick={() => create.mutate({ reportKey, scheduleLabel: label, scheduleCron: cronValue, deliveryEmails: emails })}
+          disabled={create.isPending || !label || !cronValue || emails.length === 0}
+          className="text-xs bg-gray-900 text-white hover:bg-gray-700"
+        >
+          {create.isPending ? <RefreshCw className="h-3 w-3 mr-1 animate-spin" /> : <Calendar className="h-3 w-3 mr-1" />}
+          Create Schedule
+        </Button>
+      </DialogFooter>
+    </DialogContent>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────────────────────
 export default function ReportsCentre() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -329,10 +503,19 @@ export default function ReportsCentre() {
   const [search, setSearch] = useState("");
   const [selectedReport, setSelectedReport] = useState<CatalogueEntry | null>(null);
   const [showRegen, setShowRegen] = useState(false);
+  const [showSchedule, setShowSchedule] = useState(false);
   const [pollingJobId, setPollingJobId] = useState<string | null>(null);
-
   const { data: catalogue = [], isLoading: catLoading } = trpc.reportingEngine.getCatalogue.useQuery();
   const { data: myJobs = [], refetch: refetchJobs } = trpc.reportingEngine.getMyJobs.useQuery();
+  const { data: schedules = [], refetch: refetchSchedules } = trpc.reportingEngine.getScheduledReports.useQuery();
+  const deleteSchedule = trpc.reportingEngine.deleteSchedule.useMutation({
+    onSuccess: () => { toast({ title: "Schedule deleted" }); refetchSchedules(); },
+    onError: (e) => toast({ title: "Failed to delete schedule", description: e.message, variant: "destructive" }),
+  });
+  const toggleSchedule = trpc.reportingEngine.toggleSchedule.useMutation({
+    onSuccess: () => refetchSchedules(),
+    onError: (e) => toast({ title: "Failed to update schedule", description: e.message, variant: "destructive" }),
+  });
 
   // Poll a specific job
   const { data: polledJob } = trpc.reportingEngine.getJobStatus.useQuery(
@@ -351,6 +534,7 @@ export default function ReportsCentre() {
   }, [polledJob]);
 
   const isAdmin = user?.role === "admin";
+  const canSchedule = ["admin", "insurer_admin", "claims_manager"].includes(user?.role ?? "");
   const categories = [...new Set(catalogue.map((r) => r.category))];
 
   const filtered = catalogue.filter(
@@ -372,6 +556,17 @@ export default function ReportsCentre() {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            {canSchedule && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-xs border-gray-300"
+                onClick={() => setShowSchedule(true)}
+              >
+                <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                New Schedule
+              </Button>
+            )}
             {isAdmin && (
               <Button
                 variant="outline"
@@ -505,28 +700,98 @@ export default function ReportsCentre() {
             </div>
           </TabsContent>
 
-          {/* ── Scheduled Reports ─────────────────────────────────────────── */}
+          {/* ── Scheduled Reports ───────────────────────────────────────────────────── */}
           <TabsContent value="schedules">
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-start gap-3 mb-6">
-                <Info className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
+            <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
                 <div>
-                  <p className="text-sm font-medium text-gray-700">Scheduled Report Delivery</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Portfolio and executive reports can be scheduled for automatic delivery to designated email addresses.
-                    Claims managers and insurer admins can create schedules for their tenant.
-                    Platform admins can create global schedules.
+                  <h2 className="text-sm font-medium text-gray-900">Scheduled Report Delivery</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Portfolio and executive reports delivered automatically to designated email addresses.
                   </p>
                 </div>
+                {canSchedule && (
+                  <Button size="sm" variant="outline" className="text-xs h-7 border-gray-300" onClick={() => setShowSchedule(true)}>
+                    <Calendar className="h-3 w-3 mr-1" /> New Schedule
+                  </Button>
+                )}
               </div>
-
-              <div className="border border-dashed border-gray-200 rounded-lg p-8 text-center">
-                <Calendar className="h-8 w-8 text-gray-200 mx-auto mb-3" />
-                <p className="text-sm text-gray-400">No scheduled reports configured.</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Schedule configuration UI is coming in the next release. Contact your platform admin to set up recurring reports.
-                </p>
-              </div>
+              {(schedules as ScheduleEntry[]).length === 0 ? (
+                <div className="text-center py-12">
+                  <Calendar className="h-8 w-8 text-gray-200 mx-auto mb-3" />
+                  <p className="text-sm text-gray-400">No scheduled reports configured.</p>
+                  {canSchedule && (
+                    <p className="text-xs text-gray-400 mt-1">Click <strong>New Schedule</strong> to set up recurring report delivery.</p>
+                  )}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Label</th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Report</th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Frequency</th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Recipients</th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Status</th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Last Run</th>
+                        <th className="text-left py-2.5 px-4 text-xs font-medium text-gray-500">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(schedules as ScheduleEntry[]).map((s) => {
+                        const emailList: string[] = (() => { try { return JSON.parse(s.delivery_emails); } catch { return []; } })();
+                        return (
+                          <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">
+                            <td className="py-3 px-4">
+                              <div className="text-xs font-medium text-gray-900">{s.schedule_label}</div>
+                              <div className="text-xs text-gray-400 mt-0.5">Created {fmtDate(s.created_at)}</div>
+                            </td>
+                            <td className="py-3 px-4 text-xs font-mono text-gray-600">{s.report_key}</td>
+                            <td className="py-3 px-4 text-xs font-mono text-gray-600">{s.schedule_cron}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex flex-wrap gap-1">
+                                {emailList.slice(0, 2).map((e) => (
+                                  <span key={e} className="text-xs bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded">{e}</span>
+                                ))}
+                                {emailList.length > 2 && (
+                                  <span className="text-xs text-gray-400">+{emailList.length - 2} more</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                                s.is_active ? "bg-gray-800 text-white" : "bg-gray-100 text-gray-500 border border-gray-200"
+                              }`}>
+                                {s.is_active ? "Active" : "Paused"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-xs text-gray-600">{fmtDate(s.last_run_at)}</td>
+                            <td className="py-3 px-4">
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm" variant="ghost" className="h-7 text-xs px-2"
+                                  onClick={() => toggleSchedule.mutate({ scheduleId: s.id, isActive: !s.is_active })}
+                                  disabled={toggleSchedule.isPending}
+                                >
+                                  {s.is_active ? "Pause" : "Resume"}
+                                </Button>
+                                <Button
+                                  size="sm" variant="ghost" className="h-7 text-xs px-2 text-red-500 hover:text-red-700"
+                                  onClick={() => { if (confirm("Delete this schedule?")) deleteSchedule.mutate({ scheduleId: s.id }); }}
+                                  disabled={deleteSchedule.isPending}
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -547,6 +812,16 @@ export default function ReportsCentre() {
         </Dialog>
       )}
 
+      {/* Schedule Report Dialog */}
+      {showSchedule && (
+        <Dialog open onOpenChange={() => setShowSchedule(false)}>
+          <ScheduleDialog
+            catalogue={catalogue as CatalogueEntry[]}
+            onClose={() => setShowSchedule(false)}
+            onCreated={() => { refetchSchedules(); setActiveTab("schedules"); }}
+          />
+        </Dialog>
+      )}
       {/* Admin Regeneration Dialog */}
       {showRegen && (
         <Dialog open onOpenChange={() => setShowRegen(false)}>

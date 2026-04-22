@@ -209,6 +209,60 @@ export const reportingRouter = router({
       }
     }),
 
+  // ── Delete a scheduled report ──────────────────────────────────────────────
+  deleteSchedule: protectedProcedure
+    .input(z.object({ scheduleId: z.number() }))
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.user.role ?? "claims_processor";
+      if (!(["admin", "insurer_admin", "claims_manager"] as string[]).includes(role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can delete schedules." });
+      }
+      const conn = await getConn();
+      try {
+        const [rows] = await conn.execute(
+          `SELECT id, tenant_id FROM report_schedules WHERE id=? LIMIT 1`,
+          [input.scheduleId]
+        ) as [Record<string, unknown>[], unknown];
+        const sched = rows[0];
+        if (!sched) throw new TRPCError({ code: "NOT_FOUND", message: "Schedule not found." });
+        // Non-admins can only delete their own tenant's schedules
+        if (role !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "You can only delete schedules for your own tenant." });
+        }
+        await conn.execute(`DELETE FROM report_schedules WHERE id=?`, [input.scheduleId]);
+        return { ok: true };
+      } finally {
+        await conn.end();
+      }
+    }),
+  // ── Toggle a scheduled report active/inactive ────────────────────────────
+  toggleSchedule: protectedProcedure
+    .input(z.object({ scheduleId: z.number(), isActive: z.boolean() }))
+    .mutation(async ({ ctx, input }) => {
+      const role = ctx.user.role ?? "claims_processor";
+      if (!(["admin", "insurer_admin", "claims_manager"] as string[]).includes(role)) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Only managers and admins can modify schedules." });
+      }
+      const conn = await getConn();
+      try {
+        const [rows] = await conn.execute(
+          `SELECT id, tenant_id FROM report_schedules WHERE id=? LIMIT 1`,
+          [input.scheduleId]
+        ) as [Record<string, unknown>[], unknown];
+        const sched = rows[0];
+        if (!sched) throw new TRPCError({ code: "NOT_FOUND", message: "Schedule not found." });
+        if (role !== "admin" && sched.tenant_id !== ctx.user.tenantId) {
+          throw new TRPCError({ code: "FORBIDDEN", message: "You can only modify schedules for your own tenant." });
+        }
+        await conn.execute(
+          `UPDATE report_schedules SET is_active=?, updated_at=? WHERE id=?`,
+          [input.isActive ? 1 : 0, Date.now(), input.scheduleId]
+        );
+        return { ok: true };
+      } finally {
+        await conn.end();
+      }
+    }),
   // ── Admin: trigger pipeline re-run for a claim ────────────────────────────
   adminRegeneratePipeline: adminProcedure
     .input(z.object({
