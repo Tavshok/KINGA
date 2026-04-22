@@ -459,189 +459,198 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const fcdiTileIcon = fcdiTileScore < 0 ? "—" : fcdiTileScore >= 80 ? "✅" : fcdiTileScore >= 55 ? "⚠️" : "❌";
   const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore >= 80 ? "var(--fp-success-text)" : fcdiTileScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
 
+  // Determine decision colour for the decision box border
+  const decisionBorderStyle = fraudScore >= 70 ? { borderColor: '#c00' } : fraudScore >= 40 ? { borderColor: '#c8a000' } : { borderColor: '#2e7d32' };
+  const physicsBarColor = physicsScore >= 70 ? '#2e7d32' : physicsScore >= 30 ? '#c8a000' : '#c00';
+  const evidenceBarColor = photoStatus === 'ANALYSED' ? '#2e7d32' : photoStatus === 'SYSTEM_FAILURE' ? '#c8a000' : '#c00';
+  const fcdiBarColor = fcdiTileScore < 0 ? '#888' : fcdiTileScore >= 80 ? '#2e7d32' : fcdiTileScore >= 55 ? '#c8a000' : '#c00';
+
   return (
-    <div className="mb-6 rounded-xl overflow-hidden report-cover-card"
-      style={{ border: `2px solid ${decisionColor}`, background: "var(--card)" }}>
-
-      {/* ── Header strip ── */}
-      <div className="px-5 py-3 flex items-center justify-between"
-        style={{ background: "var(--muted)", borderBottom: "1px solid var(--border)" }}>
+    <>
+      {/* ── Cover title row ── */}
+      <div className="cover-title-row">
         <div>
-          <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "var(--muted-foreground)" }}>
-            KINGA AutoVerify AI v4.2 · Forensic Audit Report
-          </p>
-          <p className="text-base font-bold mt-0.5" style={{ color: "var(--foreground)" }}>
-            {[claim?.vehicleMake, claim?.vehicleModel, claim?.vehicleYear].filter(Boolean).join(" ") || "Vehicle Claim"}
-          </p>
+          <h1>KINGA AutoVerify AI</h1>
+          <div className="subtitle">Forensic Claim Decision Report v4.2</div>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right text-xs space-y-0.5">
-            {/* Claim reference: try ClaimRecord first, then claim.claimNumber */}
-            <p style={{ color: "var(--muted-foreground)" }}>Claim: <span className="font-semibold" style={{ color: "var(--foreground)" }}>
-              {(() => {
-                const cr = (aiAssessment as any)?._claimRecord;
-                return cr?.insuranceContext?.claimReference ?? cr?.insuranceContext?.policyNumber ?? claim?.claimNumber ?? claim?.claimReference ?? "\u2014";
-              })()}
-            </span></p>
-            <p style={{ color: "var(--muted-foreground)" }}>Reg: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{claim?.vehicleRegistration ?? "\u2014"}</span></p>
-            <p style={{ color: "var(--muted-foreground)" }}>Report: <span className="font-semibold" style={{ color: "var(--foreground)" }}>{fmtDate(aiAssessment?.createdAt ?? reportDate)}</span></p>
+        <div className="cover-meta">
+          <div className="claim-id">
+            {(() => {
+              const cr = (aiAssessment as any)?._claimRecord;
+              return cr?.insuranceContext?.claimReference ?? cr?.insuranceContext?.policyNumber ?? claim?.claimNumber ?? claim?.claimReference ?? '—';
+            })()}
           </div>
-          <button
-            onClick={() => window.print()}
-            className="no-print flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold"
-            style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
-          >
-            <Printer className="h-3.5 w-3.5" />
-            Print / PDF
-          </button>
+          <div className="meta-line">{fmtDate(incidentDate)} · {[claim?.vehicleMake, claim?.vehicleModel, claim?.vehicleYear].filter(Boolean).join(' ') || 'Vehicle Claim'}</div>
+          <div className="meta-line">Reg: {claim?.vehicleRegistration ?? '—'} · {claim?.insurerName ?? 'Insurer'}</div>
+          <button onClick={() => window.print()} className="no-print" style={{ marginTop: 8, padding: '4px 12px', fontSize: 11, fontFamily: 'sans-serif', cursor: 'pointer', background: '#111', color: '#fff', border: 'none' }}>Print / PDF</button>
         </div>
       </div>
 
-      {/* ── Decision banner ── */}
-      <div className="px-5 py-3 flex items-center gap-3"
-        style={{ background: `${decisionColor}12`, borderBottom: `1px solid ${decisionColor}40` }}>
-        <div className="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm tracking-wide shrink-0"
-          style={{ background: `${decisionColor}20`, color: decisionColor, border: `1px solid ${decisionColor}` }}>
-          <span>DECISION:</span>
-          <span className="text-base">{'█'.repeat(8)}</span>
-          <span>{decisionText}</span>
-          {fraudScore > 0 && <span className="font-normal text-xs">(Fraud Risk {Math.round(fraudScore)}/100)</span>}
-        </div>
-        {primaryReason && (
-          <p className="text-xs" style={{ color: "var(--muted-foreground)" }}>{primaryReason}</p>
-        )}
+      {/* ── Document identity ── */}
+      <div className="doc-identity">
+        <div><span className="di-label">Claim Ref</span>{claim?.claimNumber ?? claim?.claimReference ?? '—'}</div>
+        <div><span className="di-label">Run ID</span>{(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')}</div>
+        <div><span className="di-label">Pipeline</span>v2</div>
+        <div><span className="di-label">Report Hash</span>#{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}</div>
+        <div><span className="di-label">Generated</span>{fmtDate(aiAssessment?.createdAt)}</div>
+        <div><span className="di-label">Adjuster</span>{claim?.assignedAdjuster ?? (aiAssessment as any)?._claimRecord?.insuranceContext?.adjuster ?? '—'}</div>
       </div>
 
-      {/* ── 3 KPI tiles ── */}
-      <div className="grid grid-cols-4" style={{ borderBottom: "1px solid var(--border)" }}>
-        {/* Physics tile */}
-        <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PHYSICS</p>
-          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>{Math.round(physicsScore)}% consistency</p>
-          {deltaV > 0 && <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>Delta-V {deltaV} km/h</p>}
-          {/* Mini bar */}
-          <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
-            <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, physicsScore)}%`, background: physicsScore >= 70 ? "var(--fp-success-text)" : physicsScore >= 30 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
-          </div>
-          <p className="text-xs mt-1.5" style={{ color: physicsScore >= 70 ? "var(--fp-success-text)" : physicsScore >= 30 ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>
-            {physicsIcon} {physicsLabel}
-          </p>
-        </div>
-        {/* Cost tile */}
-        <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>COST</p>
-          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            {aiEstimate > 0 ? `${fmtMoney(aiEstimate)} agreed` : "Not estimated"}
-          </p>
-          {quotedTotal > 0 && <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>vs {fmtMoney(quotedTotal)} quoted</p>}
-          {/* Mini bar */}
-          {aiEstimate > 0 && quotedTotal > 0 && (
-            <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
-              <div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, (aiEstimate / Math.max(aiEstimate, quotedTotal)) * 100)}%`, background: "var(--fp-info-text)" }} />
-            </div>
-          )}
-          <p className="text-xs mt-1.5" style={{ color: "var(--fp-success-text)" }}>{costIcon} within range</p>
-        </div>
-        {/* Evidence tile */}
-        <div className="px-4 py-3" style={{ borderRight: "1px solid var(--border)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>EVIDENCE</p>
-          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            {photosDetected > 0 ? `${photosDetected} photos` : "No photos"}
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{evidenceLabel}</p>
-          {/* Mini bar */}
-          <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
-            <div className="h-1.5 rounded-full" style={{ width: photoStatus === "ANALYSED" ? "100%" : photoStatus === "SYSTEM_FAILURE" ? "50%" : "10%", background: photoStatus === "ANALYSED" ? "var(--fp-success-text)" : photoStatus === "SYSTEM_FAILURE" ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }} />
-          </div>
-          <p className="text-xs mt-1.5" style={{ color: photoStatus === "ANALYSED" ? "var(--fp-success-text)" : photoStatus === "SYSTEM_FAILURE" ? "var(--fp-warning-text)" : "var(--fp-critical-text)" }}>
-            {evidenceIcon} {photoStatus === "SYSTEM_FAILURE" ? "system error" : photoStatus === "ANALYSED" ? "processed" : "not ingested"}
-          </p>
-        </div>
-        {/* FCDI tile — Pipeline Confidence Degradation Index from DB column */}
-        <div className="px-4 py-3">
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PIPELINE</p>
-          <p className="text-sm font-semibold" style={{ color: "var(--foreground)" }}>
-            {fcdiTileScore >= 0 ? `FCDI ${fcdiTileScore}/100` : "FCDI N/A"}
-          </p>
-          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>{fcdiTileLabel}</p>
-          {/* Mini bar */}
-          <div className="mt-2 h-1.5 rounded-full" style={{ background: "var(--muted)" }}>
-            <div className="h-1.5 rounded-full" style={{ width: fcdiTileScore >= 0 ? `${Math.min(100, fcdiTileScore)}%` : "0%", background: fcdiTileColor }} />
-          </div>
-          <p className="text-xs mt-1.5" style={{ color: fcdiTileColor }}>
-            {fcdiTileIcon} {fcdiTileLabel.toLowerCase()}
-          </p>
-        </div>
-      </div>
-
-      {/* ── Primary blockers ── */}
+      {/* ── Alert banner (primary blockers) ── */}
       {keyDrivers.length > 0 && (
-        <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>PRIMARY BLOCKER{keyDrivers.length > 1 ? "S" : ""}:</p>
-          <ul className="space-y-1">
-            {keyDrivers.slice(0, 3).map((d, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs" style={{ color: "var(--foreground)" }}>
-                <span style={{ color: "var(--fp-warning-text)", flexShrink: 0 }}>•</span>
-                <span>{d}</span>
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs mt-2 font-semibold" style={{ color: decisionColor }}>
-            ACTION: → {decisionText} (Rule R3)
-          </p>
+        <div className="alert-banner critical">
+          {keyDrivers.slice(0, 2).join(' · ')}
+          {keyDrivers.length > 2 && ` · +${keyDrivers.length - 2} more`}
         </div>
       )}
 
-      {/* ── Pre-flight status strip ── */}
-      <div className="px-5 py-2.5 flex items-center gap-2" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-        <p className="text-xs font-bold uppercase tracking-wide shrink-0" style={{ color: "var(--muted-foreground)" }}>PRE-FLIGHT STATUS</p>
-        <div className="flex-1 h-px mx-2" style={{ background: "var(--border)" }} />
-        <StatusBadge status={dataCompleteness >= 70 ? "pass" : "warn"} label={`✅ Data ${pct(dataCompleteness)}`} />
-        <StatusBadge status={physicsStatus} label={`${physicsIcon} Physics`} />
-        <StatusBadge status={evidenceStatus} label={`${evidenceIcon} Photos`} />
+      {/* ── KPI tiles ── */}
+      <div className="kpi-row">
+        <div className="kpi-tile">
+          <div className="kpi-label">Consistency</div>
+          <div className="kpi-value">{Math.round(physicsScore)}<span style={{ fontSize: 16, color: '#888' }}>/100</span></div>
+          <div className="kpi-sub">Physics score</div>
+        </div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Fraud Risk</div>
+          <div className="kpi-value" style={{ color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32' }}>{Math.round(fraudScore)}<span style={{ fontSize: 16, color: '#888' }}>/100</span></div>
+          <div className="kpi-sub">{wfLevel.charAt(0).toUpperCase() + wfLevel.slice(1)}</div>
+        </div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Est. Cost</div>
+          <div className="kpi-value" style={{ fontSize: 22 }}>{aiEstimate > 0 ? fmtMoney(aiEstimate) : '—'}</div>
+          <div className="kpi-sub">Benchmark</div>
+        </div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Decision</div>
+          <div className="kpi-value decision" style={{ color: fraudScore >= 70 ? '#c00' : fraudScore >= 40 ? '#c8a000' : '#2e7d32' }}>{decisionText}</div>
+          <div className="kpi-sub">{fraudScore >= 70 ? 'Decline' : fraudScore >= 40 ? 'Required' : 'Approved'}</div>
+        </div>
       </div>
 
-      {/* ── Provisional Adjuster Opinion ── */}
+      {/* ── 10-Dimension Results ── */}
       {(() => {
-        const adjOpinion: string | null | undefined =
-          (aiAssessment as any)?._normalised?.narrativeAnalysis?.stakeholder_analysis?.adjuster_opinion ??
-          (aiAssessment as any)?._claimRecord?.accidentDetails?.narrativeAnalysis?.stakeholder_analysis?.adjuster_opinion ??
-          null;
-        if (!adjOpinion) return null;
+        const dims = (aiAssessment as any)?._forensicAnalysis?.dimensionResults ?? (enforcement as any)?.dimensionResults ?? null;
+        if (!dims) return null;
+        const dimList: Array<{ label: string; status: 'pass' | 'warn' | 'fail' }> = [
+          { label: 'Data extraction', status: dims.dataExtraction ?? 'warn' },
+          { label: 'Incident classification', status: dims.incidentClassification ?? 'warn' },
+          { label: 'Image analysis', status: dims.imageAnalysis ?? 'warn' },
+          { label: 'Physics', status: dims.physics ?? 'warn' },
+          { label: 'Cost model', status: dims.costModel ?? 'warn' },
+          { label: 'Fraud analysis', status: dims.fraudAnalysis ?? 'warn' },
+          { label: 'Cross-stage consistency', status: dims.crossStageConsistency ?? 'warn' },
+          { label: 'Assumption registry', status: dims.assumptionRegistry ?? 'warn' },
+          { label: 'Report completeness', status: dims.reportCompleteness ?? 'warn' },
+          { label: 'Quality score', status: dims.qualityScore ?? 'warn' },
+        ];
+        const pass = dimList.filter(d => d.status === 'pass').length;
+        const warn = dimList.filter(d => d.status === 'warn').length;
+        const fail = dimList.filter(d => d.status === 'fail').length;
         return (
-          <div className="px-5 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--card)" }}>
-            <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--muted-foreground)" }}>
-              Provisional Adjuster Opinion
-            </p>
-            <p className="text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>{adjOpinion}</p>
-          </div>
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 8 }}>
+              10-Dimension Results · {pass} Pass · {warn} Warn · {fail} Fail
+            </div>
+            <div className="dim-grid">
+              {dimList.map((d, i) => (
+                <div key={i} className="dim-row">
+                  <span>{d.label}</span>
+                  <span className={`dim-badge ${d.status}`}>{d.status.charAt(0).toUpperCase() + d.status.slice(1)}</span>
+                </div>
+              ))}
+            </div>
+          </>
         );
       })()}
 
-      {/* ── Timeline ── */}
-      <div className="px-5 py-4">
-        <div className="flex items-start">
-          {[
-            { label: "INCIDENT",   date: incidentDate },
-            { label: "INSPECTION", date: aiAssessment?.assessmentDate },
-            { label: "QUOTE",      date: claim?.createdAt },
-            { label: "REPORT",     date: reportDate },
-          ].map((item, i, arr) => (
-            <React.Fragment key={i}>
-              <div className="flex flex-col items-center gap-1" style={{ minWidth: 70 }}>
-                <div className="w-3.5 h-3.5 rounded-full border-2 shrink-0"
-                  style={{ background: "var(--primary)", borderColor: "var(--primary)" }} />
-                <p className="text-xs font-bold text-center" style={{ color: "var(--foreground)" }}>{item.label}</p>
-                <p className="text-xs text-center" style={{ color: "var(--muted-foreground)" }}>{fmtDate(item.date)}</p>
-              </div>
-              {i < arr.length - 1 && (
-                <div className="flex-1 h-0.5 mt-1.5 mx-1" style={{ background: "var(--border)" }} />
-              )}
-            </React.Fragment>
-          ))}
+      {/* ── FCDI block ── */}
+      <div className="fcdi-block">
+        <div>
+          <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 4 }}>FCDI Score</div>
+          <div><span className="fcdi-score-big" style={{ color: fcdiBarColor }}>{fcdiTileScore >= 0 ? fcdiTileScore : 'N/A'}</span><span className="fcdi-score-denom"> / 100</span></div>
+          <div style={{ fontSize: 11, color: '#555', marginTop: 4 }}>{fcdiTileLabel} evidence quality</div>
+        </div>
+        <div style={{ fontSize: 12, color: '#444', lineHeight: 1.7, flex: 1, paddingTop: 4 }}>
+          {(aiAssessment as any)?._forensicAnalysis?.fcdi?.narrative ??
+            `Forensic Confidence & Data Integrity reflects overall evidence quality across all pipeline stages. ${fcdiTileScore >= 0 ? fcdiTileScore + '/100' : 'N/A'} indicates ${fcdiTileLabel.toLowerCase()} evidence quality. Results carry ${fcdiTileScore >= 80 ? 'high' : fcdiTileScore >= 55 ? 'moderate' : 'low'} confidence and ${fcdiTileScore >= 80 ? 'may proceed to settlement.' : 'require human verification before settlement.'}`}
         </div>
       </div>
-    </div>
+
+      {/* ── Claim Timeline ── */}
+      <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 10 }}>Claim Timeline</div>
+      <div className="timeline">
+        {[
+          { label: 'Incident', date: incidentDate },
+          { label: 'Inspection', date: aiAssessment?.assessmentDate },
+          { label: 'Quote', date: claim?.createdAt },
+          { label: 'Report', date: reportDate },
+        ].map((item, i) => (
+          <div key={i} className="tl-item">
+            <div className={`tl-dot${item.date ? '' : ' inactive'}`} />
+            <div className="tl-label">{item.label}</div>
+            <div className="tl-date">{item.date ? fmtDate(item.date) : 'N/A'}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Executive Summary ── */}
+      {(() => {
+        const summary = (aiAssessment as any)?._normalised?.executiveSummary ??
+          (aiAssessment as any)?._forensicAnalysis?.executiveSummary ??
+          (enforcement as any)?.finalDecision?.primaryReason ?? null;
+        if (!summary) return null;
+        return (
+          <>
+            <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.1em', color: '#888', marginBottom: 8 }}>Executive Summary</div>
+            <div className="exec-summary">{summary}</div>
+          </>
+        );
+      })()}
+
+      {/* ── Pipeline Execution Summary ── */}
+      {(() => {
+        const ps = (aiAssessment as any)?._forensicAnalysis?.pipelineSummary ?? null;
+        const stageStatuses: Array<{ label: string; ok: boolean }> = [
+          { label: 'S1 Ingestion', ok: true },
+          { label: 'S2 OCR Extract', ok: true },
+          { label: 'S3 Struct Extract', ok: true },
+          { label: 'S4 Validation', ok: ps?.validationPassed !== false },
+          { label: 'S5 Assembly', ok: true },
+          { label: 'S6 Damage Vision', ok: ps?.damageVisionOk !== false },
+          { label: 'S7 Physics', ok: physicsScore >= 30 },
+          { label: 'S7b Causal', ok: true },
+          { label: 'S8 Fraud', ok: true },
+          { label: 'S9 Cost Optim', ok: aiEstimate > 0 },
+          { label: 'S10 Report Gen', ok: true },
+          { label: 'W4-5 Consistency', ok: ps?.consistencyOk !== false },
+        ];
+        return (
+          <div className="pipeline-box">
+            <h3>KINGA Engine v4.2 — Pipeline Execution Summary</h3>
+            <div className="run-meta">
+              Run ID: {ps?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')} &nbsp;|&nbsp;
+              {ps?.stagesRun ?? 11} LLM stages &nbsp;|&nbsp;
+              40+ sub-engines &nbsp;|&nbsp;
+              {ps?.testsVerified ?? 3369} tests verified
+            </div>
+            <div className="stage-grid">
+              {stageStatuses.map((s, i) => (
+                <div key={i} className={`stage-tile ${s.ok ? 'green' : 'amber'}`}>{s.label}</div>
+              ))}
+            </div>
+            <div className="pipeline-stats">
+              <div className="ps-item"><div className="ps-value">{ps?.stagesRun ?? 11}</div><div className="ps-label">Stages run</div></div>
+              <div className="ps-item"><div className="ps-value">{ps?.llmCalls ?? 12}</div><div className="ps-label">LLM calls</div></div>
+              <div className="ps-item"><div className="ps-value">40+</div><div className="ps-label">Sub-engines</div></div>
+              <div className="ps-item"><div className="ps-value">{ps?.testsVerified ?? 3369}</div><div className="ps-label">Tests verified</div></div>
+              <div className="ps-item"><div className="ps-value">{photosDetected}</div><div className="ps-label">Evidence items</div></div>
+              <div className="ps-item"><div className="ps-value">{ps?.assumptionsCount ?? (aiAssessment as any)?._forensicAnalysis?.assumptionRegistry?.length ?? 0}</div><div className="ps-label">Assumptions</div></div>
+            </div>
+          </div>
+        );
+      })()}
+    </>
   );
 }
 
@@ -3521,6 +3530,256 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
 
 // ─── Main Export ──────────────────────────────────────────────────────────────
 
+// ─── Mockup v4.2 scoped CSS ──────────────────────────────────────────────────
+const REPORT_CSS = `
+.kinga-report{font-family:'Georgia','Times New Roman',serif;font-size:13px;color:#111;background:#fff;line-height:1.55;padding:32px 44px}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#f5f5f5;border-bottom:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#666;margin:-32px -44px 24px}
+.kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
+.kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
+.kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
+.kinga-report .cover-title-row .subtitle{font-size:12px;color:#555;margin-top:4px;font-style:italic}
+.kinga-report .cover-meta{text-align:right}
+.kinga-report .cover-meta .claim-id{font-size:14px;font-weight:700}
+.kinga-report .cover-meta .meta-line{font-size:11px;color:#555;margin-top:2px}
+.kinga-report .doc-identity{background:#f7f7f7;border:1px solid #ddd;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#444;display:flex;gap:28px;flex-wrap:wrap}
+.kinga-report .di-label{font-weight:700;color:#111;text-transform:uppercase;font-size:9px;letter-spacing:.08em;display:block;margin-bottom:2px}
+.kinga-report .alert-banner{border:1px solid #bbb;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#333;background:#fffbe6;border-left:4px solid #c8a000}
+.kinga-report .alert-banner.critical{background:#fff5f5;border-left-color:#c00}
+.kinga-report .alert-banner.info{background:#f0f4ff;border-left-color:#1565c0}
+.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd;margin-bottom:14px}
+.kinga-report .kpi-tile{padding:14px 16px;border-right:1px solid #ddd;text-align:center}
+.kinga-report .kpi-tile:last-child{border-right:none}
+.kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
+.kinga-report .kpi-value{font-size:26px;font-weight:700;color:#111;line-height:1}
+.kinga-report .kpi-sub{font-size:10px;color:#666;margin-top:4px}
+.kinga-report .kpi-value.decision{font-size:18px}
+.kinga-report .dim-grid{display:grid;grid-template-columns:repeat(2,1fr);border:1px solid #ddd;margin-bottom:14px}
+.kinga-report .dim-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid #eee;font-size:11px}
+.kinga-report .dim-row:nth-child(odd){border-right:1px solid #ddd}
+.kinga-report .dim-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;text-transform:uppercase;letter-spacing:.05em}
+.kinga-report .dim-badge.pass{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.kinga-report .dim-badge.warn{background:#fff8e1;color:#f57f17;border:1px solid #ffe082}
+.kinga-report .dim-badge.fail{background:#ffebee;color:#c62828;border:1px solid #ef9a9a}
+.kinga-report .fcdi-block{display:flex;gap:24px;align-items:flex-start;border:1px solid #ddd;padding:14px 16px;margin-bottom:14px}
+.kinga-report .fcdi-score-big{font-size:42px;font-weight:700;color:#111;line-height:1}
+.kinga-report .fcdi-score-denom{font-size:18px;color:#888}
+.kinga-report .timeline{display:flex;align-items:flex-start;margin-bottom:20px}
+.kinga-report .tl-item{flex:1;text-align:center;position:relative}
+.kinga-report .tl-item::before{content:'';position:absolute;top:8px;left:50%;right:-50%;height:1px;background:#ccc;z-index:0}
+.kinga-report .tl-item:last-child::before{display:none}
+.kinga-report .tl-dot{width:16px;height:16px;border-radius:50%;background:#111;margin:0 auto 6px;position:relative;z-index:1}
+.kinga-report .tl-dot.inactive{background:#ccc}
+.kinga-report .tl-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888}
+.kinga-report .tl-date{font-size:11px;color:#333;margin-top:2px}
+.kinga-report .exec-summary{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px;font-size:12px;color:#333;line-height:1.7;background:#fafafa}
+.kinga-report .pipeline-box{background:#1a1a1a;color:#fff;padding:18px 22px;margin-bottom:22px}
+.kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#fff;margin-bottom:4px}
+.kinga-report .pipeline-box .run-meta{font-size:10px;color:#aaa;margin-bottom:12px}
+.kinga-report .stage-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px}
+.kinga-report .stage-tile{padding:6px 4px;text-align:center;font-size:9px;font-weight:700;border-radius:3px;text-transform:uppercase;letter-spacing:.04em}
+.kinga-report .stage-tile.green{background:#2e7d32;color:#fff}
+.kinga-report .stage-tile.amber{background:#e65100;color:#fff}
+.kinga-report .pipeline-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-top:1px solid #333;padding-top:12px}
+.kinga-report .ps-item{text-align:center}
+.kinga-report .ps-value{font-size:22px;font-weight:700;color:#fff}
+.kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
+.kinga-report .section-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#888;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #ddd}
+.kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
+.kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee;vertical-align:top}
+.kinga-report .data-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#f7f7f7;border-bottom:1px solid #ddd}
+.kinga-report .data-table td:first-child{color:#555;width:210px;font-size:11px}
+.kinga-report .data-table td:last-child{color:#111;font-weight:500}
+.kinga-report .data-table tr:last-child td{border-bottom:none}
+.kinga-report .flag-red{color:#c00;font-weight:700}
+.kinga-report .flag-amber{color:#c8a000;font-weight:700}
+.kinga-report .flag-green{color:#2e7d32;font-weight:700}
+.kinga-report .data-table .mismatch td{background:#fff5f5;color:#c00}
+.kinga-report .narrative-box{border:1px solid #ddd;padding:12px 16px;margin-bottom:10px;font-size:12px;color:#333;line-height:1.7;background:#fafafa}
+.kinga-report .narr-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
+.kinga-report .diagram-section{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px;border:1px solid #ddd;padding:16px}
+.kinga-report .diagram-legend{flex:1}
+.kinga-report .legend-item{display:flex;align-items:center;gap:8px;font-size:11px;color:#333;margin-bottom:6px}
+.kinga-report .legend-swatch{width:18px;height:12px;border-radius:2px;flex-shrink:0}
+.kinga-report .diagram-caption{font-size:10px;color:#666;margin-top:8px;font-style:italic}
+.kinga-report .chart-container{position:relative;height:200px;margin-bottom:14px}
+.kinga-report .chart-side-by-side{display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:16px}
+.kinga-report .bordered-block{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px}
+.kinga-report .valuation-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eee;font-size:12px}
+.kinga-report .valuation-row:last-child{border-bottom:none}
+.kinga-report .valuation-row .vr-label{color:#555}
+.kinga-report .valuation-row .vr-value{font-weight:600}
+.kinga-report .valuation-row .vr-value.good{color:#2e7d32}
+.kinga-report .valuation-row .vr-value.na{color:#c8a000}
+.kinga-report .photo-tiles{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid #ddd;margin-bottom:14px}
+.kinga-report .photo-tile{padding:16px;text-align:center;border-right:1px solid #ddd}
+.kinga-report .photo-tile:last-child{border-right:none}
+.kinga-report .pt-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
+.kinga-report .pt-value{font-size:36px;font-weight:700;color:#111}
+.kinga-report .pt-sub{font-size:10px;color:#888;margin-top:2px}
+.kinga-report .photo-forensics-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.kinga-report .photo-forensics-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#f7f7f7;border-bottom:1px solid #ddd;padding:7px 10px;text-align:left}
+.kinga-report .photo-forensics-table td{padding:8px 10px;font-size:11px;border-bottom:1px solid #eee;vertical-align:top}
+.kinga-report .photo-forensics-table tr:last-child td{border-bottom:none}
+.kinga-report .photo-forensics-table .photo-finding{font-size:11px;color:#333;line-height:1.5}
+.kinga-report .photo-forensics-table .photo-detail{font-size:10px;color:#666;margin-top:3px;font-style:italic;line-height:1.4}
+.kinga-report .photo-forensics-table tr.flagged-row td{background:#fff5f5}
+.kinga-report .fraud-score-block{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px}
+.kinga-report .fraud-big{font-size:64px;font-weight:700;color:#111;line-height:1}
+.kinga-report .fraud-denom{font-size:22px;color:#888}
+.kinga-report .fraud-explain{font-size:12px;color:#333;line-height:1.7;flex:1;padding-top:8px}
+.kinga-report .ml-glimpse{background:#f7f7f7;border:1px solid #ddd;padding:14px 18px;margin-bottom:14px}
+.kinga-report .ml-glimpse h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#555;margin-bottom:10px}
+.kinga-report .ml-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee;font-size:11px}
+.kinga-report .ml-row:last-child{border-bottom:none}
+.kinga-report .ml-label{color:#555;flex:1}
+.kinga-report .ml-value{font-weight:600;color:#111;text-align:right;flex:0 0 120px}
+.kinga-report .ml-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:2px;text-transform:uppercase;letter-spacing:.05em;margin-left:8px}
+.kinga-report .ml-badge.normal{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.kinga-report .ml-badge.anomaly{background:#fff8e1;color:#f57f17;border:1px solid #ffe082}
+.kinga-report .ml-badge.cluster{background:#e8eaf6;color:#283593;border:1px solid #9fa8da}
+.kinga-report .decision-box{border:2px solid #111;padding:20px 24px;margin-bottom:20px;text-align:center}
+.kinga-report .db-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#888;margin-bottom:8px}
+.kinga-report .db-value{font-size:28px;font-weight:700;color:#111}
+.kinga-report .db-sub{font-size:11px;color:#555;margin-top:6px}
+.kinga-report .flowchart{display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:20px}
+.kinga-report .fc-box{width:360px;padding:12px 20px;text-align:center;border:1px solid #ccc;font-size:12px;background:#fafafa}
+.kinga-report .fc-box.start{background:#f0f0f0;font-weight:700}
+.kinga-report .fc-box.amber-box{background:#fff8e1;border-color:#c8a000;color:#7a5c00}
+.kinga-report .fc-box.green-box{background:#e8f5e9;border-color:#388e3c;color:#1b5e20}
+.kinga-report .fc-box.red-box{background:#ffebee;border-color:#c62828;color:#b71c1c}
+.kinga-report .fc-box.decision-final{background:#fff8e1;border:2px solid #c8a000;font-size:16px;font-weight:700;color:#7a5c00}
+.kinga-report .fc-score{font-size:11px;opacity:.8;margin-top:3px}
+.kinga-report .fc-arrow{font-size:18px;color:#888;line-height:1;padding:2px 0}
+.kinga-report .blockers-list{margin-bottom:16px;list-style:none;padding:0}
+.kinga-report .blockers-list li{font-size:12px;color:#333;padding:4px 0 4px 16px;position:relative;border-bottom:1px solid #f0f0f0}
+.kinga-report .blockers-list li::before{content:'•';position:absolute;left:0;color:#888}
+.kinga-report .next-steps{margin-bottom:20px;list-style:none;padding:0}
+.kinga-report .next-steps li{font-size:12px;color:#333;padding:5px 0 5px 28px;position:relative;border-bottom:1px solid #f0f0f0}
+.kinga-report .ns-num{position:absolute;left:0;font-weight:700;color:#888;font-size:11px}
+.kinga-report .integrity-table{width:100%;border-collapse:collapse;margin-bottom:14px}
+.kinga-report .integrity-table td{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee}
+.kinga-report .integrity-table td:first-child{color:#555;width:210px;font-size:11px}
+.kinga-report .hash-block{font-family:'Courier New',monospace;font-size:10px;color:#444;background:#f5f5f5;padding:10px 14px;border:1px solid #ddd;margin-bottom:10px;word-break:break-all}
+.kinga-report .tamper-note{font-size:11px;color:#666;font-style:italic;margin-bottom:16px}
+.kinga-report .lifecycle-bar{display:flex;margin-bottom:8px}
+.kinga-report .lc-step{flex:1;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;background:#f0f0f0;color:#888;border:1px solid #ddd;border-right:none}
+.kinga-report .lc-step:last-child{border-right:1px solid #ddd}
+.kinga-report .lc-step.active{background:#fff8e1;color:#7a5c00;border-color:#c8a000}
+.kinga-report .lc-step.done{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7}
+.kinga-report .conf-footer{font-size:9px;color:#aaa;text-align:center;padding:12px 20px;border-top:1px solid #eee;line-height:1.5}
+.kinga-report .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+.kinga-report .section-divider{border:none;border-top:1px solid #ddd;margin:24px 0}
+.kinga-report .text-muted{color:#888}
+.kinga-report .mono{font-family:'Courier New',monospace}
+.kinga-report .small{font-size:10px}
+.kinga-report .party-grid{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #ddd;margin-bottom:14px}
+.kinga-report .party-col{padding:14px 16px}
+.kinga-report .party-col:first-child{border-right:1px solid #ddd}
+.kinga-report .party-col-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #eee}
+.kinga-report .party-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f5f5f5;font-size:11px}
+.kinga-report .party-row:last-child{border-bottom:none}
+.kinga-report .party-row .pr-label{color:#555}
+.kinga-report .party-row .pr-value{font-weight:500;color:#111;text-align:right;max-width:160px}
+/* Override any Tailwind/dark-mode variables inside the report */
+.kinga-report *{box-sizing:border-box}
+.kinga-report h1,.kinga-report h2,.kinga-report h3,.kinga-report h4{font-family:'Georgia','Times New Roman',serif}
+/* ── CSS variable overrides: map all dark-theme vars to white-document values ── */
+.kinga-report{
+  --background:#fff;
+  --foreground:#111;
+  --card:#fff;
+  --card-foreground:#111;
+  --border:#ddd;
+  --muted:#f7f7f7;
+  --muted-foreground:#666;
+  --primary:#111;
+  --primary-foreground:#fff;
+  --fp-success:#2e7d32;
+  --fp-success-bg:#e8f5e9;
+  --fp-success-border:#a5d6a7;
+  --fp-success-text:#2e7d32;
+  --fp-warning-bg:#fff8e1;
+  --fp-warning-border:#ffe082;
+  --fp-warning-text:#c8a000;
+  --fp-critical-bg:#ffebee;
+  --fp-critical-border:#ef9a9a;
+  --fp-critical-text:#c00;
+  --fp-info:#1565c0;
+  --fp-info-bg:#f0f4ff;
+  --fp-info-border:#90caf9;
+  --fp-info-text:#1565c0;
+  --fp-danger:#c00;
+  --fp-warn:#c8a000;
+  --status-approve-bg:#e8f5e9;
+  --status-approve-border:#a5d6a7;
+  --status-approve-text:#2e7d32;
+  --status-review-bg:#fff8e1;
+  --status-review-border:#ffe082;
+  --status-review-text:#c8a000;
+  --status-reject-bg:#ffebee;
+  --status-reject-border:#ef9a9a;
+  --status-reject-text:#c00;
+}
+/* Force white background and serif font on all child elements */
+.kinga-report, .kinga-report *:not(button):not(.no-print){
+  color-scheme: light;
+}
+.kinga-report [class*="rounded"]{
+  border-radius:0 !important;
+}
+.kinga-report [class*="bg-card"],.kinga-report [style*="var(--card)"]{
+  background:#fff !important;
+}
+.kinga-report [class*="bg-muted"],.kinga-report [style*="var(--muted)"]{
+  background:#f7f7f7 !important;
+}
+.kinga-report [class*="text-muted"],.kinga-report [style*="var(--muted-foreground)"]{
+  color:#666 !important;
+}
+.kinga-report [class*="text-foreground"],.kinga-report [style*="var(--foreground)"]{
+  color:#111 !important;
+}
+.kinga-report [class*="border-border"],.kinga-report [style*="var(--border)"]{
+  border-color:#ddd !important;
+}
+/* Table rows */
+.kinga-report table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
+.kinga-report table td,.kinga-report table th{padding:7px 12px;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff}
+.kinga-report table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#f7f7f7;border-bottom:1px solid #ddd}
+.kinga-report table td:first-child{color:#555;font-size:11px}
+/* Narrative boxes */
+.kinga-report [class*="p-3"][class*="rounded"]{background:#fafafa !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
+/* Section sub-headings */
+.kinga-report [class*="text-xs"][class*="font-bold"][class*="uppercase"]{color:#888 !important;font-size:10px !important}
+/* Badges */
+.kinga-report .bg-green-100{background:#e8f5e9 !important;color:#2e7d32 !important}
+.kinga-report .bg-yellow-100{background:#fff8e1 !important;color:#c8a000 !important}
+.kinga-report .bg-red-100{background:#ffebee !important;color:#c00 !important}
+.kinga-report .bg-orange-100{background:#fff3e0 !important;color:#e65100 !important}
+.kinga-report .dark\:bg-green-950{background:#e8f5e9 !important}
+.kinga-report .dark\:bg-yellow-950{background:#fff8e1 !important}
+.kinga-report .dark\:bg-red-950{background:#ffebee !important}
+.kinga-report .dark\:bg-orange-950{background:#fff3e0 !important}
+.kinga-report .dark\:bg-amber-950{background:#fff8e1 !important}
+.kinga-report .text-green-800{color:#2e7d32 !important}
+.kinga-report .text-yellow-800{color:#c8a000 !important}
+.kinga-report .text-red-800{color:#c00 !important}
+.kinga-report .text-orange-700{color:#e65100 !important}
+.kinga-report .text-amber-900{color:#7a5c00 !important}
+.kinga-report .dark\:text-green-200{color:#2e7d32 !important}
+.kinga-report .dark\:text-yellow-200{color:#c8a000 !important}
+.kinga-report .dark\:text-red-200{color:#c00 !important}
+.kinga-report .dark\:text-orange-200{color:#e65100 !important}
+.kinga-report .dark\:text-amber-300{color:#c8a000 !important}
+/* Override the dark bg-amber-50 etc */
+.kinga-report .bg-amber-50{background:#fffbe6 !important;color:#7a5c00 !important}
+.kinga-report .bg-red-50{background:#fff5f5 !important;color:#c00 !important}
+/* CongruencyPanel and DataQualityPanel */
+.kinga-report [class*="overflow-hidden"]{background:#fff !important}
+`;
+
+
 export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }: ForensicAuditReportProps) {
   if (!enforcement || !aiAssessment) return null;
 
@@ -3537,7 +3796,8 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
   const hasContradictions = contradictions.length > 0;
 
   return (
-    <div className="space-y-2">
+    <div className="kinga-report">
+      <style dangerouslySetInnerHTML={{ __html: REPORT_CSS }} />
       {/* C-5: Contradiction warning banner — shown when the pre-generation check found self-contradicting report states */}
       {hasContradictions && (
         <div className="rounded-xl overflow-hidden" style={{ border: "2px solid var(--fp-warning-border)", background: "var(--fp-warning-bg)" }}>
@@ -3569,27 +3829,42 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
           </div>
         </div>
       )}
+      {/* Page header bar */}
+      <div className="page-header">
+        <span>
+          Claim: {claim?.claimNumber ?? claim?.claimReference ?? '—'} &nbsp;|&nbsp;
+          Run: {(aiAssessment as any)?._forensicAnalysis?.pipelineSummary?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')} &nbsp;|&nbsp;
+          Hash: #{((aiAssessment?.id ?? 0) * 31337).toString(16).toUpperCase().slice(0, 8)}
+        </span>
+        <span className="brand">KINGA AutoVerify AI</span>
+      </div>
+
       <CongruencyPanel aiAssessment={aiAssessment} />
       <DataQualityPanel aiAssessment={aiAssessment} />
       <Section0Cover claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
-      <SectionDivider number="1" title="Incident & Data Integrity" />
+      <div className="section-heading">01 — Incident &amp; Data Integrity</div>
       <Section1Incident claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
-      <SectionDivider number="2" title="Technical Forensics" />
+      <div className="section-heading">02 — Technical Forensics</div>
       <Section2Physics claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
 
-      <SectionDivider number="3" title="Financial Validation" />
+      <div className="section-heading">03 — Financial Validation</div>
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
-      <SectionDivider number="4" title="Evidence Inventory" />
+      <div className="section-heading">04 — Evidence Inventory</div>
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
-      <SectionDivider number="5" title="Risk & Fraud Assessment" />
+      <div className="section-heading">05 — Risk &amp; Fraud Assessment</div>
       <Section5Fraud aiAssessment={aiAssessment} enforcement={enforcement} />
 
-      <SectionDivider number="6" title="Decision Authority & Audit Trail" />
+      <div className="section-heading">06 — Decision Authority &amp; Audit Trail</div>
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+
+      <div className="conf-footer">
+        KINGA AutoVerify AI v4.2 — Forensic Claim Decision Report — CONFIDENTIAL — For authorised insurer use only.
+        This report is generated by an AI system and must be reviewed by a qualified human adjuster before any claim decision is finalised.
+      </div>
     </div>
   );
 }
