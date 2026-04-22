@@ -420,6 +420,29 @@ export async function updateClaimPolicyVerification(claimId: number, verified: b
  *   9. Cost Optimisation Engine
  *  10. Report Generation
  */
+/**
+ * Encode the filename portion of an S3/CloudFront URL so that special characters
+ * (spaces, parentheses, brackets, commas, apostrophes, plus signs) in the original
+ * filename do not cause HTTP 400/403 errors when the LLM API fetches the file.
+ * Only the last path segment (filename) is encoded — the rest of the URL is left intact.
+ */
+function encodeS3Filename(url: string): string {
+  const lastSlash = url.lastIndexOf('/');
+  if (lastSlash === -1) return url;
+  const base = url.substring(0, lastSlash + 1);
+  const filename = url.substring(lastSlash + 1);
+  const encodedFilename = filename
+    .replace(/ /g, '%20')
+    .replace(/\(/g, '%28')
+    .replace(/\)/g, '%29')
+    .replace(/\[/g, '%5B')
+    .replace(/\]/g, '%5D')
+    .replace(/,/g, '%2C')
+    .replace(/'/g, '%27')
+    .replace(/\+/g, '%2B');
+  return base + encodedFilename;
+}
+
 export async function triggerAiAssessment(claimId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
@@ -483,7 +506,9 @@ export async function triggerAiAssessment(claimId: number) {
         // that the LLM can fetch without authentication. Always use this directly.
         // URL-encode spaces in the filename portion of the CloudFront URL.
         // Unencoded spaces cause HTTP 400 errors when the LLM API fetches the PDF.
-        pdfUrl = sourceDoc.s3Url.replace(/ /g, '%20');
+        // Encode the filename portion of the S3 URL to handle spaces, parentheses,
+        // and other special characters that cause HTTP 400/403 errors from the LLM API.
+        pdfUrl = encodeS3Filename(sourceDoc.s3Url);
         console.log(`[AI Assessment] Claim ${claimId}: Using public S3 URL for LLM: ${sourceDoc.originalFilename}`);
       } else {
         console.warn(`[AI Assessment] Claim ${claimId}: sourceDocumentId=${claim.sourceDocumentId} but no S3 URL found.`);
@@ -506,7 +531,7 @@ export async function triggerAiAssessment(claimId: number) {
   if (!pdfUrl && damagePhotos.length === 0 && claim.externalAssessmentUrl) {
     const extUrl = claim.externalAssessmentUrl;
     if (extUrl.endsWith('.pdf') || extUrl.includes('.pdf?') || extUrl.includes('application/pdf')) {
-      pdfUrl = extUrl.replace(/ /g, '%20');
+      pdfUrl = encodeS3Filename(extUrl);
       console.log(`[AI Assessment] Claim ${claimId}: Using externalAssessmentUrl as PDF source: ${pdfUrl.substring(0, 100)}`);
     }
   }
@@ -713,6 +738,19 @@ export async function triggerAiAssessment(claimId: number) {
     imageNormSource: _imageNormSource,
     // Explicit photo availability count for forensic validator tracking
     photosAvailable: damagePhotos.length,
+    // Stage progress callback — updates pipeline_current_stage in DB so UI can show real-time progress.
+    // Stage labels are generic (no proprietary details exposed).
+    onStageStart: async (stageLabel: string) => {
+      try {
+        const dbInst = await getDb();
+        if (dbInst) {
+          await dbInst.update(claims).set({
+            pipelineCurrentStage: stageLabel,
+            updatedAt: new Date().toISOString(),
+          }).where(eq(claims.id, claimId));
+        }
+      } catch (_e) { /* non-fatal */ }
+    },
   };
   // ── GLOBAL PIPELINE TIMEOUT ──────────────────────────────────────────────
   // Wrap the entire pipeline in a 15-minute timeout. With thinking disabled
@@ -1247,6 +1285,7 @@ export async function triggerAiAssessment(claimId: number) {
     estimatedCost: safeInt(estimatedCost) ?? 0,
     aiAssessmentCompletedAt: new Date().toISOString().slice(0, 19).replace('T', ' '),
     updatedAt: new Date().toISOString(),
+    pipelineCurrentStage: null, // Clear stage label once assessment is complete
   };
   // Helper: safely truncate a string to a max byte length to avoid MySQL varchar truncation errors
   const trunc = (val: string | null | undefined, maxLen: number): string | null =>

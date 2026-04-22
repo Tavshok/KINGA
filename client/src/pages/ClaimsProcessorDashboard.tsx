@@ -592,8 +592,12 @@ export default function ClaimsProcessorDashboard() {
                   {isProcessing ? (
                     <>
                       <div className="flex items-center gap-2 text-sm text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/30 rounded-md p-3">
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>AI is analyzing this claim...</span>
+                        <Loader2 className="h-4 w-4 animate-spin flex-shrink-0" />
+                        <span className="truncate">
+                          {(claim as any).pipelineCurrentStage
+                            ? (claim as any).pipelineCurrentStage
+                            : "AI is analyzing this claim..."}
+                        </span>
                       </div>
                       <Button
                         size="sm"

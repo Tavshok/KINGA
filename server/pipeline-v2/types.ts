@@ -1301,4 +1301,10 @@ export interface PipelineContext {
    * Used by the forensic validator for explicit photosAvailable/photosProcessed tracking.
    */
   photosAvailable?: number;
+  /**
+   * Optional callback invoked at the start of each pipeline stage.
+   * Used to update the `pipeline_current_stage` column in the claims table
+   * so the UI can show real-time stage progress (stage name only — no proprietary details).
+   */
+  onStageStart?: (stageLabel: string) => void;
 }

@@ -349,6 +349,7 @@ export async function runPipelineV2(
   };
 
   // ── STAGE 1: Document Ingestion ──────────────────────────────────────
+  ctx.onStageStart?.("Stage 1 — Ingestion");
   const s1 = await runWithTimeout("1_ingestion", () => runIngestionStage(ctx)).catch((err) => {
     const isTimeout = err instanceof StageTimeoutError;
     const reason = isTimeout
@@ -383,15 +384,9 @@ export async function runPipelineV2(
   });
   recordStage("1_ingestion", s1);
   stage1Data = s1.data; // May be degraded but always has data
-  // ── STAGE 2: OCR & Text Extraction ─────────────────────────────────────
+  // ── STAGE 2: OCR & Text Extraction ─────────────────────────────────────────
   if (stage1Data) {
-    // Update status to 'extracting' so the UI shows progress (not stuck at 'parsing')
-    try {
-      const dbInst = await getDb();
-      if (dbInst) {
-        await dbInst.update(claims).set({ documentProcessingStatus: 'extracting', updatedAt: new Date().toISOString() }).where(eq(claims.id, ctx.claimId));
-      }
-    } catch (_statusErr) { /* non-fatal */ }
+    ctx.onStageStart?.("Stage 2 — Extracting");
     const s2 = await runWithTimeout("2_extraction", () => runExtractionStage(ctx, stage1Data!)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
       const reason = isTimeout
@@ -516,7 +511,8 @@ export async function runPipelineV2(
     ctx.log("Stage 0 (Evidence Registry)", "Skipped — no Stage 1 data available.");
   }
 
-  // ── STAGE 3: Structured Data Extraction ──────────────────────────────
+    // ── STAGE 3: Structured Data Extraction ──────────────────────────
+  ctx.onStageStart?.("Stage 3 — Extraction");
   if (stage1Data && stage2Data) {
     const s3 = await runStructuredExtractionStage(ctx, stage1Data, stage2Data);
     recordStage("3_structured_extraction", s3);
@@ -526,6 +522,7 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 4: Data Validation ─────────────────────────────────────────
+  ctx.onStageStart?.("Stage 4 — Validation");
   if (stage3Data) {
     const s4 = await runValidationStage(ctx, stage3Data, stage2Data ?? undefined);
     recordStage("4_validation", s4);
@@ -546,6 +543,7 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 5: Claim Data Assembly ─────────────────────────────────────
+  ctx.onStageStart?.("Stage 5 — Assembly");
   if (stage4Data) {
     const s5 = await runAssemblyStage(ctx, stage4Data);
     recordStage("5_assembly", s5);
@@ -726,6 +724,7 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 6: Damage Analysis ─────────────────────────────────────────
+  ctx.onStageStart?.("Stage 6 — Damage Analysis");
   // claimRecord is guaranteed non-null here: Stage 5 (assembly) either
   // produced a valid ClaimRecord or the pipeline would have flagged an exception.
   // The non-null assertion is intentional — if claimRecord is null, Stage 5 failed
@@ -789,6 +788,7 @@ export async function runPipelineV2(
   }
 
   // ── STAGE 7 (UNIFIED): Physics + Severity Consensus + Causal Reasoning + Narrative ───
+  ctx.onStageStart?.("Stage 7 — Physics & Causality");
   // Single function call replacing the sequential cluster of:
   //   Stage 7 (physics), Stage 7b Pass 1 (causal), Stage 7c (severity), Stage 7e (narrative)
   // Stage 7b Pass 2 (re-run with fraud+cost scores) remains separate below.
@@ -948,6 +948,7 @@ export async function runPipelineV2(
   // Stage 7d (confidence aggregation) and Stage 7b re-run both need S8 output
   // and therefore run AFTER this Promise.all resolves.
   ctx.log("Pipeline", "Starting S8 (fraud) ‖ S9 (cost) in parallel...");
+  ctx.onStageStart?.("Stage 8 — Analysis");
   const [s8, s9] = await Promise.all([
     runWithTimeout("8_fraud", () => runFraudAnalysisStage(ctx, claimRecord!, stage6Data!, stage7Data!, stage3Data ?? undefined)).catch((err) => {
       const isTimeout = err instanceof StageTimeoutError;
@@ -1353,6 +1354,7 @@ export async function runPipelineV2(
     ),
   } : null;
 
+  ctx.onStageStart?.("Stage 10 — Report Generation");
   const s10 = await runWithTimeout("10_report", () => runReportGenerationStage(
     ctx, claimRecord,
     stage6Data, stage7Data, stage8Data, stage9Data, stage9bData,

@@ -868,6 +868,9 @@ export const claims = mysqlTable("claims", {
 	excessAmountCents: int("excess_amount_cents"),
 	// Pipeline backfill: claim reference number from the insurer's own system (Stage 3)
 	claimReference: varchar("claim_reference", { length: 100 }),
+	// Current pipeline stage label — updated as the AI assessment progresses.
+	// Format: "Stage N — Label" e.g. "Stage 2 — Extracting". Cleared when assessment completes or fails.
+	pipelineCurrentStage: varchar("pipeline_current_stage", { length: 100 }),
 },
 (table) => [
 	index("claims_claim_number_unique").on(table.claimNumber),
