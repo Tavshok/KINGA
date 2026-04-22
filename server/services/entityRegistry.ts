@@ -11,8 +11,7 @@
  * - Optimistic: never throws — logs errors and continues
  */
 
-import { db } from "../db";
-import { sql } from "drizzle-orm";
+// db import removed - all queries use mysql2 directly via execSql/querySql helpers
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -127,19 +126,6 @@ function isWeekend(dow?: number): boolean {
 
 function nowIso(): string {
   return new Date().toISOString();
-}
-
-// ── Raw DB helper ─────────────────────────────────────────────
-
-async function rawQuery(query: string, params: unknown[] = []): Promise<unknown[]> {
-  try {
-    const result = await (db as any).execute(sql.raw(query));
-    return Array.isArray(result) ? result[0] as unknown[] : [];
-  } catch {
-    // Use drizzle's execute with parameterised query
-    const result = await (db as any).execute(sql`${sql.raw(query)}`);
-    return Array.isArray(result) ? result[0] as unknown[] : [];
-  }
 }
 
 // Use mysql2 directly for parameterised queries
