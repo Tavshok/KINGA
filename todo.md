@@ -10938,3 +10938,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Reports Centre route: /insurer-portal/reports-centre
 - [x] Reports Centre nav item in DashboardLayout sidebar
 - [x] Fixed malformed JSX in App.tsx (OperationalHealth route missing closing tags)
+
+## Phase 2 - PDF Templates & Scheduler (In Progress)
+- [ ] Phase 2a: Assessment Report PDF template with real data
+- [ ] Phase 2a: Forensic Report PDF template with real data
+- [ ] Phase 2a: Audit Trail PDF template with real data
+- [ ] Phase 2a: Cost Comparison PDF template with real data
+- [ ] Phase 2a: Repair Decision PDF template with real data
+- [ ] Phase 2b: Claims Summary PDF template with real data
+- [ ] Phase 2b: Fraud Summary PDF template with real data
+- [ ] Phase 2b: Assessor Performance PDF template with real data
+- [ ] Phase 2b: Panel Beater Performance PDF template with real data
+- [ ] Phase 2b: Dwell Time Analysis PDF template with real data
+- [ ] Phase 2d: Platform Dashboard PDF template
+- [ ] Phase 2d: Cross-Insurer Intelligence PDF template
+- [ ] Phase 2d: ML Performance PDF template
+- [ ] Phase 2d: Subject Access Request PDF template
+- [ ] Phase 2d: Regulatory Compliance PDF template
+- [ ] Report Scheduler UI: frequency selector, email delivery config
+- [ ] Report Scheduler DB procedures in reporting router
+- [ ] Scheduler management table in ReportsCentre UI
