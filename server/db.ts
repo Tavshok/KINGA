@@ -1357,6 +1357,107 @@ export async function triggerAiAssessment(claimId: number) {
 
   console.log(`[AI Assessment] Claim ${claimId}: DB insert + claim update complete. Pipeline v2 finished. Duration: ${summary.totalDurationMs}ms. Stages: ${JSON.stringify(summary.stages)}`);
 
+  // ── Entity Registry: fire-and-forget (non-blocking) ──────────────────────
+  // Upsert all entities and write relationship graph edges asynchronously.
+  // Never awaited — never delays the pipeline response.
+  setImmediate(async () => {
+    try {
+      const { processEntityRegistry } = await import('./services/entityRegistry');
+      const acc = claimRecord?.accidentDetails;
+      const ins = claimRecord?.insuranceContext;
+      const drv = claimRecord?.driver;
+      const claimantInfo = claimRecord?.claimant;
+      const officer = claimRecord?.policeReport;
+      const assessorInfo = (claimRecord as any)?.assessorInfo;
+      const repairerInfo = (claimRecord as any)?.repairerInfo;
+      const dmg = claimRecord?.damage;
+      const photos = claimRecord?.photos;
+      const tenantRows = await db.select({ tenantId: claims.tenantId }).from(claims).where(eq(claims.id, claimId)).limit(1);
+      const tenantId = tenantRows[0]?.tenantId ?? 'default';
+
+      await processEntityRegistry(
+        {
+          claimId,
+          tenantId,
+          incidentDate: acc?.date ?? undefined,
+          incidentTime: (acc as any)?.time ?? undefined,
+          incidentLocation: acc?.location ?? undefined,
+          // Claimant
+          claimantName: claimantInfo?.name ?? ins?.policyholderName ?? undefined,
+          claimantIdNumber: (claimantInfo as any)?.idNumber ?? undefined,
+          claimantAddress: (claimantInfo as any)?.address ?? undefined,
+          claimantPhone: (claimantInfo as any)?.phone ?? undefined,
+          claimantEmail: (claimantInfo as any)?.email ?? undefined,
+          policyNumber: ins?.policyNumber ?? undefined,
+          // Driver
+          driverName: (drv as any)?.name ?? claimantInfo?.name ?? undefined,
+          driverIdNumber: (drv as any)?.idNumber ?? undefined,
+          driverLicenceNumber: (drv as any)?.licenceNumber ?? undefined,
+          driverLicenceClass: (drv as any)?.licenceClass ?? undefined,
+          driverLicenceExpiry: (drv as any)?.licenceExpiry ?? undefined,
+          driverLicenceIssueDate: (drv as any)?.licenceIssueDate ?? undefined,
+          driverDateOfBirth: (drv as any)?.dateOfBirth ?? undefined,
+          driverNationality: (drv as any)?.nationality ?? undefined,
+          driverAddress: (drv as any)?.address ?? undefined,
+          driverPhone: (drv as any)?.phone ?? undefined,
+          // Police officer
+          officerName: (officer as any)?.officerName ?? undefined,
+          officerBadgeNumber: (officer as any)?.officerBadgeNumber ?? undefined,
+          officerStation: (officer as any)?.policeStation ?? undefined,
+          officerRank: (officer as any)?.officerRank ?? undefined,
+          // Assessor
+          assessorName: assessorInfo?.name ?? undefined,
+          assessorCompany: assessorInfo?.company ?? undefined,
+          assessorAccreditationNumber: assessorInfo?.accreditationNumber ?? undefined,
+          assessorRegion: assessorInfo?.region ?? undefined,
+          // Panel beater
+          panelBeaterName: repairerInfo?.name ?? undefined,
+          panelBeaterAddress: repairerInfo?.address ?? undefined,
+          panelBeaterPhone: repairerInfo?.phone ?? undefined,
+          panelBeaterEmail: repairerInfo?.email ?? undefined,
+          panelBeaterVatNumber: repairerInfo?.vatNumber ?? undefined,
+          // Cost data
+          submittedCostUsd: estimatedCost ? estimatedCost / 100 : undefined,
+          trueCostUsd: (result as any).stage9Data?.trueCostUsd ?? undefined,
+          structuralGapCount: (result as any).stage9Data?.structuralGapCount ?? undefined,
+        },
+        {
+          fraudScore: finalFraudScore,
+          fraudIndicators: fraudAnalysis?.fraudIndicators ?? undefined,
+          physicsData: (result as any).stage5Data ? {
+            deltaV: (result as any).stage5Data.deltaV ?? undefined,
+            crushDepth: (result as any).stage5Data.crushDepth ?? undefined,
+            impactForce: (result as any).stage5Data.impactForce ?? undefined,
+            airbagDeployed: (result as any).stage5Data.airbagDeployed ?? undefined,
+          } : undefined,
+          costData: (result as any).stage9Data ? {
+            submittedCostUsd: estimatedCost ? estimatedCost / 100 : undefined,
+            trueCostUsd: (result as any).stage9Data.trueCostUsd ?? undefined,
+            costDeviationPct: (result as any).stage9Data.costDeviationPct ?? undefined,
+            structuralGapCount: (result as any).stage9Data.structuralGapCount ?? undefined,
+            costBasis: (result as any).stage9Data.costBasis ?? undefined,
+          } : undefined,
+          damageData: dmg ? {
+            componentCount: dmg.components?.length ?? undefined,
+            structuralDamageFlag: (dmg as any).structuralDamage ?? undefined,
+            damageZone: (dmg as any).primaryZone ?? undefined,
+          } : undefined,
+          photoData: photos ? {
+            photoCount: Array.isArray(photos) ? photos.length : undefined,
+            exifPresent: (result as any).exifPresent ?? undefined,
+            gpsPresent: (result as any).gpsPresent ?? undefined,
+          } : undefined,
+          documentData: {
+            policeReportPresent: !!(officer as any)?.caseNumber,
+            licencePresent: !!(drv as any)?.licenceNumber,
+          },
+        }
+      );
+    } catch (e: any) {
+      console.warn(`[EntityRegistry] Post-pipeline processing failed for claim ${claimId}:`, e.message?.substring(0, 100));
+    }
+  });
+
   // END TOP-LEVEL TRY
   } catch (topLevelError) {
     // LLM call, JSON parse, or other unhandled failure

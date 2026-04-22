@@ -116,6 +116,7 @@ import { executiveRouter } from './routers/executive';
 import { quoteIntelligenceRouter } from './repair-intelligence/router';
 import { repairReplaceRouter } from './repair-intelligence/repair-replace-router';
 import { exceptionIntelligenceRouter } from './routers/exception-intelligence';
+import { intelligenceRouter } from './routers/intelligence';
 import { validateAiAssessmentResponse, validateClaimDetailResponse } from './apiResponseValidator';
 import { validateClaimAnalysisResponse } from './services/apiResponseValidator';
 import { sanitiseReportNarrative, buildBlockError } from './services/externalReportSanitiser';
@@ -319,6 +320,7 @@ export const appRouter = router({
   quoteIntelligence: quoteIntelligenceRouter,
   repairReplace: repairReplaceRouter,
   exceptionIntelligence: exceptionIntelligenceRouter,
+  intelligence: intelligenceRouter,
   integrity: integrityRouter,
   photoReextraction: photoReextractionRouter,
   // ── Assessor Subscription (Free / Pro Tier) ────────────────────────────

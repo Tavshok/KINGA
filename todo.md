@@ -10858,3 +10858,59 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Render Repair-vs-Replace probability bar in AiIntelligenceSummaryCard component list
 - [ ] Add subtle override capture (adjuster confirm/override — feeds learning DB silently)
 - [ ] Write vitest tests for repairReplaceEngine
+
+## Relationship Intelligence Layer & ML Implementation (Phase 2026-04)
+- [ ] DB: Add driver_registry table
+- [ ] DB: Add claimant_registry table
+- [ ] DB: Add assessor_registry table
+- [ ] DB: Add panel_beater_registry table
+- [ ] DB: Add police_officer_registry table
+- [ ] DB: Add fleet_registry table
+- [ ] DB: Add entity_relationships graph table
+- [ ] DB: Add claim_features ML feature store table
+- [ ] DB: Add accident_clusters table
+- [ ] DB: Run SQL migration for all new tables
+- [ ] Stage 3: Add licence holder name/class/expiry/DOB/ID extraction
+- [ ] Stage 3: Add officer badge number and rank extraction
+- [ ] Stage 3: Add third party address and phone extraction
+- [ ] Stage 3: Add incident hour/day-of-week structured fields
+- [ ] Entity Engine: Build server/services/entityRegistry.ts
+- [ ] Entity Engine: Fuzzy name matching for deduplication
+- [ ] Entity Engine: Relationship edge writer (post-pipeline hook)
+- [ ] Stage 8: Identity fraud checks (licence name mismatch, expired, multi-claimant)
+- [ ] Stage 8: Driver history checks (repeat claims, rapid re-claim)
+- [ ] Stage 8: Temporal pattern checks (night cluster, same-day)
+- [ ] Stage 8: Officer concentration checks (5 thresholds)
+- [ ] Stage 8: Officer+assessor co-occurrence collusion check
+- [ ] Stage 8: Assessor routing HHI concentration check
+- [ ] Stage 8: Assessor cost suppression pattern check
+- [ ] Stage 8: Address pattern checks (third party match, incident at home)
+- [ ] ML: Feature engineering pipeline (claim_features writer)
+- [ ] ML: Geocoding service for incident locations
+- [ ] ML: DBSCAN accident hotspot clustering batch job (nightly)
+- [ ] ML: ST-DBSCAN spatio-temporal ring detection batch job (nightly)
+- [ ] ML: Isolation Forest entity anomaly detection batch job (weekly)
+- [ ] UI: Relationship Intelligence dashboard /insurer-portal/intelligence
+- [ ] UI: Entity web force graph (D3.js)
+- [ ] UI: Concentration heat maps (officers, assessors, panel beaters)
+- [ ] UI: Collusion alerts table
+- [ ] UI: Driver and officer watchlists
+- [ ] UI: Accident hotspot map (Google Maps)
+- [ ] UI: Temporal analysis charts
+- [ ] Optimisation: Composite DB indexes on all new and existing high-query tables
+- [ ] Optimisation: Pipeline stage parallelism review
+- [ ] Optimisation: Query result caching for entity registry lookups
+- [ ] Optimisation: MySQL connection pool tuning
+- [ ] Optimisation: Stage 3 extraction prompt batching
+
+## Intelligence Layer & ML — Completed
+- [x] 9 new DB tables: driver_registry, claimant_registry, assessor_registry, panel_beater_registry, police_officer_registry, fleet_registry, entity_relationship_graph, accident_clusters, ml_models
+- [x] 31 DB performance indexes across all new and existing high-frequency tables
+- [x] Entity Registry Service (server/services/entityRegistry.ts) — upserts all entities post-pipeline
+- [x] Entity registry hooked into pipeline completion in db.ts (fire-and-forget)
+- [x] Stage 8 cross-entity fraud checks: officer concentration, assessor routing bias, driver history
+- [x] Phase 1 ML batch jobs: DBSCAN hotspot clustering + Isolation Forest anomaly detection (server/ml/phase1-clustering.py)
+- [x] Intelligence tRPC router (server/routers/intelligence.ts) with 7 procedures
+- [x] Relationship Intelligence dashboard page (client/src/pages/RelationshipIntelligence.tsx)
+- [x] Navigation link added to DashboardLayout sidebar
+- [x] Route registered in App.tsx at /insurer-portal/relationship-intelligence

@@ -598,6 +598,70 @@ export async function runFraudAnalysisStage(
       });
     }
 
+    // ── Cross-Entity Intelligence Checks (Relationship Graph) ──────────────
+    // Query entity registries built from historical claim data.
+    // Non-blocking: silently skipped if registry is empty or unavailable.
+    try {
+      const { checkOfficerConcentration, checkAssessorRouting, checkDriverHistory } = await import('../services/entityRegistry');
+      const tenantId = (claimRecord as any)?.tenantId ?? 'default';
+      const policeReport = claimRecord?.policeReport as any;
+      const assessorInfo = (claimRecord as any)?.assessorInfo;
+      const driver = claimRecord?.driver as any;
+      const accidentDetails = claimRecord?.accidentDetails as any;
+
+      // 1. Officer concentration
+      const officerCheck = await checkOfficerConcentration(
+        policeReport?.officerName, policeReport?.officerBadgeNumber, tenantId
+      );
+      if (officerCheck && officerCheck.fraudPoints > 0) {
+        const levelLabel = ['critical','high'].includes(officerCheck.riskLevel) ? officerCheck.riskLevel.toUpperCase() : 'ADVISORY';
+        allIndicators.push({
+          indicator: 'OFFICER_CONCENTRATION',
+          description: `Officer ${officerCheck.officerName} has attended ${officerCheck.totalClaims} claims — ${levelLabel} concentration risk.${officerCheck.collusionWebDetected ? ` Collusion web: same officer+assessor on ${officerCheck.topAssessorCount}+ claims.` : ''}`,
+          score: officerCheck.fraudPoints,
+          severity: ['critical','high'].includes(officerCheck.riskLevel) ? 'high' : 'medium',
+          category: 'cross_entity_intelligence',
+          evidence: [`Officer total claims: ${officerCheck.totalClaims}`, `Collusion web: ${officerCheck.collusionWebDetected}`],
+        });
+        ctx.log('Stage 8 (entity)', `Officer concentration: ${officerCheck.officerName} — ${officerCheck.totalClaims} claims, +${officerCheck.fraudPoints}pts`);
+      }
+
+      // 2. Assessor routing bias
+      const assessorCheck = await checkAssessorRouting(assessorInfo?.name, tenantId);
+      if (assessorCheck && assessorCheck.fraudPoints > 0) {
+        allIndicators.push({
+          indicator: 'ASSESSOR_ROUTING_BIAS',
+          description: `Assessor ${assessorCheck.assessorName} routes ${assessorCheck.topPanelBeaterPct}% of claims to a single panel beater (${assessorCheck.totalClaims} claims assessed).${assessorCheck.collusionSuspected ? ' Collusion suspected.' : ''}`,
+          score: assessorCheck.fraudPoints,
+          severity: assessorCheck.collusionSuspected ? 'high' : 'medium',
+          category: 'cross_entity_intelligence',
+          evidence: [`Routing concentration: ${assessorCheck.topPanelBeaterPct}%`, `Cost suppression claims: ${assessorCheck.costSuppressionClaims}`],
+        });
+        ctx.log('Stage 8 (entity)', `Assessor routing bias: ${assessorCheck.assessorName} — ${assessorCheck.topPanelBeaterPct}% to top panel beater, +${assessorCheck.fraudPoints}pts`);
+      }
+
+      // 3. Driver history
+      const driverCheck = await checkDriverHistory(
+        driver?.name, driver?.idNumber, driver?.licenceNumber, accidentDetails?.date, tenantId
+      );
+      if (driverCheck && driverCheck.fraudPoints > 0) {
+        const desc = driverCheck.rapidReclaimFlag
+          ? `Driver ${driverCheck.driverName} filed a claim ${driverCheck.daysSinceLastClaim} days ago — rapid re-claim pattern.`
+          : `Driver ${driverCheck.driverName} has ${driverCheck.totalClaims} claims on record.${driverCheck.addressChangeCount >= 3 ? ` Address changed ${driverCheck.addressChangeCount} times.` : ''}`;
+        allIndicators.push({
+          indicator: 'DRIVER_HISTORY_PATTERN',
+          description: desc,
+          score: driverCheck.fraudPoints,
+          severity: driverCheck.rapidReclaimFlag ? 'high' : 'medium',
+          category: 'cross_entity_intelligence',
+          evidence: [`Total claims: ${driverCheck.totalClaims}`, driverCheck.daysSinceLastClaim !== undefined ? `Days since last claim: ${driverCheck.daysSinceLastClaim}` : 'First claim on record', `Address changes: ${driverCheck.addressChangeCount}`],
+        });
+        ctx.log('Stage 8 (entity)', `Driver history: ${driverCheck.driverName} — ${driverCheck.totalClaims} claims, rapid reclaim: ${driverCheck.rapidReclaimFlag}, +${driverCheck.fraudPoints}pts`);
+      }
+    } catch (entityErr: any) {
+      ctx.log('Stage 8 (entity)', `Cross-entity checks skipped (non-fatal): ${String(entityErr).substring(0, 80)}`);
+    }
+
     const totalIndicatorScore = allIndicators.reduce((sum, i) => sum + i.score, 0);
     const fraudRiskScore = Math.min(100, totalIndicatorScore);
     const fraudRiskLevel = scoreToLevel(fraudRiskScore);

@@ -1,0 +1,422 @@
+import mysql from 'mysql2/promise';
+
+async function runMigration() {
+  const url = process.env.DATABASE_URL;
+  if (!url) { console.error('No DATABASE_URL'); process.exit(1); }
+  
+  const conn = await mysql.createConnection(url);
+  
+  const statements = [ // Only the failed table
+    // ── Police Officer Registry ───────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS police_officer_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      full_name varchar(255) DEFAULT NULL,
+      badge_number varchar(100) DEFAULT NULL,
+      station varchar(255) DEFAULT NULL,
+      region varchar(100) DEFAULT NULL,
+      officer_rank varchar(100) DEFAULT NULL,
+      total_claims int DEFAULT 0,
+      claim_ids_json json DEFAULT NULL,
+      insurer_ids_json json DEFAULT NULL,
+      assessor_co_occurrences json DEFAULT NULL,
+      top_assessor_id int DEFAULT NULL,
+      top_assessor_count int DEFAULT 0,
+      claimant_co_occurrences json DEFAULT NULL,
+      incident_locations json DEFAULT NULL,
+      location_concentration_score int DEFAULT 0,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      is_watchlisted tinyint DEFAULT 0,
+      watchlist_reason text DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_por_full_name (full_name),
+      KEY idx_por_badge_number (badge_number),
+      KEY idx_por_total_claims (total_claims),
+      KEY idx_por_risk_score (risk_score),
+      KEY idx_por_tenant (tenant_id),
+      KEY idx_por_watchlisted (is_watchlisted)
+    )`,
+  ];
+  const _UNUSED = [
+    // ── Driver Registry ──────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS driver_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      id_number varchar(30) DEFAULT NULL,
+      licence_number varchar(50) DEFAULT NULL,
+      full_name varchar(255) DEFAULT NULL,
+      name_aliases json DEFAULT NULL,
+      date_of_birth varchar(20) DEFAULT NULL,
+      nationality varchar(10) DEFAULT NULL,
+      licence_class varchar(30) DEFAULT NULL,
+      licence_issue_date varchar(20) DEFAULT NULL,
+      licence_expiry_date varchar(20) DEFAULT NULL,
+      licence_photo_url varchar(500) DEFAULT NULL,
+      addresses json DEFAULT NULL,
+      current_address text DEFAULT NULL,
+      address_change_count int DEFAULT 0,
+      phone_numbers json DEFAULT NULL,
+      email_addresses json DEFAULT NULL,
+      total_claims int DEFAULT 0,
+      claims_as_claimant int DEFAULT 0,
+      claims_as_driver int DEFAULT 0,
+      claims_as_third_party int DEFAULT 0,
+      first_claim_date varchar(20) DEFAULT NULL,
+      last_claim_date varchar(20) DEFAULT NULL,
+      claim_ids_json json DEFAULT NULL,
+      insurer_ids_json json DEFAULT NULL,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      is_watchlisted tinyint DEFAULT 0,
+      watchlist_reason text DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_dr_licence_number (licence_number),
+      KEY idx_dr_full_name (full_name),
+      KEY idx_dr_risk_score (risk_score),
+      KEY idx_dr_total_claims (total_claims),
+      KEY idx_dr_tenant (tenant_id),
+      KEY idx_dr_watchlisted (is_watchlisted)
+    )`,
+
+    // ── Claimant Registry ─────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS claimant_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      full_name varchar(255) DEFAULT NULL,
+      name_aliases json DEFAULT NULL,
+      id_number varchar(30) DEFAULT NULL,
+      date_of_birth varchar(20) DEFAULT NULL,
+      addresses json DEFAULT NULL,
+      current_address text DEFAULT NULL,
+      address_change_count int DEFAULT 0,
+      phone_numbers json DEFAULT NULL,
+      email_addresses json DEFAULT NULL,
+      policy_numbers json DEFAULT NULL,
+      insurer_ids json DEFAULT NULL,
+      total_claims int DEFAULT 0,
+      claims_approved int DEFAULT 0,
+      claims_rejected int DEFAULT 0,
+      claims_flagged int DEFAULT 0,
+      total_claimed_value_cents bigint DEFAULT 0,
+      total_paid_value_cents bigint DEFAULT 0,
+      first_claim_date varchar(20) DEFAULT NULL,
+      last_claim_date varchar(20) DEFAULT NULL,
+      avg_days_between_claims decimal(6,1) DEFAULT NULL,
+      min_days_between_claims int DEFAULT NULL,
+      claim_ids_json json DEFAULT NULL,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      is_watchlisted tinyint DEFAULT 0,
+      watchlist_reason text DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_cr_id_number (id_number),
+      KEY idx_cr_full_name (full_name),
+      KEY idx_cr_risk_score (risk_score),
+      KEY idx_cr_total_claims (total_claims),
+      KEY idx_cr_tenant (tenant_id),
+      KEY idx_cr_watchlisted (is_watchlisted)
+    )`,
+
+    // ── Assessor Registry ─────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS assessor_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      full_name varchar(255) DEFAULT NULL,
+      name_aliases json DEFAULT NULL,
+      company_name varchar(255) DEFAULT NULL,
+      accreditation_number varchar(100) DEFAULT NULL,
+      accreditation_body varchar(100) DEFAULT NULL,
+      accreditation_expiry varchar(20) DEFAULT NULL,
+      email varchar(255) DEFAULT NULL,
+      phone varchar(50) DEFAULT NULL,
+      region varchar(100) DEFAULT NULL,
+      insurer_affiliations json DEFAULT NULL,
+      total_claims_assessed int DEFAULT 0,
+      avg_cost_reduction_pct decimal(5,2) DEFAULT NULL,
+      avg_cost_uplift_pct decimal(5,2) DEFAULT NULL,
+      panel_beater_routing json DEFAULT NULL,
+      top_panel_beater_id int DEFAULT NULL,
+      top_panel_beater_pct decimal(5,2) DEFAULT NULL,
+      routing_concentration_score int DEFAULT 0,
+      cost_suppression_claims int DEFAULT 0,
+      structural_gap_claims int DEFAULT 0,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      is_watchlisted tinyint DEFAULT 0,
+      watchlist_reason text DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_ar_full_name (full_name),
+      KEY idx_ar_routing_concentration (routing_concentration_score),
+      KEY idx_ar_risk_score (risk_score),
+      KEY idx_ar_tenant (tenant_id),
+      KEY idx_ar_watchlisted (is_watchlisted)
+    )`,
+
+    // ── Panel Beater Registry ─────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS panel_beater_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      company_name varchar(255) DEFAULT NULL,
+      name_aliases json DEFAULT NULL,
+      registration_number varchar(100) DEFAULT NULL,
+      vat_number varchar(50) DEFAULT NULL,
+      bank_account_hash varchar(64) DEFAULT NULL,
+      address text DEFAULT NULL,
+      region varchar(100) DEFAULT NULL,
+      phone varchar(50) DEFAULT NULL,
+      email varchar(255) DEFAULT NULL,
+      total_quotes_submitted int DEFAULT 0,
+      avg_quote_vs_true_cost_pct decimal(5,2) DEFAULT NULL,
+      quotes_below_cost_count int DEFAULT 0,
+      quotes_above_cost_count int DEFAULT 0,
+      structural_gap_count int DEFAULT 0,
+      avg_structural_gap_count decimal(4,1) DEFAULT NULL,
+      assessor_routing json DEFAULT NULL,
+      top_assessor_id int DEFAULT NULL,
+      top_assessor_pct decimal(5,2) DEFAULT NULL,
+      routing_concentration_score int DEFAULT 0,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      is_watchlisted tinyint DEFAULT 0,
+      watchlist_reason text DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_pbr_company_name (company_name),
+      KEY idx_pbr_routing_concentration (routing_concentration_score),
+      KEY idx_pbr_risk_score (risk_score),
+      KEY idx_pbr_bank_hash (bank_account_hash),
+      KEY idx_pbr_tenant (tenant_id)
+    )`,
+
+    // ── Police Officer Registry ───────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS police_officer_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      full_name varchar(255) DEFAULT NULL,
+      badge_number varchar(100) DEFAULT NULL,
+      station varchar(255) DEFAULT NULL,
+      region varchar(100) DEFAULT NULL,
+      officer_rank varchar(100) DEFAULT NULL,
+      total_claims int DEFAULT 0,
+      claim_ids_json json DEFAULT NULL,
+      insurer_ids_json json DEFAULT NULL,
+      assessor_co_occurrences json DEFAULT NULL,
+      top_assessor_id int DEFAULT NULL,
+      top_assessor_count int DEFAULT 0,
+      claimant_co_occurrences json DEFAULT NULL,
+      incident_locations json DEFAULT NULL,
+      location_concentration_score int DEFAULT 0,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      is_watchlisted tinyint DEFAULT 0,
+      watchlist_reason text DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_por_full_name (full_name),
+      KEY idx_por_badge_number (badge_number),
+      KEY idx_por_total_claims (total_claims),
+      KEY idx_por_risk_score (risk_score),
+      KEY idx_por_tenant (tenant_id),
+      KEY idx_por_watchlisted (is_watchlisted)
+    )`,
+
+    // ── Fleet / Company Registry ──────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS fleet_registry (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      company_name varchar(255) DEFAULT NULL,
+      registration_number varchar(100) DEFAULT NULL,
+      industry varchar(100) DEFAULT NULL,
+      fleet_size int DEFAULT NULL,
+      total_claims int DEFAULT 0,
+      claims_by_hour json DEFAULT NULL,
+      claims_by_day_of_week json DEFAULT NULL,
+      claims_by_month json DEFAULT NULL,
+      night_claim_pct decimal(5,2) DEFAULT NULL,
+      weekend_claim_pct decimal(5,2) DEFAULT NULL,
+      peak_accident_hour int DEFAULT NULL,
+      incident_locations json DEFAULT NULL,
+      location_concentration_score int DEFAULT 0,
+      repeat_driver_ids json DEFAULT NULL,
+      repeat_location_claims int DEFAULT 0,
+      avg_claim_value_cents int DEFAULT NULL,
+      risk_score int DEFAULT 0,
+      risk_flags json DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      updated_at varchar(50) DEFAULT NULL,
+      KEY idx_fr_company_name (company_name),
+      KEY idx_fr_risk_score (risk_score),
+      KEY idx_fr_night_claim_pct (night_claim_pct),
+      KEY idx_fr_tenant (tenant_id)
+    )`,
+
+    // ── Entity Relationship Graph ─────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS entity_relationship_graph (
+      id bigint NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      entity_a_type enum('driver','claimant','assessor','panel_beater','police_officer','fleet') NOT NULL,
+      entity_a_id int NOT NULL,
+      relationship_type enum('claimant_filed','driver_involved','assessed_by','repaired_by','attended_by','assessor_routed_to','officer_attended_claimant','officer_attended_assessor','driver_is_claimant','driver_differs_from_claimant','fleet_vehicle_involved') NOT NULL,
+      entity_b_type enum('driver','claimant','assessor','panel_beater','police_officer','fleet') NOT NULL,
+      entity_b_id int NOT NULL,
+      claim_id int NOT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      edge_weight int DEFAULT 1,
+      first_seen_at varchar(50) DEFAULT NULL,
+      last_seen_at varchar(50) DEFAULT NULL,
+      metadata json DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      KEY idx_erg_entity_a (entity_a_type, entity_a_id),
+      KEY idx_erg_entity_b (entity_b_type, entity_b_id),
+      KEY idx_erg_relationship (relationship_type),
+      KEY idx_erg_claim_id (claim_id),
+      KEY idx_erg_tenant (tenant_id),
+      KEY idx_erg_edge_weight (edge_weight)
+    )`,
+
+    // ── ML Feature Store ──────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS claim_features (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      claim_id int NOT NULL,
+      assessment_id int DEFAULT NULL,
+      tenant_id varchar(255) DEFAULT NULL,
+      delta_v decimal(6,2) DEFAULT NULL,
+      crush_depth decimal(6,2) DEFAULT NULL,
+      impact_force decimal(12,2) DEFAULT NULL,
+      airbag_deployed tinyint DEFAULT NULL,
+      component_count int DEFAULT NULL,
+      structural_damage_flag tinyint DEFAULT NULL,
+      damage_zone varchar(50) DEFAULT NULL,
+      submitted_cost_usd decimal(10,2) DEFAULT NULL,
+      true_cost_usd decimal(10,2) DEFAULT NULL,
+      cost_deviation_pct decimal(6,2) DEFAULT NULL,
+      structural_gap_count int DEFAULT NULL,
+      cost_basis varchar(50) DEFAULT NULL,
+      driver_registry_id int DEFAULT NULL,
+      claimant_registry_id int DEFAULT NULL,
+      assessor_registry_id int DEFAULT NULL,
+      panel_beater_registry_id int DEFAULT NULL,
+      officer_registry_id int DEFAULT NULL,
+      driver_total_claims int DEFAULT NULL,
+      assessor_routing_hhi decimal(5,4) DEFAULT NULL,
+      officer_concentration_score int DEFAULT NULL,
+      incident_hour int DEFAULT NULL,
+      incident_day_of_week int DEFAULT NULL,
+      incident_is_night tinyint DEFAULT NULL,
+      incident_is_weekend tinyint DEFAULT NULL,
+      days_since_last_claim int DEFAULT NULL,
+      days_since_policy_inception int DEFAULT NULL,
+      photo_count int DEFAULT NULL,
+      exif_present tinyint DEFAULT NULL,
+      gps_present tinyint DEFAULT NULL,
+      police_report_present tinyint DEFAULT NULL,
+      licence_present tinyint DEFAULT NULL,
+      fraud_indicators json DEFAULT NULL,
+      rule_based_fraud_score int DEFAULT NULL,
+      incident_lat decimal(10,7) DEFAULT NULL,
+      incident_lng decimal(10,7) DEFAULT NULL,
+      incident_location_raw text DEFAULT NULL,
+      geocoding_status varchar(20) DEFAULT 'pending',
+      fraud_probability decimal(5,4) DEFAULT NULL,
+      true_cost_predicted decimal(10,2) DEFAULT NULL,
+      repair_probability decimal(5,4) DEFAULT NULL,
+      settlement_predicted decimal(10,2) DEFAULT NULL,
+      hotspot_cluster_id int DEFAULT NULL,
+      label_fraud tinyint DEFAULT NULL,
+      label_outcome varchar(30) DEFAULT NULL,
+      label_settlement_usd decimal(10,2) DEFAULT NULL,
+      labelled_at varchar(50) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      UNIQUE KEY idx_cf_claim_id (claim_id),
+      KEY idx_cf_tenant (tenant_id),
+      KEY idx_cf_geocoding_status (geocoding_status),
+      KEY idx_cf_incident_hour (incident_hour),
+      KEY idx_cf_fraud_probability (fraud_probability),
+      KEY idx_cf_hotspot_cluster (hotspot_cluster_id),
+      KEY idx_cf_label_fraud (label_fraud)
+    )`,
+
+    // ── Accident Clusters ─────────────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS accident_clusters (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      cluster_label int NOT NULL,
+      centroid_lat decimal(10,7) DEFAULT NULL,
+      centroid_lng decimal(10,7) DEFAULT NULL,
+      radius_meters int DEFAULT NULL,
+      claim_count int DEFAULT 0,
+      claim_ids_json json DEFAULT NULL,
+      first_claim_date varchar(20) DEFAULT NULL,
+      last_claim_date varchar(20) DEFAULT NULL,
+      fraud_rate decimal(5,2) DEFAULT NULL,
+      flagged_claim_count int DEFAULT 0,
+      dominant_entities json DEFAULT NULL,
+      risk_classification enum('legitimate_hotspot','suspicious_cluster','staged_ring_alert','unknown') DEFAULT 'unknown',
+      is_spatio_temporal tinyint DEFAULT 0,
+      temporal_window_days int DEFAULT NULL,
+      shared_entity_count int DEFAULT 0,
+      tenant_id varchar(255) DEFAULT NULL,
+      computed_at varchar(50) DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      KEY idx_ac_risk_classification (risk_classification),
+      KEY idx_ac_fraud_rate (fraud_rate),
+      KEY idx_ac_claim_count (claim_count),
+      KEY idx_ac_tenant (tenant_id),
+      KEY idx_ac_computed_at (computed_at)
+    )`,
+
+    // ── ML Model Version Registry ─────────────────────────────────
+    `CREATE TABLE IF NOT EXISTS ml_models (
+      id int NOT NULL AUTO_INCREMENT PRIMARY KEY,
+      model_name varchar(100) NOT NULL,
+      model_version varchar(50) NOT NULL,
+      model_type varchar(50) DEFAULT NULL,
+      s3_key varchar(500) DEFAULT NULL,
+      training_claim_count int DEFAULT NULL,
+      accuracy_score decimal(5,4) DEFAULT NULL,
+      auc_score decimal(5,4) DEFAULT NULL,
+      feature_importance json DEFAULT NULL,
+      is_active tinyint DEFAULT 0,
+      trained_at varchar(50) DEFAULT NULL,
+      activated_at varchar(50) DEFAULT NULL,
+      notes text DEFAULT NULL,
+      created_at varchar(50) DEFAULT NULL,
+      KEY idx_mm_model_name (model_name),
+      KEY idx_mm_is_active (is_active)
+    )`,
+  ];
+
+  let ok = 0, fail = 0;
+  for (const stmt of statements) {
+    const label = stmt.trim().substring(0, 70).replace(/\n/g, ' ');
+    try {
+      await conn.execute(stmt);
+      ok++;
+      console.log('OK:', label);
+    } catch(e) {
+      const msg = e.message || '';
+      if (
+        e.code === 'ER_DUP_KEYNAME' || 
+        e.code === 'ER_TABLE_EXISTS_ERROR' || 
+        msg.includes('Duplicate key name') || 
+        msg.includes('already exists') ||
+        msg.includes('Duplicate entry')
+      ) {
+        ok++;
+        console.log('SKIP:', label);
+      } else {
+        console.error('FAIL:', msg.substring(0, 150));
+        fail++;
+      }
+    }
+  }
+  
+  await conn.end();
+  console.log('\nMigration complete:', ok, 'ok,', fail, 'failed');
+  if (fail > 0) process.exit(1);
+}
+
+runMigration().catch(e => { console.error(e); process.exit(1); });

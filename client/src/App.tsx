@@ -132,6 +132,7 @@ const ReviewQueue = lazy(() => import("./pages/ReviewQueue"));
 const AnalyticsHub = lazy(() => import("./pages/analytics/AnalyticsHub"));
 const RoleSetup = lazy(() => import("./pages/RoleSetup"));
 const UserDiagnostic = lazy(() => import("./pages/UserDiagnostic"));
+const RelationshipIntelligence = lazy(() => import("./pages/RelationshipIntelligence"));
 
 function Router() {
   return (
@@ -163,6 +164,13 @@ function Router() {
         <Route path="/insurer-portal/exception-intelligence">
           <ProtectedRoute allowedRoles={["insurer", "admin"]}>
             <ExceptionIntelligenceHub />
+          </ProtectedRoute>
+        </Route>
+
+        {/* Relationship Intelligence — entity web, hotspots, watchlists */}
+        <Route path="/insurer-portal/relationship-intelligence">
+          <ProtectedRoute allowedRoles={["insurer", "admin"]}>
+            <RelationshipIntelligence />
           </ProtectedRoute>
         </Route>
           </ProtectedRoute>
