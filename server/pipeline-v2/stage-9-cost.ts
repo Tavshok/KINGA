@@ -442,6 +442,30 @@ export async function runCostOptimisationStage(
     // Step 1: Run semantic damage-vs-quote reconciliation if quote components are available
     const quoteComponents: string[] = stage3?.inputRecovery?.extracted_quotes
       ?.flatMap(q => q.components ?? []) ?? [];
+
+    // Build a line_items lookup: normalised component name → { line_total, currency }
+    // Uses the best available quote (highest confidence, then highest total_cost)
+    const allLineItems = (stage3?.inputRecovery?.extracted_quotes ?? [])
+      .slice()
+      .sort((a, b) => {
+        const confOrder: Record<string, number> = { high: 3, medium: 2, low: 1 };
+        const confDiff = (confOrder[b.confidence] ?? 0) - (confOrder[a.confidence] ?? 0);
+        if (confDiff !== 0) return confDiff;
+        return (b.total_cost ?? 0) - (a.total_cost ?? 0);
+      })
+      .flatMap(q => ((q as any).line_items ?? []).map((li: any) => ({ ...li, quoteCurrency: (q as any).currency ?? currency })));
+
+    // Map: normalised component name → { line_total, quoteCurrency }
+    const lineItemMap = new Map<string, { line_total: number; quoteCurrency: string }>();
+    for (const li of allLineItems) {
+      if (li.line_total !== null && li.line_total > 0) {
+        const key = (li.component as string).toLowerCase().trim();
+        if (!lineItemMap.has(key)) {
+          lineItemMap.set(key, { line_total: li.line_total, quoteCurrency: li.quoteCurrency });
+        }
+      }
+    }
+
     const damageComponentNames = damageAnalysis.damagedParts.map(p => p.name);
 
     const reconciliation = quoteComponents.length > 0
@@ -456,10 +480,21 @@ export async function runCostOptimisationStage(
       const matched = reconciliation?.matched.find(m => m.damage_component === comp.name.toLowerCase());
       const isMissing = reconciliation?.missing.some(m => m.component === comp.name.toLowerCase());
 
+      // Look up per-component quoted amount from line_items
+      // Try exact match first, then fuzzy match via the reconciliation engine's matched quote_component
+      const compKey = comp.name.toLowerCase().trim();
+      let quotedEntry = lineItemMap.get(compKey);
+      if (!quotedEntry && matched?.quote_component) {
+        quotedEntry = lineItemMap.get(matched.quote_component.toLowerCase().trim());
+      }
+      const quotedAmount = quotedEntry?.line_total ?? null;
+      const quotedCurrency = quotedEntry?.quoteCurrency ?? null;
+
       return {
         component: comp.name,
         aiEstimate: null as number | null, // not estimated — no reliable per-component cost data
-        quotedAmount: null as number | null, // populated when per-component quote amounts are available
+        quotedAmount,
+        quotedCurrency,
         variance: null as number | null,
         variancePct: null as number | null,
         flag: isMissing

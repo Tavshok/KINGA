@@ -32,11 +32,27 @@ import { invokeLLM } from "../_core/llm";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
+/** A single line item from an itemised repair quotation. */
+export interface QuoteLineItem {
+  /** Normalised component name, e.g. "rear bumper", "RHS door" */
+  component: string;
+  /** Unit cost as a plain number (same currency as total_cost). Null if not stated. */
+  unit_cost: number | null;
+  /** Quantity (default 1 if not stated). */
+  quantity: number;
+  /** Line total = unit_cost × quantity. Null if unit_cost is null. */
+  line_total: number | null;
+  /** Repair action: repair | replace | refinish | other */
+  action: string | null;
+}
+
 export interface ExtractedQuote {
   panel_beater: string | null;
   total_cost: number | null;
   currency: string;
   components: string[];
+  /** Itemised line items with per-component pricing. Empty array if quote is not itemised. */
+  line_items: QuoteLineItem[];
   labour_defined: boolean;
   parts_defined: boolean;
   /** Actual labour cost extracted from the quote (same currency as total_cost). Null if not itemised. */
@@ -57,21 +73,28 @@ RULES — follow these exactly:
 1. Extract the panel beater / repairer name if present.
 2. Extract the total repair cost as a plain number (no currency symbols, no commas).
 3. Identify the currency. If not stated, use "USD".
-4. List every quoted component. Normalise names to simple English:
+4. List every quoted component in both 'components' (names only) AND 'line_items' (with pricing).
+   Normalise names to simple English:
    - "R/H tail lamp assembly" → "RHS tail lamp"
    - "Radiator support panel (upper)" → "radiator support panel"
    - "B/bar" → "rear bumper"
    - "F/bar" → "front bumper"
    - "Labour – panel repair" → do NOT include as a component; set labour_defined = true
-5. Do NOT infer or guess missing components.
-6. Do NOT estimate any cost.
-7. If a field cannot be found, return null (for strings/numbers) or false (for booleans).
-8. Set confidence:
+5. For line_items: extract each component row from the quote table with its unit cost, quantity, and line total.
+   - If a row shows "Rear bumper  R 1,200.00" → component="rear bumper", unit_cost=1200, quantity=1, line_total=1200
+   - If quantity is not stated, default to 1.
+   - If unit_cost is not stated but line_total is, set unit_cost = line_total / quantity.
+   - Set action to "replace", "repair", "refinish", or "other" based on the row description.
+   - If no itemised pricing exists (only a total), return an empty array for line_items.
+6. Do NOT infer or guess missing components.
+7. Do NOT estimate any cost.
+8. If a field cannot be found, return null (for strings/numbers) or false (for booleans).
+9. Set confidence:
    - "high"   → total cost found, ≥ 3 components found, panel beater name found
    - "medium" → total cost found but < 3 components, or panel beater missing
    - "low"    → total cost missing or no components found
-9. List any extraction issues in extraction_warnings (e.g. "total cost not found", "currency ambiguous").
-10. Extract labour_cost and parts_cost as plain numbers when they appear as separate line items:
+10. List any extraction issues in extraction_warnings (e.g. "total cost not found", "currency ambiguous").
+11. Extract labour_cost and parts_cost as plain numbers when they appear as separate line items:
     - "Labour: $1,500" → labour_cost = 1500, labour_defined = true
     - "Parts: $3,200" → parts_cost = 3200, parts_defined = true
     - If only a total is given with no breakdown, set both to null.
@@ -83,6 +106,7 @@ OUTPUT — return ONLY valid JSON matching this schema exactly:
   "total_cost": number | null,
   "currency": string,
   "components": string[],
+  "line_items": [{"component": string, "unit_cost": number|null, "quantity": number, "line_total": number|null, "action": string|null}],
   "labour_defined": boolean,
   "parts_defined": boolean,
   "labour_cost": number | null,
@@ -133,6 +157,22 @@ export async function extractQuoteFromText(
                 items: { type: "string" },
                 description: "Normalised list of quoted components"
               },
+              line_items: {
+                type: "array",
+                description: "Itemised line items with per-component pricing. Empty array if quote is not itemised.",
+                items: {
+                  type: "object",
+                  properties: {
+                    component: { type: "string", description: "Normalised component name" },
+                    unit_cost: { type: ["number", "null"], description: "Unit cost as a plain number. Null if not stated." },
+                    quantity: { type: "number", description: "Quantity, default 1 if not stated" },
+                    line_total: { type: ["number", "null"], description: "Line total = unit_cost x quantity. Null if unit_cost is null." },
+                    action: { type: ["string", "null"], description: "Repair action: repair, replace, refinish, or other" }
+                  },
+                  required: ["component", "unit_cost", "quantity", "line_total", "action"],
+                  additionalProperties: false
+                }
+              },
               labour_defined: { type: "boolean", description: "True if labour cost is explicitly stated" },
               parts_defined: { type: "boolean", description: "True if parts cost is explicitly stated" },
               labour_cost: { type: ["number", "null"], description: "Actual labour cost as a plain number (same currency as total_cost). Null if not itemised." },
@@ -153,6 +193,7 @@ export async function extractQuoteFromText(
               "total_cost",
               "currency",
               "components",
+              "line_items",
               "labour_defined",
               "parts_defined",
               "labour_cost",
@@ -257,6 +298,25 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     ? (raw.components as string[]).map(c => normaliseComponentName(String(c)))
     : [];
 
+  // Extract and validate line_items
+  const line_items: QuoteLineItem[] = [];
+  if (Array.isArray(raw.line_items)) {
+    for (const item of raw.line_items as Record<string, unknown>[]) {
+      if (!item || typeof item.component !== 'string') continue;
+      const unitCost = typeof item.unit_cost === 'number' ? item.unit_cost : null;
+      const qty = typeof item.quantity === 'number' && item.quantity > 0 ? item.quantity : 1;
+      const lineTotal = typeof item.line_total === 'number' ? item.line_total
+        : (unitCost !== null ? unitCost * qty : null);
+      line_items.push({
+        component: normaliseComponentName(String(item.component)),
+        unit_cost: unitCost,
+        quantity: qty,
+        line_total: lineTotal,
+        action: typeof item.action === 'string' ? item.action : null,
+      });
+    }
+  }
+
   // Derive confidence — always recompute from data to override LLM errors
   let confidence: "high" | "medium" | "low" = "low";
   const llmConfidence = raw.confidence;
@@ -308,6 +368,7 @@ function validateAndNormalise(raw: Record<string, unknown>): ExtractedQuote {
     total_cost: totalCost,
     currency: typeof raw.currency === "string" && raw.currency.length > 0 ? raw.currency : "USD",
     components,
+    line_items,
     labour_defined: raw.labour_defined === true,
     parts_defined: raw.parts_defined === true,
     labour_cost: labourCost,
@@ -361,6 +422,7 @@ function buildFallback(warning: string): ExtractedQuote {
     total_cost: null,
     currency: "USD",
     components: [],
+    line_items: [],
     labour_defined: false,
     parts_defined: false,
     labour_cost: null,
