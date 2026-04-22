@@ -10975,3 +10975,23 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [ ] Add repairer selection table (3.3)
 - [ ] Add fraud bar chart alongside radar chart
 - [ ] Add decision flowchart + primary blockers + required next steps
+
+## Pipeline Data Completeness Fixes
+- [ ] Add ThirdPartyRecord type and thirdParty field to ClaimRecord in types.ts
+- [ ] Populate thirdParty object in stage-5-assembly.ts from extracted fields
+- [ ] Implement vehicle market valuation using make/model/year/mileage with LLM fallback
+- [ ] Wire valuation into report: repair-to-value ratio, write-off verdict
+- [ ] Update ForensicAuditReport Section 1.4 to display thirdParty fields
+- [ ] Update ForensicAuditReport Section 3.2 to display real valuation data
+
+## Pipeline Data Completeness — Session 2 (Completed)
+- [x] Added ThirdPartyRecord interface to types.ts (driverName, vehicleDescription, registration, insurerName, policyNumber, contactPhone, idNumber, liabilityAdmitted, accountSummary)
+- [x] Added VehicleValuation interface to types.ts (marketValueUsd, valuationMethod, repairCostUsd, repairToValueRatio, verdict, verdictReason, dataSource)
+- [x] Added thirdParty and valuation optional fields to ClaimRecord in types.ts
+- [x] Added Step 5b (ThirdPartyRecord assembly) to stage-5-assembly.ts
+- [x] Added Step 5c (LLM-based vehicle market valuation) to stage-5-assembly.ts
+- [x] Fixed thirdParty field names in ForensicAuditReport Section 1.4 (driverName, vehicleDescription, insurerName, policyNumber)
+- [x] Updated ValuationSubsection to read from claimRecord.valuation (LLM-derived) with fallback to vehicle.marketValueUsd
+- [x] Added valuationMethod and verdictReason display in Section 3.2
+- [x] esbuild check passes cleanly (Server bundle OK)
+- [x] Vite build passes cleanly (built in ~24s)

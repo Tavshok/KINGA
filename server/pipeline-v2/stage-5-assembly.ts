@@ -16,6 +16,8 @@ import type {
   ClaimRecord,
   VehicleRecord,
   DriverRecord,
+  ThirdPartyRecord,
+  VehicleValuation,
   AccidentDetails,
   PoliceReportRecord,
   DamageRecord,
@@ -375,7 +377,113 @@ export async function runAssemblyStage(
       assumptions,
     };
 
-    // ── Step 5b: Scenario Engine Selection ─────────────────────────────────
+    // ── Step 5b: Third-Party Record Assembly ─────────────────────────────────
+    // Map extracted thirdParty fields into a structured ThirdPartyRecord.
+    const thirdParty: ThirdPartyRecord | null = (
+      v.thirdPartyName || v.thirdPartyVehicle || v.thirdPartyRegistration || v.thirdPartyInsurerName
+    ) ? {
+      driverName: v.thirdPartyName || null,
+      vehicleDescription: v.thirdPartyVehicle || null,
+      registration: v.thirdPartyRegistration || null,
+      insurerName: v.thirdPartyInsurerName || null,
+      policyNumber: v.thirdPartyPolicyNumber || null,
+      contactPhone: null,
+      idNumber: null,
+      liabilityAdmitted: null,
+      accountSummary: v.thirdPartyAccountSummary || null,
+    } : null;
+    claimRecord.thirdParty = thirdParty;
+
+    // ── Step 5c: Vehicle Market Valuation ─────────────────────────────────────
+    // Compute repair-to-value ratio and write-off verdict.
+    // Uses LLM to estimate market value when not stated in the claim form.
+    let valuation: VehicleValuation | null = null;
+    try {
+      const repairCostUsd = repairQuote.agreedCostCents
+        ? repairQuote.agreedCostCents / 100
+        : repairQuote.quoteTotalCents
+          ? repairQuote.quoteTotalCents / 100
+          : null;
+
+      let marketValueUsdFinal = vehicle.marketValueUsd ?? vehicle.valueUsd ?? null;
+      let valuationMethod: VehicleValuation["valuationMethod"] = marketValueUsdFinal ? "document_stated" : "not_available";
+      let dataSource: string | null = marketValueUsdFinal ? "Claim form / vehicle record" : null;
+
+      if (!marketValueUsdFinal && vehicle.make && vehicle.model && vehicle.year) {
+        try {
+          const llmResponse = await invokeLLM({
+            messages: [
+              { role: "system", content: "You are a vehicle valuation expert for the Southern African market. Return ONLY valid JSON with no markdown." },
+              { role: "user", content: `Estimate the current retail market value in USD for:\nMake: ${vehicle.make}\nModel: ${vehicle.model}\nYear: ${vehicle.year}\nMileage: ${vehicle.mileageKm ? vehicle.mileageKm + " km" : "unknown"}\nColour: ${vehicle.colour || "unknown"}\nRegion: Southern Africa (Zimbabwe/South Africa market)\n\nReturn JSON: { "market_value_usd": number, "confidence": "high"|"medium"|"low", "reasoning": string, "data_source": string }` },
+            ],
+            response_format: {
+              type: "json_schema",
+              json_schema: {
+                name: "vehicle_valuation",
+                strict: true,
+                schema: {
+                  type: "object",
+                  properties: {
+                    market_value_usd: { type: "number" },
+                    confidence: { type: "string" },
+                    reasoning: { type: "string" },
+                    data_source: { type: "string" },
+                  },
+                  required: ["market_value_usd", "confidence", "reasoning", "data_source"],
+                  additionalProperties: false,
+                },
+              },
+            },
+          });
+          const raw = llmResponse?.choices?.[0]?.message?.content;
+          if (raw) {
+            const parsed = JSON.parse(typeof raw === "string" ? raw : JSON.stringify(raw));
+            if (parsed.market_value_usd && parsed.market_value_usd > 0) {
+              marketValueUsdFinal = parsed.market_value_usd;
+              valuationMethod = "llm_estimate";
+              dataSource = `LLM estimate (${parsed.confidence} confidence): ${parsed.data_source}`;
+              assumptions.push({
+                field: "valuation.marketValueUsd",
+                assumedValue: marketValueUsdFinal,
+                reason: `Market value not stated in documents. LLM estimated USD ${(marketValueUsdFinal as number).toLocaleString()} for ${vehicle.year} ${vehicle.make} ${vehicle.model} in Southern Africa.`,
+                strategy: "industry_average",
+                confidence: parsed.confidence === "high" ? 75 : parsed.confidence === "medium" ? 55 : 35,
+                stage: "Stage 5c",
+              });
+            }
+          }
+        } catch (llmErr) {
+          ctx.log("Stage 5c", `LLM valuation failed: ${String(llmErr)}`);
+        }
+      }
+
+      if (marketValueUsdFinal && repairCostUsd) {
+        const ratio = repairCostUsd / marketValueUsdFinal;
+        let verdict: VehicleValuation["verdict"];
+        let verdictReason: string;
+        if (ratio >= 0.75) {
+          verdict = "write_off";
+          verdictReason = `Repair cost (USD ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (USD ${marketValueUsdFinal.toLocaleString()}). Exceeds 75% threshold — economic write-off.`;
+        } else if (ratio >= 0.60) {
+          verdict = "borderline";
+          verdictReason = `Repair cost (USD ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (USD ${marketValueUsdFinal.toLocaleString()}). Borderline — recommend independent valuation.`;
+        } else {
+          verdict = "repairable";
+          verdictReason = `Repair cost (USD ${repairCostUsd.toLocaleString()}) is ${(ratio * 100).toFixed(0)}% of market value (USD ${marketValueUsdFinal.toLocaleString()}). Within acceptable repair threshold.`;
+        }
+        valuation = { marketValueUsd: marketValueUsdFinal, valuationMethod, repairCostUsd, repairToValueRatio: ratio, verdict, verdictReason, dataSource };
+      } else if (marketValueUsdFinal) {
+        valuation = { marketValueUsd: marketValueUsdFinal, valuationMethod, repairCostUsd: null, repairToValueRatio: null, verdict: "unknown", verdictReason: "Repair cost not available — cannot compute repair-to-value ratio.", dataSource };
+      } else {
+        valuation = { marketValueUsd: null, valuationMethod: "not_available", repairCostUsd, repairToValueRatio: null, verdict: "unknown", verdictReason: "Market value could not be determined from documents or LLM estimate.", dataSource: null };
+      }
+      claimRecord.valuation = valuation;
+      ctx.log("Stage 5c", `Valuation: market=${marketValueUsdFinal ? "USD " + (marketValueUsdFinal as number).toLocaleString() : "unknown"}, repair=${repairCostUsd ? "USD " + repairCostUsd.toLocaleString() : "unknown"}, verdict=${valuation.verdict}`);
+    } catch (valErr) {
+      ctx.log("Stage 5c", `Valuation step failed: ${String(valErr)} — proceeding without valuation`);
+    }
+
+    // ── Step 5d: Scenario Engine Selection ─────────────────────────────────
     let scenarioSelection: Stage5Output["scenarioSelection"] = null;
     try {
       const incidentClassification = accidentDetails.incidentClassification;

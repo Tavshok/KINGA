@@ -457,6 +457,34 @@ export interface DriverRecord {
   name: string | null;
   claimantName: string | null;
   licenseNumber: string | null;
+  idNumber?: string | null;
+  contactPhone?: string | null;
+  injuriesReported?: string | null;
+  relationshipToInsured?: string | null;
+}
+
+/** Third-party driver/vehicle details extracted from claim documents */
+export interface ThirdPartyRecord {
+  driverName: string | null;
+  vehicleDescription: string | null;   // make, model, colour
+  registration: string | null;
+  insurerName: string | null;
+  policyNumber: string | null;
+  contactPhone: string | null;
+  idNumber: string | null;
+  liabilityAdmitted: boolean | null;
+  accountSummary: string | null;       // third party's own version of events
+}
+
+/** Vehicle market valuation — populated by Stage 5b valuation step */
+export interface VehicleValuation {
+  marketValueUsd: number | null;       // estimated retail/trade value
+  valuationMethod: string | null;      // 'database' | 'llm_estimate' | 'not_available'
+  repairCostUsd: number | null;        // from repairQuote
+  repairToValueRatio: number | null;   // repairCost / marketValue
+  verdict: 'repairable' | 'write_off' | 'borderline' | 'unknown';
+  verdictReason: string | null;
+  dataSource: string | null;           // e.g. 'AutoTrader ZA', 'LLM estimate'
 }
 
 /**
@@ -630,6 +658,10 @@ export interface ClaimRecord {
   assumptions: Assumption[];
   /** Evidence Registry from Stage 0 — available after Stage 2 */
   evidenceRegistry?: import("./evidenceRegistryEngine").EvidenceRegistry | null;
+  /** Third-party driver/vehicle details — populated in Stage 5 from extracted fields */
+  thirdParty?: ThirdPartyRecord | null;
+  /** Vehicle market valuation — populated in Stage 5b */
+  valuation?: VehicleValuation | null;
 }
 
 export interface Stage5Output {

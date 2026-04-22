@@ -1067,11 +1067,12 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               <table className="w-full text-xs">
                 <tbody>
                   {([
-                    ["Name", claimRecord?.thirdParty?.name ?? (claim as any)?.thirdPartyName ?? "Not recorded"],
-                    ["Vehicle", claimRecord?.thirdParty?.vehicle ?? (claim as any)?.thirdPartyVehicle ?? "Not recorded"],
-                    ["Registration", claimRecord?.thirdParty?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
-                    ["Insurer", claimRecord?.thirdParty?.insurer ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
-                    ["Liability admitted", claimRecord?.thirdParty?.liabilityAdmitted ?? "Not stated"],
+                    ["Name", (claimRecord?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName ?? "Not recorded"],
+                    ["Vehicle", (claimRecord?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle ?? "Not recorded"],
+                    ["Registration", (claimRecord?.thirdParty as any)?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
+                    ["Insurer", (claimRecord?.thirdParty as any)?.insurerName ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
+                    ["Policy No.", (claimRecord?.thirdParty as any)?.policyNumber ?? "Not provided"],
+                    ["Liability admitted", (claimRecord?.thirdParty as any)?.liabilityAdmitted != null ? ((claimRecord?.thirdParty as any).liabilityAdmitted ? "Yes" : "No") : "Not stated"],
                     ["Witness name", claimRecord?.witness?.name ?? (claim as any)?.witnessName ?? "Not provided"],
                     ["Witness contact", claimRecord?.witness?.phone ?? (claim as any)?.witnessPhone ?? "Not provided"],
                   ] as [string, string][]).map(([k, v], i) => (
@@ -1973,14 +1974,20 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
   // Read claimRecord from the correct location — same as the rest of the report
   const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  const marketValueUsd = claimRecord?.vehicle?.marketValueUsd ?? null;
+  // Market value: prefer LLM-derived valuation (Step 5c), fall back to vehicle field
+  const llmValuation = claimRecord?.valuation ?? null;
+  const marketValueUsd = llmValuation?.marketValueUsd ?? claimRecord?.vehicle?.marketValueUsd ?? null;
+  const valuationMethod = llmValuation?.valuationMethod ?? null;
+  const verdictReason = llmValuation?.verdictReason ?? null;
+  const llmVerdict = llmValuation?.verdict ?? null; // REPAIRABLE | WRITE_OFF | BORDERLINE
+  const llmRepairToValue = llmValuation?.repairToValueRatio ?? null;
   const excessUsd = claimRecord?.insuranceContext?.excessAmountUsd ?? null;
   const bettermentUsd = claimRecord?.insuranceContext?.bettermentUsd ?? null;
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const agreedCostUsd = claimRecord?.costs?.agreedCostUsd ?? null;
-  const repairCost = agreedCostUsd ?? quotedTotal;
-  const repairToValue = marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null;
-  const isWriteOff = repairToValue != null && repairToValue >= 70;
+  const repairCost = llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
+  const repairToValue = llmRepairToValue ?? (marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null);
+  const isWriteOff = llmVerdict === "WRITE_OFF" || (repairToValue != null && repairToValue >= 70);
 
   // Only show if we have at least market value or repair cost
   if (!marketValueUsd && !repairCost) return null;
@@ -1996,14 +2003,15 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
       <div className="p-4">
         <table className="w-full text-xs report-table">
           <tbody>
-            {[
+            {([
               ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
+              valuationMethod ? ["Valuation Method", valuationMethod] : null,
               ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
               ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
               ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
               ["Betterment / Depreciation", bettermentUsd != null ? fmtMoney(bettermentUsd) : "Not stated"],
               ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtMoney(excessUsd + bettermentUsd) : excessUsd != null ? fmtMoney(excessUsd) : "Not available"],
-            ].map(([k, v], i) => (
+            ] as ([string, string] | null)[]).filter(Boolean).map(([k, v], i) => (
               <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                 <td className="py-2 pr-4 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
                 <td className="py-2 font-mono" style={{ color: "var(--foreground)" }}>{v as string}</td>
@@ -2020,6 +2028,11 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
               ? `Repair cost is ${repairToValue.toFixed(1)}% of market value — exceeds 70% threshold. Potential economic write-off.`
               : `Repair cost is ${repairToValue.toFixed(1)}% of market value — within repairable range.`}
           </div>
+        )}
+        {verdictReason && (
+          <p className="mt-2 text-[11px] leading-relaxed" style={{ color: "var(--muted-foreground)" }}>
+            <span className="font-semibold" style={{ color: "var(--foreground)" }}>AI Valuation Note: </span>{verdictReason}
+          </p>
         )}
       </div>
     </div>
