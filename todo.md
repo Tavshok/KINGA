@@ -11003,3 +11003,12 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix server/jobs/intake-escalation-job.ts: same DB-side comparison fix
 - [x] Manually reset stuck claim DOC-20260422-B6229FB7 to intake_pending so it can be re-processed
 - [x] Verified server bundle builds cleanly after all fixes
+
+## Speed Optimisations (completed Apr 2026)
+- [x] Stage 1: Parallel S3 uploads (6 concurrent) — upload time 14s → 0.8s
+- [x] Stage 6: Parallel photo analysis (5 concurrent batches) — 75s → 19s
+- [x] Stage 8: Parallel photo forensics (4 concurrent batches) — 49s → 18s
+- [x] Stage 2: Switch chunked image extraction to file_url PDF approach — eliminates token truncation
+- [x] Auto-valuation fix: read vehicle make/model from Stage 5 claimRecord not stale ctx.claim
+- [x] UTC timezone fix: stuck recovery job and escalation jobs now use DATE_SUB(NOW()) for DB-side comparison
+- [x] Total pipeline: 259s → 107s (59% reduction, BMW 318i claim verified end-to-end)

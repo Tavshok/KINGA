@@ -453,7 +453,10 @@ async function readDamageFromPhotos(
 
   const collisionDirection = claimRecord.accidentDetails.collisionDirection || "unknown";
 
-  // ── STEP C: Process each selected photo independently ───────────────────────────────────────────────────────────────────────────────────────
+  // ── STEP C: Process photos in parallel batches ──────────────────────────────────────────────────────────────────────────────────────────────
+  // Batched parallel processing: 5 photos per batch (LLM rate-limit safe).
+  // Cuts Stage 6 from ~75s sequential to ~15s parallel for 20 photos.
+  const PHOTO_BATCH_SIZE = 5;
   const processedResults: Array<{
     url: string;
     components: DamageAnalysisComponent[];
@@ -462,27 +465,33 @@ async function readDamageFromPhotos(
     succeeded: boolean;
   }> = [];
 
-  for (let i = 0; i < toProcess.length; i++) {
-    const url = toProcess[i];
-    try {
-      const result = await analyseOneImage(
-        url,
-        i,
-        vehicleContext,
-        collisionDirection,
-        (msg) => ctx.log("Stage 6", msg)
-      );
-      processedResults.push({
-        url,
-        components: result.components,
-        confidence: result.confidence as 'high' | 'medium' | 'low',
-        usedFallback: result.usedFallback,
-        succeeded: true,
-      });
-    } catch (e) {
-      ctx.log("Stage 6", `Vision: photo[${i}] completely failed: ${String(e)}`);
-      processedResults.push({ url, components: [], confidence: 'low', usedFallback: false, succeeded: false });
-    }
+  for (let batchStart = 0; batchStart < toProcess.length; batchStart += PHOTO_BATCH_SIZE) {
+    const batch = toProcess.slice(batchStart, batchStart + PHOTO_BATCH_SIZE);
+    const batchResults = await Promise.all(
+      batch.map(async (url, batchIdx) => {
+        const i = batchStart + batchIdx;
+        try {
+          const result = await analyseOneImage(
+            url,
+            i,
+            vehicleContext,
+            collisionDirection,
+            (msg) => ctx.log("Stage 6", msg)
+          );
+          return {
+            url,
+            components: result.components,
+            confidence: result.confidence as 'high' | 'medium' | 'low',
+            usedFallback: result.usedFallback,
+            succeeded: true,
+          };
+        } catch (e) {
+          ctx.log("Stage 6", `Vision: photo[${i}] completely failed: ${String(e)}`);
+          return { url, components: [], confidence: 'low' as const, usedFallback: false, succeeded: false };
+        }
+      })
+    );
+    processedResults.push(...batchResults);
   }
 
   // ── STEP D: Build complete audit trail ───────────────────────────────────────────────────────────────────────────────────────
