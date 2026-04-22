@@ -120,6 +120,7 @@ async function extractTextFromPdf(
     async () => {
       const response = await invokeLLM({
         timeoutMs: 90_000,
+        maxTokens: 16384, // Full PDF extraction can produce 10k+ tokens for dense insurance forms
     messages: [
       {
         role: "system",
@@ -340,7 +341,7 @@ After extracting, rate your confidence per field in fieldConfidence (0-100).`,
 // Splits page images into chunks of 6, extracts in parallel, merges results.
 // This prevents the "Unterminated string in JSON" truncation error on 18+ page PDFs.
 // ─────────────────────────────────────────────────────────────────────────────
-const CHUNK_SIZE = 6; // pages per chunk — keeps JSON output well under LLM token limit
+const CHUNK_SIZE = 4; // pages per chunk — 4 pages keeps JSON output under 16k tokens per chunk
 
 async function extractChunk(
   pageImageUrls: string[],
@@ -355,6 +356,7 @@ async function extractChunk(
       }));
       const response = await invokeLLM({
         timeoutMs: 90_000,
+        maxTokens: 16384, // Dense insurance forms can exceed 8k tokens per 4-page chunk
         messages: [
           {
             role: "system",
@@ -432,54 +434,14 @@ async function extractTextFromPdfChunked(
   pageImageUrls: string[],
   ctx: PipelineContext
 ): Promise<PrimaryExtractionResult> {
-  // For small documents (<= 8 pages), use the standard single-call approach
-  if (pageImageUrls.length <= CHUNK_SIZE || pageImageUrls.length === 0) {
-    return extractTextFromPdf(pdfUrl, ctx);
-  }
-
-  // Split pages into chunks of CHUNK_SIZE
-  const chunks: string[][] = [];
-  for (let i = 0; i < pageImageUrls.length; i += CHUNK_SIZE) {
-    chunks.push(pageImageUrls.slice(i, i + CHUNK_SIZE));
-  }
-  ctx.log('Stage 2', `[chunked] Splitting ${pageImageUrls.length} pages into ${chunks.length} chunks of ${CHUNK_SIZE}`);
-
-  // Extract all chunks in parallel
-  const chunkResults = await Promise.all(
-    chunks.map((chunk, i) => extractChunk(chunk, i, ctx))
-  );
-
-  // Merge chunk results
-  const mergedText = chunkResults.map((r, i) => `[CHUNK ${i + 1}/${chunks.length}]\n${r.rawText}`).join('\n\n');
-  const mergedTables = chunkResults.flatMap(r => r.tables);
-  const avgConfidence = Math.round(chunkResults.reduce((sum, r) => sum + r.ocrConfidence, 0) / chunkResults.length);
-
-  ctx.log('Stage 2', `[chunked] Merged ${chunks.length} chunks: ${mergedText.length} chars total, confidence=${avgConfidence}%`);
-
-  // Build flags from merged text
-  const criticalFieldsMissing = 0; // chunks don't have per-field confidence — use 0 to skip secondary pass
-  const flags = {
-    agreedCostHintFound: hasAgreedCostHint(mergedText),
-    repairQuoteDetected: mergedTables.length > 0 || /total\s*\(incl/i.test(mergedText) || /grand\s*total/i.test(mergedText),
-    quoteTotalInconsistent: false,
-    textTooShort: mergedText.length < MIN_TEXT_LENGTH_CHARS,
-    criticalFieldsMissing,
-  };
-
-  // Build a neutral fieldConfidence (50 = unknown) since chunks don't produce per-field scores
-  const fieldConfidence: FieldConfidence = {
-    claimId: 50, vehicleRegistration: 50, accidentDate: 50,
-    incidentType: 50, estimatedSpeed: 50, policeReportNumber: 50,
-    repairQuoteTotal: 50, agreedCost: 50, damageDescription: 50,
-  };
-
-  return {
-    rawText: mergedText,
-    tables: mergedTables,
-    ocrConfidence: avgConfidence,
-    fieldConfidence,
-    flags,
-  };
+  // For large PDFs, use the file_url approach — send the full PDF directly to the LLM.
+  // This is more reliable than image chunks because:
+  //   1. The LLM handles pagination internally — no token truncation from per-chunk limits.
+  //   2. No S3 upload overhead for each page image.
+  //   3. The LLM can cross-reference pages (e.g. repair quote on page 12 + agreed cost on page 13).
+  // The extractTextFromPdf function already uses file_url and works for any page count.
+  ctx.log('Stage 2', `[chunked->file_url] ${pageImageUrls.length} pages — using full-PDF file_url extraction (more reliable than image chunks)`);
+  return extractTextFromPdf(pdfUrl, ctx);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

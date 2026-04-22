@@ -174,16 +174,26 @@ function parseMileageString(raw: string | null | undefined): number | null {
  */
 async function runAutoValuation(
   ctx: PipelineContext,
-  log: (stage: string, msg: string) => void
+  log: (stage: string, msg: string) => void,
+  claimRecord?: ClaimRecord | null
 ): Promise<void> {
   try {
     const claimId = ctx.claimId;
     const claim = ctx.claim;
-    if (!claim.vehicleMake || !claim.vehicleModel) {
+    // Prefer freshly extracted vehicle data from claimRecord (Stage 5 output),
+    // fall back to the original DB claim record (which may be stale/empty on first run).
+    const vehicleMake = claimRecord?.vehicleMake || claim.vehicleMake;
+    const vehicleModel = claimRecord?.vehicleModel || claim.vehicleModel;
+    const vehicleYear = claimRecord?.vehicleYear || claim.vehicleYear;
+    const vehicleMileageRaw = claimRecord?.vehicleMileage != null
+      ? String(claimRecord.vehicleMileage)
+      : claim.vehicleMileage;
+    const vehicleRegistration = claimRecord?.vehicleRegistration || claim.vehicleRegistration;
+    if (!vehicleMake || !vehicleModel) {
       log("VALUATION", "Skipping auto-valuation: vehicle make/model not available");
       return;
     }
-    const parsedMileage = parseMileageString(claim.vehicleMileage);
+    const parsedMileage = parseMileageString(vehicleMileageRaw);
     let resolvedMileage: number;
     let mileageEstimated = false;
     let mileageWarning: string | null = null;
@@ -191,8 +201,8 @@ async function runAutoValuation(
       resolvedMileage = parsedMileage;
       log("VALUATION", `Using claim form mileage: ${resolvedMileage.toLocaleString()} km`);
     } else {
-      const vehicleYear = claim.vehicleYear || new Date().getFullYear();
-      const estimation = estimateMileageFromYear(vehicleYear, claim.vehicleMake, claim.vehicleModel);
+      const year = vehicleYear || new Date().getFullYear();
+      const estimation = estimateMileageFromYear(year, vehicleMake, vehicleModel);
       resolvedMileage = estimation.assumed_mileage_used;
       mileageEstimated = true;
       mileageWarning = estimation.warning_message;
@@ -202,9 +212,9 @@ async function runAutoValuation(
     const repairCost = evaluation?.estimatedRepairCost;
     const valuation = await valuateVehicle(
       {
-        make: claim.vehicleMake,
-        model: claim.vehicleModel,
-        year: claim.vehicleYear || new Date().getFullYear(),
+        make: vehicleMake,
+        model: vehicleModel,
+        year: vehicleYear || new Date().getFullYear(),
         mileage: resolvedMileage,
         condition: "good",
         country: "Zimbabwe",
@@ -217,10 +227,10 @@ async function runAutoValuation(
     }
     await createVehicleMarketValuation({
       claimId,
-      vehicleMake: claim.vehicleMake,
-      vehicleModel: claim.vehicleModel,
-      vehicleYear: claim.vehicleYear || new Date().getFullYear(),
-      vehicleRegistration: claim.vehicleRegistration ?? undefined,
+      vehicleMake,
+      vehicleModel,
+      vehicleYear: vehicleYear || new Date().getFullYear(),
+      vehicleRegistration: vehicleRegistration ?? undefined,
       mileage: resolvedMileage,
       condition: "good",
       estimatedMarketValue: valuation.estimatedMarketValue,
@@ -1517,7 +1527,7 @@ export async function runPipelineV2(
   // ── AUTO-VALUATION ────────────────────────────────────────────────────
   // Runs after all analysis stages. Uses mileage from claim form if
   // available, otherwise estimates from vehicle year/model.
-  await runAutoValuation(ctx, (stage, msg) => ctx.log(stage, msg));
+  await runAutoValuation(ctx, (stage, msg) => ctx.log(stage, msg), claimRecord);
 
   // ── STAGE 12: Claims Decision Authority ─────────────────────────────────
   // Synthesises all upstream signals into a single non-contradictory decision.

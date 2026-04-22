@@ -298,10 +298,10 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  // Keep token budget tight — pipeline stages use structured JSON output
-  // that rarely exceeds 4k tokens. Extended thinking adds 10-30s latency
-  // with minimal benefit for deterministic extraction tasks.
-  payload.max_tokens = 8192;
+  // Allow callers to override max_tokens for large extraction tasks (e.g., chunked PDF OCR).
+  // Default: 8192 tokens — sufficient for most structured pipeline outputs.
+  // Extraction stages should pass maxTokens: 16384 to handle dense multi-page documents.
+  payload.max_tokens = params.maxTokens ?? params.max_tokens ?? 8192;
   // Disable extended thinking (budget_tokens = 0) for pipeline calls.
   // This alone cuts per-call latency significantly on Gemini 2.5 Flash.
   payload.thinking = { budget_tokens: 0 };
@@ -320,8 +320,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   // Hard timeout per LLM call — prevents the pipeline from hanging indefinitely.
   // Default: 45s for short structured calls.
   // Callers can override via params.timeoutMs for large PDF extraction calls (90s).
-  // With thinking disabled (budget_tokens=0) and max_tokens capped at 8192,
-  // a real extraction of a multi-page PDF completes in 8-60s under normal load.
+  // With thinking disabled (budget_tokens=0), a real extraction of a multi-page PDF
+  // completes in 8-60s under normal load.
   const callTimeoutMs = params.timeoutMs ?? 45_000;
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), callTimeoutMs);
@@ -391,8 +391,10 @@ function isTransientError(err: unknown): boolean {
   // Truncated/empty API responses — the LLM returned a partial or empty body.
   // These are transient API failures, not permanent schema errors.
   if (msg.includes('unexpected end of json') || msg.includes('unexpected token') || msg.includes('empty response')) return true;
+  // Unterminated string — JSON output was cut off mid-token (max_tokens too low)
+  if (msg.includes('unterminated string') || msg.includes('position ') || msg.includes('bad escaped character')) return true;
   // SyntaxError with empty string — JSON.parse('') or JSON.parse('{}')
-  if (err instanceof SyntaxError && (msg.includes('json') || msg.includes('unexpected'))) return true;
+  if (err instanceof SyntaxError && (msg.includes('json') || msg.includes('unexpected') || msg.includes('unterminated'))) return true;
   return false;
 }
 
