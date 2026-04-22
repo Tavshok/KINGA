@@ -11012,3 +11012,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Auto-valuation fix: read vehicle make/model from Stage 5 claimRecord not stale ctx.claim
 - [x] UTC timezone fix: stuck recovery job and escalation jobs now use DATE_SUB(NOW()) for DB-side comparison
 - [x] Total pipeline: 259s → 107s (59% reduction, BMW 318i claim verified end-to-end)
+
+## Pipeline Stability Fix — Claim Status Reset Bug (CRITICAL)
+- [x] Root cause: assessment INSERT succeeds but claim UPDATE throws (enum mismatch/truncation) → catch handler resets to intake_pending/failed
+- [x] Fix incident_type mapping — DB only supports collision/theft/hail/fire/vandalism/flood/hijacking/other; unmapped types (animal_strike/rollover/mechanical_failure) now map to 'other'
+- [x] Move pipelineSucceeded=true BEFORE claim update — assessment is already in DB at that point
+- [x] Add minimal fallback claim update — if full update fails, write only essential status fields
+- [x] Fix S3 URL encoding — encodeS3Filename helper handles spaces, parentheses, and other special chars in filenames
+- [x] Add pipeline_current_stage column to claims table for real-time stage progress tracking
+- [x] Wire onStageStart callbacks in orchestrator to update DB at each stage
+- [x] Update ClaimsProcessorDashboard to show current stage name instead of generic "AI is analyzing" message
+- [x] Fix reporting.ts TypeScript errors (z.record Zod v4 signature, tenantId null→undefined coercions)
+- [x] Fix all stuck claims with valid assessments to assessment_complete
