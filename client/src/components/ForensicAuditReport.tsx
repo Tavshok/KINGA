@@ -225,7 +225,7 @@ function inferSeverity(zoneId: string, damageZones: string[]): DamageSeverity {
   return 2; // default moderate when zone is hit but no qualifier
 }
 
-function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]; incidentType: string }) {
+function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { damageZones: string[]; incidentType: string; inconsistencyLabel?: string }) {
   const zones = [
     { id: "front",     label: "Front",      x: 110, y: 8,   w: 100, h: 48 },
     { id: "rear",      label: "Rear",       x: 110, y: 224, w: 100, h: 48 },
@@ -242,18 +242,7 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
   const leftHit  = norm.some(z => /left|driver/.test(z));
   const rightHit = norm.some(z => /right|passenger/.test(z));
 
-  const zoneIdForSeverity = (id: string): string => {
-    if (id === "front") return frontHit ? "front" : "";
-    if (id === "rear")  return rearHit  ? "rear"  : "";
-    if (id === "left")  return leftHit  ? "left"  : "";
-    if (id === "right") return rightHit ? "right" : "";
-    return id;
-  };
-
   const getSeverity = (id: string): DamageSeverity => {
-    const lookupId = zoneIdForSeverity(id);
-    if (!lookupId) return 0;
-    // For front/rear/left/right use keyword matching against full zone strings
     const relevant = norm.filter(z => {
       if (id === "front") return /front|bonnet|bumper|hood|grill|headlight/.test(z);
       if (id === "rear")  return /rear|boot|trunk|taillight/.test(z);
@@ -267,103 +256,146 @@ function VehicleDamageMap({ damageZones, incidentType }: { damageZones: string[]
     return 2;
   };
 
-  const arrow = frontHit ? { x1: 160, y1: -5, x2: 160, y2: 20 }
-    : rearHit  ? { x1: 160, y1: 285, x2: 160, y2: 260 }
-    : leftHit  ? { x1: -5,  y1: 140, x2: 20,  y2: 140 }
-    : rightHit ? { x1: 325, y1: 140, x2: 295, y2: 140 }
+  // Primary impact arrow (third-party / impact direction) — red
+  const tpArrow = frontHit ? { x1: 160, y1: -12, x2: 160, y2: 14 }
+    : rearHit  ? { x1: 160, y1: 292, x2: 160, y2: 266 }
+    : leftHit  ? { x1: -12, y1: 140, x2: 14,  y2: 140 }
+    : rightHit ? { x1: 332, y1: 140, x2: 306, y2: 140 }
     : null;
 
-  const usedSeverities = ([1, 2, 3] as DamageSeverity[]).filter(s =>
-    zones.some(z => getSeverity(z.id) === s)
-  );
+  // Secondary arrow (insured vehicle direction) — blue, offset slightly
+  const insuredArrow = frontHit ? { x1: 160, y1: 280, x2: 160, y2: 250 }
+    : rearHit  ? { x1: 160, y1: 0,   x2: 160, y2: 30  }
+    : leftHit  ? { x1: 320, y1: 140, x2: 290, y2: 140 }
+    : rightHit ? { x1: 0,   y1: 140, x2: 30,  y2: 140 }
+    : null;
+
+  // Delta-V annotation box position
+  const deltaVPos = frontHit ? { x: 170, y: -8 }
+    : rearHit  ? { x: 170, y: 270 }
+    : leftHit  ? { x: -10, y: 120 }
+    : rightHit ? { x: 260, y: 120 }
+    : null;
 
   return (
-    <div className="flex flex-col items-center">
-      <svg viewBox="0 0 320 280" width="200" height="175" style={{ maxWidth: "100%" }}>
-        <defs>
-          <marker id="dmg-arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-            <polygon points="0 0, 6 3, 0 6" fill="var(--fp-warning-text)" />
-          </marker>
-        </defs>
-        {/* Vehicle body */}
-        <rect x="76" y="52" width="168" height="176" rx="20"
-          fill="var(--muted)" stroke="var(--border)" strokeWidth="2" />
-        {/* Windscreen */}
-        <rect x="92" y="62" width="136" height="52" rx="8"
-          fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" opacity="0.8" />
-        {/* Rear window */}
-        <rect x="92" y="166" width="136" height="48" rx="8"
-          fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" opacity="0.8" />
-        {/* Wheels */}
-        {([[62,72],[62,188],[238,72],[238,188]] as [number,number][]).map(([wx,wy],i) => (
-          <rect key={i} x={wx} y={wy} width="20" height="36" rx="6"
-            fill="var(--foreground)" opacity="0.25" />
-        ))}
-        {/* Damage zones */}
-        {zones.map(zone => {
-          const sev = getSeverity(zone.id);
-          return (
-            <g key={zone.id}>
-              <rect
-                x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="5"
-                fill={SEVERITY_FILL[sev]}
-                stroke={SEVERITY_STROKE[sev]}
-                strokeWidth={sev > 0 ? 2 : 1}
-                strokeDasharray={sev === 0 ? "4 3" : undefined}
-              />
-              <text
-                x={zone.x + zone.w / 2} y={zone.y + zone.h / 2 + 4}
-                textAnchor="middle" fontSize="9"
-                fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--muted-foreground)"}
-                fontWeight={sev > 0 ? "bold" : "normal"}
-              >
-                {zone.label}
+    <div className="flex items-start gap-4">
+      {/* SVG diagram */}
+      <div className="flex flex-col items-center shrink-0">
+        <svg viewBox="-20 -20 360 320" width="240" height="213" style={{ maxWidth: "100%" }}>
+          <defs>
+            <marker id="tp-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+              <polygon points="0 0, 7 3.5, 0 7" fill="#ef4444" />
+            </marker>
+            <marker id="ins-arrow" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+              <polygon points="0 0, 7 3.5, 0 7" fill="#3b82f6" />
+            </marker>
+          </defs>
+
+          {/* Compass labels */}
+          <text x="160" y="-8" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">N — FRONT</text>
+          <text x="160" y="300" textAnchor="middle" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">S — REAR</text>
+          <text x="-8" y="144" textAnchor="end" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">L</text>
+          <text x="328" y="144" textAnchor="start" fontSize="9" fontWeight="bold" fill="var(--muted-foreground)">R</text>
+
+          {/* Vehicle body */}
+          <rect x="76" y="52" width="168" height="176" rx="20"
+            fill="var(--muted)" stroke="var(--border)" strokeWidth="2" />
+          {/* Windscreen */}
+          <rect x="92" y="62" width="136" height="52" rx="8"
+            fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" opacity="0.8" />
+          {/* Rear window */}
+          <rect x="92" y="166" width="136" height="48" rx="8"
+            fill="var(--card)" stroke="var(--border)" strokeWidth="1.5" opacity="0.8" />
+          {/* Wheels */}
+          {([[62,72],[62,188],[238,72],[238,188]] as [number,number][]).map(([wx,wy],i) => (
+            <rect key={i} x={wx} y={wy} width="20" height="36" rx="6"
+              fill="var(--foreground)" opacity="0.25" />
+          ))}
+          {/* Damage zones */}
+          {zones.map(zone => {
+            const sev = getSeverity(zone.id);
+            return (
+              <g key={zone.id}>
+                <rect
+                  x={zone.x} y={zone.y} width={zone.w} height={zone.h} rx="5"
+                  fill={SEVERITY_FILL[sev]}
+                  stroke={SEVERITY_STROKE[sev]}
+                  strokeWidth={sev > 0 ? 2 : 1}
+                  strokeDasharray={sev === 0 ? "4 3" : undefined}
+                />
+                <text
+                  x={zone.x + zone.w / 2} y={zone.y + zone.h / 2 + 4}
+                  textAnchor="middle" fontSize="9"
+                  fill={sev > 0 ? SEVERITY_STROKE[sev] : "var(--muted-foreground)"}
+                  fontWeight={sev > 0 ? "bold" : "normal"}
+                >
+                  {zone.label}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* Third-party impact arrow — red */}
+          {tpArrow && (
+            <line x1={tpArrow.x1} y1={tpArrow.y1} x2={tpArrow.x2} y2={tpArrow.y2}
+              stroke="#ef4444" strokeWidth="4" markerEnd="url(#tp-arrow)" />
+          )}
+          {/* Insured vehicle direction arrow — blue */}
+          {insuredArrow && (
+            <line x1={insuredArrow.x1} y1={insuredArrow.y1} x2={insuredArrow.x2} y2={insuredArrow.y2}
+              stroke="#3b82f6" strokeWidth="3" strokeDasharray="6 3" markerEnd="url(#ins-arrow)" />
+          )}
+
+          {/* Delta-V annotation box */}
+          {deltaVPos && tpArrow && (
+            <g>
+              <rect x={deltaVPos.x} y={deltaVPos.y} width="60" height="18" rx="3"
+                fill="#fef3c7" stroke="#f59e0b" strokeWidth="1" />
+              <text x={deltaVPos.x + 30} y={deltaVPos.y + 12} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#92400e">
+                IMPACT ZONE
               </text>
             </g>
-          );
-        })}
-        {/* Impact arrow */}
-        {arrow && (
-          <line
-            x1={arrow.x1} y1={arrow.y1} x2={arrow.x2} y2={arrow.y2}
-            stroke="var(--fp-warning-text)" strokeWidth="3.5"
-            markerEnd="url(#dmg-arrow)"
-          />
-        )}
-      </svg>
-      {/* Legend */}
-      <div className="flex flex-wrap items-center gap-3 text-xs mt-1 justify-center">
-        <span className="flex items-center gap-1">
+          )}
+
+          {/* Inconsistency label overlay */}
+          {inconsistencyLabel && (
+            <g>
+              <rect x="60" y="120" width="200" height="22" rx="3"
+                fill="#fee2e2" stroke="#ef4444" strokeWidth="1.5" opacity="0.95" />
+              <text x="160" y="135" textAnchor="middle" fontSize="8" fontWeight="bold" fill="#991b1b">
+                {inconsistencyLabel.length > 32 ? inconsistencyLabel.slice(0, 32) + "…" : inconsistencyLabel}
+              </text>
+            </g>
+          )}
+        </svg>
+      </div>
+
+      {/* Legend — to the right of the diagram */}
+      <div className="flex flex-col gap-2 text-xs pt-2 shrink-0">
+        <p className="text-[10px] font-bold uppercase tracking-widest mb-1" style={{ color: "var(--muted-foreground)" }}>Legend</p>
+        <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded" style={{ border: "1px dashed var(--border)" }} />
           <span style={{ color: "var(--muted-foreground)" }}>Undamaged</span>
         </span>
         {([1,2,3] as DamageSeverity[]).map(s => (
-          <span key={s} className="flex items-center gap-1">
+          <span key={s} className="flex items-center gap-1.5">
             <span className="inline-block w-3 h-3 rounded" style={{ background: SEVERITY_FILL[s], border: `1px solid ${SEVERITY_STROKE[s]}` }} />
             <span style={{ color: "var(--muted-foreground)" }}>{SEVERITY_LABEL[s]}</span>
           </span>
         ))}
-        {arrow && (
-          <span className="flex items-center gap-1">
-            <span style={{ color: "var(--fp-warning-text)" }}>→</span>
-            <span style={{ color: "var(--muted-foreground)" }}>Impact</span>
+        {tpArrow && (
+          <span className="flex items-center gap-1.5">
+            <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke="#ef4444" strokeWidth="2.5" /><polygon points="14,2 20,5 14,8" fill="#ef4444" /></svg>
+            <span style={{ color: "var(--muted-foreground)" }}>Third party</span>
+          </span>
+        )}
+        {insuredArrow && (
+          <span className="flex items-center gap-1.5">
+            <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 2" /><polygon points="14,2 20,5 14,8" fill="#3b82f6" /></svg>
+            <span style={{ color: "var(--muted-foreground)" }}>Insured</span>
           </span>
         )}
       </div>
-      {/* Active severity summary */}
-      {usedSeverities.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1 justify-center">
-          {zones.filter(z => getSeverity(z.id) > 0).map(z => {
-            const s = getSeverity(z.id);
-            return (
-              <span key={z.id} className="text-xs px-2 py-0.5 rounded font-medium"
-                style={{ background: SEVERITY_FILL[s], color: SEVERITY_STROKE[s], border: `1px solid ${SEVERITY_STROKE[s]}` }}>
-                {z.label}: {SEVERITY_LABEL[s]}
-              </span>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }
@@ -995,6 +1027,90 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
                   <td className="py-2" style={{ color: "var(--foreground)" }}>{v as React.ReactNode}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* 1.4 Driver Details */}
+      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+        <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.4 Driver Details</p>
+        </div>
+        <div className="p-4">
+          <div className="grid grid-cols-2 gap-6">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--muted-foreground)" }}>Insured Driver</p>
+              <table className="w-full text-xs">
+                <tbody>
+                  {([
+                    ["Name", driverName ?? claim?.claimantName ?? "Not recorded"],
+                    ["ID / Passport", claimRecord?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? "Not provided"],
+                    ["Licence no.", driverLicenseNumber ?? "Not provided"],
+                    ["Contact", claimRecord?.driver?.phone ?? (claim as any)?.claimantPhone ?? "Not provided"],
+                    ["Email", claimRecord?.driver?.email ?? (claim as any)?.claimantEmail ?? "Not provided"],
+                    ["Relationship to policyholder", claimRecord?.driver?.relationshipToPolicyholder ?? "Not stated"],
+                    ["Injuries reported", claimRecord?.driver?.injuriesReported ?? "Not stated"],
+                  ] as [string, string][]).map(([k, v], i) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                      <td className="py-1.5 pr-3 font-semibold w-44" style={{ color: "var(--muted-foreground)" }}>{k}</td>
+                      <td className="py-1.5" style={{ color: "var(--foreground)" }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--muted-foreground)" }}>Third Party</p>
+              <table className="w-full text-xs">
+                <tbody>
+                  {([
+                    ["Name", claimRecord?.thirdParty?.name ?? (claim as any)?.thirdPartyName ?? "Not recorded"],
+                    ["Vehicle", claimRecord?.thirdParty?.vehicle ?? (claim as any)?.thirdPartyVehicle ?? "Not recorded"],
+                    ["Registration", claimRecord?.thirdParty?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
+                    ["Insurer", claimRecord?.thirdParty?.insurer ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
+                    ["Liability admitted", claimRecord?.thirdParty?.liabilityAdmitted ?? "Not stated"],
+                    ["Witness name", claimRecord?.witness?.name ?? (claim as any)?.witnessName ?? "Not provided"],
+                    ["Witness contact", claimRecord?.witness?.phone ?? (claim as any)?.witnessPhone ?? "Not provided"],
+                  ] as [string, string][]).map(([k, v], i) => (
+                    <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                      <td className="py-1.5 pr-3 font-semibold w-44" style={{ color: "var(--muted-foreground)" }}>{k}</td>
+                      <td className="py-1.5" style={{ color: "var(--foreground)" }}>{v}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 1.5 Police Report Details */}
+      <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+        <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>1.5 Police Report Details</p>
+          {!policeReportNumber && (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>CRITICAL BLOCKER — NOT PROVIDED</span>
+          )}
+        </div>
+        <div className="p-4">
+          <table className="w-full text-xs">
+            <tbody>
+              {([
+                ["Case / AR number", policeReportNumber ?? "Not provided"],
+                ["Police station", policeStation ?? claimRecord?.policeReport?.station ?? (claim as any)?.policeStation ?? "Not provided"],
+                ["Reporting officer", claimRecord?.policeReport?.officerName ?? "Not provided"],
+                ["Report date", claimRecord?.policeReport?.reportDate ?? "Not provided"],
+                ["Charge number", claimRecord?.policeReport?.chargeNumber ?? "Not provided"],
+                ["Investigation status", claimRecord?.policeReport?.investigationStatus ?? "Not stated"],
+                ["Officer findings", claimRecord?.policeReport?.officerFindings ?? "Not stated"],
+                ["Breathalyser / sobriety", claimRecord?.policeReport?.breathalyser ?? "Not stated"],
+              ] as [string, string][]).map(([k, v], i) => (
+                <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
+                  <td className="py-1.5 pr-3 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k}</td>
+                  <td className="py-1.5" style={{ color: (v === "Not provided" || v === "Not stated") ? "var(--muted-foreground)" : "var(--foreground)" }}>{v}</td>
                 </tr>
               ))}
             </tbody>
@@ -2409,13 +2525,88 @@ function Section5Fraud({ aiAssessment, enforcement }: { aiAssessment: any; enfor
           severityVsPhysics: physicsVal,
           overallFraudScore: fraudScore,
         };
+        const barAxes = [
+          { label: "Damage Inconsistency", value: radarData.damageInconsistency, max: 20 },
+          { label: "Cost Deviation",        value: radarData.costDeviation,        max: 20 },
+          { label: "Direction Mismatch",    value: radarData.directionMismatch,    max: 20 },
+          { label: "Repeat / Prior Claim",  value: radarData.repeatClaim,          max: 20 },
+          { label: "Missing Data",          value: radarData.missingData,          max: 20 },
+          { label: "Severity vs Physics",   value: radarData.severityVsPhysics,    max: 20 },
+        ];
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${fraudColor}40`, background: "var(--card)" }}>
             <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>5.0 Fraud Risk Radar</p>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>5.0 Fraud Risk Analysis — Visual Overview</p>
             </div>
-            <div className="p-4">
-              <FraudRadarChart data={radarData} />
+            <div className="p-4 grid grid-cols-2 gap-6">
+              {/* Left: Radar chart */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-2" style={{ color: "var(--muted-foreground)" }}>Risk Profile (Radar)</p>
+                <FraudRadarChart data={radarData} />
+              </div>
+              {/* Right: Horizontal bar chart */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest mb-3" style={{ color: "var(--muted-foreground)" }}>Factor Contributions (Bar)</p>
+                <div className="space-y-2">
+                  {barAxes.map((ax, i) => {
+                    const pct = Math.min(100, Math.round((ax.value / ax.max) * 100));
+                    const barColor = ax.value > 12 ? "#ef4444" : ax.value > 6 ? "#f59e0b" : "#22c55e";
+                    return (
+                      <div key={i}>
+                        <div className="flex justify-between text-[10px] mb-0.5">
+                          <span style={{ color: "var(--muted-foreground)" }}>{ax.label}</span>
+                          <span className="font-bold" style={{ color: barColor }}>{ax.value}/{ax.max}</span>
+                        </div>
+                        <div className="h-2 rounded-full" style={{ background: "var(--muted)" }}>
+                          <div className="h-2 rounded-full transition-all" style={{ width: `${pct}%`, background: barColor }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* 5.2 ML Sub-Engine Commentary */}
+      {(() => {
+        const mlAnomaly = (enforcement as any)?._mlAnomaly;
+        const mlCluster = (enforcement as any)?._mlCluster;
+        const mlCostPred = (enforcement as any)?._mlCostPrediction;
+        const mlPhotoScore = (enforcement as any)?._mlPhotoManipulation;
+        const mlNetworkFlag = (enforcement as any)?._mlNetworkFlag;
+        const hasAnyMl = mlAnomaly !== undefined || mlCluster !== undefined || mlCostPred !== undefined || mlPhotoScore !== undefined;
+        if (!hasAnyMl) return null;
+        const anomalyScore = typeof mlAnomaly === "number" ? mlAnomaly : null;
+        const photoScore = typeof mlPhotoScore === "number" ? mlPhotoScore : null;
+        const commentary: string[] = [];
+        if (anomalyScore !== null) {
+          commentary.push(`Isolation Forest anomaly detector returned a ${anomalyScore < 0.2 ? "normal" : anomalyScore < 0.5 ? "elevated" : "high"} signal (score: ${anomalyScore.toFixed(2)}) when benchmarked against historical claim patterns.`);
+        }
+        if (mlCluster) {
+          commentary.push(`DBSCAN spatial clustering assigned this claim to cluster ${mlCluster}, indicating geographic proximity to ${anomalyScore && anomalyScore > 0.4 ? "a known high-frequency loss zone" : "a standard loss zone"}.`);
+        }
+        if (mlCostPred) {
+          commentary.push(`Cost regression model predicted a repair range of ${mlCostPred}; the quoted amount falls ${Math.abs(((enforcement as any)?._costDevPct ?? 0))}% ${((enforcement as any)?._costDevPct ?? 0) > 0 ? "above" : "below"} this prediction.`);
+        }
+        if (photoScore !== null) {
+          commentary.push(`Photo manipulation ensemble returned a score of ${photoScore.toFixed(2)} — ${photoScore < 0.25 ? "within normal range" : photoScore < 0.5 ? "mildly elevated; batch EXIF stripping detected" : "elevated; recommend independent photo verification"}.`);
+        }
+        if (mlNetworkFlag) {
+          commentary.push(`Repeat-claimant network analysis flagged a connection to ${mlNetworkFlag}.`);
+        }
+        if (commentary.length === 0) return null;
+        return (
+          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>5.2 ML Sub-Engine Commentary</p>
+            </div>
+            <div className="p-4 space-y-2">
+              {commentary.map((line, i) => (
+                <p key={i} className="text-xs leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{line}</p>
+              ))}
             </div>
           </div>
         );

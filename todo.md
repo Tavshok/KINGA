@@ -10963,3 +10963,15 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Fix AI assessment timer showing 120m at start (UTC timezone parsing bug in ClaimsProcessorDashboard)
 - [x] Add parseUtcTimestamp utility to correctly parse MySQL UTC timestamps in browser
 - [ ] Investigate false 'AI Assessment Failed' toast (pipeline actually completes but stuck-recovery-job may reset mid-run)
+## Report Redesign (Approved Mockup v2)
+- [ ] Redesign ClaimDecisionReport/ForensicAuditReport: monochrome (B/W/grey) with colour only on visual aids
+- [ ] Remove pipeline execution summary box (proprietary)
+- [ ] Add Section 1.2 Driver Details (insured + third party two-column grid)
+- [ ] Add Section 1.3 Police Report Details table
+- [ ] Expand photo forensics: 2 lines per photo (finding + forensic detail)
+- [ ] Replace ML row table with short 2-3 line commentary paragraph
+- [ ] Improve SVG vehicle diagram: compass, two arrows, annotation boxes, legend right
+- [ ] Add vehicle valuation section (3.2)
+- [ ] Add repairer selection table (3.3)
+- [ ] Add fraud bar chart alongside radar chart
+- [ ] Add decision flowchart + primary blockers + required next steps

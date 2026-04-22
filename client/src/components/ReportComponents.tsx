@@ -448,6 +448,28 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
                 </span>
               </div>
 
+              {/* 2-line forensic detail */}
+              <div className="space-y-0.5">
+                {/* Line 1: damage finding from AI vision */}
+                <p className="text-xs leading-snug" style={{ color: "var(--foreground)" }}>
+                  {r.aiVisionDescription
+                    ? r.aiVisionDescription.split(/[.!?]/)[0].trim() + "."
+                    : r.label
+                    ? `Photo documents ${r.label.toLowerCase()} area.`
+                    : "Damage area documented."}
+                </p>
+                {/* Line 2: forensic note */}
+                <p className="text-xs leading-snug" style={{ color: "var(--muted-foreground)" }}>
+                  {r.manipulationScore > 50
+                    ? `Forensic: High manipulation score (${Math.round(r.manipulationScore)}%) — ${r.flags?.[0] ?? "metadata anomaly detected"}.`
+                    : r.manipulationScore > 20
+                    ? `Forensic: Elevated score (${Math.round(r.manipulationScore)}%) — ${r.flags?.[0] ?? "minor metadata irregularity"}.`
+                    : r.exifPresent
+                    ? `Forensic: EXIF intact${r.gpsPresent ? ", GPS coordinates verified" : ", no GPS data"}.`
+                    : `Forensic: EXIF metadata absent — image origin unverifiable.`}
+                </p>
+              </div>
+
               {/* Non-vehicle flag */}
               {r.isNonVehicle && (
                 <div

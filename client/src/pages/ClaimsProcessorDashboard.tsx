@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { trpc } from "@/lib/trpc";
 import { parseUtcTimestamp } from "@/lib/parseUtcTimestamp";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +50,10 @@ export default function ClaimsProcessorDashboard() {
   const [selectedAssessorId, setSelectedAssessorId] = useState<number | null>(null);
   const [aiProcessingClaimIds, setAiProcessingClaimIds] = useState<Set<number>>(new Set());
   const [triggeringClaimId, setTriggeringClaimId] = useState<number | null>(null);
+  // Debounce map: track how many consecutive polls a claim has been seen in a failure state.
+  // Only fire the failure toast after 2 consecutive polls (~10 s) to avoid false positives
+  // during transient pipeline state transitions (e.g. intake_pending briefly before pipeline starts).
+  const failureDebounceRef = useRef<Map<number, number>>(new Map());
   const [searchQuery, setSearchQuery] = useState("");
 
   // Role validation — allow admin users to bypass for testing
@@ -132,14 +136,22 @@ export default function ClaimsProcessorDashboard() {
       if (claim.status === "assessment_complete") {
         completedIds.add(id);
       }
-      // Claim failed — backend reset it to intake_pending/intake_queue with failed doc status,
-      // or the workflow_state was reset back to intake_queue after an error.
-      // Also catch claims stuck for > 5 minutes that reverted to intake_pending.
-      if (
+      // Claim failed — backend reset it to intake_pending/intake_queue with failed doc status.
+      // Use a 2-poll debounce to avoid false positives during transient state transitions.
+      const isInFailureState =
         claim.documentProcessingStatus === "failed" ||
-        (claim.status === "intake_pending" && claim.workflowState === "intake_queue")
-      ) {
-        failedIds.add(id);
+        (claim.status === "intake_pending" && claim.workflowState === "intake_queue");
+      if (isInFailureState) {
+        const prev = failureDebounceRef.current.get(id) ?? 0;
+        const next = prev + 1;
+        failureDebounceRef.current.set(id, next);
+        if (next >= 2) {
+          failedIds.add(id);
+          failureDebounceRef.current.delete(id);
+        }
+      } else {
+        // Clear debounce counter if claim recovered from the failure state
+        failureDebounceRef.current.delete(id);
       }
     });
 
