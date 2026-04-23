@@ -110,6 +110,13 @@
   --status-fraud-bg: #fff4e0;
   --status-fraud-text: #7a4e00;
   --status-fraud-border: #7a4e00;
+  /* PASS / FAIL aliases (used in Section 2.5 Quote Coverage Analysis) */
+  --status-pass-bg:     #e6f4e6;
+  --status-pass-text:   #2a7a2a;
+  --status-pass-border: #2a7a2a;
+  --status-fail-bg:     #fce8e8;
+  --status-fail-text:   #a32d2d;
+  --status-fail-border: #a32d2d;
   
   --border: #e8e8e8;                         /* KINGA prompt border light */
   --input: #F1F5F9;                          /* Slate-100 input bg */
@@ -266,6 +273,13 @@
   --status-fraud-bg: #8b0000;
   --status-fraud-text: #f85149;
   --status-fraud-border: #f85149;
+  /* PASS / FAIL aliases — dark mode */
+  --status-pass-bg:     #238636;
+  --status-pass-text:   #3fb950;
+  --status-pass-border: #3fb950;
+  --status-fail-bg:     #8b0000;
+  --status-fail-text:   #f85149;
+  --status-fail-border: #f85149;
   
   --border: #3F3F3F;                         /* Neutral dark border */
   --input: #333333;                          /* Dark input bg */
@@ -1233,6 +1247,86 @@
   .rpt-cost-bar-quote    { background: #D97706 !important; }
   .rpt-cost-bar-agreed   { background: #059669 !important; }
   .rpt-cost-bar-danger   { background: #DC2626 !important; }
+
+  /* ── Section 2.5 Quote Coverage Analysis table ──────────────────
+     The table uses inline CSS variables for row backgrounds and
+     badge colours. Force light-mode values so alternating rows,
+     status badges, and coverage-gap alerts print correctly.
+  */
+  :root,
+  html.dark,
+  .dark {
+    /* status-pass / status-fail aliases (used in Section 2.5 statusColor helper) */
+    --status-pass-bg:     #e6f4e6 !important;
+    --status-pass-text:   #2a7a2a !important;
+    --status-pass-border: #2a7a2a !important;
+    --status-fail-bg:     #fce8e8 !important;
+    --status-fail-text:   #a32d2d !important;
+    --status-fail-border: #a32d2d !important;
+  }
+
+  /* ── ForensicAuditValidationPanel (Tailwind colour classes) ─────
+     The panel uses Tailwind emerald/amber/red utility classes.
+     Tailwind 4 purges unused utilities at build time, so we must
+     force the computed colours here for print.
+  */
+  /* PASS (emerald) */
+  .bg-emerald-50  { background-color: #ecfdf5 !important; }
+  .bg-emerald-100 { background-color: #d1fae5 !important; }
+  .bg-emerald-500 { background-color: #10b981 !important; }
+  .text-emerald-600, .text-emerald-700 { color: #065f46 !important; }
+  .border-emerald-100 { border-color: #d1fae5 !important; }
+  .border-emerald-200 { border-color: #a7f3d0 !important; }
+  .border-emerald-300 { border-color: #6ee7b7 !important; }
+  /* WARNING (amber) */
+  .bg-amber-50  { background-color: #fffbeb !important; }
+  .bg-amber-100 { background-color: #fef3c7 !important; }
+  .bg-amber-500 { background-color: #f59e0b !important; }
+  .text-amber-500, .text-amber-700 { color: #92400e !important; }
+  .border-amber-100 { border-color: #fef3c7 !important; }
+  .border-amber-200 { border-color: #fde68a !important; }
+  .border-amber-300 { border-color: #fcd34d !important; }
+  /* FAIL (red) */
+  .bg-red-50  { background-color: #fef2f2 !important; }
+  .bg-red-100 { background-color: #fee2e2 !important; }
+  .bg-red-500 { background-color: #ef4444 !important; }
+  .text-red-500, .text-red-700 { color: #991b1b !important; }
+  .border-red-200 { border-color: #fecaca !important; }
+  .border-red-300 { border-color: #fca5a5 !important; }
+
+  /* ── SVG Damage Map ──────────────────────────────────────────────
+     The SVG uses CSS variables for fill/stroke colours.
+     These are already overridden above via :root, but the SVG
+     text labels use var(--muted-foreground) which must resolve
+     to a dark printable colour.
+     Hardcode the SVG fill colours for damage severity levels:
+       minor/moderate = amber tint, severe = red tint
+  */
+  svg rect[fill="var(--fp-warning-bg)"] { fill: #fef3c7 !important; }
+  svg rect[fill="var(--fp-critical-bg)"] { fill: #fee2e2 !important; }
+  svg rect[fill="var(--muted)"] { fill: #f1f5f9 !important; }
+  svg rect[fill="var(--card)"] { fill: #ffffff !important; }
+  svg rect[fill="var(--foreground)"] { fill: #0f172a !important; }
+  svg text { fill: #475569 !important; }
+  svg text[font-weight="bold"] { fill: #0f172a !important; }
+
+  /* ── Collapsible sections in ValidationPanel ────────────────────
+     Radix Collapsible hides content with display:none when closed.
+     Force open for print so all findings are visible in the PDF.
+  */
+  [data-state="closed"] > [data-radix-collapsible-content] {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  /* ── Table borders in Section 2.5 ───────────────────────────────
+     Inline border-bottom on <tr> uses var(--border) which resolves
+     correctly via :root override above. Ensure table itself has
+     visible borders.
+  */
+  table { border-collapse: collapse !important; }
+  table th, table td { border: 1px solid #E2E8F0 !important; }
 
   * {
     -webkit-print-color-adjust: exact;

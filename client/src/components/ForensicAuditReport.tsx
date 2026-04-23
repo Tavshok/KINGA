@@ -2139,9 +2139,15 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
   // Read claimRecord from the correct location — same as the rest of the report
   const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  // Market value: prefer LLM-derived valuation (Step 5c), fall back to vehicle field
+  // costIntelligenceJson — primary source for market value and true repair cost
+  // This is the most reliable source: Stage 9 populates both marketValueUsd and totalEstimatedCost
+  // from the validated cost decision engine output.
+  const costIntel = (aiAssessment as any)?.costIntelligenceJson ?? null;
+  // LLM-derived valuation from Stage 5c — secondary source
   const llmValuation = claimRecord?.valuation ?? null;
-  const marketValueUsd = llmValuation?.marketValueUsd ?? claimRecord?.vehicle?.marketValueUsd ?? null;
+  // Market value priority: costIntelligenceJson → claimRecord.valuation → vehicle field
+  const marketValueUsd = costIntel?.marketValueUsd ?? llmValuation?.marketValueUsd ?? claimRecord?.vehicle?.marketValueUsd ?? null;
+  // Valuation method — from LLM valuation (Stage 5c)
   const valuationMethod = llmValuation?.valuationMethod ?? null;
   const verdictReason = llmValuation?.verdictReason ?? null;
   const llmVerdict = llmValuation?.verdict ?? null; // REPAIRABLE | WRITE_OFF | BORDERLINE
@@ -2150,9 +2156,12 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
   const bettermentUsd = claimRecord?.insuranceContext?.bettermentUsd ?? null;
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const agreedCostUsd = claimRecord?.costs?.agreedCostUsd ?? null;
-  const repairCost = llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
+  // Repair cost priority: costIntelligenceJson.totalEstimatedCost (validated) → LLM repairCostUsd → agreed cost → quoted total
+  // totalEstimatedCost is the AI-validated repair cost from the cost decision engine
+  const repairCost = costIntel?.totalEstimatedCost ?? llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
+  // Repair-to-value ratio: prefer LLM-computed ratio, then compute from costIntelligenceJson values
   const repairToValue = llmRepairToValue ?? (marketValueUsd && marketValueUsd > 0 && repairCost > 0 ? (repairCost / marketValueUsd) * 100 : null);
-  const isWriteOff = llmVerdict === "WRITE_OFF" || (repairToValue != null && repairToValue >= 70);
+  const isWriteOff = llmVerdict === "WRITE_OFF" || (repairToValue != null && repairToValue >= 75);
 
   // Only show if we have at least market value or repair cost
   if (!marketValueUsd && !repairCost) return null;
@@ -2167,11 +2176,13 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
       </div>
       <div className="p-4">
         <table className="w-full text-xs report-table">
-          <tbody>
-            {([
+          <tbody>            {([
               ["Market Value", marketValueUsd != null ? fmtMoney(marketValueUsd) : "Not stated"],
               valuationMethod ? ["Valuation Method", valuationMethod] : null,
-              ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
+              // Repair cost label: distinguish between AI-validated cost and raw quote
+              costIntel?.totalEstimatedCost != null
+                ? ["Repair Cost (AI-Validated)", fmtMoney(costIntel.totalEstimatedCost)]
+                : ["Repair Cost (Quoted)", repairCost > 0 ? fmtMoney(repairCost) : "Not available"],
               ["Repair-to-Value Ratio", repairToValue != null ? `${repairToValue.toFixed(1)}%` : "Cannot calculate"],
               ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
               ["Betterment / Depreciation", bettermentUsd != null ? fmtMoney(bettermentUsd) : "Not stated"],
@@ -2190,7 +2201,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
             color: isWriteOff ? "var(--fp-critical-text)" : "var(--fp-success-text)",
           }}>
             {isWriteOff
-              ? `Repair cost is ${repairToValue.toFixed(1)}% of market value — exceeds 70% threshold. Potential economic write-off.`
+              ? `Repair cost is ${repairToValue.toFixed(1)}% of market value — exceeds 75% threshold. Potential economic write-off.`
               : `Repair cost is ${repairToValue.toFixed(1)}% of market value — within repairable range.`}
           </div>
         )}
