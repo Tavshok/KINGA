@@ -68,8 +68,9 @@ const TEN_MINUTES_MS    = 10 * 60 * 1000;
 /**
  * Build a DB-side "older than N minutes" condition using NOW() from the database.
  * This avoids the timezone mismatch between Node.js (UTC) and the DB server (may be UTC+N).
+ * Works with any timestamp column (updatedAt or aiAssessmentStartedAt).
  */
-function olderThanMinutes(column: typeof claims.updatedAt, minutes: number) {
+function olderThanMinutes(column: any, minutes: number) {
   return sql`${column} < DATE_SUB(NOW(), INTERVAL ${minutes} MINUTE)`;
 }
 
@@ -117,7 +118,11 @@ export async function runStartupCleanup(): Promise<void> {
         and(
           eq(claims.status, "assessment_in_progress" as any),
           inArray(claims.documentProcessingStatus, ["extracting", "analysing", "parsing"]),
-          olderThanMinutes(claims.updatedAt, 5)
+          // Use 1 minute threshold — any claim in a transient state for >1 min on server
+          // start is guaranteed orphaned (the pipeline process was killed with the server).
+          // Previously 5 minutes, which caused claims to slip through if the server restarted
+          // within 5 minutes of the pipeline starting.
+          olderThanMinutes(claims.updatedAt, 1)
         )
       )
       .limit(50);
@@ -460,10 +465,12 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
       }
     }
 
-    // ── CASE 7: assessment_in_progress + any dps + >30 min (hard wall-clock guard) ──────────
+    // ── CASE 7: assessment_in_progress + any dps + >20 min (hard wall-clock guard) ──────────
     // No matter what state the claim is in, if it has been in assessment_in_progress for
-    // more than 30 minutes without completing, something is fundamentally wrong.
-    // This is the last-resort safety net that catches any edge case not covered above.
+    // more than 20 minutes without completing, something is fundamentally wrong.
+    // IMPORTANT: Uses aiAssessmentStartedAt (not updatedAt) so that onStageStart callbacks
+    // that refresh updatedAt cannot reset the 20-minute clock. If aiAssessmentStartedAt is
+    // null (older claims), falls back to updatedAt.
     const hardWallClock = await withDbRetry(async () => {
       const db = await getDb();
       if (!db) return [];
@@ -474,7 +481,9 @@ export async function runStuckAssessmentRecoveryJob(): Promise<void> {
           and(
             eq(claims.status, "assessment_in_progress"),
             eq(claims.aiAssessmentCompleted, 0),
-            olderThanMinutes(claims.updatedAt, 30)
+            // Use aiAssessmentStartedAt if available, otherwise fall back to updatedAt.
+            // This prevents onStageStart updatedAt refreshes from resetting the clock.
+            sql`COALESCE(${claims.aiAssessmentStartedAt}, ${claims.updatedAt}) < DATE_SUB(NOW(), INTERVAL 20 MINUTE)`
           )
         )
         .limit(20);
