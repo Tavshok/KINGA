@@ -951,7 +951,14 @@ export async function runStructuredExtractionStage(
           }
         }
         if (Object.keys(fieldMap).length > 0) {
-          const spellResponse = await llmCall({
+          // Race the LLM call against a 30-second timeout.
+          // Spell-correction is non-fatal: if the LLM is slow or unresponsive,
+          // we skip it rather than blocking the entire pipeline.
+          const SPELL_TIMEOUT_MS = 30_000;
+          const spellTimeoutPromise = new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error('OCR spell-correction timed out after 30s')), SPELL_TIMEOUT_MS)
+          );
+          const spellLlmPromise = llmCall({
             messages: [
               {
                 role: 'system',
@@ -982,6 +989,7 @@ RULES:
               },
             },
           });
+          const spellResponse = await Promise.race([spellTimeoutPromise, spellLlmPromise]);
           const corrected = JSON.parse(spellResponse.choices?.[0]?.message?.content || '{}');
           let spellFixCount = 0;
           for (const [field, correctedValue] of Object.entries(corrected)) {
