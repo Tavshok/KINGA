@@ -748,11 +748,9 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const costConfidence = (aiAssessment as any)?._normalised?.costs?.confidence ?? 0;
   const photoConfidence = phase2?.photoAnalysis?.confidence ?? 0;
 
-  // Pull ClaimRecord from aiAssessment — declared early so all downstream consts can reference it
-  // without creating forward references that cause TDZ in the minified bundle.
-  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   // LLM-reasoned incident classification (Stage 5 incidentClassificationEngine)
-  const incidentClassification = claimRecord?.accidentDetails?.incidentClassification ?? null;
+  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  const incidentClassification = claimRecord0?.accidentDetails?.incidentClassification ?? null;
   const classifiedType: string | null = incidentClassification?.incident_type ?? null;
   const classifiedConfidence: number = incidentClassification?.confidence ?? 0;
   const classifiedSources: string[] = incidentClassification?.sources_used ?? [];
@@ -774,10 +772,12 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
     { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " "), conf: 95 },
     { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtMoney(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
     { label: "Photos submitted", ok: !!(aiAssessment?.photosDetected), detail: aiAssessment?.photosDetected ? `${aiAssessment.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : 0 },
-    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber) || !!(claimRecord?.policeReport?.station), detail: aiAssessment?.policeReportNumber ?? (claimRecord?.policeReport?.station ? `Station: ${claimRecord.policeReport.station}` : "Not provided"), conf: aiAssessment?.policeReportNumber ? 100 : claimRecord?.policeReport?.station ? 60 : 0 },
+    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber) || !!(claimRecord0?.policeReport?.station), detail: aiAssessment?.policeReportNumber ?? (claimRecord0?.policeReport?.station ? `Station: ${claimRecord0.policeReport.station}` : "Not provided"), conf: aiAssessment?.policeReportNumber ? 100 : claimRecord0?.policeReport?.station ? 60 : 0 },
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
+  // Pull new ClaimRecord fields from the aiAssessment claimRecord (stored in DB)
+  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
   const multiEventSequence = claimRecord?.accidentDetails?.multiEventSequence ?? null;
   const accidentTime = claimRecord?.accidentDetails?.time ?? null;
@@ -797,71 +797,6 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const policeStation = claimRecord?.policeReport?.station ?? null;
   const driverName = claimRecord?.driver?.name ?? claim?.driverName ?? null;
   const claimantName = claimRecord?.driver?.claimantName ?? claim?.claimantName ?? null;
-  // ── Pre-computed table cell values ─────────────────────────────────────────
-  // ALL JSX values used inside array literals MUST be extracted here.
-  // Inline JSX inside array literals causes TDZ crashes in the minified bundle
-  // because esbuild/terser reorders variable declarations.
-
-  // Police report No. cell
-  const policeReportNoCell = policeReportNumber
-    ? policeReportNumber
-    : (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>Not Extracted</span>);
-
-  // Animal type cell (conditional row)
-  const animalTypeRow: [string, React.ReactNode] | null = animalType
-    ? ["Animal type", <span key="animal" className="font-semibold capitalize">{animalType}</span>]
-    : null;
-
-  // Incident type cell — large JSX block extracted to avoid TDZ
-  const incidentTypeCell = (
-    <span className="flex flex-col gap-1">
-      <span className="flex items-center gap-2 flex-wrap">
-        <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, " ")}</span>
-        {isClassifiedByLLM && (
-          <span
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-            style={{
-              background: classifiedConfidence >= 80 ? "var(--status-approve-bg)" : classifiedConfidence >= 60 ? "var(--status-review-bg)" : "var(--muted)",
-              color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--muted-foreground)",
-              border: `1px solid ${classifiedConfidence >= 80 ? "var(--status-approve-border)" : classifiedConfidence >= 60 ? "var(--status-review-border)" : "var(--border)"}`
-            }}
-          >
-            {classifiedConfidence}% confidence
-          </span>
-        )}
-        {classifiedConflict && (
-          <span
-            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-            style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}
-            title={
-              multiEventSequence?.is_multi_event
-                ? `Multi-event incident: ${multiEventSequence.events?.map((e: any) => (e.event_type ?? "").replace(/_/g, " ")).join(" → ")}`
-                : "Conflict between driver narrative, claim form, and/or damage evidence"
-            }
-          >
-            {multiEventSequence?.is_multi_event
-              ? `⚡ MULTI-EVENT INCIDENT (${multiEventSequence.events?.length ?? 2})`
-              : "⚠ CONFLICT DETECTED"}
-          </span>
-        )}
-        {!isClassifiedByLLM && incidentType !== "N/A" && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
-            from claim form
-          </span>
-        )}
-      </span>
-      {isClassifiedByLLM && classifiedSources.length > 0 && (
-        <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-          Sources: {classifiedSources.map((s: string) => s.replace(/_/g, " ")).join(" · ")}
-        </span>
-      )}
-      {isClassifiedByLLM && classifiedReasoning && (
-        <span className="text-[10px] italic" style={{ color: "var(--muted-foreground)" }}>
-          {classifiedReasoning.length > 180 ? classifiedReasoning.substring(0, 180) + "…" : classifiedReasoning}
-        </span>
-      )}
-    </span>
-  );
 
   return (
     <div className="mb-4 space-y-4">
@@ -874,22 +809,72 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <table className="w-full text-xs report-table">
             <tbody>
               {[
-                ["Incident type", incidentTypeCell],
+                ["Incident type", (
+                  <span className="flex flex-col gap-1">
+                    <span className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, " ")}</span>
+                      {isClassifiedByLLM && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{
+                            background: classifiedConfidence >= 80 ? "var(--status-approve-bg)" : classifiedConfidence >= 60 ? "var(--status-review-bg)" : "var(--muted)",
+                            color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--muted-foreground)",
+                            border: `1px solid ${classifiedConfidence >= 80 ? "var(--status-approve-border)" : classifiedConfidence >= 60 ? "var(--status-review-border)" : "var(--border)"}`
+                          }}
+                        >
+                          {classifiedConfidence}% confidence
+                        </span>
+                      )}
+                      {classifiedConflict && (
+                        <span
+                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                          style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}
+                          title={
+                            multiEventSequence?.is_multi_event
+                              ? `Multi-event incident: ${multiEventSequence.events?.map((e: any) => (e.event_type ?? "").replace(/_/g, " ")).join(" → ")}`
+                              : "Conflict between driver narrative, claim form, and/or damage evidence"
+                          }
+                        >
+                          {multiEventSequence?.is_multi_event
+                            ? `⚡ MULTI-EVENT INCIDENT (${multiEventSequence.events?.length ?? 2})`
+                            : "⚠ CONFLICT DETECTED"}
+                        </span>
+                      )}
+                      {!isClassifiedByLLM && incidentType !== "N/A" && (
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
+                          from claim form
+                        </span>
+                      )}
+                    </span>
+                    {isClassifiedByLLM && classifiedSources.length > 0 && (
+                      <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+                        Sources: {classifiedSources.map((s: string) => s.replace(/_/g, " ")).join(" · ")}
+                      </span>
+                    )}
+                    {isClassifiedByLLM && classifiedReasoning && (
+                      <span className="text-[10px] italic" style={{ color: "var(--muted-foreground)" }}>
+                        {classifiedReasoning.length > 180 ? classifiedReasoning.substring(0, 180) + "…" : classifiedReasoning}
+                      </span>
+                    )}
+                  </span>
+                )],
                 ["Claimed speed", claimedSpeed != null ? `${claimedSpeed} km/h` : "Not stated"],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
                 ["Incident time", accidentTime ?? "Not recorded"],
                 ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
                 ["Weather conditions", weatherConditions ?? "Not recorded"],
                 ["Road surface", roadSurface ?? "Not recorded"],
-                animalTypeRow,
+                animalType ? ["Animal type", <span className="font-semibold capitalize">{animalType}</span>] : null,
                 ["Driver", driverName ?? "Not recorded"],
                 ["Driver licence", driverLicenseNumber ?? "Not provided"],
                 ["Claimant", claimantName ?? claim?.claimantName ?? "Not recorded"],
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
                 ["Assessor", aiAssessment?.assessorName ?? claimRecord?.repairQuote?.assessorName ?? "Not assigned"],
                 ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
-                ["Police report No.", policeReportNoCell],
-                policeStation ? ["Police station", policeStation] : null,
+                ["Police report No.", policeReportNumber
+                  ? policeReportNumber
+                  : (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>Not Extracted</span>)],
+                policeStation ? ["Police station", policeStation + (policeReportNumber ? "" : " — case number not extracted")] : null,
               ].filter(Boolean).map((row: any, i: number) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-2 pr-4 font-semibold w-40" style={{ color: "var(--muted-foreground)" }}>{row[0]}</td>
@@ -1809,6 +1794,11 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const normalised = (aiAssessment as any)?._normalised as any;
 
   // Stage 9 no longer produces AI cost estimates. Only document-sourced costs are used.
+  const aiEstimate = 0; // Disabled: system uses submitted quote only
+  const aiParts = 0;
+  const aiLabour = 0;
+  const fairMin = 0;
+  const fairMax = 0;
   const itemisedParts: any[] = ce?.itemised_parts ?? [];
   // Parse partsReconciliationJson from Stage 9 — used to show coverage gap per component
   const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
@@ -1838,7 +1828,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 
   // No AI estimate to compare against — verdict is purely based on quote presence
   const verdict: string = quotedTotal > 0 ? "QUOTE_SUBMITTED" : "NO_QUOTE";
-
+  const totalVar = null;
+  const partsVar = null;
+  const labourVar = null;
 
   const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
   const costCorrections = corrections.filter(c => c.toLowerCase().includes("cost") || c.toLowerCase().includes("$") || c.toLowerCase().includes("amount"));
@@ -1864,7 +1856,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         </div>
         <div className="p-4">
           {/* Document-sourced cost section — no AI estimates, no benchmarks */}
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>4.1 Submitted Quote</p>
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>3.1 Submitted Quote</p>
           {quotedTotal > 0 ? (
             <table className="w-full text-xs mb-3 report-table">
               <thead>
@@ -1893,7 +1885,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           )}
         </div>
       </div>
-            {/* Itemised parts */}
+
+      {/* Itemised parts */}
       {itemisedParts.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
