@@ -748,9 +748,11 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const costConfidence = (aiAssessment as any)?._normalised?.costs?.confidence ?? 0;
   const photoConfidence = phase2?.photoAnalysis?.confidence ?? 0;
 
+  // Pull ClaimRecord from aiAssessment — declared early so all downstream consts can reference it
+  // without creating forward references that cause TDZ in the minified bundle.
+  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   // LLM-reasoned incident classification (Stage 5 incidentClassificationEngine)
-  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  const incidentClassification = claimRecord0?.accidentDetails?.incidentClassification ?? null;
+  const incidentClassification = claimRecord?.accidentDetails?.incidentClassification ?? null;
   const classifiedType: string | null = incidentClassification?.incident_type ?? null;
   const classifiedConfidence: number = incidentClassification?.confidence ?? 0;
   const classifiedSources: string[] = incidentClassification?.sources_used ?? [];
@@ -776,8 +778,6 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
-  // Pull new ClaimRecord fields from the aiAssessment claimRecord (stored in DB)
-  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
   const multiEventSequence = claimRecord?.accidentDetails?.multiEventSequence ?? null;
   const accidentTime = claimRecord?.accidentDetails?.time ?? null;
