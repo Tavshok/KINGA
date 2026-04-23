@@ -885,3 +885,184 @@ export function DecisionLifecycleTracker({ data }: { data: DecisionLifecycleData
     </div>
   );
 }
+
+// ─── 7. COST WATERFALL CHART ──────────────────────────────────────────────────
+// Matches CostBenchmarkDeviation in style: Chart.js horizontal bars, height 200,
+// borderRadius 4, semantic colours from getThemeColors(), no legend, muted grid.
+// Adds a 70% soft write-off threshold annotation line (recommendation only).
+
+export interface CostWaterfallData {
+  /** AI learning benchmark estimate */
+  benchmarkUsd: number;
+  /** Primary repair quote total */
+  quotedTotalUsd: number;
+  /** Vehicle market value — used to compute 70% threshold line */
+  marketValueUsd?: number | null;
+  /** Fair range min/max from cost extraction */
+  fairRangeMinUsd?: number;
+  fairRangeMaxUsd?: number;
+  currencySymbol?: string;
+}
+
+export function CostWaterfallChart({ data }: { data: CostWaterfallData }) {
+  const colors = useThemeColors();
+  const {
+    benchmarkUsd,
+    quotedTotalUsd,
+    marketValueUsd,
+    fairRangeMinUsd = 0,
+    fairRangeMaxUsd = 0,
+    currencySymbol = "$",
+  } = data;
+
+  const fmt = (n: number) =>
+    `${currencySymbol}${n.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+
+  // Determine bar colours: benchmark = info blue, quote = amber unless overpriced → red
+  const benchmarkOutside = fairRangeMinUsd > 0 && fairRangeMaxUsd > 0
+    ? benchmarkUsd < fairRangeMinUsd || benchmarkUsd > fairRangeMaxUsd
+    : false;
+  const quoteOverpriced = benchmarkUsd > 0 && quotedTotalUsd > benchmarkUsd * 1.15;
+  const quoteUnderpriced = benchmarkUsd > 0 && quotedTotalUsd < benchmarkUsd * 0.85;
+
+  const labels: string[] = [];
+  const values: number[] = [];
+  const bgColors: string[] = [];
+
+  if (benchmarkUsd > 0) {
+    labels.push("Learning Benchmark");
+    values.push(benchmarkUsd);
+    bgColors.push(benchmarkOutside ? colors.red : colors.green);
+  }
+  if (quotedTotalUsd > 0) {
+    labels.push("Repair Quote");
+    values.push(quotedTotalUsd);
+    bgColors.push(quoteOverpriced ? colors.red : quoteUnderpriced ? colors.green : colors.amber);
+  }
+  if (fairRangeMinUsd > 0) {
+    labels.push("Fair Range Min");
+    values.push(fairRangeMinUsd);
+    bgColors.push(colors.green);
+  }
+  if (fairRangeMaxUsd > 0) {
+    labels.push("Fair Range Max");
+    values.push(fairRangeMaxUsd);
+    bgColors.push(colors.green);
+  }
+
+  if (labels.length === 0) return null;
+
+  // 70% write-off threshold line — only shown when marketValueUsd is available
+  const writeOffThreshold = marketValueUsd && marketValueUsd > 0 ? marketValueUsd * 0.70 : null;
+  const maxVal = Math.max(...values, writeOffThreshold ?? 0, 1);
+
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        label: "Amount",
+        data: values,
+        backgroundColor: bgColors,
+        borderColor: bgColors,
+        borderWidth: 1.5,
+        borderRadius: 4,
+      },
+    ],
+  };
+
+  // Chart.js annotation plugin is not registered here — we use a custom afterDraw plugin
+  // to draw the 70% threshold vertical line directly on the canvas.
+  const writeOffPlugin = writeOffThreshold
+    ? {
+        id: "writeOffLine",
+        afterDraw(chart: any) {
+          const { ctx, scales } = chart;
+          const xScale = scales.x;
+          if (!xScale) return;
+          const xPx = xScale.getPixelForValue(writeOffThreshold);
+          const { top, bottom } = chart.chartArea;
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = colors.red;
+          ctx.lineWidth = 1.5;
+          ctx.moveTo(xPx, top);
+          ctx.lineTo(xPx, bottom);
+          ctx.stroke();
+          // Label
+          ctx.font = "bold 9px Inter, sans-serif";
+          ctx.fillStyle = colors.red;
+          ctx.textAlign = "center";
+          ctx.fillText("70% write-off", xPx, top - 4);
+          ctx.restore();
+        },
+      }
+    : null;
+
+  const options: any = {
+    indexAxis: "y" as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (ctx: any) => ` ${fmt(ctx.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        min: 0,
+        max: maxVal * 1.05,
+        ticks: {
+          color: colors.muted,
+          font: { size: 10 },
+          callback: (v: any) => `${currencySymbol}${Number(v).toLocaleString()}`,
+        },
+        grid: { color: colors.grid },
+      },
+      y: {
+        ticks: { color: colors.text, font: { size: 11 } },
+        grid: { display: false },
+      },
+    },
+  };
+
+  const chartHeight = Math.max(160, labels.length * 44);
+
+  return (
+    <div className="space-y-3">
+      <div style={{ height: chartHeight }}>
+        <Bar
+          data={chartData}
+          options={options}
+          plugins={writeOffPlugin ? [writeOffPlugin] : []}
+        />
+      </div>
+      {writeOffThreshold && (
+        <p className="text-xs" style={{ color: colors.muted }}>
+          <span style={{ color: colors.red, fontWeight: 700 }}>— — —</span>
+          {" "}70% write-off indicator ({fmt(writeOffThreshold)}) is a guideline only, not a binding threshold.
+          Final write-off determination requires insurer authorisation.
+        </p>
+      )}
+      {quoteOverpriced && (
+        <div
+          className="rounded-lg px-3 py-2 text-xs flex items-start gap-2"
+          style={{
+            background: "var(--fp-critical-bg)",
+            border: "1px solid var(--fp-critical-border)",
+            color: "var(--fp-critical-text)",
+          }}
+        >
+          <span className="font-bold shrink-0">⚠ COST ALERT</span>
+          <span>
+            Repair quote ({fmt(quotedTotalUsd)}) exceeds the learning benchmark by more than 15%.
+            Manual review recommended before approving payment.
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}

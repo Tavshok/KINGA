@@ -20,6 +20,8 @@ import { CheckCircle, XCircle, AlertTriangle, Printer } from "lucide-react";
 import {
   CostBenchmarkDeviation,
   CostBenchmarkData,
+  CostWaterfallChart,
+  CostWaterfallData,
   FraudRadarChart,
   FraudRadarData,
   PhotoExifForensicsPanel,
@@ -1795,68 +1797,31 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const costNarrative = costIntel?.costNarrative ?? null;
   const costReliability = costIntel?.costReliability ?? null;
   const reconciliationSummary = costIntel?.reconciliationSummary ?? null;
+  // Market value for 70% write-off threshold — same priority chain as ValuationSubsection
+  const claimRecord3 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  const llmValuation3 = claimRecord3?.valuation ?? null;
+  const marketValueUsd3: number | null = costIntel?.marketValueUsd ?? llmValuation3?.marketValueUsd ?? claimRecord3?.vehicle?.marketValueUsd ?? null;
 
   return (
     <div className="mb-4 space-y-4">
-      {/* Cost waterfall */}
+      {/* Cost waterfall — Chart.js horizontal bar, matches CostBenchmarkDeviation style */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
           <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Cost Waterfall</p>
           <StatusBadge status={verdict === "FAIR" ? "pass" : verdict === "OVERPRICED" ? "fail" : "info"} label={verdict} />
         </div>
         <div className="p-4">
-          {/* Step-down SVG waterfall: AI Estimate → Repair Quote */}
-          {(() => {
-            // Show AI Estimate vs Repair Quote side-by-side for meaningful comparison
-            const steps = [
-              { label: "Learning Benchmark", value: aiEstimate, color: "var(--fp-info-text)",     show: aiEstimate > 0 },
-              { label: "Repair Quote",   value: quotedTotal,  color: "var(--fp-warning-text)",  show: quotedTotal > 0 },
-            ].filter(s => s.show);
-            if (steps.length === 0) return null;
-            const maxVal = Math.max(...steps.map(s => s.value), 1);
-            const svgW = 480;
-            const svgH = 130;
-            const barH = 28;
-            const labelW = 120;
-            const chartW = svgW - labelW - 70;
-            const yStep = (svgH - barH) / Math.max(steps.length - 1, 1);
-            return (
-              <div className="mb-4 overflow-x-auto">
-                <svg viewBox={`0 0 ${svgW} ${svgH + 20}`} width="100%" style={{ minWidth: 320 }}>
-                  {/* Fair range band */}
-                  {fairMin > 0 && fairMax > 0 && (() => {
-                    const x1 = labelW + (fairMin / maxVal) * chartW;
-                    const x2 = labelW + (fairMax / maxVal) * chartW;
-                    return (
-                      <rect x={x1} y={0} width={x2 - x1} height={svgH}
-                        fill="var(--fp-success-bg)" stroke="var(--fp-success-border)" strokeWidth="1" strokeDasharray="4 3" />
-                    );
-                  })()}
-                  {steps.map((step, i) => {
-                    const barW = Math.max(4, (step.value / maxVal) * chartW);
-                    const y = i * yStep;
-                    const nextStep = steps[i + 1];
-                    const nextBarW = nextStep ? Math.max(4, (nextStep.value / maxVal) * chartW) : null;
-                    const nextY = nextStep ? (i + 1) * yStep : null;
-                    return (
-                      <g key={i}>
-                        {nextBarW != null && nextY != null && (
-                          <line x1={labelW + barW} y1={y + barH / 2} x2={labelW + nextBarW} y2={nextY + barH / 2}
-                            stroke="var(--border)" strokeWidth="1.5" strokeDasharray="4 3" />
-                        )}
-                        <rect x={labelW} y={y} width={barW} height={barH} rx="4" fill={step.color} opacity="0.85" />
-                        <text x={labelW - 6} y={y + barH / 2 + 4} textAnchor="end" fontSize="10" fill="var(--muted-foreground)">{step.label}</text>
-                        <text x={labelW + barW + 6} y={y + barH / 2 + 4} fontSize="10" fontWeight="bold" fill="var(--foreground)">{fmtMoney(step.value)}</text>
-                      </g>
-                    );
-                  })}
-                  {fairMin > 0 && fairMax > 0 && (
-                    <text x={labelW + (fairMin / maxVal) * chartW + 4} y={svgH + 14} fontSize="9" fill="var(--fp-success-text)">Fair range {fmtMoney(fairMin)}–{fmtMoney(fairMax)}</text>
-                  )}
-                </svg>
-              </div>
-            );
-          })()}
+          {(aiEstimate > 0 || quotedTotal > 0) && (
+            <div className="mb-4">
+              <CostWaterfallChart data={{
+                benchmarkUsd: aiEstimate,
+                quotedTotalUsd: quotedTotal,
+                marketValueUsd: marketValueUsd3,
+                fairRangeMinUsd: fairMin,
+                fairRangeMaxUsd: fairMax,
+              } as CostWaterfallData} />
+            </div>
+          )}
           {/* Reconciliation table — Source / Amount / Audit Note per spec */}
           <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>3.1 Cost Breakdown</p>
           <table className="w-full text-xs mb-3 report-table">
@@ -2405,7 +2370,7 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                     ? damagedZones[i].replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())
                     : `View ${i + 1}`;
                   return (
-                    <div key={i} className="rounded overflow-hidden relative" style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
+                    <div key={i} className="rounded overflow-hidden relative" data-photo-card style={{ border: "1px solid var(--border)", background: "var(--muted)" }}>
                       <div style={{ aspectRatio: "1", position: "relative" }}>
                         <img src={url} alt={`Photo ${i + 1} — ${zoneLabel}`} className="w-full h-full object-cover" />
                         {/* Caption overlay strip */}
@@ -3739,16 +3704,16 @@ const REPORT_CSS = `
 .kinga-report .tl-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888}
 .kinga-report .tl-date{font-size:11px;color:#333;margin-top:2px}
 .kinga-report .exec-summary{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px;font-size:12px;color:#333;line-height:1.7;background:#fafafa}
-.kinga-report .pipeline-box{background:#1a1a1a;color:#fff;padding:18px 22px;margin-bottom:22px}
-.kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#fff;margin-bottom:4px}
-.kinga-report .pipeline-box .run-meta{font-size:10px;color:#aaa;margin-bottom:12px}
+.kinga-report .pipeline-box{background:#f7f7f7;color:#111;padding:18px 22px;margin-bottom:22px;border:1px solid #ddd}
+.kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#111;margin-bottom:4px}
+.kinga-report .pipeline-box .run-meta{font-size:10px;color:#666;margin-bottom:12px}
 .kinga-report .stage-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px}
 .kinga-report .stage-tile{padding:6px 4px;text-align:center;font-size:9px;font-weight:700;border-radius:3px;text-transform:uppercase;letter-spacing:.04em}
-.kinga-report .stage-tile.green{background:#2e7d32;color:#fff}
-.kinga-report .stage-tile.amber{background:#e65100;color:#fff}
-.kinga-report .pipeline-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-top:1px solid #333;padding-top:12px}
+.kinga-report .stage-tile.green{background:#e8f5e9;color:#2e7d32;border:1px solid #a5d6a7}
+.kinga-report .stage-tile.amber{background:#fff8e1;color:#c8a000;border:1px solid #ffe082}
+.kinga-report .pipeline-stats{display:grid;grid-template-columns:repeat(6,1fr);gap:0;border-top:1px solid #ddd;padding-top:12px}
 .kinga-report .ps-item{text-align:center}
-.kinga-report .ps-value{font-size:22px;font-weight:700;color:#fff}
+.kinga-report .ps-value{font-size:22px;font-weight:700;color:#111}
 .kinga-report .ps-label{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:.06em}
 .kinga-report .section-heading{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:#888;margin:28px 0 12px;padding-bottom:6px;border-bottom:1px solid #ddd}
 .kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
@@ -3944,6 +3909,59 @@ const REPORT_CSS = `
 .kinga-report .bg-red-50{background:#fff5f5 !important;color:#c00 !important}
 /* CongruencyPanel and DataQualityPanel */
 .kinga-report [class*="overflow-hidden"]{background:#fff !important}
+/* ── Photo overlay dark backgrounds ── */
+.kinga-report .bg-black\/55,.kinga-report [style*="bg-black"]{background:rgba(0,0,0,0.55) !important}
+/* ── Inline dark backgrounds from Tailwind (bg-gray-900, bg-slate-800, etc.) ── */
+.kinga-report [class*="bg-gray-9"],.kinga-report [class*="bg-slate-9"],.kinga-report [class*="bg-zinc-9"],.kinga-report [class*="bg-neutral-9"]{background:#f7f7f7 !important;color:#111 !important}
+.kinga-report [class*="bg-gray-8"],.kinga-report [class*="bg-slate-8"],.kinga-report [class*="bg-zinc-8"]{background:#f0f0f0 !important;color:#111 !important}
+/* ── Status-pass/fail aliases (used by StatusBadge) ── */
+.kinga-report{--status-pass:#2e7d32;--status-pass-bg:#e8f5e9;--status-pass-border:#a5d6a7;--status-fail:#c00;--status-fail-bg:#ffebee;--status-fail-border:#ef9a9a}
+/* ── Radix Collapsible: force open in report context ── */
+.kinga-report [data-state="closed"]{display:block !important;height:auto !important;overflow:visible !important}
+/* ── Chart.js canvas: ensure white background ── */
+.kinga-report canvas{background:#fff !important}
+/* ─── @media print ─────────────────────────────────────────────────────────── */
+@media print{
+  /* Force white background and black text everywhere in the report */
+  .kinga-report,.kinga-report *{background:#fff !important;color:#111 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
+  /* Restore semantic colours for visual aids only */
+  .kinga-report .flag-red,.kinga-report .fp-critical-text,.kinga-report [style*="color:#c00"]{color:#c00 !important}
+  .kinga-report .flag-amber,.kinga-report [style*="color:#c8a000"]{color:#c8a000 !important}
+  .kinga-report .flag-green,.kinga-report [style*="color:#2e7d32"]{color:#2e7d32 !important}
+  /* Badge colours preserved */
+  .kinga-report .dim-badge.pass{background:#e8f5e9 !important;color:#2e7d32 !important;border:1px solid #a5d6a7 !important}
+  .kinga-report .dim-badge.warn{background:#fff8e1 !important;color:#c8a000 !important;border:1px solid #ffe082 !important}
+  .kinga-report .dim-badge.fail{background:#ffebee !important;color:#c00 !important;border:1px solid #ef9a9a !important}
+  .kinga-report .ml-badge.normal{background:#e8f5e9 !important;color:#2e7d32 !important;border:1px solid #a5d6a7 !important}
+  .kinga-report .ml-badge.anomaly{background:#fff8e1 !important;color:#c8a000 !important;border:1px solid #ffe082 !important}
+  .kinga-report .ml-badge.cluster{background:#e8eaf6 !important;color:#283593 !important;border:1px solid #9fa8da !important}
+  .kinga-report .stage-tile.green{background:#e8f5e9 !important;color:#2e7d32 !important;border:1px solid #a5d6a7 !important}
+  .kinga-report .stage-tile.amber{background:#fff8e1 !important;color:#c8a000 !important;border:1px solid #ffe082 !important}
+  /* Table borders visible in print */
+  .kinga-report table,.kinga-report table td,.kinga-report table th{border-color:#ddd !important}
+  /* Section 2.5 Quote Coverage table */
+  .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid #ddd !important}
+  /* Page break strategy */
+  .kinga-report .section-heading{page-break-before:auto;page-break-after:avoid}
+  /* Section 4 Evidence Inventory: start on new page */
+  .kinga-report [data-section="4"]{page-break-before:always}
+  /* Photo cards: never split mid-row */
+  .kinga-report .photo-card,.kinga-report [data-photo-card]{page-break-inside:avoid}
+  /* Flowchart and charts: keep together */
+  .kinga-report .flowchart,.kinga-report .chart-container,.kinga-report canvas{page-break-inside:avoid}
+  /* SVG damage map: keep together */
+  .kinga-report svg{page-break-inside:avoid}
+  /* Hide UI chrome that is not part of the report */
+  .kinga-report .no-print,.no-print{display:none !important}
+  /* Radix Collapsible: force open */
+  .kinga-report [data-state="closed"]{display:block !important;height:auto !important;overflow:visible !important}
+  /* Photo overlays: keep dark for readability */
+  .kinga-report .bg-black\/55{background:rgba(0,0,0,0.55) !important;color:#fff !important}
+  /* Alert banners: preserve light tint */
+  .kinga-report .alert-banner{background:#fffbe6 !important;border-left:4px solid #c8a000 !important}
+  .kinga-report .alert-banner.critical{background:#fff5f5 !important;border-left-color:#c00 !important}
+  .kinga-report .alert-banner.info{background:#f0f4ff !important;border-left-color:#1565c0 !important}
+}
 `;
 
 
@@ -4019,7 +4037,7 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
       <div className="section-heading">03 — Financial Validation</div>
       <Section3Financial aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} fmtMoney={fmtMoney} />
 
-      <div className="section-heading">04 — Evidence Inventory</div>
+      <div className="section-heading" data-section="4">04 — Evidence Inventory</div>
       <Section4Evidence aiAssessment={aiAssessment} enforcement={enforcement} claim={claim} />
 
       <div className="section-heading">05 — Risk &amp; Fraud Assessment</div>
