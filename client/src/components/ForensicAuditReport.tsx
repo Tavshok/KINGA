@@ -227,7 +227,35 @@ function inferSeverity(zoneId: string, damageZones: string[]): DamageSeverity {
   return 2; // default moderate when zone is hit but no qualifier
 }
 
-function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { damageZones: string[]; incidentType: string; inconsistencyLabel?: string }) {
+// Map an event_type or incidentType string to a CollisionDirection for arrow rendering
+function resolveDirection(eventType: string): "front" | "rear" | "left" | "right" | "rollover" | null {
+  const n = eventType.toUpperCase().replace(/ /g, "_");
+  if (/REAR_END|REAR/.test(n)) return "rear";
+  if (/HEAD_ON|FRONTAL|PEDESTRIAN|ANIMAL|VEHICLE_COLLISION|COLLISION/.test(n)) return "front";
+  if (/SIDESWIPE|SIDE_LEFT|DRIVER_SIDE/.test(n)) return "left";
+  if (/SIDE_RIGHT|PASSENGER_SIDE/.test(n)) return "right";
+  if (/ROLLOVER/.test(n)) return "rollover";
+  return null;
+}
+
+// Arrow geometry: direction → {x1,y1,x2,y2} for the SVG line
+const ARROW_GEOM: Record<string, { x1:number; y1:number; x2:number; y2:number }> = {
+  front:   { x1: 160, y1: -12, x2: 160, y2: 14  },
+  rear:    { x1: 160, y1: 292, x2: 160, y2: 266  },
+  left:    { x1: -12, y1: 140, x2: 14,  y2: 140  },
+  right:   { x1: 332, y1: 140, x2: 306, y2: 140  },
+};
+
+// Per-event arrow colours (up to 4 events)
+const EVENT_COLOURS = ["#ef4444", "#3b82f6", "#f59e0b", "#8b5cf6"];
+const EVENT_LABELS  = ["Event 1", "Event 2", "Event 3", "Event 4"];
+
+function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel, multiEventSequence }: {
+  damageZones: string[];
+  incidentType: string;
+  inconsistencyLabel?: string;
+  multiEventSequence?: { is_multi_event: boolean; events: Array<{ event_order: number; event_type: string; involves_third_party: boolean; damage_contribution: string[] }> } | null;
+}) {
   const zones = [
     { id: "front",     label: "Front",      x: 110, y: 8,   w: 100, h: 48 },
     { id: "rear",      label: "Rear",       x: 110, y: 224, w: 100, h: 48 },
@@ -240,25 +268,57 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
 
   const norm = (damageZones ?? []).map(z => z.toLowerCase());
 
-  // Derive the single authoritative impact direction from incidentType first,
-  // then fall back to damage zones only when incident type is non-directional.
-  const incidentNorm = (incidentType ?? "").toUpperCase().replace(/ /g, "_");
-  const isRearType  = /REAR_END/.test(incidentNorm);
-  const isFrontType = /HEAD_ON|FRONTAL|PEDESTRIAN|ANIMAL/.test(incidentNorm) || /VEHICLE_COLLISION|COLLISION/.test(incidentNorm);
-  const isSideType  = /SIDESWIPE/.test(incidentNorm);
-  const isNonDirectional = /HAIL|FLOOD|FIRE|THEFT|VANDALISM|HIJACK|MECHANICAL|ROLLOVER/.test(incidentNorm);
+  // ── Build per-event arrows from multiEventSequence when available ──────────
+  // Each event gets its own arrow colour. Zones explained by at least one event
+  // are rendered normally; zones not explained by any event get a hatched border
+  // to flag them as potentially pre-existing or from a separate incident.
+  const events = (multiEventSequence?.is_multi_event && (multiEventSequence.events?.length ?? 0) > 0)
+    ? multiEventSequence!.events
+    : null;
 
-  // Damage-zone fallback — only used when incident type gives no direction
-  const frontDmg = norm.some(z => /front|bonnet|bumper|hood|grill|headlight/.test(z));
-  const rearDmg  = norm.some(z => /rear|boot|trunk|taillight/.test(z));
-  const leftDmg  = norm.some(z => /left|driver/.test(z)) && !norm.some(z => /right|passenger/.test(z));
-  const rightDmg = norm.some(z => /right|passenger/.test(z)) && !norm.some(z => /left|driver/.test(z));
+  // Arrows: one per unique direction across all events (de-duped)
+  const arrowList: Array<{ dir: string; colour: string; label: string; dashed: boolean }> = [];
+  const seenDirs = new Set<string>();
+  if (events) {
+    events.slice(0, 4).forEach((ev, idx) => {
+      const dir = resolveDirection(ev.event_type);
+      if (dir && dir !== "rollover") {
+        const key = dir;
+        if (!seenDirs.has(key)) {
+          seenDirs.add(key);
+          arrowList.push({
+            dir,
+            colour: EVENT_COLOURS[idx] ?? "#6b7280",
+            label: EVENT_LABELS[idx] ?? `Event ${idx + 1}`,
+            dashed: !ev.involves_third_party,
+          });
+        }
+      }
+    });
+  } else {
+    // Single-event fallback: derive from incidentType
+    const dir = resolveDirection(incidentType);
+    if (dir && dir !== "rollover") {
+      arrowList.push({ dir, colour: EVENT_COLOURS[0], label: "Impact", dashed: false });
+    }
+  }
 
-  // Resolve to a single direction — incident type wins
-  const frontHit = !isNonDirectional && (isFrontType || (!isRearType && !isSideType && frontDmg && !rearDmg));
-  const rearHit  = !isNonDirectional && (isRearType  || (!isFrontType && !isSideType && rearDmg && !frontDmg));
-  const leftHit  = !isNonDirectional && !frontHit && !rearHit && (isSideType ? leftDmg : leftDmg && !rightDmg);
-  const rightHit = !isNonDirectional && !frontHit && !rearHit && !leftHit && (isSideType ? rightDmg : rightDmg);
+  // Collect all zone IDs that are explained by at least one event's damage_contribution
+  const explainedZones = new Set<string>();
+  if (events) {
+    events.forEach(ev => {
+      (ev.damage_contribution ?? []).forEach(dc => {
+        const dcl = dc.toLowerCase();
+        if (/front|bonnet|bumper|hood|grill|headlight/.test(dcl)) explainedZones.add("front");
+        if (/rear|boot|trunk|taillight/.test(dcl)) explainedZones.add("rear");
+        if (/left|driver/.test(dcl)) explainedZones.add("left");
+        if (/right|passenger/.test(dcl)) explainedZones.add("right");
+        if (/roof/.test(dcl)) explainedZones.add("roof");
+        if (/cabin|interior|door/.test(dcl)) explainedZones.add("cabin");
+        if (/under|chassis|floor/.test(dcl)) explainedZones.add("underbody");
+      });
+    });
+  }
 
   const getSeverity = (id: string): DamageSeverity => {
     const relevant = norm.filter(z => {
@@ -274,26 +334,7 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
     return 2;
   };
 
-  // Primary impact arrow (third-party / impact direction) — red
-  const tpArrow = frontHit ? { x1: 160, y1: -12, x2: 160, y2: 14 }
-    : rearHit  ? { x1: 160, y1: 292, x2: 160, y2: 266 }
-    : leftHit  ? { x1: -12, y1: 140, x2: 14,  y2: 140 }
-    : rightHit ? { x1: 332, y1: 140, x2: 306, y2: 140 }
-    : null;
-
-  // Secondary arrow (insured vehicle direction) — blue, offset slightly
-  const insuredArrow = frontHit ? { x1: 160, y1: 280, x2: 160, y2: 250 }
-    : rearHit  ? { x1: 160, y1: 0,   x2: 160, y2: 30  }
-    : leftHit  ? { x1: 320, y1: 140, x2: 290, y2: 140 }
-    : rightHit ? { x1: 0,   y1: 140, x2: 30,  y2: 140 }
-    : null;
-
-  // Delta-V annotation box position
-  const deltaVPos = frontHit ? { x: 170, y: -8 }
-    : rearHit  ? { x: 170, y: 270 }
-    : leftHit  ? { x: -10, y: 120 }
-    : rightHit ? { x: 260, y: 120 }
-    : null;
+  // No legacy single-arrow variables needed — arrowList drives rendering
 
   return (
     <div className="flex items-start gap-4">
@@ -329,9 +370,11 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
             <rect key={i} x={wx} y={wy} width="20" height="36" rx="6"
               fill="var(--foreground)" opacity="0.25" />
           ))}
-          {/* Damage zones */}
+          {/* Damage zones — unexplained zones get a dashed red border overlay */}
           {zones.map(zone => {
             const sev = getSeverity(zone.id);
+            // A zone is "unexplained" when: it has damage AND multiEventSequence is present AND it's not in explainedZones
+            const isUnexplained = events !== null && sev > 0 && !explainedZones.has(zone.id);
             return (
               <g key={zone.id}>
                 <rect
@@ -341,6 +384,17 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
                   strokeWidth={sev > 0 ? 2 : 1}
                   strokeDasharray={sev === 0 ? "4 3" : undefined}
                 />
+                {/* Unexplained zone — dashed red overlay border */}
+                {isUnexplained && (
+                  <rect
+                    x={zone.x - 2} y={zone.y - 2} width={zone.w + 4} height={zone.h + 4} rx="6"
+                    fill="none"
+                    stroke="#ef4444"
+                    strokeWidth="1.5"
+                    strokeDasharray="4 3"
+                    opacity="0.8"
+                  />
+                )}
                 <text
                   x={zone.x + zone.w / 2} y={zone.y + zone.h / 2 + 4}
                   textAnchor="middle" fontSize="9"
@@ -353,27 +407,28 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
             );
           })}
 
-          {/* Third-party impact arrow — red */}
-          {tpArrow && (
-            <line x1={tpArrow.x1} y1={tpArrow.y1} x2={tpArrow.x2} y2={tpArrow.y2}
-              stroke="#ef4444" strokeWidth="4" markerEnd="url(#tp-arrow)" />
-          )}
-          {/* Insured vehicle direction arrow — blue */}
-          {insuredArrow && (
-            <line x1={insuredArrow.x1} y1={insuredArrow.y1} x2={insuredArrow.x2} y2={insuredArrow.y2}
-              stroke="#3b82f6" strokeWidth="3" strokeDasharray="6 3" markerEnd="url(#ins-arrow)" />
-          )}
-
-          {/* Delta-V annotation box */}
-          {deltaVPos && tpArrow && (
-            <g>
-              <rect x={deltaVPos.x} y={deltaVPos.y} width="60" height="18" rx="3"
-                fill="#fef3c7" stroke="#f59e0b" strokeWidth="1" />
-              <text x={deltaVPos.x + 30} y={deltaVPos.y + 12} textAnchor="middle" fontSize="8" fontWeight="bold" fill="#92400e">
-                IMPACT ZONE
-              </text>
-            </g>
-          )}
+          {/* Multi-event impact arrows — one per event, colour-coded */}
+          {arrowList.map((arrow, idx) => {
+            const g = ARROW_GEOM[arrow.dir];
+            if (!g) return null;
+            const markerId = `ev-arrow-${idx}`;
+            return (
+              <g key={idx}>
+                <defs>
+                  <marker id={markerId} markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
+                    <polygon points="0 0, 7 3.5, 0 7" fill={arrow.colour} />
+                  </marker>
+                </defs>
+                <line
+                  x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}
+                  stroke={arrow.colour}
+                  strokeWidth={idx === 0 ? 4 : 3}
+                  strokeDasharray={arrow.dashed ? "6 3" : undefined}
+                  markerEnd={`url(#${markerId})`}
+                />
+              </g>
+            );
+          })}
 
           {/* Inconsistency label overlay */}
           {inconsistencyLabel && (
@@ -401,16 +456,19 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
             <span style={{ color: "var(--muted-foreground)" }}>{SEVERITY_LABEL[s]}</span>
           </span>
         ))}
-        {tpArrow && (
-          <span className="flex items-center gap-1.5">
-            <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke="#ef4444" strokeWidth="2.5" /><polygon points="14,2 20,5 14,8" fill="#ef4444" /></svg>
-            <span style={{ color: "var(--muted-foreground)" }}>Third party</span>
+        {arrowList.map((arrow, idx) => (
+          <span key={idx} className="flex items-center gap-1.5">
+            <svg width="20" height="10">
+              <line x1="0" y1="5" x2="14" y2="5" stroke={arrow.colour} strokeWidth={idx === 0 ? 2.5 : 2} strokeDasharray={arrow.dashed ? "4 2" : undefined} />
+              <polygon points="14,2 20,5 14,8" fill={arrow.colour} />
+            </svg>
+            <span style={{ color: "var(--muted-foreground)" }}>{arrow.label}{arrow.dashed ? " (insured)" : " (3rd party)"}</span>
           </span>
-        )}
-        {insuredArrow && (
+        ))}
+        {events && (
           <span className="flex items-center gap-1.5">
-            <svg width="20" height="10"><line x1="0" y1="5" x2="14" y2="5" stroke="#3b82f6" strokeWidth="2" strokeDasharray="4 2" /><polygon points="14,2 20,5 14,8" fill="#3b82f6" /></svg>
-            <span style={{ color: "var(--muted-foreground)" }}>Insured</span>
+            <span className="inline-block w-3 h-3 rounded" style={{ border: "2px dashed #ef4444", background: "transparent" }} />
+            <span style={{ color: "var(--muted-foreground)" }}>Unexplained zone</span>
           </span>
         )}
       </div>
@@ -1469,7 +1527,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>Damage Zone Map</p>
-              <VehicleDamageMap damageZones={damageZones} incidentType={incidentType} />
+              <VehicleDamageMap damageZones={damageZones} incidentType={incidentType} multiEventSequence={multiEventSequence} />
               {damageZones.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1">
                   {damageZones.map((z, i) => (
