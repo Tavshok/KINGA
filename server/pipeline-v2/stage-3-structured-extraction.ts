@@ -345,6 +345,73 @@ function sanitiseAccidentDescription(desc: string | null): string | null {
   return cleaned.length > 10 ? cleaned : desc;
 }
 
+// ============================================================================
+// UNIVERSAL GARBLED-TEXT GUARD
+// Detects and nullifies any string field that contains garbled/unintelligible
+// content regardless of which field it appears in. Garbled text is defined as:
+//   1. High density of non-Latin scripts (Cyrillic, Arabic, CJK, etc.)
+//   2. High ratio of non-printable / replacement characters (OCR garbage)
+//   3. Incoherent character sequences (no recognisable word boundaries)
+// The guard returns null for fully garbled values and strips garbled segments
+// from partially garbled strings, preserving any clean portion.
+// ============================================================================
+
+/** Regex matching non-Latin Unicode blocks that indicate garbled OCR output */
+const NON_LATIN_BLOCK_RE = /[\u0400-\u04FF\u0500-\u052F\u0370-\u03FF\u0600-\u06FF\u0750-\u077F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF\u0900-\u097F\u0980-\u09FF\u0A00-\u0A7F\u0A80-\u0AFF\u0B00-\u0B7F\u0B80-\u0BFF\u0C00-\u0C7F\u0C80-\u0CFF\u0D00-\u0D7F\u0E00-\u0E7F\u0E80-\u0EFF]/g;
+
+/** Regex matching OCR garbage: replacement chars, control chars, excessive symbols */
+const OCR_GARBAGE_RE = /[\uFFFD\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F]/g;
+
+/**
+ * Detect whether a string is predominantly garbled.
+ * Returns true if the text should be treated as unreadable.
+ */
+function isGarbledText(text: string): boolean {
+  if (!text || text.length < 4) return false;
+  const len = text.length;
+  // Count non-Latin script characters
+  const nonLatinMatches = text.match(NON_LATIN_BLOCK_RE) ?? [];
+  const nonLatinRatio = nonLatinMatches.length / len;
+  // Count OCR garbage characters
+  const garbageMatches = text.match(OCR_GARBAGE_RE) ?? [];
+  const garbageRatio = garbageMatches.length / len;
+  // Flag as garbled if >15% of characters are non-Latin script
+  if (nonLatinRatio > 0.15) return true;
+  // Flag as garbled if >10% of characters are OCR garbage
+  if (garbageRatio > 0.10) return true;
+  // Flag as garbled if the string has no spaces and >20 chars (no word boundaries)
+  if (!text.includes(' ') && len > 20 && /[^a-zA-Z0-9\-\/\.]/.test(text)) return true;
+  return false;
+}
+
+/**
+ * Sanitise a string field:
+ * - If the entire value is garbled → return null
+ * - If only some sentences are garbled → strip those sentences, return clean remainder
+ * - Otherwise → return the original value unchanged
+ */
+function sanitiseTextField(value: string | null | undefined): string | null {
+  if (!value) return value ?? null;
+  // Fast path: no non-Latin characters at all — skip expensive processing
+  if (!NON_LATIN_BLOCK_RE.test(value) && !OCR_GARBAGE_RE.test(value)) {
+    // Reset lastIndex after test()
+    NON_LATIN_BLOCK_RE.lastIndex = 0;
+    OCR_GARBAGE_RE.lastIndex = 0;
+    return value;
+  }
+  NON_LATIN_BLOCK_RE.lastIndex = 0;
+  OCR_GARBAGE_RE.lastIndex = 0;
+  // If the whole string is garbled, return null
+  if (isGarbledText(value)) return null;
+  // Otherwise try sentence-level filtering: split on sentence boundaries,
+  // keep only clean sentences, rejoin.
+  const sentences = value.split(/(?<=[.!?])\s+/);
+  const cleanSentences = sentences.filter(s => !isGarbledText(s));
+  if (cleanSentences.length === 0) return null;
+  const rejoined = cleanSentences.join(' ').trim();
+  return rejoined.length >= 4 ? rejoined : null;
+}
+
 /** Replace hallucinated/non-domain damage type terms with standard automotive terms */
 function sanitiseDamageType(damageType: string): string {
   const INVALID_TERMS: Record<string, string> = {
@@ -377,11 +444,11 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     vehicleEngineNumber: raw.vehicleEngineNumber || null,
     vehicleMileage: raw.vehicleMileage || null,
     accidentDate: raw.accidentDate || null,
-    accidentLocation: raw.accidentLocation || null,
-    accidentDescription: sanitiseAccidentDescription(raw.accidentDescription || null),
+    accidentLocation: sanitiseTextField(raw.accidentLocation || null),
+    accidentDescription: sanitiseTextField(sanitiseAccidentDescription(raw.accidentDescription || null)),
     incidentType: raw.incidentType || null,
     accidentType: raw.accidentType || null,
-    impactPoint: raw.impactPoint || null,
+    impactPoint: sanitiseTextField(raw.impactPoint || null),
     estimatedSpeedKmh: raw.estimatedSpeedKmh || null,
     policeReportNumber: (() => {
       const v = raw.policeReportNumber ? String(raw.policeReportNumber).trim() : null;
@@ -394,23 +461,23 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
       if (INVALID_WORDS.test(v)) return null;
       return v;
     })(),
-    policeStation: raw.policeStation || null,
-    policeOfficerName: raw.policeOfficerName || null,
+    policeStation: sanitiseTextField(raw.policeStation || null),
+    policeOfficerName: sanitiseTextField(raw.policeOfficerName || null),
     policeChargeNumber: raw.policeChargeNumber || null,
     policeFineAmountCents: raw.policeFineAmountCents ?? null,
     policeReportDate: raw.policeReportDate || null,
-    policeChargedParty: raw.policeChargedParty || null,
+    policeChargedParty: sanitiseTextField(raw.policeChargedParty || null),
     policeInvestigationStatus: raw.policeInvestigationStatus || null,
-    policeOfficerFindings: raw.policeOfficerFindings || null,
-    thirdPartyAccountSummary: raw.thirdPartyAccountSummary || null,
-    assessorName: raw.assessorName || null,
-    panelBeater: raw.panelBeater || null,
-    repairerCompany: raw.repairerCompany || null,
+    policeOfficerFindings: sanitiseTextField(raw.policeOfficerFindings || null),
+    thirdPartyAccountSummary: sanitiseTextField(raw.thirdPartyAccountSummary || null),
+    assessorName: sanitiseTextField(raw.assessorName || null),
+    panelBeater: sanitiseTextField(raw.panelBeater || null),
+    repairerCompany: sanitiseTextField(raw.repairerCompany || null),
     quoteTotalCents: raw.quoteTotalCents || raw.agreedCostCents || null,
     agreedCostCents: raw.agreedCostCents || null,
     labourCostCents: raw.labourCostCents || null,
     partsCostCents: raw.partsCostCents || null,
-    damageDescription: raw.damageDescription || null,
+    damageDescription: sanitiseTextField(raw.damageDescription || null),
     damagedComponents: (raw.damagedComponents || []).map((c: any) => ({
       name: c.name || "",
       location: c.location || "",
@@ -422,10 +489,10 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     airbagDeployment: raw.airbagDeployment ?? null,
     maxCrushDepthM: raw.maxCrushDepthM ?? null,
     totalDamageAreaM2: raw.totalDamageAreaM2 ?? null,
-    thirdPartyVehicle: raw.thirdPartyVehicle || null,
+    thirdPartyVehicle: sanitiseTextField(raw.thirdPartyVehicle || null),
     thirdPartyRegistration: raw.thirdPartyRegistration || null,
-    thirdPartyName: raw.thirdPartyName || null,
-    thirdPartyInsurerName: raw.thirdPartyInsurerName || null,
+    thirdPartyName: sanitiseTextField(raw.thirdPartyName || null),
+    thirdPartyInsurerName: sanitiseTextField(raw.thirdPartyInsurerName || null),
     thirdPartyPolicyNumber: raw.thirdPartyPolicyNumber || null,
     // Insurance / Policy
     insurerName: raw.insurerName || null,
@@ -435,9 +502,9 @@ function mapToExtractedFields(raw: any, sourceDocumentIndex: number): ExtractedC
     // Incident context
     incidentTime: raw.incidentTime || null,
     animalType: raw.animalType || null,
-    weatherConditions: raw.weatherConditions || null,
-    visibilityConditions: raw.visibilityConditions || null,
-    roadSurface: raw.roadSurface || null,
+    weatherConditions: sanitiseTextField(raw.weatherConditions || null),
+    visibilityConditions: sanitiseTextField(raw.visibilityConditions || null),
+    roadSurface: sanitiseTextField(raw.roadSurface || null),
     // Financial extras
     marketValueCents: raw.marketValueCents ?? null,
     excessAmountCents: raw.excessAmountCents ?? null,
@@ -854,6 +921,91 @@ export async function runStructuredExtractionStage(
         }
       } catch (frErr) {
         ctx.log("Stage 3", `Targeted field recovery failed: ${String(frErr)} — skipping`);
+      }
+    }
+
+    // ── OCR SPELL-CORRECTION PASS ─────────────────────────────────────────────
+    // After all extraction and recovery, run a lightweight LLM pass to fix
+    // general OCR spelling errors in all narrative text fields.
+    // This is a single batched call — cheap, fast, and covers ALL text fields
+    // regardless of domain (automotive, legal, general English).
+    // NEVER alters meaning, never adds/removes information — spelling only.
+    if (perDocumentExtractions.length > 0) {
+      try {
+        const merged = perDocumentExtractions[0];
+        // Collect all non-null narrative text fields that are worth correcting
+        const TEXT_FIELDS: Array<keyof ExtractedClaimFields> = [
+          'accidentDescription', 'accidentLocation', 'damageDescription',
+          'policeOfficerFindings', 'thirdPartyAccountSummary', 'impactPoint',
+          'policeStation', 'policeOfficerName', 'policeChargedParty',
+          'assessorName', 'panelBeater', 'repairerCompany',
+          'thirdPartyVehicle', 'thirdPartyName', 'thirdPartyInsurerName',
+          'weatherConditions', 'visibilityConditions', 'roadSurface',
+          'claimantName', 'driverName', 'animalType',
+        ];
+        const fieldMap: Record<string, string> = {};
+        for (const f of TEXT_FIELDS) {
+          const v = merged[f];
+          if (typeof v === 'string' && v.trim().length > 3) {
+            fieldMap[f as string] = v;
+          }
+        }
+        if (Object.keys(fieldMap).length > 0) {
+          const spellResponse = await llmCall({
+            messages: [
+              {
+                role: 'system',
+                content: `You are an OCR post-processor. Your ONLY task is to fix OCR-induced spelling errors in the provided text fields.
+RULES:
+- Fix spelling errors caused by OCR misreads (e.g. "windscren" → "windscreen", "Isuuzu" → "Isuzu", "teh" → "the", "vehicel" → "vehicle", "Gweru Cty" → "Gweru City", "Motornet pannel beaters" → "Motornet panel beaters").
+- Preserve ALL proper nouns, names, place names, and reference numbers exactly as given — do NOT "correct" them unless they are clearly an OCR error of a known word.
+- Do NOT add, remove, or rephrase any information. Do NOT change meaning.
+- Do NOT change numbers, dates, currency values, or codes.
+- Return ONLY a JSON object with the same keys as the input, with corrected values.
+- If a field has no spelling errors, return it unchanged.
+- If you are uncertain whether something is a spelling error or a proper noun, leave it unchanged.`,
+              },
+              {
+                role: 'user',
+                content: `Fix OCR spelling errors in these extracted claim fields:\n${JSON.stringify(fieldMap, null, 2)}`,
+              },
+            ],
+            response_format: {
+              type: 'json_schema',
+              json_schema: {
+                name: 'spell_corrected_fields',
+                strict: false,
+                schema: {
+                  type: 'object',
+                  additionalProperties: { type: 'string' },
+                },
+              },
+            },
+          });
+          const corrected = JSON.parse(spellResponse.choices?.[0]?.message?.content || '{}');
+          let spellFixCount = 0;
+          for (const [field, correctedValue] of Object.entries(corrected)) {
+            if (typeof correctedValue === 'string' && correctedValue !== fieldMap[field]) {
+              (merged as any)[field] = correctedValue;
+              spellFixCount++;
+              ctx.log('Stage 3', `Spell-corrected '${field}': "${fieldMap[field]}" → "${correctedValue}"`);
+            }
+          }
+          if (spellFixCount > 0) {
+            ctx.log('Stage 3', `OCR spell-correction: ${spellFixCount} field(s) corrected`);
+            recoveryActions.push({
+              target: 'ocr_spell_correction',
+              strategy: 'partial_data',
+              success: true,
+              description: `OCR spell-correction fixed ${spellFixCount} field(s).`,
+            });
+          } else {
+            ctx.log('Stage 3', 'OCR spell-correction: no corrections needed');
+          }
+          perDocumentExtractions[0] = merged;
+        }
+      } catch (spellErr) {
+        ctx.log('Stage 3', `OCR spell-correction failed (non-fatal): ${String(spellErr)}`);
       }
     }
 

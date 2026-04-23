@@ -797,6 +797,10 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const policeStation = claimRecord?.policeReport?.station ?? null;
   const driverName = claimRecord?.driver?.name ?? claim?.driverName ?? null;
   const claimantName = claimRecord?.driver?.claimantName ?? claim?.claimantName ?? null;
+  // Police report No. badge — extracted to avoid TDZ in minified bundle
+  const policeReportNoCell = policeReportNumber
+    ? policeReportNumber
+    : (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>Not Extracted</span>);
 
   return (
     <div className="mb-4 space-y-4">
@@ -871,7 +875,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
                 ["Assessor", aiAssessment?.assessorName ?? claimRecord?.repairQuote?.assessorName ?? "Not assigned"],
                 ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
-                ["Police report", policeReportNumber ?? (policeStation ? `Station on record — case number not extracted` : "Not provided")],
+                ["Police report No.", policeReportNoCell],
                 policeStation ? ["Police station", policeStation] : null,
               ].filter(Boolean).map((row: any, i: number) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
@@ -902,9 +906,19 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                     );
                   })()}
                 </div>
-                <p className="leading-relaxed" style={{ color: "var(--foreground)" }}>
-                  {description || narrativeAnalysis?.cleaned_incident_narrative || "No incident description available."}
-                </p>
+                {(!description && !narrativeAnalysis?.cleaned_incident_narrative) ? (
+                  <div className="flex items-start gap-2 p-2.5 rounded-lg text-xs" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)", color: "var(--fp-critical-text)" }}>
+                    <span className="shrink-0 font-bold text-[11px]">&#9888;</span>
+                    <div>
+                      <p className="font-semibold">Incident Description Not Extracted</p>
+                      <p className="mt-0.5 opacity-80">The incident description could not be extracted from the submitted documents. This may be due to garbled OCR output, a missing narrative section, or an unsupported document format. The pipeline has flagged this field as unreadable and nullified it to prevent corrupted data from propagating. Please verify the source documents and consider re-submitting with clearer scans.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="leading-relaxed" style={{ color: "var(--foreground)" }}>
+                    {description || narrativeAnalysis?.cleaned_incident_narrative}
+                  </p>
+                )}
                 {narrativeAnalysis?.was_contaminated && (
                   <p className="mt-1 text-[10px]" style={{ color: "var(--fp-warning-text)" }}>
                     Note: Post-incident content (inspection findings, repair notes) was identified and excluded from the narrative above.
