@@ -3665,7 +3665,7 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
 // ─── Mockup v4.2 scoped CSS ──────────────────────────────────────────────────
 const REPORT_CSS = `
 .kinga-report{font-family:'Georgia','Times New Roman',serif;font-size:13px;color:#111;background:#fff;line-height:1.55;padding:32px 44px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#f5f5f5;border-bottom:1px solid #ddd;font-family:'Courier New',monospace;font-size:10px;color:#666;margin:-32px -44px 24px}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:'Courier New',monospace;font-size:10px;color:#666;margin:-32px -44px 24px}
 .kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
 .kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
@@ -3673,11 +3673,11 @@ const REPORT_CSS = `
 .kinga-report .cover-meta{text-align:right}
 .kinga-report .cover-meta .claim-id{font-size:14px;font-weight:700}
 .kinga-report .cover-meta .meta-line{font-size:11px;color:#555;margin-top:2px}
-.kinga-report .doc-identity{background:#f7f7f7;border:1px solid #ddd;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#444;display:flex;gap:28px;flex-wrap:wrap}
+.kinga-report .doc-identity{background:#fff;border:1px solid #ddd;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#444;display:flex;gap:28px;flex-wrap:wrap}
 .kinga-report .di-label{font-weight:700;color:#111;text-transform:uppercase;font-size:9px;letter-spacing:.08em;display:block;margin-bottom:2px}
-.kinga-report .alert-banner{border:1px solid #bbb;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#333;background:#fffbe6;border-left:4px solid #c8a000}
-.kinga-report .alert-banner.critical{background:#fff5f5;border-left-color:#c00}
-.kinga-report .alert-banner.info{background:#f0f4ff;border-left-color:#1565c0}
+.kinga-report .alert-banner{border:1px solid #bbb;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#333;background:#fff;border-left:4px solid #c8a000}
+.kinga-report .alert-banner.critical{background:#fff;border-left-color:#c00}
+.kinga-report .alert-banner.info{background:#fff;border-left-color:#111}
 .kinga-report .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd;margin-bottom:14px}
 .kinga-report .kpi-tile{padding:14px 16px;border-right:1px solid #ddd;text-align:center}
 .kinga-report .kpi-tile:last-child{border-right:none}
@@ -3703,8 +3703,8 @@ const REPORT_CSS = `
 .kinga-report .tl-dot.inactive{background:#ccc}
 .kinga-report .tl-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888}
 .kinga-report .tl-date{font-size:11px;color:#333;margin-top:2px}
-.kinga-report .exec-summary{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px;font-size:12px;color:#333;line-height:1.7;background:#fafafa}
-.kinga-report .pipeline-box{background:#f7f7f7;color:#111;padding:18px 22px;margin-bottom:22px;border:1px solid #ddd}
+.kinga-report .exec-summary{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px;font-size:12px;color:#333;line-height:1.7;background:#fff}
+.kinga-report .pipeline-box{background:#fff;color:#111;padding:18px 22px;margin-bottom:22px;border:1px solid #ddd}
 .kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#111;margin-bottom:4px}
 .kinga-report .pipeline-box .run-meta{font-size:10px;color:#666;margin-bottom:12px}
 .kinga-report .stage-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px}
@@ -3719,15 +3719,15 @@ const REPORT_CSS = `
 .kinga-report .sub-heading{font-size:14px;font-weight:700;color:#111;margin:16px 0 10px}
 .kinga-report .data-table{width:100%;border-collapse:collapse;margin-bottom:14px}
 .kinga-report .data-table td,.kinga-report .data-table th{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee;vertical-align:top}
-.kinga-report .data-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#f7f7f7;border-bottom:1px solid #ddd}
+.kinga-report .data-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
 .kinga-report .data-table td:first-child{color:#555;width:210px;font-size:11px}
 .kinga-report .data-table td:last-child{color:#111;font-weight:500}
 .kinga-report .data-table tr:last-child td{border-bottom:none}
 .kinga-report .flag-red{color:#c00;font-weight:700}
 .kinga-report .flag-amber{color:#c8a000;font-weight:700}
 .kinga-report .flag-green{color:#2e7d32;font-weight:700}
-.kinga-report .data-table .mismatch td{background:#fff5f5;color:#c00}
-.kinga-report .narrative-box{border:1px solid #ddd;padding:12px 16px;margin-bottom:10px;font-size:12px;color:#333;line-height:1.7;background:#fafafa}
+.kinga-report .data-table .mismatch td{background:#fff;color:#c00;font-weight:700}
+.kinga-report .narrative-box{border:1px solid #ddd;padding:12px 16px;margin-bottom:10px;font-size:12px;color:#333;line-height:1.7;background:#fff}
 .kinga-report .narr-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
 .kinga-report .diagram-section{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px;border:1px solid #ddd;padding:16px}
 .kinga-report .diagram-legend{flex:1}
@@ -3750,17 +3750,17 @@ const REPORT_CSS = `
 .kinga-report .pt-value{font-size:36px;font-weight:700;color:#111}
 .kinga-report .pt-sub{font-size:10px;color:#888;margin-top:2px}
 .kinga-report .photo-forensics-table{width:100%;border-collapse:collapse;margin-bottom:14px}
-.kinga-report .photo-forensics-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#f7f7f7;border-bottom:1px solid #ddd;padding:7px 10px;text-align:left}
+.kinga-report .photo-forensics-table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd;padding:7px 10px;text-align:left}
 .kinga-report .photo-forensics-table td{padding:8px 10px;font-size:11px;border-bottom:1px solid #eee;vertical-align:top}
 .kinga-report .photo-forensics-table tr:last-child td{border-bottom:none}
 .kinga-report .photo-forensics-table .photo-finding{font-size:11px;color:#333;line-height:1.5}
 .kinga-report .photo-forensics-table .photo-detail{font-size:10px;color:#666;margin-top:3px;font-style:italic;line-height:1.4}
-.kinga-report .photo-forensics-table tr.flagged-row td{background:#fff5f5}
+.kinga-report .photo-forensics-table tr.flagged-row td{background:#fff;color:#c00;font-weight:600}
 .kinga-report .fraud-score-block{display:flex;gap:24px;align-items:flex-start;margin-bottom:16px}
 .kinga-report .fraud-big{font-size:64px;font-weight:700;color:#111;line-height:1}
 .kinga-report .fraud-denom{font-size:22px;color:#888}
 .kinga-report .fraud-explain{font-size:12px;color:#333;line-height:1.7;flex:1;padding-top:8px}
-.kinga-report .ml-glimpse{background:#f7f7f7;border:1px solid #ddd;padding:14px 18px;margin-bottom:14px}
+.kinga-report .ml-glimpse{background:#fff;border:1px solid #ddd;padding:14px 18px;margin-bottom:14px}
 .kinga-report .ml-glimpse h4{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#555;margin-bottom:10px}
 .kinga-report .ml-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #eee;font-size:11px}
 .kinga-report .ml-row:last-child{border-bottom:none}
@@ -3775,12 +3775,12 @@ const REPORT_CSS = `
 .kinga-report .db-value{font-size:28px;font-weight:700;color:#111}
 .kinga-report .db-sub{font-size:11px;color:#555;margin-top:6px}
 .kinga-report .flowchart{display:flex;flex-direction:column;align-items:center;gap:0;margin-bottom:20px}
-.kinga-report .fc-box{width:360px;padding:12px 20px;text-align:center;border:1px solid #ccc;font-size:12px;background:#fafafa}
-.kinga-report .fc-box.start{background:#f0f0f0;font-weight:700}
-.kinga-report .fc-box.amber-box{background:#fff8e1;border-color:#c8a000;color:#7a5c00}
-.kinga-report .fc-box.green-box{background:#e8f5e9;border-color:#388e3c;color:#1b5e20}
-.kinga-report .fc-box.red-box{background:#ffebee;border-color:#c62828;color:#b71c1c}
-.kinga-report .fc-box.decision-final{background:#fff8e1;border:2px solid #c8a000;font-size:16px;font-weight:700;color:#7a5c00}
+.kinga-report .fc-box{width:360px;padding:12px 20px;text-align:center;border:1px solid #ccc;font-size:12px;background:#fff}
+.kinga-report .fc-box.start{background:#fff;font-weight:700;border:2px solid #111}
+.kinga-report .fc-box.amber-box{background:#fff;border-color:#c8a000;color:#7a5c00}
+.kinga-report .fc-box.green-box{background:#fff;border-color:#388e3c;color:#1b5e20}
+.kinga-report .fc-box.red-box{background:#fff;border-color:#c62828;color:#b71c1c}
+.kinga-report .fc-box.decision-final{background:#fff;border:2px solid #111;font-size:16px;font-weight:700;color:#111}
 .kinga-report .fc-score{font-size:11px;opacity:.8;margin-top:3px}
 .kinga-report .fc-arrow{font-size:18px;color:#888;line-height:1;padding:2px 0}
 .kinga-report .blockers-list{margin-bottom:16px;list-style:none;padding:0}
@@ -3792,13 +3792,13 @@ const REPORT_CSS = `
 .kinga-report .integrity-table{width:100%;border-collapse:collapse;margin-bottom:14px}
 .kinga-report .integrity-table td{padding:7px 12px;font-size:12px;border-bottom:1px solid #eee}
 .kinga-report .integrity-table td:first-child{color:#555;width:210px;font-size:11px}
-.kinga-report .hash-block{font-family:'Courier New',monospace;font-size:10px;color:#444;background:#f5f5f5;padding:10px 14px;border:1px solid #ddd;margin-bottom:10px;word-break:break-all}
+.kinga-report .hash-block{font-family:'Courier New',monospace;font-size:10px;color:#444;background:#fff;padding:10px 14px;border:1px solid #ddd;margin-bottom:10px;word-break:break-all}
 .kinga-report .tamper-note{font-size:11px;color:#666;font-style:italic;margin-bottom:16px}
 .kinga-report .lifecycle-bar{display:flex;margin-bottom:8px}
-.kinga-report .lc-step{flex:1;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;background:#f0f0f0;color:#888;border:1px solid #ddd;border-right:none}
+.kinga-report .lc-step{flex:1;padding:10px 8px;text-align:center;font-size:11px;font-weight:700;background:#fff;color:#888;border:1px solid #ddd;border-right:none}
 .kinga-report .lc-step:last-child{border-right:1px solid #ddd}
-.kinga-report .lc-step.active{background:#fff8e1;color:#7a5c00;border-color:#c8a000}
-.kinga-report .lc-step.done{background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7}
+.kinga-report .lc-step.active{background:#fff;color:#7a5c00;border-color:#c8a000;border-bottom:3px solid #c8a000}
+.kinga-report .lc-step.done{background:#fff;color:#2e7d32;border-color:#a5d6a7;border-bottom:3px solid #2e7d32}
 .kinga-report .conf-footer{font-size:9px;color:#aaa;text-align:center;padding:12px 20px;border-top:1px solid #eee;line-height:1.5}
 .kinga-report .two-col{display:grid;grid-template-columns:1fr 1fr;gap:24px}
 .kinga-report .section-divider{border:none;border-top:1px solid #ddd;margin:24px 0}
@@ -3823,7 +3823,7 @@ const REPORT_CSS = `
   --card:#fff;
   --card-foreground:#111;
   --border:#ddd;
-  --muted:#f7f7f7;
+  --muted:#fff;
   --muted-foreground:#666;
   --primary:#111;
   --primary-foreground:#fff;
@@ -3864,7 +3864,7 @@ const REPORT_CSS = `
   background:#fff !important;
 }
 .kinga-report [class*="bg-muted"],.kinga-report [style*="var(--muted)"]{
-  background:#f7f7f7 !important;
+  background:#fff !important;
 }
 .kinga-report [class*="text-muted"],.kinga-report [style*="var(--muted-foreground)"]{
   color:#666 !important;
@@ -3878,10 +3878,10 @@ const REPORT_CSS = `
 /* Table rows */
 .kinga-report table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px}
 .kinga-report table td,.kinga-report table th{padding:7px 12px;border-bottom:1px solid #eee;vertical-align:top;color:#111;background:#fff}
-.kinga-report table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#f7f7f7;border-bottom:1px solid #ddd}
+.kinga-report table th{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:#888;background:#fff;border-bottom:1px solid #ddd}
 .kinga-report table td:first-child{color:#555;font-size:11px}
 /* Narrative boxes */
-.kinga-report [class*="p-3"][class*="rounded"]{background:#fafafa !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
+.kinga-report [class*="p-3"][class*="rounded"]{background:#fff !important;border:1px solid #ddd !important;border-radius:0 !important;color:#333 !important}
 /* Section sub-headings */
 .kinga-report [class*="text-xs"][class*="font-bold"][class*="uppercase"]{color:#888 !important;font-size:10px !important}
 /* Badges */
@@ -3904,16 +3904,16 @@ const REPORT_CSS = `
 .kinga-report .dark\:text-red-200{color:#c00 !important}
 .kinga-report .dark\:text-orange-200{color:#e65100 !important}
 .kinga-report .dark\:text-amber-300{color:#c8a000 !important}
-/* Override the dark bg-amber-50 etc */
-.kinga-report .bg-amber-50{background:#fffbe6 !important;color:#7a5c00 !important}
-.kinga-report .bg-red-50{background:#fff5f5 !important;color:#c00 !important}
+/* Override tinted Tailwind utility classes to white */
+.kinga-report .bg-amber-50{background:#fff !important;color:#7a5c00 !important}
+.kinga-report .bg-red-50{background:#fff !important;color:#c00 !important}
 /* CongruencyPanel and DataQualityPanel */
 .kinga-report [class*="overflow-hidden"]{background:#fff !important}
 /* ── Photo overlay dark backgrounds ── */
 .kinga-report .bg-black\/55,.kinga-report [style*="bg-black"]{background:rgba(0,0,0,0.55) !important}
 /* ── Inline dark backgrounds from Tailwind (bg-gray-900, bg-slate-800, etc.) ── */
-.kinga-report [class*="bg-gray-9"],.kinga-report [class*="bg-slate-9"],.kinga-report [class*="bg-zinc-9"],.kinga-report [class*="bg-neutral-9"]{background:#f7f7f7 !important;color:#111 !important}
-.kinga-report [class*="bg-gray-8"],.kinga-report [class*="bg-slate-8"],.kinga-report [class*="bg-zinc-8"]{background:#f0f0f0 !important;color:#111 !important}
+.kinga-report [class*="bg-gray-9"],.kinga-report [class*="bg-slate-9"],.kinga-report [class*="bg-zinc-9"],.kinga-report [class*="bg-neutral-9"]{background:#fff !important;color:#111 !important}
+.kinga-report [class*="bg-gray-8"],.kinga-report [class*="bg-slate-8"],.kinga-report [class*="bg-zinc-8"]{background:#fff !important;color:#111 !important}
 /* ── Status-pass/fail aliases (used by StatusBadge) ── */
 .kinga-report{--status-pass:#2e7d32;--status-pass-bg:#e8f5e9;--status-pass-border:#a5d6a7;--status-fail:#c00;--status-fail-bg:#ffebee;--status-fail-border:#ef9a9a}
 /* ── Radix Collapsible: force open in report context ── */
@@ -3922,25 +3922,33 @@ const REPORT_CSS = `
 .kinga-report canvas{background:#fff !important}
 /* ─── @media print ─────────────────────────────────────────────────────────── */
 @media print{
-  /* Force white background and black text everywhere in the report */
+  /* Pure white document — no backgrounds anywhere except charts/SVGs */
   .kinga-report,.kinga-report *{background:#fff !important;color:#111 !important;-webkit-print-color-adjust:exact !important;print-color-adjust:exact !important}
-  /* Restore semantic colours for visual aids only */
-  .kinga-report .flag-red,.kinga-report .fp-critical-text,.kinga-report [style*="color:#c00"]{color:#c00 !important}
+  /* Restore semantic text colours for flags and badges (text only, no backgrounds) */
+  .kinga-report .flag-red,.kinga-report [style*="color:#c00"]{color:#c00 !important}
   .kinga-report .flag-amber,.kinga-report [style*="color:#c8a000"]{color:#c8a000 !important}
   .kinga-report .flag-green,.kinga-report [style*="color:#2e7d32"]{color:#2e7d32 !important}
-  /* Badge colours preserved */
-  .kinga-report .dim-badge.pass{background:#e8f5e9 !important;color:#2e7d32 !important;border:1px solid #a5d6a7 !important}
-  .kinga-report .dim-badge.warn{background:#fff8e1 !important;color:#c8a000 !important;border:1px solid #ffe082 !important}
-  .kinga-report .dim-badge.fail{background:#ffebee !important;color:#c00 !important;border:1px solid #ef9a9a !important}
-  .kinga-report .ml-badge.normal{background:#e8f5e9 !important;color:#2e7d32 !important;border:1px solid #a5d6a7 !important}
-  .kinga-report .ml-badge.anomaly{background:#fff8e1 !important;color:#c8a000 !important;border:1px solid #ffe082 !important}
-  .kinga-report .ml-badge.cluster{background:#e8eaf6 !important;color:#283593 !important;border:1px solid #9fa8da !important}
-  .kinga-report .stage-tile.green{background:#e8f5e9 !important;color:#2e7d32 !important;border:1px solid #a5d6a7 !important}
-  .kinga-report .stage-tile.amber{background:#fff8e1 !important;color:#c8a000 !important;border:1px solid #ffe082 !important}
+  /* Dimension and ML badges: white background, coloured text and border only */
+  .kinga-report .dim-badge.pass{background:#fff !important;color:#2e7d32 !important;border:1px solid #2e7d32 !important}
+  .kinga-report .dim-badge.warn{background:#fff !important;color:#c8a000 !important;border:1px solid #c8a000 !important}
+  .kinga-report .dim-badge.fail{background:#fff !important;color:#c00 !important;border:1px solid #c00 !important}
+  .kinga-report .ml-badge.normal{background:#fff !important;color:#2e7d32 !important;border:1px solid #2e7d32 !important}
+  .kinga-report .ml-badge.anomaly{background:#fff !important;color:#c8a000 !important;border:1px solid #c8a000 !important}
+  .kinga-report .ml-badge.cluster{background:#fff !important;color:#283593 !important;border:1px solid #283593 !important}
+  /* Stage tiles: white background, coloured text and border only */
+  .kinga-report .stage-tile.green{background:#fff !important;color:#2e7d32 !important;border:1px solid #2e7d32 !important}
+  .kinga-report .stage-tile.amber{background:#fff !important;color:#c8a000 !important;border:1px solid #c8a000 !important}
+  /* Lifecycle steps: white background, coloured bottom border for active/done */
+  .kinga-report .lc-step.active{background:#fff !important;color:#c8a000 !important;border-bottom:3px solid #c8a000 !important}
+  .kinga-report .lc-step.done{background:#fff !important;color:#2e7d32 !important;border-bottom:3px solid #2e7d32 !important}
+  /* Alert banners: white background, coloured left border only */
+  .kinga-report .alert-banner{background:#fff !important;border-left:4px solid #c8a000 !important}
+  .kinga-report .alert-banner.critical{background:#fff !important;border-left-color:#c00 !important}
+  .kinga-report .alert-banner.info{background:#fff !important;border-left-color:#111 !important}
   /* Table borders visible in print */
-  .kinga-report table,.kinga-report table td,.kinga-report table th{border-color:#ddd !important}
+  .kinga-report table,.kinga-report table td,.kinga-report table th{border-color:#ddd !important;background:#fff !important}
   /* Section 2.5 Quote Coverage table */
-  .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid #ddd !important}
+  .kinga-report .report-table,.kinga-report .report-table td,.kinga-report .report-table th{border:1px solid #ddd !important;background:#fff !important}
   /* Page break strategy */
   .kinga-report .section-heading{page-break-before:auto;page-break-after:avoid}
   /* Section 4 Evidence Inventory: start on new page */
@@ -3955,12 +3963,8 @@ const REPORT_CSS = `
   .kinga-report .no-print,.no-print{display:none !important}
   /* Radix Collapsible: force open */
   .kinga-report [data-state="closed"]{display:block !important;height:auto !important;overflow:visible !important}
-  /* Photo overlays: keep dark for readability */
+  /* Photo overlays: keep dark for readability over images */
   .kinga-report .bg-black\/55{background:rgba(0,0,0,0.55) !important;color:#fff !important}
-  /* Alert banners: preserve light tint */
-  .kinga-report .alert-banner{background:#fffbe6 !important;border-left:4px solid #c8a000 !important}
-  .kinga-report .alert-banner.critical{background:#fff5f5 !important;border-left-color:#c00 !important}
-  .kinga-report .alert-banner.info{background:#f0f4ff !important;border-left-color:#1565c0 !important}
 }
 `;
 
