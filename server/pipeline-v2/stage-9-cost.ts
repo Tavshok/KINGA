@@ -156,28 +156,56 @@ export async function runCostOptimisationStage(
       if (dbConn && claimRecord.vehicle?.make) {
         const vehicleDesc = `${(claimRecord.vehicle.make ?? "").toLowerCase()} ${(claimRecord.vehicle.model ?? "").toLowerCase()}`.trim();
         if (vehicleDesc) {
-          const rows = await dbConn.select({
-            avgCost: drizzleSql`AVG(final_cost_usd_cents)`.as("avg_cost"),
-            cnt: drizzleSql`COUNT(*)`.as("cnt"),
+          // Two-pass outlier-filtered query:
+          // Pass 1: fetch all raw cost values for this vehicle.
+          // Pass 2: compute median, exclude values outside [median/10, median*10],
+          //         then average the clean set. This prevents a single data-entry
+          //         error (e.g. cents stored as dollars = 100x inflation) from
+          //         skewing the benchmark for all future claims of this vehicle type.
+          const allRawRows = await dbConn.select({
+            costCents: costLearningRecords.finalCostUsdCents,
           })
             .from(costLearningRecords)
-            .where(drizzleSql`vehicle_descriptor LIKE ${`%${vehicleDesc}%`}`);
-          const row = rows[0] as any;
-          const rowCount = row ? Number(row.cnt) : 0;
+            .where(drizzleSql`vehicle_descriptor LIKE ${`%${vehicleDesc}%`} AND final_cost_usd_cents > 0`);
+
+          const allCosts = allRawRows
+            .map((r: any) => Number(r.costCents))
+            .filter((v: number) => v > 0)
+            .sort((a: number, b: number) => a - b);
+
+          let cleanAvgCents: number | null = null;
+          let cleanCount = 0;
+          if (allCosts.length > 0) {
+            const median = allCosts[Math.floor(allCosts.length / 2)];
+            const lowerBound = median / 10;  // exclude values < 10% of median
+            const upperBound = median * 10;  // exclude values > 10x median
+            const cleanCosts = allCosts.filter((v: number) => v >= lowerBound && v <= upperBound);
+            cleanCount = cleanCosts.length;
+            cleanAvgCents = cleanCount > 0
+              ? Math.round(cleanCosts.reduce((a: number, b: number) => a + b, 0) / cleanCount)
+              : null;
+            const excluded = allCosts.length - cleanCount;
+            if (excluded > 0) {
+              ctx.log("Stage 9",
+                `Learning DB: excluded ${excluded} outlier(s) for '${vehicleDesc}' ` +
+                `(median=${median}, bounds=[${Math.round(lowerBound)}, ${Math.round(upperBound)}])`);
+            }
+          }
+
+          const rowCount = cleanCount;
           if (rowCount >= 3) {
-            // Full confidence: 3+ claims
-            learningDbBenchmarkCents = row.avgCost ? Math.round(Number(row.avgCost)) : null;
+            // Full confidence: 3+ clean claims
+            learningDbBenchmarkCents = cleanAvgCents;
             learningDbSampleSize = rowCount;
             learningDbVehicleDescriptor = vehicleDesc;
-            ctx.log("Stage 9", `Learning DB benchmark: ${learningDbSampleSize} historical claims for '${vehicleDesc}', avg=${learningDbBenchmarkCents} cents`);
-          } else if (rowCount > 0 && row.avgCost) {
-            // Sparse DB: 1-2 claims — use as a partial signal (stored for blending below)
-            // Weight = rowCount / 3 (so 1 claim = 33%, 2 claims = 67% learning DB weight)
-            learningDbBenchmarkCents = Math.round(Number(row.avgCost));
+            ctx.log("Stage 9", `Learning DB benchmark: ${learningDbSampleSize} historical claims for '${vehicleDesc}', clean_avg=${learningDbBenchmarkCents} cents`);
+          } else if (rowCount > 0 && cleanAvgCents) {
+            // Sparse DB: 1-2 clean claims — use as a partial signal
+            learningDbBenchmarkCents = cleanAvgCents;
             learningDbSampleSize = rowCount;
             learningDbVehicleDescriptor = vehicleDesc;
             ctx.log("Stage 9",
-              `Learning DB: ${rowCount} claim(s) for '${vehicleDesc}' (sparse — will blend with index fallback at ${Math.round(rowCount / 3 * 100)}% weight)`);
+              `Learning DB: ${rowCount} clean claim(s) for '${vehicleDesc}' (sparse — will blend with index fallback at ${Math.round(rowCount / 3 * 100)}% weight)`);
           }
         }
       }
@@ -186,17 +214,16 @@ export async function runCostOptimisationStage(
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // COST BREAKDOWN: QUOTE-FIRST, THEN LEARNING DB, THEN INSUFFICIENT_DATA
+    // COST PRINCIPLE: DOCUMENT-SOURCED COSTS ONLY
     //
-    // Priority order (no hardcoded values ever):
-    //   1. Submitted quote(s) — quoteOptimisationEngine selects the best quote
-    //      when multiple quotes exist. Parts/labour come from the highest-weighted
-    //      quote's actual line items (only when parts_defined/labour_defined = true).
-    //   2. Learning DB benchmark (≥3 historical settled claims for this vehicle).
-    //   3. Sparse learning DB (1-2 claims) — used directly, low confidence.
-    //   4. No data → aiEstimateSource = "insufficient_data", all zeros.
-    //      The submitted quote total is still the authoritative cost (QUOTE-FIRST
-    //      principle below), but no AI benchmark breakdown is fabricated.
+    // The system deals in absolutes. Only costs that appear in submitted documents
+    // (repair quotes, assessor reports, agreed cost annotations) are used.
+    // The AI NEVER estimates costs for components not in the submitted quote.
+    // Missing components are flagged as a Coverage Gap — a list of items the
+    // adjuster must follow up on — with NO cost figure attached.
+    //
+    // The learning DB is used ONLY for fraud detection (is this quote suspiciously
+    // cheap for this vehicle type?), not for cost estimation.
     // ─────────────────────────────────────────────────────────────────────────
 
     // ── Step A: Run Quote Optimisation Engine FIRST ──────────────────────────
@@ -238,137 +265,53 @@ export async function runCostOptimisationStage(
       ctx.log("Stage 9", `Quote optimisation: optimised_cost=USD ${quoteOptimisation.optimised_cost_usd.toFixed(2)}, confidence=${quoteOptimisation.confidence}, spread=${quoteOptimisation.cost_spread_pct}%, selected=${quoteOptimisation.selected_quotes.length}/${quoteOptimisation.quotes_evaluated}`);
     }
 
-    // ── Step B: Derive AI benchmark breakdown from real data only ─────────────
+    // ── Step B: Document-sourced cost breakdown ONLY ────────────────────────────
+    // Use only what is in the submitted quote. No AI estimates for missing components.
     let totalPartsCents = 0;
     let totalLabourCents = 0;
     let totalPaintCents = 0;
-    let aiEstimateSource: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data" = "insufficient_data";
-    let aiEstimateNote: string | null = null;
+    const aiEstimateSource: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data" = "insufficient_data";
+    const aiEstimateNote: string | null = null;
 
-    // B1: If the highest-weighted selected quote has itemised parts AND labour, use those directly.
+    // Use itemised parts/labour from the best selected quote if available.
     const bestSelectedQuote = quoteOptimisation && quoteOptimisation.selected_quotes.length > 0
       ? [...quoteOptimisation.selected_quotes].sort((a, b) => b.weight - a.weight)[0]
       : null;
     if (bestSelectedQuote && (bestSelectedQuote as any).parts_cost !== null && (bestSelectedQuote as any).labour_cost !== null) {
       totalPartsCents = Math.round(((bestSelectedQuote as any).parts_cost as number) * 100);
       totalLabourCents = Math.round(((bestSelectedQuote as any).labour_cost as number) * 100);
-      totalPaintCents = 0; // paint is not separately itemised in most quotes
-      aiEstimateSource = "quote_derived";
+      totalPaintCents = 0;
       const quoteLabel = quoteOptimisation!.selected_quotes.length > 1
         ? `${quoteOptimisation!.selected_quotes.length} quotes (best: ${bestSelectedQuote.panel_beater})`
         : bestSelectedQuote.panel_beater;
       ctx.log("Stage 9", `Cost breakdown from quote line items [${quoteLabel}]: parts=${totalPartsCents} cents, labour=${totalLabourCents} cents`);
-      assumptions.push({
-        field: "costBreakdown",
-        assumedValue: `Parts: USD ${(totalPartsCents/100).toFixed(2)}, Labour: USD ${(totalLabourCents/100).toFixed(2)} (from ${quoteLabel})`,
-        reason: `Parts and labour costs taken directly from the submitted repair quote (${quoteLabel}). No AI estimation applied.`,
-        strategy: "cross_document_search",
-        confidence: 90,
-        stage: "Stage 9",
-      });
-    } else if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0) {
-      // B2: Learning DB benchmark — use proportional allocation (50/35/15 is a
-      // standard industry split for body repair, not a fabricated ratio).
-      // This is only used when NO submitted quote has itemised parts/labour.
-      totalPartsCents = Math.round(learningDbBenchmarkCents * 0.5);
-      totalLabourCents = Math.round(learningDbBenchmarkCents * 0.35);
-      totalPaintCents = Math.round(learningDbBenchmarkCents * 0.15);
-      aiEstimateSource = "learning_db";
-      const confLevel = learningDbSampleSize >= 3 ? 70 : 20 + Math.round((learningDbSampleSize / 3) * 35);
-      ctx.log("Stage 9", `AI benchmark from learning DB: ${learningDbBenchmarkCents} cents (${learningDbSampleSize} historical claims for '${learningDbVehicleDescriptor}')`);
-      assumptions.push({
-        field: "totalExpectedCents",
-        assumedValue: `Learning DB average: USD ${(learningDbBenchmarkCents / 100).toFixed(2)} (${learningDbSampleSize} claim${learningDbSampleSize !== 1 ? "s" : ""})`,
-        reason: `AI benchmark derived from ${learningDbSampleSize} historical settled claim${learningDbSampleSize !== 1 ? "s" : ""} for '${learningDbVehicleDescriptor}'. ` +
-                `Industry-standard body repair split applied (parts 50%, labour 35%, paint 15%). ` +
-                (learningDbSampleSize < 3 ? `Confidence is low — fewer than 3 settled claims available.` : `Confidence is adequate (${learningDbSampleSize} claims).`),
-        strategy: "industry_average",
-        confidence: confLevel,
-        stage: "Stage 9",
-      });
-    } else {
-      // B3: No real data — do NOT fabricate costs.
-      totalPartsCents = 0;
-      totalLabourCents = 0;
-      totalPaintCents = 0;
-      aiEstimateSource = "insufficient_data";
-      aiEstimateNote = "No historical repair data or itemised quote available for this vehicle. AI benchmark cannot be produced. Cost figures are based solely on the submitted repair quote total.";
-      isDegraded = true;
-      ctx.log("Stage 9", `AI benchmark unavailable: no learning DB data for '${learningDbVehicleDescriptor ?? "unknown vehicle"}'. Cost will be based on submitted quote total only.`);
-      assumptions.push({
-        field: "totalExpectedCents",
-        assumedValue: "Insufficient data — no AI benchmark produced",
-        reason: "No historical settled claims exist for this vehicle type in the learning database, and the submitted quote does not contain itemised parts/labour figures. " +
-                "The AI benchmark requires at least 1 settled claim or itemised quote to produce a reliable estimate.",
-        strategy: "industry_average",
-        confidence: 0,
-        stage: "Stage 9",
-      });
     }
-    if (damageAnalysis.damagedParts.length === 0 && aiEstimateSource !== "quote_derived") {
+    // NOTE: Learning DB is NOT used for cost estimation.
+    // It is retained only for fraud detection (suspiciously cheap quote detection).
+    // No hidden damage allowance is added — we cannot estimate what is not documented.
+    if (damageAnalysis.damagedParts.length === 0) {
       isDegraded = true;
     }
 
-        // Hidden damage allowance
-    let hiddenDamageCents = 0;
-    if (physicsAnalysis.physicsExecuted) {
-      const latent = physicsAnalysis.latentDamageProbability;
-      const latentTotal = (latent.engine + latent.transmission + latent.suspension + latent.frame + latent.electrical) / 5;
-      hiddenDamageCents = Math.round(totalPartsCents * latentTotal * 0.3);
-    }
+    // totalExpectedCents = submitted quote total (set by QUOTE-FIRST principle below).
+    // It is NOT an AI estimate. It is the document-sourced cost.
+    let totalExpectedCents = 0;
 
-    let totalExpectedCents = totalPartsCents + totalLabourCents + totalPaintCents + hiddenDamageCents;
-
-    // ── Calibration Override: apply approved jurisdiction multiplier ──────────
-    // Look up the most recent approved calibration override for this tenant+region.
-    // The multiplier corrects systematic AI over/under-estimation (e.g. 0.85 = AI
-    // overestimates by ~18%, so we reduce the estimate by 15%).
-    try {
-      const tenantId = (ctx as any).tenantId ? String((ctx as any).tenantId) : null;
-      const calibMultiplier = await getActiveCalibrationMultiplier(
-        tenantId,
-        region, // marketRegion (e.g. 'ZW', 'ZA', 'global')
-        claimRecord.accidentDetails?.incidentType ?? null
-      );
-      if (calibMultiplier !== 1.0) {
-        const before = totalExpectedCents;
-        totalExpectedCents = Math.round(totalExpectedCents * calibMultiplier);
-        ctx.log(
-          "Stage 9",
-          `Calibration override applied: multiplier=${calibMultiplier.toFixed(3)}, ` +
-          `cost adjusted from ${before} to ${totalExpectedCents} cents ` +
-          `(jurisdiction=${region}, tenant=${tenantId ?? 'none'})`
-        );
-        assumptions.push({
-          field: "totalExpectedCents",
-          assumedValue: `×${calibMultiplier.toFixed(3)} calibration multiplier`,
-          reason: `Approved jurisdiction calibration override for region '${region}' ` +
-                  `adjusted AI cost estimate by ${((calibMultiplier - 1) * 100).toFixed(1)}%.`,
-          strategy: "industry_average",
-          confidence: 85,
-          stage: "Stage 9",
-        });
-      }
-    } catch (calibErr) {
-      ctx.log("Stage 9", `Calibration override lookup failed (non-fatal): ${String(calibErr)}`);
-    }
+    // Calibration override is not applicable — we no longer produce an AI cost estimate
+    // to calibrate. The submitted quote is the only cost figure. Skip calibration.
 
     // WI-4: AGREED COST GATE
-    // If the claim record has an agreedCostCents (a signed/negotiated amount from the
-    // assessor or insurer), it takes absolute priority over the raw quoteTotalCents.
-    // This prevents the AI estimate from overriding a signed document value.
+    // Priority: agreedCostCents (signed) > quoteTotalCents (submitted) > recovered_quote
     const agreedCostFromExtraction = claimRecord.repairQuote.agreedCostCents;
     if (agreedCostFromExtraction && agreedCostFromExtraction > 0) {
-      ctx.log("Stage 9", `WI-4 AGREED COST GATE: agreedCostCents=${agreedCostFromExtraction} cents (USD ${(agreedCostFromExtraction/100).toFixed(2)}) is present — using as authoritative cost. quoteTotalCents will be used for deviation analysis only.`);
+      ctx.log("Stage 9", `WI-4 AGREED COST GATE: agreedCostCents=${agreedCostFromExtraction} cents (USD ${(agreedCostFromExtraction/100).toFixed(2)}) is present — using as authoritative cost.`);
     }
 
-    // FIX (2026-03-21): If the claim record has no quote (quoteTotalCents is null/0)
-    // but the input recovery pass found a quote in the raw document text, use the
-    // recovered value so quoteDeviationPct is calculated against the correct baseline.
+    // Resolve the authoritative quoted cost from the submitted documents.
     let quotedCents = claimRecord.repairQuote.quoteTotalCents;
     if ((!quotedCents || quotedCents <= 0) && stage3?.inputRecovery?.recovered_quote) {
       const rq = stage3.inputRecovery.recovered_quote;
-      quotedCents = Math.round(rq.total * 100); // convert USD to cents
+      quotedCents = Math.round(rq.total * 100);
       ctx.log("Stage 9", `Quote not in ClaimRecord — using recovered quote: USD ${rq.total} (${rq.confidence}, source: ${rq.source})`);
       recoveryActions.push({
         target: "quotedCents",
@@ -379,43 +322,49 @@ export async function runCostOptimisationStage(
       });
     }
 
-    // ── QUOTE-FIRST PRINCIPLE ────────────────────────────────────────────────
-    // When a submitted repair quote is present, it is the authoritative cost
-    // source. The internal AI estimate (totalExpectedCents) becomes a reference
-    // benchmark for deviation analysis only — it must NOT override the quote.
-    // Internal estimates are only used when no quote has been submitted.
-    const aiEstimatedCents = totalExpectedCents; // preserve for deviation analysis
+    // DOCUMENT-SOURCED COST: The submitted quote is the ONLY authoritative cost.
+    // totalExpectedCents = submitted quote total. No AI estimate is produced.
     if (quotedCents && quotedCents > 0) {
       totalExpectedCents = quotedCents;
-      ctx.log("Stage 9", `QUOTE-FIRST: Using submitted quote (${quotedCents} cents) as primary cost. AI estimate (${aiEstimatedCents} cents) used for deviation analysis only.`);
+      ctx.log("Stage 9", `Document-sourced cost: submitted quote = ${quotedCents} cents (USD ${(quotedCents/100).toFixed(2)}). No AI estimate produced.`);
       assumptions.push({
         field: "totalExpectedCents",
         assumedValue: `Submitted quote: ${(quotedCents / 100).toFixed(2)} USD`,
-        reason: "Submitted repair quote is present and used as the authoritative cost source. AI internal estimate is retained as a benchmark only.",
+        reason: "Submitted repair quote is the sole authoritative cost source. The AI does not estimate costs for components not in the quote.",
         strategy: "cross_document_search",
         confidence: 95,
         stage: "Stage 9",
       });
+    } else {
+      isDegraded = true;
+      ctx.log("Stage 9", "No submitted quote found. Cost section will show 'No quote submitted'.");
     }
 
-    let quoteDeviationPct: number | null = null;
-    let savingsOpportunityCents = 0;
+    // No deviation calculation — the AI has no independent cost estimate to compare against.
+    // Deviation figures are meaningless when the quote doesn't cover all identified damage.
+    const quoteDeviationPct: number | null = null;
+    const savingsOpportunityCents = 0;
+    // No recommended cost range — the AI cannot produce a fair range without real data.
+    const lowCents = 0;
+    const highCents = 0;
 
-    // Deviation is now: how much does the quote differ from the AI benchmark?
-    if (quotedCents && quotedCents > 0 && aiEstimatedCents > 0) {
-      quoteDeviationPct = ((quotedCents - aiEstimatedCents) / aiEstimatedCents) * 100;
-      if (quotedCents > aiEstimatedCents) {
-        savingsOpportunityCents = quotedCents - aiEstimatedCents;
+    // ── Learning DB: fraud detection signal only ──────────────────────────────
+    // The learning DB average is used ONLY to flag suspiciously cheap quotes.
+    // It is NOT used to produce a cost estimate.
+    let fraudCostSignal: { suspiciouslyCheap: boolean; learningDbAvgUsd: number | null; sampleSize: number } = {
+      suspiciouslyCheap: false,
+      learningDbAvgUsd: learningDbBenchmarkCents ? learningDbBenchmarkCents / 100 : null,
+      sampleSize: learningDbSampleSize,
+    };
+    if (learningDbBenchmarkCents && learningDbBenchmarkCents > 0 && quotedCents && quotedCents > 0) {
+      // Flag if the submitted quote is less than 25% of the historical average for this vehicle.
+      // This is a fraud signal, not a cost estimate.
+      const ratio = quotedCents / learningDbBenchmarkCents;
+      if (ratio < 0.25) {
+        fraudCostSignal.suspiciouslyCheap = true;
+        ctx.log("Stage 9", `Fraud signal: submitted quote (${quotedCents} cents) is ${(ratio * 100).toFixed(1)}% of learning DB avg (${learningDbBenchmarkCents} cents) — suspiciously cheap`);
       }
     }
-
-    // CRITICAL FIX: recommendedCostRange must always be based on the AI benchmark estimate,
-    // NOT on totalExpectedCents which has been overwritten to the submitted quote by QUOTE-FIRST.
-    // The range represents "what AI thinks is a fair cost" — independent of what was quoted.
-    // This prevents the paradox of the AI benchmark sitting outside its own "fair range".
-    const rangeBaseCents = aiEstimatedCents > 0 ? aiEstimatedCents : totalExpectedCents;
-    const lowCents = Math.round(rangeBaseCents * 0.8);
-    const highCents = Math.round(rangeBaseCents * 1.2);
 
     // Build per-component repair intelligence
     // NOTE: Per-component cost estimates are NOT produced here because we have no
@@ -541,7 +490,7 @@ export async function runCostOptimisationStage(
       })),
       selected_quote_id: extractedQuotes.length > 0 ? "q1" : "",
       agreed_cost_usd: quotedCents ? quotedCents / 100 : null,
-      ai_estimate_usd: totalExpectedCents / 100,
+      ai_estimate_usd: null, // Not produced — system uses document-sourced costs only
       market_value_usd: claimRecord.valuation?.marketValueUsd
         ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
       median_cost: extractedQuotes.length > 1
@@ -631,7 +580,7 @@ export async function runCostOptimisationStage(
             coverage_ratio: alignmentResult.coverage_ratio,
             structural_coverage_ratio: alignmentResult.structural_coverage_ratio,
           } : null,
-          ai_estimate_usd: totalExpectedCents / 100,
+          ai_estimate_usd: null, // Not produced — system uses document-sourced costs only
           currency,
         });
       } catch (decisionErr) {

@@ -495,8 +495,8 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
 
   const ce = e?.costExtraction;
   const normalised = (aiAssessment as any)?._normalised as any;
-  // Use normalised cost as AI benchmark (same as Section3Financial)
-  const aiEstimate = normalised?.costs?.totalUsd ?? ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
+  // No AI cost estimate — only document-sourced costs are used
+  const aiEstimate = 0; // Disabled: system uses submitted quote only
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
   const photosDetected = aiAssessment?.photosDetected ?? 0;
   const photoStatus = phase2?.photoAnalysis?.photoStatus ?? "NOT_APPLICABLE";
@@ -518,9 +518,9 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const physicsLabel = physicsScore >= 70 ? "CONSISTENT" : physicsScore >= 30 ? "MINOR ANOMALY" : "ANOMALY";
   const physicsIcon = physicsScore >= 70 ? "✅" : "⚠️";
 
-  // Cost tile status
-  const costStatus = aiEstimate > 0 ? "pass" : "na";
-  const costIcon = aiEstimate > 0 ? "✅" : "—";
+  // Cost tile status — based on whether a quote was submitted
+  const costStatus = quotedTotal > 0 ? "pass" : "na";
+  const costIcon = quotedTotal > 0 ? "✅" : "—";
 
   // Evidence tile status
   const evidenceStatus = photoStatus === "ANALYSED" ? "pass" : photoStatus === "SYSTEM_FAILURE" ? "warn" : "fail";
@@ -593,9 +593,9 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           <div className="kpi-sub">{wfLevel.charAt(0).toUpperCase() + wfLevel.slice(1)}</div>
         </div>
         <div className="kpi-tile">
-          <div className="kpi-label">Est. Cost</div>
-          <div className="kpi-value" style={{ fontSize: 22 }}>{aiEstimate > 0 ? fmtMoney(aiEstimate) : '—'}</div>
-          <div className="kpi-sub">Benchmark</div>
+          <div className="kpi-label">Quoted Cost</div>
+          <div className="kpi-value" style={{ fontSize: 22 }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</div>
+          <div className="kpi-sub">Submitted Quote</div>
         </div>
         <div className="kpi-tile">
           <div className="kpi-label">Decision</div>
@@ -697,7 +697,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           { label: 'S7 Physics', ok: physicsScore >= 30 },
           { label: 'S7b Causal', ok: true },
           { label: 'S8 Fraud', ok: true },
-          { label: 'S9 Cost Optim', ok: aiEstimate > 0 },
+          { label: 'S9 Cost Optim', ok: quotedTotal > 0 },
           { label: 'S10 Report Gen', ok: true },
           { label: 'W4-5 Consistency', ok: ps?.consistencyOk !== false },
         ];
@@ -1808,15 +1808,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const ce = e?.costExtraction;
   const normalised = (aiAssessment as any)?._normalised as any;
 
-  // Prefer the normalised AI estimate (independent benchmark) over costExtraction.ai_estimate
-  // which can be set to the quote total when no independent estimate is available.
-  const aiEstimate = normalised?.costs?.totalUsd ?? ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
-  const aiParts = ce?.parts ?? aiAssessment?.estimatedPartsCost ?? 0;
-  const aiLabour = ce?.labour ?? aiAssessment?.estimatedLaborCost ?? 0;
-  const fairMin = ce?.fair_range?.min ?? e?.costBenchmark?.estimatedFairMin ?? 0;
-  const fairMax = ce?.fair_range?.max ?? e?.costBenchmark?.estimatedFairMax ?? 0;
+  // Stage 9 no longer produces AI cost estimates. Only document-sourced costs are used.
   const itemisedParts: any[] = ce?.itemised_parts ?? [];
-  // Parse partsReconciliationJson from Stage 9 — used to show quote status per component
+  // Parse partsReconciliationJson from Stage 9 — used to show coverage gap per component
   const partsReconRaw = (aiAssessment as any)?.partsReconciliationJson;
   const partsRecon: any[] = (() => {
     if (!partsReconRaw) return [];
@@ -1842,31 +1836,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const quotedParts = primaryQuote?.parts ?? 0;
   const quotedLabour = primaryQuote?.labour ?? 0;
 
-  const variance = (a: number, b: number) => a > 0 && b > 0 ? ((a - b) / b) * 100 : null;
-  const totalVar = variance(quotedTotal, aiEstimate);
-  const partsVar = variance(quotedParts, aiParts);
-  const labourVar = variance(quotedLabour, aiLabour);
+  // No AI estimate to compare against — verdict is purely based on quote presence
+  const verdict: string = quotedTotal > 0 ? "QUOTE_SUBMITTED" : "NO_QUOTE";
 
-  // Derive verdict from the quote vs AI estimate comparison.
-  // Only use NO_QUOTE when there is genuinely no quote AND no AI estimate.
-  // If we have a quote but no AI estimate, show FAIR (cannot compare).
-  // If we have both, compare them.
-  const verdict: string = e?.costVerdict?.verdict !== "NO_QUOTE"
-    ? (e?.costVerdict?.verdict ?? (
-        aiEstimate > 0 && quotedTotal > 0
-          ? quotedTotal > aiEstimate * 1.15 ? "OVERPRICED"
-            : quotedTotal < aiEstimate * 0.85 ? "UNDERPRICED"
-            : "FAIR"
-          : aiEstimate > 0 && fairMax > 0
-            ? aiEstimate > fairMax * 1.15 ? "OVERPRICED" : aiEstimate < fairMin * 0.85 ? "UNDERPRICED" : "FAIR"
-            : quotedTotal > 0 ? "FAIR" : "NO_QUOTE"
-      ))
-    // costVerdict says NO_QUOTE — but if we actually have a quote, override it
-    : quotedTotal > 0
-      ? (quotedTotal > (aiEstimate > 0 ? aiEstimate : quotedTotal) * 1.15 ? "OVERPRICED"
-         : quotedTotal < (aiEstimate > 0 ? aiEstimate : quotedTotal) * 0.85 ? "UNDERPRICED"
-         : "FAIR")
-      : "NO_QUOTE";
 
   const corrections: string[] = (aiAssessment as any)?._phase1?.allCorrections ?? [];
   const costCorrections = corrections.filter(c => c.toLowerCase().includes("cost") || c.toLowerCase().includes("$") || c.toLowerCase().includes("amount"));
@@ -1887,63 +1859,41 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       {/* Cost waterfall — Chart.js horizontal bar, matches CostBenchmarkDeviation style */}
       <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
         <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Cost Waterfall</p>
-          <StatusBadge status={verdict === "FAIR" ? "pass" : verdict === "OVERPRICED" ? "fail" : "info"} label={verdict} />
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Submitted Quote</p>
+          <StatusBadge status={verdict === "QUOTE_SUBMITTED" ? "pass" : "warn"} label={verdict === "QUOTE_SUBMITTED" ? "Quote Received" : "No Quote"} />
         </div>
         <div className="p-4">
-          {(aiEstimate > 0 || quotedTotal > 0) && (
-            <div className="mb-4">
-              <CostWaterfallChart data={{
-                benchmarkUsd: aiEstimate,
-                quotedTotalUsd: quotedTotal,
-                marketValueUsd: marketValueUsd3,
-                fairRangeMinUsd: fairMin,
-                fairRangeMaxUsd: fairMax,
-              } as CostWaterfallData} />
-            </div>
-          )}
-          {/* Reconciliation table — Source / Amount / Audit Note per spec */}
-          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>3.1 Cost Breakdown</p>
-          <table className="w-full text-xs mb-3 report-table">
-            <thead>
-              <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-                {["Source", "Parts", "Labour", "Total", "Variance vs Benchmark", "Audit Note"].map(h => (
-                  <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[
-                { source: "Learning Benchmark", parts: aiParts, labour: aiLabour, total: aiEstimate, v: null as number | null, note: aiEstimate > 0 ? "From accumulated claims data" : "Insufficient learning data" },
-                { source: "Repairer Quote", parts: quotedParts, labour: quotedLabour, total: quotedTotal, v: totalVar, note: totalVar == null ? "No quote" : Math.abs(totalVar) <= 15 ? "Within tolerance" : Math.abs(totalVar) <= 30 ? "Review recommended" : "Significant outlier" },
-                { source: "Fair Range", parts: null as number | null, labour: null as number | null, total: fairMin > 0 ? fairMin : null, v: null as number | null, note: fairMin > 0 && fairMax > 0 ? `${fmtMoney(fairMin)} – ${fmtMoney(fairMax)}` : "Not available" },
-              ].map((row, i) => {
-                const vStatus: "pass" | "warn" | "fail" | "na" = row.v == null ? "na" : Math.abs(row.v) <= 15 ? "pass" : Math.abs(row.v) <= 30 ? "warn" : "fail";
-                const vLabel = row.v == null ? "—" : `${row.v > 0 ? "+" : ""}${Math.round(row.v)}%`;
-                return (
-                  <tr key={i} style={{ borderTop: "1px solid var(--border)", background: i === 0 ? "var(--muted)" : "var(--background)", fontWeight: i === 0 ? "bold" : undefined }}>
-                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{row.source}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.parts != null && row.parts > 0 ? fmtMoney(row.parts) : "—"}</td>
-                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{row.labour != null && row.labour > 0 ? fmtMoney(row.labour) : "—"}</td>
-                    <td className="px-3 py-2 font-mono font-semibold" style={{ color: "var(--foreground)" }}>{row.total != null && row.total > 0 ? fmtMoney(row.total) : "—"}</td>
-                    <td className="px-3 py-2"><StatusBadge status={vStatus} label={vLabel} /></td>
-                    <td className="px-3 py-2 text-xs" style={{ color: "var(--muted-foreground)" }}>{row.note}</td>
+          {/* Document-sourced cost section — no AI estimates, no benchmarks */}
+          <p className="text-xs font-bold uppercase tracking-wide mb-2" style={{ color: "var(--muted-foreground)" }}>4.1 Submitted Quote</p>
+          {quotedTotal > 0 ? (
+            <table className="w-full text-xs mb-3 report-table">
+              <thead>
+                <tr style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+                  {["Repairer", "Parts", "Labour", "Total", "Status"].map(h => (
+                    <th key={h} className="text-left px-3 py-2 font-semibold" style={{ color: "var(--muted-foreground)" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pbQuotes.map((q, i) => (
+                  <tr key={i} style={{ borderTop: "1px solid var(--border)", background: "var(--background)" }}>
+                    <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{q.name}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.parts > 0 ? fmtMoney(q.parts) : "—"}</td>
+                    <td className="px-3 py-2 font-mono" style={{ color: "var(--foreground)" }}>{q.labour > 0 ? fmtMoney(q.labour) : "—"}</td>
+                    <td className="px-3 py-2 font-mono font-bold" style={{ color: "var(--foreground)" }}>{fmtMoney(q.total)}</td>
+                    <td className="px-3 py-2"><StatusBadge status="pass" label="Submitted" /></td>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-
-          {fairMin > 0 && fairMax > 0 && (
-            <div className="p-2 rounded text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-              Fair range benchmark: {fmtMoney(fairMin)} – {fmtMoney(fairMax)} · AI estimate is{" "}
-              {aiEstimate < fairMin ? "below" : aiEstimate > fairMax ? "above" : "within"} the benchmark range.
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="p-3 rounded text-xs mb-3" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
+              No repair quote has been submitted for this claim. Cost assessment cannot be performed until a quotation is received.
             </div>
           )}
         </div>
       </div>
-
-      {/* Itemised parts */}
+            {/* Itemised parts */}
       {itemisedParts.length > 0 && (
         <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
           <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -2033,7 +1983,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
               </thead>
               <tbody>
                 {pbQuotes.map((q, i) => {
-                  const v = aiEstimate > 0 ? ((q.total - aiEstimate) / aiEstimate) * 100 : null;
+                  const v = null; // No AI estimate to compare against — system uses document-sourced costs only
                   return (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
                       <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{q.name}</td>
@@ -2142,7 +2092,7 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
       {(() => {
         const ce = enforcement?.costExtraction;
         const normalised = (aiAssessment as any)?._normalised as any;
-        const benchmarkUsd = normalised?.costs?.totalUsd ?? ce?.ai_estimate ?? aiAssessment?.estimatedCost ?? 0;
+        const benchmarkUsd = 0; // No AI estimate — system uses document-sourced costs only
         const fairMin = ce?.fair_range?.min ?? enforcement?.costBenchmark?.estimatedFairMin ?? 0;
         const fairMax = ce?.fair_range?.max ?? enforcement?.costBenchmark?.estimatedFairMax ?? 0;
         const pbQuotes = (quotes ?? []).map((q: any) => (q.quotedAmount ?? 0) / 100);
