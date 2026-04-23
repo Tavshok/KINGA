@@ -731,7 +731,7 @@ export async function runCostOptimisationStage(
         partsCostCents: totalPartsCents,
         labourCostCents: totalLabourCents,
         paintCostCents: totalPaintCents,
-        hiddenDamageCostCents: hiddenDamageCents,
+        hiddenDamageCostCents: 0, // Not computed in stage-9 (only in costRealismValidator path)
         totalCents: totalExpectedCents,
       },
       labourRateUsdPerHour: labourRate,

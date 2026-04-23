@@ -1109,14 +1109,31 @@ export async function triggerAiAssessment(claimId: number) {
     return v;
   };
 
+  // ── GLOBAL NaN SANITIZER ──────────────────────────────────────────────────
+  // Walk any plain object/array and replace NaN/Infinity/-Infinity with null.
+  // This is a last-resort safety net — individual numeric fields should still
+  // use safeInt/safeFloat. mysql2 formats NaN as the bare string 'nan' (no
+  // quotes) which MySQL interprets as a column name → ER_BAD_FIELD_ERROR.
+  function sanitizeNaNDeep<T>(obj: T): T {
+    if (obj === null || obj === undefined) return obj;
+    if (typeof obj === 'number') return (Number.isFinite(obj) ? obj : null) as unknown as T;
+    if (typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return (obj as unknown[]).map(sanitizeNaNDeep) as unknown as T;
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
+      out[k] = sanitizeNaNDeep(v);
+    }
+    return out as T;
+  }
+
   // Delete any previous assessment for this claim
   console.log(`[AI Assessment] Claim ${claimId}: Deleting previous assessment and inserting new one...`);
   await db.delete(aiAssessments).where(eq(aiAssessments.claimId, claimId)).catch((delErr) => {
     console.warn(`[AI Assessment] Claim ${claimId}: Failed to delete previous assessment (non-fatal):`, delErr);
   });
 
-  // Insert new assessment
-  await db.insert(aiAssessments).values({
+  // Insert new assessment — sanitize the entire object to prevent NaN column errors
+  const _rawInsertValues = {
     claimId,
     tenantId: claim.tenantId ?? null,
     estimatedCost: safeInt(estimatedCost),
@@ -1301,7 +1318,10 @@ export async function triggerAiAssessment(claimId: number) {
     // Stage 6 enriched photo metadata — persisted so the UI can show per-photo vision analysis results
     // Previously this was computed but never written to the DB column, causing enriched_photos_json to always be NULL.
     enrichedPhotosJson: result.enrichedPhotosJson ?? null,
-  });
+  };
+  // Apply the global NaN sanitizer before passing to Drizzle.
+  // This catches any numeric field that slipped through safeInt/safeFloat guards.
+  await db.insert(aiAssessments).values(sanitizeNaNDeep(_rawInsertValues));
 
   // Update claim status to complete + backfill vehicle info from extraction
   const finalFraudScore = safeFloat(fraudAnalysis ? fraudAnalysis.fraudRiskScore : 0) ?? 0;
