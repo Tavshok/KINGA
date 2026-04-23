@@ -8,10 +8,8 @@
  */
 
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { router, protectedProcedure } from "../_core/trpc";
 import { getDb } from "../db";
-import { photoReextractionJobs, aiAssessments, claimDocuments } from "../../drizzle/schema";
 import { runPhotoReextraction } from "../photo-reextraction-worker";
 
 export const photoReextractionRouter = router({
@@ -28,9 +26,10 @@ export const photoReextractionRouter = router({
     .mutation(async ({ input, ctx }) => {
       if (!ctx.user) throw new Error("Not authenticated");
       const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
 
       // Check if there's already a running or pending job for this assessment
-      const [existingRows] = await db.execute(
+      const [existingRows] = await (db as any).execute(
         `SELECT id, status FROM photo_reextraction_jobs WHERE assessment_id = ? AND status IN ('pending','running') LIMIT 1`,
         [input.assessmentId]
       );
@@ -40,7 +39,7 @@ export const photoReextractionRouter = router({
       }
 
       // Verify the assessment exists
-      const [assessRows] = await db.execute(
+      const [assessRows] = await (db as any).execute(
         `SELECT id FROM ai_assessments WHERE id = ? LIMIT 1`,
         [input.assessmentId]
       );
@@ -49,7 +48,7 @@ export const photoReextractionRouter = router({
       }
 
       // Get the PDF URL from the claim's source documents
-      const [docRows] = await db.execute(
+      const [docRows] = await (db as any).execute(
         `SELECT document_url, document_category FROM claim_documents WHERE claim_id = ? LIMIT 10`,
         [input.claimId]
       );
@@ -64,7 +63,7 @@ export const photoReextractionRouter = router({
       }
 
       // Create the job record
-      const [insertResult] = await db.execute(
+      const [insertResult] = await (db as any).execute(
         `INSERT INTO photo_reextraction_jobs (assessment_id, claim_id, pdf_url, status, requested_dpi, created_at, triggered_by_user_id)
          VALUES (?, ?, ?, 'pending', 300, NOW(), ?)`,
         [input.assessmentId, input.claimId, pdfDoc.document_url, ctx.user.id]
@@ -90,7 +89,8 @@ export const photoReextractionRouter = router({
     }))
     .query(async ({ input }) => {
       const db = await getDb();
-      const [rows] = await db.execute(
+      if (!db) throw new Error("Database unavailable");
+      const [rows] = await (db as any).execute(
         `SELECT * FROM photo_reextraction_jobs WHERE id = ? LIMIT 1`,
         [input.jobId]
       );
@@ -135,7 +135,8 @@ export const photoReextractionRouter = router({
     }))
     .query(async ({ input }) => {
       const db = await getDb();
-      const [rows] = await db.execute(
+      if (!db) throw new Error("Database unavailable");
+      const [rows] = await (db as any).execute(
         `SELECT * FROM photo_reextraction_jobs WHERE assessment_id = ? ORDER BY id DESC LIMIT 1`,
         [input.assessmentId]
       );

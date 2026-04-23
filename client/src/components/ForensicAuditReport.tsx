@@ -1362,6 +1362,9 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
   const directionExplanation = e?.directionFlag?.explanation ?? "";
   const consistencyExplanation = e?.consistencyFlag?.explanation ?? "";
   const anomalyLevel = e?.consistencyFlag?.anomalyLevel ?? "none";
+  // Derive multiEventSequence from claimRecord (same pattern as Section1Incident)
+  const _s2claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  const multiEventSequence = _s2claimRecord?.accidentDetails?.multiEventSequence ?? null;
 
   const incidentPatterns: Record<string, { expected: string[]; notes: string }> = {
     ANIMAL_STRIKE: {
