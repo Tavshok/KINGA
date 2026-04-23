@@ -797,10 +797,71 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
   const policeStation = claimRecord?.policeReport?.station ?? null;
   const driverName = claimRecord?.driver?.name ?? claim?.driverName ?? null;
   const claimantName = claimRecord?.driver?.claimantName ?? claim?.claimantName ?? null;
-  // Police report No. badge — extracted to avoid TDZ in minified bundle
+  // ── Pre-computed table cell values ─────────────────────────────────────────
+  // ALL JSX values used inside array literals MUST be extracted here.
+  // Inline JSX inside array literals causes TDZ crashes in the minified bundle
+  // because esbuild/terser reorders variable declarations.
+
+  // Police report No. cell
   const policeReportNoCell = policeReportNumber
     ? policeReportNumber
     : (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>Not Extracted</span>);
+
+  // Animal type cell (conditional row)
+  const animalTypeRow: [string, React.ReactNode] | null = animalType
+    ? ["Animal type", <span key="animal" className="font-semibold capitalize">{animalType}</span>]
+    : null;
+
+  // Incident type cell — large JSX block extracted to avoid TDZ
+  const incidentTypeCell = (
+    <span className="flex flex-col gap-1">
+      <span className="flex items-center gap-2 flex-wrap">
+        <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, " ")}</span>
+        {isClassifiedByLLM && (
+          <span
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+            style={{
+              background: classifiedConfidence >= 80 ? "var(--status-approve-bg)" : classifiedConfidence >= 60 ? "var(--status-review-bg)" : "var(--muted)",
+              color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--muted-foreground)",
+              border: `1px solid ${classifiedConfidence >= 80 ? "var(--status-approve-border)" : classifiedConfidence >= 60 ? "var(--status-review-border)" : "var(--border)"}`
+            }}
+          >
+            {classifiedConfidence}% confidence
+          </span>
+        )}
+        {classifiedConflict && (
+          <span
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+            style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}
+            title={
+              multiEventSequence?.is_multi_event
+                ? `Multi-event incident: ${multiEventSequence.events?.map((e: any) => (e.event_type ?? "").replace(/_/g, " ")).join(" → ")}`
+                : "Conflict between driver narrative, claim form, and/or damage evidence"
+            }
+          >
+            {multiEventSequence?.is_multi_event
+              ? `⚡ MULTI-EVENT INCIDENT (${multiEventSequence.events?.length ?? 2})`
+              : "⚠ CONFLICT DETECTED"}
+          </span>
+        )}
+        {!isClassifiedByLLM && incidentType !== "N/A" && (
+          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
+            from claim form
+          </span>
+        )}
+      </span>
+      {isClassifiedByLLM && classifiedSources.length > 0 && (
+        <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
+          Sources: {classifiedSources.map((s: string) => s.replace(/_/g, " ")).join(" · ")}
+        </span>
+      )}
+      {isClassifiedByLLM && classifiedReasoning && (
+        <span className="text-[10px] italic" style={{ color: "var(--muted-foreground)" }}>
+          {classifiedReasoning.length > 180 ? classifiedReasoning.substring(0, 180) + "…" : classifiedReasoning}
+        </span>
+      )}
+    </span>
+  );
 
   return (
     <div className="mb-4 space-y-4">
@@ -813,62 +874,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <table className="w-full text-xs report-table">
             <tbody>
               {[
-                ["Incident type", (
-                  <span className="flex flex-col gap-1">
-                    <span className="flex items-center gap-2 flex-wrap">
-                      <span className="font-semibold capitalize">{displayIncidentType.replace(/_/g, " ")}</span>
-                      {isClassifiedByLLM && (
-                        <span
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                          style={{
-                            background: classifiedConfidence >= 80 ? "var(--status-approve-bg)" : classifiedConfidence >= 60 ? "var(--status-review-bg)" : "var(--muted)",
-                            color: classifiedConfidence >= 80 ? "var(--status-approve-text)" : classifiedConfidence >= 60 ? "var(--status-review-text)" : "var(--muted-foreground)",
-                            border: `1px solid ${classifiedConfidence >= 80 ? "var(--status-approve-border)" : classifiedConfidence >= 60 ? "var(--status-review-border)" : "var(--border)"}`
-                          }}
-                        >
-                          {classifiedConfidence}% confidence
-                        </span>
-                      )}
-                      {classifiedConflict && (
-                        <span
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-                          style={{ background: "var(--status-review-bg)", color: "var(--status-review-text)", border: "1px solid var(--status-review-border)" }}
-                          title={
-                            multiEventSequence?.is_multi_event
-                              ? `Multi-event incident: ${multiEventSequence.events?.map((e: any) => (e.event_type ?? "").replace(/_/g, " ")).join(" → ")}`
-                              : "Conflict between driver narrative, claim form, and/or damage evidence"
-                          }
-                        >
-                          {multiEventSequence?.is_multi_event
-                            ? `⚡ MULTI-EVENT INCIDENT (${multiEventSequence.events?.length ?? 2})`
-                            : "⚠ CONFLICT DETECTED"}
-                        </span>
-                      )}
-                      {!isClassifiedByLLM && incidentType !== "N/A" && (
-                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: "var(--muted)", color: "var(--muted-foreground)", border: "1px solid var(--border)" }}>
-                          from claim form
-                        </span>
-                      )}
-                    </span>
-                    {isClassifiedByLLM && classifiedSources.length > 0 && (
-                      <span className="text-[10px]" style={{ color: "var(--muted-foreground)" }}>
-                        Sources: {classifiedSources.map((s: string) => s.replace(/_/g, " ")).join(" · ")}
-                      </span>
-                    )}
-                    {isClassifiedByLLM && classifiedReasoning && (
-                      <span className="text-[10px] italic" style={{ color: "var(--muted-foreground)" }}>
-                        {classifiedReasoning.length > 180 ? classifiedReasoning.substring(0, 180) + "…" : classifiedReasoning}
-                      </span>
-                    )}
-                  </span>
-                )],
+                ["Incident type", incidentTypeCell],
                 ["Claimed speed", claimedSpeed != null ? `${claimedSpeed} km/h` : "Not stated"],
                 ["Incident date", fmtDate(claim?.incidentDate ?? aiAssessment?.incidentDate)],
                 ["Incident time", accidentTime ?? "Not recorded"],
                 ["Location", aiAssessment?.incidentLocation ?? claim?.incidentLocation ?? "Not recorded"],
                 ["Weather conditions", weatherConditions ?? "Not recorded"],
                 ["Road surface", roadSurface ?? "Not recorded"],
-                animalType ? ["Animal type", <span className="font-semibold capitalize">{animalType}</span>] : null,
+                animalTypeRow,
                 ["Driver", driverName ?? "Not recorded"],
                 ["Driver licence", driverLicenseNumber ?? "Not provided"],
                 ["Claimant", claimantName ?? claim?.claimantName ?? "Not recorded"],
