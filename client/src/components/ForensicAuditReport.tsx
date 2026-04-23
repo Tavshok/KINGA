@@ -776,27 +776,27 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
-  // Pull new ClaimRecord fields from the aiAssessment claimRecord (stored in DB)
-  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
-  const narrativeAnalysis = claimRecord?.accidentDetails?.narrativeAnalysis ?? null;
-  const multiEventSequence = claimRecord?.accidentDetails?.multiEventSequence ?? null;
-  const accidentTime = claimRecord?.accidentDetails?.time ?? null;
-  const animalType = claimRecord?.accidentDetails?.animalType ?? null;
-  const weatherConditions = claimRecord?.accidentDetails?.weatherConditions ?? null;
-  const roadSurface = claimRecord?.accidentDetails?.roadSurface ?? null;
-  const insurerName = claimRecord?.insuranceContext?.insurerName ?? claim?.insurerName ?? null;
-  const policyNumber = claimRecord?.insuranceContext?.policyNumber ?? claim?.policyNumber ?? null;
-  const claimReference = claimRecord?.insuranceContext?.claimReference ?? claim?.claimNumber ?? claim?.claimReference ?? null;
-  const excessAmountUsd = claimRecord?.insuranceContext?.excessAmountUsd ?? null;
-  const driverLicenseNumber = claimRecord?.driver?.licenseNumber ?? null;
-  const marketValueUsd = claimRecord?.vehicle?.marketValueUsd ?? null;
-  const vehicleMileage = claimRecord?.vehicle?.mileageKm ?? claim?.vehicleMileage ?? null;
-  const vehicleVin = claimRecord?.vehicle?.vin ?? claim?.vehicleVin ?? aiAssessment?.vehicleVin ?? null;
-  const vehicleEngineNumber = claimRecord?.vehicle?.engineNumber ?? claim?.vehicleEngineNumber ?? null;
-  const policeReportNumber = claimRecord?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber ?? null;
-  const policeStation = claimRecord?.policeReport?.station ?? null;
-  const driverName = claimRecord?.driver?.name ?? claim?.driverName ?? null;
-  const claimantName = claimRecord?.driver?.claimantName ?? claim?.claimantName ?? null;
+  // Pull new ClaimRecord fields from the aiAssessment claimRecord0 (stored in DB)
+  // NOTE: claimRecord0 (declared above) is identical — using it directly to avoid duplicate const
+  const narrativeAnalysis = claimRecord0?.accidentDetails?.narrativeAnalysis ?? null;
+  const multiEventSequence = claimRecord0?.accidentDetails?.multiEventSequence ?? null;
+  const accidentTime = claimRecord0?.accidentDetails?.time ?? null;
+  const animalType = claimRecord0?.accidentDetails?.animalType ?? null;
+  const weatherConditions = claimRecord0?.accidentDetails?.weatherConditions ?? null;
+  const roadSurface = claimRecord0?.accidentDetails?.roadSurface ?? null;
+  const insurerName = claimRecord0?.insuranceContext?.insurerName ?? claim?.insurerName ?? null;
+  const policyNumber = claimRecord0?.insuranceContext?.policyNumber ?? claim?.policyNumber ?? null;
+  const claimReference = claimRecord0?.insuranceContext?.claimReference ?? claim?.claimNumber ?? claim?.claimReference ?? null;
+  const excessAmountUsd = claimRecord0?.insuranceContext?.excessAmountUsd ?? null;
+  const driverLicenseNumber = claimRecord0?.driver?.licenseNumber ?? null;
+  const marketValueUsd = claimRecord0?.vehicle?.marketValueUsd ?? null;
+  const vehicleMileage = claimRecord0?.vehicle?.mileageKm ?? claim?.vehicleMileage ?? null;
+  const vehicleVin = claimRecord0?.vehicle?.vin ?? claim?.vehicleVin ?? aiAssessment?.vehicleVin ?? null;
+  const vehicleEngineNumber = claimRecord0?.vehicle?.engineNumber ?? claim?.vehicleEngineNumber ?? null;
+  const policeReportNumber = claimRecord0?.policeReport?.reportNumber ?? aiAssessment?.policeReportNumber ?? null;
+  const policeStation = claimRecord0?.policeReport?.station ?? null;
+  const driverName = claimRecord0?.driver?.name ?? claim?.driverName ?? null;
+  const claimantName = claimRecord0?.driver?.claimantName ?? claim?.claimantName ?? null;
 
   return (
     <div className="mb-4 space-y-4">
@@ -869,8 +869,8 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Driver licence", driverLicenseNumber ?? "Not provided"],
                 ["Claimant", claimantName ?? claim?.claimantName ?? "Not recorded"],
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
-                ["Assessor", aiAssessment?.assessorName ?? claimRecord?.repairQuote?.assessorName ?? "Not assigned"],
-                ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
+                ["Assessor", aiAssessment?.assessorName ?? claimRecord0?.repairQuote?.assessorName ?? "Not assigned"],
+                ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord0?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
                 ["Police report No.", policeReportNumber
                   ? policeReportNumber
                   : (<span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: "var(--fp-critical-bg)", color: "var(--fp-critical-text)", border: "1px solid var(--fp-critical-border)" }}>Not Extracted</span>)],
@@ -1094,7 +1094,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           <table className="w-full text-xs report-table">
             <tbody>
               {[
-                ["Registration", claim?.vehicleRegistration ?? claimRecord?.vehicle?.registration ?? "Not recorded"],
+                ["Registration", claim?.vehicleRegistration ?? claimRecord0?.vehicle?.registration ?? "Not recorded"],
                 ["VIN", vehicleVin ?? "Not recorded"],
                 ["Engine number", vehicleEngineNumber ?? "Not recorded"],
                 ["Odometer", vehicleMileage != null ? `${vehicleMileage.toLocaleString()} km` : "Not recorded"],
@@ -1123,12 +1123,12 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 <tbody>
                   {([
                     ["Name", driverName ?? claim?.claimantName ?? "Not recorded"],
-                    ["ID / Passport", claimRecord?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? "Not provided"],
+                    ["ID / Passport", claimRecord0?.driver?.idNumber ?? (claim as any)?.claimantIdNumber ?? "Not provided"],
                     ["Licence no.", driverLicenseNumber ?? "Not provided"],
-                    ["Contact", claimRecord?.driver?.phone ?? (claim as any)?.claimantPhone ?? "Not provided"],
-                    ["Email", claimRecord?.driver?.email ?? (claim as any)?.claimantEmail ?? "Not provided"],
-                    ["Relationship to policyholder", claimRecord?.driver?.relationshipToPolicyholder ?? "Not stated"],
-                    ["Injuries reported", claimRecord?.driver?.injuriesReported ?? "Not stated"],
+                    ["Contact", claimRecord0?.driver?.phone ?? (claim as any)?.claimantPhone ?? "Not provided"],
+                    ["Email", claimRecord0?.driver?.email ?? (claim as any)?.claimantEmail ?? "Not provided"],
+                    ["Relationship to policyholder", claimRecord0?.driver?.relationshipToPolicyholder ?? "Not stated"],
+                    ["Injuries reported", claimRecord0?.driver?.injuriesReported ?? "Not stated"],
                   ] as [string, string][]).map(([k, v], i) => (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                       <td className="py-1.5 pr-3 font-semibold w-44" style={{ color: "var(--muted-foreground)" }}>{k}</td>
@@ -1143,14 +1143,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
               <table className="w-full text-xs">
                 <tbody>
                   {([
-                    ["Name", (claimRecord?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName ?? "Not recorded"],
-                    ["Vehicle", (claimRecord?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle ?? "Not recorded"],
-                    ["Registration", (claimRecord?.thirdParty as any)?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
-                    ["Insurer", (claimRecord?.thirdParty as any)?.insurerName ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
-                    ["Policy No.", (claimRecord?.thirdParty as any)?.policyNumber ?? "Not provided"],
-                    ["Liability admitted", (claimRecord?.thirdParty as any)?.liabilityAdmitted != null ? ((claimRecord?.thirdParty as any).liabilityAdmitted ? "Yes" : "No") : "Not stated"],
-                    ["Witness name", claimRecord?.witness?.name ?? (claim as any)?.witnessName ?? "Not provided"],
-                    ["Witness contact", claimRecord?.witness?.phone ?? (claim as any)?.witnessPhone ?? "Not provided"],
+                    ["Name", (claimRecord0?.thirdParty as any)?.driverName ?? (claim as any)?.thirdPartyName ?? "Not recorded"],
+                    ["Vehicle", (claimRecord0?.thirdParty as any)?.vehicleDescription ?? (claim as any)?.thirdPartyVehicle ?? "Not recorded"],
+                    ["Registration", (claimRecord0?.thirdParty as any)?.registration ?? (claim as any)?.thirdPartyRegistration ?? "Not provided"],
+                    ["Insurer", (claimRecord0?.thirdParty as any)?.insurerName ?? (claim as any)?.thirdPartyInsurer ?? "Not provided"],
+                    ["Policy No.", (claimRecord0?.thirdParty as any)?.policyNumber ?? "Not provided"],
+                    ["Liability admitted", (claimRecord0?.thirdParty as any)?.liabilityAdmitted != null ? ((claimRecord0?.thirdParty as any).liabilityAdmitted ? "Yes" : "No") : "Not stated"],
+                    ["Witness name", claimRecord0?.witness?.name ?? (claim as any)?.witnessName ?? "Not provided"],
+                    ["Witness contact", claimRecord0?.witness?.phone ?? (claim as any)?.witnessPhone ?? "Not provided"],
                   ] as [string, string][]).map(([k, v], i) => (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                       <td className="py-1.5 pr-3 font-semibold w-44" style={{ color: "var(--muted-foreground)" }}>{k}</td>
@@ -1177,14 +1177,14 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
             <tbody>
               {([
                 ["Case / AR number", policeReportNumber ?? "Not provided"],
-                ["Police station", policeStation ?? claimRecord?.policeReport?.station ?? (claim as any)?.policeStation ?? "Not provided"],
-                ["Reporting officer", claimRecord?.policeReport?.officerName ?? "Not provided"],
-                ["Report date", claimRecord?.policeReport?.reportDate ?? "Not provided"],
-                ["Charge number", claimRecord?.policeReport?.chargeNumber ?? "Not provided"],
-                ["Charged party", claimRecord?.policeReport?.chargedParty ?? "Not stated"],
-                ["Investigation status", claimRecord?.policeReport?.investigationStatus ?? "Not stated"],
-                ["Officer findings", claimRecord?.policeReport?.officerFindings ?? "Not stated"],
-                ["Third-party account", claimRecord?.policeReport?.thirdPartyAccountSummary ?? "Not provided"],
+                ["Police station", policeStation ?? claimRecord0?.policeReport?.station ?? (claim as any)?.policeStation ?? "Not provided"],
+                ["Reporting officer", claimRecord0?.policeReport?.officerName ?? "Not provided"],
+                ["Report date", claimRecord0?.policeReport?.reportDate ?? "Not provided"],
+                ["Charge number", claimRecord0?.policeReport?.chargeNumber ?? "Not provided"],
+                ["Charged party", claimRecord0?.policeReport?.chargedParty ?? "Not stated"],
+                ["Investigation status", claimRecord0?.policeReport?.investigationStatus ?? "Not stated"],
+                ["Officer findings", claimRecord0?.policeReport?.officerFindings ?? "Not stated"],
+                ["Third-party account", claimRecord0?.policeReport?.thirdPartyAccountSummary ?? "Not provided"],
               ] as [string, string][]).map(([k, v], i) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                   <td className="py-1.5 pr-3 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k}</td>
@@ -1272,7 +1272,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 
       {/* 1.4 Gap Attribution Table — data quality gaps with attribution */}
       {(() => {
-        const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+        const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
         const gapEntries: GapEntry[] = [];
         // Derive gaps from missing critical fields
         if (!policeReportNumber) gapEntries.push({ field: "Police Report Number", explanation: "Police report number not provided in claim documents.", attribution: "CLAIMANT_DEFICIENCY" });
@@ -2092,25 +2092,25 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
 function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessment: any; enforcement: any; quotes?: any[] }) {
   // Currency-aware formatter — derived from claim currency code
   const fmtMoney = makeFmtCurrency((aiAssessment as any)?.currencyCode ?? (aiAssessment as any)?.claimCurrency ?? null);
-  // Read claimRecord from the correct location — same as the rest of the report
-  const claimRecord = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
+  // Read claimRecord0 from the correct location — same as the rest of the report
+  const claimRecord0 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   // costIntelligenceJson — primary source for market value and true repair cost
   // This is the most reliable source: Stage 9 populates both marketValueUsd and totalEstimatedCost
   // from the validated cost decision engine output.
   const costIntel = (aiAssessment as any)?.costIntelligenceJson ?? null;
   // LLM-derived valuation from Stage 5c — secondary source
-  const llmValuation = claimRecord?.valuation ?? null;
-  // Market value priority: costIntelligenceJson → claimRecord.valuation → vehicle field
-  const marketValueUsd = costIntel?.marketValueUsd ?? llmValuation?.marketValueUsd ?? claimRecord?.vehicle?.marketValueUsd ?? null;
+  const llmValuation = claimRecord0?.valuation ?? null;
+  // Market value priority: costIntelligenceJson → claimRecord0.valuation → vehicle field
+  const marketValueUsd = costIntel?.marketValueUsd ?? llmValuation?.marketValueUsd ?? claimRecord0?.vehicle?.marketValueUsd ?? null;
   // Valuation method — from LLM valuation (Stage 5c)
   const valuationMethod = llmValuation?.valuationMethod ?? null;
   const verdictReason = llmValuation?.verdictReason ?? null;
   const llmVerdict = llmValuation?.verdict ?? null; // REPAIRABLE | WRITE_OFF | BORDERLINE
   const llmRepairToValue = llmValuation?.repairToValueRatio ?? null;
-  const excessUsd = claimRecord?.insuranceContext?.excessAmountUsd ?? null;
-  const bettermentUsd = claimRecord?.insuranceContext?.bettermentUsd ?? null;
+  const excessUsd = claimRecord0?.insuranceContext?.excessAmountUsd ?? null;
+  const bettermentUsd = claimRecord0?.insuranceContext?.bettermentUsd ?? null;
   const quotedTotal = (quotes?.[0]?.quotedAmount ?? 0) / 100;
-  const agreedCostUsd = claimRecord?.costs?.agreedCostUsd ?? null;
+  const agreedCostUsd = claimRecord0?.costs?.agreedCostUsd ?? null;
   // Repair cost priority: costIntelligenceJson.totalEstimatedCost (validated) → LLM repairCostUsd → agreed cost → quoted total
   // totalEstimatedCost is the AI-validated repair cost from the cost decision engine
   const repairCost = costIntel?.totalEstimatedCost ?? llmValuation?.repairCostUsd ?? agreedCostUsd ?? quotedTotal;
