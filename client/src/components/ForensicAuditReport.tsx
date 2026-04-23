@@ -2088,39 +2088,6 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
         </div>
       )}
 
-      {/* 3.3 Cost Benchmark Deviation — horizontal bar chart */}
-      {(() => {
-        const ce = enforcement?.costExtraction;
-        const normalised = (aiAssessment as any)?._normalised as any;
-        const benchmarkUsd = 0; // No AI estimate — system uses document-sourced costs only
-        const fairMin = ce?.fair_range?.min ?? enforcement?.costBenchmark?.estimatedFairMin ?? 0;
-        const fairMax = ce?.fair_range?.max ?? enforcement?.costBenchmark?.estimatedFairMax ?? 0;
-        const pbQuotes = (quotes ?? []).map((q: any) => (q.quotedAmount ?? 0) / 100);
-        const reconciledUsd = pbQuotes[0] ?? benchmarkUsd;
-        // Only render if we have meaningful data
-        if (benchmarkUsd <= 0 && reconciledUsd <= 0) return null;
-        const currencyCode = (aiAssessment as any)?.currencyCode ?? 'USD';
-        const SYMBOL_MAP: Record<string, string> = { USD: '$', EUR: '€', GBP: '£', ZAR: 'R', ZMW: 'ZMW', ZIG: 'ZiG', KES: 'KSh', NGN: '₦', GHS: 'GH₵', BWP: 'P', MWK: 'MK', TZS: 'TSh', UGX: 'USh', MZN: 'MT', NAD: 'N$', SZL: 'L', LSL: 'L', AOA: 'Kz' };
-        const currencySymbol = SYMBOL_MAP[currencyCode.toUpperCase()] ?? currencyCode;
-        const benchmarkData: CostBenchmarkData = {
-          benchmarkUsd,
-          reconciledUsd,
-          fairRangeMinUsd: fairMin > 0 ? fairMin : benchmarkUsd * 0.85,
-          fairRangeMaxUsd: fairMax > 0 ? fairMax : benchmarkUsd * 1.15,
-          currencySymbol,
-        };
-        return (
-          <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
-            <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
-              <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>3.3 Cost Benchmark Deviation</p>
-            </div>
-            <div className="p-4">
-              <CostBenchmarkDeviation data={benchmarkData} />
-            </div>
-          </div>
-        );
-      })()}
-
       {/* 3.2 Vehicle Valuation — populated from extracted data */}
       <ValuationSubsection aiAssessment={aiAssessment} enforcement={enforcement} quotes={quotes} />
     </div>
