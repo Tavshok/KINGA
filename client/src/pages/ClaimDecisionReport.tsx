@@ -1476,17 +1476,17 @@ export default function ClaimDecisionReport() {
             <ClaimQualityPanel quality={(aiAssessment as any)._claimQuality} />
           )}
 
-          {/* Stage 36: Forensic Audit Validation */}
+          {/* Stage 36: Forensic Audit Validation — hidden in print (QA tool, not report section) */}
           {(aiAssessment as any)?._forensicAuditValidation && (
-            <div className="mb-4">
+            <div className="mb-4 no-print">
               <ForensicAuditValidationPanel validation={(aiAssessment as any)._forensicAuditValidation} />
             </div>
           )}
         </div>
 
-        {/* ── Phase 5A: Decision Narrative View ── */}
-        <ReportSectionDivider label="Decision Narrative" icon="🧠" />
-        <div className="mb-6 rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)', padding: '1.25rem' }}>
+        {/* ── Phase 5A: Decision Narrative View ── hidden in print (workflow UI, not report section) */}
+        <div className="no-print"><ReportSectionDivider label="Decision Narrative" icon="🧠" /></div>
+        <div className="mb-6 rounded-xl overflow-hidden no-print" style={{ border: '1px solid var(--border)', background: 'var(--card)', padding: '1.25rem' }}>
           <DecisionNarrativeView
             ifeResult={(aiAssessment as any)?._ifeResult ?? null}
             doeResult={(aiAssessment as any)?._doeResult ?? null}

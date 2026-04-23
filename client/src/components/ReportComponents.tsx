@@ -511,28 +511,58 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
                 </div>
               </div>
 
-              {/* Flags */}
-              {r.flags && r.flags.length > 0 && (
-                <ul className="space-y-0.5">
-                  {r.flags.map((f, fi) => (
-                    <li key={fi} className="text-xs" style={{ color: "var(--foreground)" }}>
-                      • {f}
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {/* AI vision description */}
-              {r.aiVisionDescription && (
-                <div className="pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-                  <p className="text-xs font-semibold mb-1" style={{ color: "var(--muted-foreground)" }}>
-                    AI DAMAGE ANALYSIS
-                  </p>
-                  <p className="text-xs leading-relaxed" style={{ color: "var(--foreground)" }}>
-                    {r.aiVisionDescription}
-                  </p>
-                </div>
-              )}
+              {/* Summarised findings — max 4 bullets, clean prose, no raw LLM output */}
+              {(() => {
+                // Build up to 4 concise finding bullets from flags + vision description
+                const bullets: string[] = [];
+                // Bullet 1: EXIF/GPS forensic status
+                if (!r.exifPresent) {
+                  bullets.push('EXIF metadata absent — image origin cannot be verified.');
+                } else if (r.gpsPresent) {
+                  bullets.push('EXIF intact with GPS coordinates — capture location verified.');
+                } else {
+                  bullets.push('EXIF intact — no GPS data recorded.');
+                }
+                // Bullet 2: manipulation score
+                if (r.manipulationScore > 50) {
+                  bullets.push(`High manipulation score (${r.manipulationScore}%) — treat image with caution.`);
+                } else if (r.manipulationScore > 20) {
+                  bullets.push(`Elevated manipulation score (${r.manipulationScore}%) — minor metadata irregularity.`);
+                }
+                // Bullet 3: first meaningful flag (skip generic EXIF/GPS flags already covered)
+                const meaningfulFlag = (r.flags ?? []).find(f => {
+                  const fl = f.toLowerCase();
+                  return !fl.includes('exif') && !fl.includes('gps') && f.length > 10;
+                });
+                if (meaningfulFlag) {
+                  // Strip markdown bold markers and truncate
+                  const clean = meaningfulFlag.replace(/\*\*/g, '').replace(/\*/g, '').split('.')[0].trim();
+                  if (clean.length > 5) bullets.push(clean + '.');
+                }
+                // Bullet 4: first sentence of AI vision description (stripped of markdown)
+                if (r.aiVisionDescription && bullets.length < 4) {
+                  const stripped = r.aiVisionDescription
+                    .replace(/\*\*[^*]+\*\*/g, (m) => m.replace(/\*\*/g, '')) // remove bold markers
+                    .replace(/\*[^*]+\*/g, (m) => m.replace(/\*/g, ''))
+                    .replace(/^[\s\d.*]+/, '') // strip leading numbering
+                    .trim();
+                  const firstSentence = stripped.split(/(?<=[.!?])\s+/)[0]?.trim();
+                  if (firstSentence && firstSentence.length > 10 && firstSentence.length < 200) {
+                    bullets.push(firstSentence);
+                  }
+                }
+                if (bullets.length === 0) return null;
+                return (
+                  <ul className="space-y-1 pt-1" style={{ borderTop: '1px solid var(--border)' }}>
+                    {bullets.slice(0, 4).map((b, bi) => (
+                      <li key={bi} className="text-xs leading-snug flex gap-1.5" style={{ color: 'var(--foreground)' }}>
+                        <span style={{ color: 'var(--muted-foreground)', flexShrink: 0 }}>•</span>
+                        <span>{b}</span>
+                      </li>
+                    ))}
+                  </ul>
+                );
+              })()}
             </div>
           );
         })}

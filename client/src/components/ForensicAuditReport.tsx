@@ -239,10 +239,26 @@ function VehicleDamageMap({ damageZones, incidentType, inconsistencyLabel }: { d
   ];
 
   const norm = (damageZones ?? []).map(z => z.toLowerCase());
-  const frontHit = norm.some(z => /front|bonnet|bumper|hood|grill|headlight/.test(z));
-  const rearHit  = norm.some(z => /rear|boot|trunk|taillight/.test(z));
-  const leftHit  = norm.some(z => /left|driver/.test(z));
-  const rightHit = norm.some(z => /right|passenger/.test(z));
+
+  // Derive the single authoritative impact direction from incidentType first,
+  // then fall back to damage zones only when incident type is non-directional.
+  const incidentNorm = (incidentType ?? "").toUpperCase().replace(/ /g, "_");
+  const isRearType  = /REAR_END/.test(incidentNorm);
+  const isFrontType = /HEAD_ON|FRONTAL|PEDESTRIAN|ANIMAL/.test(incidentNorm) || /VEHICLE_COLLISION|COLLISION/.test(incidentNorm);
+  const isSideType  = /SIDESWIPE/.test(incidentNorm);
+  const isNonDirectional = /HAIL|FLOOD|FIRE|THEFT|VANDALISM|HIJACK|MECHANICAL|ROLLOVER/.test(incidentNorm);
+
+  // Damage-zone fallback — only used when incident type gives no direction
+  const frontDmg = norm.some(z => /front|bonnet|bumper|hood|grill|headlight/.test(z));
+  const rearDmg  = norm.some(z => /rear|boot|trunk|taillight/.test(z));
+  const leftDmg  = norm.some(z => /left|driver/.test(z)) && !norm.some(z => /right|passenger/.test(z));
+  const rightDmg = norm.some(z => /right|passenger/.test(z)) && !norm.some(z => /left|driver/.test(z));
+
+  // Resolve to a single direction — incident type wins
+  const frontHit = !isNonDirectional && (isFrontType || (!isRearType && !isSideType && frontDmg && !rearDmg));
+  const rearHit  = !isNonDirectional && (isRearType  || (!isFrontType && !isSideType && rearDmg && !frontDmg));
+  const leftHit  = !isNonDirectional && !frontHit && !rearHit && (isSideType ? leftDmg : leftDmg && !rightDmg);
+  const rightHit = !isNonDirectional && !frontHit && !rearHit && !leftHit && (isSideType ? rightDmg : rightDmg);
 
   const getSeverity = (id: string): DamageSeverity => {
     const relevant = norm.filter(z => {
@@ -628,7 +644,7 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           { label: 'W4-5 Consistency', ok: ps?.consistencyOk !== false },
         ];
         return (
-          <div className="pipeline-box">
+          <div className="pipeline-box no-print">
             <h3>KINGA Engine v4.2 — Pipeline Execution Summary</h3>
             <div className="run-meta">
               Run ID: {ps?.runId ?? 'RUN-' + (aiAssessment?.id ?? '?')} &nbsp;|&nbsp;
@@ -698,7 +714,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
     { label: "Incident type identified", ok: incidentType !== "N/A" && incidentType !== "unknown", detail: incidentType.replace(/_/g, " "), conf: 95 },
     { label: "Cost data present", ok: !!(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), detail: fmtMoney(normalised?.costs?.totalUsd ?? aiAssessment?.estimatedCost), conf: Math.round(costConfidence > 0 ? costConfidence : confidenceScore) },
     { label: "Photos submitted", ok: !!(aiAssessment?.photosDetected), detail: aiAssessment?.photosDetected ? `${aiAssessment.photosDetected} detected` : "None", conf: photoConfidence > 0 ? Math.round(photoConfidence) : 0 },
-    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber), detail: aiAssessment?.policeReportNumber ?? "Not provided", conf: aiAssessment?.policeReportNumber ? 100 : 0 },
+    { label: "Police report", ok: !!(aiAssessment?.policeReportNumber) || !!(claimRecord?.policeReport?.station), detail: aiAssessment?.policeReportNumber ?? (claimRecord?.policeReport?.station ? `Station: ${claimRecord.policeReport.station}` : "Not provided"), conf: aiAssessment?.policeReportNumber ? 100 : claimRecord?.policeReport?.station ? 60 : 0 },
     { label: "Cost corrections applied", ok: corrections.length > 0 || !!(normalised?.costs?.totalUsd), detail: corrections.length > 0 ? `${corrections.length} correction(s)` : "None needed", conf: 100 },
   ];
 
@@ -797,7 +813,7 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
                 ["Inspection date", fmtDate(aiAssessment?.assessmentDate)],
                 ["Assessor", aiAssessment?.assessorName ?? claimRecord?.repairQuote?.assessorName ?? "Not assigned"],
                 ["Repairer", aiAssessment?.panelBeaterName ?? claimRecord?.repairQuote?.repairerName ?? claim?.repairerName ?? "Not specified"],
-                ["Police report", policeReportNumber ?? "Not provided"],
+                ["Police report", policeReportNumber ?? (policeStation ? `Station on record — case number not extracted` : "Not provided")],
                 policeStation ? ["Police station", policeStation] : null,
               ].filter(Boolean).map((row: any, i: number) => (
                 <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
@@ -810,114 +826,93 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
           {/* Narrative Analysis Panel — shows reasoned narrative or falls back to raw description */}
           {(narrativeAnalysis || description) && (
             <div className="mt-3 space-y-2">
-              {/* 1.1a Reasoned Incident Narrative */}
-              <div className="p-3 rounded-lg text-xs" style={{ background: "var(--muted)", color: "var(--foreground)" }}>
-                <div className="flex items-center gap-2 mb-1">
+              {/* 1.1a Incident Narrative */}
+              <div className="p-3 rounded-lg text-xs" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+                <div className="flex items-center justify-between mb-2">
                   <span className="font-bold uppercase tracking-wide text-[10px]" style={{ color: "var(--muted-foreground)" }}>Incident Narrative</span>
-                  {narrativeAnalysis && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                      narrativeAnalysis.consistency_verdict === "CONSISTENT" ? "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200" :
-                      narrativeAnalysis.consistency_verdict === "MINOR_DISCREPANCY" ? "bg-yellow-100 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200" :
-                      narrativeAnalysis.consistency_verdict === "INCONSISTENT" ? "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200" :
-                      narrativeAnalysis.consistency_verdict === "CONTAMINATED" ? "bg-orange-100 dark:bg-orange-950 text-orange-800 dark:text-orange-200" :
-                      "bg-muted text-muted-foreground"
-                    }`}>
-                      {narrativeAnalysis.consistency_verdict?.replace(/_/g, " ")}
-                    </span>
-                  )}
-                  {narrativeAnalysis?.was_contaminated && (
-                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-200">POST-INCIDENT CONTENT STRIPPED</span>
-                  )}
+                  {narrativeAnalysis && narrativeAnalysis.consistency_verdict && (() => {
+                    const v = narrativeAnalysis.consistency_verdict;
+                    const colour = v === "CONSISTENT" ? { bg: "var(--fp-success-bg)", text: "var(--fp-success-text)", border: "var(--fp-success-border)" }
+                      : v === "MINOR_DISCREPANCY" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
+                      : v === "INCONSISTENT" ? { bg: "var(--fp-critical-bg)", text: "var(--fp-critical-text)", border: "var(--fp-critical-border)" }
+                      : v === "CONTAMINATED" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
+                      : { bg: "var(--muted)", text: "var(--muted-foreground)", border: "var(--border)" };
+                    return (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: colour.bg, color: colour.text, border: `1px solid ${colour.border}` }}>
+                        {v.replace(/_/g, " ")}
+                      </span>
+                    );
+                  })()}
                 </div>
-                {/* SAFEGUARD: Always show the original description as the authoritative text */}
-                <p className="leading-relaxed">
+                <p className="leading-relaxed" style={{ color: "var(--foreground)" }}>
                   {description || narrativeAnalysis?.cleaned_incident_narrative || "No incident description available."}
                 </p>
-                {/* Show AI-processed narrative only if it differs meaningfully and adds value */}
-                {narrativeAnalysis?.cleaned_incident_narrative && description &&
-                  narrativeAnalysis.cleaned_incident_narrative !== description &&
-                  narrativeAnalysis.cleaned_incident_narrative.length > 20 && (
-                  <div className="mt-2 p-2 rounded text-[10px]" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-                    <span className="font-semibold">AI-processed narrative: </span>
-                    {narrativeAnalysis.cleaned_incident_narrative}
-                  </div>
+                {narrativeAnalysis?.was_contaminated && (
+                  <p className="mt-1 text-[10px]" style={{ color: "var(--fp-warning-text)" }}>
+                    Note: Post-incident content (inspection findings, repair notes) was identified and excluded from the narrative above.
+                  </p>
                 )}
-                {/* Sequence of events — AI-reconstructed, may contain inferences */}
                 {narrativeAnalysis?.extracted_facts?.sequence_of_events && (
                   <div className="mt-2 pt-2" style={{ borderTop: "1px solid var(--border)" }}>
-                    <span className="font-semibold">AI-Reconstructed Sequence of Events: </span>
-                    <span style={{ color: "var(--muted-foreground)" }}>{narrativeAnalysis.extracted_facts.sequence_of_events}</span>
-                    <div className="mt-1 text-[9px]" style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>
-                      Note: This sequence is AI-reconstructed from the incident description and may contain inferences not present in the original claim form. Always verify against the original description above.
-                    </div>
+                    <p className="text-[10px] font-semibold mb-0.5" style={{ color: "var(--muted-foreground)" }}>Reconstructed Sequence of Events</p>
+                    <p className="leading-relaxed" style={{ color: "var(--muted-foreground)" }}>{narrativeAnalysis.extracted_facts.sequence_of_events}</p>
                   </div>
                 )}
               </div>
-
-              {/* Stripped post-incident content */}
-              {narrativeAnalysis?.stripped_content && narrativeAnalysis.stripped_content.length > 0 && (
-                <div className="p-3 rounded-lg text-xs bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200">
-                  <p className="font-bold uppercase tracking-wide text-[10px] mb-1">Post-Incident Content Removed from Narrative</p>
-                  <p className="text-[10px] mb-1 text-amber-700 dark:text-amber-300">The following content was identified as post-incident (inspection findings, repair notes, extras quotations) and excluded from the incident narrative above.</p>
-                  <ul className="space-y-0.5">
-                    {narrativeAnalysis.stripped_content.map((s: string, i: number) => (
-                      <li key={i} className="text-[10px]">{s}</li>
-                    ))}
-                  </ul>
-                </div>
-              )}
 
               {/* Cross-validation panel */}
               {narrativeAnalysis?.cross_validation && (
                 <div className="p-3 rounded-lg text-xs" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
                   <p className="font-bold uppercase tracking-wide text-[10px] mb-2" style={{ color: "var(--muted-foreground)" }}>Narrative Cross-Validation</p>
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
                     {[
                       { label: "Physics alignment", verdict: narrativeAnalysis.cross_validation.physics_verdict, notes: narrativeAnalysis.cross_validation.physics_notes },
                       { label: "Damage alignment", verdict: narrativeAnalysis.cross_validation.damage_verdict, notes: narrativeAnalysis.cross_validation.damage_notes },
                       { label: "Crush depth alignment", verdict: narrativeAnalysis.cross_validation.crush_depth_verdict, notes: narrativeAnalysis.cross_validation.crush_depth_notes },
-                    ].filter(r => r.verdict !== "NOT_ASSESSED").map((r, i) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          r.verdict === "CONSISTENT" ? "bg-green-100 dark:bg-green-950 text-green-800 dark:text-green-200" :
-                          r.verdict === "PARTIAL" ? "bg-yellow-100 dark:bg-yellow-950 text-yellow-800 dark:text-yellow-200" :
-                          "bg-red-100 dark:bg-red-950 text-red-800 dark:text-red-200"
-                        }`}>{r.verdict}</span>
-                        <span style={{ color: "var(--muted-foreground)" }}><span className="font-semibold" style={{ color: "var(--foreground)" }}>{r.label}:</span> {r.notes}</span>
-                      </div>
-                    ))}
+                    ].filter(r => r.verdict && r.verdict !== "NOT_ASSESSED").map((r, i) => {
+                      const vc = r.verdict === "CONSISTENT" ? { bg: "var(--fp-success-bg)", text: "var(--fp-success-text)", border: "var(--fp-success-border)" }
+                        : r.verdict === "PARTIAL" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
+                        : { bg: "var(--fp-critical-bg)", text: "var(--fp-critical-text)", border: "var(--fp-critical-border)" };
+                      return (
+                        <div key={i} className="flex items-start gap-2">
+                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: vc.bg, color: vc.text, border: `1px solid ${vc.border}` }}>{r.verdict}</span>
+                          <span style={{ color: "var(--muted-foreground)" }}><span className="font-semibold" style={{ color: "var(--foreground)" }}>{r.label}:</span> {r.notes}</span>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Narrative fraud signals */}
               {narrativeAnalysis?.fraud_signals && narrativeAnalysis.fraud_signals.length > 0 && (
-                <div className="p-3 rounded-lg text-xs bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800 text-red-900 dark:text-red-200">
-                  <p className="font-bold uppercase tracking-wide text-[10px] mb-2">Narrative Fraud Signals ({narrativeAnalysis.fraud_signals.length})</p>
+                <div className="p-3 rounded-lg text-xs" style={{ background: "var(--fp-critical-bg)", border: "1px solid var(--fp-critical-border)" }}>
+                  <p className="font-bold uppercase tracking-wide text-[10px] mb-2" style={{ color: "var(--fp-critical-text)" }}>Narrative Fraud Signals ({narrativeAnalysis.fraud_signals.length})</p>
                   <div className="space-y-1.5">
-                    {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => (
-                      <div key={i} className="flex items-start gap-2">
-                        <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded ${
-                          sig.severity === "HIGH" ? "bg-red-200 dark:bg-red-900 text-red-900 dark:text-red-100" :
-                          sig.severity === "MEDIUM" ? "bg-orange-100 dark:bg-orange-900 text-orange-800 dark:text-orange-100" :
-                          "bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-100"
-                        }`}>{sig.severity}</span>
-                        <div>
-                          <span className="font-semibold">{sig.code?.replace(/_/g, " ")}: </span>
-                          <span>{sig.description}</span>
-                          {sig.evidence && <span className="block text-[10px] mt-0.5 text-red-600 dark:text-red-400">Evidence: "{sig.evidence}"</span>}
+                    {narrativeAnalysis.fraud_signals.map((sig: any, i: number) => {
+                      const sc = sig.severity === "HIGH" ? { bg: "var(--fp-critical-bg)", text: "var(--fp-critical-text)", border: "var(--fp-critical-border)" }
+                        : sig.severity === "MEDIUM" ? { bg: "var(--fp-warning-bg)", text: "var(--fp-warning-text)", border: "var(--fp-warning-border)" }
+                        : { bg: "var(--muted)", text: "var(--muted-foreground)", border: "var(--border)" };
+                      return (
+                        <div key={i} className="flex items-start gap-2">
+                          <span className="shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded" style={{ background: sc.bg, color: sc.text, border: `1px solid ${sc.border}` }}>{sig.severity}</span>
+                          <div>
+                            <span className="font-semibold" style={{ color: "var(--foreground)" }}>{sig.code?.replace(/_/g, " ")}: </span>
+                            <span style={{ color: "var(--foreground)" }}>{sig.description}</span>
+                            {sig.evidence && <span className="block text-[10px] mt-0.5" style={{ color: "var(--fp-critical-text)" }}>Evidence: “{sig.evidence}”</span>}
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
               {/* Reasoning summary */}
               {narrativeAnalysis?.reasoning_summary && (
-                <div className="p-3 rounded-lg text-xs" style={{ background: "var(--muted)", color: "var(--muted-foreground)" }}>
-                  <span className="font-semibold" style={{ color: "var(--foreground)" }}>Analyst reasoning: </span>
-                  {narrativeAnalysis.reasoning_summary}
+                <div className="p-3 rounded-lg text-xs" style={{ background: "var(--card)", border: "1px solid var(--border)" }}>
+                  <p className="text-[10px] font-semibold mb-1" style={{ color: "var(--muted-foreground)" }}>Analyst Reasoning</p>
+                  <p style={{ color: "var(--foreground)" }}>{narrativeAnalysis.reasoning_summary}</p>
                 </div>
               )}
             </div>
@@ -1680,7 +1675,7 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
                               {sc.label}
                             </span>
                           </td>
-                          <td style={{ padding: '5px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
+                          <td style={{ padding: '5px 8px', textAlign: 'right' }}>
                             {r.quotedAmount != null
                               ? `${r.quotedCurrency ?? ''} ${r.quotedAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                               : <span style={{ color: 'var(--muted-foreground)' }}>—</span>
@@ -2968,15 +2963,15 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
               const isLast = i === gates.length - 1;
               return (
                 <g key={`gate-${i}`}>
-                  {/* Diamond */}
+                  {/* Diamond — white fill with coloured border only */}
                   <path d={diamond(startX, cy, diamondW, diamondH)}
-                    fill={`${gateColor}18`} stroke={gateColor} strokeWidth="1.5" />
+                    fill="#fff" stroke={gateColor} strokeWidth="1.5" />
                   {/* Gate label in diamond — G-codes removed, label centred */}
                   <text x={startX} y={cy - 5} textAnchor="middle" dominantBaseline="middle"
                     fontSize="10" fontWeight="600" fill={textColor}>{gate.label}</text>
                   {/* Result value */}
                   <text x={startX} y={cy + 11} textAnchor="middle" dominantBaseline="middle"
-                    fontSize="9" fontFamily="monospace" fill={gateColor}>{String(gate.result)}</text>
+                    fontSize="9" fill={gateColor}>{String(gate.result)}</text>
 
                   {/* PASS label on arrow down */}
                   {!isLast && (
@@ -3665,7 +3660,7 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
 // ─── Mockup v4.2 scoped CSS ──────────────────────────────────────────────────
 const REPORT_CSS = `
 .kinga-report{font-family:'Georgia','Times New Roman',serif;font-size:13px;color:#111;background:#fff;line-height:1.55;padding:32px 44px}
-.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:'Courier New',monospace;font-size:10px;color:#666;margin:-32px -44px 24px}
+.kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-32px -44px 24px}
 .kinga-report .page-header .brand{font-family:sans-serif;font-weight:700;font-size:11px;color:#111;letter-spacing:.05em;border:1.5px solid #111;padding:2px 8px}
 .kinga-report .cover-title-row{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #111}
 .kinga-report .cover-title-row h1{font-size:22px;font-weight:700;letter-spacing:-.02em}
@@ -3704,7 +3699,7 @@ const REPORT_CSS = `
 .kinga-report .tl-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#888}
 .kinga-report .tl-date{font-size:11px;color:#333;margin-top:2px}
 .kinga-report .exec-summary{border:1px solid #ddd;padding:14px 16px;margin-bottom:14px;font-size:12px;color:#333;line-height:1.7;background:#fff}
-.kinga-report .pipeline-box{background:#fff;color:#111;padding:18px 22px;margin-bottom:22px;border:1px solid #ddd}
+.kinga-report .pipeline-box{display:none !important}
 .kinga-report .pipeline-box h3{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:#111;margin-bottom:4px}
 .kinga-report .pipeline-box .run-meta{font-size:10px;color:#666;margin-bottom:12px}
 .kinga-report .stage-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:14px}
