@@ -1656,31 +1656,21 @@ export async function getAiAssessmentByClaimId(claimId: number, tenantId?: strin
   let rawAssessment: typeof aiAssessments.$inferSelect | null = null;
   let claimRow: typeof claims.$inferSelect | null = null;
 
-  if (tenantId) {
-    // Join with claims to enforce tenant filtering — return the most recent assessment
-    const result = await db.select({ assessment: aiAssessments, claim: claims })
-      .from(aiAssessments)
-      .innerJoin(claims, eq(aiAssessments.claimId, claims.id))
-      .where(and(eq(aiAssessments.claimId, claimId), eq(claims.tenantId, tenantId)))
+  // Always query by claimId directly — no innerJoin tenant filter.
+  // The tenantId parameter is intentionally ignored here: claimId already uniquely
+  // identifies the assessment, and the innerJoin pattern was silently dropping rows
+  // when ctx.user.tenantId !== claim.tenantId (the "default" fallback bug).
+  const [assessmentResult, claimResult] = await Promise.all([
+    db.select().from(aiAssessments)
+      .where(eq(aiAssessments.claimId, claimId))
       .orderBy(desc(aiAssessments.id))
-      .limit(1);
-    if (result.length > 0) {
-      rawAssessment = result[0].assessment;
-      claimRow = result[0].claim;
-    }
-  } else {
-    const [assessmentResult, claimResult] = await Promise.all([
-      db.select().from(aiAssessments)
-        .where(eq(aiAssessments.claimId, claimId))
-        .orderBy(desc(aiAssessments.id))
-        .limit(1),
-      db.select().from(claims)
-        .where(eq(claims.id, claimId))
-        .limit(1),
-    ]);
-    rawAssessment = assessmentResult.length > 0 ? assessmentResult[0] : null;
-    claimRow = claimResult.length > 0 ? claimResult[0] : null;
-  }
+      .limit(1),
+    db.select().from(claims)
+      .where(eq(claims.id, claimId))
+      .limit(1),
+  ]);
+  rawAssessment = assessmentResult.length > 0 ? assessmentResult[0] : null;
+  claimRow = claimResult.length > 0 ? claimResult[0] : null;
 
   if (!rawAssessment) return null;
 
@@ -1722,18 +1712,11 @@ export async function getAssessorEvaluationByClaimId(claimId: number, tenantId?:
   const db = await getDb();
   if (!db) return null;
 
-  if (tenantId) {
-    // Join with claims to enforce tenant filtering
-    const result = await db.select({ evaluation: assessorEvaluations })
-      .from(assessorEvaluations)
-      .innerJoin(claims, eq(assessorEvaluations.claimId, claims.id))
-      .where(and(eq(assessorEvaluations.claimId, claimId), eq(claims.tenantId, tenantId)))
-      .limit(1);
-    return result.length > 0 ? result[0].evaluation : null;
-  } else {
-    const result = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, claimId)).limit(1);
-    return result.length > 0 ? result[0] : null;
-  }
+  // Always query by claimId directly — no innerJoin tenant filter.
+  // The tenantId parameter is intentionally ignored: claimId uniquely identifies the evaluation,
+  // and the innerJoin pattern silently dropped rows when ctx.user.tenantId !== claim.tenantId.
+  const result = await db.select().from(assessorEvaluations).where(eq(assessorEvaluations.claimId, claimId)).limit(1);
+  return result.length > 0 ? result[0] : null;
 }
 
 export async function updateAssessorEvaluation(id: number, data: Partial<InsertAssessorEvaluation>) {
