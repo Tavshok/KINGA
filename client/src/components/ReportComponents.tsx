@@ -369,14 +369,24 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
       {results.map((r, i) => {
         const manipPct = Math.round(r.manipulationScore);
 
-        // Bullet 1: Observation — full AI vision description, stripped of markdown
+        // Bullet 1: Observation — first 2 clean sentences from AI vision description
         const rawDesc = (r.aiVisionDescription ?? '')
           .replace(/\*\*([^*]+)\*\*/g, '$1')
           .replace(/\*([^*]+)\*/g, '$1')
-          .replace(/^[\s\d.*\-]+/, '')
+          // Strip LLM preamble like "Here's an analysis...", "Here is...", "The following..."
+          .replace(/^[\s\S]*?(?:analysis[^:]*:|description[^:]*:|following[^:]*:)\s*/i, '')
+          // Strip numbered list markers like "1. ", "2. "
+          .replace(/^\d+\.\s*/gm, '')
+          // Strip section headers like "DAMAGE DESCRIPTION:", "PHOTO AUTHENTICITY:"
+          .replace(/^[A-Z][A-Z\s]+:\s*/gm, '')
           .trim();
-        const observation = rawDesc
-          ? rawDesc
+        // Extract first 2 sentences (split on sentence-ending punctuation followed by space or end)
+        const sentences = rawDesc.match(/[^.!?]+[.!?]+(?=\s|$)/g) ?? [];
+        const twoSentences = sentences.slice(0, 2).join(' ').trim();
+        const observation = twoSentences
+          ? twoSentences
+          : rawDesc
+          ? rawDesc.slice(0, 220) + (rawDesc.length > 220 ? '\u2026' : '')
           : r.label
           ? `Documents ${r.label.toLowerCase()} area`
           : 'Damage area documented';

@@ -2135,30 +2135,67 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const learningBenchmark3 = (e?.costExtraction as any)?.learningBenchmark ?? null;
 
   // ── Build item-per-row cross-repairer comparison table ──────────────────────
-  // Collect all unique line-item descriptions across all quotes
-  const allDescriptions: string[] = [];
-  for (const q of pbQuotes) {
-    for (const li of (q.lineItems ?? [])) {
+  // Fuzzy-match helper: tokenise a description and return a normalised key.
+  // Strips punctuation, lowercases, sorts tokens so word-order variants match.
+  const normKey = (s: string) =>
+    s.toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(Boolean)
+      .sort()
+      .join(' ');
+
+  // Token-overlap similarity (Jaccard on word sets) — returns 0..1
+  const similarity = (a: string, b: string): number => {
+    const ta = new Set(normKey(a).split(' '));
+    const tb = new Set(normKey(b).split(' '));
+    let inter = 0;
+    ta.forEach(t => { if (tb.has(t)) inter++; });
+    const union = new Set([...ta, ...tb]).size;
+    return union === 0 ? 0 : inter / union;
+  };
+
+  // Collect all line items across all quotes, grouped into canonical clusters.
+  // The first description seen for a cluster becomes the canonical label.
+  const FUZZY_THRESHOLD = 0.55; // ≥55% token overlap → same component
+  type Cluster = { canonical: string; category: string; lineItems: Array<{ quoteIdx: number; li: any }> };
+  const clusters: Cluster[] = [];
+
+  pbQuotes.forEach((q, qi) => {
+    (q.lineItems ?? []).forEach((li: any) => {
       const desc = (li.description ?? '').trim();
-      if (desc && !allDescriptions.find(d => d.toLowerCase() === desc.toLowerCase())) {
-        allDescriptions.push(desc);
+      if (!desc) return;
+      // Find best matching existing cluster
+      let bestCluster: Cluster | null = null;
+      let bestScore = 0;
+      for (const cl of clusters) {
+        const score = similarity(desc, cl.canonical);
+        if (score > bestScore) { bestScore = score; bestCluster = cl; }
       }
-    }
-  }
+      if (bestCluster && bestScore >= FUZZY_THRESHOLD) {
+        bestCluster.lineItems.push({ quoteIdx: qi, li });
+      } else {
+        // New cluster
+        const cat = li.category ?? '';
+        clusters.push({ canonical: desc, category: cat, lineItems: [{ quoteIdx: qi, li }] });
+      }
+    });
+  });
+
   type ItemRow3 = { description: string; category: string; cells: Array<{ amount: number | null; aiReview?: string | null }> };
   const matchedRows3: ItemRow3[] = [];
   const missedRows3: ItemRow3[] = [];
-  for (const desc of allDescriptions) {
-    const cells = pbQuotes.map(q => {
-      const li = (q.lineItems ?? []).find((l: any) => (l.description ?? '').toLowerCase() === desc.toLowerCase());
-      return li ? { amount: (li.lineTotal ?? li.unitPrice ?? 0) / 100, aiReview: li.aiReview ?? null } : { amount: null };
+
+  for (const cl of clusters) {
+    // Build one cell per quote — use the first matching line item for that quote
+    const cells: Array<{ amount: number | null; aiReview?: string | null }> = pbQuotes.map((_, qi) => {
+      const entry = cl.lineItems.find(e => e.quoteIdx === qi);
+      if (!entry) return { amount: null };
+      const li = entry.li;
+      return { amount: (li.lineTotal ?? li.unitPrice ?? 0) / 100, aiReview: li.aiReview ?? null };
     });
     const presentCount = cells.filter(c => c.amount !== null).length;
-    const row: ItemRow3 = {
-      description: desc,
-      category: (pbQuotes[0]?.lineItems ?? []).find((l: any) => (l.description ?? '').toLowerCase() === desc.toLowerCase())?.category ?? '',
-      cells,
-    };
+    const row: ItemRow3 = { description: cl.canonical, category: cl.category, cells };
     if (presentCount === pbQuotes.length || pbQuotes.length <= 1) matchedRows3.push(row);
     else missedRows3.push(row);
   }
