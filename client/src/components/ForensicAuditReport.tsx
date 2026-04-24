@@ -15,6 +15,7 @@
  */
 
 import React, { useState, useEffect, useCallback } from "react";
+import { Bar } from "react-chartjs-2";
 import { trpc } from "@/lib/trpc";
 import { CheckCircle, XCircle, AlertTriangle, Printer } from "lucide-react";
 import {
@@ -1927,6 +1928,111 @@ function QuoteLineItemAuditTable({ quote, quoteId, claimId, auditData, congruenc
   );
 }
 
+// ─── Labour/Parts Ratio Chart ────────────────────────────────────────────────
+
+function LabourPartsRatioChart({
+  quotes,
+  learningBenchmark,
+  fmtMoney,
+}: {
+  quotes: Array<{ name: string; parts: number; labour: number; total: number }>;
+  learningBenchmark?: { avgCostUsd: number | null; sampleSize: number; vehicleDescriptor: string } | null;
+  fmtMoney: (n: number | null | undefined) => string;
+}) {
+  // Only render when at least one quote has a parts/labour split
+  const quotesWithSplit = quotes.filter(q => q.parts > 0 || q.labour > 0);
+  if (quotesWithSplit.length === 0) return null;
+
+  const labels = quotesWithSplit.map(q => q.name);
+  const partsData = quotesWithSplit.map(q => q.parts);
+  const labourData = quotesWithSplit.map(q => q.labour);
+
+  // Neutral palette — no red/green to avoid status noise
+  const partsColor = "rgba(100, 116, 139, 0.85)";   // slate-500
+  const labourColor = "rgba(148, 163, 184, 0.65)";  // slate-400 lighter
+
+  const chartData = {
+    labels,
+    datasets: [
+      {
+        label: "Parts",
+        data: partsData,
+        backgroundColor: partsColor,
+        borderColor: partsColor,
+        borderWidth: 0,
+        borderRadius: 2,
+      },
+      {
+        label: "Labour",
+        data: labourData,
+        backgroundColor: labourColor,
+        borderColor: labourColor,
+        borderWidth: 0,
+        borderRadius: 2,
+      },
+    ],
+  };
+
+  const options: any = {
+    indexAxis: "y" as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: true,
+        position: "bottom" as const,
+        labels: { font: { size: 10 }, padding: 12, boxWidth: 12 },
+      },
+      tooltip: {
+        callbacks: {
+          label: (ctx: any) => ` ${ctx.dataset.label}: ${fmtMoney(ctx.raw)}`,
+        },
+      },
+    },
+    scales: {
+      x: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { font: { size: 10 }, callback: (v: any) => fmtMoney(v) },
+      },
+      y: {
+        stacked: true,
+        grid: { display: false },
+        ticks: { font: { size: 10 } },
+      },
+    },
+  };
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
+      <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
+        <p className="text-xs font-bold uppercase tracking-wide" style={{ color: "var(--foreground)" }}>Labour vs Parts Ratio</p>
+        {learningBenchmark?.avgCostUsd && learningBenchmark.sampleSize >= 3 && (
+          <p className="text-xs mt-0.5" style={{ color: "var(--muted-foreground)" }}>
+            Learning benchmark: {fmtMoney(learningBenchmark.avgCostUsd)} average across {learningBenchmark.sampleSize} historical claims for {learningBenchmark.vehicleDescriptor}
+          </p>
+        )}
+      </div>
+      <div className="p-4">
+        <div style={{ height: Math.max(80, quotesWithSplit.length * 56) }}>
+          <Bar data={chartData} options={options} />
+        </div>
+        {quotesWithSplit.map((q, i) => {
+          const total = q.parts + q.labour;
+          if (total === 0) return null;
+          const partsRatio = Math.round((q.parts / total) * 100);
+          const labourRatio = 100 - partsRatio;
+          return (
+            <p key={i} className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
+              {q.name}: {partsRatio}% parts · {labourRatio}% labour
+            </p>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // ─── Section 3: Financial Validation ─────────────────────────────────────────
 
 function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUsd, claimId }: { aiAssessment: any; enforcement: any; quotes?: any[]; fmtMoney?: (n: number | null | undefined) => string; claimId?: number }) {
@@ -1993,6 +2099,8 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
   const claimRecord3 = (aiAssessment as any)?._claimRecord ?? (aiAssessment as any)?.claimRecord ?? null;
   const llmValuation3 = claimRecord3?.valuation ?? null;
   const marketValueUsd3: number | null = costIntel?.marketValueUsd ?? llmValuation3?.marketValueUsd ?? claimRecord3?.vehicle?.marketValueUsd ?? null;
+  // Learning benchmark from cost extraction engine
+  const learningBenchmark3 = (e?.costExtraction as any)?.learningBenchmark ?? null;
 
   return (
     <div className="mb-4 space-y-4">
@@ -2031,6 +2139,15 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
           )}
         </div>
       </div>
+
+      {/* Labour vs Parts Ratio Chart — only shown when split data is available */}
+      {pbQuotes.length > 0 && (
+        <LabourPartsRatioChart
+          quotes={pbQuotes}
+          learningBenchmark={learningBenchmark3}
+          fmtMoney={fmtMoney}
+        />
+      )}
 
       {/* Per-quote line-item detail with AI Review column */}
       {pbQuotes.map((q, qi) => {
@@ -3818,9 +3935,129 @@ function PipelineConfidencePanel({ aiAssessment }: { aiAssessment: any }) {
   );
 }
 
-// ─── Main Export ──────────────────────────────────────────────────────────────
+// ─── Section 7: Machine Learning Insights ────────────────────────────────────────────
 
-// ─── Mockup v4.2 scoped CSS ──────────────────────────────────────────────────
+function Section7Learning({
+  aiAssessment,
+  enforcement,
+  fmtMoney = fmtUsd,
+}: {
+  aiAssessment: any;
+  enforcement: any;
+  fmtMoney?: (n: number | null | undefined) => string;
+}) {
+  const ce = enforcement?.costExtraction;
+  const lb = ce?.learningBenchmark ?? null;
+
+  // Validated outcome quality tier from the pipeline
+  const validatedOutcome = (() => {
+    try {
+      const raw = (aiAssessment as any)?.validatedOutcomeJson;
+      if (!raw) return null;
+      return typeof raw === 'string' ? JSON.parse(raw) : raw;
+    } catch { return null; }
+  })();
+  const qualityTier: string | null = validatedOutcome?.quality_tier ?? null;
+  const storeForLearning: boolean = validatedOutcome?.store === true;
+  const outcomeReason: string | null = validatedOutcome?.reason ?? null;
+
+  // Cost extraction source label
+  const costSource: string | null = ce?.source ?? null;
+  const costBasis: string | null = ce?.basis ?? null;
+
+  // Case signature
+  const caseSignatureRaw = (aiAssessment as any)?.caseSignatureJson;
+  const caseSignature = (() => {
+    try {
+      const raw = caseSignatureRaw;
+      if (!raw) return null;
+      const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
+      return parsed?.case_signature ?? parsed?.grouping_key ?? null;
+    } catch { return null; }
+  })();
+
+  // Determine if there is meaningful ML data to show
+  const hasBenchmark = lb?.avgCostUsd != null && (lb?.sampleSize ?? 0) >= 3;
+  const hasLearningData = hasBenchmark || qualityTier != null || caseSignature != null;
+
+  const rows: Array<{ label: string; value: string }> = [];
+
+  if (caseSignature) {
+    rows.push({ label: 'Case signature', value: caseSignature });
+  }
+  if (hasBenchmark && lb) {
+    rows.push({ label: 'Vehicle descriptor', value: lb.vehicleDescriptor });
+    rows.push({ label: 'Historical sample size', value: `${lb.sampleSize} validated claims` });
+    rows.push({ label: 'Average cost (historical)', value: fmtMoney(lb.avgCostUsd) });
+  }
+  if (costSource) {
+    const sourceLabel = costSource === 'quote_line_items' ? 'Submitted quote line items'
+      : costSource === 'learning_db' ? 'Learning database benchmark'
+      : costSource === 'extracted' ? 'AI-extracted estimate'
+      : costSource === 'insufficient_data' ? 'Insufficient data'
+      : costSource;
+    rows.push({ label: 'Cost basis source', value: sourceLabel });
+  }
+  if (qualityTier) {
+    rows.push({ label: 'Outcome quality tier', value: qualityTier });
+  }
+  if (outcomeReason) {
+    rows.push({ label: 'Quality assessment', value: outcomeReason });
+  }
+  rows.push({ label: 'Stored for learning', value: storeForLearning ? 'Yes — this claim will contribute to future cost benchmarks' : 'No — insufficient data quality for learning storage' });
+
+  if (!hasLearningData && !costBasis) {
+    return (
+      <div className="mb-4">
+        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+          No machine learning benchmark data is available for this claim yet. As more claims of the same vehicle type and collision pattern are processed, the system will accumulate historical cost data and surface benchmark comparisons here.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-4 space-y-4">
+      <div className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--card)' }}>
+        <div className="px-4 py-3" style={{ borderBottom: '1px solid var(--border)', background: 'var(--muted)' }}>
+          <p className="text-xs font-bold uppercase tracking-wide" style={{ color: 'var(--foreground)' }}>Cost Pattern Analysis</p>
+          {hasBenchmark && lb && (
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted-foreground)' }}>
+              Benchmark derived from {lb.sampleSize} historical claims for {lb.vehicleDescriptor}
+            </p>
+          )}
+        </div>
+        <div className="p-4">
+          <table className="w-full text-xs report-table">
+            <tbody>
+              {rows.map((row, i) => (
+                <tr key={i} style={{ borderTop: i > 0 ? '1px solid var(--border)' : undefined }}>
+                  <td className="px-3 py-2 font-medium" style={{ color: 'var(--muted-foreground)', width: '40%' }}>{row.label}</td>
+                  <td className="px-3 py-2" style={{ color: 'var(--foreground)' }}>{row.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {costBasis && (
+            <p className="text-xs mt-3 pt-3" style={{ borderTop: '1px solid var(--border)', color: 'var(--muted-foreground)' }}>
+              {costBasis}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {!hasBenchmark && (
+        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>
+          A cost benchmark for this vehicle and collision type will become available once at least 3 validated claims of the same profile have been processed. The system is currently accumulating data.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Export ────────────────────────────────────────────────────────────────────────────────────
+
+// ─── Mockup v4.2 scoped CSS─────────────────────────────────────────
 const REPORT_CSS = `
 .kinga-report{font-family:Inter,'Helvetica Neue',Arial,sans-serif;font-size:12px;color:#111;background:#fff;line-height:1.6;padding:24px 20px}
 .kinga-report .page-header{display:flex;align-items:center;justify-content:space-between;padding:6px 22px;background:#fff;border-bottom:1px solid #111;font-family:Inter,system-ui,sans-serif;font-size:10px;color:#666;margin:-24px -20px 24px}
@@ -4193,6 +4430,9 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
       <div className="section-heading">06 — Decision Authority &amp; Audit Trail</div>
       <Section6Decision claim={claim} aiAssessment={aiAssessment} enforcement={enforcement} />
+
+      <div className="section-heading">07 — Machine Learning Insights</div>
+      <Section7Learning aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
 
       <div className="conf-footer">
         KINGA AutoVerify AI v4.2 — Forensic Claim Decision Report — CONFIDENTIAL — For authorised insurer use only.
