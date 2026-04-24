@@ -1344,6 +1344,9 @@ function Section1Incident({ claim, aiAssessment, enforcement, fmtMoney = fmtUsd 
 function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiAssessment: any; enforcement: any }) {
   const e = enforcement;
   const pe = e?.physicsEstimate;
+  // _physics contains the authoritative Stage7 values (actual physics engine output)
+  // physicsEstimate is only populated when Stage7 didn't run (estimated values)
+  const _phys = (e as any)?._physics as { deltaVKmh: number; impactForceKn: number; energyKj: number; vehicleMassKg: number; estimatedSpeedKmh: number } | undefined;
   const phase2 = (e as any)?._phase2 as any;
   const physicsScore = phase2?.physicsConsistency ?? e?.consistencyFlag?.score ?? 0;
   const constraints: any[] = phase2?.physicsConstraints ?? [];
@@ -1351,11 +1354,22 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
   const _rawIt2 = phase2?.incidentType ?? aiAssessment?.incidentType;
   const _unresolved2 = !_rawIt2 || _rawIt2 === "REQUIRES_CLASSIFICATION" || _rawIt2 === "REQUIRES CLASSIFICATION" || _rawIt2 === "unknown";
   const incidentType = _unresolved2 ? (claim?.incidentType ?? "unknown") : _rawIt2;
-  const deltaV = pe?.deltaVKmh ?? 0;
+  // Use actual Stage7 values first, fall back to physicsEstimate (estimated)
+  const deltaV = (_phys?.deltaVKmh ?? 0) > 0 ? _phys!.deltaVKmh : (pe?.deltaVKmh ?? 0);
   const claimedSpeed = (aiAssessment as any)?._normalised?.physics?.claimedSpeedKmh ?? aiAssessment?.claimedSpeedKmh ?? 0;
-  const energyKj = pe?.estimatedEnergyKj ?? 0;
-  const vehicleMassKg = pe?.vehicleMassKg ?? null;
-  const severity = pe?.accidentSeverity ?? aiAssessment?.structuralDamageSeverity ?? "unknown";
+  // energyKj: prefer Stage7 actual value, then physicsEstimate range midpoint
+  const energyKj = (_phys?.energyKj ?? 0) > 0
+    ? _phys!.energyKj
+    : pe?.energyKj ? (pe.energyKj.min + pe.energyKj.max) / 2 : 0;
+  // impactForceKn: prefer Stage7 actual value, then physicsEstimate range midpoint
+  const impactForceKnDisplay = (_phys?.impactForceKn ?? 0) > 0
+    ? _phys!.impactForceKn
+    : pe?.impactForceKn ? (pe.impactForceKn.min + pe.impactForceKn.max) / 2 : 0;
+  // vehicleMassKg: from Stage7 bridge value
+  const vehicleMassKg = (_phys?.vehicleMassKg ?? 0) > 0 ? _phys!.vehicleMassKg : null;
+  // estimatedSpeedKmh: from Stage7 or physicsEstimate
+  const estimatedSpeedKmh = (_phys?.estimatedSpeedKmh ?? 0) > 0 ? _phys!.estimatedSpeedKmh : (pe?.estimatedVelocityKmh ?? 0);
+  const severity = aiAssessment?.structuralDamageSeverity ?? "unknown";
 
   const damageZones: string[] = e?.directionFlag?.damageZones ?? [];
   const directionMismatch = e?.directionFlag?.mismatch ?? false;
@@ -1464,9 +1478,10 @@ function Section2Physics({ claim, aiAssessment, enforcement }: { claim: any; aiA
               <table className="w-full text-xs report-table">
                 <tbody>
                   {[
-                    ["Delta-V (calculated)", deltaV > 0 ? `${deltaV} km/h` : "N/A"],
-                    ["Claimed speed", claimedSpeed > 0 ? `${claimedSpeed} km/h` : "Not stated"],
-                    ["Impact energy", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
+                    ["Delta-V (calculated)", deltaV > 0 ? `${fmt(deltaV, 1)} km/h` : "N/A"],
+                    ["Estimated impact speed", estimatedSpeedKmh > 0 ? `${fmt(estimatedSpeedKmh, 1)} km/h` : (claimedSpeed > 0 ? `${claimedSpeed} km/h (claimed)` : "Not stated")],
+                    ["Impact energy (KE)", energyKj > 0 ? `${fmt(energyKj, 1)} kJ` : "N/A"],
+                    ["Impact force", impactForceKnDisplay > 0 ? `${fmt(impactForceKnDisplay, 1)} kN` : "N/A"],
                     ["Vehicle mass", vehicleMassKg ? `${vehicleMassKg} kg` : "N/A"],
                     ["Accident severity", severity.replace(/_/g, " ")],
                     ["Incident type", incidentType.replace(/_/g, " ")],

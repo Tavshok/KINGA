@@ -3657,6 +3657,15 @@ If any value is not found, use 0 for numbers and empty string for text.`;
           _phase2: phase2,
           claimId: input.claimId,
           _photoForensics: photoForensicsData,
+          // Physics values from bridge (actual Stage7 output) — used by report Section 2
+          // These are the authoritative values; physicsEstimate is only populated when Stage7 didn't run
+          _physics: {
+            deltaVKmh: Number(deltaVKmh) || 0,
+            impactForceKn: Number(impactForceKn) || 0,
+            energyKj: Number(energyKj) || 0,
+            vehicleMassKg: Number(vehicleMassKg) || 0,
+            estimatedSpeedKmh: Number(estimatedSpeedKmh) || 0,
+          },
           // Override photosDetected with numeric count so ForensicAuditReport renders correctly
           photosDetected: photosDetectedCount > 0 ? photosDetectedCount : (bridge.photosDetected ? phase2PhotoUrls.length : 0),
           photosProcessedCount: photosProcessedCount > 0 ? photosProcessedCount : phase2PhotoUrls.length,

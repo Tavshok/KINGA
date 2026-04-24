@@ -1355,6 +1355,14 @@ export async function triggerAiAssessment(claimId: number) {
     const d = claimRecord.damage;
     if (d.description) claimUpdate.incidentDescription = d.description;
   }
+  // Backfill claimant name — from driver.claimantName (Stage 3 extraction)
+  const resolvedClaimantName =
+    claimRecord?.driver?.claimantName ||
+    (claimRecord as any)?.claimant?.name ||
+    null;
+  if (resolvedClaimantName) {
+    claimUpdate.claimantName = trunc(resolvedClaimantName, 255);
+  }
   // Backfill insurance context from pipeline extraction
   if (claimRecord?.insuranceContext) {
     const ins = claimRecord.insuranceContext;

@@ -11030,7 +11030,7 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 - [x] Audit ForensicAuditReport UI colors — enforce white/black/grey palette uniformly
 - [x] Fix excessive margins in report — ensure report fills width properly
 - [x] Verify report color consistency across all sections
-- [ ] Save checkpoint with all fixes
+- [x] Save checkpoint with all fixes
 
 ## Pipeline Hardening — Succeed on First Try (Apr 24, 2026)
 - [ ] Audit triggerAiAssessment for silent failure paths (unhandled promise rejections, missing error propagation)
@@ -11042,3 +11042,24 @@ NOTE: Issues 2, 3, 6 require a pipeline RE-RUN on existing claims to populate th
 ## Report Page Cleanup
 - [x] Audit and remove/consolidate low-value bottom sections below ForensicAuditReport
 - [x] Keep only sections that add direct value to the claims decision workflow
+
+## TypeScript Fixes, Policyholder Extraction & Report Audit (Apr 24, 2026)
+- [x] Fix repair-replace-router.ts TypeScript errors (null checks, missing damageAnalysisJson column)
+- [ ] Add policyholder name extraction to PDF pipeline
+- [ ] Audit report for internal consistency: linked systems cross-referencing correctly
+- [ ] Audit report units: ensure SI/engineering-standard units throughout (kN, km/h, kg, etc.)
+- [ ] Audit report formulae: verify physics calculations (F=ma, delta-V, impact energy) are correct
+- [ ] Fix any inconsistencies found in audit
+- [ ] Verify full workflow end-to-end (upload → pipeline → report → view)
+- [ ] Save checkpoint with all fixes
+
+## Session Continuation — Apr 24, 2026 (context handoff)
+- [x] Mark all previously completed items from prior session as done
+- [x] Policyholder name extraction — claimantName backfill added to claimUpdate in db.ts (reads from claimRecord.driver.claimantName)
+- [x] Physics audit — added _physics field to rawResponse in getEnforcement (routers.ts) to expose actual Stage7 values (deltaVKmh, impactForceKn, energyKj, vehicleMassKg, estimatedSpeedKmh)
+- [x] Section2Physics fixed — multiEventSequence ReferenceError resolved, physics field paths corrected (_physics first, physicsEstimate fallback)
+- [x] Physics table updated — 7 rows with correct SI units: Delta-V (km/h), Estimated impact speed (km/h), Impact energy KE (kJ), Impact force (kN), Vehicle mass (kg), Accident severity, Incident type
+- [x] TypeScript fixes — repair-replace-router.ts (null checks, damagedComponentsJson), stage-9-cost.ts (estimatedCostCents undefined), routers.ts (_physics field)
+- [x] Recovery job fix — claims marked processing_failed when max retries reached
+- [x] Verified pipeline health — 25 assessment_complete, 30 submitted, 19 comparison, no stuck claims
+- [x] Save final checkpoint with all fixes

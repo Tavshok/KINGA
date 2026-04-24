@@ -37,9 +37,12 @@ export const repairReplaceRouter = router({
     .query(async ({ ctx, input }) => {
       const { user } = ctx;
       const isSuperUser = user.role === "admin" || user.role === "platform_super_admin";
-      const tenantId = isSuperUser ? null : user.tenantId;
+      const tenantId = isSuperUser ? undefined : (user.tenantId ?? undefined);
 
       const db = await getDb();
+      if (!db) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "Database not available" });
+      }
 
       // Fetch the claim to get vehicle context
       const claimRows = await db
@@ -63,7 +66,7 @@ export const repairReplaceRouter = router({
         .select({
           id: aiAssessments.id,
           repairIntelligenceJson: aiAssessments.repairIntelligenceJson,
-          damageAnalysisJson: aiAssessments.damageAnalysisJson,
+          damagedComponentsJson: aiAssessments.damagedComponentsJson,
         })
         .from(aiAssessments)
         .where(eq(aiAssessments.claimId, input.claimId))
@@ -96,9 +99,9 @@ export const repairReplaceRouter = router({
           }
         }
 
-        // Fallback to damageAnalysisJson if repairIntelligenceJson has no components
-        if (componentSignals.length === 0 && assessment.damageAnalysisJson) {
-          const da = JSON.parse(assessment.damageAnalysisJson as string);
+        // Fallback to damagedComponentsJson if repairIntelligenceJson has no components
+        if (componentSignals.length === 0 && assessment.damagedComponentsJson) {
+          const da = JSON.parse(assessment.damagedComponentsJson as string);
           const damagedParts = da?.damagedParts ?? da?.damaged_parts ?? da?.components ?? [];
           if (Array.isArray(damagedParts)) {
             componentSignals = damagedParts.map((c: any) => ({

@@ -797,7 +797,7 @@ export async function runCostOptimisationStage(
             repairAction: (p.severity === "cosmetic" || p.severity === "minor" ? "repair" : "replace") as "repair" | "replace",
             // estimatedCostCents is null — we do not produce per-component estimates without real data.
             // The learning recorder will use the true_cost_usd from costDecisionEngine instead.
-            estimatedCostCents: null,
+            estimatedCostCents: undefined,
           })),
         // TRUE COST from costDecisionEngine — validated outcome only
         trueCostUsd: costDecision?.true_cost_usd ?? null,
