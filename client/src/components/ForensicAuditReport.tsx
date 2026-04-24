@@ -2908,13 +2908,23 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         };
         const vehiclePhotos = exifResults.filter(r => !r.isNonVehicle && !isDocumentVisionText(r.aiVisionDescription ?? ''));
         const totalAnalysed = vehiclePhotos.length;
-        // Threshold: 40% — catches borderline post-processing cases
-        const flaggedCount = vehiclePhotos.filter(r => r.manipulationScore > 40).length;
+        // Three-tier thresholds:
+        //   High concern  : manipulation_score > 40  (likely post-processing)
+        //   Medium concern: manipulation_score 20–40  (minor anomalies, warrants review)
+        //   Clean         : manipulation_score ≤ 20  (no detected manipulation)
+        const highCount   = vehiclePhotos.filter(r => r.manipulationScore > 40).length;
+        const mediumCount = vehiclePhotos.filter(r => r.manipulationScore > 20 && r.manipulationScore <= 40).length;
+        type SummaryTier = 'none' | 'medium' | 'high';
+        const tier: SummaryTier = highCount > 0 ? 'high' : mediumCount > 0 ? 'medium' : 'none';
         const summaryVerdict: string = totalAnalysed === 0
           ? "No vehicle damage photos were available for integrity analysis."
-          : flaggedCount > 0
-            ? `${flaggedCount} of ${totalAnalysed} analysed photo${flaggedCount === 1 ? '' : 's'} show signs of post-processing or metadata anomalies — independent physical inspection is recommended before settlement.`
-            : `All ${totalAnalysed} analysed photo${totalAnalysed === 1 ? '' : 's'} are consistent with reported damage and show no detected manipulation — standard verification procedures apply.`;
+          : tier === 'high'
+            ? `${highCount} of ${totalAnalysed} analysed photo${highCount === 1 ? '' : 's'} exhibit indicators consistent with post-processing or metadata manipulation. Independent physical inspection of the vehicle is recommended prior to settlement.`
+            : tier === 'medium'
+              ? `${mediumCount} of ${totalAnalysed} analysed photo${mediumCount === 1 ? '' : 's'} present minor metadata anomalies that, while not conclusive, warrant closer review. No definitive manipulation was detected; standard verification procedures apply with heightened scrutiny.`
+              : `All ${totalAnalysed} analysed photo${totalAnalysed === 1 ? '' : 's'} are consistent with reported damage and show no detected manipulation — standard verification procedures apply.`;
+        // Tier-appropriate accent colour for the summary box border
+        const summaryAccent = tier === 'high' ? '#dc2626' : tier === 'medium' ? '#d97706' : 'var(--border)';
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -2922,10 +2932,22 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{pf.anySuspicious ? "Suspicious" : "Clean"}</span>
             </div>
             <div className="p-4">
-              {/* Hedged integrity summary — shown before per-image detail */}
-              <div className="photo-integrity-summary" style={{ marginBottom: '14px', padding: '10px 14px', background: 'var(--muted)', borderRadius: '6px', border: '1px solid var(--border)' }}>
-                <p className="pis-label text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}>Photo Integrity Summary</p>
-                <p className="pis-text text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6' }}>{summaryVerdict}</p>
+              {/* Hedged integrity summary — three-tier: clean / medium concern / high concern */}
+              <div className="photo-integrity-summary" style={{ marginBottom: '14px', padding: '10px 14px', background: tier === 'high' ? '#fef2f2' : tier === 'medium' ? '#fffbeb' : 'var(--muted)', borderRadius: '6px', border: `1px solid ${summaryAccent}` }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <p className="pis-label text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)', margin: 0 }}>Photo Integrity Summary</p>
+                  {tier !== 'none' && (
+                    <span style={{
+                      fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                      padding: '1px 6px', borderRadius: '3px',
+                      background: tier === 'high' ? '#dc2626' : '#d97706',
+                      color: '#ffffff',
+                    }}>
+                      {tier === 'high' ? 'High Concern' : 'Medium Concern'}
+                    </span>
+                  )}
+                </div>
+                <p className="pis-text text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6', margin: 0 }}>{summaryVerdict}</p>
               </div>
               <PhotoExifForensicsPanel data={exifData} />
             </div>

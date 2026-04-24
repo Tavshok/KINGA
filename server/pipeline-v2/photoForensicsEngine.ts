@@ -64,6 +64,12 @@ interface RawAnalysisResult {
   recommendations: string[];
   /** AI vision description of the damage visible in this photo */
   ai_vision_description?: string;
+  /**
+   * True when the image is not a vehicle damage photo (e.g. document, form,
+   * estimate sheet, ID, licence disc, scene photo without vehicle, etc.).
+   * Set by the AI vision classification step.
+   */
+  is_non_vehicle?: boolean;
   error?: string;
 }
 
@@ -259,7 +265,17 @@ async function runNodeForensics(buffer: Buffer): Promise<RawAnalysisResult> {
  * Asks the LLM to describe visible damage, assess authenticity, and flag anomalies.
  * Returns null on failure (non-blocking).
  */
-async function runAiVisionAnalysis(photoUrl: string): Promise<string | null> {
+/**
+ * Result of AI vision classification for a single photo.
+ */
+interface VisionClassification {
+  /** True when the image is NOT a vehicle damage photo */
+  isNonVehicle: boolean;
+  /** Human-readable description (damage analysis if vehicle, reason if not) */
+  description: string;
+}
+
+async function runAiVisionAnalysis(photoUrl: string): Promise<VisionClassification | null> {
   try {
     const { invokeLLM } = await import("../_core/llm");
     const result = await invokeLLM({
@@ -273,7 +289,30 @@ async function runAiVisionAnalysis(photoUrl: string): Promise<string | null> {
             },
             {
               type: "text",
-              text: `You are a motor vehicle insurance claims photo analyst. Analyse this damage photo and provide:
+              text: `You are a motor vehicle insurance claims photo analyst.
+
+STEP 1 — IMAGE CLASSIFICATION (mandatory first step):
+Determine whether this image is a vehicle damage photograph or something else.
+
+Images that are NOT vehicle damage photos include:
+- Repair quotation / estimate forms or sheets
+- Invoice, receipt, or billing documents
+- Claim forms or application documents
+- Driver's licence, ID documents, or identity cards
+- Vehicle registration papers or licence discs
+- Police report documents or accident report forms
+- Scene-only photos with no vehicle visible
+- Logos, stamps, or watermarks
+- Any other document, text, or form image
+
+If the image IS a vehicle damage photo, respond with:
+IMAGE_TYPE: VEHICLE_DAMAGE
+
+If the image is NOT a vehicle damage photo, respond with:
+IMAGE_TYPE: NON_VEHICLE
+REASON: [brief description of what the image actually shows]
+
+STEP 2 — DAMAGE ANALYSIS (only if IMAGE_TYPE is VEHICLE_DAMAGE):
 1. DAMAGE DESCRIPTION: Describe all visible damage in detail (location on vehicle, severity, type of damage).
 2. DAMAGE CONSISTENCY: Does the damage pattern appear consistent with a real collision/incident? Note any anomalies (e.g. rust under fresh damage, mismatched paint, pre-existing damage).
 3. PHOTO AUTHENTICITY: Any signs the photo is staged, digitally altered, or taken at a different time/location than claimed?
@@ -288,10 +327,26 @@ Be concise but thorough. Flag any fraud indicators clearly.`,
       timeoutMs: 45_000,
     });
     const content = result?.choices?.[0]?.message?.content;
-    if (typeof content === "string" && content.trim().length > 10) {
-      return content.trim();
+    if (typeof content !== "string" || content.trim().length < 5) return null;
+    const text = content.trim();
+    // Parse IMAGE_TYPE classification from the response
+    const typeMatch = text.match(/IMAGE_TYPE\s*:\s*(VEHICLE_DAMAGE|NON_VEHICLE)/i);
+    if (typeMatch) {
+      const isNonVehicle = typeMatch[1].toUpperCase() === 'NON_VEHICLE';
+      if (isNonVehicle) {
+        // Extract the reason if present
+        const reasonMatch = text.match(/REASON\s*:\s*([^\n]+)/i);
+        const reason = reasonMatch ? reasonMatch[1].trim() : 'Image does not depict vehicle damage';
+        return { isNonVehicle: true, description: reason };
+      }
+      // Vehicle damage — strip the IMAGE_TYPE header line and return the analysis
+      const analysisText = text
+        .replace(/^IMAGE_TYPE\s*:\s*VEHICLE_DAMAGE[^\n]*\n?/im, '')
+        .trim();
+      return { isNonVehicle: false, description: analysisText || text };
     }
-    return null;
+    // No IMAGE_TYPE tag — treat as vehicle damage (legacy / fallback)
+    return { isNonVehicle: false, description: text };
   } catch (err: any) {
     // Non-blocking — vision analysis failure does not fail the photo
     console.warn(`[PhotoForensics] AI vision analysis failed for photo: ${err?.message ?? err}`);
@@ -313,11 +368,14 @@ async function analysePhoto(
     tmpPath = tp;
     const result = await runNodeForensics(buffer);
 
-    // AI vision analysis — runs in parallel with cleanup, non-blocking
+    // AI vision analysis — classifies image type AND describes damage
     if (runVision) {
-      const visionDesc = await runAiVisionAnalysis(url);
-      if (visionDesc) {
-        result.ai_vision_description = visionDesc;
+      const vision = await runAiVisionAnalysis(url);
+      if (vision) {
+        result.ai_vision_description = vision.description;
+        if (vision.isNonVehicle) {
+          result.is_non_vehicle = true;
+        }
       }
     }
 

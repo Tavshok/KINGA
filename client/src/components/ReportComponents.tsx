@@ -435,12 +435,16 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
           ? `GPS coordinates present${r.captureDate ? ` (recorded ${r.captureDate.slice(0, 10)})` : ''} — location verifiable`
           : 'No GPS data embedded — capture location unverifiable';
 
-        // Bullet 4: Manipulation score + integrity verdict
-        const integrityVerdict = r.isSuspicious
-          ? `Manipulation score ${manipPct}% — image flagged as suspicious; manual review required`
-          : !r.exifPresent
-          ? `Manipulation score ${manipPct}% — no anomalies detected; EXIF absence noted`
-          : `Manipulation score ${manipPct}% — no integrity anomalies detected`;
+        // Bullet 4: Manipulation score + integrity verdict — three-tier
+        const photoTier = manipPct > 40 ? 'high' : manipPct > 20 ? 'medium' : 'clean';
+        const integrityVerdict =
+          photoTier === 'high'
+            ? `Manipulation score ${manipPct}% — image exhibits indicators consistent with post-processing; independent verification recommended`
+            : photoTier === 'medium'
+              ? `Manipulation score ${manipPct}% — minor metadata anomalies detected; no definitive manipulation confirmed; review with heightened scrutiny`
+              : !r.exifPresent
+                ? `Manipulation score ${manipPct}% — no integrity anomalies detected; EXIF metadata absent, origin unverifiable`
+                : `Manipulation score ${manipPct}% — no integrity anomalies detected`;
 
         // Extra flags (excluding EXIF/GPS already covered above)
         const extraFlags = (r.flags ?? []).filter(
@@ -456,7 +460,7 @@ export function PhotoExifForensicsPanel({ data }: { data: PhotoExifForensicsData
               <li style={{ color: 'var(--foreground)' }}>{observation}</li>
               <li style={{ color: 'var(--muted-foreground)' }}>{exifNote}</li>
               <li style={{ color: 'var(--muted-foreground)' }}>{gpsNote}</li>
-              <li style={{ color: r.isSuspicious ? 'var(--foreground)' : 'var(--muted-foreground)' }}>{integrityVerdict}</li>
+              <li style={{ color: photoTier === 'high' ? '#dc2626' : photoTier === 'medium' ? '#d97706' : 'var(--muted-foreground)' }}>{integrityVerdict}</li>
               {extraFlags.map((f, fi) => (
                 <li key={fi} style={{ color: 'var(--muted-foreground)' }}>{f.replace(/\*\*/g, '').replace(/\*/g, '')}</li>
               ))}
