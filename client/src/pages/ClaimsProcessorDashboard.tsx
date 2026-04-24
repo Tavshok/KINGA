@@ -94,7 +94,9 @@ export default function ClaimsProcessorDashboard() {
         refetchInterval: (data) => {
           const claims = (data as any)?.claims || (data as any)?.items || [];
           const hasInProgress = claims.some((c: any) => c.status === "assessment_in_progress");
-          return (aiProcessingClaimIds.size > 0 || hasInProgress) ? 5_000 : 30_000;
+          // Poll every 2s when AI is actively running so stage transitions appear quickly,
+          // fall back to 30s when idle to reduce server load.
+          return (aiProcessingClaimIds.size > 0 || hasInProgress) ? 2_000 : 30_000;
         },
         refetchIntervalInBackground: false,
       }
