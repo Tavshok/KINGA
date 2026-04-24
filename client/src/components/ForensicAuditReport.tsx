@@ -162,6 +162,16 @@ function filterAssessorConclusions(text: string): string {
     /\b(claim\s+is\s+(?:valid|genuine|legitimate))[^.]*\./gi,
     /\b(vehicle\s+is\s+(?:repairable|a\s+write.?off))[^.]*\./gi,
     /\b(parts?\s+are\s+(?:available|sourced)\s+locally)[^.]*\./gi,
+    // Repairer operational/commercial notes (panel beater comments, not claimant statements)
+    /\b(some\s+adjustments?\s+(?:have\s+been|were)\s+made\s+on\s+(?:some\s+)?spares?)[^.]*\./gi,
+    /\b(adjustments?\s+(?:have\s+been|were)\s+made\s+(?:on\s+)?(?:labour|parts?|spares?))[^.]*\./gi,
+    /\b(after\s+verification\s+with\s+(?:local\s+)?parts?\s+suppliers?)[^.]*\./gi,
+    /\b(prices?\s+(?:have\s+been|were)\s+(?:verified|confirmed|checked)\s+with)[^.]*\./gi,
+    /\b((?:motion|top\s+class|[a-z]+\s+panel(?:\s+beaters?)?)\s+(?:some|has|have|made|adjusted))[^.]*\./gi,
+    /\b(the\s+(?:cost|price|amount|quote)\s+(?:has\s+been|was|were)\s+(?:adjusted|revised|updated|corrected))[^.]*\./gi,
+    /\b((?:parts?|labour|spares?)\s+(?:costs?|prices?|rates?)\s+(?:have\s+been|were|are)\s+(?:adjusted|revised|verified|confirmed))[^.]*\./gi,
+    /\b(the\s+(?:rear\s+end|front|back|side)\s+damages?\s+are\s+consistent\s+with\s+the\s+accident\s+description)[^.]*\./gi,
+    /\b(the\s+third\s+party\s+car\s+was\s+hit)[^.]*(?:insured\s+car)[^.]*\./gi,
   ];
   let filtered = text;
   for (const pat of CONCLUSION_PATTERNS) {
@@ -2353,9 +2363,9 @@ function Section3Financial({ aiAssessment, enforcement, quotes, fmtMoney = fmtUs
                   const sourceStatus = part.costSource === "learning_db" ? "pass" : part.source === "extracted" ? "pass" : hasBenchmark ? "info" : "na";
                   return (
                     <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined, background: "var(--background)" }}>
-                      <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)" }}>{part.component}</td>
-                      <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)" }}>
-                        {hasBenchmark ? fmtMoney(part.total) : <span style={{ color: "var(--muted-foreground)", fontStyle: "italic" }}>Insufficient data</span>}
+                      <td className="px-3 py-2 font-medium" style={{ color: "var(--foreground)", fontFamily: "inherit" }}>{toTitleCase(part.component)}</td>
+                      <td className="px-3 py-2 tabular-nums" style={{ color: "var(--foreground)", fontFamily: "inherit" }}>
+                        {hasBenchmark ? fmtMoney(part.total) : <span style={{ color: "var(--muted-foreground)" }}>Insufficient data</span>}
                       </td>
                       <td className="px-3 py-2">
                         {(() => {
@@ -2887,6 +2897,15 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
           } satisfies PhotoExifResult;
         });
         const exifData: PhotoExifForensicsData = { results: exifResults };
+        // ── Hedged photo integrity summary verdict ──────────────────────
+        const vehiclePhotos = exifResults.filter(r => !r.isNonVehicle);
+        const totalAnalysed = vehiclePhotos.length;
+        const flaggedCount = vehiclePhotos.filter(r => r.manipulationScore > 50).length;
+        const summaryVerdict: string = totalAnalysed === 0
+          ? "No vehicle damage photos were available for integrity analysis."
+          : flaggedCount > 0
+            ? `${flaggedCount} of ${totalAnalysed} analysed photo${flaggedCount === 1 ? '' : 's'} show signs of post-processing or metadata anomalies — independent physical inspection is recommended before settlement.`
+            : `All ${totalAnalysed} analysed photo${totalAnalysed === 1 ? '' : 's'} are consistent with reported damage and show no detected manipulation — standard verification procedures apply.`;
         return (
           <div className="rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)", background: "var(--card)" }}>
             <div className="px-4 py-3 flex items-center justify-between" style={{ borderBottom: "1px solid var(--border)", background: "var(--muted)" }}>
@@ -2894,6 +2913,11 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
               <span className="text-xs font-semibold" style={{ color: "var(--foreground)" }}>{pf.anySuspicious ? "Suspicious" : "Clean"}</span>
             </div>
             <div className="p-4">
+              {/* Hedged integrity summary — shown before per-image detail */}
+              <div style={{ marginBottom: '14px', padding: '10px 14px', background: 'var(--muted)', borderRadius: '6px', border: '1px solid var(--border)' }}>
+                <p className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}>Photo Integrity Summary</p>
+                <p className="text-sm" style={{ color: 'var(--foreground)', lineHeight: '1.6' }}>{summaryVerdict}</p>
+              </div>
               <PhotoExifForensicsPanel data={exifData} />
             </div>
           </div>
@@ -3603,13 +3627,6 @@ function Section6Decision({ claim, aiAssessment, enforcement }: { claim: any; ai
         </div>
       </div>
 
-      <div style={{ background: "#fff", border: "1px solid #ddd", padding: "16px", textAlign: "center", marginTop: "16px" }}>
-        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: "#111" }}>KINGA AI</p>
-        <p className="text-xs mt-1" style={{ color: "var(--muted-foreground)" }}>Engine v{engineVersion} · Report {reportHash} · {fmtDate(aiAssessment?.createdAt ?? new Date().toISOString())}</p>
-        <p className="text-xs mt-2" style={{ color: "var(--muted-foreground)" }}>
-          This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA AI does not constitute legal advice.
-        </p>
-      </div>
     </div>
   );
 }
@@ -4564,6 +4581,17 @@ export function ForensicAuditReport({ claim, aiAssessment, enforcement, quotes }
 
       <div className="section-heading">07 — Machine Learning Insights</div>
       <Section7Learning aiAssessment={aiAssessment} enforcement={enforcement} fmtMoney={fmtMoney} />
+
+      {/* ── KINGA AI Engine Block — always at the bottom of the report body ── */}
+      <div style={{ background: '#fff', border: '1px solid #ddd', padding: '16px', textAlign: 'center', marginTop: '24px', marginBottom: '8px' }}>
+        <p className="text-xs font-bold uppercase tracking-widest" style={{ color: '#111' }}>KINGA AI</p>
+        <p className="text-xs mt-1" style={{ color: 'var(--muted-foreground)' }}>
+          Engine v{aiAssessment?.engineVersion ?? '4.2'} · Report #{((aiAssessment?.id ?? 0) * 31337).toString(16).padStart(8, '0').toUpperCase().slice(0, 8)} · {new Date(aiAssessment?.createdAt ?? Date.now()).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </p>
+        <p className="text-xs mt-2" style={{ color: 'var(--muted-foreground)' }}>
+          This report is generated by an AI system and is intended to assist human adjusters. All decisions require human review and authorisation. KINGA AI does not constitute legal advice.
+        </p>
+      </div>
 
       <div className="conf-footer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <span>
