@@ -167,10 +167,9 @@ export default function AdminDashboard() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <KingaLogo />
               <div>
-                <p className="text-sm text-muted-foreground">Admin Panel</p>
-                <p className="text-sm text-muted-foreground">System Management, AI Training & Configuration</p>
+                <p className="text-sm font-semibold text-foreground">Admin Panel</p>
+                <p className="text-xs text-muted-foreground">System Management, AI Training &amp; Configuration</p>
               </div>
             </div>
             <div className="flex items-center gap-4">
@@ -181,6 +180,8 @@ export default function AdminDashboard() {
               <Button variant="outline" size="sm" onClick={() => logout()}>
                 Sign Out
               </Button>
+              <div className="h-5 w-px bg-border" />
+              <KingaLogo showText={false} size="sm" />
             </div>
           </div>
         </div>

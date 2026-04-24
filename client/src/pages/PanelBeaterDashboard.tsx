@@ -39,10 +39,7 @@ export default function PanelBeaterDashboard() {
       <header className="bg-white dark:bg-card border-b shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <KingaLogo />
-            <div>
-              <p className="text-sm text-muted-foreground">Panel Beater Portal - Quote Submission & Repair Coordination</p>
-            </div>
+            <p className="text-sm text-muted-foreground">Panel Beater Portal — Quote Submission &amp; Repair Coordination</p>
           </div>
           <div className="flex items-center gap-4">
             <RoleSwitcher />
@@ -54,6 +51,8 @@ export default function PanelBeaterDashboard() {
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
             </Button>
+            <div className="h-5 w-px bg-border" />
+            <KingaLogo showText={false} size="sm" />
           </div>
         </div>
       </header>

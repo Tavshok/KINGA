@@ -27,10 +27,7 @@ export default function AssessorDashboard() {
       <header className="bg-gradient-to-r from-teal-600 via-teal-700 to-teal-800 text-white shadow-lg">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <KingaLogo />
-            <div>
-              <p className="text-sm text-teal-100">Assessor Portal - Claim Assessment & Inspections</p>
-            </div>
+            <p className="text-sm text-teal-100">Assessor Portal — Claim Assessment &amp; Inspections</p>
           </div>
           <div className="flex items-center gap-4">
             <Button 
@@ -50,6 +47,8 @@ export default function AssessorDashboard() {
             <Button variant="outline" size="sm" onClick={() => logout()}>
               Sign Out
             </Button>
+            <div className="h-5 w-px bg-teal-400/50" />
+            <KingaLogo showText={false} size="sm" />
           </div>
         </div>
       </header>
