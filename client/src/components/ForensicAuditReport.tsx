@@ -632,6 +632,33 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
   const fcdiTileLabel = fcdiTileScore < 0 ? "N/A" : fcdiTileScore >= 80 ? "HIGH" : fcdiTileScore >= 55 ? "MEDIUM" : fcdiTileScore >= 30 ? "LOW" : "CRITICAL";
   const fcdiTileColor = fcdiTileScore < 0 ? "var(--muted-foreground)" : fcdiTileScore >= 80 ? "var(--fp-success-text)" : fcdiTileScore >= 55 ? "var(--fp-warning-text)" : "var(--fp-critical-text)";
 
+  // Photo Integrity tier — derived from EXIF forensics results (same logic as Section 4.3)
+  const pfCover = (enforcement as any)?._photoForensics as any;
+  const pfPhotos: any[] = pfCover?.photos ?? [];
+  const isDocumentVisionTextCover = (text: string): boolean => {
+    if (!text) return false;
+    if (/^\s*(DAMAGE\s+DESCRIPTION|ESTIMATE|QUOTATION|INVOICE|CLAIM\s+FORM|REPAIR\s+ORDER|PARTS\s+LIST|LABOUR\s+SCHEDULE|SCHEDULE\s+OF|VEHICLE\s+INSPECTION\s+REPORT|ASSESSMENT\s+REPORT|BASED\s+ON\s+ESTIMATE)/i.test(text)) return true;
+    if (/listed\s+for\s+(replacement|repair)|qty\s*:|item\s*:|unit\s+price|labour\s+rate|parts\s+cost/i.test(text)) return true;
+    if (/^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(text)) return true;
+    return false;
+  };
+  const vehiclePhotosCover = pfPhotos.filter((photo: any) => {
+    const r = photo.analysisResult ?? {};
+    return !(r.is_non_vehicle === true) && !isDocumentVisionTextCover(r.ai_vision_description ?? '');
+  });
+  const photoHighCount = vehiclePhotosCover.filter((photo: any) => {
+    const score = (photo.analysisResult?.manipulation_indicators?.manipulation_score ?? 0) * 100;
+    return score > 40;
+  }).length;
+  const photoMediumCount = vehiclePhotosCover.filter((photo: any) => {
+    const score = (photo.analysisResult?.manipulation_indicators?.manipulation_score ?? 0) * 100;
+    return score > 20 && score <= 40;
+  }).length;
+  type PhotoTierType = 'none' | 'medium' | 'high';
+  const photoIntegrityTier: PhotoTierType = pfPhotos.length === 0 ? 'none' : photoHighCount > 0 ? 'high' : photoMediumCount > 0 ? 'medium' : 'none';
+  const photoIntegrityLabel = photoIntegrityTier === 'high' ? 'High Concern' : photoIntegrityTier === 'medium' ? 'Medium Concern' : pfPhotos.length === 0 ? 'No Photos' : 'Clean';
+  const photoIntegrityColor = photoIntegrityTier === 'high' ? '#c00' : photoIntegrityTier === 'medium' ? '#c8a000' : pfPhotos.length === 0 ? '#888' : '#2e7d32';
+
   // Determine decision colour for the decision box border
   const decisionBorderStyle = fraudScore >= 70 ? { borderColor: '#c00' } : fraudScore >= 40 ? { borderColor: '#c8a000' } : { borderColor: '#2e7d32' };
   const physicsBarColor = physicsScore >= 70 ? '#2e7d32' : physicsScore >= 30 ? '#c8a000' : '#c00';
@@ -693,6 +720,11 @@ function Section0Cover({ claim, aiAssessment, enforcement, quotes, fmtMoney = fm
           <div className="kpi-label">Quoted Cost</div>
           <div className="kpi-value" style={{ fontSize: 22 }}>{quotedTotal > 0 ? fmtMoney(quotedTotal) : '—'}</div>
           <div className="kpi-sub">Submitted Quote</div>
+        </div>
+        <div className="kpi-tile">
+          <div className="kpi-label">Photo Integrity</div>
+          <div className="kpi-value" style={{ fontSize: 15, fontWeight: 800, color: photoIntegrityColor, letterSpacing: '-0.01em' }}>{photoIntegrityLabel}</div>
+          <div className="kpi-sub">{vehiclePhotosCover.length > 0 ? `${vehiclePhotosCover.length} photo${vehiclePhotosCover.length === 1 ? '' : 's'} analysed` : 'No photos'}</div>
         </div>
         <div className="kpi-tile">
           <div className="kpi-label">Decision</div>
@@ -2970,7 +3002,21 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
         const avgSharpness = qs?.avgSharpnessScore ?? null;
         const extractionError = pil.extractionError ?? null;
         const durationMs = pil.totalDurationMs ?? null;
-        const hasQualityIssues = rejectedSmall > 0 || blurryCount > 0 || !!extractionError;
+        // Non-vehicle exclusion count — derived from EXIF results (same logic as Section 4.3)
+        const pf44 = (enforcement as any)?._photoForensics as any;
+        const allPhotos44: any[] = pf44?.photos ?? [];
+        const isDocumentVisionText44 = (text: string): boolean => {
+          if (!text) return false;
+          if (/^\s*(DAMAGE\s+DESCRIPTION|ESTIMATE|QUOTATION|INVOICE|CLAIM\s+FORM|REPAIR\s+ORDER|PARTS\s+LIST|LABOUR\s+SCHEDULE|SCHEDULE\s+OF|VEHICLE\s+INSPECTION\s+REPORT|ASSESSMENT\s+REPORT|BASED\s+ON\s+ESTIMATE)/i.test(text)) return true;
+          if (/listed\s+for\s+(replacement|repair)|qty\s*:|item\s*:|unit\s+price|labour\s+rate|parts\s+cost/i.test(text)) return true;
+          if (/^\s*(i\s+am\s+sorry|i\s+cannot|i\s+can't|i\s+apologize|i\s+apologise|unable\s+to|this\s+image\s+does\s+not|the\s+image\s+does\s+not\s+(?:show|contain|depict))/i.test(text)) return true;
+          return false;
+        };
+        const nonVehicleCount = allPhotos44.filter((photo: any) => {
+          const r = photo.analysisResult ?? {};
+          return (r.is_non_vehicle === true) || isDocumentVisionText44(r.ai_vision_description ?? '');
+        }).length;
+        const hasQualityIssues = rejectedSmall > 0 || blurryCount > 0 || nonVehicleCount > 0 || !!extractionError;
         const qualityStatus: "pass" | "warn" | "fail" = extractionError ? "fail" : hasQualityIssues ? "warn" : "pass";
         const qualityLabel = extractionError ? "EXTRACTION ERROR" : hasQualityIssues ? "QUALITY ISSUES" : "QUALITY OK";
         const qualityBg = extractionError ? "var(--status-reject-bg)" : hasQualityIssues ? "var(--status-review-bg)" : "var(--status-approve-bg)";
@@ -2992,10 +3038,11 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                   <strong>Extraction error:</strong> {extractionError}. This is a system-level issue and is not attributed to the claimant.
                 </div>
               )}
-              <div className="grid grid-cols-4 gap-3 mb-3">
+              <div className="grid grid-cols-5 gap-3 mb-3">
                 {[
                   { label: "Total found", value: totalExtracted, color: "var(--foreground)" },
                   { label: "Damage photos", value: damageCount, color: damageCount > 0 ? "var(--fp-success-text)" : "var(--fp-warning-text)" },
+                  { label: "Non-vehicle excluded", value: nonVehicleCount, color: nonVehicleCount > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
                   { label: "Rejected (size)", value: rejectedSmall, color: rejectedSmall > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
                   { label: "Blurry / low-res", value: blurryCount, color: blurryCount > 0 ? "var(--fp-warning-text)" : "var(--muted-foreground)" },
                 ].map((m, i) => (
@@ -3052,9 +3099,10 @@ function Section4Evidence({ aiAssessment, enforcement, claim }: { aiAssessment: 
                   </div>
                 </div>
               </div>
-              {(rejectedSmall > 0 || blurryCount > 0) && !extractionError && (
+              {(rejectedSmall > 0 || blurryCount > 0 || nonVehicleCount > 0) && !extractionError && (
                 <div className="mt-3 p-2 rounded text-xs" style={{ background: qualityBg, border: `1px solid ${qualityBorder}`, color: "var(--foreground)" }}>
                   <strong>Quality note:</strong>{" "}
+                  {nonVehicleCount > 0 && `${nonVehicleCount} image(s) were identified as non-vehicle content (e.g., estimate forms, invoices, or documents) and excluded from forensic damage analysis. `}
                   {rejectedSmall > 0 && `${rejectedSmall} image(s) were too small (likely logos or stamps) and excluded from damage analysis. `}
                   {blurryCount > 0 && `${blurryCount} image(s) were flagged as low-sharpness. Damage analysis was still attempted but results may benefit from clearer photos.`}
                 </div>
@@ -4245,7 +4293,7 @@ const REPORT_CSS = `
 .kinga-report .alert-banner{border:1px solid #bbb;padding:10px 16px;margin-bottom:14px;font-size:11px;color:#333;background:#fff;border-left:4px solid #c8a000}
 .kinga-report .alert-banner.critical{background:#fff;border-left-color:#c00}
 .kinga-report .alert-banner.info{background:#fff;border-left-color:#111}
-.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid #ddd;margin-bottom:14px}
+.kinga-report .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);border:1px solid #ddd;margin-bottom:14px}
 .kinga-report .kpi-tile{padding:14px 16px;border-right:1px solid #ddd;text-align:center}
 .kinga-report .kpi-tile:last-child{border-right:none}
 .kinga-report .kpi-label{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#888;margin-bottom:6px}
