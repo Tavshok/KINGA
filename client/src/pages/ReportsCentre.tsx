@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { trpc } from "@/lib/trpc";
 import { useAuth } from "@/_core/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ interface CatalogueEntry {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
-const STATUS_ICONS: Record<string, JSX.Element> = {
+const STATUS_ICONS: Record<string, React.ReactElement> = {
   queued:     <Clock className="h-4 w-4 text-gray-400" />,
   processing: <RefreshCw className="h-4 w-4 text-gray-500 animate-spin" />,
   completed:  <CheckCircle className="h-4 w-4 text-gray-700" />,
@@ -54,7 +54,7 @@ const STATUS_BADGE: Record<string, string> = {
   failed:     "bg-red-100 text-red-700 border border-red-200",
 };
 
-const CATEGORY_ICONS: Record<string, JSX.Element> = {
+const CATEGORY_ICONS: Record<string, React.ReactElement> = {
   "Individual Claim": <FileText className="h-4 w-4" />,
   "Portfolio":        <BarChart3 className="h-4 w-4" />,
   "Executive":        <FileBarChart className="h-4 w-4" />,
@@ -690,7 +690,7 @@ export default function ReportsCentre() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(myJobs as ReportJob[]).map((job) => (
+                      {(myJobs as unknown as ReportJob[]).map((job) => (
                         <JobRow key={job.job_id} job={job} onPoll={setPollingJobId} />
                       ))}
                     </tbody>
@@ -716,7 +716,7 @@ export default function ReportsCentre() {
                   </Button>
                 )}
               </div>
-              {(schedules as ScheduleEntry[]).length === 0 ? (
+              {(schedules as unknown as ScheduleEntry[]).length === 0 ? (
                 <div className="text-center py-12">
                   <Calendar className="h-8 w-8 text-gray-200 mx-auto mb-3" />
                   <p className="text-sm text-gray-400">No scheduled reports configured.</p>
@@ -739,7 +739,7 @@ export default function ReportsCentre() {
                       </tr>
                     </thead>
                     <tbody>
-                      {(schedules as ScheduleEntry[]).map((s) => {
+                      {(schedules as unknown as ScheduleEntry[]).map((s) => {
                         const emailList: string[] = (() => { try { return JSON.parse(s.delivery_emails); } catch { return []; } })();
                         return (
                           <tr key={s.id} className="border-b border-gray-100 hover:bg-gray-50">

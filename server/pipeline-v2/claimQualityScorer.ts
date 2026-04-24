@@ -95,7 +95,7 @@ function scoreDataCompleteness(claimRecord: ClaimRecord): QualityDimension {
     [claimRecord.accidentDetails.description, "Accident description", 12],
     [claimRecord.accidentDetails.incidentType, "Incident type", 10],
     [claimRecord.repairQuote.quoteTotalCents, "Repair quote total", 12],
-    [claimRecord.driver?.name || claimRecord.claimantName, "Driver/claimant name", 8],
+    [claimRecord.driver?.name || claimRecord.driver?.claimantName, "Driver/claimant name", 8],
     [claimRecord.accidentDetails.location, "Accident location", 5],
     [claimRecord.policeReport?.reportNumber, "Police report number", 7],
   ];
@@ -339,9 +339,9 @@ function scoreConsistency(consistencyCheck: ConsistencyCheckResult | null | unde
         score -= 10;
         issues.push(`[MEDIUM] ${flag.description}`);
         break;
-      case "LOW":
+      case "INFO":
         score -= 5;
-        issues.push(`[LOW] ${flag.description}`);
+        issues.push(`[INFO] ${flag.description}`);
         break;
     }
   }
@@ -443,7 +443,7 @@ export function scoreClaimQuality(input: ClaimQualityScorerInput): ClaimQualityR
     mandatoryActions.push(
       ...consistencyCheck.flags
         .filter(f => f.severity === "CRITICAL" || f.severity === "HIGH")
-        .map(f => f.recommendation)
+        .map(f => f.adjusterAction)
     );
   }
   if (dimensions.classification.score < 40) {

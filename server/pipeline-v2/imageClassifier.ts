@@ -261,7 +261,7 @@ function computeQualityScore(img: ExtractedImageInput): number {
  * When duplicates are found, keep the one with the higher quality score.
  */
 function removeDuplicates(
-  images: Array<ExtractedImageInput & { qualityScore: number }>,
+  images: Array<ExtractedImageInput & { qualityScore: number; heuristicScore?: number; heuristicCategory?: string; heuristicReasoning?: string }>,
   log: (msg: string) => void
 ): { filtered: typeof images; removedCount: number } {
   const kept: typeof images = [];
@@ -496,8 +496,9 @@ export async function classifyExtractedImages(
   });
 
   // ── STEP 2: Diversity filter — remove near-duplicates ─────────────────
+  type ScoredImage = (typeof scored)[number];
   const { filtered: deduplicated, removedCount: duplicatesRemoved } =
-    removeDuplicates(scored, log);
+    removeDuplicates(scored, log) as { filtered: ScoredImage[]; removedCount: number };
 
   if (duplicatesRemoved > 0) {
     log(`Diversity filter: removed ${duplicatesRemoved} near-duplicate(s), ${deduplicated.length} remaining`);

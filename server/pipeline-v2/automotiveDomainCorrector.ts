@@ -468,17 +468,17 @@ export function applyAutomotiveDomainCorrections(claimRecord: ClaimRecord): Doma
   }
 
   // 4. Registration OCR correction
-  if (record.vehicle?.registrationNumber) {
-    const correctedReg = correctRegistrationOcr(record.vehicle.registrationNumber);
-    if (correctedReg !== record.vehicle.registrationNumber.toUpperCase().replace(/\s+/g, ' ').trim()) {
+  if (record.vehicle?.registration) {
+    const correctedReg = correctRegistrationOcr(record.vehicle.registration);
+    if (correctedReg !== record.vehicle.registration.toUpperCase().replace(/\s+/g, ' ').trim()) {
       corrections.push({
-        field: 'vehicle.registrationNumber',
-        original: record.vehicle.registrationNumber,
+        field: 'vehicle.registration',
+        original: record.vehicle.registration,
         corrected: correctedReg,
         rule: 'REGISTRATION_OCR_CORRECTION',
         confidence: 0.82,
       });
-      record.vehicle.registrationNumber = correctedReg;
+      record.vehicle.registration = correctedReg;
     }
   }
 
@@ -497,33 +497,34 @@ export function applyAutomotiveDomainCorrections(claimRecord: ClaimRecord): Doma
 
   // 6. Third-party detection from narrative
   let thirdPartyDetectedFromNarrative = false;
-  const narrative = record.accidentDetails?.narrativeDescription;
-  if (narrative && !record.accidentDetails?.thirdPartyPresent) {
+  const narrative = record.accidentDetails?.description;
+  if (narrative && !record.accidentDetails?.thirdPartyClaimRequired) {
     thirdPartyDetectedFromNarrative = detectThirdPartyFromNarrative(narrative);
     if (thirdPartyDetectedFromNarrative && record.accidentDetails) {
       corrections.push({
-        field: 'accidentDetails.thirdPartyPresent',
+        field: 'accidentDetails.thirdPartyClaimRequired',
         original: 'undefined/false',
         corrected: 'true',
         rule: 'THIRD_PARTY_NARRATIVE_DETECTION',
         confidence: 0.78,
       });
-      record.accidentDetails.thirdPartyPresent = true;
+      record.accidentDetails.thirdPartyClaimRequired = true;
     }
   }
 
-  // 7. Third-party vehicle make correction (if third party vehicle make is present)
-  if (record.accidentDetails?.thirdPartyVehicleMake) {
-    const tpMakeResult = correctVehicleMake(record.accidentDetails.thirdPartyVehicleMake);
+  // 7. Third-party vehicle make correction (if third party vehicle make is present in thirdParty record)
+  const _tpMake = (record as any).thirdParty?.vehicleMake ?? null;
+  if (_tpMake) {
+    const tpMakeResult = correctVehicleMake(_tpMake);
     if (tpMakeResult) {
       corrections.push({
-        field: 'accidentDetails.thirdPartyVehicleMake',
-        original: record.accidentDetails.thirdPartyVehicleMake,
+        field: 'thirdParty.vehicleMake',
+        original: _tpMake,
         corrected: tpMakeResult.corrected ?? '',
         rule: tpMakeResult.rule,
         confidence: tpMakeResult.confidence,
       });
-      record.accidentDetails.thirdPartyVehicleMake = tpMakeResult.corrected ?? record.accidentDetails.thirdPartyVehicleMake;
+      (record as any).thirdParty.vehicleMake = tpMakeResult.corrected ?? _tpMake;
     }
   }
 

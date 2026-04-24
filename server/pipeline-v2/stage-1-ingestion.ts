@@ -65,7 +65,7 @@ export async function runIngestionStage(
       let pdfPageImageUrls: string[] = [];
       try {
         ctx.log("Stage 1", "Rendering PDF pages to images for vision analysis...");
-        const renderResult = await renderPdfToImages(ctx.pdfUrl, {
+        const renderResult = await renderPdfToImages(ctx.pdfUrl!, {
           dpi: 150,
           maxPages: 25, // claim bundles are typically 10–25 pages
           keyPrefix: `claims/${ctx.claimId}/pdf-pages`,

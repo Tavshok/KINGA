@@ -365,6 +365,7 @@ export async function runPhysicsStage(
           electrical: 0.1,
         },
         physicsExecuted: true,
+        physicsStatus: "EXECUTED" as const,
         animalStrikePhysics: animalResult,
       };
 

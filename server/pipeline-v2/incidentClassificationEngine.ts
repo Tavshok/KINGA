@@ -102,7 +102,7 @@ export interface IncidentClassificationResult {
   /** Canonical pipeline type for downstream routing */
   canonical_type: CanonicalIncidentType;
   /** Whether classification was performed by LLM or keyword fallback */
-  method: "llm" | "keyword_fallback";
+  method: "llm" | "keyword_fallback" | "physical_arbitration";
   /** Claim form stated type (for audit trail) */
   claim_form_stated: string | null;
   /** Whether the claim form type matched the reasoned type */
@@ -710,16 +710,14 @@ export async function classifyIncident(
       animal_strike:       ["vehicle_collision"],
       rollover:            ["vehicle_collision"],
       rear_end:            ["vehicle_collision"],
-      rear_end_collision:  ["vehicle_collision"],
       head_on:             ["vehicle_collision"],
-      head_on_collision:   ["vehicle_collision"],
       sideswipe:           ["vehicle_collision"],
       single_vehicle:      ["vehicle_collision"],
       pedestrian_strike:   ["vehicle_collision"],
     };
     const llmFinalType = llmResult!.incident_type;
     const isExpectedLLMOverride = uniqueKeywordTypes.length === 2 &&
-      (LLM_EXPECTED_OVERRIDES[llmFinalType] ?? []).some(overridden => uniqueKeywordTypes.includes(overridden));
+      (LLM_EXPECTED_OVERRIDES[llmFinalType] ?? []).some(overridden => (uniqueKeywordTypes as string[]).includes(overridden));
     // Also suppress when LLM is highly confident (≥ 85%) — the LLM has reasoned over the
     // full narrative and its verdict supersedes keyword-level disagreements.
     const llmHighConfidence = (llmResult!.confidence ?? 0) >= 85;
@@ -776,11 +774,11 @@ export async function classifyIncident(
     // Rule A: LLM says animal_strike but damage is exclusively rear → rear_end
     if (
       physicalArbitrationAllowed &&
-      (finalType === "animal_strike" || finalType === "road_hazard") &&
+      (finalType === "animal_strike" || (finalType as string) === "road_hazard") &&
       (zones.includes("rear") || physDir === "rear") &&
       !zones.some(z => ["front", "bonnet", "grille"].includes(z))
     ) {
-      finalType = "rear_end_collision";
+      finalType = "rear_end";
       finalCanonical = "rear_end";
       finalConfidence = Math.max(finalConfidence, 75);
       finalReasoning = `Physical arbitration override: damage zones [${zones.join(", ")}] and physics direction "${physDir}" indicate rear-end collision, not ${llmResult.incident_type}. ${finalReasoning}`;
@@ -790,11 +788,11 @@ export async function classifyIncident(
     // Rule B: LLM says rear_end but damage is exclusively front → head_on or single_vehicle
     if (
       physicalArbitrationAllowed &&
-      (finalType === "rear_end_collision" || finalType === "rear_end") &&
+      (finalType === "rear_end") &&
       (zones.includes("front") || physDir === "frontal") &&
       !zones.some(z => ["rear", "boot", "bumper_rear"].includes(z))
     ) {
-      finalType = "head_on_collision";
+      finalType = "head_on";
       finalCanonical = "head_on";
       finalConfidence = Math.max(finalConfidence, 70);
       finalReasoning = `Physical arbitration override: damage zones [${zones.join(", ")}] and physics direction "${physDir}" indicate frontal collision, not rear_end. ${finalReasoning}`;

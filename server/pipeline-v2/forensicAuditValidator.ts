@@ -13,7 +13,8 @@
  */
 
 import { invokeLLM } from "../_core/llm";
-import type { PipelineResult } from "./types";
+// PipelineResult is a flexible pipeline output shape — typed as Record for compatibility
+type PipelineResult = Record<string, any>;
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types

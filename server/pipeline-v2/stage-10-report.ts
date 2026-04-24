@@ -42,7 +42,7 @@ function buildClaimSummary(claimRecord: ClaimRecord): ReportSection {
   return {
     title: "Claim Summary",
     content: {
-      claimId: claimRecord.claimId,
+      claimId: claimRecord.claimId != null ? String(claimRecord.claimId) : null,
       vehicle: {
         make: claimRecord.vehicle.make,
         model: claimRecord.vehicle.model,
@@ -537,10 +537,10 @@ export async function runReportGenerationStage(
     const missingDocuments = identifyMissingDocuments(claimRecord);
 
     // Compile full report
-    const fullReport = {
+    const fullReport: { reportVersion: string; generatedAt: string; claimId: string | null; overallConfidence: number; assumptionCount: number; missingDocumentCount: number; sections: Record<string, any> } = {
       reportVersion: "3.0",
       generatedAt: new Date().toISOString(),
-      claimId: claimRecord.claimId,
+      claimId: claimRecord.claimId != null ? String(claimRecord.claimId) : null,
       overallConfidence,
       assumptionCount: allAssumptions.length,
       missingDocumentCount: missingDocuments.length,
@@ -603,27 +603,26 @@ export async function runReportGenerationStage(
     };
 
     // ── Cross-Stage Consistency Check ──────────────────────────────────────────
-    const consistencyCheck = runCrossStageConsistencyCheck({
+    const consistencyCheck = runCrossStageConsistencyCheck(
       claimRecord,
-      damageAnalysis: damageAnalysis ?? null,
-      physicsAnalysis: physicsAnalysis ?? null,
-      fraudAnalysis: fraudAnalysis ?? null,
-      costAnalysis: costAnalysis ?? null,
-    });
+      damageAnalysis ?? ({} as any),
+      physicsAnalysis ?? null,
+      fraudAnalysis ?? null,
+      costAnalysis ?? null,
+    );
 
     // Surface blocking consistency flags in fullReport sections
     if (consistencyCheck.blockAutoApproval && consistencyCheck.flags.length > 0) {
       fullReport.sections.consistencyFlags = {
         blockAutoApproval: consistencyCheck.blockAutoApproval,
-        overallStatus: consistencyCheck.overallStatus,
+        overallStatus: consistencyCheck.status,
         flagCount: consistencyCheck.flags.length,
         criticalCount: consistencyCheck.flags.filter(f => f.severity === 'CRITICAL').length,
         flags: consistencyCheck.flags.map(f => ({
-          id: f.id,
+          id: f.ruleId,
           severity: f.severity,
           description: f.description,
-          recommendation: f.recommendation,
-          affectedStages: f.affectedStages,
+          recommendation: f.adjusterAction,
         })),
       };
     }
@@ -702,7 +701,7 @@ export async function runReportGenerationStage(
       fullReport: {
         reportVersion: "3.0",
         generatedAt: new Date().toISOString(),
-        claimId: claimRecord.claimId,
+        claimId: claimRecord.claimId != null ? String(claimRecord.claimId) : null,
         overallConfidence: 5,
         error: String(err),
         sections: {},

@@ -2160,7 +2160,7 @@ function ValuationSubsection({ aiAssessment, enforcement, quotes }: { aiAssessme
               ["Excess / Deductible", excessUsd != null ? fmtMoney(excessUsd) : "Not stated"],
               ["Betterment / Depreciation", bettermentUsd != null ? fmtMoney(bettermentUsd) : "Not stated"],
               ["Net Claimant Liability", excessUsd != null && bettermentUsd != null ? fmtMoney(excessUsd + bettermentUsd) : excessUsd != null ? fmtMoney(excessUsd) : "Not available"],
-            ] as ([string, string] | null)[]).filter(Boolean).map(([k, v], i) => (
+            ] as ([string, string] | null)[]).filter((x): x is [string, string] => x !== null).map(([k, v], i) => (
               <tr key={i} style={{ borderTop: i > 0 ? "1px solid var(--border)" : undefined }}>
                 <td className="py-2 pr-4 font-semibold w-48" style={{ color: "var(--muted-foreground)" }}>{k as string}</td>
                 <td className="py-2 font-mono" style={{ color: "var(--foreground)" }}>{v as string}</td>

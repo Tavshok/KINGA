@@ -342,7 +342,7 @@ export async function runCostOptimisationStage(
 
     // No deviation calculation — the AI has no independent cost estimate to compare against.
     // Deviation figures are meaningless when the quote doesn't cover all identified damage.
-    const quoteDeviationPct: number | null = null;
+    let quoteDeviationPct: number | null = null;
     const savingsOpportunityCents = 0;
     // No recommended cost range — the AI cannot produce a fair range without real data.
     const lowCents = 0;
@@ -770,7 +770,7 @@ export async function runCostOptimisationStage(
         ?? (ctx.claim?.vehicleMarketValue != null ? (ctx.claim.vehicleMarketValue as number) / 100 : null),
     }, isDegraded ? "degraded_estimate" : "success");
 
-    ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct !== null ? quoteDeviationPct.toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
+    ctx.log("Stage 9", `Cost optimisation complete. Expected: ${(totalExpectedCents/100).toFixed(2)} ${currency}, Quoted: ${quotedCents ? (quotedCents/100).toFixed(2) : 'N/A'}, Deviation: ${quoteDeviationPct != null ? (quoteDeviationPct as number).toFixed(1) + '%' : 'N/A'}, Savings: ${(savingsOpportunityCents/100).toFixed(2)}`);
 
     // Step 5: Extract and persist cost intelligence learning record
     // VALIDATED-OUTCOMES-ONLY POLICY: only records with assessor_validated or

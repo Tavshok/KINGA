@@ -173,7 +173,7 @@ export async function renderPdfToImages(
     // Generate a deterministic prefix based on the PDF URL hash
     // so re-processing the same PDF reuses the same S3 keys
     const urlHash = createHash("md5").update(pdfUrl).digest("hex").slice(0, 8);
-    const outputPrefix = join(tempDir, "page");
+    const outputPrefix = join(tempDir!, "page");
 
     // Render pages using pdftoppm — hard 120s timeout to prevent hanging on
     // corrupt or very large PDFs. execFileAsync timeout kills the child process.
@@ -215,7 +215,7 @@ export async function renderPdfToImages(
         batch.map(async (file) => {
           const pageMatch = file.match(/page-(\d+)\.png/);
           const pageNumber = pageMatch ? parseInt(pageMatch[1], 10) : 0;
-          const filePath = join(tempDir, file);
+          const filePath = join(tempDir!, file);
           const buffer = await readFile(filePath);
           const s3Key = `${keyPrefix}/${urlHash}/page-${String(pageNumber).padStart(3, "0")}.png`;
           const { url, key } = await storagePut(s3Key, buffer, "image/png");

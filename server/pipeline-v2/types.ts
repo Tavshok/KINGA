@@ -1116,6 +1116,23 @@ export interface Stage9Output {
   doeResult: import('./decisionOptimisationEngine').DOEResult | null;
   /** Vehicle market/retail value in USD — sourced from claimRecord.valuation or ctx.claim.vehicleMarketValue */
   marketValueUsd: number | null;
+  /** Best selected quote from quoteOptimisationEngine — highest-weighted quote when multiple quotes submitted */
+  bestSelectedQuote?: {
+    panel_beater: string;
+    total_cost: number;
+    parts_cost: number | null;
+    labour_cost: number | null;
+    coverage_ratio?: number;
+    weight?: number;
+    structurally_complete?: boolean;
+    structural_gaps?: string[];
+  } | null;
+  /** Number of quotes submitted for comparison — used to determine if multi-quote optimisation ran */
+  quoteCount?: number;
+  /** Source of the AI benchmark estimate — for adjuster transparency */
+  aiEstimateSource?: "learning_db" | "quote_derived" | "hardcoded_fallback" | "insufficient_data";
+  /** Human-readable note explaining the AI estimate source */
+  aiEstimateNote?: string | null;
 }
 
 // ────────────────────────────────────────────────────────────────────────────────

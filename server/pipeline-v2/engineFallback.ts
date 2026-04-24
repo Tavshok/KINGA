@@ -208,6 +208,13 @@ export function buildDamageFallback(reason = "insufficient_input"): DamageFallba
     structuralDamageDetected: false,
     totalDamageArea: 0,
     no_damage_detected: true,
+    // Required Stage6Output fields for photo accounting
+    photosAvailable: 0,
+    photosProcessed: 0,
+    photosDeferred: 0,
+    photosFailed: 0,
+    imageConfidenceScore: 0,
+    analysisFromPhotos: false,
     _fallback: fallbackMeta,
     _fallback_fields: ["damageZones", "damagedParts", "overallSeverityScore"],
   };
@@ -418,6 +425,7 @@ export function buildCostFallback(reason = "insufficient_input"): CostFallbackOu
     economicContext: null,  // Phase 2B: ECE not available in fallback path
     ifeResult: null,          // Phase 4A: IFE not available in fallback path
     doeResult: null,          // Phase 4A: DOE not available in fallback path
+    marketValueUsd: null,     // Not available in fallback path
     _fallback: fallbackMeta,
     _fallback_fields: ["ai_estimate", "parts", "labour", "fair_range", "expectedRepairCostCents"],
   };
@@ -466,6 +474,8 @@ export function ensureCostContract(
     ifeResult: partial.ifeResult ?? null,              // Phase 4A: IFE
     doeResult: partial.doeResult ?? null,              // Phase 4A: DOE
     marketValueUsd: partial.marketValueUsd ?? null,    // Vehicle market value for total-loss threshold
+    aiEstimateSource: partial.aiEstimateSource,
+    aiEstimateNote: partial.aiEstimateNote,
   };
 
   return {

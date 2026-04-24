@@ -544,7 +544,7 @@ export function runCrossStageConsistencyCheck(
   stage8: Stage8Output | null,
   stage9: Stage9Output | null,
 ): ConsistencyCheckResult {
-  const incidentType = claimRecord.incidentClassification?.incidentType ?? null;
+  const incidentType = claimRecord.accidentDetails?.incidentType ?? null;
 
   const rawFlags: (ConsistencyFlag | null)[] = [
     checkC1(incidentType, stage6),
